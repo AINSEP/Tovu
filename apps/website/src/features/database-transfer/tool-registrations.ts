@@ -1,3 +1,5 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/database-transfer.js';
+import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
 import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
 import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
@@ -11,12 +13,10 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog, forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
 import {
-  askThenReport,
-  resolveConfirmationDecision,
   SURFACE_DISMISSED_PARAM,
   type AssistantSurfaceDeps,
-} from "../../contracts/core/tool-surface-exchanges.js";
-import { buildConfirmationSurface, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confirmation-ui.js";
+} from "@jini-ai/daemon/surface-exchanges";
+import { describeTransferApproval, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confirmation-ui.js";
 import { countPartialExclusions, planSnapshotTables } from "./copy-engine.js";
 import { databaseDestinationStore as DEFAULT_DESTINATION_STORE, DestinationUnreadableError, type DatabaseDestinationStorePort } from "./destination-store.js";
 import { buildDestinationForm, buildDestinationOutcome, DESTINATION_ADDRESS_FIELD, SET_DESTINATION_TOOL_ID } from "./destination-ui.js";
@@ -125,19 +125,19 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     schemaMismatchGuidance: "this Tovu version's Postgres layout does not match it",
     readers: { inputRecord: input => requireInputRecord({ input }), string: (input, key) => requireString({ input, key }) },
     surfaces: {
-      open: (binding, emit) => {
-        const exchange = surfaces.surfaceExchanges.open(binding, emit);
+      open: ({ binding, emit }) => {
+        const exchange = surfaces.surfaceExchanges.open({ binding, emit });
         if (binding.toolId === SET_DESTINATION_TOOL_ID) localeByExchange.set(exchange.id, resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: binding.principalId }));
         return exchange;
       },
-      resolveDecision: resolveConfirmationDecision, askThenReport: reportDestination,
-      confirmation: (plan, exchangeId, optional = {}) => ({ channel: "mcp-ui", payload: { resource: buildConfirmationSurface({ plan, exchangeId, ...optional }) } }),
+      askThenReport: reportDestination,
+      confirmApproval: ({ ctx, plan }, options) => requireHumanConfirm({ ctx, surfaces, spec: describeTransferApproval({ plan }) }, options),
       destinationForm: exchangeId => ({ channel: "mcp-ui", payload: { resource: buildDestinationForm(exchangeId) } }),
       destinationOutcome: input => ({ channel: "mcp-ui", payload: { resource: buildDestinationOutcome(input) } }),
       dismissedParam: SURFACE_DISMISSED_PARAM, addressField: DESTINATION_ADDRESS_FIELD,
     },
   }, { messages: TOVU_TRANSFER_MESSAGES });
-  return buildDomainRegistrations({ domain: DOMAIN, catalogModule: "features/database-transfer/tool-registrations.ts", catalog: CATALOG_BY_ID,
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: DOMAIN, catalogModule: "features/database-transfer/tool-registrations.ts", catalog: CATALOG_BY_ID,
     handlers: withModelFacingErrors({ handlers: Object.fromEntries(tools.map(tool => [tool.descriptor.id, tool.handler])), rules: DATABASE_TRANSFER_MODEL_FACING_ERRORS }), derivedRisk: databaseTransferDerivedRisk });
 }
 /** Called once by server/runtime/composition/tool-catalog-manifest.ts. */

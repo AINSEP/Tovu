@@ -1,6 +1,6 @@
 /**
  * Launches the jini MCP bridge the way a desktop run really does and requires it to answer MCP
- * `initialize` within 5 s. This is the check that would have caught the 2026-10-01 incident, where
+ * `initialize`. This is the check that would have caught the 2026-10-01 incident, where
  * the packaged app's bridge never answered and every run had zero Tovu tools.
  *
  * The real chain: `resolveMcpJsonInjection` (this host) → Jini's `buildMcpJsonServerEntry` (the
@@ -27,7 +27,10 @@ import { buildMcpJsonServerEntry } from "@jini-ai/daemon";
 
 import { resolveMcpJsonInjection } from "../mcp-injection.js";
 
-const INIT_DEADLINE_MS = 5_000;
+// The injection, entry builder and bridge server define no 5 s startup contract. This checks a
+// reply, not startup latency: allow 60 s for cold Electron/module loading under shared test load.
+// Keep a finite watchdog so the original GUI-mode/no-stdin regression still fails instead of hanging.
+const INIT_WATCHDOG_MS = 60_000;
 // Jini's BASELINE_AGENT_ENV_KEYS subset that exists on this machine: what Claude Code itself runs with.
 const CLI_BASELINE_KEYS = ["PATH", "HOME", "TMPDIR", "SHELL", "LANG", "USER"] as const;
 
@@ -40,13 +43,13 @@ function cliBaselineEnv(): Record<string, string> {
   return env;
 }
 
-/** Spawns the bridge as Claude Code would and resolves with its first stdout line, or null after the deadline. */
+/** Spawns the bridge as Claude Code would; resolves with its first stdout line, or null on close/error/watchdog. */
 async function initializeReply(command: string, args: readonly string[], entryEnv: Record<string, string>): Promise<string | null> {
   const child = spawn(command, [...args], { env: { ...cliBaselineEnv(), ...entryEnv }, stdio: ["pipe", "pipe", "pipe"] });
   try {
     return await new Promise<string | null>((resolve) => {
       let out = "";
-      const timer = setTimeout(() => resolve(null), INIT_DEADLINE_MS);
+      const timer = setTimeout(() => resolve(null), INIT_WATCHDOG_MS);
       child.stdout.on("data", (chunk: Buffer) => {
         out += chunk.toString("utf8");
         const newline = out.indexOf("\n");
@@ -56,6 +59,10 @@ async function initializeReply(command: string, args: readonly string[], entryEn
         }
       });
       child.on("error", () => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+      child.once("close", () => {
         clearTimeout(timer);
         resolve(null);
       });
@@ -74,7 +81,7 @@ async function initializeReply(command: string, args: readonly string[], entryEn
 }
 
 function assertJiniInitializeReply(line: string | null): void {
-  assert.notEqual(line, null, `the bridge did not answer initialize within ${INIT_DEADLINE_MS} ms`);
+  assert.notEqual(line, null, `the bridge closed without answering initialize or exceeded the ${INIT_WATCHDOG_MS} ms smoke-test watchdog`);
   const reply = JSON.parse(line as string) as { id?: unknown; result?: { serverInfo?: { name?: unknown } } };
   assert.equal(reply.id, 1);
   assert.equal(reply.result?.serverInfo?.name, "jini-mcp");
@@ -99,7 +106,7 @@ function writePackagedAppStandIn(dir: string): string {
   return path;
 }
 
-test("a packaged desktop app's bridge answers initialize within 5 s", async () => {
+test("a packaged desktop app's bridge answers initialize", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-bridge-smoke-"));
   try {
     const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke-token", {
@@ -115,7 +122,7 @@ test("a packaged desktop app's bridge answers initialize within 5 s", async () =
   }
 });
 
-test("the real Electron binary, given the entry's env, runs the bridge as Node and answers within 5 s", async (t) => {
+test("the real Electron binary, given the entry's env, runs the bridge as Node and answers initialize", async (t) => {
   let electronBinary: string;
   try {
     electronBinary = createRequire(new URL("../../../../desktop/package.json", import.meta.url))("electron") as string;
@@ -126,5 +133,7 @@ test("the real Electron binary, given the entry's env, runs the bridge as Node a
   const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke-token", { execPath: electronBinary, electronVersion: "43.6.0", env: {} });
   const entry = buildMcpJsonServerEntry({ runId: "bridge-smoke", options: injection }, { credential: "smoke-token" });
 
+  // Dev Electron can also answer as an app main process; require the entry's Node-mode flag too.
+  assert.equal(entry.env.ELECTRON_RUN_AS_NODE, "1");
   assertJiniInitializeReply(await initializeReply(entry.command, entry.args, entry.env));
 });

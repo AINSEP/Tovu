@@ -29,9 +29,8 @@ import type { ServerModuleHandle } from "./types.js";
  * This is the one module in this repo's `ServerModuleHandle` convention that takes the full
  * `RouteDeps` bag rather than a narrow `Pick` — `registerAuthRoutes` is still typed against full
  * `RouteDeps` upstream in `inbound/admin-http/dev-auth.ts` (this module's own `deps` param has to stay a
- * full `RouteDeps` on its account). `requireAdminSession` itself was narrowed to `SessionAuthDeps`
- * (2026-08-18, first slice of the `RouteDeps` decomposition — see `routes/types.ts`'s
- * `ClockDeps`/`IdentityDeps` doc); passing the full `deps` below into it still works unchanged
+ * full `RouteDeps` on its account). `requireAdminSession` takes `SessionAuthDeps`;
+ * passing the full `deps` below satisfies it
  * because `RouteDeps` is a strict superset of `SessionAuthDeps`.
  */
 export function createCoreModule(deps: RouteDeps): ServerModuleHandle {

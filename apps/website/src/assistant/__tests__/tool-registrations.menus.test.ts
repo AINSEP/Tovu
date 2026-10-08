@@ -37,11 +37,7 @@ const contributions = {
 };
 
 
-// Menus moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeMenusTools() });
 

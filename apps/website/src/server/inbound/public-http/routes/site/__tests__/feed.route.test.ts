@@ -1,3 +1,5 @@
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -19,6 +21,8 @@ async function buildFeedOnlyApp(depsOverrides: Partial<SeoRouteDeps>): Promise<e
   const base = createRouteDeps();
   await base.siteTitleReady;
   const deps: SeoRouteDeps = { ...base, siteDisplayName: { read: () => "Field & Notes" }, ...depsOverrides };
+  deps.seoDeps = createSeoDeps({ deps }, {});
+  deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
   registerFeedRoute(app, deps);
   return app;

@@ -8,7 +8,7 @@ import { SpanKind } from "@opentelemetry/api";
 import { createContributionRegistry } from "@jini-ai/core";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, type DerivedToolContributor, type ToolContributor } from "#src/assistant/index";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { createDefaultHttpClient } from "#src/platform/http/client";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
@@ -16,6 +16,9 @@ import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability
 import type { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `installFirstPartyToolContributors` threads `options.observability` into the egress it
@@ -38,7 +41,7 @@ async function callGetAdmissions(contributions: ReturnType<typeof freshContribut
   const contributor = contributions.contributors.list({}).find((candidate) => candidate.domain === "external-mcp-operations");
   assert.ok(contributor, "the installer registers the external-mcp-operations contributor");
   const deps = { workspaceId: "ws-otel", clock: { nowMs: () => 0 }, authorize: async () => ({ allowed: true, reason: "matched" }) };
-  const registration = contributor.build(deps as never, { surfaceExchanges: createSurfaceExchangeStore() }).find((candidate) => candidate.descriptor.id === "external_mcp_get_admissions");
+  const registration = contributor.build(deps as never, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find((candidate) => candidate.descriptor.id === "external_mcp_get_admissions");
   assert.ok(registration);
   return registration.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: {}, signal: new AbortController().signal } as never);
 }

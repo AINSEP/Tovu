@@ -152,7 +152,7 @@ test("CREATE_USER route: 201 on success, with email provided", async (t) => {
   const listed = await fetch(`${baseUrl}${URL_BASE}`);
   assert.equal(listed.status, 200);
   const users = await listed.json() as { users: Array<{ principalId: string }> };
-  assertPublicUser(users.users.find((user) => user.principalId === principal.id), expected);
+  assertPublicUser(users.users.find((user) => user.principalId === principal.id), { ...expected, isOwner: false, isProtectedAccount: false });
   const updated = await fetch(`${baseUrl}${URL_BASE}/${principal.id}`, {
     method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "updated@example.com" }),
   });

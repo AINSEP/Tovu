@@ -1,11 +1,6 @@
-import path from "node:path";
-
 /**
  * @file Shared containment check for any path built by joining a trusted `root` with an
- * untrusted `segment` (a request path segment, a URL extracted from crawled HTML). Extracted
- * 2026-08-21 from two near-identical copies — `export/site-exporter.ts`'s asset-path resolver and
- * `server/middleware/theme-static-assets.ts`'s theme-id resolver — so the check is tested once
- * instead of twice untested.
+ * untrusted `segment` (a request path segment, a URL extracted from crawled HTML).
  */
 
 /**
@@ -22,11 +17,4 @@ import path from "node:path";
  * above already proved `root` is absolute (a relative `root` would have diverged from
  * `path.join` and returned already), so this can only normalize `root`, not re-anchor it.
  */
-export function resolvePathWithin(root: string, segment: string): string | null {
-  const resolved = path.resolve(root, segment);
-  if (resolved !== path.join(root, segment)) return null;
-  const normalizedRoot = path.resolve(root);
-  const prefix = normalizedRoot === path.sep ? normalizedRoot : `${normalizedRoot}${path.sep}`;
-  if (!resolved.startsWith(prefix)) return null;
-  return resolved;
-}
+export { resolvePathWithin } from "@jini-ai/platform/fs";

@@ -14,7 +14,7 @@ import { bootSite, expectJson, SITE_DIALECTS, type BootedSite } from "../helpers
  * leave a copied token live.
  */
 
-const CLEARED_COOKIE = "tovu_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict; Secure";
+const CLEARED_COOKIE = "tovu_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict";
 
 async function me(site: Pick<BootedSite, "baseUrl">, cookie: string): Promise<Response> {
   return fetch(`${site.baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } });

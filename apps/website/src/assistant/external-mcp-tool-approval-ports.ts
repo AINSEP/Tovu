@@ -3,8 +3,7 @@
  * This chat lives with the conversation in chat.db and is scoped to the person; naming another
  * person's conversation reuses nothing. Always grants live beside the connection in content.db,
  * are deleted with it, and are listed/revoked from Integrations → Always allow.
- * Fingerprinting, drift checks and destructive-call locks live in @jini-ai/mcp/federation;
- * external-mcp-tool-approvals.ts was deleted in r4-mcp-federation (development/DELETED-CODE.md).
+ * Fingerprinting, drift checks and destructive-call locks live in @jini-ai/mcp/federation.
  */
 import type { UUID } from "@jini-ai/core/primitives";
 import type {
@@ -28,5 +27,7 @@ export interface ExternalMcpToolApprovalRepoPort {
 /** Legacy SQL grant ABI is adapted once at the package boundary. */
 export interface ConversationToolApprovalStore {
   has(key: ConversationToolApprovalKey): Promise<boolean>;
+  /** Person/identity grant shared across existing chats; used only for native escalations. */
+  hasIdentity?(key: Omit<ConversationToolApprovalKey, "conversationId">): Promise<boolean>;
   grant(key: ConversationToolApprovalKey, grantedAt: string): Promise<void>;
 }

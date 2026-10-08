@@ -1,3 +1,6 @@
+import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
+import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { assertUserAccountAction } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
@@ -97,7 +100,8 @@ import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-r
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
 import { warnOnOrphanedChatRows } from "#src/platform/db/sqlite/chat-orphan-check";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
-import { ensureSeoSettingDefinitions } from "#src/features/seo/index";
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps, ensureSeoSettingDefinitions } from "#src/features/seo/index";
 import { installNewsletterDataModule } from "#src/features/newsletter/data-module-manifest";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import { createHookRegistry } from "#src/features/newsletter/hooks";
@@ -111,7 +115,6 @@ import {
 } from "#src/features/newsletter/repo.sqlite";
 import { MembersSubscriberDirectory } from "#src/features/members/index";
 import {
-  seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
@@ -122,7 +125,6 @@ import {
   SqliteMemberSubscriptionRepo,
   SqliteMemberTierRepo,
 } from "#src/features/members/index";
-import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "#src/features/commerce/repo.sqlite";
 import { rebuildNavLocationBindings, registerMenuReverters } from "#src/features/navigation/index";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navigation/repo.sqlite";
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
@@ -161,7 +163,8 @@ import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../../routes/types.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import { createVerifiedOrigin, OriginRegistry, planOriginBoot } from "#src/features/origin/index";
+import { createVerifiedOrigin, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import { planOriginBoot } from "#src/features/origin/index";
 import { registerConfiguredOrigin, seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import {
@@ -171,16 +174,9 @@ import {
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
 } from "#src/platform/db/sqlite/media-repo.sqlite";
-import {
-  RedirectHitSinkImpl,
-  RedirectPhaseHandlerResolver,
-  redirectMatcher,
-  RedirectSlugChangeCapture,
-  registerRedirectHitOutboxHandler,
-  registerRedirectsPhaseHandlers,
-  SqliteRedirectRepo,
-  type RedirectsWriteDeps,
-} from "#src/features/redirects/index";
+import { RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
+import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/index";
 import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";
@@ -190,28 +186,27 @@ import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
-import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "#src/features/widgets/write-service";
+import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
-import { SqlitePluginActivationRepo } from "#src/features/plugin-runtime/repo.sqlite";
+import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
-import { createDeclaredContentTypePorts, deferDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
-import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
+import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
+import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
+import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
-import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
+import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createCommentsModule, ensureCommentsSettingDefinitions, HeuristicSpamCheck } from "#src/features/comments/index";
+import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
+import { createCommentsHostPorts, ensureCommentsSettingDefinitions } from "#src/features/comments/index";
 import {
   ensureSettingsUiTabDefinitions,
   getEffective,
   set,
-  resolveDefinitionRaw,
-  registerDefinitions,
   ensureSettingDefinitions,
-  SCOPE_BIT,
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
@@ -618,6 +613,8 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
  * is no legal state where only one is supplied. `uploadsDir` is independent of that pair.
  */
 export interface CreateSiteRouteDepsOverrides {
+  nativeApprovalMemory: RouteDeps["nativeApprovalMemory"];
+  approvalIdentityForRun: RouteDeps["approvalIdentityForRun"];
   db: ContentDb;
   workspaceId: string;
   /** Consecutive plugin hook failures before automatic quarantine. */
@@ -1073,7 +1070,7 @@ async function composeSiteRouteDeps(
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
   const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
-  const pluginActivationRepo = new SqlitePluginActivationRepo(kernel);
+  const pluginActivationRepo = sqlitePluginActivationRepoFor({ store: kernel });
   const pluginRuntime = composePluginRuntime({
     workspaceId,
     clock,
@@ -1117,15 +1114,9 @@ async function composeSiteRouteDeps(
   const settingsRepo = new SqliteSettingsRepo(kernel);
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
   // composition root stays synchronous; consumers await `settingsReady` before relying on the
-  // migrated value being present.
-  const settingsReady = seedSettingsFromPresentation({
-    presentationRepo,
-    settingsRepo,
-    clock,
-    ids: idGen,
-    principals: settingsPrincipals,
-    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-  }).then(() => undefined);
+  // settings boot sequence being ready.
+  // Presentation remains the live owner; boot must not write a second active-theme value.
+  const settingsReady = Promise.resolve();
   // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
   // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
   // `settingsReady` resolves, not fired in parallel with it — both are SQLite writers on the
@@ -1161,9 +1152,7 @@ async function composeSiteRouteDeps(
         clock,
         ids: idGen,
         principals: settingsPrincipals,
-        resolveDefinitionRaw,
-        registerDefinitions,
-        scopeBit: SCOPE_BIT,
+        ensureSettingDefinitions,
       },
       { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
@@ -1393,7 +1382,7 @@ async function composeSiteRouteDeps(
     });
   }
   const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(kernel, { after: originReady }) });
-  const redirectRepo = new SqliteRedirectRepo(kernel);
+  const redirectRepo = SqliteRedirectRepo({ store: kernel }, {});
   const redirectHitSink = new RedirectHitSinkImpl();
   // ---------------------------------------------------------------------------
   // Local admin Trash (design: ADS-memory/reports/2026-09-20-trash-delete-architecture.md)
@@ -1461,7 +1450,7 @@ async function composeSiteRouteDeps(
   const pluginTrashAdapter = createDirectoryTrashAdapter({
     entityType: PLUGIN_ENTITY_TYPE,
     locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
-    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId }, { repo: pluginActivationRepo }),
+    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId, deps: { repo: pluginActivationRepo } }),
   });
   const trashAdapters = new Map<string, TrashAdapter>([
     [POST_ENTITY_TYPE, createPostTrashAdapter(kernel)],
@@ -1559,6 +1548,7 @@ async function composeSiteRouteDeps(
         actor: required.actor      }),
     db: redirectRepo,
     transaction: (fn) => redirectRepo.transaction(fn),
+    reservedSegments: RESERVED_SEGMENTS,
     matcher: redirectMatcher,
     originRegistry,
     clock,
@@ -1569,13 +1559,11 @@ async function composeSiteRouteDeps(
   // `redirectRepo`, and the phase registry and capture slot are process-wide, so neither may outlive
   // the database it queries. The hit fold's bus is this site's own; it leaves with the site too.
   onStoreClose(registerRedirectsPhaseHandlers({
-    resolver: new RedirectPhaseHandlerResolver({
-      repo: redirectRepo,
-      matcher: redirectMatcher,
-      originRegistry,
-      hits: { outbox, clock, idGen },
-    }),
-  }));
+    repo: redirectRepo,
+    matcher: redirectMatcher,
+    originRegistry,
+    reservedSegments: RESERVED_SEGMENTS,
+  }, { hits: { outbox, clock, idGen } }));
   onStoreClose(registerSlugChangeCapture(
     new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen })
   ));
@@ -1641,21 +1629,29 @@ async function composeSiteRouteDeps(
   // `NavMenuReadModel` is the one dependency with no prior real adapter anywhere in the codebase
   // (see `navigation/read-model.ts`'s file header).
   wireCoreResolvers({
+    menus: { resolveMenuDoc },
+    collectionList: {
+      parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout,
+      systemContentTypes: SYSTEM_CONTENT_TYPES,
+    },
     // postRepo is constructed below; defer its capture until an actual widget render.
     resolveMenuTargetHref: (required, optional = {}) => createMenuPageTargetResolver({ postRepo })(required, optional),
     entryList: entryRepo,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
-    formDefinitionRepo,
+    formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
-    commentRepo: new SqliteCommentRepo(kernel),
-    entryRepo,
+    commentRepo: new SqliteCommentRepo({ store: kernel }, {}),
+    entryLookup: async ({ workspaceId, entryId }) => {
+      const entry = await entryRepo.findById({ workspaceId, id: entryId });
+      return entry ? { status: entry.status, publishedAt: entry.publishedAt } : null;
+    },
     outbox,
     clock,
     idGen,
     spamCheck: new HeuristicSpamCheck(),
-    settingsRepo,
+    ...createCommentsHostPorts({ clock, settingsRepo }, {}),
     // Local admin Trash. A comment's "deleted" marker is one value of its moderation status, so the
     // index has to follow both directions of that transition — see `syncRemovalIndex`.
     remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
@@ -1665,7 +1661,7 @@ async function composeSiteRouteDeps(
     forgetRemoved: ({ workspaceId: ws, id }) =>
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     runInTransaction: trashTransaction,
-  });
+  }, {});
 
   // Hoisted above `newsletterKeyring` (moved up from its original position further below, where a
   // second `resolveRuntimeMode()` call used to sit) so `newsletterKeyring`'s own construction below
@@ -1962,6 +1958,8 @@ async function composeSiteRouteDeps(
   const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
   // `createSiteApp()`'s unsettled boot passes (see `RouteDeps.siteAppBootWork`); each leaves once settled.
   const siteAppBootWork = new Set<Promise<void>>();
+  const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
+  const sitemapService = createSitemapService({ deps: seoDeps }, {});
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(kernel),
@@ -2029,12 +2027,16 @@ async function composeSiteRouteDeps(
     agentSessions: createSqliteAgentSessionStore(chat),
     // G3 "Allow for this chat": with the conversation, over the same sidecar handle.
     conversationToolApprovals: createSqliteConversationToolApprovalStore(chat),
+    ...(overrides?.nativeApprovalMemory ? { nativeApprovalMemory: overrides.nativeApprovalMemory } : {}),
+    ...(overrides?.approvalIdentityForRun ? { approvalIdentityForRun: overrides.approvalIdentityForRun } : {}),
     presentationRepo,
     settingsRepo,
     getEffective,
     set,
     instructionsNamespace: INSTRUCTIONS_NAMESPACE,
     seoReady,
+    seoDeps,
+    sitemapService,
     settingsReady,
     assistantSettingsReady,
     // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
@@ -2203,12 +2205,6 @@ async function composeSiteRouteDeps(
     assetBlobRepo,
     assetRenditionRepo,
     mediaContentTypeStore,
-    // 2026-08-12: wiring products into template render data. Plain Drizzle repos over the SAME
-    // `db` every other adapter above already shares — no plugin/`declareDataModule()` bootstrap
-    // needed (unlike `store`/`lipay`), so this is as cheap as `mediaRepo` above, not a `store`-
-    // style special case.
-    commerceProductRepo: new SqliteCommerceProductRepo(kernel),
-    commercePriceRepo: new SqliteCommercePriceRepo(kernel),
     blobStore,
     // Boot-time blob hydration readiness — see the `blobHydrationReady` construction above (hoisted
     // alongside `blobStore` itself) for why this is fired independently and exposed here.
@@ -2258,12 +2254,8 @@ async function composeSiteRouteDeps(
     // just above it so the two process-lifetime rate limiters stay visually paired.
     siteAssistantRateLimiter: createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock }),
     databaseLedgerRepo,
-    // Real SQLite adapters (this dispatch, closing Session 5's disclosed "no SQLite adapter yet
-    // for content-types/entries/taxonomy" gap — see `features/{content-types,entries,taxonomy}/
-    // repo.sqlite.ts` file headers). `contentTypeIndexProvisioner` stays a no-op: building the real
-    // ADR-022 §3 expression-index DDL executor is a separate, larger work item this dispatch's
-    // scope (persistence for the registry/entries/taxonomy rows themselves) does not cover —
-    // disclosed explicitly rather than silently left implying it's done.
+    // SQLite content-model row persistence; see RouteDeps.contentTypeIndexProvisioner
+    // for the separate, unimplemented expression-index DDL capability.
     contentTypeRepo,
     contentTypeIndexProvisioner,
     entryRepo,
@@ -2342,7 +2334,6 @@ async function composeSiteRouteDeps(
     pluginInstaller: pluginRuntime.pluginInstaller,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     pluginRuntimeReady,
-    // Deployment read model retired with its unused tables (2026-10-03).
     // Task 6 of the publish-content (Publish Content) feature — see `routes/types.ts`'s
     // `publishContentBundleRepo` doc. Real, DB-backed (hoisted above so Task 8's
     // `publishContentApplyPort` reads the SAME store); `server/runtime/composition/app.ts`'s

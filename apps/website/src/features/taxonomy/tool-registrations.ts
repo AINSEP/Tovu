@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/taxonomy.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
@@ -37,9 +38,10 @@ import {
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
-import { forbiddenRule } from "#src/contracts/core/model-facing-tool-errors";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { toSlug } from "../../platform/html/slug.js";
 import type { PostRepoPort } from "../post/index.js";
@@ -70,6 +72,9 @@ import {
   type WriteServiceDeps,
   type TransactionalRepoPort,
 } from "./index.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: taxonomyAgentToolCatalog });
 
@@ -173,7 +178,7 @@ function taxonomyDeps(routeDeps: TaxonomyToolDeps): WriteServiceDeps {
 
 export function buildTaxonomyRegistrations(
   routeDeps: TaxonomyToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const mergeHooks = (ctx: { principal: { id: string } }, fromTermId: string, intoTermId: string) =>
     buildMergeTermHooks({
@@ -214,7 +219,7 @@ export function buildTaxonomyRegistrations(
         terms.sort((a, b) => a.taxonomyName.localeCompare(b.taxonomyName) || a.name.localeCompare(b.name) || a.termId.localeCompare(b.termId));
         return { contentType, contentId, terms };
       },
-    }, rules: [forbiddenRule("TAXONOMY")] }),
+    }, rules: [forbiddenRule({ domainPrefix: "TAXONOMY", error: ForbiddenError })] }),
 
     taxonomy_create_taxonomy: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -405,7 +410,7 @@ export function buildTaxonomyRegistrations(
     }),
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "taxonomy",
     catalogModule: "features/taxonomy/agent-tools.ts",
     catalog: CATALOG_BY_ID,

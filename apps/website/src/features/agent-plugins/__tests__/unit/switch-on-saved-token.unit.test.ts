@@ -14,7 +14,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 
 
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { switchOnSavedTokenConnection } from "../../switch-on-saved-token.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 

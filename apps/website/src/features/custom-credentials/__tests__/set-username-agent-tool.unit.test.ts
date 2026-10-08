@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
@@ -13,6 +13,9 @@ import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { buildCustomCredentialsRegistrations, customCredentialsDerivedRisk, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Certification of `custom_credential_set_username` (2026-09-01) — the second half of the
@@ -40,9 +43,9 @@ class TrackingSecretSealer implements SecretSealerPort {
     this.sealCalls += 1;
     return this.inner.seal(input);
   }
-  open(input: Parameters<SecretSealerPort["open"]>[0]): ReturnType<SecretSealerPort["open"]> {
+  open(input: Parameters<SecretSealerPort["open"]>[0], optional: Parameters<SecretSealerPort["open"]>[1] = {}): ReturnType<SecretSealerPort["open"]> {
     this.openCalls += 1;
-    return this.inner.open(input);
+    return this.inner.open(input, optional);
   }
 }
 
@@ -134,7 +137,7 @@ test("custom_credential_set_username is classified as mutates-durable-state in t
 
 test("custom_credential_set_username is wired to a real handler", () => {
   const { deps } = fakeRouteDeps();
-  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   tool(registrations, TOOL_ID); // throws if missing
 });
 
@@ -153,7 +156,7 @@ test("sets a new username on a credential that had none, and returns the updated
     connection: { token: "namecom-secret-token" },
   });
 
-  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), {
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), {
     label: "name.com",
     username: "leonaburime@gmail.com",
   })) as { username?: string; label: string };
@@ -175,7 +178,7 @@ test("leaves the sealed ciphertext byte-identical — a username-only fix never 
   const before = await repo.findById({ workspaceId: WORKSPACE_ID, id: created.id });
   assert.ok(before);
 
-  await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com", username: "leonaburime@gmail.com" });
+  await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), { label: "name.com", username: "leonaburime@gmail.com" });
 
   const after = await repo.findById({ workspaceId: WORKSPACE_ID, id: created.id });
   assert.ok(after);
@@ -192,7 +195,7 @@ test("username: null clears a previously saved username", async () => {
     connection: { token: "namecom-secret-token", username: "old-username" },
   });
 
-  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com", username: null })) as object;
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), { label: "name.com", username: null })) as object;
 
   assert.ok(!Object.hasOwn(result, "username"), "a cleared username must be an absent key, not username: ''");
   const stored = await repo.findById({ workspaceId: WORKSPACE_ID, id: created.id });
@@ -214,7 +217,7 @@ test("rejects a blank string username — not a silent clear, not a silent no-op
     connection: { token: "namecom-secret-token" },
   });
 
-  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com", username: "" }), { name: "ToolInputError", message: "CUSTOM_CREDENTIALS_VALIDATION_FAILED: 'username' must be a non-empty string, or null to clear it" });
+  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), { label: "name.com", username: "" }), { name: "ToolInputError", message: "CUSTOM_CREDENTIALS_VALIDATION_FAILED: 'username' must be a non-empty string, or null to clear it" });
 });
 
 test("rejects a call that omits username entirely — this tool always sets or clears, it never silently no-ops", async () => {
@@ -227,14 +230,14 @@ test("rejects a call that omits username entirely — this tool always sets or c
     connection: { token: "namecom-secret-token" },
   });
 
-  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com" }), { name: "ToolInputError", message: "CUSTOM_CREDENTIALS_VALIDATION_FAILED: 'username' is required — pass a non-empty string to set it, or null to clear it" });
+  await assert.rejects(() => call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), { label: "name.com" }), { name: "ToolInputError", message: "CUSTOM_CREDENTIALS_VALIDATION_FAILED: 'username' is required — pass a non-empty string to set it, or null to clear it" });
 });
 
 test("an unknown label is refused with CustomCredentialNotFoundError-shaped message", async () => {
   const { deps } = fakeRouteDeps();
 
   await assert.rejects(
-    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "does-not-exist", username: "someone" }),
+    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), { label: "does-not-exist", username: "someone" }),
     /no custom credential labeled 'does-not-exist'/
   );
 });
@@ -256,7 +259,7 @@ test("rejects any attempt to pass a token-ish field alongside label/username —
   sealer.sealCalls = 0; // ignore the seed's own seal call — only the TOOL CALL under test is asserted below
 
   await assert.rejects(() =>
-    call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), {
+    call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), {
       label: "name.com",
       username: "leona",
       token: "sneaky-attempt-to-rotate-the-token",
@@ -280,7 +283,7 @@ test("never opens the sealer at all — a username-only write has no reason to d
   sealer.openCalls = 0;
   sealer.sealCalls = 0;
 
-  await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com", username: "leona" });
+  await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), { label: "name.com", username: "leona" });
 
   assert.equal(sealer.openCalls, 0, "setting a username must never decrypt the stored connection");
   assert.equal(sealer.sealCalls, 0, "setting a username must never re-seal the stored connection");
@@ -302,7 +305,7 @@ test("a denied principal is refused and the repo is never touched", async () => 
   const before = await repo.listByWorkspace({ workspaceId: WORKSPACE_ID });
 
   await assert.rejects(
-    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { label: "name.com", username: "leona" }),
+    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), { label: "name.com", username: "leona" }),
     /is not authorized for 'custom-credentials\.write'/
   );
   assert.equal(authorizeCalls[0]?.permission, "custom-credentials.write");

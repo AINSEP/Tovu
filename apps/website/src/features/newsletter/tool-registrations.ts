@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
 /**
  * @file Newsletter's half of ADR-049 Decision 4 (ADR-PIPE-011/SPEC-011): maps `agent-tools.ts`'s
  * catalog entries onto existing campaign/list/subscription services as ToolRegistrations.
@@ -12,15 +13,15 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, type EventBusPort, type OutboxPort, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { MailerPort } from "../../platform/mail/index.js";
-import type { OriginRegistryPort } from "../../features/origin/index.js";
+import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { ToolContributor } from "#src/assistant/index";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
-import { confirmNewsletterDelivery } from "./delivery-confirmation.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import {
   forbiddenRule,
   withModelFacingErrors,
   type ModelFacingErrorRule,
-} from "#src/contracts/core/model-facing-tool-errors";
+} from "@jini-ai/core/model-facing-tool-errors";
 import { newsletterAgentToolCatalog } from "./agent-tools.js";
 import {
   cancelCampaign,
@@ -59,6 +60,9 @@ import {
   type UnsubscribeSubscriptionDeps,
 } from "./subscriptions.js";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: newsletterAgentToolCatalog });
 
@@ -284,7 +288,7 @@ function toSendLogToolView(row: SendRow) {
  * because delivery/tool-registrations.ts handles launch prerequisites separately with fixed, safe vocabulary.
  */
 const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("NEWSLETTER"),
+  forbiddenRule({ domainPrefix: "NEWSLETTER", error: ForbiddenError }),
   { error: NewsletterForbiddenError, code: "NEWSLETTER_FORBIDDEN" },
   { error: NewsletterCampaignNotFoundError, code: "NEWSLETTER_CAMPAIGN_NOT_FOUND" },
   { error: NewsletterListNotFoundError, code: "NEWSLETTER_LIST_NOT_FOUND" },
@@ -300,7 +304,7 @@ const NEWSLETTER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   },
 ];
 
-export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() }): ToolRegistration[] {
+export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     newsletter_list_campaigns: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -478,7 +482,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces:
       return { subscription: toSubscriptionToolView(subscription) };
     },
 
-    newsletter_resend_confirmation: async (ctx, optional) => {
+    newsletter_resend_confirmation: async (ctx) => {
       const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
 
@@ -486,10 +490,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces:
       const mailOff = { delivered: false, mailDeliveryAvailable: false, note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email." };
       const driver = deps.mailer.capabilities().driver;
       if (driver === "console" || driver === "memory") return mailOff;
-      const decision = await confirmNewsletterDelivery({ ctx, surfaces, toolId: "newsletter_resend_confirmation", title: "Send the subscription confirmation email again?", details: [{ label: "Subscription", value: subscriptionId }] }, optional);
-      if (!decision.confirmed) return { ...decision, delivered: false, mailDeliveryAvailable: true };
       if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
       const currentDriver = deps.mailer.capabilities().driver;
       if (currentDriver === "console" || currentDriver === "memory") return mailOff;
       try {
@@ -514,13 +515,13 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, surfaces:
   };
 
   // No `unwiredToolIds`: Newsletter wires its ENTIRE catalog, same tripwire discipline as Forms.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "newsletter",
     catalogModule: "newsletter/agent-tools.ts",
     catalog: CATALOG_BY_ID,
     // The whole map at once, so none of the 14 can be the one that forgot — see
     // `withModelFacingErrors`' own doc for why a per-call-site reshape is the defect this avoids.
-    handlers: withModelFacingErrors(handlers, NEWSLETTER_MODEL_FACING_ERRORS),
+    handlers: withModelFacingErrors({ handlers, rules: NEWSLETTER_MODEL_FACING_ERRORS }),
     derivedRisk: newsletterDerivedRisk,
   });
 }

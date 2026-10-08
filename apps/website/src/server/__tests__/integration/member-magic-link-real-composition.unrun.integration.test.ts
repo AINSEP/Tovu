@@ -94,7 +94,13 @@ for (const dialect of SITE_DIALECTS) {
     const setCookie = complete.headers.get("set-cookie") ?? "";
     const body = await expectJson<{ member: { id: string; email: string; status: string } }>(complete, 200);
     assert.deepEqual({ id: body.member.id, email: body.member.email, status: body.member.status }, { id: pending?.id, email: "reader@example.com", status: "active" });
-    assert.match(setCookie, /^tovu_member_session=[a-f0-9]{64}; HttpOnly; Path=\/; Max-Age=\d+; SameSite=Lax; Secure$/);
+    assert.match(setCookie, /^tovu_member_session=[a-f0-9]{64};/);
+    const attributes = setCookie.split("; ").slice(1);
+    assert.ok(attributes.includes("HttpOnly"));
+    assert.ok(attributes.includes("Secure"));
+    assert.ok(attributes.includes("Path=/"));
+    assert.ok(attributes.includes("SameSite=Lax"));
+    assert.equal(attributes.filter((attribute) => attribute.startsWith("Max-Age=")).length, 1);
     assert.doesNotMatch(setCookie, /tovu_session=/, "the member route never writes the admin cookie");
     const maxAge = Number(setCookie.match(/Max-Age=(\d+)/)?.[1]);
     assert.ok(maxAge > 30 * 24 * 3600 - 60 && maxAge <= 30 * 24 * 3600, `Max-Age ${maxAge} is the 30-day session TTL`);

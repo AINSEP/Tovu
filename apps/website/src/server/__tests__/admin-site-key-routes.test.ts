@@ -757,10 +757,7 @@ async function openCredentialRow(siteDir: string, id: string, hex: string): Prom
   db.close();
   if (row === undefined) return undefined;
   try {
-    return await new AesGcmSecretSealer(new FixedSiteKeyKeyring(hex)).open({
-      sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg },
-      aad: buildCustomCredentialAad({ workspaceId: WORKSPACE as never, id: id as never }),
-    });
+    return await new AesGcmSecretSealer(new FixedSiteKeyKeyring(hex)).open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg } }, { aad: buildCustomCredentialAad({ workspaceId: WORKSPACE as never, id: id as never }) });
   } catch {
     return undefined;
   }

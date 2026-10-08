@@ -1,22 +1,26 @@
 import assert from "node:assert/strict";
-import test, { mock } from "node:test";
+import test from "node:test";
 
 import type { EgressPolicy, HttpRequest, HttpResponse, PinnedPeer } from "../ports.js";
 import type { HttpTransportAdapter } from "../ports.js";
+import { EgressRefusedError } from "../index.js";
+import { classifyAddress, createHttpClient as createHostHttpClient } from "../client.js";
 
 const dnsFailure = Object.assign(new Error("fixture DNS lookup failed"), { code: "ENOTFOUND" });
-mock.module("node:dns/promises", { namedExports: {
-  lookup: async (hostname: string, options: unknown) => {
-    assert.deepEqual(options, { all: true, verbatim: true });
+const dns = {
+  resolve: async ({ hostname }: { hostname: string }) => {
     if (hostname === "nonexistent-host.invalid") throw dnsFailure;
-    if (hostname === "localhost") return [{ address: "127.0.0.1", family: 4 }];
-    if (hostname === "mixed.example") return [{ address: "8.8.8.8", family: 4 }, { address: "10.0.0.1", family: 4 }];
+    if (hostname === "localhost") return ["127.0.0.1"];
+    if (hostname === "mixed.example") return ["8.8.8.8", "10.0.0.1"];
     assert.equal(hostname, "example.com", "unexpected DNS lookup in this hermetic suite");
-    return [{ address: "93.184.216.34", family: 4 }];
+    return ["93.184.216.34"];
   },
-} });
-const { EgressRefusedError } = await import("../index.js");
-const { classifyAddress, createHttpClient } = await import("../client.js");
+};
+
+/** Keep every guard real; replace only external DNS through its existing port. */
+function createHttpClient(required: Parameters<typeof createHostHttpClient>[0]) {
+  return createHostHttpClient(required, { dns });
+}
 
 function makePolicy(overrides: Partial<EgressPolicy> = {}): EgressPolicy {
   return {

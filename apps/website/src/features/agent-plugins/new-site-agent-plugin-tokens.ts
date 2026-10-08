@@ -7,7 +7,7 @@ import { resolveProductRoot } from "../../platform/site-dir/index.js";
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
 import type { InstalledAgentPluginServers } from "./import-access-token.js";
-import { RETIRED_BUNDLED_AGENT_PLUGINS } from "./retire-bundled.js";
+import { RETIRED_BUNDLED_AGENT_PLUGINS } from "./lifecycle.js";
 import { listTokenSignInPlugins, type TokenCheckOutcome, type TokenSignInPlugin } from "./token-sign-in.js";
 
 /**

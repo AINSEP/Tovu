@@ -102,9 +102,7 @@ test("processOutbox catches Error during publish and marks row failed", async ()
   const processed = await processOutbox({ outbox, bus, clock });
   assert.equal(processed, 1);
 
-  // 2026-09-06 fix: a failed row must NOT be immediately reclaimable at the exact instant it just
-  // failed — that was the bug (outbox-worker.ts:34 passed `now` straight through as
-  // `nextAttemptAt`). It becomes eligible again only once its computed backoff has elapsed.
+  // Failed rows become eligible only after backoff; exhausted rows stay unclaimable even decades later.
   const immediateReclaim = await outbox.claimPending({ batchSize: 10, nowIso: "2026-02-21T12:00:00.000Z" });
   assert.equal(immediateReclaim.length, 0);
 
@@ -265,7 +263,7 @@ test("processOutbox stops retrying and permanently excludes a row once MAX_OUTBO
 
 
 // ---------------------------------------------------------------------------
-// 2026-09-07 audit claim #6 — the retry time must be measured from the FAILURE, not from the
+// Retry time must be measured from the FAILURE, not from the
 // instant the batch was claimed. Every other test in this file holds the clock fixed for the whole
 // call, which cannot tell the two apart; this one advances it while delivery is in flight.
 // ---------------------------------------------------------------------------
@@ -296,7 +294,7 @@ test("processOutbox schedules the retry from the failure instant — a slow batc
 });
 
 // ---------------------------------------------------------------------------
-// 2026-09-14 — an expired claim lease makes a `processing` row claimable again. A row whose
+// An expired claim lease makes a `processing` row claimable again. A row whose
 // claimer keeps dying (a handler that crashes the process, say) must not be reclaimed forever: past
 // MAX_OUTBOX_ATTEMPTS claims it is sealed as "failed" without running its handlers again.
 // ---------------------------------------------------------------------------
@@ -343,7 +341,7 @@ test("processOutbox seals a row claimed past MAX_OUTBOX_ATTEMPTS with no recorde
 });
 
 // ---------------------------------------------------------------------------
-// 2026-09-14 — a handler that never settles must not stall processOutbox, and with it the
+// A handler that never settles must not stall processOutbox, and with it the
 // background drainer and every inline route drain. Each delivery gets a bounded time; one that runs
 // out is recorded as a retryable failure and is never marked delivered.
 // ---------------------------------------------------------------------------
@@ -398,9 +396,9 @@ test("processOutbox gives up on a delivery whose handler never settles, records 
 });
 
 // ---------------------------------------------------------------------------
-// 2026-09-16 — an overrunning delivery must not be published again while its own handler is still
+// An overrunning delivery must not be published again while its own handler is still
 // running: the claim lease exists precisely to stop that (see this file's `DEFAULT_OUTBOX_CLAIM_LEASE_MS`
-// doc), but the timeout path previously undid it by scheduling the retry at the ordinary backoff.
+// doc). Timeout retries must respect that lease instead of using ordinary backoff.
 // ---------------------------------------------------------------------------
 
 test("an overrunning delivery is not published again while its handler still runs, and its late success marks the row delivered", async (t) => {

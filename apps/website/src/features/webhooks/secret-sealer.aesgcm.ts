@@ -2,7 +2,7 @@ import { AesGcmSecretSealer as JiniSecretSealer } from "@jini-ai/platform/secret
 import type { KeyringPort, SiteKeyHandle, SecretSealerPort } from "./ports.js";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 
-/** Host port adapter preserving the existing sealed wire format and open(input.aad) contract.
+/** Host port adapter preserving the existing sealed wire format and canonical open(input, optional) contract.
  *
  * Contract rationale for the Jini implementation and this host boundary:
  *
@@ -76,7 +76,7 @@ import type { SealedSecret } from "@jini-ai/platform/secrets";
  * `keyring.activeKey()` — a sealed row wrapped under an older site-key generation must still open
  * under that generation's own derivation, the seam `keyId` exists for).
  *
- * @param input.aad - Must be the byte-identical string passed to the {@link seal} call that
+ * @param optional.aad - Must be the byte-identical string passed to the {@link seal} call that
  *   produced `input.sealed`, or omitted iff `seal` was also called with no `aad`. Any nonempty AAD mismatch
  *   (wrong string, or nonempty/absent asymmetry in either direction) fails auth-tag verification —
  *   see this file's header.
@@ -90,12 +90,14 @@ import type { SealedSecret } from "@jini-ai/platform/secrets";
 export class AesGcmSecretSealer implements SecretSealerPort {
   private readonly sealer: JiniSecretSealer;
 
-  constructor(keyring: KeyringPort) {
+  constructor(keyring: KeyringPort, optional: {
+    randomBytesFn?: (input: { byteLength: number }) => Uint8Array;
+  } = {}) {
     this.sealer = new JiniSecretSealer({ keyring: {
       activeKey: () => keyring.activeKey(),
       derive: (input) => keyring.derive(input),
       deriveSigningSecret: (input) => keyring.deriveSigningSecret(input),
-    } });
+    } }, optional);
   }
 
   /** Real stores provide their row AAD. Empty AAD retains the historical unbound host-port format;
@@ -109,12 +111,12 @@ export class AesGcmSecretSealer implements SecretSealerPort {
     return this.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad ?? "" });
   }
 
-  /** Move the host AAD field into Jini's optional object; absent AAD opens historical records.
+  /** Forward the canonical optional AAD object; absent AAD opens historical records.
    * @throws Authentication errors for wrong keys, changed AAD or malformed envelopes.
    * @complexity O(ciphertext bytes), delegated to Jini AES-GCM.
    */
-  open(input: { sealed: SealedSecret; aad?: string }): Promise<string> {
-    return this.sealer.open({ sealed: input.sealed }, input.aad !== undefined ? { aad: input.aad } : {});
+  open(input: { sealed: SealedSecret }, optional: { aad?: string } = {}): Promise<string> {
+    return this.sealer.open(input, optional);
   }
 }
 // Shared-key/AAD rationale: Jini/packages/platform/src/secrets/secret-sealer.aesgcm.ts (ADR-058).

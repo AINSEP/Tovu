@@ -1,27 +1,13 @@
 /**
- * @file Public surface (barrel) for `settings` — re-exported from `@jini-ai/cms/settings`.
+ * @file Public surface (barrel) for `settings` — re-exported from `@jini-ai/core/settings`.
  *
- * The domain moved into the package on 2026-08-03 so a second host can use the same
- * definitions/values/revision-ledger model. What is left in this directory is only what is
- * genuinely this host's:
- *
- * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.sqlite.ts`, this repo's shared
- *   1,246-line schema covering every domain, so they are host persistence, not library code.
- * - `migration.ts` — the one-time brownfield migration retiring this host's own legacy
- *   `presentation_settings` table into the ledger. A fresh host has no such legacy data, so this
- *   is not a generic library capability — it stays here and keeps importing `../presentation`
- *   locally (`features/presentation` is not ported; see the port's own decision note).
- *
- * The title write policy and active-principal lookup below are host adapters. The remaining
- * package surface is re-exported, and the shape of what is *not* re-exported is the point:
- * there is no SQLite adapter export on this barrel, so nothing outside the composition root can
- * accidentally depend on this host's persistence choice. This directory previously had no
- * `index.ts` at all — every internal submodule was imported deep by name. This barrel is new, and
- * every prior deep importer in this host was rewritten to go through it (mirrors `identity`'s and
- * `media`'s identical shim pattern).
+ * Jini owns definitions, values and the revision ledger. SQLite adapters bind the site's schema;
+ * `migration.ts` handles this host's legacy `presentation_settings` data. Those stay host-owned,
+ * as do the title write policy and active-principal lookup below.
+ * This barrel omits SQLite so consumers cannot accidentally depend on the host's persistence choice.
  */
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
-import type { SettingsPrincipalLookupPort } from "@jini-ai/cms/settings";
+import type { SettingsPrincipalLookupPort } from "@jini-ai/core/settings";
 
 /** Bind Tovu's membership/status policy to the CMS lookup port.
  * Missing, disabled and foreign-workspace records never become settings targets (REQ-13/INV-09).
@@ -51,7 +37,7 @@ export {
   type SettingValueRecord,
   type SettingRevisionRecord,
   type SettingScopeContext,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 export {
   DefinitionInvalidError,
@@ -65,11 +51,11 @@ export {
   PurgeRequiredError,
   ForbiddenError,
   PrincipalNotFoundError,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
-export type { SettingsRepoPort } from "@jini-ai/cms/settings";
+export type { SettingsRepoPort } from "@jini-ai/core/settings";
 
-export { InMemorySettingsRepo } from "@jini-ai/cms/settings";
+export { InMemorySettingsRepo } from "@jini-ai/core/settings";
 
 export {
   type DefinitionInput,
@@ -82,7 +68,7 @@ export {
   resolveDefinition,
   type ResolvedSetting,
   getEffective,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 export {
   type AuthorizeFn,
@@ -105,7 +91,7 @@ export {
   deprecateDefinition,
   type TombstoneDefinitionRequired,
   tombstoneDefinition,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 // Not the package's `set`: the same function behind this host's SPEC-050 REQ-08 site-title bounds.
 export { set } from "./site-title-write.js";
@@ -116,14 +102,14 @@ export {
   type PurgeServiceDeps,
   type PurgeTenantSettingsRequired,
   purgeTenantSettings,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 export {
   type ChangeFeedViewer,
   isRevisionVisibleTo,
   type ChangeFeedBatch,
   collectChangedNamespaces,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 export {
   type DefinitionOpRequestItem,
@@ -133,14 +119,14 @@ export {
   type NonRegisterDefinitionOp,
   parseNonRegisterDefinitionOp,
   NON_REGISTER_DEFINITION_OPS,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 export {
   type SettingDefinitionSpec,
   type EnsureSettingDefinitionsDeps,
   type EnsureSettingDefinitionsInput,
   ensureSettingDefinitions,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 export {
   INSTRUCTIONS_NAMESPACE,
@@ -149,7 +135,7 @@ export {
   APPEARANCE_NAMESPACE,
   LANGUAGE_NAMESPACE,
   type EnsureSettingsUiTabDefinitionsInput,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 export { ensureSettingsUiTabDefinitions } from '../webmcp/settings.js';
 
@@ -160,7 +146,7 @@ export {
   AGENT_WRITABLE_PREFERENCE_IDS,
   resolveAgentWritablePreference,
   AGENT_PREFERENCE_REQUIRED_SCOPE_BIT,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
-export { getSettingsAgentToolCatalog } from "@jini-ai/cms/settings";
+export { getSettingsAgentToolCatalog } from "@jini-ai/core/settings";
 export type { AgentToolDefinition } from "@jini-ai/core";

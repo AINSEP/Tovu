@@ -1,12 +1,14 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
+import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { withCustomCredentialSetup, type CredentialSetupFailure } from "./credential-recovery.js";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
 import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
 import type { Clock } from "@jini-ai/core/primitives";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { redactSecrets, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import {
@@ -14,8 +16,8 @@ import {
   forbiddenRule,
 } from "../../contracts/core/model-facing-tool-errors.js";
 import { callerSafeErrorMessage, withModelFacingErrors, type CallerSafeErrorRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { askThenReport, resolveConfirmationDecision, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
-// `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
+import { askThenReport, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+// `SurfaceEmission` itself is `@jini-ai/core`'s own type (`@jini-ai/daemon/surface-exchanges` re-exports the
 // functions that use it, but not the type) — imported directly here so `handleSetTokenAnswer` below
 // can name its `askThenReport`-shaped return type explicitly, mirroring `features/deployments/
 // publish-agent-tools.ts`'s identical import for the same reason.
@@ -23,6 +25,7 @@ import type { SurfaceEmission } from "@jini-ai/core";
 // `ToolInputError` is the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a rejection
 // `errorKind: 'validation'` instead of the `'internal'` bucket the delegated transport redacts.
 import { ToolInputError } from "@jini-ai/core";
+import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 // `EgressRefusedError` is a runtime import, and the ONLY one this file takes from `platform/http` —
 // the barrel is otherwise types-only by design. Imported for `instanceof`, not to construct
 // anything; see {@link isCredentialedRequestShapeRejection}. Same pattern
@@ -31,24 +34,23 @@ import { EgressRefusedError, type HttpClientPort } from "../../platform/http/ind
 import type { ObservabilityPort } from "../../platform/observability/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { ToolContributor } from "#src/assistant/index";
-import { customCredentialsAgentToolCatalog } from "./agent-tools.js";
+import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
 import {
   CredentialedRequestValidationError,
   makeCredentialedRequest,
   resolveRequestTarget,
   verifyCustomCredential,
   type CredentialedRequestAuditPort,
-  type CredentialedRequestDeclinedResult,
   type CredentialedRequestDeps,
   type CredentialedRequestExecutedResult,
   type CredentialedRequestOutcome,
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
-import { buildCreateFormResource, buildCreateOutcomeResource, CREATE_TOOL_ID, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
-import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
-import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
-import type { FileWritePlan, FileWriteState, SourceControlProvider } from "../source-control/provider-module.js";
-import { buildSourceControlProviderForApi, isUnderWorkflowPath, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
+import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
+import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
+import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
+import type { FileWritePlan, SourceControlProvider } from "../source-control/provider-module.js";
+import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,
@@ -62,166 +64,41 @@ import {
   updateCustomCredential,
 } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary, CustomProviderConnectionInput } from "./types.js";
-import { WRITE_FILES_TOOL_ID, type WriteFilesConfirmationFileSpec } from "./write-files-confirmation-ui.js";
-import { validateRepositoryTarget, validateWriteFilesInput, type NormalizedWriteFile, type ValidatedWriteFilesInput } from "./write-files-validation.js";
+import { validateRepositoryTarget, validateWriteFilesInput, type ValidatedWriteFilesInput } from "./write-files-validation.js";
 
 /**
- * @file Wires `agent-tools.ts`'s three-tool catalog onto `credentialed-request.ts`'s domain logic (plus
- * `store.ts`'s existing `listCustomCredentials` for the read-back tool) — the same
- * `contribute<Domain>Tools()` shape every other domain's `tool-registrations.ts` uses (see
- * `features/deployments/tool-registrations.ts`'s own header for the catalog/wiring split this
- * mirrors).
+ * @file Host wiring for custom-credential tools and credential_save's API adapters.
  *
- * `custom_credential_list` and `custom_credential_verify` are both `custom-credentials.read`-gated:
- * neither durably mutates anything on Tovu's own side (`custom_credential_list` doesn't even touch an
- * external provider — it's a pure repo read). `custom_credential_make_request` is
- * `custom-credentials.write`-gated (2026-08-31, owner override widened this tool from GET-only to all
- * five methods — see `credentialed-request.ts`'s header): it can now perform a real external mutation
- * through the saved credential, so it sits on the write permission rather than read, the same
- * distinction the admin route (`server/inbound/admin-http/routes/system/custom-credentials.ts`)
- * already draws between reading and writing this table — this is a NEW dot-namespaced permission
- * pair, matching that route's own established per-feature convention; the seeded owner's wildcard
- * grant authorizes both immediately with no seed edit required.
+ * Reads and verification use custom-credentials.read; requests and durable edits use
+ * custom-credentials.write because they can mutate Tovu or an external provider. DELETE alone
+ * requires a human approval card; GET/POST/PUT/PATCH run directly under the owner's policy.
+ * resolveRequestTarget checks labels and saved hosts before any dialog or decrypt. DELETE opens
+ * one held call, and decrypts only after approval; ADR-055's card flow replaces a heavier
+ * plan/confirm/execute ceremony without a second model-issued confirmation call.
  *
- * ## DELETE's confirmation gate (owner decision, 2026-08-31)
+ * set_username updates one plaintext account identifier through the existing store owner.
+ * It needs no extra confirmation: strict label/username keys prevent token smuggling, and the
+ * label-to-id lookup does not decrypt. A missing username can cause HTTP Basic authentication
+ * to fail; authDiagnostic supplies the diagnosis this edit can repair.
  *
- * "The only thing we maybe should be worried about is deletion, but we can gate that with MCP-UI."
- * GET/POST/PUT/PATCH run immediately with no ceremony — parity with what a human can already do from
- * the site. DELETE alone opens a `SurfaceExchangeStore` exchange and parks on the human's answer
- * (ADR-055 Decision 2) — the SAME mechanism `content_post_delete`
- * (`features/post/tool-registrations.ts`) already uses for its own destructive gate, reused here
- * rather than reinvented (see that file's own header for the full mechanism this one holds up: one
- * call opens the exchange, emits the dialog, and returns the truthful outcome to the SAME call once
- * answered — there is no second tool call, so there is nothing left for a token to guard). Not routed
- * through `core/gated-mutations` (the heavier plan/confirm/execute ceremony
- * `features/recovery/gated-hooks.ts`/`features/database/gated-hooks.ts` use) — the owner explicitly
- * asked for this lighter shape instead.
+ * credential_save's API adapters accept non-secret metadata only. Secret keystrokes travel
+ * browser -> tool-calls route -> SurfaceExchangeStore -> parked handler -> sealed store, never
+ * through the agent CLI, model, chat transcript or audit values (the audit records input keys).
+ * Missing emitSurface fails closed: asking for a second model-issued call would expose the secret.
+ * Jini's secret-card lifecycle owns submit/cancel/expiry/dismissal. The outcome replaces the same
+ * form URI after the save completes; transport delivery alone is not proof that sealing succeeded.
  *
- * `resolveRequestTarget` (non-decrypting) validates the target BEFORE the dialog is ever raised, so a
- * bad label or an off-allowlist `url` is refused with no dialog and no decrypt; the credential is only
- * decrypted once the human has actually confirmed, inside `makeCredentialedRequest` itself.
+ * Rotation resolves an existing label before opening the form. Creation has no existing row to
+ * resolve; the store owns submitted label/URL/category/token validation and workspace-label
+ * uniqueness. A duplicate label is refused, never silently overwritten, and directs the caller
+ * to rotation. Both return value-free statuses or the non-decrypting CustomCredentialSummary.
  *
- * ## `custom_credential_set_username` — the self-healing fix, not just the diagnosis (2026-09-01)
- *
- * The live incident this closes: name.com's API accepts ONLY HTTP Basic `username:token`;
- * `credentialed-request.ts`'s `buildAuthorizationHeader` only sends Basic when the saved connection
- * carries a `username`; the owner's saved name.com credential had none, so every call 401'd with no
- * explanation. `credentialed-request.ts`'s own `AuthFailureDiagnostic` (see that file's header) is the
- * DIAGNOSIS half — this tool is the FIX half, so the assistant can ask the operator for the missing
- * username in chat and save it itself, with no token retype and no trip to the Access Tokens page.
- *
- * `custom-credentials.write`-gated, the SAME permission `custom_credential_make_request` uses — this
- * durably writes a Tovu-side column, which `custom_credential_list`/`custom_credential_verify`'s read
- * permission was never meant to cover. Per the owner's own standing instruction against over-gating
- * ("no GET-only slices, no confirm ceremonies" — this domain's DELETE gate is the one owner-named
- * exception, not a template to extend), this tool raises NO in-chat confirmation: it writes exactly one
- * plaintext, non-secret column, the same class of edit `custom_credential_list` already exposes for
- * reading, so ceremony here would be exactly the friction this feature exists to remove.
- *
- * Reuses `store.ts`'s existing `updateCustomCredential({..., username})` field verbatim — added
- * 2026-09-01 for precisely this fix (see that field's own doc for the full `username`/`connection`
- * precedence writeup) — rather than a second write path. The one thing this wiring layer owns on top
- * of that already-proven function: resolving the tool's `label` input to the row's `id`
- * (`updateCustomCredential` addresses by id, not label — same non-decrypting
- * `describeCredentialByLabel` lookup `resolveRequestTarget` above already uses), the permission check,
- * and — the property that makes skipping confirmation defensible — refusing any call that carries a
- * field other than `label`/`username` at all, so there is no way to even ATTEMPT smuggling a token
- * through this tool (see `rejectUnexpectedSetUsernameFields`'s own doc).
- *
- * ## `custom_credential_set_token` — an MCP-UI surface for the SECRET itself (2026-09-01)
- *
- * The principle this tool holds up is narrower, and stricter, than "an agent must never write a
- * token": it is "a token must never pass through the model's context" at all, in either direction. A
- * human typing a token into ordinary chat text already violates that — it lands in `ai_chat_messages`
- * in plaintext, in the model's own context (so, the provider), and in the CLI's session history, which
- * is exactly why every rotation elsewhere in this app ends with "now go rotate it". This tool is the
- * escape from that: `custom_credential_set_token`'s own input schema (`SET_TOKEN_SCHEMA`,
- * `agent-tools.ts`) carries only `label` — no field on it could carry a token even if the model tried —
- * and its handler opens the SAME held-open `SurfaceExchangeStore` exchange mechanism the DELETE gate
- * above uses, but to show a masked FORM rather than a confirm/cancel dialog
- * (`custom-credential-set-token-ui.ts`'s `buildSetTokenFormResource`). The human's keystrokes travel
- * browser -> `mcp-ui-tool-calls-route.ts` -> `SurfaceExchangeStore` -> `handleSetTokenAnswer` below,
- * entirely inside this process, and never through the spawned agent CLI's stdio — so they never reach
- * the model, the chat transcript, or (see `describeInput`, `assistant/tool-executor-audit.ts`) even
- * the durable audit trail, which records only the ORIGINAL call's input KEY NAMES (`label`), never any
- * value.
- *
- * Driven by `askThenReport`, not `askOnce` — the identical reason `deployment_execute_static_publish`
- * (`features/deployments/publish-agent-tools.ts`) already made this switch: for a held-open exchange,
- * the form's own `tools/call` round trip resolves the instant `mcp-ui-tool-calls-route.ts` DELIVERS the
- * submission to this parked call (`202 {delivered:true}`), long before `updateCustomCredential` has
- * even run. `askThenReport`'s second send (`buildSetTokenOutcomeResource`, reusing the form's own
- * `ui://` URI) is what corrects "Done." into the real outcome once the seal actually finishes.
- *
- * `WRITE`-gated like `custom_credential_set_username`, and — the same defensible-to-skip-confirmation
- * property that tool's own doc names — this handler refuses any call carrying a field other than
- * `label` (`rejectUnexpectedSetTokenFields`), so there is no schema-level OR handler-level path for a
- * token to ride in on the model-issued call itself; the only place a token can ever enter is the
- * rendered form. Unlike `assistant_ask_choice`/`deployment_execute_static_publish`, this handler has NO
- * fallback second-call path when optional `emitSurface` is absent: it fails closed instead (mirroring the
- * DELETE gate's own posture), because that fallback shape is exactly a fresh MODEL-ISSUED tool call
- * carrying the human's answer as its input — the one shape this whole design exists to make impossible
- * for a secret.
- *
- * ## `custom_credential_create` — closing the gap `custom_credential_set_token` cannot close (2026-09-03)
- *
- * The live incident this closes: an operator asked the assistant to save a GitHub token; the
- * assistant correctly found `custom_credential_set_token` in the catalog, correctly found no saved
- * `github` row via `custom_credential_list`, and correctly reported that nothing in the catalog could
- * CREATE that row — `custom_credential_set_token` only ever resolves an EXISTING credential by label
- * before opening its form (`describeCredentialByLabel`, above), so a provider with no saved row at all
- * was a genuine dead end that sent the human to Admin -> Access Tokens -> "Add custom provider"
- * instead of finishing the job in chat. This tool is the fix: `custom_credential_create`'s handler
- * skips the existing-row lookup entirely (there is nothing to resolve — the row does not exist until
- * the human submits) and opens `custom-credential-create-ui.ts`'s multi-field form directly, collecting
- * `label`/`baseUrl`/`category`/optional `username`/`token` the SAME way `custom_credential_set_token`
- * collects its own token: browser -> `mcp-ui-tool-calls-route.ts` -> `SurfaceExchangeStore` -> this
- * parked handler, never through the model.
- *
- * Driven by `askThenReport`, not `askOnce`, for the identical reason `custom_credential_set_token`
- * documents above. `WRITE`-gated, same permission every other write tool in this domain uses. Unlike
- * `custom_credential_set_token`, this handler validates NOTHING before opening the form (there is no
- * label to resolve, no target to fail closed on before the dialog) beyond the permission check and the
- * `emitSurface` fail-closed guard — every real validation (non-empty label/baseUrl, a closed category,
- * a non-blank token, and the `(workspaceId, label)` uniqueness constraint) happens once, in
- * `store.ts`'s own `createCustomCredential`, inside `handleCreateAnswer` below, matching this domain's
- * "one place decides what valid means" discipline. A submitted label colliding with an existing row is
- * NOT silently overwritten — `createCustomCredential`'s own `CustomCredentialDuplicateLabelError` is
- * caught and turned into a refusal that names `custom_credential_set_token` as the correct tool for a
- * rotation, so a duplicate submission can never masquerade as a successful create.
- *
- * ## `custom_credential_write_files` — a general-purpose, human-confirmed multi-file commit (2026-09-09)
- *
- * The gap this closes: a deploy skill (the bundled `deploy` plugin's) needs to write a few named files
- * (a host's config file and a CI workflow) into an operator's repo through their saved git-host
- * credential, with a real human confirmation before anything lands. Neither existing write path fit —
- * `source_control_execute_commit` (`features/source-control`) exports and commits the WHOLE SITE's
- * content against its OWN, deliberately separate credential table (see that feature's `store.ts`
- * header for why it stays separate — this tool does not repeat that split in reverse; it uses THIS
- * domain's own `resolveCustomCredentialByLabel`, the same resolver `verifyCustomCredential`/
- * `makeCredentialedRequest` already use), and `custom_credential_make_request` could technically PUT
- * files one at a time through GitHub's Contents API but has no confirmation gate on POST/PUT/PATCH at
- * all (only its own DELETE path is gated) — using it to silently write files would be exactly the
- * unsafe shortcut this tool exists to avoid.
- *
- * Unlike DELETE above (gated only for one HTTP verb inside a general-purpose request tool), EVERY
- * call to this tool is gated — there is no un-confirmed path, because every call durably writes to a
- * real, third-party repository. Every path/size/count check (`write-files-validation.ts`) and the
- * read-only branch/tree/existence reconnaissance (the provider's `planFileWrite`)
- * run BEFORE the dialog is opened, so a malformed call or a nonexistent branch is refused with no
- * dialog raised at all — same ordering `custom_credential_make_request`'s own DELETE gate uses. The
- * confirmation dialog (`write-files-confirmation-ui.ts`) then names every path this call would write,
- * whether each is a create or an update (resolved by the plan phase's own per-path existence check —
- * never guessed), and gives any `.github/workflows/**` path its own emphatic, textually distinct
- * warning: that directory is the single most sensitive path class a repository can have, since it
- * controls what code executes automatically on every future push. Only on confirmation does
- * the provider's `commitFiles` build and land the real commit; a decline, expiry, or abandonment writes
- * nothing, same fail-closed contract this domain's other gated tools already establish.
- *
- * `WRITE`-gated, the same permission `custom_credential_make_request`/`custom_credential_set_token`
- * use — this can mutate durable state in a THIRD-PARTY system (a real GitHub repository), the same
- * classification `deployment_execute_static_publish`/`source_control_execute_commit` carry for the
- * identical kind of external write.
+ * custom_credential_write_files creates/edits named files directly under the owner's policy.
+ * Shape/path/size checks and provider owner/repo rules precede decryption; read-only planFileWrite
+ * reconnaissance then provides the exact branch/tree plan passed to commitFiles. The provider
+ * retains freshness checks and commits atomically. Aborted calls stop before committing.
+ * This path uses the custom credential resolver; whole-site export commits belong to source-control
+ * and its separate credential contract. Credential repository consolidation is not implied here.
  */
 
 export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
@@ -261,7 +138,7 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   /** Test-only override; defaults to `credentialed-request.ts`'s `ConsoleCredentialedRequestAuditLog`. */
   readonly customCredentialsAudit?: CredentialedRequestAuditPort;
   /** Test-only override for the server-side failure log; defaults to `console.warn`. Receives only
-   *  lines built by {@link reportFormSaveFailure} and {@link reportGitHubWriteFailure}, never a raw
+   *  fixed engine failure metadata and lines built by {@link reportGitHubWriteFailure}, never a raw
    *  error message that could quote a secret. */
   readonly customCredentialsFailureLog?: (line: string) => void;
 }
@@ -296,15 +173,9 @@ const WRITE_PERMISSION = `${DOMAIN}.write`;
  *   connecting: a non-public resolved address on the first hop or any re-verified redirect hop, a
  *   disallowed scheme, or credentials embedded in the URL.
  *
- * Live incident (2026-09-10): GitHub's Actions job-logs endpoint answers with a 302 to a signed
- * Azure Blob Storage URL. `credentialed-request.ts`'s own `makeCredentialedRequest` used to re-wrap
- * EVERY thrown error — `EgressRefusedError` included — into `CredentialedRequestTransportError`
- * before it ever reached this file, erasing the `instanceof` this predicate depends on; every egress
- * refusal on this tool therefore collapsed into the same redacted 500 a genuine DNS/timeout failure
- * gets, and an assistant diagnosing a failed deploy had no way to tell "this needs a different URL"
- * from "something crashed". Fixed at the source (that function's catch block now rethrows
- * `EgressRefusedError` unchanged — see its own doc); this predicate is the second half, recognizing
- * the preserved type once it arrives here.
+ * makeCredentialedRequest must preserve EgressRefusedError rather than wrapping it as a
+ * transport failure. Otherwise this instanceof classification loses the actionable egress reason
+ * and a URL refusal becomes indistinguishable from a DNS/timeout crash.
  *
  * An `EgressRefusedError` reaches the model in its `callerSafeMessage` form only — without the
  * address the hostname resolved to — via {@link makeModelFacingCredentialedRequest}, which every
@@ -327,9 +198,8 @@ function isCredentialedRequestShapeRejection(error: unknown): boolean {
  * {@link isCredentialedRequestShapeRejection}, and an `EgressRefusedError` narrowed to its
  * `callerSafeMessage` BEFORE that decoration reads `.message`.
  *
- * Coordinator default (2026-09-16), awaiting owner confirmation: the refusal and the hostname the
- * request named are the real reason and still reach the model; the address that hostname resolved
- * to does not. A model that can name any host and read back its resolved address can map internal
+ * The refusal and requested hostname reach the model; the resolved address stays server-side.
+ * A model that can name any host and read back its resolved address can map internal
  * DNS one call at a time (`internal-db.corp` -> `10.0.4.7`). The full message, address included, is
  * kept server-side in the audit entry `makeCredentialedRequest` records (`egressRefusal`).
  *
@@ -402,7 +272,7 @@ function isWriteFilesShapeRejection(error: unknown): boolean {
  * - `CustomCredentialDuplicateLabelError`: never escapes as a throw (`mapCreateCredentialError`).
  * - `write_files`' plan-failure `Error`, which carries GitHub's own rejection text (a network failure
  *   is already reduced to fixed text by the plugin provider (`provider-module.ts`)'s `describeSendFailure`), and
- *   {@link buildWriteFilesConfirmationFileSpecs}' internal-invariant `Error`.
+ *   internal-invariant `Error`.
  *
  * The structured `{ saved: false }` / `{ created: false }` / `{ executed: false }` results are return
  * values, not throws, and this wrap never sees them. The two form-save failures go through their own
@@ -410,7 +280,7 @@ function isWriteFilesShapeRejection(error: unknown): boolean {
  */
 const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   forbiddenRule("CUSTOM_CREDENTIALS"),
-  { error: CustomCredentialNotFoundError, code: "CUSTOM_CREDENTIALS_NOT_FOUND", guidance: "Call custom_credential_create to open the secure credential card, then retry once." },
+  { error: CustomCredentialNotFoundError, code: "CUSTOM_CREDENTIALS_NOT_FOUND", guidance: "Call credential_save with kind api to open the secure credential card, then retry once." },
   { error: CustomCredentialValidationError, code: "CUSTOM_CREDENTIALS_VALIDATION_FAILED" },
   { error: CredentialedRequestValidationError, code: "CUSTOM_CREDENTIALS_REQUEST_REJECTED" },
   // A FIXED message, never `err.message`: this class wraps the sealer's, the keyring's, or
@@ -458,41 +328,18 @@ export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string,
   // no write at all (it only opens the exchange and waits), but the classification here describes what
   // THIS TOOL ID can cause to happen, same convention every other entry in this map uses. No external
   // call, ever — see this file's header, "custom_credential_set_token", for the full reasoning.
-  ["custom_credential_set_token", "mutates-durable-state"],
+
   // -> createCustomCredential's insert path, via the human's own form submission: a genuine Tovu-side
   // DURABLE WRITE (a brand-new row, sealed ciphertext) — the model-issued call itself performs no write
   // at all (it only opens the exchange and waits, same as custom_credential_set_token above), but this
   // classification describes what THIS TOOL ID can cause to happen, same convention every other entry
   // in this map uses. No external call, ever — see this file's header, "custom_credential_create", for
   // the full reasoning.
-  ["custom_credential_create", "mutates-durable-state"],
-  // -> the plugin provider's planFileWrite (read-only reconnaissance) then, ONLY on human confirmation,
-  // its commitFiles: a real commit landed in a THIRD-PARTY repository — the same
-  // "mutates-durable-state via an external write" classification custom_credential_make_request/
-  // deployment_execute_static_publish/source_control_execute_commit carry. Every call is gated (see
-  // this file's header, "custom_credential_write_files") — there is no un-confirmed path the way
-  // GET/POST/PUT/PATCH are for custom_credential_make_request.
+
+  // planFileWrite reconnaissance followed by commitFiles mutates a third-party repository.
+  // File creation/editing runs directly; provider plan validation and freshness checks still apply.
   ["custom_credential_write_files", "mutates-durable-state"],
 ]);
-
-/**
- * Waits for the human's answer to a DELETE-through-credential confirmation dialog and turns it into
- * either "go ahead" or the exact not-confirmed result the tool call should return (ADR-055 Decision
- * 6: no-answer is a result, not a thrown error) — mirrors `features/post/tool-registrations.ts`'s own
- * `resolveDeleteDecision` exactly, adapted to this domain's `CredentialedRequestDeclinedResult` shape
- * — via the shared `resolveConfirmationDecision` (`contracts/core/tool-surface-exchanges.ts`), which
- * carries the ask-and-fail-closed-classify mechanics common to this and 3 sibling copies; only the
- * result shape below is this domain's own.
- */
-async function resolveMakeRequestDeleteDecision(exchange: SurfaceExchange, ui: UIResource): Promise<{ confirmed: true } | { confirmed: false; result: CredentialedRequestDeclinedResult }> {
-  const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-  if (outcome.confirmed) return { confirmed: true };
-
-  if (outcome.reason === "declined") {
-    return { confirmed: false, result: { executed: false, cancelled: true } };
-  }
-  return { confirmed: false, result: { executed: false, cancelled: false, reason: outcome.reason } };
-}
 
 /** `custom_credential_write_files`'s ENTIRE agent-facing result shape — boolean-plus-reason on every
  *  non-success branch, the same discriminated shape {@link SetTokenResult}/{@link CreateCredentialResult}
@@ -509,12 +356,9 @@ type WriteFilesResult =
   | { executed: false; cancelled: false; reason: "error"; message: string };
 
 /**
- * The write itself, run only once the human has confirmed — extracted to its own top-level function
- * so the handler's own branching stays under this repo's complexity ceiling, same reasoning
- * {@link handleSetTokenAnswer}'s own extraction gives. `plan` must be the SAME plan the confirmation
- * dialog was built from (`tool-registrations.ts`'s handler threads it through directly rather than
- * re-planning), so the tree the provider's `commitFiles` builds on top of is guaranteed to be the one the
- * human actually saw described.
+ * Commits using the SAME validated provider plan the handler obtained, rather than re-planning.
+ * This keeps the tree and branch-freshness checks tied to the read-only reconnaissance result.
+ * Keeping the write separate also bounds the handler's branching complexity.
  *
  * @complexity O(1) beyond the provider's `commitFiles`'s own O(files) cost.
  */
@@ -539,86 +383,6 @@ async function performGitHubFilesWrite(
 /** Where a write goes: the credential's API plus the `Authorization` header built from its connection. */
 function writeTarget(resolved: { baseUrl: string; connection: CustomProviderConnectionInput }, validated: ValidatedWriteFilesInput) {
   return { baseUrl: resolved.baseUrl, authorization: buildAuthorizationHeader({ connection: resolved.connection, schemes: [] }), owner: validated.owner, repo: validated.repo };
-}
-
-/** The longest content excerpt `custom_credential_write_files`'s confirmation dialog shows per file.
- *  Long enough to recognize a config/workflow file's opening lines at a glance, short enough that a
- *  full `WRITE_FILES_LIMITS.maxFiles`-file dialog stays readable and the emitted UI payload stays
- *  bounded regardless of how large the actual files are. */
-const WRITE_FILES_EXCERPT_MAX_CHARS = 200;
-
-/**
- * The short, per-file content excerpt the confirmation dialog renders beside each path — the whole
- * content when it is already at or under {@link WRITE_FILES_EXCERPT_MAX_CHARS} characters, otherwise
- * its first `WRITE_FILES_EXCERPT_MAX_CHARS` characters plus an ellipsis. Truncated HERE, before the
- * spec is built, so the emitted dialog carries one bounded excerpt per file rather than a full file
- * body — the human is asked to review the contents, so there must be some to review, without the
- * payload growing with the files themselves.
- *
- * @complexity O(1) in the excerpt cap; O(n) only for content shorter than the cap.
- */
-function buildWriteFilesContentExcerpt(content: string): string {
-  return content.length > WRITE_FILES_EXCERPT_MAX_CHARS ? `${content.slice(0, WRITE_FILES_EXCERPT_MAX_CHARS)}…` : content;
-}
-
-/**
- * Maps one {@link FileWriteState} from the provider's `planFileWrite` plus its already-validated content onto
- * `write-files-confirmation-ui.ts`'s own spec shape — the one place this wiring layer decides what
- * the dialog shows for a file. The byte size is computed here from the content itself rather than
- * read off `NormalizedWriteFile` (which carries only `path`/`content`; `write-files-validation.ts`'s
- * own byte checks are local to validation), so the two can never drift.
- *
- * @complexity O(1) in the excerpt cap; O(n) only for content shorter than the cap.
- */
-function buildWriteFilesConfirmationFileSpec(fileState: FileWriteState, content: string, workflowPaths: readonly string[] | undefined): WriteFilesConfirmationFileSpec {
-  return {
-    path: fileState.path,
-    exists: fileState.exists,
-    isWorkflow: isUnderWorkflowPath(fileState.path, workflowPaths),
-    contentExcerpt: buildWriteFilesContentExcerpt(content),
-    sizeBytes: Buffer.byteLength(content, "utf8"),
-  };
-}
-
-/**
- * Pairs every path the provider's `planFileWrite` planned with the validated content this call would write
- * there, producing the file list `buildWriteFilesConfirmationResource` renders.
- *
- * THROWS when a planned path has no entry in `files`, rather than substituting an empty string: a
- * detail row reading `(empty file)` for a file that is about to be written with real content is the
- * confirmation dialog lying to the human whose consent it is asking for — the one failure this
- * dialog exists to make impossible. the provider's `planFileWrite` derives its `fileStates` from this same
- * `files` array (one state per entry, same normalized path — see the plugin provider (`provider-module.ts`)'s own
- * existence loop), so a miss is never a caller mistake; it means these two modules have drifted, and
- * the only safe answer is to raise no dialog at all and let the write fail loudly.
- *
- * Exported for that reason: the miss is unreachable through the handler precisely because the two
- * lists share an origin, and an invariant no test can reach is an invariant nothing protects.
- *
- * @param input.fileStates - the provider's `planFileWrite`'s per-file create/update reconnaissance.
- * @param input.files - The same validated files that plan was built from.
- * @param input.workflowPaths - The host's declared `workflowPaths` (`SourceControlHostFacts`): a file
- * under one is flagged `isWorkflow`. Absent: no file is.
- * @throws {Error} A planned path is absent from `files`. Deliberately a plain `Error`, not a
- * `ToolInputError`: no different input from the caller would fix it.
- * @complexity O(files) — one map insertion and one lookup per file, plus each file's own capped excerpt.
- */
-export function buildWriteFilesConfirmationFileSpecs(input: {
-  fileStates: readonly FileWriteState[];
-  files: readonly NormalizedWriteFile[];
-  workflowPaths?: readonly string[];
-}): WriteFilesConfirmationFileSpec[] {
-  const contentByPath = new Map(input.files.map((file): [string, string] => [file.path, file.content]));
-  return input.fileStates.map((fileState) => {
-    const content = contentByPath.get(fileState.path);
-    if (content === undefined) {
-      throw new Error(
-        `custom_credential_write_files: the write plan names '${fileState.path}', which is not one of the ${input.files.length} validated file(s) — ` +
-          "refusing to raise a confirmation dialog that cannot say what would be written there. Nothing was written."
-      );
-    }
-    return buildWriteFilesConfirmationFileSpec(fileState, content, input.workflowPaths);
-  });
 }
 
 /** The exact keys `custom_credential_set_username` accepts — nothing else, ever. This is the
@@ -674,7 +438,7 @@ function requireUsernameOrClearSentinel(input: Record<string, unknown>): string 
 }
 
 /** The exact keys `custom_credential_set_token` accepts on the MODEL-ISSUED call — `label`, nothing
- *  else, ever. `SET_TOKEN_SCHEMA` (`agent-tools.ts`) already has no `token` property to fill in, but
+ *  else, ever. The API rotation schema (`credential-save-tool.ts`) already has no `token` property to fill in, but
  *  `additionalProperties: false` is descriptive only (same caveat `SET_USERNAME_ALLOWED_FIELDS`'s own
  *  doc gives) — this is the layer that is actually enforced. */
 const SET_TOKEN_ALLOWED_FIELDS: ReadonlySet<string> = new Set(["label"]);
@@ -735,20 +499,8 @@ const FORM_SAVE_CALLER_SAFE_ERRORS: readonly CallerSafeErrorRule[] = [
  *  throw inside either handler's `try`: the repo write is the last step that can fail. */
 const FORM_SAVE_FAILURE_MESSAGE = "Saving failed because of an internal server error. Nothing was saved. The server log has the details.";
 
-/**
- * Logs a failed form SAVE server-side and returns the message the model and the human may see.
- *
- * The log line carries the tool id, the exchange id, the credential id when there is one, and
- * `describeErrorForLog`'s class-and-code summary — never `err.message` and never the human-typed
- * label, either of which could hold the submitted token.
- *
- * @complexity O(r) in the allowlist's rule count.
- */
-function reportFormSaveFailure(routeDeps: CustomCredentialsToolDeps, input: { toolId: string; exchangeId: string; credentialId?: string; err: unknown }): string {
-  const credential = input.credentialId !== undefined ? ` credentialId=${input.credentialId}` : "";
-  failureLog(routeDeps)(`[custom-credentials] ${input.toolId}: save failed exchange=${input.exchangeId}${credential} error=${describeErrorForLog(input.err)}`);
-  return callerSafeErrorMessage({ err: input.err, rules: FORM_SAVE_CALLER_SAFE_ERRORS, fallback: FORM_SAVE_FAILURE_MESSAGE });
-}
+/** Engine failure log callbacks never publish err.message or the human-typed label: either can
+ * hold the submitted token. Create logs fixed exchange metadata; rotation retains its class/code. */
 
 /** The server-side failure log: the test override when one is supplied, otherwise `console.warn`. */
 function failureLog(routeDeps: CustomCredentialsToolDeps): (line: string) => void {
@@ -776,16 +528,13 @@ function reportGitHubWriteFailure(routeDeps: CustomCredentialsToolDeps, input: {
  *  in full because none of its fields are secret). */
 type SetTokenResult = { saved: true } | { saved: false; reason: "cancelled" | "expired" | "abandoned" | "invalid" | "error"; message?: string };
 
-/** Every dependency {@link handleSetTokenAnswer} needs to seal the submitted token and report the
+/** Every dependency {@link saveSetToken} needs to seal the submitted token and report the
  *  outcome — bundled so `custom_credential_set_token`'s own `askThenReport` call passes one object
  *  rather than the handler's whole closure, same shape `features/deployments/publish-agent-tools.ts`'s
  *  `PublishConfirmationContext` uses for the identical reason. */
 interface SetTokenAnswerContext {
-  locale: string;
   readonly routeDeps: CustomCredentialsToolDeps;
   readonly existing: CustomCredentialSummary;
-  readonly label: string;
-  readonly exchange: SurfaceExchange;
 }
 
 /**
@@ -804,90 +553,58 @@ interface SetTokenAnswerContext {
  * asynchronous happens afterward that could still fail) — identical reasoning
  * `handlePublishConfirmationAnswer`'s own cancel branch documents.
  *
- * The token itself lives in a single local `const` for the width of this function and is never
+ * The token itself lives in a single local parameter for the width of this function and is never
  * assigned to any field this function returns, logged, or otherwise retained — the property
  * `agent-tools.ts`'s own catalog description promises the model.
  *
  * @complexity O(1) plus one `updateCustomCredential` call (validate, seal, write).
  */
-async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerContext): Promise<{ result: SetTokenResult; outcome?: SurfaceEmission }> {
-  const { routeDeps, existing, label, exchange, locale } = ctx;
-
-  if (answer.status !== "received") {
-    return { result: { saved: false, reason: answer.status } };
-  }
-  if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
-    return { result: { saved: false, reason: "cancelled" } };
-  }
-
-  const token = typeof answer.params["token"] === "string" ? answer.params["token"] : "";
-  if (token !== "" && token.trim() === "") {
-    const message = credentialText({ id: "blank", locale });
-    return {
-      result: { saved: false, reason: "invalid", message },
-      outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "failure", message }) } },
-    };
-  }
-
-  let credential: CustomCredentialSummary;
-  try {
-    // Re-reads the username HERE, at write time — never trusts `existing` (captured back when
-    // `custom_credential_set_token`'s handler first resolved the label, before the form was even shown
-    // to a human who may sit on it for an arbitrarily long time). `custom_credential_set_username` can
-    // run against this same row while the form is open; if this handler carried `existing.username`
-    // forward as a captured literal, that concurrent change would be silently overwritten with the
-    // value the username held before the form opened. `existing.id` is still safe to reuse — it names
-    // WHICH row to update and cannot go stale the way a plaintext column value can.
-    const current = await describeCredential({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, id: existing.id });
-    // Half-migrated credentials keep the username only in their sealed connection. Resolve that
-    // fallback from the current row, retaining the fresh-read protection against form-open races.
-    const resolved = current && current.username === undefined
-      ? await resolveCustomCredentialByLabel({ repo: routeDeps.customCredentialSetRepo, sealer: routeDeps.siteAssistantSecretSealer },
-        { workspaceId: routeDeps.workspaceId, label: current.label })
-      : null;
-    const username = current?.username ?? resolved?.connection.username;
-    credential = await updateCustomCredential(
-      {
-        repo: routeDeps.customCredentialSetRepo,
-        sealer: routeDeps.siteAssistantSecretSealer,
-        keyring: routeDeps.siteAssistantSecretKeyring,
-        clock: routeDeps.clock,
-        idGen: routeDeps.idGen,
-      },
-      {
-        workspaceId: routeDeps.workspaceId,
-        id: existing.id,
-        // Carries the CURRENT (just re-read) username forward into the fresh connection. Replacing
-        // `connection` WITHOUT one would silently CLEAR a saved username — `store.ts`'s own
-        // `updateCustomCredential` doc: "replacing the connection replaces the username ... including
-        // clearing it, when the new connection omits one". A token-only fix must never have that side
-        // effect, and must never resurrect a value the username has since moved on from either — hence
-        // the fresh read above rather than the `existing` snapshot. If the row was deleted while the
-        // form was open, `current` is `null` and `updateCustomCredential`'s own `findById` throws
-        // `CustomCredentialNotFoundError` below, same as it always has.
-        connection: { token, ...(username !== undefined ? { username } : {}) },
-      }
-    );
-  } catch (err) {
-    // Never `err.message`: it can quote the token just submitted. See FORM_SAVE_CALLER_SAFE_ERRORS.
-    const message = translateCredentialMessage({ message: reportFormSaveFailure(routeDeps, { toolId: SET_TOKEN_TOOL_ID, exchangeId: exchange.id, credentialId: existing.id, err }), locale });
-    return {
-      result: { saved: false, reason: "error", message },
-      outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "failure", message }) } },
-    };
-  }
-
-  const hint = formatCredentialHint({ hint: credential.tokenHint, locale });
-  const message = `${hint ? `${hint}. ` : ""}${credentialText({ id: "saved", locale })}`;
-  return {
-    // Token hints belong on the human's card, never in the model-facing result or audit output.
-    result: { saved: true },
-    outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "success", message }) } },
-  };
+// Lifecycle classification and outcome delivery now belong to Jini; this function is only the save port.
+async function saveSetToken(
+  { token, signal, routeDeps, existing }: SetTokenAnswerContext & { token: string; signal: AbortSignal }, _optional = {},
+): Promise<CustomCredentialSummary> {
+  // Re-reads the username HERE, at write time — never trusts `existing` (captured back when
+  // `custom_credential_set_token`'s handler first resolved the label, before the form was even shown
+  // to a human who may sit on it for an arbitrarily long time). `custom_credential_set_username` can
+  // run against this same row while the form is open; if this handler carried `existing.username`
+  // forward as a captured literal, that concurrent change would be silently overwritten with the
+  // value the username held before the form opened. `existing.id` is still safe to reuse — it names
+  // WHICH row to update and cannot go stale the way a plaintext column value can.
+  const current = await describeCredential({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, id: existing.id });
+  // Half-migrated credentials keep the username only in their sealed connection. Resolve that
+  // fallback from the current row, retaining the fresh-read protection against form-open races.
+  const resolved = current && current.username === undefined
+    ? await resolveCustomCredentialByLabel({ repo: routeDeps.customCredentialSetRepo, sealer: routeDeps.siteAssistantSecretSealer },
+      { workspaceId: routeDeps.workspaceId, label: current.label })
+    : null;
+  const username = current?.username ?? resolved?.connection.username;
+  if (signal.aborted) throw new ToolInputError({ message: "The run ended. Nothing was changed." });
+  return await updateCustomCredential(
+    {
+      repo: routeDeps.customCredentialSetRepo,
+      sealer: routeDeps.siteAssistantSecretSealer,
+      keyring: routeDeps.siteAssistantSecretKeyring,
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+    },
+    {
+      workspaceId: routeDeps.workspaceId,
+      id: existing.id,
+      // Carries the CURRENT (just re-read) username forward into the fresh connection. Replacing
+      // `connection` WITHOUT one would silently CLEAR a saved username — `store.ts`'s own
+      // `updateCustomCredential` doc: "replacing the connection replaces the username ... including
+      // clearing it, when the new connection omits one". A token-only fix must never have that side
+      // effect, and must never resurrect a value the username has since moved on from either — hence
+      // the fresh read above rather than the `existing` snapshot. If the row was deleted while the
+      // form was open, `current` is `null` and `updateCustomCredential`'s own `findById` throws
+      // `CustomCredentialNotFoundError` below, same as it always has.
+      connection: { token, ...(username !== undefined ? { username } : {}) },
+    }
+  );
 }
 
 /** Reads `custom_credential_create`'s optional non-secret prefill hints off the model-issued call —
- *  see `agent-tools.ts`'s `CREATE_CREDENTIAL_SCHEMA` for the exact three fields this accepts. Blank
+ *  see `credential-save-tool.ts`'s API creation schema for the exact three fields this accepts. Blank
  *  strings are treated as absent, matching `buildS3CompatiblePrefill`'s
  *  (`features/deployments/publish-agent-tools.ts`) identical convention for the same kind of field. A
  *  prefilled `category` that turns out not to be one of the fixed options is passed through unchecked —
@@ -918,16 +635,8 @@ type CreateCredentialResult =
   | { created: true; credential: Omit<CustomCredentialSummary, "tokenHint"> }
   | { created: false; reason: "cancelled" | "expired" | "abandoned" | "invalid" | "duplicate-label" | "error"; message?: string };
 
-/** Every dependency {@link handleCreateAnswer} needs to create the credential and report the outcome —
- *  bundled for the same reason {@link SetTokenAnswerContext} is. No `existing` field: unlike
- *  `custom_credential_set_token`, there is no row to resolve before the form opens — a CREATE's target
- *  row does not exist until the human submits. */
-interface CreateAnswerContext {
-  locale: string;
-  readonly routeDeps: CustomCredentialsToolDeps;
-  readonly exchange: SurfaceExchange;
-}
-
+/** Create has no existing row to resolve before the form opens: its target row does not exist
+ * until the human submits. The save port receives only its own explicit domain dependencies. */
 /** `custom_credential_create`'s five submitted form fields, in their raw `typeof`-guarded form — no
  *  defaulting yet (see {@link deriveCreateCredentialSubmission} for that stage). Split from it so each
  *  function's own complexity is measured independently: this one is pure shape-narrowing, that one is
@@ -944,7 +653,7 @@ interface RawCreateCredentialFields {
 /**
  * Narrows `custom_credential_create`'s five submitted params to strings, with no defaulting — a
  * missing or non-string field reads as `""`, exactly like every other `answer.params[...]` read in
- * this file (e.g. {@link handleSetTokenAnswer}'s own `token` read).
+ * this file; parsing never changes the submitted token bytes.
  *
  * @complexity O(1) — five fixed field reads.
  */
@@ -959,7 +668,7 @@ function readRawCreateCredentialFields(params: Record<string, unknown>): RawCrea
 }
 
 /** {@link deriveCreateCredentialSubmission}'s output — the fully-defaulted shape the rest of
- *  {@link handleCreateAnswer} actually acts on. */
+ *  {@link saveCreateCard} actually acts on. */
 interface CreateCredentialSubmission {
   readonly label: string;
   readonly baseUrl: string;
@@ -990,8 +699,8 @@ interface CreateCredentialSubmission {
  * - `username`: a blank string is treated as "omitted", matching `readCreateCredentialPrefill`'s own
  *   identical convention for the same optional field.
  * - `displayLabel`: a blank `label` still needs a human-readable name for the outcome surface (see its
- *   own field doc above); `token` is passed through unchanged — its own blank check happens in
- *   {@link handleCreateAnswer} itself, since only that caller knows what to do about it.
+ *   own field doc above); `token` is passed through unchanged — the engine checks blankness before
+ *   calling the domain save port.
  *
  * @complexity O(1) — three fixed defaulting decisions.
  */
@@ -1011,23 +720,11 @@ function deriveCreateCredentialSubmission(raw: RawCreateCredentialFields): Creat
   };
 }
 
-/** Builds `custom_credential_create`'s failure-shaped `{result, outcome}` tuple — the one shape every
- *  rejection branch below returns once a form has actually been submitted (as opposed to the
- *  cancelled/expired/abandoned branches at the top of {@link handleCreateAnswer}, which send no
- *  outcome at all — see that function's own body for why). Centralizing this means each rejection
- *  branch differs only in its `reason`/`message`, never in how those get wired into the outcome
- *  surface.
- *  @complexity O(1). */
-function buildCreateFailureOutcome(
-  exchangeId: string,
-  displayLabel: string,
-  reason: "invalid" | "duplicate-label" | "error",
-  message: string
-): { result: CreateCredentialResult; outcome: SurfaceEmission } {
-  return {
-    result: { created: false, reason, message },
-    outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId, label: displayLabel, state: "failure", message }) } },
-  };
+/** Shared safe failure metadata drives both the model result and the human outcome. Cancel,
+ * expiry and abandonment emit no outcome because their state is already rendered locally. */
+interface CreateCardFailure {
+  readonly reason: 'invalid' | 'duplicate-label' | 'error';
+  readonly message: string;
 }
 
 /**
@@ -1039,97 +736,215 @@ function buildCreateFailureOutcome(
  *
  * A collision is refused, never silently overwritten — and the refusal names the correct tool for a
  * rotation, so the model does not retry this CREATE-only tool against an existing row. Every other
- * failure's message goes through {@link reportFormSaveFailure}, the same allowlist
- * `handleSetTokenAnswer`'s catch uses — never `err.message`, which can quote the submitted token.
+ * failure's message goes through the same caller-safe allowlist as rotation — never an unlisted
+ * `err.message`, which can quote the submitted token.
  *
  * @complexity O(r) in {@link FORM_SAVE_CALLER_SAFE_ERRORS}' rule count.
  */
 function mapCreateCredentialError(
-  err: unknown,
-  ctx: { routeDeps: CustomCredentialsToolDeps; exchangeId: string; label: string; displayLabel: string }
-): { result: CreateCredentialResult; outcome: SurfaceEmission } {
+  required: { err: unknown; locale: string; label: string }, _optional = {}
+): CreateCardFailure {
+  const { err, locale, label } = required;
   if (err instanceof CustomCredentialDuplicateLabelError) {
     const message =
-      `A custom credential labeled '${ctx.label}' already exists in this workspace. To rotate its token, use custom_credential_set_token — ` +
+      `A custom credential labeled '${label}' already exists in this workspace. To rotate its token, use credential_save with kind api and target set to this label — ` +
       "this tool only creates NEW credentials and never overwrites an existing one.";
-    return buildCreateFailureOutcome(ctx.exchangeId, ctx.displayLabel, "duplicate-label", message);
+    return { reason: 'duplicate-label', message };
   }
-  const message = reportFormSaveFailure(ctx.routeDeps, { toolId: CREATE_TOOL_ID, exchangeId: ctx.exchangeId, err });
-  const reason = err instanceof CustomCredentialValidationError ? "invalid" : "error";
-  return buildCreateFailureOutcome(ctx.exchangeId, ctx.displayLabel, reason, message);
+  const message = translateCredentialMessage({ message: callerSafeErrorMessage({ err, rules: FORM_SAVE_CALLER_SAFE_ERRORS, fallback: FORM_SAVE_FAILURE_MESSAGE }), locale });
+  return { reason: err instanceof CustomCredentialValidationError ? 'invalid' : 'error', message };
 }
 
 /**
- * `custom_credential_create`'s `askThenReport` answer handling — extracted to a top-level function for
- * the same reason {@link handleSetTokenAnswer} is: its own complexity is measured independently of the
- * handler that opens the exchange and builds the form. `askThenReport`, not `askOnce` — the identical
- * defect this closes is documented on `handleSetTokenAnswer` above.
+ * The create card's domain save port stays separate from the engine's exchange lifecycle so its
+ * persistence cost is visible. askThenReport, rather than askOnce, keeps the human's submission
+ * waiting until the real store operation has finished instead of reporting premature Done.
  *
- * Every real field validation (non-empty label/baseUrl, a closed category, the `(workspaceId, label)`
- * uniqueness constraint) is left entirely to `store.ts`'s own `createCustomCredential` — this function
- * only special-cases a blank TOKEN locally (mirroring `handleSetTokenAnswer`'s identical local check),
- * both for a friendlier message and so a known-blank submission never even reaches `sealConnection`.
- * Field parsing and defaulting is delegated to {@link readRawCreateCredentialFields}/
- * {@link deriveCreateCredentialSubmission}; failure reporting to {@link buildCreateFailureOutcome}/
- * {@link mapCreateCredentialError} — this function's own body is left holding only the sequencing
- * decisions: bail out early, reject a blank token, otherwise attempt the write and report whichever
- * outcome comes back.
+ * Every real field validation (non-empty label/baseUrl, closed category, workspace/label uniqueness)
+ * remains in createCustomCredential. The engine refuses blank tokens before sealConnection; the
+ * domain keeps field parsing/defaulting and the error-type mapper for actionable failures.
  *
- * The token itself lives in a single local `const` for the width of this function (via `submission`)
- * and is never assigned to any field this function returns, logged, or otherwise retained — the
- * property `agent-tools.ts`'s own catalog description promises the model.
- *
- * @complexity O(1) plus one `createCustomCredential` call (validate, seal, insert).
+ * The token lives only in the local submission and the sealed store. It is never returned, logged,
+ * or retained in a projection — the property promised by agent-tools.ts's catalog description.
+ * Only the save runs within the engine's error boundary, so Nothing was saved remains truthful.
+ * @complexity O(1) locally plus one createCustomCredential call (validate, seal, insert).
  */
-async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerContext): Promise<{ result: CreateCredentialResult; outcome?: SurfaceEmission }> {
-  const { routeDeps, exchange, locale } = ctx;
-
-  if (answer.status !== "received") {
-    return { result: { created: false, reason: answer.status } };
-  }
-  if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
-    return { result: { created: false, reason: "cancelled" } };
-  }
-
-  const submission = deriveCreateCredentialSubmission(readRawCreateCredentialFields(answer.params));
-
-  if (submission.token.trim() === "") {
-    return buildCreateFailureOutcome(exchange.id, submission.displayLabel, "invalid", credentialText({ id: "blank", locale }));
-  }
-
-  // Only the save itself sits in the `try`, so "Nothing was saved" in a failure message stays true.
-  let credential: CustomCredentialSummary;
-  try {
-    credential = await createCustomCredential(
-      {
-        repo: routeDeps.customCredentialSetRepo,
-        sealer: routeDeps.siteAssistantSecretSealer,
-        keyring: routeDeps.siteAssistantSecretKeyring,
-        clock: routeDeps.clock,
-        idGen: routeDeps.idGen,
-      },
-      {
-        workspaceId: routeDeps.workspaceId,
-        label: submission.label,
-        category: submission.category,
-        baseUrl: submission.baseUrl,
-        connection: { token: submission.token, ...(submission.username !== undefined ? { username: submission.username } : {}) },
-      }
-    );
-  } catch (err) {
-    const failure = mapCreateCredentialError(err, { routeDeps, exchangeId: exchange.id, label: submission.label, displayLabel: submission.displayLabel });
-    if (err instanceof CustomCredentialValidationError) return buildCreateFailureOutcome(exchange.id, submission.displayLabel, 'invalid', translateCredentialMessage({ message: err.message, locale }));
-    return failure;
-  }
-
-  // The summary's token hint is for the human outcome only; strip it before returning to the model.
-  const { tokenHint, ...modelCredential } = credential;
-  const hint = formatCredentialHint({ hint: tokenHint, locale });
-  const message = `${hint ? `${hint}. ` : ""}${credentialText({ id: "saved", locale })}`;
-  return {
-    result: { created: true, credential: modelCredential },
-    outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: credential.label, state: "success", message }) } },
+async function saveCreateCard(
+  required: { submission: CreateCredentialSubmission; routeDeps: CustomCredentialsToolDeps; signal: AbortSignal }, _optional = {}
+): Promise<CustomCredentialSummary> {
+  const { routeDeps, submission, signal } = required;
+  const store = routeDeps.customCredentialSetRepo;
+  // A run can end while sealing awaits the keyring. Guard the existing write port after that await.
+  const repo: CustomCredentialSetRepoPort = {
+    insert: record => { signal.throwIfAborted(); return store.insert(record); },
+    update: record => store.update(record),
+    findById: input => store.findById(input),
+    listByWorkspace: input => store.listByWorkspace(input),
+    delete: input => store.delete(input),
   };
+  // Only persistence sits in the engine's save boundary, so failure copy stays truthful.
+  return await createCustomCredential(
+    {
+      repo,
+      sealer: routeDeps.siteAssistantSecretSealer,
+      keyring: routeDeps.siteAssistantSecretKeyring,
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+    },
+    {
+      workspaceId: routeDeps.workspaceId,
+      label: submission.label,
+      category: submission.category,
+      baseUrl: submission.baseUrl,
+      connection: { token: submission.token, ...(submission.username !== undefined ? { username: submission.username } : {}) },
+    }
+  );
+}
+
+/** Bind API creation and rotation to their existing authorization, errors and sealed store.
+ * @param required - Workspace dependencies and shared surface exchanges.
+ * @returns Two internal adapters; neither is registered under a retired tool id.
+ * @example buildApiCredentialSaveHandlers({ routeDeps, surfaces });
+ * @complexity O(1) binding; each adapter performs the existing bounded store operations.
+ */
+export function buildApiCredentialSaveHandlers({ routeDeps, surfaces }: { routeDeps: CustomCredentialsToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): { create: ToolHandler; rotate: ToolHandler } {
+  const handlers: { create: ToolHandler; rotate: ToolHandler } = {
+    // An MCP-UI surface for the SECRET itself — see this file's header, "custom_credential_set_token",
+    // for the full mechanism and why it holds up "a token must never pass through the model's
+    // context" rather than merely "an agent must never write one". Shape validation
+    // (`rejectUnexpectedSetTokenFields`) and the label->id resolution both run BEFORE any exchange is
+    // opened, same ordering `custom_credential_make_request`'s DELETE gate below uses: a malformed or
+    // unresolvable call must never raise a dialog for a human to see. WRITE-gated, same permission
+    // `custom_credential_set_username`/`custom_credential_make_request` use.
+    rotate: async (ctx, options = {}): Promise<SetTokenResult> => {
+      const input = requireInputRecord({ input: ctx.input });
+      rejectUnexpectedSetTokenFields(input);
+      const label = requireString({ input, key: "label" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
+
+      // Non-decrypting label->id resolution — same lookup `custom_credential_set_username` above uses,
+      // and for the identical reason: a bad label should never cost a decrypt. Only `existing.id` is
+      // load-bearing past this point: `saveSetToken` deliberately re-reads the username itself,
+      // fresh, right before writing — see its own header for why trusting THIS snapshot's username
+      // would be wrong once the human's answer can arrive an arbitrarily long time later.
+      const existing = await describeCredentialByLabel({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, label });
+      if (!existing) {
+        throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
+      }
+
+      // Fail closed rather than degrade — and, unlike every OTHER gated tool in this codebase, there is
+      // deliberately no fallback second-call shape for this one even in principle: that shape is a
+      // fresh MODEL-ISSUED tool call carrying the human's answer as its own input, which is exactly the
+      // path this tool exists to make impossible for a secret. See this file's header.
+      // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
+      // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
+      // The run ended during the pre-dialog reads: the engine opens no dialog for an aborted run.
+      // `askThenReport`, not `askOnce` — the engine waits for save and replaces the same card URI.
+      const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+      let errorSummary = "";
+      const card = defineSecretCardTool<{ label: string }, CustomCredentialSummary, SetTokenResult>({
+        toolId: CREDENTIAL_SAVE_TOOL_ID,
+        prepare: async () => ({ label }),
+        form: ({ prep }) => setTokenForm(prep),
+        save: ({ values, signal }) => saveSetToken({ token: values.token as string, signal, routeDeps, existing }),
+        result: ({ run }) => {
+          // Token hints belong on the human's card, never in the model-facing result or audit output.
+          if (run.status === "saved") return { saved: true };
+          if (run.status === "blank") return { saved: false, reason: "invalid", message: credentialText({ id: "blank", locale }) };
+          if (run.status === "failed") return { saved: false, reason: "error", message: run.safeMessage };
+          return { saved: false, reason: run.status };
+        },
+        outcome: ({ run }) => {
+          if (run.status === "saved") {
+            const hint = formatCredentialHint({ hint: run.saved.tokenHint, locale });
+            return setTokenOutcome({ label, state: "success", message: `${hint ? `${hint}. ` : ""}${credentialText({ id: "saved", locale })}` });
+          }
+          if (run.status === "blank" || run.status === "failed") return setTokenOutcome({ label, state: "failure",
+            message: run.status === "blank" ? credentialText({ id: "blank", locale }) : run.safeMessage });
+          return undefined;
+        },
+      }, {
+        uriHost: "tovu",
+        text: { noEmitter: "custom_credential_set_token: this execution context has no interactive confirmation channel " +
+          "(no emitSurface), so a token cannot be collected here. Nothing was changed." },
+        safeError: err => {
+          // Never `err.message`: it can quote the token just submitted. See FORM_SAVE_CALLER_SAFE_ERRORS.
+          errorSummary = describeErrorForLog(err);
+          return translateCredentialMessage({ message: callerSafeErrorMessage({ err, rules: FORM_SAVE_CALLER_SAFE_ERRORS, fallback: FORM_SAVE_FAILURE_MESSAGE }), locale });
+        },
+        logFailure: ({ toolId, exchangeId }) => failureLog(routeDeps)(`[custom-credentials] ${toolId}: save failed exchange=${exchangeId} credentialId=${existing.id} error=${errorSummary}`),
+      });
+      return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, options);
+    },
+
+    // Creates a brand-new credential row — see this file's header, "custom_credential_create", for the
+    // full mechanism and the incident it closes. Unlike every other write handler in this domain, there
+    // is no existing row to resolve or fail closed on before opening the form: a CREATE's row does not
+    // exist yet, so the only pre-form checks are the permission gate and the `emitSurface` fail-closed
+    // guard below. All three prefill fields are optional and non-secret by schema
+    // (`credential-save-tool.ts`'s API creation schema) — a call with none of them is a normal, valid call.
+    create: async (ctx, { emitSurface } = {}): Promise<CreateCredentialResult> => {
+      // `requireInputRecord` refuses `undefined` outright, but this tool's schema has no required
+      // field at all (same `required: []` shape `custom_credential_list`'s own `NO_INPUT_SCHEMA`
+      // documents) — a model-issued call with no arguments at all is a normal, valid call here, not a
+      // malformed one, so it is treated the same as an explicit `{}` rather than rejected.
+      const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
+      const prefill = readCreateCredentialPrefill(input);
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
+
+      const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+      // Fail closed rather than degrade — the only place a token can enter is the rendered form.
+      // A ToolInputError preserves this exact wording; a bare Error would become a redacted 500.
+      // The engine checks pre-dialog aborts and uses askThenReport so the save completes before Done.
+      // These safe projections are scoped to this invocation, never shared between concurrent cards.
+      // The error kind selects this tool's existing reason; the engine still owns error redaction.
+      let failure: CreateCardFailure | undefined;
+      let displayLabel = safeCredentialLabel({ label: prefill.label ?? '' });
+      const card = defineSecretCardTool<{ prefill: CreateCredentialPrefill }, CustomCredentialSummary, CreateCredentialResult>({
+        toolId: CREDENTIAL_SAVE_TOOL_ID,
+        prepare: async () => ({ prefill }),
+        form: ({ prep }) => buildCreateForm({ prefill: prep.prefill }),
+        save: ({ values, signal }) => {
+          const submission = deriveCreateCredentialSubmission(readRawCreateCredentialFields(values));
+          displayLabel = redactSecrets({ input: submission.displayLabel }, { exactSecrets: [submission.token] });
+          return saveCreateCard({ submission, routeDeps, signal });
+        },
+        result: ({ run }) => {
+          if (run.status === 'saved') {
+            // The summary's token hint is for the human outcome only; strip it before returning to the model.
+            const { tokenHint: _humanHint, ...credential } = run.saved;
+            return { created: true, credential };
+          }
+          if (run.status === 'blank') return { created: false, reason: 'invalid', message: credentialText({ id: 'blank', locale }) };
+          if (run.status === 'failed') return { created: false, reason: failure?.reason ?? 'error', message: run.safeMessage };
+          return { created: false, reason: run.status };
+        },
+        outcome: ({ run }) => {
+          if (run.status === 'saved') {
+            const hint = formatCredentialHint({ hint: run.saved.tokenHint, locale });
+            return buildCreateOutcome({ label: run.saved.label, state: 'success', message: `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale })}` });
+          }
+          if (run.status === 'blank' || run.status === 'failed') return buildCreateOutcome({ label: displayLabel, state: 'failure',
+            message: run.status === 'blank' ? credentialText({ id: 'blank', locale }) : run.safeMessage });
+          // Cancel/expiry/abandonment already render locally: no second outcome is emitted.
+          return undefined;
+        },
+      }, {
+        uriHost: 'tovu',
+        text: { noEmitter: "custom_credential_create: this execution context has no interactive confirmation channel " +
+          "(no emitSurface), so a credential cannot be created here. Nothing was changed.", saveFailure: FORM_SAVE_FAILURE_MESSAGE },
+        safeError: err => {
+          failure = mapCreateCredentialError({ err, locale, label: displayLabel });
+          return failure.message;
+        },
+        // Fixed exchange metadata only: exception text, the label, and submitted values are unsafe.
+        logFailure: metadata => failureLog(routeDeps)(JSON.stringify(metadata)),
+      });
+      return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, { emitSurface });
+    },
+
+  };
+  return withModelFacingErrors({ handlers, rules: CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS }) as { create: ToolHandler; rotate: ToolHandler };
 }
 
 export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentialsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
@@ -1198,110 +1013,13 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       );
     },
 
-    // An MCP-UI surface for the SECRET itself — see this file's header, "custom_credential_set_token",
-    // for the full mechanism and why it holds up "a token must never pass through the model's
-    // context" rather than merely "an agent must never write one". Shape validation
-    // (`rejectUnexpectedSetTokenFields`) and the label->id resolution both run BEFORE any exchange is
-    // opened, same ordering `custom_credential_make_request`'s DELETE gate below uses: a malformed or
-    // unresolvable call must never raise a dialog for a human to see. WRITE-gated, same permission
-    // `custom_credential_set_username`/`custom_credential_make_request` use.
-    custom_credential_set_token: async (ctx, { emitSurface } = {}): Promise<SetTokenResult> => {
-      const input = requireInputRecord({ input: ctx.input });
-      rejectUnexpectedSetTokenFields(input);
-      const label = requireString({ input, key: "label" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
-
-      // Non-decrypting label->id resolution — same lookup `custom_credential_set_username` above uses,
-      // and for the identical reason: a bad label should never cost a decrypt. Only `existing.id` is
-      // load-bearing past this point: `handleSetTokenAnswer` deliberately re-reads the username itself,
-      // fresh, right before writing — see its own header for why trusting THIS snapshot's username
-      // would be wrong once the human's answer can arrive an arbitrarily long time later.
-      const existing = await describeCredentialByLabel({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, label });
-      if (!existing) {
-        throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
-      }
-
-      // Fail closed rather than degrade — and, unlike every OTHER gated tool in this codebase, there is
-      // deliberately no fallback second-call shape for this one even in principle: that shape is a
-      // fresh MODEL-ISSUED tool call carrying the human's answer as its own input, which is exactly the
-      // path this tool exists to make impossible for a secret. See this file's header.
-      if (!emitSurface) {
-        // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
-        // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
-        throw new ToolInputError({ message:
-          "custom_credential_set_token: this execution context has no interactive confirmation channel " +
-            "(no emitSurface), so a token cannot be collected here. Nothing was changed."
-         });
-      }
-
-      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
-      if (ctx.signal.aborted) return { saved: false, reason: "abandoned" };
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: SET_TOKEN_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-      const ui = buildSetTokenFormResource({ label, exchangeId: exchange.id });
-
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        // `askThenReport`, not `askOnce` — see `handleSetTokenAnswer`'s own header for the full defect
-        // this closes and why the handler is a separate top-level function rather than inlined here.
-        const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-        const answerContext: SetTokenAnswerContext = { routeDeps, existing, label, exchange, locale };
-        return await askThenReport<SetTokenResult>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) => handleSetTokenAnswer(answer, answerContext));
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
-    },
-
-    // Creates a brand-new credential row — see this file's header, "custom_credential_create", for the
-    // full mechanism and the incident it closes. Unlike every other write handler in this domain, there
-    // is no existing row to resolve or fail closed on before opening the form: a CREATE's row does not
-    // exist yet, so the only pre-form checks are the permission gate and the `emitSurface` fail-closed
-    // guard below. All three prefill fields are optional and non-secret by schema
-    // (`CREATE_CREDENTIAL_SCHEMA`, `agent-tools.ts`) — a call with none of them is a normal, valid call.
-    custom_credential_create: async (ctx, { emitSurface } = {}): Promise<CreateCredentialResult> => {
-      // `requireInputRecord` refuses `undefined` outright, but this tool's schema has no required
-      // field at all (same `required: []` shape `custom_credential_list`'s own `NO_INPUT_SCHEMA`
-      // documents) — a model-issued call with no arguments at all is a normal, valid call here, not a
-      // malformed one, so it is treated the same as an explicit `{}` rather than rejected.
-      const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
-      const prefill = readCreateCredentialPrefill(input);
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
-
-      // Fail closed rather than degrade — same posture `custom_credential_set_token` documents above,
-      // and for the identical reason: the only place a token can ever enter is the rendered form.
-      if (!emitSurface) {
-        // A `ToolInputError` with the wording unchanged: a bare `Error` is redacted to a 500 that
-        // no allowlist rule can rescue. No code prefix — the per-tool suites pin this exact string.
-        throw new ToolInputError({ message:
-          "custom_credential_create: this execution context has no interactive confirmation channel " +
-            "(no emitSurface), so a credential cannot be created here. Nothing was changed."
-         });
-      }
-
-      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
-      if (ctx.signal.aborted) return { created: false, reason: "abandoned" };
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: CREATE_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-      const ui = buildCreateFormResource({ exchangeId: exchange.id, prefill });
-
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        // `askThenReport`, not `askOnce` — see `handleCreateAnswer`'s own header for the full defect
-        // this closes and why the handler is a separate top-level function rather than inlined here.
-        const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-        const answerContext: CreateAnswerContext = { routeDeps, exchange, locale };
-        return await askThenReport<CreateCredentialResult>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) => handleCreateAnswer(answer, answerContext));
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
-    },
-
     // GET/POST/PUT/PATCH run immediately (no ceremony — parity with the site). DELETE opens an
     // in-chat confirmation and parks until answered; see this file's own header for the full
     // mechanism and why. All shape/security-boundary validation (`method`/`url`/`headers`/`body`,
     // label existence, host allowlist) happens inside `resolveRequestTarget`/`makeCredentialedRequest`
     // themselves — this handler's only job is deciding WHETHER to gate, never re-validating.
     custom_credential_make_request: async (ctx, { emitSurface } = {}): Promise<CredentialedRequestOutcome | CredentialSetupFailure> => {
+      ctx = { ...ctx, input: structuredClone(ctx.input), principal: { ...ctx.principal }, run: { ...ctx.run } };
       const input = requireInputRecord({ input: ctx.input });
       const label = requireString({ input, key: "label" });
       const method = requireString({ input, key: "method" });
@@ -1315,7 +1033,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       // Non-decrypting: a declined/expired/off-allowlist DELETE must never have cost a decrypt.
       // Not wrapped in `withSchemaOnRejection`: its `CredentialedRequestValidationError` and
       // `CustomCredentialNotFoundError` reach the model through the map-level
-      // `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` wrap instead (2026-09-16) — the daemon-boundary
+      // `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` wrap instead — the daemon-boundary
       // redaction this comment once deferred was confirmed to reach here too.
       const target = await withCustomCredentialSetup({ label, url, invoke: () => resolveRequestTarget({ repo: requestDeps.repo }, { workspaceId: routeDeps.workspaceId, label, url }) }, {});
       if ("credentialSetup" in target) return target;
@@ -1331,38 +1049,21 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
          });
       }
 
-      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+      // A run aborted during reconnaissance must not proceed to the external commit.
       if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-      const ui = buildDeleteRequestConfirmationResource({
-        label: target.label,
-        host: target.url.host,
-        path: `${target.url.pathname}${target.url.search}`,
-        exchangeId: exchange.id,
-        expiresAtMs: exchange.expiresAtMs(),
-      });
-
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      let decision: Awaited<ReturnType<typeof resolveMakeRequestDeleteDecision>>;
-      try {
-        decision = await resolveMakeRequestDeleteDecision(exchange, ui);
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
-      if (!decision.confirmed) return decision.result;
-
-      return withCustomCredentialSetup({ label, url, invoke: () => makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: input.headers, body: input.body }) }, {});
+      return approvalToolHandler({ surfaces,
+        prepare: async () => ({ label: target.label, host: target.url.host, path: `${target.url.pathname}${target.url.search}` }),
+        describe: ({ prepared }) => describeDeleteRequestApproval(prepared),
+        run: async ({ ctx: approvedCtx }) => {
+          await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: approvedCtx.principal.id, permission: WRITE_PERMISSION }, { entityType: DOMAIN });
+          if (approvedCtx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
+          const frozen = requireInputRecord({ input: approvedCtx.input });
+          return withCustomCredentialSetup({ label, url, invoke: () => makeModelFacingCredentialedRequest(requestDeps, { workspaceId: routeDeps.workspaceId, label, method: "DELETE", url, headers: frozen.headers, body: frozen.body }) }, {});
+        },
+      }, { declined: ({ reason }) => reason === "declined" ? { executed: false, cancelled: true } : { executed: false, cancelled: false, reason } })(ctx, { emitSurface }) as Promise<CredentialedRequestOutcome | CredentialSetupFailure>;
     },
 
-    // Writes one or more named files into a saved credential's repository, in one atomic commit, ALWAYS
-    // gated behind an in-chat confirmation naming every path — see this file's header,
-    // "custom_credential_write_files", for the full design. Shape/path/size validation
-    // (`validateWriteFilesInput`), the host's owner/repo rules (`validateRepositoryTarget`, once the
-    // credential's base URL names the host, still before any decrypt) and the read-only
-    // branch/tree/existence reconnaissance (the provider's `planFileWrite`) all run BEFORE the dialog is
-    // opened, same ordering the DELETE gate above uses: a malformed call or a nonexistent branch is
-    // refused with no dialog and no confirmation spent.
+    // See this file's header for file-write validation, provider-plan and freshness boundaries.
     custom_credential_write_files: async (ctx): Promise<WriteFilesResult> => {
       const input = requireInputRecord({ input: ctx.input });
       const label = requireString({ input, key: "label" });
@@ -1404,13 +1105,13 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         throw new Error(`custom_credential_write_files: ${planResult.message}`);
       }
 
-      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+      // A run aborted during reconnaissance must not proceed to the external commit.
       if (ctx.signal.aborted) return { executed: false, cancelled: false, reason: "abandoned" };
       return performGitHubFilesWrite(routeDeps, provider, resolved, validated, planResult.plan);
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: DOMAIN,
     catalogModule: "features/custom-credentials/agent-tools.ts",
     catalog: CATALOG_BY_ID,

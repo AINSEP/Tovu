@@ -1,3 +1,5 @@
+import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
+import { credentialSaveCatalog } from "../../custom-credentials/credential-save-tool.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,7 +10,7 @@ import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
 // Seeds vendor rows the way another feature (the vendor store) writes them.
@@ -16,7 +18,10 @@ import { createPublishCredential, resolveForPublish } from "../publish-credentia
 
 import type { LoadedDeployTarget } from "../deploy-targets/types.js";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
-import { buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
+import { buildPublishHostCredentialHandler, buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `publish-agent-tools.ts` wiring proof, rewritten for the 2026-08-15 change that wired
@@ -79,7 +84,7 @@ function fakeDeps(
 }
 
 function buildRegistrations(deps: StaticPublishToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
-  return new Map(buildStaticPublishRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+  return new Map(credentialSaveFixtureRegistrations({ registrations: buildStaticPublishRegistrations(deps, { surfaceExchanges }), adapters: { publishHost: buildPublishHostCredentialHandler({ deps, surfaces: { surfaceExchanges } }) } }).map((r) => [r.descriptor.id, r]));
 }
 
 function tool(registrations: Map<string, ToolRegistration>, id: string): ToolRegistration {
@@ -99,7 +104,7 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     executionId: "exec-1",
     principal: { id: PRINCIPAL_ID },
     run: { id: "run-1" },
-    input: options.input,
+    input: registration.descriptor.id === "credential_save" ? credentialSaveFixtureInput({ input: options.input, kind: "publish-host" }) : options.input,
     signal: options.signal ?? new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
@@ -195,12 +200,12 @@ function fakeCredentialRepo(records: readonly VendorCredentialSetRecord[]): Vend
 }
 
 // ---------------------------------------------------------------------------
-// 1. Wiring shape — all five tools
+// 1. Wiring shape — four publish tools; credential_save is owned by the shared contributor.
 // ---------------------------------------------------------------------------
 
-test("buildStaticPublishRegistrations wires all five tools, each with an input schema", () => {
+test("buildStaticPublishRegistrations wires all four publish tools, each with an input schema", () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: false, reason: "n/a" }; }, async isConfigured() { return { configured: false, reason: "n/a" }; } } });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = buildStaticPublishRegistrations(deps, { surfaceExchanges });
   const ids = registrations.map((r) => r.descriptor.id).sort();
   assert.deepEqual(ids, [
@@ -208,7 +213,6 @@ test("buildStaticPublishRegistrations wires all five tools, each with an input s
     "deployment_generate_bucket_hosting_setup",
     "deployment_get_static_publish_capabilities",
     "deployment_preview_static_publish",
-    "deployment_propose_custom_provider_credential",
   ]);
   for (const entry of registrations) {
     assert.ok(entry.descriptor.inputSchema, `${entry.descriptor.id} must publish an input schema`);
@@ -242,7 +246,7 @@ test("preview/execute schemas name no host: target is any id the capabilities to
 
 test("deployment_preview_static_publish refuses a field its host does not declare (a credential can never ride in as config)", async () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true }; } } });
-  const preview = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_preview_static_publish");
+  const preview = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "deployment_preview_static_publish");
   await assert.rejects(
     () => call(preview, { input: { target: "github-pages", owner: "octo", repo: "site", token: "ghp_secret" } }),
     (err: unknown) => err instanceof ToolInputError && err.message === "'token' is not a field of github-pages. It takes: owner, repo, branch."
@@ -251,7 +255,7 @@ test("deployment_preview_static_publish refuses a field its host does not declar
 
 test("deployment_execute_static_publish refuses a field its host does not declare, before any dialog is raised", async () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: true }; } } });
-  const execute = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_execute_static_publish");
+  const execute = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "deployment_execute_static_publish");
   await assert.rejects(
     () => call(execute, { input: { target: "vercel", projectName: "p", owner: "octo" } }),
     (err: unknown) => err instanceof ToolInputError && err.message === "'owner' is not a field of vercel. It takes: teamId."
@@ -273,7 +277,7 @@ test("deployment_preview_static_publish reports validity, computed base path, an
       async isConfigured() { return { configured: true }; },
     },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   const result = (await call(preview, { input: { target: "github-pages", owner: "octo", repo: "my-site" } })) as Record<string, unknown>;
@@ -293,7 +297,7 @@ test("deployment_preview_static_publish reports invalid config and false credent
       async isConfigured() { return { configured: false, reason: "GITHUB_TOKEN is not set" }; },
     },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   const result = (await call(preview, { input: { target: "github-pages", owner: "not valid!!", repo: "demo" } })) as Record<string, unknown>;
@@ -313,7 +317,7 @@ test("deployment_get_static_publish_capabilities's description forbids ever aski
   assert.match(entry.description, /do not ask the user to paste/i);
   assert.ok(entry.description.includes("Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason:"));
   assert.match(entry.description, /Static Site tab/);
-  assert.equal(entry.description.includes("call deployment_propose_custom_provider_credential in this turn to open its secure card, then retry once after a successful save."), true);
+  assert.equal(entry.description.includes("call credential_save with kind publish-host in this turn to open its secure card, then retry once after a successful save."), true);
   assert.equal(entry.description.includes("is an alternative for manual setup."), true);
 });
 
@@ -339,7 +343,7 @@ test("deployment_get_static_publish_capabilities lists exactly the registry's ho
     { workspaceId: deps.workspaceId, label: "bucket", connection: { providerId: "acme-host", token: "tok" } }
   );
 
-  const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_get_static_publish_capabilities");
+  const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as { providers: { providerId: string; label: string; configFields: unknown[]; credentialConfigured: boolean }[] };
 
   assert.deepEqual(
@@ -377,7 +381,7 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set({ workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" }, { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW });
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
 
   const result = (await call(capabilities)) as {
@@ -433,7 +437,7 @@ test("deployment_get_static_publish_capabilities: a saved credential surfaces it
     { workspaceId: deps.workspaceId, label: "work", connection: { providerId: "github-pages", token: "ghp_aVeryRealLookingToken1234" } }
   );
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as {
     providers: { providerId: string; credentialConfigured: boolean; savedCredentials: { label: string; tokenTail: string | null; tokenHint: { length: number; last4: string | null } | null }[] }[];
@@ -466,7 +470,7 @@ test("deployment_get_static_publish_capabilities: a freshly saved s3-compatible 
     { workspaceId: deps.workspaceId, label: "custom bucket", connection: { providerId: "s3-compatible", region: "us-east-1", bucket: "b", accessKeyId: "AKIA", secretAccessKey: "topsecret", publicUrl: "https://example.test" } }
   );
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as { providers: { providerId: string; credentialConfigured: boolean; savedCredentials: unknown[]; guidance?: string }[] };
 
@@ -498,7 +502,7 @@ test("deployment_get_static_publish_capabilities: a verified credential's accoun
     { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "leonaburime-ucla" }
   );
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as { providers: { providerId: string; accountLabel: string | null }[] };
 
@@ -537,7 +541,7 @@ test("deployment_get_static_publish_capabilities: accountLabel is read from the 
   // scenario the fix is for).
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as { providers: { providerId: string; accountLabel: string | null }[] };
 
@@ -563,7 +567,7 @@ test("deployment_get_static_publish_capabilities: accountLabel falls back to the
     { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "leonaburime-ucla" }
   );
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as { providers: { providerId: string; accountLabel: string | null }[] };
 
@@ -590,7 +594,7 @@ test("deployment_get_static_publish_capabilities: the DB column wins over a stal
     { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "some-stale-value" }
   );
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as { providers: { providerId: string; accountLabel: string | null }[] };
 
@@ -630,7 +634,7 @@ test("deployment_get_static_publish_capabilities: a recorded lastPublish is surf
   });
   deps.historyStore = history;
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as { providers: { providerId: string; lastPublish: { url: string; owner?: string; repo?: string } | null }[] };
 
@@ -652,7 +656,7 @@ test("confirm: a real publish records history in the injected historyStore, read
     buildTarget: () => fakeDeployTarget(captured, { owner: "octo", repo: "my-site", branch: "gh-pages" }),
   });
   deps.historyStore = history;
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = buildRegistrations(deps, surfaceExchanges);
   const executeTool = tool(registrations, "deployment_execute_static_publish");
 
@@ -699,7 +703,7 @@ test("deployment_get_static_publish_capabilities: a saved credential that has NE
   deps.vendorCredentialSetRepo = fakeCredentialRepo(records);
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache(); // nothing cached — never verified
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as {
     providers: { providerId: string; ready: boolean; credentialConfigured: boolean; verified: "valid" | "invalid" | "unreachable" | null; guidance?: string }[];
@@ -727,7 +731,7 @@ test("deployment_get_static_publish_capabilities: a saved credential the provide
     { status: "invalid", message: "GitHub rejected this credential (HTTP 401) — it is invalid, expired, or missing the required permissions.", checkedAt: NOW }
   );
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as {
     providers: { providerId: string; ready: boolean; credentialConfigured: boolean; verified: "valid" | "invalid" | "unreachable" | null; guidance?: string }[];
@@ -757,7 +761,7 @@ test("deployment_get_static_publish_capabilities: a saved credential whose last 
     { status: "unreachable", message: "Could not reach GitHub to verify this credential — this does not necessarily mean the credential is bad.", checkedAt: NOW }
   );
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
   const result = (await call(capabilities)) as {
     providers: { providerId: string; ready: boolean; credentialConfigured: boolean; verified: "valid" | "invalid" | "unreachable" | null; guidance?: string }[];
@@ -774,7 +778,7 @@ test("deployment_get_static_publish_capabilities: a saved credential whose last 
 
 test("deployment_get_static_publish_capabilities requires deployments.read and rejects extra input", async () => {
   const { deps, authorizeCalls, setAllow } = fakeDeps({ allow: false, credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: false, reason: "n/a" }; } } });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
 
   await assert.rejects(() => call(capabilities), /is not authorized for 'deployments\.read'/);
@@ -797,7 +801,7 @@ test("no credential configured for the requested provider: an actionable result 
       async isConfigured() { return { configured: false, reason: "no default 'vercel' credential is saved for this workspace yet — add one in the Static Site tab" }; },
     },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const result = (await call(executeTool, { input: { target: "vercel", projectName: "demo" }, emitSurface: async () => undefined })) as {
@@ -810,7 +814,7 @@ test("no credential configured for the requested provider: an actionable result 
   assert.equal(result.published, false);
   assert.equal(result.reason, "no-credential");
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: "deployment_propose_custom_provider_credential", remedyToolId: "deployment_propose_custom_provider_credential", prefill: { target: "vercel" },
+    setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "publish-host", target: "vercel" },
     hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
   });
   assert.match(result.message, /vercel/);
@@ -833,7 +837,7 @@ test("Cloudflare Pages configured with a token but no account id: the REAL compo
   // No `credentialSource` override — this exercises the REAL `composePublishCredentialSource` this
   // file's own production wiring builds from `RouteDeps` (DB miss, self-hosted-cli env fallback).
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const result = (await call(executeTool, { input: { target: "cloudflare-pages", projectName: "demo" }, emitSurface: async () => undefined })) as {
@@ -854,7 +858,7 @@ test("requires deployments.publish, checked before any dialog is raised", async 
     allow: false,
     credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { throw new Error("must not be called before authorization"); } },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   await assert.rejects(() => call(executeTool, { input: { target: "vercel", projectName: "demo" } }), /is not authorized for 'deployments\.publish'/);
@@ -879,7 +883,7 @@ test("execute: exported bytes reach publishStaticSite and the same call reports 
   const exportSite = createRouteDeps().exportSiteBound;
   const exportInputs: unknown[] = [];
   deps.exportSiteBound = async (input) => { exportInputs.push(input); return exportSite(input); };
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending } = await beginCall(executeTool, { target: "github-pages", owner: "octo", repo: "demo-repo", branch: "release", projectName: "demo-site" });
@@ -913,7 +917,7 @@ test("provider rejection: an actionable message is returned, never a raw respons
     },
     buildTarget: () => failingDeployTarget("Vercel API responded 403: insufficient scope for this token"),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending } = await beginCall(executeTool, { target: "vercel", projectName: "demo-site" });
@@ -945,7 +949,7 @@ test("confirm: a target that reports a non-'ready' terminal status returns a gen
       },
     }),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending } = await beginCall(executeTool, { target: "s3-compatible", projectName: "demo-site" });
@@ -963,7 +967,7 @@ test("confirm: a full 'ready' success explicitly reports reachable:true, not mer
     credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
     buildTarget: () => fakeDeployTarget(captured),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending } = await beginCall(executeTool, { target: "vercel", projectName: "demo-site" });
@@ -993,7 +997,7 @@ test("confirm: a full success ALSO emits a succeeded outcome surface, same uri a
     credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
     buildTarget: () => fakeDeployTarget(captured),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending, emitted } = await beginCall(executeTool, { target: "vercel", projectName: "demo-site" });
@@ -1024,7 +1028,7 @@ test("confirm: a partial (uploaded, not yet reachable) outcome ALSO emits its OW
       async checkReachability() { return { reachable: false }; },
     }),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending, emitted } = await beginCall(executeTool, { target: "s3-compatible", projectName: "demo-site" });
@@ -1040,7 +1044,7 @@ test("provider rejection ALSO emits a failed-state outcome surface carrying the 
     credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
     buildTarget: () => failingDeployTarget("Vercel API responded 403: insufficient scope for this token"),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending, emitted } = await beginCall(executeTool, { target: "vercel", projectName: "demo-site" });
@@ -1068,7 +1072,7 @@ async function raiseCredentialForm(proposeTool: ToolRegistration, input: Record<
   assert.equal(emitted.length, 1, "the form must be emitted before the call parks");
   const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  return { pending, html, exchangeId };
+  return { pending, html, exchangeId, emitted };
 }
 
 const VALID_FORM_SUBMISSION = {
@@ -1079,18 +1083,69 @@ const VALID_FORM_SUBMISSION = {
   publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
 };
 
+test("propose-credential replaces its form with the saved hint and not-tested outcome when the host has no verifier", async () => {
+  const { deps } = fakeDeps();
+  const host: LoadedDeployTarget = {
+    pluginId: "deploy",
+    module: { create: () => assert.fail("credential setup must not publish") },
+    descriptor: {
+      id: "unverified-host", label: "Unverified Host", module: "targets/unverified.mjs", configFields: [],
+      credential: { vendorId: "unverified-host", tokenField: "token", fields: [{ name: "token", label: "Token", required: true, secret: true }] },
+    },
+  };
+  deps.loadDeployTargets = async () => ({ get: id => id === host.descriptor.id ? host : undefined, list: () => [host], refusals: [] });
+  let probes = 0;
+  deps.fetchFn = async () => { probes++; throw new Error("a host without a verifier must not be tested"); };
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
+  const { pending, exchangeId, emitted } = await raiseCredentialForm(proposeTool, { target: "unverified-host" });
+  const submitted = "fixture_token_1234";
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: submitted } }, { toolId: "credential_save" });
+  const result = await pending;
+  assert.equal(emitted.length, 2, "askThenReport must replace the form after the write completes");
+  const form = (emitted[0] as { payload: { resource: { resource: { uri: string } } } }).payload.resource;
+  const outcome = (emitted[1] as { channel: string; payload: { resource: { resource: { uri: string; text: string } } } });
+  assert.equal(outcome.channel, "mcp-ui");
+  assert.equal(outcome.payload.resource.resource.uri, form.resource.uri, "the result must replace this form in place");
+  assert.equal(outcome.payload.resource.resource.text.includes("Saved."), true);
+  assert.equal(outcome.payload.resource.resource.text.includes("…1234, 18 chars. Saved, not tested."), true);
+  assert.equal(JSON.stringify(emitted).includes(submitted), false);
+  assert.equal(JSON.stringify(result).includes(submitted), false);
+  assert.deepEqual(result, {
+    saved: true, providerId: "unverified-host", connected: false, connection: "saved",
+    tokenHint: { length: 18, last4: "1234" }, message: "…1234, 18 chars. Saved, not tested.",
+  });
+  assert.equal(probes, 0);
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("propose-credential replaces an invalid submission with its real failure outcome", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
+  const { pending, exchangeId, emitted } = await raiseCredentialForm(proposeTool, { target: "netlify" });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: "   " } }, { toolId: "credential_save" });
+  const result = await pending;
+  assert.deepEqual(result, { saved: false, cancelled: false, reason: "invalid", message: "Enter a token. Spaces alone are not a token." });
+  assert.equal(emitted.length, 2);
+  const resource = (emitted[1] as { payload: { resource: { resource: { uri: string; text: string } } } }).payload.resource.resource;
+  assert.equal(resource.uri, `ui://tovu/secret-card/credential_save/${exchangeId}`);
+  assert.equal(resource.text.includes("Enter a token. Spaces alone are not a token."), true);
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
 test("deployment_propose_custom_provider_credential's schema carries no credential field: only target, plus string pre-fill hints the handler checks against the host", () => {
-  const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_propose_custom_provider_credential")!;
+  const entry = credentialSaveCatalog.find((t) => t.name === "credential_save")!;
   const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: unknown; required: string[] };
-  assert.deepEqual(schema.additionalProperties, { type: "string" });
-  assert.deepEqual(Object.keys(schema.properties), ["target"]);
-  assert.deepEqual(schema.required, ["target"]);
+  assert.equal(schema.additionalProperties, false);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "kind", "label", "prefill", "reason", "target"]);
+  assert.deepEqual(schema.required, ["kind"]);
 });
 
 test("propose-credential: a secret field is refused as a pre-fill hint, so a secret can never come from the chat", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
   await assert.rejects(
     () => call(proposeTool, { input: { target: "s3-compatible", secretAccessKey: "leaked" }, emitSurface: async () => {} }),
     (err: unknown) => err instanceof ToolInputError && err.message === "'secretAccessKey' is secret: the person types it into the form, never into the chat."
@@ -1104,8 +1159,8 @@ test("propose-credential: a secret field is refused as a pre-fill hint, so a sec
 
 test("propose-credential works for any host with a credential spec: a netlify form masks the token and saves a netlify row", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   const { html, exchangeId, pending } = await raiseCredentialForm(proposeTool, { target: "netlify" });
   assert.match(html, /Netlify/);
@@ -1114,7 +1169,7 @@ test("propose-credential works for any host with a credential spec: a netlify fo
   assert.match(tokenInput![0], /type="password"/);
   assert.doesNotMatch(html, /id="mcpui-field-siteId"/, "the netlify module never reads a site id, so the form does not ask for one");
 
-  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { token: "nfp_realtoken9876" } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: "nfp_realtoken9876" } }, { toolId: "credential_save" });
   assert.deepEqual(await pending, { saved: true, providerId: "netlify", connected: false, connection: "auth", tokenHint: { length: 17, last4: "9876" }, message: "…9876, 17 chars. The server rejected this token." });
   const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "netlify");
   assert.equal(rows.length, 1);
@@ -1123,8 +1178,8 @@ test("propose-credential works for any host with a credential spec: a netlify fo
 
 test("with no emitSurface, the credential form is refused outright — no exchange is ever opened, nothing saved", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
   await assert.rejects(() => call(proposeTool, { input: { target: "s3-compatible" } }));
   assert.equal(surfaceExchanges.size(), 0);
 });
@@ -1132,8 +1187,8 @@ test("with no emitSurface, the credential form is refused outright — no exchan
 test("requires deployments.credentials.write, checked before any form is raised", async () => {
   const { deps, authorizeCalls, setAllow } = fakeDeps();
   setAllow(false);
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   await assert.rejects(() => call(proposeTool, { input: { target: "s3-compatible" }, emitSurface: async () => {} }));
   assert.equal(surfaceExchanges.size(), 0, "no form may be raised before the permission check passes");
@@ -1142,8 +1197,8 @@ test("requires deployments.credentials.write, checked before any form is raised"
 
 test("the rendered form pre-fills non-secret hints and marks ONLY secretAccessKey as masked", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   const { html, exchangeId, pending } = await raiseCredentialForm(proposeTool, { target: "s3-compatible", bucket: "hinted-bucket", region: "us-east-1" });
   assert.match(html, /value="hinted-bucket"/, "a model-supplied bucket hint must pre-fill the form");
@@ -1159,22 +1214,17 @@ test("the rendered form pre-fills non-secret hints and marks ONLY secretAccessKe
   assert.ok(accessKeyInput, "accessKeyId's <input> must be present");
   assert.match(accessKeyInput![0], /type="text"/, "accessKeyId must NOT render masked — it is explicitly non-secret");
 
-  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: "credential_save" });
   await pending;
 });
 
 test("submit: a first-time save creates exactly one s3-compatible row, auto-defaulted, and NEVER echoes any field value back", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
-  const delivered = surfaceExchanges.deliver({
-    exchangeId,
-    toolId: "deployment_propose_custom_provider_credential",
-    principalId: PRINCIPAL_ID,
-    params: VALID_FORM_SUBMISSION,
-  });
+  const delivered = surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION }, { toolId: "credential_save" });
   assert.deepEqual(delivered, { ok: true });
 
   const result = await pending;
@@ -1194,22 +1244,17 @@ test("submit: a first-time save creates exactly one s3-compatible row, auto-defa
 
 test("submit: a SECOND save updates the existing row rather than creating a duplicate — one row per provider, matching the admin's own flat-row UX", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
-  const first = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential"));
-  surfaceExchanges.deliver({ exchangeId: first.exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION });
+  const first = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "credential_save"));
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION }, { toolId: "credential_save" });
   await first.pending;
   const originalRows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "s3-compatible");
   assert.equal(originalRows.length, 1);
   const originalId = originalRows[0]!.id;
 
-  const second = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential"));
-  surfaceExchanges.deliver({
-    exchangeId: second.exchangeId,
-    toolId: "deployment_propose_custom_provider_credential",
-    principalId: PRINCIPAL_ID,
-    params: { ...VALID_FORM_SUBMISSION, bucket: "renamed-bucket", secretAccessKey: "rotated-secret" },
-  });
+  const second = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "credential_save"));
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { ...VALID_FORM_SUBMISSION, bucket: "renamed-bucket", secretAccessKey: "rotated-secret" } }, { toolId: "credential_save" });
   const result = await second.pending;
   assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: false, connection: "auth", tokenHint: { length: 14, last4: "cret" }, message: "…cret, 14 chars. The server rejected this token." });
 
@@ -1229,16 +1274,11 @@ test("submit: a SECOND save updates the existing row rather than creating a dupl
 
 test("submit: a blank required field is rejected server-side with an actionable message, never a saved row — form.ts's own novalidate makes this the real enforcement point", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: "deployment_propose_custom_provider_credential",
-    principalId: PRINCIPAL_ID,
-    params: { ...VALID_FORM_SUBMISSION, bucket: "" },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { ...VALID_FORM_SUBMISSION, bucket: "" } }, { toolId: "credential_save" });
 
   const result = (await pending) as { saved: boolean; reason: string; message: string };
   assert.equal(result.saved, false);
@@ -1251,11 +1291,11 @@ test("submit: a blank required field is rejected server-side with an actionable 
 
 test("cancel: nothing is saved, and the SAME call reports the cancellation", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: "credential_save" });
   const result = await pending;
   assert.deepEqual(result, { saved: false, cancelled: true });
 
@@ -1265,16 +1305,16 @@ test("cancel: nothing is saved, and the SAME call reports the cancellation", asy
 
 test("re-calling the tool while a form is pending opens a SEPARATE form — it does not answer the first one", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   const first = await raiseCredentialForm(proposeTool);
   const second = await raiseCredentialForm(proposeTool);
   assert.notEqual(first.exchangeId, second.exchangeId);
   assert.equal(surfaceExchanges.size(), 2);
 
-  surfaceExchanges.deliver({ exchangeId: first.exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
-  surfaceExchanges.deliver({ exchangeId: second.exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: "credential_save" });
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: "credential_save" });
   await Promise.all([first.pending, second.pending]);
 });
 
@@ -1284,7 +1324,7 @@ test("re-calling the tool while a form is pending opens a SEPARATE form — it d
 
 test("deployment_generate_bucket_hosting_setup requires deployments.read, checked before any content is composed", async () => {
   const { deps, authorizeCalls, setAllow } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   setAllow(false);
@@ -1294,7 +1334,7 @@ test("deployment_generate_bucket_hosting_setup requires deployments.read, checke
 
 test("deployment_generate_bucket_hosting_setup rejects an unrecognized target rather than silently returning generic guidance", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   await assert.rejects(() => call(hostingSetupTool, { input: { target: "webhook", bucket: "b", region: "us-east-1" } }), /webhook/);
@@ -1307,7 +1347,7 @@ test("deployment_generate_bucket_hosting_setup rejects an unrecognized target ra
 // now throws `ToolInputError`, mirroring `features/post/tool-registrations.ts`'s fix shape.
 test("deployment_generate_bucket_hosting_setup: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   await assert.rejects(
@@ -1321,8 +1361,8 @@ test("deployment_generate_bucket_hosting_setup: an unrecognized target is a Tool
 
 test("deployment_propose_custom_provider_credential: an unrecognized target is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   await assert.rejects(
     () => call(proposeTool, { input: { target: "webhook" } }),
@@ -1335,7 +1375,7 @@ test("deployment_propose_custom_provider_credential: an unrecognized target is a
 
 test("deployment_generate_bucket_hosting_setup: a host whose plugin module has no hosting-setup steps is refused with the reason", async () => {
   const { deps } = fakeDeps();
-  const hostingSetupTool = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "deployment_generate_bucket_hosting_setup");
+  const hostingSetupTool = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "deployment_generate_bucket_hosting_setup");
   await assert.rejects(
     () => call(hostingSetupTool, { input: { target: "netlify" } }),
     (err: unknown) => err instanceof ToolInputError && err.message === "netlify has no hosting-setup steps: publishing to it serves the site."
@@ -1344,7 +1384,7 @@ test("deployment_generate_bucket_hosting_setup: a host whose plugin module has n
 
 test("blank/omitted endpoint infers plain AWS S3 and returns a bucket-substituted public-read policy JSON, no warning", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   const result = (await call(hostingSetupTool, { input: { target: "s3-compatible", bucket: "my-bucket", region: "us-east-1" } })) as {
@@ -1363,7 +1403,7 @@ test("blank/omitted endpoint infers plain AWS S3 and returns a bucket-substitute
 
 test("a Cloudflare R2 endpoint infers cloudflare-r2 and warns about the different credential system", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   const result = (await call(hostingSetupTool, {
@@ -1376,7 +1416,7 @@ test("a Cloudflare R2 endpoint infers cloudflare-r2 and warns about the differen
 
 test("a DigitalOcean Spaces endpoint infers digitalocean-spaces and warns about the different credential system", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
 
   const result = (await call(hostingSetupTool, {
@@ -1397,7 +1437,7 @@ test("a DigitalOcean Spaces endpoint infers digitalocean-spaces and warns about 
 
 test("deployment_preview_static_publish: a github-pages preview with an explicit branch is accepted and does not throw", async () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: true, token: "x" }; }, async isConfigured() { return { configured: true }; } } });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   const result = (await call(preview, { input: { target: "github-pages", owner: "octo", repo: "demo", branch: "release" } })) as Record<string, unknown>;
@@ -1406,7 +1446,7 @@ test("deployment_preview_static_publish: a github-pages preview with an explicit
 
 test("deployment_preview_static_publish: a vercel preview with a teamId is accepted and does not throw", async () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: true, token: "x" }; }, async isConfigured() { return { configured: true }; } } });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   const result = (await call(preview, { input: { target: "vercel", teamId: "team_1" } })) as Record<string, unknown>;
@@ -1418,7 +1458,7 @@ test("deployment_preview_static_publish: a github-pages preview with owner/repo 
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { return { ok: false, reason: "n/a" }; }, async isConfigured() { return { configured: false, reason: "n/a" }; } },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   const result = (await call(preview, { input: { target: "github-pages" } })) as Record<string, unknown>;
@@ -1431,7 +1471,7 @@ test("deployment_preview_static_publish: an unrecognized target throws before an
     allow: false,
     credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { throw new Error("must not be called"); } },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), {
@@ -1449,7 +1489,7 @@ test("deployment_preview_static_publish: an unrecognized target is a ToolInputEr
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { throw new Error("must not be called"); } },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
   await assert.rejects(
@@ -1465,7 +1505,7 @@ test("deployment_execute_static_publish: an unrecognized target is a ToolInputEr
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { throw new Error("must not be called"); } },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   await assert.rejects(
@@ -1479,7 +1519,7 @@ test("deployment_execute_static_publish: an unrecognized target is a ToolInputEr
 
 test("deployment_execute_static_publish: an invalid config is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   // github-pages requires `owner`/`repo` — omitted here on purpose to trip validateStaticPublishConfig.
@@ -1505,7 +1545,7 @@ test("confirm: a partial outcome's deploymentId and basePath are both forwarded 
       },
     }),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending } = await beginCall(executeTool, { target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "demo-site" });
@@ -1528,7 +1568,7 @@ test("confirm: a full success's deploymentId is forwarded through to the tool re
       },
     }),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending } = await beginCall(executeTool, { target: "vercel", projectName: "demo-site" });
@@ -1553,7 +1593,7 @@ test("confirm: with no buildTarget override injected, the REAL default buildJini
       },
     },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
 
   const { pending } = await beginCall(executeTool, { target: "s3-compatible", projectName: "demo-site" });
@@ -1563,7 +1603,7 @@ test("confirm: with no buildTarget override injected, the REAL default buildJini
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.equal(result.message, "credential is not usable for s3-compatible");
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: "deployment_propose_custom_provider_credential", remedyToolId: "deployment_propose_custom_provider_credential", prefill: { target: "s3-compatible" },
+    setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "publish-host", target: "s3-compatible" },
     hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
   });
   assert.doesNotMatch(result.message, /s3cr3t/);
@@ -1571,8 +1611,8 @@ test("confirm: with no buildTarget override injected, the REAL default buildJini
 
 test("propose-credential form: an unanswered form expires and reports 'expired', not a hang or a throw", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   const result = (await call(proposeTool, { input: { target: "s3-compatible" }, emitSurface: async () => undefined })) as {
     saved: boolean;
@@ -1589,8 +1629,8 @@ test("propose-credential form: an unanswered form expires and reports 'expired',
 
 test("propose-credential form: a cancelled run abandons the form and reports 'abandoned', not a hang or a throw", async () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
   const controller = new AbortController();
 
   const ready = Promise.withResolvers<void>();
@@ -1617,11 +1657,11 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "credential_save");
 
   const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION }, { toolId: "credential_save" });
 
   const result = (await pending) as { saved: boolean; reason: string; message: string };
   assert.equal(result.saved, false);
@@ -1633,7 +1673,7 @@ test("submit: a non-Error thrown by the credential write step still returns a sa
  test("n06: repository write runs without a confirmation channel", async (t) => {
   const captured: {value: DeployFile[] | null} = {value: null};
   const {deps} = fakeDeps({credentialSource: {async resolve() {return {ok: true, token: "fake"};}, async isConfigured() {return {configured: true};}}, buildTarget: () => fakeDeployTarget(captured)});
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, store), "deployment_execute_static_publish"), {input: {target: "github-pages", owner: "octo", repo: "demo", projectName: "release"}}) as {published: boolean; reachable: boolean; url: string};
   assert.equal(result.published, true, JSON.stringify(result));
   assert.equal(result.reachable, true);
@@ -1650,3 +1690,29 @@ function invokeFixtureHandler(
   const { emitSurface, ...required } = context;
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
+
+// Cancellation during an async seal must still refuse the eventual repository write.
+test("propose-credential: abort during sealing writes no credential", async () => {
+  const { deps } = fakeDeps();
+  const controller = new AbortController();
+  const seal = deps.siteAssistantSecretSealer.seal.bind(deps.siteAssistantSecretSealer);
+  deps.siteAssistantSecretSealer.seal = async input => {
+    const sealed = await seal(input);
+    controller.abort();
+    return sealed;
+  };
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const proposeTool = tool(buildRegistrations(deps, exchanges), "credential_save");
+  const ready = Promise.withResolvers<void>();
+  let exchangeId = "";
+  const emitted: unknown[] = [];
+  const pending = call(proposeTool, { input: { target: "s3-compatible" }, signal: controller.signal, emitSurface: async surface => {
+    emitted.push(surface); exchangeId = exchangeIdFromSurface(surface); ready.resolve();
+  } });
+  await Promise.race([ready.promise, pending]);
+  assert.deepEqual(exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION }, { toolId: "credential_save" }), { ok: true });
+  assert.deepEqual(await pending, { saved: false, cancelled: false, reason: "abandoned", note: "The credential form was closed because the run ended. Nothing was saved." });
+  assert.deepEqual(await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId }), []);
+  assert.equal(emitted.length, 1);
+  assert.equal(exchanges.size(), 0);
+});

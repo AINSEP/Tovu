@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildExternalMcpRegistrations, externalMcpDerivedRisk } from "../../tool-registrations.js";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildExternalMcpOperationsRegistrations, externalMcpOperationsDerivedRisk } from "../../operations-tools.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const NOW = "2026-10-01T00:00:00.000Z";
 function fixture(allow = true) {
@@ -89,7 +92,7 @@ test("admissions is read-only; a probe may persist a refreshed OAuth grant", () 
 
 test("the configuration check also declares its potential OAuth refresh writes", () => {
   const f = fixture();
-  const registrations = buildExternalMcpRegistrations(f.deps as never, { surfaceExchanges: createSurfaceExchangeStore() });
+  const registrations = buildExternalMcpRegistrations(f.deps as never, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
   assert.equal(registrations.find(r => r.descriptor.id === "external_mcp_test_connection")!.descriptor.readOnly, false);
   assert.equal(externalMcpDerivedRisk.get("external_mcp_test_connection"), "mutates-durable-state");
 });

@@ -110,7 +110,6 @@ export interface TrashBlockerSpec {
  *
  * `isTrashedRecord` (the in-memory twin) CANNOT evaluate this: a flat record has no parent row to
  * join against, so it reports the entity's own marker only — see its doc.
- * isCurrentlyTrashed (features/trash/not-trashed.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export interface TrashHiddenWithParentSpec {
   /** The parent's own table (`taxonomies`). */

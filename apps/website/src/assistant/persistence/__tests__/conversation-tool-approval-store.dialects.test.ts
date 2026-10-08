@@ -34,6 +34,20 @@ describeEachChatDialect(
       assert.equal(await store.has({ ...KEY, fingerprint: "fp-2" }), false);
     });
 
+    test("native identity lookup survives another chat and revokes with the granting chat", async () => {
+      const { kernel, store } = make();
+      await seedChat(kernel, "c1"); await seedChat(kernel, "c2");
+      const { conversationId: _, ...identity } = KEY;
+      assert.equal(await store.hasIdentity!(identity), false);
+      await store.grant(KEY, AT);
+      assert.equal(await store.hasIdentity!(identity), true);
+      for (const changed of [{ principalId: "other" }, { connectionId: "other-site" }, { toolName: "other-plugin" }, { fingerprint: "new-digest" }]) {
+        assert.equal(await store.hasIdentity!({ ...identity, ...changed }), false);
+      }
+      await kernel.run(db => db.deleteFrom("ai_chats").where("id", "=", "c1").execute());
+      assert.equal(await store.hasIdentity!(identity), false);
+    });
+
     test("every key part scopes the approval", async () => {
       const { kernel, store } = make();
       await seedChat(kernel, "c1");

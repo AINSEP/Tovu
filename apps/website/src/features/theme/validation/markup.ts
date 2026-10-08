@@ -1,4 +1,4 @@
-import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
+import { scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 import type { ThemeValidationIssue } from "./profiles.js";
 import { checkWebMcpMarkup } from './webmcp-markup.js';
 
@@ -36,7 +36,7 @@ const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /** Tolerant pre-scan for unquoted `data-embed-config` values the REAL runtime scanner
- * (`core/embeds/marker.ts`'s `MARKER_PATTERN`) does not recognize. Single quotes were originally
+ * (`Jini/packages/cms/src/widgets/markers/marker.ts`'s `MARKER_PATTERN`) does not recognize. Single quotes were originally
  * required so JSON's own double quotes needed no escaping; since 2026-09-26 the scanner also accepts
  * browser-serialized, entity-encoded double-quoted values. Quoted payloads belong to that scanner,
  * while an unquoted marker remains silently inert and needs an author-facing finding. Matches loosely
@@ -77,7 +77,7 @@ export function checkMarkupFile(
     });
   }
 
-  const { markers, rejected } = scanEmbedMarkers(content);
+  const { markers, rejected } = scanEmbedMarkers({ html: content });
   for (const rejection of rejected) {
     issues.push({
       ruleId: "markup-embed-config-unparseable",

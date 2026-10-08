@@ -4,7 +4,7 @@ import type { ToolRegistry } from "@jini-ai/core";
 import { registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { createLiveToolCatalogQuery, type LiveToolCatalogQuery } from "#src/assistant/tool-catalog-live-query";
-import { withToolCatalogAudit, UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID } from "#src/assistant/tool-catalog-audit";
+import { withToolCatalogAudit, UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID } from "#src/assistant/tool-audit-preset";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
 import type { FederationReloadResult } from "@jini-ai/mcp/federation";
 import { attachAssistantToolExtensions } from "#src/assistant/installed-extension-tools";

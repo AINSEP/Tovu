@@ -580,7 +580,8 @@ export function formatCredentialHint({ hint, locale = 'en' }: { hint: Credential
   if (!hint) return '';
   const length = new Intl.NumberFormat(locale).format(hint.length);
   const chars = credentialText({ id: 'chars', locale }).replace('{length}', length);
-  return `${hint.last4 === null ? '' : `…${hint.last4}, `}${chars}`;
+  // A literal leading dot belongs to the tail; separate it from the ellipsis without rewriting it.
+  return `${hint.last4 === null ? '' : `…${hint.last4.startsWith('.') ? '\u202f' : ''}${hint.last4}, `}${chars}`;
 }
 
 /** Only known, fixed policy messages are translated; unknown exceptions never gain display permission. */

@@ -11,13 +11,8 @@ import {
 } from "#src/contracts/core/publish-history-list-limit";
 
 /**
- * @file `publish-history.ts`'s port and in-memory double, in isolation — the fix for Defect 2
- * (2026-08-16 live-publish finding): a static publish went live and the assistant had nowhere to look
- * up where. Reworked the same day from a flat-JSON-file, last-publish-only design into this
- * append-only one (owner-requested — see `publish-history.ts`'s own header for the full story); this
- * file now covers the append-only contract itself rather than a file store's on-disk atomicity, since
- * that concrete implementation moved to `db/sqlite/publish-history-repo.sqlite.ts` (covered by its own
- * sibling test in `db/sqlite/__tests__/`).
+ * @file Publish-history port and in-memory double: persistent append-only history, not a last-value
+ * cache. The concrete SQLite adapter's tests own on-disk atomicity; this suite owns the port contract.
  */
 
 const WORKSPACE_A = "ws-a";

@@ -1,9 +1,8 @@
 import path from "node:path";
 
-import { bootstrapStore } from "#src/features/plugins/store/store-plugin";
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { seedBundledAgentPlugins } from "#src/features/agent-plugins/seed-bundled";
+import { seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
@@ -100,9 +99,8 @@ export interface BuildBootModulesOptions {
  *
  * `settings`/`seo` are ALSO CRITICAL: their promises have no `.catch()` anywhere in their chain
  * (an unhandled-rejection risk before ADR-046 Phase 2), so a failure here must abort boot cleanly.
- * `newsletter`/`comments`/`store-plugin` are OPTIONAL, matching their pre-existing log-and-continue
- * behavior. `store-plugin` is omitted entirely in memory mode — it was never invoked there before
- * either.
+ * `newsletter`/`comments` are OPTIONAL, matching their pre-existing log-and-continue behavior.
+ * Commerce is off: no store/payment declaration or seeding module is constructed in any mode.
  */
 export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule[] {
   let pluginActivationPoll: { stop: () => void } | undefined;
@@ -223,21 +221,6 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
       stop: noop,
     },
   ];
-  if (!options.useMemory) {
-    modules.push({
-      name: "store-plugin",
-      owner: "features/plugins/store",
-      criticality: "optional",
-      prepare: async () => {
-        if (deps.contentKernel === undefined) {
-          throw new Error("store-plugin: the composition root supplied no content kernel (deps.contentKernel)");
-        }
-        deps.store = await bootstrapStore({ kernel: deps.contentKernel, dbPath: options.defaultContentDbPath() });
-      },
-      start: noop,
-      stop: noop,
-    });
-  }
   return modules;
 }
 

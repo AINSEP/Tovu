@@ -3,11 +3,18 @@ import { after, before, test } from "node:test";
 
 import { sql } from "kysely";
 
-import { dropDatabase } from "../../migration/pg-fixture.js";
+import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";
+
 import { freshPostgresDatabase } from "../../__tests__/postgres-database.js";
 import { openPostgresKernel } from "../drivers/postgres.js";
 import { StorageOpError, StorageOpNotSupportedError, storageOps } from "../ops.js";
 import type { StorageKernel } from "../port.js";
+
+const { dropDatabase } = createPgFixture({
+  host: process.env.PGHOST ?? "/tmp",
+  user: process.env.PGUSER ?? "la",
+  port: process.env.PGPORT,
+});
 
 /**
  * @file The storage ops port on a real Postgres server (node-postgres): no file copy, with the reason
@@ -22,7 +29,7 @@ before(() => {
 });
 after(async () => {
   await kernel.close();
-  dropDatabase(DB);
+  dropDatabase({ database: DB });
 });
 
 test("Postgres copyTo is refused with what to do instead", async () => {

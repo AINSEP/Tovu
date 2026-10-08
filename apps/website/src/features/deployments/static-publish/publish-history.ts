@@ -4,26 +4,10 @@ import type { StaticPublishTargetId } from "./types.js";
 import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
 
 /**
- * @file Durable, append-only publish-history ledger — the fix for Defect 2 (2026-08-16 live-publish
- * finding): the site went live at `https://leonaburime-ucla.github.io/tovu-demo/`, and the assistant
- * still had nowhere to look that up. `publish-run.ts`'s own `currentRun` snapshot answers "is a
- * publish running right now", not "what did the last SUCCESSFUL one produce" — it resets to
- * `IDLE_RUN` on every process restart, and even mid-process it only remembers the single most recent
- * run for the whole server, not one entry per target. The unrelated deployment_list table
- * reader was retired with the never-written deployment model (2026-10-03).
- *
- * REWORK (2026-08-16, owner-requested): the original fix for Defect 2 shipped a flat JSON file under
- * `infra/publish-history/`, one file per workspace, one entry per `(workspace, target)` — "last
- * publish wins," deliberately not a log. The owner reviewed that and rejected it: a publish is a
- * record (what shipped, when, to where, triggered by what), not a cache, and a record belongs in the
- * database — durable across a restart the same way the file was, but ALSO queryable, joinable, and
- * capable of ever backing a real "publish history" view, which a single-row-per-target design can
- * never do (every publish after the first overwrites the one before it). The prior design's own
- * stated reason for staying file-backed — "adding a DB table needs a migration, and migrations
- * belong to whichever dispatch owns `drizzle/` for this session" — was a scheduling convenience
- * across two concurrently-dispatched agents, not an architectural argument, and does not survive
- * being named explicitly. This file, `publish-run.ts`, `src/platform/db/schema.sqlite.ts`'s `publishHistory` table,
- * and `src/platform/db/sqlite/publish-history-repo.sqlite.ts` are that rework.
+ * @file Durable, append-only publish-history ledger.
+ * Publish results are records, not cache slots: keeping them in the database makes them durable,
+ * queryable and joinable without overwriting earlier publishes. publish-run.ts's in-process
+ * snapshot answers whether a publish is running; it cannot supply persistent per-target history.
  *
  * Purpose:
  * {@link PublishHistoryStore} is the port — `getLast` (the single most recent row for a

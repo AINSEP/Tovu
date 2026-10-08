@@ -19,12 +19,7 @@ import { renderInWorkerSandbox, type SandboxOptions, type SandboxRenderInput, ty
 export { resolveDefaultTimeoutMs } from "./worker-sandbox.js";
 
 /** What one render needs, sent to the worker as `workerData` (structured-clone only — plain data, no functions/class instances). */
-export interface LiquidWorkerInput extends SandboxRenderInput {
-  /** Mirrors `ThemeManifest.skipLiquidAllowlist` — `loadTheme()` already made this decision at
-   * discovery time; the worker's defensive re-lint (in case the file changed on disk since) honors
-   * the same choice rather than re-deciding it. */
-  skipLiquidAllowlist?: boolean;
-}
+export type LiquidWorkerInput = SandboxRenderInput;
 
 /** The worker's reply, via `postMessage`. */
 export type LiquidWorkerResult = SandboxRenderResult;

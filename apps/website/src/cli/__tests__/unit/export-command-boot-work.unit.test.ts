@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runExportCommand, type RunExportCommandOptional } from "../../commands/export.js";
+import type { BootSiteDirResult } from "#src/platform/site-dir/boot-site-dir";
+import type { SiteStore } from "#src/server/runtime/composition/open-site-store";
+
+type ExportRouteDeps = Awaited<ReturnType<NonNullable<RunExportCommandOptional["createSiteRouteDeps"]>>>;
 
 /**
  * @file `tovu export`'s cleanup waits for the boot passes still reading the store before closing it:
@@ -15,7 +20,7 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 
 const tick = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
-test("export: a failed export closes the store only after the legacy tail and createSiteApp's BYOK pass settle", async (t) => {
+test("export: a failed export closes the store only after the legacy tail and createSiteApp's BYOK pass settle", async () => {
   const legacyWork = deferred();
   const byokWork = deferred();
   const order: string[] = [];
@@ -27,43 +32,32 @@ test("export: a failed export closes the store only after the legacy tail and cr
     legacyPublishCredentialsReady: legacyWork.promise.then(() => void order.push("legacy-settled")),
     siteAppBootWork: new Set<Promise<void>>(),
   };
-  const stubs = new Map<string, Record<string, unknown>>([
-    ["../../../platform/site-dir/boot-site-dir.ts", {
-      bootSiteDir: async () => bootResult,
-      closeSiteDirBoot: async (boot: unknown, store: unknown) => {
-        assert.equal(boot, bootResult);
-        assert.equal(store, composedStore);
-        order.push("close");
-      },
-    }],
-    ["../../../server/runtime/composition/deps.ts", {
-      createSiteRouteDeps: async (_dbPath: string, options: { onStoreOpened(store: unknown): void }) => {
-        options.onStoreOpened(composedStore);
-        return routeDeps;
-      },
-    }],
-    ["../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} }],
-    ["../../../features/database/boot/reconcile-interrupted-migration.ts", {
-      reconcileInterruptedMigrationOnBoot: async () => ({ blocked: false }),
-    }],
-    ["../../../features/site-export/index.ts", {
-      exportSite: async () => {
-        // The crawl's createSiteApp() starts its BYOK pass, then the export is refused.
-        routeDeps.siteAppBootWork.add(byokWork.promise.then(() => void order.push("byok-settled")));
-        throw new Error("output directory is not empty");
-      },
-    }],
-  ]);
-  for (const [relative, stub] of stubs) {
-    const url = new URL(relative, import.meta.url).href;
-    t.mock.module(url, { namedExports: { ...(await import(url)), ...stub } });
-  }
-  const { runExportCommand } = await import("../../commands/export.js");
+  const effects: RunExportCommandOptional = {
+    bootSiteDir: async () => bootResult as unknown as BootSiteDirResult,
+    closeSiteDirBoot: async (boot: unknown, store: unknown) => {
+      assert.equal(boot, bootResult);
+      assert.equal(store, composedStore);
+      order.push("close");
+    },
+    createSiteRouteDeps: async (_dbPath, options) => {
+      options?.onStoreOpened?.(composedStore as unknown as SiteStore);
+      return routeDeps as unknown as ExportRouteDeps;
+    },
+    registerPluginSdkResolver: () => {},
+    reconcileInterruptedMigrationOnBoot: async () => ({ blocked: false }),
+    exportSite: async () => {
+      // The crawl's createSiteApp() starts its BYOK pass, then the export is refused.
+      routeDeps.siteAppBootWork.add(byokWork.promise.then(() => void order.push("byok-settled")));
+      throw new Error("output directory is not empty");
+    },
+  };
 
-  const run = runExportCommand({ dir: "/tmp/tovu-export-boot-work-fixture" });
+  const run = runExportCommand({ dir: "/tmp/tovu-export-boot-work-fixture" }, effects);
   await tick();
   assert.deepEqual(order, [], "the store must not close while boot work still reads it");
   legacyWork.resolve();
+  await tick();
+  assert.deepEqual(order, ["legacy-settled"], "the BYOK pass must also settle before closing");
   byokWork.resolve();
   await assert.rejects(run, /^Error: output directory is not empty$/);
   assert.deepEqual(order.slice(-1), ["close"]);

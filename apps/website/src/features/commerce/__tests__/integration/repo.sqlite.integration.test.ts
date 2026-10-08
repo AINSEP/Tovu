@@ -10,7 +10,7 @@ import {
   SqliteCommerceProductImageRepo,
   SqliteCommerceProductRepo,
 } from "../../repo.sqlite.js";
-import type { CommerceOrderItemRecord, CommerceOrderRecord, CommercePriceRecord, CommerceProductRecord } from "../../types.js";
+import type { CommerceOrderItemRecord, CommerceOrderRecord, CommercePriceRecord, CommerceProductRecord } from "@jini-ai/commerce";
 
 /**
  * @file Integration tests against a real SQLite `content.db` (Article V — DB-level invariants get

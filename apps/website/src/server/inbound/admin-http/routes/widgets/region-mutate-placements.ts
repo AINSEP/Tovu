@@ -1,6 +1,6 @@
 import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
-import { mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
-import type { WidgetPlacementNode } from "#src/features/widgets/types";
+import { mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
+import type { WidgetPlacementNode } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";

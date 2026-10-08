@@ -72,15 +72,15 @@ describeEachDialect<ContentKernel>("store plugin data", { tables: [], make: fres
     const kernel = makeKernel();
     const store = await activateStore({ db: kernel, dbPath: ":memory:" });
 
-    const bought = await store.checkout("prod-candle", 2);
+    const bought = await store.checkout({ productId: "prod-candle", qty: 2 });
     assert.equal(bought.ok, true);
     if (bought.ok) assert.equal(bought.remainingStock, 3);
     const candle = (await store.listProducts()).find((p) => p.id === "prod-candle");
     assert.deepEqual([candle?.stock, candle?.version], [3, 1]);
     assert.equal(await orderCount(kernel), 1);
 
-    assert.deepEqual(await store.checkout("prod-candle", 999), { ok: false, reason: "out-of-stock", retries: 0 });
-    assert.deepEqual(await store.checkout("nope", 1), { ok: false, reason: "not-found", retries: 0 });
+    assert.deepEqual(await store.checkout({ productId: "prod-candle", qty: 999 }), { ok: false, reason: "out-of-stock", retries: 0 });
+    assert.deepEqual(await store.checkout({ productId: "nope", qty: 1 }), { ok: false, reason: "not-found", retries: 0 });
     assert.equal(await orderCount(kernel), 1);
   });
 
@@ -93,7 +93,7 @@ describeEachDialect<ContentKernel>("store plugin data", { tables: [], make: fres
     await kernel.execute(sql`INSERT INTO p_store__orders (id, product_id, qty, total, at)
       VALUES ('ord-1234-i', 'prod-notebook', 1, 900, 1000)`);
     const before = await store.listProducts();
-    await assert.rejects(store.checkout("prod-candle", 1), /unique|duplicate/i);
+    await assert.rejects(store.checkout({ productId: "prod-candle", qty: 1 }), /unique|duplicate/i);
     assert.deepEqual(await store.listProducts(), before);
     assert.equal(await orderCount(kernel), 1);
     assert.deepEqual(await kernel.query(sql`SELECT product_id, qty, total, at FROM p_store__orders`), [
@@ -104,7 +104,7 @@ describeEachDialect<ContentKernel>("store plugin data", { tables: [], make: fres
   test("concurrent checkouts never oversell", async () => {
     const kernel = makeKernel();
     const store = await activateStore({ db: kernel, dbPath: ":memory:" });
-    const results = await Promise.all(Array.from({ length: 8 }, () => store.checkout("prod-teacup", 1)));
+    const results = await Promise.all(Array.from({ length: 8 }, () => store.checkout({ productId: "prod-teacup", qty: 1 })));
     assert.equal(results.filter((r) => r.ok).length, 5);
     assert.ok(results.filter((r) => !r.ok).every((r) => !r.ok && r.reason === "out-of-stock"));
     const teacup = (await store.listProducts()).find((p) => p.id === "prod-teacup");

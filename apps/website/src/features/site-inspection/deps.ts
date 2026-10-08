@@ -1,7 +1,9 @@
+import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id";
+import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 import type { RequestListener } from "node:http";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { ObservabilityPort } from "#src/platform/observability/index";
-import type { SettingsRepoPort, getEffective } from "@jini-ai/cms/settings";
+import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
 
 import type { LiveOriginSourceDeps } from "./live-url.js";
 import { ADMIN_SCREENS } from "./admin-screens.generated.js";
@@ -34,7 +36,7 @@ import type {
  * `server/routes/*` satisfies it by passing its existing `RouteDeps` object; nothing there changes.
  *
  * The two exceptions to "structural, nothing imported" are `settingsRepo` and `getEffective`, which
- * are typed against `@jini-ai/cms/settings`'s own exports. That is an EXTERNAL package import, not
+ * are typed against `@jini-ai/core/settings`'s own exports. That is an EXTERNAL package import, not
  * an internal module edge, and it is what lets this file hand `getEffective` the exact repo it was
  * written for instead of inventing a second settings resolver — the divergence this whole design
  * exists to avoid.
@@ -57,7 +59,7 @@ export interface SiteProfileSourceDeps {
   themes: readonly SiteProfileThemeRow[];
   presentationRepo: { findByWorkspaceId(required: { workspaceId: string }): Promise<{ activeThemeId: string } | null> };
   settingsRepo: SettingsRepoPort;
-  /** The real `@jini-ai/cms/settings` resolver, injected rather than re-implemented. */
+  /** The real `@jini-ai/core/settings` resolver, injected rather than re-implemented. */
   getEffective: typeof getEffective;
   contentTypeRepo: { listByWorkspace(params: { workspaceId: string }): Promise<readonly SiteProfileContentTypeRow[]> };
   pluginActivationRepo: { listAll(): Promise<readonly SiteProfilePluginActivationRow[]> };
@@ -118,8 +120,11 @@ export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps 
     // `SiteProfileDeps` has one shape and the service never branches on sync-vs-async.
     listThemes: async () => deps.themes,
     readActiveThemeId: async () => {
-      const record = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
-      return record?.activeThemeId ?? null;
+      // The resolver reads only findByWorkspaceId; its package type names the wider repo.
+      // Keep this adapter's public port read-only rather than granting the profile write methods.
+      return (await resolveActiveThemeId({
+        workspaceId: deps.workspaceId, presentationRepo: deps.presentationRepo as PresentationSettingsRepoPort,
+      })) || null;
     },
     listPlugins: () => deps.discoverPlugins(),
     listPluginActivations: () => deps.pluginActivationRepo.listAll(),

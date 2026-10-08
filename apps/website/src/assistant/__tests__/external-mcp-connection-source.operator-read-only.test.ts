@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { recordBundledAgentPluginDigests } from "../../features/agent-plugins/bundled-digests.js";
+import { recordBundledAgentPluginDigests } from "../../features/agent-plugins/lifecycle.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createApplyConnectDefaults } from "../../features/agent-plugins/apply-connect-defaults.js";

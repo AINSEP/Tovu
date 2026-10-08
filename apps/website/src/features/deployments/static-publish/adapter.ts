@@ -300,13 +300,13 @@ async function resolvePublishCredentialForSite(
       outcome: {
         ok: false,
         code: "NO_CREDENTIALS_CONFIGURED",
-        credentialSetup: issueCredentialSetup({ setupToolId: "deployment_propose_custom_provider_credential", prefill: { target: input.config.target } }, {}),
+        credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "publish-host", target: input.config.target } }, {}),
         message: `credential could not be resolved: ${err instanceof Error ? err.message : String(err)}`,
       },
     };
   }
   if (!credential.ok) {
-    return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", credentialSetup: issueCredentialSetup({ setupToolId: "deployment_propose_custom_provider_credential", prefill: { target: input.config.target } }, {}), message: credential.reason } };
+    return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "publish-host", target: input.config.target } }, {}), message: credential.reason } };
   }
   return { ok: true, credential };
 }
@@ -540,6 +540,6 @@ function constructTargetForPublish(
   } catch {
     // Adapter exceptions may include a credential field; the card needs only the target identifier.
     return { ok: false, outcome: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential is not usable for ${config.target}`,
-      credentialSetup: issueCredentialSetup({ setupToolId: "deployment_propose_custom_provider_credential", prefill: { target: config.target } }, {}) } };
+      credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "publish-host", target: config.target } }, {}) } };
   }
 }

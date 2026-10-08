@@ -1,3 +1,4 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /**
  * @file RED regression suite (2026-10-05): a site plugin's `content.entry.beforeSave` refusal
  * reached the model as a redacted `INTERNAL_ERROR`, so the model could not tell the user that a
@@ -19,13 +20,16 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createHookRegistry } from "#src/features/plugin-runtime/hook-registry";
+import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { BeforeSaveHookPort } from "../post.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const WORKSPACE_ID = "ws-post-plugin-hook";
 const NOW = "2026-10-05T00:00:00.000Z";
@@ -36,11 +40,11 @@ const RAW_PLUGIN_TEXT = "SQLITE_CORRUPT reading /Users/owner/site/.tovu/data.sql
 const REFUSAL = `PLUGIN_HOOK_FAILED: a site plugin (${PLUGIN_ID}) refused this save; the content was not saved`;
 
 function refusingHook(): BeforeSaveHookPort {
-  const registry = createHookRegistry();
-  registry.attach(PLUGIN_ID, "site", async () => {
+  const registry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
+  registry.attach({ pluginId: PLUGIN_ID, source: "site", filter: async () => {
     throw new Error(RAW_PLUGIN_TEXT);
-  }, []);
-  return registry.runBeforeSave;
+  }, declaredFields: [] });
+  return (entry) => registry.runBeforeSave({ entry });
 }
 
 function makeDeps(hook: BeforeSaveHookPort) {
@@ -65,7 +69,7 @@ let toolUseCounter = 0;
 
 async function call(deps: PostToolDeps, toolId: string, input: unknown) {
   const registry = createToolRegistry({});
-  for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
+  for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) })) {
     registry.register(registration);
   }
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });

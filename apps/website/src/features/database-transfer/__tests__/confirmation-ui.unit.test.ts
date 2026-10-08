@@ -1,16 +1,17 @@
+import { renderHumanApproval } from "../../../__tests__/support/render-human-approval.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { buildConfirmationSurface, formatSnapshotTime } from "../confirmation-ui.js";
+import { describeTransferApproval, formatSnapshotTime } from "../confirmation-ui.js";
 import type { DatabaseTransferPlan } from "../plan-store.js";
 
 function plan(overrides: Partial<DatabaseTransferPlan> = {}): DatabaseTransferPlan {
   return { planId: "plan", workspaceId: "ws", principalId: "owner", expiresAtMs: 10_000, connectionString: "postgres://user:SECRET@db.example/catalog", destination: { host: "db.example", port: "5432", database: "catalog", user: "user" }, snapshot: Buffer.from("SECRET SNAPSHOT"), snapshotAt: "snapshot-one", site: "site", schema: "tovu_site", replaces: null, tableCount: 1, rowCount: 1, leftOut: [{ table: "users", rows: 2, reason: "logins" }, { table: "keys", rows: 5, reason: "keys" }], ...overrides };
 }
 
-test("first-copy card pluralizes counts and sums every left-out table without exposing secrets", () => {
-  const ui = buildConfirmationSurface({ plan: plan(), exchangeId: "ex", expiresAtMs: 1_300_000 });
+test("first-copy card pluralizes counts and sums every left-out table without exposing secrets", async () => {
+  const ui = await renderHumanApproval({ spec: describeTransferApproval({ plan: plan() }), exchangeId: "ex" });
   assert.equal(ui.resource.uri, "ui://tovu/database-transfer-run/ex");
   assert.equal(ui.resource._meta?.[MCP_UI_EXPIRES_AT_META_KEY], 1_300_000);
   assert.match(ui.resource.text, /<dt>Destination<\/dt><dd>catalog on db\.example<\/dd>/);
@@ -26,9 +27,9 @@ test("first-copy card pluralizes counts and sums every left-out table without ex
   });
 });
 
-test("replacement card names the previous snapshot and formats large counts", () => {
+test("replacement card names the previous snapshot and formats large counts", async () => {
   // F6.2/F4.3: the warning branch must run; invalid dates deliberately take the literal fallback.
-  const ui = buildConfirmationSurface({ plan: plan({ replaces: "previous-snapshot", tableCount: 12, rowCount: 1234, leftOut: [{ table: "keys", rows: 1, reason: "key" }] }), exchangeId: "replacement", expiresAtMs: 1_300_000 });
+  const ui = await renderHumanApproval({ spec: describeTransferApproval({ plan: plan({ replaces: "previous-snapshot", tableCount: 12, rowCount: 1234, leftOut: [{ table: "keys", rows: 1, reason: "key" }] }) }), exchangeId: "replacement" });
   assert.match(ui.resource.text, /<dt>Copies<\/dt><dd>12 tables, 1,234 rows, as of snapshot-one<\/dd>/);
   assert.match(ui.resource.text, /<dt>Replaces<\/dt><dd>The earlier copy from previous-snapshot<\/dd>/);
   assert.match(ui.resource.text, /The earlier copy from previous-snapshot is replaced once this copy has been checked\./);
@@ -38,7 +39,7 @@ test("replacement card names the previous snapshot and formats large counts", ()
 test("snapshot time uses English formatting in an explicitly pinned timezone and preserves invalid input", (t) => {
   const prior = process.env.TZ;
   process.env.TZ = "UTC";
-  t.after(() => { if (prior === undefined) delete process.env.TZ; else process.env.TZ = prior; });
+  t.after(async () => { if (prior === undefined) delete process.env.TZ; else process.env.TZ = prior; });
   assert.equal(formatSnapshotTime("2026-09-27T15:41:00Z"), "Sep 27, 3:41 PM");
   assert.equal(formatSnapshotTime("not-a-date"), "not-a-date");
 });

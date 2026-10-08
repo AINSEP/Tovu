@@ -22,13 +22,13 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import type { ByokToolResultBlock } from "../byok-provider-turn.js";
-import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-failure-recovery.js";
+import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-recovery-preset.js";
 import { constrainPrincipalToReadOnlyTools } from "../read-only-tool-constraint.js";
-import { TOOL_ERROR_ID_PATTERN } from "../tool-failure-redaction.js";
+import { TOOL_ERROR_ID_PATTERN } from "../tool-recovery-preset.js";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
@@ -79,6 +79,8 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
       tearDownAllIndexesForContentType: async () => {},
     },
     outbox: { enqueue: async () => {} },
+    // Catalog construction binds the SEO host port; these cases never execute SEO.
+    seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
   };
   return deps as unknown as ByokToolSurfaceDeps;
 }
@@ -137,27 +139,9 @@ test("search_tools clamps an out-of-range limit instead of spending a turn refus
   assert.equal(parsed.hits.length, 1, "expected a 0 limit clamped up to 1, not treated as 'no results'");
 });
 
-// FABRICATED-STAT FIX (2026-09-08): the `limit` description used to assert "the right tool is in
-// the top 10 98% of the time but in the top 20 100% of the time". Verified fabricated: the eval it
-// claimed as its source (`tool-search-heldout-v2.eval.ts`) declares `CUTOFFS = [1, 3, 5, 10] as
-// const` — no top-20 cutoff exists in that file, so it cannot have produced the "100% in the top
-// 20" half of the claim. `git log -S` on the exact phrase traces it to `d6ac6975` (2026-08-08),
-// which added it as brand-new text with no cited measurement at all — not carried through from any
-// real eval run. Full trail: `ADS-memory/reports/2026-09-08-byok-fabricated-stat.md`.
-//
-// The fix does NOT replace the false number with a true-today one. A retrieval percentage is a
-// property of the CURRENT catalog + keywords, and the catalog changes (a `content_read` collapse
-// landed in this same repo on this same day) — hardcoding this month's true figure into shipped
-// instruction text reproduces the exact defect with a fresher initial value, because nothing here
-// re-measures it. A retrieval number belongs in the eval report where it gets re-measured; this
-// prompt text should only ever describe the behavior to take on a miss. The second assertion below
-// guards that reasoning directly: it fails the moment anyone adds a percentage back to this string,
-// not just when they restore the specific old one.
-// Deliberately NOT a full-string pin (superseded an earlier version of this test that was one):
-// pinning the entire paragraph recreates the same trap in the test layer that this fix removes
-// from the prompt text — a maintainer reworking the retry guidance would have to fight a
-// brittle test unrelated to the property that actually matters. These assert the specific,
-// load-bearing phrases the behavior depends on instead.
+// Retrieval percentages depend on the current catalog/keywords and belong in measured eval reports.
+// Prompt text should describe what to do on a miss. Pin the essential retry guidance instead of
+// an entire paragraph, so wording changes do not obscure the contract being tested.
 test("search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up", () => {
   const searchTools = META_TOOL_DESCRIPTORS.find((tool) => tool.id === "search_tools");
   assert.ok(searchTools, "expected a search_tools descriptor in META_TOOL_DESCRIPTORS");
@@ -281,7 +265,7 @@ test("execute_delegated_tool refuses a non-object, non-array, non-string input (
 // `deps.authorize()` never produces `ToolExecutor`'s own `status: 'denied'` here — the handler
 // throws `ForbiddenError` itself, mid-execution, which `ToolExecutor` catches the same way it
 // catches any other handler exception: `status: 'failed'`, carrying the thrown message verbatim.
-// This closes `mapToolExecutionResult`'s `case "failed"` for real (previously untested) — it does
+// This closes `mapToolExecutionResult`'s `case "failed"` for real — it does
 // NOT and cannot close `case "denied"` through this call path; see this file's own test-certification
 // notes / the coverage report for that one.
 test("execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw", async () => {
@@ -512,7 +496,7 @@ test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through a
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_original", async () => {
       originalCallCount += 1;
-      if (originalCallCount === 1) return issueToolFailureDiagnostic({ executed: false, hint: "needs a value", remedyToolId: "fake_recoverable_remedy" });
+      if (originalCallCount === 1) return issueToolFailureDiagnostic({ diagnostic: { executed: false, hint: "needs a value", remedyToolId: "fake_recoverable_remedy" } }, {});
       return { fixed: true };
     }),
   );
@@ -542,7 +526,7 @@ test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through a
   assert.equal(emitted.length, 1, "expected the recovery surface to be raised exactly once before the call settles");
   const exchangeId = exchangeIdFromSurface(emitted[0]);
 
-  const delivered = s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { value: "the-fix" } });
+  const delivered = s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { value: "the-fix" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
   assert.deepEqual(delivered, { ok: true }, "the recovery exchange must be reachable off the SAME surfaceExchanges store this surface exposes");
 
   const result = await pending;
@@ -585,9 +569,9 @@ test("WIRING: no second recovery cycle — a retry whose OWN result also carries
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_original_double", async () => {
       originalCallCount += 1;
-      if (originalCallCount === 1) return issueToolFailureDiagnostic({ hint: "first problem", remedyToolId: "fake_recoverable_remedy_double" });
+      if (originalCallCount === 1) return issueToolFailureDiagnostic({ diagnostic: { hint: "first problem", remedyToolId: "fake_recoverable_remedy_double" } }, {});
       // The retry's own output ALSO looks diagnostic-shaped — this must not trigger a second ask.
-      return issueToolFailureDiagnostic({ hint: "second problem", remedyToolId: "fake_recoverable_remedy_double" });
+      return issueToolFailureDiagnostic({ diagnostic: { hint: "second problem", remedyToolId: "fake_recoverable_remedy_double" } }, {});
     }),
   );
   s.registry.register(
@@ -607,7 +591,7 @@ test("WIRING: no second recovery cycle — a retry whose OWN result also carries
 
   assert.equal(emitted.length, 1, "exactly one recovery surface for the FIRST diagnostic");
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { value: "fix-1" } });
+  s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { value: "fix-1" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   const result = await pending;
   assert.deepEqual(
@@ -626,7 +610,7 @@ test("WIRING: declining the recovery surface returns the ORIGINAL failure untouc
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_decline", async () => {
       originalCallCount += 1;
-      return issueToolFailureDiagnostic({ executed: false, status: 401, hint: "needs a value", remedyToolId: "fake_recoverable_decline_remedy" });
+      return issueToolFailureDiagnostic({ diagnostic: { executed: false, status: 401, hint: "needs a value", remedyToolId: "fake_recoverable_decline_remedy" } }, {});
     }),
   );
   s.registry.register(
@@ -652,7 +636,7 @@ test("WIRING: declining the recovery surface returns the ORIGINAL failure untouc
   await new Promise((resolve) => setImmediate(resolve));
 
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { __dismissed: true } });
+  s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { __dismissed: true } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   const result = await pending;
   assert.deepEqual(
@@ -667,7 +651,7 @@ test("WIRING: declining the recovery surface returns the ORIGINAL failure untouc
 test("WIRING: a headless call (no emitSurface) with a diagnostic-carrying result returns it untouched instead of hanging", async () => {
   const s = surface();
   s.registry.register(
-    fakeAllowedRegistration("fake_recoverable_headless", async () => issueToolFailureDiagnostic({ hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" })),
+    fakeAllowedRegistration("fake_recoverable_headless", async () => issueToolFailureDiagnostic({ diagnostic: { hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" } }, {})),
   );
 
   // No emitSurface passed — the synthetic/headless caller shape this loop's own doc says must never guess.
@@ -683,7 +667,7 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_retry_fails", async () => {
       originalCallCount += 1;
-      if (originalCallCount === 1) return issueToolFailureDiagnostic({ hint: "needs a value", remedyToolId: "fake_recoverable_retry_fails_remedy" });
+      if (originalCallCount === 1) return issueToolFailureDiagnostic({ diagnostic: { hint: "needs a value", remedyToolId: "fake_recoverable_retry_fails_remedy" } }, {});
       throw new Error("still broken after the fix");
     }),
   );
@@ -703,7 +687,7 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
   await new Promise((resolve) => setImmediate(resolve));
 
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { value: "fix-1" } });
+  s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { value: "fix-1" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   const result = await pending;
   assert.equal(result.isError, true);
@@ -732,7 +716,7 @@ test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry ar
   s.registry.register(
     fakeAllowedRegistration("fake_recoverable_audited", async () => {
       originalCallCount += 1;
-      if (originalCallCount === 1) return issueToolFailureDiagnostic({ hint: "needs a value", remedyToolId: "fake_recoverable_audited_remedy" });
+      if (originalCallCount === 1) return issueToolFailureDiagnostic({ diagnostic: { hint: "needs a value", remedyToolId: "fake_recoverable_audited_remedy" } }, {});
       return { fixed: true };
     }),
   );
@@ -752,7 +736,7 @@ test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry ar
   await new Promise((resolve) => setImmediate(resolve));
 
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { value: "fix-1" } });
+  s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { value: "fix-1" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
   await pending;
 
   // 3 real `inner.execute` calls (original, remedy, retry) x 2 audit rows each (requested + final phase).

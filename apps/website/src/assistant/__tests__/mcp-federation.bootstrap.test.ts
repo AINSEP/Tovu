@@ -79,13 +79,7 @@ function fakeRegistry(): ToolRegistry & { registered: ToolRegistration[] } {
   };
 }
 
-// RETIRED in r4-mcp-federation: "defaultConnect hands the hosted transport callTimeoutMs as its
-// per-request bound, matching the stdio arm — not connectTimeoutMs". The hosted arm and its timeout
-// wiring moved into `@jini-ai/mcp/federation/stdio`'s `createDefaultConnect`, which Tovu's binding only
-// supplies with client identity and copy; it no longer reaches `adapter.http.ts`'s export, so the
-// module mock this test relied on cannot observe it. The same three assertions run against the moved
-// code in Jini `packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts`, test of the
-// same name, through its `connectHttp` seam.
+// Transport timeout policy coverage: Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts.
 
 test("attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split", async () => {
   const { attachFederatedMcpTools } = await import("../mcp-federation/bootstrap.js");
@@ -194,11 +188,7 @@ test("createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailab
   );
   assert.equal(registry.registered.length, 1, "the other connection must still attach and register its tool");
   assert.deepEqual(result.registeredToolIds, ["mcp__ok-vendor__ping"]);
-  // 2026-09-24: a connect failure used to be reported ONLY through `logger.warn` — invisible to
-  // anything reading `attachFederatedMcpTools`'s own return value, which is what `GET
-  // /api/federation/admissions` and its admin proxy actually serve. `connectFailures` is the fix:
-  // the exact same reason `logger.warn` printed, now also on the result an operator-facing caller
-  // can read.
+  // Operator-facing admissions read connectFailures; logger warnings alone do not reach them.
   assert.deepEqual(result.connectFailures, [{ connectionId: UVX_CONFIG.connectionId, reason: UVX_UNAVAILABLE_MESSAGE }]);
   assert.deepEqual(
     result.reports.map((entry) => entry.connectionId),

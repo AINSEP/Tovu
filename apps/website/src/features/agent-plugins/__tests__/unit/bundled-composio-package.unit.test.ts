@@ -6,7 +6,7 @@ import test from "node:test";
 import { classifyAgentPluginMcpServerTrust } from "../../capability-projection.js";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
-import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
+import { packAgentPluginDirectory } from "../../lifecycle.js";
 
 /**
  * @file The `composio` bundled Agent Plugin's package is VALID, INSTALLABLE, and says the specific

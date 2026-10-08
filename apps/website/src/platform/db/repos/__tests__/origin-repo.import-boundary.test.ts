@@ -69,7 +69,9 @@ test("the import scanner sees aliased private values even after a public import"
   assert.deepEqual(privateOriginValueImports("import * as privateOrigin from '#src/features/origin/types';"), ["#src/features/origin/types"]);
 });
 
-test("origin-repo.ts imports the createVerifiedOrigin VALUE through origin's public door (index.ts), not the internal types.ts module directly", () => {
+// Phase 19 retires Tovu's ABI wrappers: the canonical package entry is now the public door.
+// The private-value scanner above remains pinned so an internal-path import cannot hide behind it.
+test("origin-repo.ts imports the createVerifiedOrigin VALUE through Jini's canonical verified-origin entry", () => {
   const specifiers = findImportSpecifiersFor(ORIGIN_REPO_SOURCE, "createVerifiedOrigin");
   assert.ok(specifiers.length > 0, "expected to find an import of createVerifiedOrigin in origin-repo.ts");
   assert.deepEqual(privateOriginValueImports(ORIGIN_REPO_SOURCE), [], "every origin value import must use the public door");
@@ -79,10 +81,10 @@ test("origin-repo.ts imports the createVerifiedOrigin VALUE through origin's pub
       "../../../features/origin/types",
       "createVerifiedOrigin must not be imported directly from the internal origin/types.ts module -- import it through origin's public door instead"
     );
-    assert.match(
+    assert.equal(
       specifier!,
-      /^(\.\.\/\.\.\/\.\.\/features\/origin|#src\/features\/origin)(\/index(\.js)?)?$/,
-      `createVerifiedOrigin must be imported through origin's public door (\"../../../features/origin\", \"../../../features/origin/index\", \"../../../features/origin/index.js\", or the \"#src/features/origin\" alias form), got \"${specifier}\"`
+      "@jini-ai/http-kit/verified-origin",
+      `createVerifiedOrigin must be imported through Jini's canonical verified-origin entry, got "${specifier}"`
     );
   }
 });

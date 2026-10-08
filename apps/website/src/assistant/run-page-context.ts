@@ -3,12 +3,8 @@
  * rendered into the block `agent-daemon-server.ts`'s `onStarted` puts directly in front of the
  * operator's own words.
  *
- * Why the prompt, and not a tool the model must remember to call (2026-09-16 owner report: with the
- * page editor for "Landing sample — xai" open, "can you see which page it is?" got "I can't tell
- * which page you mean"): the only discoverable "where is the user" tool, `@jini-ai/mcp`'s
- * `get_active_context`, read a route this host did not serve (it now answers from this same context —
- * `run-active-context.ts`), and a model that does not know context is missing has no reason to look
- * for it. The admin already knows the screen at
+ * A model that does not know context is missing has no reason to discover a context tool.
+ * The admin already knows the screen at
  * send time, so it sends it with every message (`assistant-transport.ts`'s `buildLocalCliContextRef`)
  * and every turn — including a resumed CLI session that only receives the newest message — carries
  * the screen the operator is on NOW, not the one they were on when the chat started.
@@ -31,7 +27,7 @@ export interface RunPageContextEntry {
  * Where `assistant_render_ui` output appears on the operator's screen: `canvas` when the screen has
  * one (Studio → Playground portals every drawing there), else `chat`. Only the browser makes that
  * routing call, so without this the model said "the chart in the chat above" while it sat on the
- * canvas (demo V3, 2026-10-05).
+ * canvas.
  */
 export type RunDrawingSurface = "canvas" | "chat";
 
@@ -150,8 +146,7 @@ export function buildPageContextPromptBlock(context: RunPageContext | undefined)
 /**
  * The BYOK turn's counterpart of `agent-daemon-server.ts`'s `onStarted` prompt assembly: the screen
  * block goes directly in front of the operator's newest words, so "this page" and "where drawings
- * appear" mean the same on both execution paths. The BYOK route (`assistant-byok.ts`) received no
- * screen at all before this, so the 2026-09-16 "which page is this?" fix never reached it.
+ * appear" mean the same on both execution paths.
  *
  * @param required.messages - The validated history; the last entry is the newest user message.
  * @param required.pageContext - {@link readRunPageContext}'s result.

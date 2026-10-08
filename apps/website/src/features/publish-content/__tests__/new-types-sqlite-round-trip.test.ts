@@ -1,3 +1,4 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,10 +10,10 @@ import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { contributeFormPublish } from "#src/features/forms/publish-content";
 import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/features/widgets/publish-content";
-import { bindWidgetArea, mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
+import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
-import { createWidgetInstance, updateWidgetInstance } from "#src/features/widgets/write-service";
-import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "#src/features/widgets/entry-payload";
+import { createWidgetInstance, updateWidgetInstance } from "@jini-ai/cms/widgets";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 
@@ -92,12 +93,12 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
   });
   const actor = { principalId: "owner" };
   const { instance: about } = await createWidgetInstance({
-    deps: src.service,
+    deps: { host: buildWidgetHostPorts({}, {}), ...src.service },
     input: { workspaceId: WORKSPACE_ID, actor, widgetType: "text", title: "About", config: { body: "Hello" }, slug: "about" },
   });
-  const { areaEntry } = await bindWidgetArea({ deps: src.service, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
+  const { areaEntry } = await bindWidgetArea({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
   await mutateWidgetAreaPlacements({
-    deps: src.service,
+    deps: { host: buildWidgetHostPorts({}, {}), ...src.service },
     input: { workspaceId: WORKSPACE_ID, actor, areaEntryId: areaEntry.id, baseVersion: areaEntry.version, placements: [{ placementId: "p-1", widgetEntryId: about.id, enabled: true }] },
   });
 
@@ -130,12 +131,12 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
     fields: [{ name: "servings", kind: "integer", required: true, queryable: false }],
     status: "active", version: 4, tombstonedAt: null,
   });
-  await updateWidgetInstance({ deps: src.service, input: { workspaceId: WORKSPACE_ID, actor,
+  await updateWidgetInstance({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor,
     widgetInstanceId: about.id, baseVersion: about.version, title: "About us", config: { body: "Updated introduction" },
   } });
   const sourceArea = await src.repos.entries.findById({ workspaceId: WORKSPACE_ID, id: areaEntry.id });
   const placements = [{ placementId: "p-2", widgetEntryId: about.id, enabled: false }];
-  await mutateWidgetAreaPlacements({ deps: src.service, input: { workspaceId: WORKSPACE_ID, actor,
+  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor,
     areaEntryId: areaEntry.id, baseVersion: sourceArea!.version, placements,
   } });
   const changedEntities = await packAll(src.site);
@@ -157,10 +158,10 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
   assert.deepEqual(collection?.fields, [{ name: "servings", kind: "integer", required: true, queryable: false }]);
   const widget = await dst.repos.entries.findById({ workspaceId: WORKSPACE_ID, id: about.id });
   assert.equal(widget?.title, "About us");
-  assert.deepEqual(parseWidgetInstancePayload(widget!.fieldsJson).config, { body: "Updated introduction" });
+  assert.deepEqual(parseWidgetInstancePayload({ fieldsJson: widget!.fieldsJson }).config, { body: "Updated introduction" });
   const areas = await dst.repos.entries.listByWorkspace({ workspaceId: WORKSPACE_ID }, { type: "widget_area" });
   assert.equal(areas.length, 1);
-  assert.deepEqual(parseWidgetAreaPayload(areas[0]!.fieldsJson).doc.placements, placements);
+  assert.deepEqual(parseWidgetAreaPayload({ fieldsJson: areas[0]!.fieldsJson }).doc.placements, placements);
 });
 
 test("a contact-form widget lands pointing at the destination's own form (forms get a new id there), then stays unchanged", async () => {
@@ -180,7 +181,7 @@ test("a contact-form widget lands pointing at the destination's own form (forms 
     version: 1,
   });
   const { instance: widget } = await createWidgetInstance({
-    deps: src.service,
+    deps: { host: buildWidgetHostPorts({}, {}), ...src.service },
     input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner" }, widgetType: "contact-form", title: "Talk", config: { formDefinitionId: "src-form-1" }, slug: "talk" },
   });
 

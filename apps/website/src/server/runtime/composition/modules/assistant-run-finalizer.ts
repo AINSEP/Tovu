@@ -32,7 +32,7 @@ import { randomUUID } from "node:crypto";
 import { createDurableRecovery } from "#src/assistant/durable-runs/recover";
 import type { DurableRecovery, DurableRun, RecoveryTrigger } from "#src/assistant/durable-runs/ports";
 import { verifyAttemptChildDead } from "#src/server/inbound/assistant/attempt-process-identity";
-import { agentCarriesOwnMemory } from "#src/server/inbound/assistant/agent-session-resume";
+import { agentCarriesOwnMemory } from "#src/assistant/agent-session-preset";
 import { isProcessAlive } from "@jini-ai/sidecar";
 import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import { createNodeSupervisorScheduler } from "@jini-ai/sidecar/supervisor/node";
@@ -276,7 +276,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     // No process identity is guessed from daemon PID existence. Until the executor provides a
     // verified child identity, reconstruction is the safe universal continuation path.
     verifyChildDead: options.verifyChildDead ?? ((required, _options) => verifyAttemptChildDead(required, {})),
-    supportsNativeResume: options.supportsNativeResume ?? (({ agentId }, _options) => agentCarriesOwnMemory(agentId)),
+    supportsNativeResume: options.supportsNativeResume ?? (({ agentId }, _options) => agentCarriesOwnMemory({ agentId: agentId }, {})),
     settle: (required, _options) => options.ledger.settle(required),
   }, {}) : undefined;
 

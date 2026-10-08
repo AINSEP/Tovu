@@ -1,28 +1,34 @@
 /** t10: real human exchange and credential persistence; fake only the provider network boundary. */
+import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
+import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../../custom-credentials/credential-save-tool.js";
+/** t10: real human exchange and credential persistence; fake only the provider network boundary. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext } from '@jini-ai/core';
 
 /** Context fields a test call may override, plus the surface channel the handler receives separately. */
 type CallExtra = Partial<ToolExecutionContext> & { emitSurface?: SurfaceEmitter };
-import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from '../../../contracts/core/tool-surface-exchanges.js';
+import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { InMemorySourceControlCredentialSetRepo } from '../repo.memory.js';
 import { listSourceControlCredentials, resolveDefaultForSourceControl } from '../store.js';
-import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk } from '../tool-registrations.js';
+import { buildSourceControlCredentialHandler, buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk } from '../tool-registrations.js';
 import { githubFromSource } from './fixtures/github-from-source.js';
 import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
 import type { Express, Request, Response } from 'express';
 import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../../../assistant/mcp-ui-tool-calls-route.js';
-import { RUN_PRINCIPAL_HEADER } from '../../../assistant/run-ownership.js';
-import { SURFACE_EXCHANGE_ID_PARAM } from '../../../contracts/core/tool-surface-exchanges.js';
+import { RUN_PRINCIPAL_HEADER } from "../../../assistant/daemon-access.js";
+import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutor } from '@jini-ai/daemon';
 import { PROPOSE_CREDENTIAL_ABORTED, PROPOSE_CREDENTIAL_CANCELLED, PROPOSE_CREDENTIAL_CLOSED, PROPOSE_CREDENTIAL_SAVE_FAILED, proposeSourceControlCredential, type SourceControlCredentialSetupDeps } from '../credential-setup.js';
 import type { LoadedSourceControlProvider, LoadSourceControlProviders, SourceControlProviderDescriptor } from '../provider-registry.js';
 import type { SourceControlProviderModule } from '../provider-module.js';
+import { createSystemClock } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-const ID = 'source_control_propose_credential';
+
+const ID = 'credential_save';
 const SECRET = 't10-source-secret-unique-982';
 test('t10 source credential form submit and cancel pass both MCP-UI callback gates', () => {
   assert.equal(isMcpUiToolCallAllowed(ID), true);
@@ -50,7 +56,7 @@ test('t10 source callback delivers a human token only to its parked call, reject
     return { status, body };
   }
   assert.deepEqual(await callback('person', { label: 'Human label', token: SECRET }), { status: 403, body: {
-    error: "'source_control_propose_credential' is not an MCP-UI-redeemable tool", code: 'TOOL_NOT_ALLOWLISTED',
+    error: "'credential_save' is not an MCP-UI-redeemable tool", code: 'TOOL_NOT_ALLOWLISTED',
   } });
   const params = { [SURFACE_EXCHANGE_ID_PARAM]: 'source-exchange-t10', label: 'Human label', token: SECRET };
   assert.deepEqual(await callback('intruder', params), { status: 409, body: {
@@ -59,7 +65,7 @@ test('t10 source callback delivers a human token only to its parked call, reject
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
   assert.deepEqual(await callback('person', params), { status: 202, body: { delivered: true } });
   const result = await pending;
-  assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Human label' });
+  assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Human label', tokenHint: { length: 28, last4: '-982' }, connection: 'connected', message: '…-982, 28 chars. Connected.' });
   assertNoSecret(result); assertNoSecret(emitted);
   assert.equal((await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'github' }))?.connection.token, SECRET);
   assert.deepEqual(await callback('person', params), { status: 409, body: {
@@ -67,7 +73,7 @@ test('t10 source callback delivers a human token only to its parked call, reject
   } });
   assert.equal(f.surfaces.size(), 0);
 });
-function fixture(allowed = true, exchangeOptions: Parameters<typeof createSurfaceExchangeStore>[0] = {}) {
+function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof createSurfaceExchangeStore>[1]> = {}) {
   const repo = new InMemorySourceControlCredentialSetRepo(); const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring); const auth: unknown[] = [];
   const deps = { workspaceId: 'ws-t10', sourceControlCredentialSetRepo: repo, siteAssistantSecretSealer: sealer,
@@ -80,10 +86,10 @@ function fixture(allowed = true, exchangeOptions: Parameters<typeof createSurfac
       return new Response(JSON.stringify({ login: 't10-owner' }), { status: 200 });
     }) as typeof fetch,
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
-  const surfaces = createSurfaceExchangeStore({ ...exchangeOptions, newExchangeId: () => 'source-exchange-t10' });
-  const registrations = buildSourceControlRegistrations(deps, { surfaceExchanges: surfaces });
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'source-exchange-t10' }, defaultChannel: "mcp-ui" }, { ...exchangeOptions });
+  const registrations = credentialSaveFixtureRegistrations({ registrations: buildSourceControlRegistrations(deps, { surfaceExchanges: surfaces }), adapters: { sourceControl: buildSourceControlCredentialHandler({ deps, surfaces: { surfaceExchanges: surfaces } }) } });
   function tool() { const found = registrations.find(r => r.descriptor.id === ID); assert.ok(found, `expected '${ID}' to be wired`); return found; }
-  function call(input: unknown, extra: CallExtra = {}) { return invokeFixtureHandler(tool(), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input, signal: new AbortController().signal, ...extra }); }
+  function call(input: unknown, extra: CallExtra = {}) { return invokeFixtureHandler(tool(), { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input: credentialSaveFixtureInput({ input, kind: 'source-control' }), signal: new AbortController().signal, ...extra }); }
   return { repo, sealer, deps, surfaces, call, auth, tool };
 }
 async function form(f: ReturnType<typeof fixture>, extra: CallExtra = {}) {
@@ -94,15 +100,15 @@ async function form(f: ReturnType<typeof fixture>, extra: CallExtra = {}) {
   return { pending, emitted, html: (emitted[0]!.payload as { resource: { resource: { text: string } } }).resource.resource.text };
 }
 function submit(f: ReturnType<typeof fixture>, params: Record<string, unknown>) {
-  assert.deepEqual(f.surfaces.deliver({ exchangeId: 'source-exchange-t10', toolId: ID, principalId: 'person', params }), { ok: true });
+  assert.deepEqual(f.surfaces.deliver({ exchangeId: 'source-exchange-t10', principalId: 'person', params }, { toolId: ID }), { ok: true });
 }
 function assertNoSecret(value: unknown) { assert.equal(JSON.stringify(value).includes(SECRET), false, 'model/surface output contains submitted secret'); }
 
 test('t10 source registration uses credential write permission, durable risk and exact non-secret model fields', () => {
-  const f = fixture(); const entry = sourceControlAgentToolCatalog.find(t => t.name === ID); assert.ok(entry, 'source credential catalog entry exists');
-  assert.equal(entry.authorization.permission, 'source-control.credentials.write'); assert.equal(entry.sideEffects, 'mutates-durable-state');
-  assert.equal(sourceControlDerivedRisk.get(ID), 'mutates-durable-state'); assert.equal(f.tool().descriptor.readOnly, false);
-  assert.deepEqual(Object.keys((entry.inputSchema as any).properties).sort(), ['label', 'provider']);
+  const f = fixture(); const entry = credentialSaveCatalog.find(t => t.name === ID); assert.ok(entry, 'source credential catalog entry exists');
+  assert.equal(entry.authorization.permission, 'resolved-per-kind'); assert.equal(entry.sideEffects, 'mutates-durable-state');
+  assert.equal(credentialSaveDerivedRisk.get(ID), 'mutates-durable-state'); assert.equal(f.tool().descriptor.readOnly, false);
+  assert.deepEqual(Object.keys((entry.inputSchema as any).properties).sort(), ['baseUrl', 'category', 'kind', 'label', 'prefill', 'reason', 'target']);
   assert.equal(entry.inputSchema!.additionalProperties, false);
 });
 
@@ -110,11 +116,11 @@ test('t10 source form uses the provider declared masked field; submit saves a us
   const f = fixture(); const { pending, emitted, html } = await form(f);
   assert.match(html, /Connect GitHub/); assert.match(html, /My backup connection/);
   assert.match(html, /name="token"[^>]*type="password"|type="password"[^>]*name="token"/);
-  assert.match(html, /source_control_propose_credential/); assert.match(html, /source-exchange-t10/); assertNoSecret(emitted);
-  assert.deepEqual(f.surfaces.deliver({ exchangeId: 'source-exchange-t10', toolId: ID, principalId: 'intruder', params: { token: SECRET } }), { ok: false, reason: 'binding-mismatch' });
+  assert.match(html, /credential_save/); assert.match(html, /source-exchange-t10/); assertNoSecret(emitted);
+  assert.deepEqual(f.surfaces.deliver({ exchangeId: 'source-exchange-t10', principalId: 'intruder', params: { token: SECRET } }, { toolId: ID }), { ok: false, reason: 'binding-mismatch' });
   submit(f, { label: 'Human chosen label', token: SECRET, providerId: 'gitlab' });
   const result = await pending;
-  assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Human chosen label' });
+  assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Human chosen label', tokenHint: { length: 28, last4: '-982' }, connection: 'connected', message: '…-982, 28 chars. Connected.' });
   assertNoSecret(result); assertNoSecret(emitted);
   const stored = await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' });
   assert.equal(stored.length, 1); assert.equal(stored[0]!.label, 'Human chosen label'); assert.equal(stored[0]!.isDefault, true); assert.equal(stored[0]!.accountLabel, 't10-owner');
@@ -145,7 +151,7 @@ test('t10 source capabilities guidance asks for the repository and states its ru
   const out = await invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' }, input: {}, signal: new AbortController().signal }) as { providers: Array<{ guidance?: string }> };
   const guidance = out.providers[0]?.guidance ?? '';
   assert.match(guidance, /ask which repository/i); assert.match(guidance, /private/); assert.match(guidance, /at least one commit/); assert.match(guidance, /Contents/);
-  assert.ok(guidance.indexOf('ask which repository') < guidance.indexOf('source_control_propose_credential'), 'asks for the repository before opening the form');
+  assert.ok(guidance.indexOf('ask which repository') < guidance.indexOf('credential_save'), 'asks for the repository before opening the form');
 });
 
 test('t10 source permission denied opens no surface and does not read credentials', async () => {
@@ -168,7 +174,7 @@ test('t10 source failed outcome emission still returns the persisted safe result
   await Promise.race([raised, pending.then(() => assert.fail('call returned without a form'))]);
   submit(f, { label: 'Saved despite closed tab', token: SECRET });
   const result = await pending;
-  assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Saved despite closed tab' });
+  assert.deepEqual(result, { saved: true, credentialId: 'credential-t10', provider: 'github', label: 'Saved despite closed tab', tokenHint: { length: 28, last4: '-982' }, connection: 'connected', message: '…-982, 28 chars. Connected.' });
   assertNoSecret(result);
   const resolved = await resolveDefaultForSourceControl({ repo: f.repo, sealer: f.sealer }, { workspaceId: 'ws-t10', providerId: 'github' });
   assert.equal(resolved?.connection.token, SECRET);
@@ -193,7 +199,7 @@ test('t10 source missing channel and abort fail closed', async () => {
 
 for (const token of ['', 42]) test(`t10 source malformed submitted token ${JSON.stringify(token)} saves nothing`, async () => {
   const f = fixture(); const { pending } = await form(f); submit(f, { label: 'New connection', token });
-  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_SAVE_FAILED });
+  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: 'Enter a token. Spaces alone are not a token.' });
   assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
 });
 
@@ -210,7 +216,7 @@ test('t10 source commit without a credential names the setup tool', async () => 
   const registration = buildSourceControlRegistrations(f.deps, { surfaceExchanges: f.surfaces }).find(r => r.descriptor.id === 'source_control_execute_commit'); assert.ok(registration);
   assert.deepEqual(await invokeFixtureHandler(registration, { executionId: 'exec', principal: { id: 'person' }, run: { id: 'run' },
     input: { provider: 'github', owner: 't10-owner', repo: 'site', commitMessage: 'Backup' }, signal: new AbortController().signal }),
-    { committed: false, reason: 'no-credential', message: 'No GitHub source control credential is configured for this workspace. Call source_control_propose_credential to open a human credential form before committing.' });
+    { committed: false, reason: 'no-credential', message: 'No GitHub source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.' });
 });
 
 test('t10 source expired form closes without saving', async t => {
@@ -285,7 +291,26 @@ test('t10 source form without provider help shows the default hint, renders non-
   assert.doesNotMatch(html, /name="username"[^>]*type="password"|type="password"[^>]*name="username"/);
   assert.match(html, /name="username"/);
   submit(f, { label: 'Team', token: SECRET, username: 'bb-user' });
-  assert.deepEqual(await pending, { saved: true, credentialId: 'credential-t10', provider: 'bitbucket', label: 'Team' });
+  assert.deepEqual(await pending, { saved: true, credentialId: 'credential-t10', provider: 'bitbucket', label: 'Team', tokenHint: { length: 28, last4: '-982' }, connection: 'saved', message: '…-982, 28 chars. Saved, not tested.' });
   const stored = await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' });
   assert.equal(stored[0]!.accountLabel, 'bb-owner');
+});
+
+// Abort while sealing is pending must not commit a credential after the run ends.
+test('t10 source abort during sealing writes nothing', async () => {
+  const f = fixture();
+  const controller = new AbortController();
+  const seal = f.sealer.seal.bind(f.sealer);
+  f.sealer.seal = async input => {
+    const sealed = await seal(input);
+    controller.abort();
+    return sealed;
+  };
+  const { pending, emitted } = await form(f, { signal: controller.signal });
+  submit(f, { label: 'Human label', token: SECRET });
+  assert.deepEqual(await pending, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_CLOSED });
+  assert.deepEqual(await listSourceControlCredentials({ repo: f.repo }, { workspaceId: 'ws-t10' }), []);
+  assert.equal(emitted.length, 1);
+  assert.equal(f.surfaces.size(), 0);
+  assertNoSecret(emitted);
 });

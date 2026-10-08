@@ -1,21 +1,23 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
-/** t09: real gateway spy, strict input/permission refusals and owner-facing plan mapping. */
+/** t09: real gateway through injected authorization, strict input/permission refusals and owner-facing plan mapping. */
 import assert from "node:assert/strict";
-import test, { beforeEach, mock } from "node:test";
-import * as gateway from "../../../contracts/core/gated-mutations/gateway.js";
+import test from "node:test";
 import { fixture, packed, peerRow, context, tool, OWNER } from "./pull-tool-fixture.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
-const plans: Parameters<typeof gateway.plan>[0][] = [];
-beforeEach(() => { plans.length = 0; });
-mock.module("../../../contracts/core/gated-mutations/gateway.js", { namedExports: { ...gateway, plan: async (args: Parameters<typeof gateway.plan>[0]) => { plans.push(args); return gateway.plan(args); } } });
 const ID = "publish_content_plan_pull";
 test("plan stages as the caller, runs the shared gateway and maps all outcomes without applying content", async () => {
   const f = await fixture([packed("create"), packed("update"), packed("same"), packed("conflict"), packed("blocked")]);
+  const gatewayReads: Array<{ principalId: string; permission: string; workspaceId?: string }> = [];
+  const authorize = f.deps.gatedMutations.gatewayDeps.authorize;
+  f.deps.gatedMutations.gatewayDeps.authorize = async args => {
+    gatewayReads.push(args);
+    return authorize(args);
+  };
   f.destination.set("update", { version: 1, hash: "baseline", title: "Local update" });
   f.destination.set("same", { version: 1, hash: f.entities[2]!.contentHash, title: "Live same" });
   f.destination.set("conflict", { version: 1, hash: "edited", title: "Local conflict" });
@@ -23,13 +25,19 @@ test("plan stages as the caller, runs the shared gateway and maps all outcomes w
   const before = [...f.destination];
   const result = await (await tool(f.deps, ID)).handler(context({}));
   assert.deepEqual(result, { bundleId: "pull-1", expiresAt: "2026-10-02T12:00:00.000Z", peerLabel: "Live site", counts: { create: 1, update: 1, unchanged: 1, blocked: 1 }, conflicts: [{ entityKey: "pull-fixture:conflict", title: "Live conflict", reason: "no prior sync baseline for pull-fixture 'conflict' with this peer — the destination already holds different content" }], blobsUnavailable: [], blobsDeferred: [] });
-  assert.equal(plans.length, 1);
-  assert.equal(plans.at(-1)?.principalId, OWNER);
-  assert.equal(plans.at(-1)?.principalKind, "agent");
-  assert.equal(plans.at(-1)?.hooks.domain, "publish_content.import");
+  assert.deepEqual(gatewayReads, [{ principalId: OWNER, permission: "publish_content.read", workspaceId: "local" }]);
   assert.deepEqual([...f.destination], before);
   assert.deepEqual(f.applied, []);
   assert.equal((await f.runRepo.findById({ workspaceId: "local", id: "pull-1" }))?.peerLabel, "Live site");
+});
+test("the gateway's own read denial refuses planning even when the tool's apply check passes", async () => {
+  const f = await fixture();
+  f.denied.add("publish_content.read");
+  await assert.rejects(() => tool(f.deps, ID).then(r => r.handler(context({}))), {
+    message: "principal 'human-owner' is not authorized for 'publish_content.read' (insufficient_permission)",
+  });
+  assert.equal(await f.runRepo.findById({ workspaceId: "local", id: "pull-1" }), null);
+  assert.deepEqual(f.applied, []);
 });
 test("omitted peer selects the connected destination among saved peers", async () => {
   const f = await fixture();

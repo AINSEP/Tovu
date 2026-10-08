@@ -120,7 +120,7 @@ export async function applyPendingAgentPluginTokens(
   for (const [pluginId, sealed] of Object.entries(file?.tokens ?? {})) {
     let token: string;
     try {
-      token = await required.sealer.open({ sealed, aad: pendingTokenAad(pluginId) });
+      token = await required.sealer.open({ sealed }, { aad: pendingTokenAad(pluginId) });
     } catch {
       log.warn(`[agent-plugins] the access token saved for '${pluginId}' when this site was created does not open with this site's key; it was dropped. Connect '${pluginId}' from chat instead.`);
       continue;

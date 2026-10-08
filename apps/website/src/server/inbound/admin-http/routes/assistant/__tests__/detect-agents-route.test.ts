@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import test, { after, mock } from "node:test";
+import test from "node:test";
 import express from "express";
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
 // Detection is the external PATH/process boundary. Keep route registration and projection real.
-const runtime = await import("@jini-ai/agent-runtime");
 let calls = 0;
 let failure: Error | undefined;
 const agents = [{
@@ -17,17 +16,13 @@ const agents = [{
   id: "claude", name: "Claude Code", bin: "claude", versionArgs: ["--version"], streamFormat: "text",
   available: false, models: [], modelsSource: "fallback", authStatus: "missing", authMessage: "Run claude login",
 }] as DetectedAgent[];
-const boundary = mock.module("@jini-ai/agent-runtime", { namedExports: {
-  ...runtime,
-  detectAgents: async () => { calls += 1; if (failure) throw failure; return agents; },
-} });
-after(() => boundary.restore());
 const { registerAdminAssistantDetectAgentsRoute } = await import("../detect-agents.js");
 const routePath = "/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents";
 
 function handler(allowed: boolean) {
   const app = express();
   registerAdminAssistantDetectAgentsRoute(app, {
+    detectAgents: async () => { calls += 1; if (failure) throw failure; return agents; },
     workspaceId: "workspace-test", authorize: async (params) => {
       assert.deepEqual(params, { principalId: "principal-test", permission: "admin.assistant.manage", workspaceId: "workspace-test", entityType: "assistant-execution" });
       return { allowed, reason: allowed ? "granted" : "no_grant" };

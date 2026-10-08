@@ -93,7 +93,7 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
     if (record.aadVersion !== DATABASE_DESTINATION_AAD_VERSION) throw new DestinationUnreadableError();
     let connectionString: string;
     try {
-      connectionString = await this.deps.sealer.open({ sealed: record.sealed, aad: buildDatabaseDestinationAad({ workspaceId }) });
+      connectionString = await this.deps.sealer.open({ sealed: record.sealed }, { aad: buildDatabaseDestinationAad({ workspaceId }) });
     } catch {
       // The sealer's own error may describe the key; it is replaced, never passed on.
       throw new DestinationUnreadableError();

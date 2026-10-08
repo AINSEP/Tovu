@@ -1,7 +1,7 @@
 import { parseCredentialSchemesFile, type CredentialSchemeRule, type CredentialSchemeRegistry } from "@jini-ai/integrations/credentialed-http";
 
 // Token-prefix rationale: Jini/packages/integrations/src/credentialed-http/auth-schemes.ts; plugin trust stays here.
-import { findTrustedPluginPackages, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
+import { loadPluginContributions, loadPluginContributionsFromSource, type PluginContributionDefinition, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 /**
  * @file Self-describing token schemes: tokens that carry their own `Authorization` scheme word as a
@@ -58,6 +58,17 @@ export type { CredentialSchemeRule, CredentialSchemeRegistry } from "@jini-ai/in
 /** The file a plugin ships at its root to contribute self-describing token scheme rules. */
 export const CREDENTIAL_SCHEMES_FILENAME = "tovu-credential-schemes.json";
 
+/** A package without the file (possible only on the source path) contributes nothing. */
+const schemeContribution: PluginContributionDefinition<CredentialSchemeRule, CredentialSchemeRule> = {
+  filename: CREDENTIAL_SCHEMES_FILENAME, contribution: "credential schemes", kind: "data",
+  parse: ({ raw }) => {
+    const parsed = parseCredentialSchemesFile({ raw });
+    return parsed.ok ? { ok: true, descriptors: parsed.rules } : parsed;
+  },
+  load: ({ descriptor }) => descriptor,
+  onReadError: ({ error }) => (error as NodeJS.ErrnoException).code === "ENOENT" ? [] : undefined,
+};
+
 /**
  * This workspace's scheme rules, from installed plugins that pass the bundled-digest gate (and NOT
  * the activation gate, see this file's header). Read fresh on every call: a credentialed request is
@@ -67,25 +78,9 @@ export const CREDENTIAL_SCHEMES_FILENAME = "tovu-credential-schemes.json";
  * directory itself propagates.
  * @complexity O(p) installed plugins, one small file read per contributing plugin.
  */
-export async function loadCredentialSchemeRegistry(ctx: { readonly workspaceId: string }): Promise<CredentialSchemeRegistry> {
-  const verdicts = await findTrustedPluginPackages({
-    workspaceId: ctx.workspaceId,
-    filename: CREDENTIAL_SCHEMES_FILENAME,
-    contribution: "credential schemes",
-    requireActive: false,
-  });
-  const rules: CredentialSchemeRule[] = [];
-  const refusals: string[] = [];
-  for (const verdict of verdicts) {
-    if ("refusal" in verdict) {
-      refusals.push(verdict.refusal);
-      continue;
-    }
-    const load = await loadPackageRules(verdict.trusted);
-    rules.push(...load.rules);
-    refusals.push(...load.refusals);
-  }
-  return dropDuplicateIds(rules, refusals);
+export async function loadCredentialSchemeRegistry(ctx: { readonly workspaceId: string }, _optional: Record<string, never> = {}): Promise<CredentialSchemeRegistry> {
+  const load = await loadPluginContributions({ ...ctx, definition: schemeContribution }, { requireActive: false });
+  return dropDuplicateIds(load.items, load.refusals);
 }
 
 /**
@@ -95,24 +90,9 @@ export async function loadCredentialSchemeRegistry(ctx: { readonly workspaceId: 
  *
  * @complexity O(r) declared rules.
  */
-export async function loadCredentialSchemeRegistryFromSource(plugin: TrustedPluginPackage): Promise<CredentialSchemeRegistry> {
-  const load = await loadPackageRules(plugin);
-  return dropDuplicateIds(load.rules, load.refusals);
-}
-
-/** One trusted package's rules, or a refusal naming why its file was dropped. A package without the
- *  file (possible only on the source path) contributes nothing. @complexity O(r). */
-async function loadPackageRules(plugin: TrustedPluginPackage): Promise<CredentialSchemeRegistry> {
-  let raw: string;
-  try {
-    raw = await readTrustedPluginFile(plugin, CREDENTIAL_SCHEMES_FILENAME);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { rules: [], refusals: [] };
-    throw error;
-  }
-  const parsed = parseCredentialSchemesFile({ raw });
-  if (!parsed.ok) return { rules: [], refusals: [`credential schemes from '${plugin.pluginId}' were not loaded: ${CREDENTIAL_SCHEMES_FILENAME} is invalid: ${parsed.reason}`] };
-  return { rules: parsed.rules, refusals: [] };
+export async function loadCredentialSchemeRegistryFromSource(plugin: TrustedPluginPackage, _optional: Record<string, never> = {}): Promise<CredentialSchemeRegistry> {
+  const load = await loadPluginContributionsFromSource({ plugin, definition: schemeContribution });
+  return dropDuplicateIds(load.items, load.refusals);
 }
 
 /** Drops every rule id more than one plugin declares ("refusing to guess"). Order of the survivors is

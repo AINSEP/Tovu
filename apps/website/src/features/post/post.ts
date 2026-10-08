@@ -53,7 +53,7 @@ export interface PostRecord {
   /**
    * SPEC-008 (ADR-PIPE-008 Decision §4) — the raw JSON-serialized per-entry
    * SEO override bag (`SeoExtFields`), or `null` when no overrides have ever
-   * been written. Written ONLY through `src/seo/write-service.ts`'s
+   * been written. Written ONLY through `Jini/packages/cms/src/seo/write-service.ts`'s
    * `setEntrySeoOverrides` chokepoint (INV-01) — no other caller may write
    * this field. Kept as an opaque string here (not parsed) so `post`/its repo
    * adapters stay ignorant of `seo`'s value shape; `seo.ts`/`write-service.ts`
@@ -189,7 +189,7 @@ export interface PostAutosaveSnapshot {
  * SPEC-005 REQ-05 — the read-only entry snapshot handed to `BeforeSaveHookPort`. Declared
  * structurally here rather than importing `@tovu/sdk`'s `ContentEntryDraft` so `post.ts` stays
  * plugin-ignorant (Module Map): `post` knows it may call one optional function before saving, and
- * nothing about plugins, capabilities, or the hook registry. `plugin-runtime/hook-registry.ts`'s
+ * nothing about plugins, capabilities, or the hook registry. `Jini/packages/plugins/src/host/hook-registry.ts`'s
  * `runBeforeSave` satisfies this port structurally.
  */
 export interface BeforeSaveEntryDraft {
@@ -265,7 +265,7 @@ export interface PostRepoPort {
    * `updatedAt` first, capped at `limit` — the post-previews marker's own query
    * (`features/theme/static-render.ts`'s `injectPostPreviewsEmbeds`, wired through
    * `listPublishedPostPreviews` below). Mirrors the query-shape discipline
-   * `widgets/resolvers/recent-entries.ts` already established for `entries` (REQ-25: "one bounded
+   * `Jini/packages/cms/src/widgets/resolvers/recent-entries.ts` already established for `entries` (REQ-25: "one bounded
    * query, no unbounded scan sorted/sliced in JS after the fact"), applied here to `posts`.
    *
    * `kind: "post"` is filtered IN THE QUERY, not after: filtering Pages out in JS after an already
@@ -492,7 +492,7 @@ export interface CreatePostDeps {
    * same `entry.published` event `updatePost`/`deletePost` already emit on a status transition —
    * closing a gap where creating published (a documented, first-class input on both the HTTP create
    * routes and the `content_post_create`/`content_page_create` assistant tools, not an edge case)
-   * never invalidated SEO's sitemap cache (`features/seo/sitemap.ts`), leaving the new entry
+   * never invalidated SEO's sitemap cache (`Jini/packages/cms/src/seo/sitemap.ts`), leaving the new entry
    * permanently absent from `sitemap.xml` until an unrelated post in the same workspace was later
    * updated. Left optional rather than required (unlike `UpdatePostDeps.outbox`/
    * `DeletePostDeps.outbox`) so every existing caller that has no reachable outbox — this repo's
@@ -571,7 +571,7 @@ export interface UpdatePostDeps {
    * existing vs incoming `status` and enqueues at most one of
    * `entry.published`/`entry.updated`/`entry.unpublished` per the 4-row
    * transition table (INV-010) — the sole real signal source
-   * `src/seo/sitemap.ts`'s cache invalidation (REQ-10) depends on.
+   * `Jini/packages/cms/src/seo/sitemap.ts`'s cache invalidation (REQ-10) depends on.
    */
   outbox: OutboxPort;
   /**
@@ -645,7 +645,7 @@ export interface DeletePostDeps {
   /**
    * Required for the same reason `updatePost`'s is (SPEC-008 ADR-PIPE-008 Decision §5): trashing a
    * PUBLISHED entry removes it from the public site, which is precisely the signal
-   * `src/seo/sitemap.ts`'s cache invalidation subscribes to. See `deletePost`'s own doc for why
+   * `Jini/packages/cms/src/seo/sitemap.ts`'s cache invalidation subscribes to. See `deletePost`'s own doc for why
    * this reuses `classifyStatusTransition` rather than inventing an `entry.deleted` name.
    */
   outbox: OutboxPort;
@@ -2122,7 +2122,7 @@ export interface ImportPostEntityInput {
  *
  * `createPost`/`updatePost` are the AUTHORING chokepoint. They deliberately refuse to accept
  * `bodyFormat`/`bodyHtml` (SPEC-047/ADR-056 CIC-3), `seoExtJson` (SPEC-008 INV-01, owned by
- * `features/seo/write-service.ts`), `memberAccessJson` (ADR-030 §4) and `deletedAt` (owned by
+ * `Jini/packages/cms/src/seo/write-service.ts`), `memberAccessJson` (ADR-030 §4) and `deletedAt` (owned by
  * `PostRepoPort.softDelete`), because an editor must not be able to reach those columns by sending
  * an extra field on a save. Publishing is not authoring: it REPLICATES a row another instance
  * already authored, through those same chokepoints, and must therefore reproduce every column or it

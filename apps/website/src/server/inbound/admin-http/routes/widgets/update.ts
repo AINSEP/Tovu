@@ -1,5 +1,5 @@
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
-import { updateWidgetInstance } from "#src/features/widgets/write-service";
+import { updateWidgetInstance } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";

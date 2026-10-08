@@ -5,7 +5,10 @@ import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
 import { DEMO_A2UI_TOOL_ID, buildDemoA2uiRegistrations } from "../demo-a2ui-tool.js";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The A2UI multi-turn inbound transport, end to end through a real tool handler.
@@ -56,7 +59,7 @@ function actionMessage(surfaceId: string, name: string, timestamp = new Date().t
 }
 
 test("the call stays open across two turns, and both actions become the call's result", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: SurfaceEmission[] = [];
 
@@ -76,12 +79,7 @@ test("the call stays open across two turns, and both actions become the call's r
   const surfaceId = surfaceIdOf(emitted[0]!);
   assert.equal(surfaceId, surfaceIdOf(emitted[1]!), "every message in one flow shares one surfaceId");
 
-  const firstDelivered = surfaceExchanges.deliver({
-    exchangeId: surfaceId,
-    principalId: "principal-1",
-    channel: "a2ui",
-    params: { message: actionMessage(surfaceId, `${DEMO_A2UI_TOOL_ID}.continue`) },
-  });
+  const firstDelivered = surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: { message: actionMessage(surfaceId, `${DEMO_A2UI_TOOL_ID}.continue`) } }, { channel: "a2ui" });
   assert.deepEqual(firstDelivered, { ok: true });
 
   // The reflecting updateComponents arrives before the second receive — the property this whole
@@ -92,12 +90,7 @@ test("the call stays open across two turns, and both actions become the call's r
   const statusComponent = reflectingMessage.updateComponents.components.find((c) => c.id === "status");
   assert.match(String(statusComponent?.text), new RegExp(`${DEMO_A2UI_TOOL_ID}\\.continue`));
 
-  const secondDelivered = surfaceExchanges.deliver({
-    exchangeId: surfaceId,
-    principalId: "principal-1",
-    channel: "a2ui",
-    params: { message: actionMessage(surfaceId, `${DEMO_A2UI_TOOL_ID}.finish`) },
-  });
+  const secondDelivered = surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: { message: actionMessage(surfaceId, `${DEMO_A2UI_TOOL_ID}.finish`) } }, { channel: "a2ui" });
   assert.deepEqual(secondDelivered, { ok: true });
 
   assert.deepEqual(await pending, {
@@ -109,7 +102,7 @@ test("the call stays open across two turns, and both actions become the call's r
 });
 
 test("the surface id doubles as the exchange id — a2ui-actions-route.ts needs no separate callback param", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: SurfaceEmission[] = [];
   call(handler, { emitSurface: async (e) => void emitted.push(e) });
@@ -119,12 +112,12 @@ test("the surface id doubles as the exchange id — a2ui-actions-route.ts needs 
 
   // Delivering under the surfaceId (not some other id) is what proves the two are the same value —
   // a wrong id would 409/leave the exchange untouched, per surface-exchanges.ts's own contract.
-  const delivered = surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", channel: "a2ui", params: { message: {} } });
+  const delivered = surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: { message: {} } }, { channel: "a2ui" });
   assert.deepEqual(delivered, { ok: true });
 });
 
 test("an unanswered surface returns an explicit no-answer result, not a hang or a throw", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
   const handler = buildHandler(surfaceExchanges);
 
   const result = (await call(handler, { emitSurface: async () => undefined })) as {
@@ -139,7 +132,7 @@ test("an unanswered surface returns an explicit no-answer result, not a hang or 
 });
 
 test("a cancelled run closes the exchange rather than holding the handler to the deadline", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const controller = new AbortController();
 
@@ -155,7 +148,7 @@ test("a cancelled run closes the exchange rather than holding the handler to the
 });
 
 test("with no emit seam the tool reports it cannot run, and opens no exchange", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   const result = (await call(handler)) as { completed: boolean; reason: string };
@@ -165,12 +158,12 @@ test("with no emit seam the tool reports it cannot run, and opens no exchange", 
   assert.equal(result.reason, "no-surface-channel");
 });
 
-// See `demo-choices-tool.test.ts`'s equivalent for why this asserts the opposite of what it used to.
+// Unconditional registration policy: see demo-choices-tool.ts.
 test("registers unconditionally — no environment can switch this tool off", () => {
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
-    const registrations = buildDemoA2uiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() });
+    const registrations = buildDemoA2uiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     assert.ok(
       registrations.some((r) => r.descriptor.id === DEMO_A2UI_TOOL_ID),
       "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",

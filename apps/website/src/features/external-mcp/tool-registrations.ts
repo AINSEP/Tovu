@@ -1,6 +1,7 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/external-mcp.js';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
-import { buildOutcomeSurface, type UIResourceUri } from '@jini-ai/ui/mcp-ui/surfaces';
+import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
 import { resolveOperatorLocale } from '../agent-plugins/operator-locale.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -9,12 +10,9 @@ import type { UUID } from "@jini-ai/core/primitives";
 import { ToolInputError } from "@jini-ai/core";
 
 import {
-  SURFACE_DISMISSED_PARAM,
   askThenReport,
   type AssistantSurfaceDeps,
-  type SurfaceExchange,
-  type SurfaceMessage,
-} from "../../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 // Value imports from `#src/assistant/index` — the same seam `server/inbound/admin-http/routes/
 // external-mcp/{put,probe}.ts` already use for the identical operations. See `deps.ts`'s own header,
@@ -28,7 +26,6 @@ import type { ToolContributor } from "#src/assistant/index";
 // violation. `external-mcp-store.ts`/`external-mcp-oauth.ts` own this domain's actual read/write
 // logic; nothing here re-implements it.
 import {
-  ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
   listExternalMcpServerViews,
   notifyExternalMcpRosterChanged,
@@ -57,7 +54,8 @@ import { buildExternalMcpSaveForm, mergeExternalMcpSavePrefill, EXTERNAL_MCP_SAV
  * ## `external_mcp_save`: one call, held open, exactly like `content_post_delete`
  *
  * The model's own call never writes anything by itself — it opens an MCP-UI form
- * (`save-form.ts`'s `buildExternalMcpSaveForm`) and parks on `askOnce` until the human submits or
+ * (`save-form.ts`'s `buildExternalMcpSaveForm`) through Jini's secret-card engine, which parks on
+ * `askThenReport` until the human submits or
  * cancels it, or it expires. `mergeExternalMcpSavePrefill` fills the form with an existing row's
  * current (non-secret) values when `id` already names one, so an update shows the human accurate
  * state for anything the model did not restate. Every secret field (`env`, `oauthClientSecret`)
@@ -244,6 +242,9 @@ const SAVE_MODEL_OPTIONAL_FIELDS = [
  *  it (trim + lowercase), so the existing-row lookup below matches what a prior save actually
  *  stored. @complexity O(1) — a fixed field list. */
 function buildModelSaveInput(input: Record<string, unknown>): ExternalMcpSaveInput {
+  if (Object.keys(input).some(key => key !== "id" && key !== "transport" && !SAVE_MODEL_OPTIONAL_FIELDS.some(field => field === key))) {
+    throw new ToolInputError({ message: "external_mcp_save: credentials belong in the human form, never in this tool input. Nothing was saved." });
+  }
   const id = requireString({ input, key: "id" }).trim().toLowerCase();
   const transport = requireString({ input, key: "transport" });
   let save: ExternalMcpSaveInput = { id, transport };
@@ -319,8 +320,8 @@ function buildSaveExternalMcpServerInputFromFormParams(
   const serverIdRaw = params.id;
   const transportRaw = params.transport;
   if (typeof serverIdRaw !== "string" || typeof transportRaw !== "string") {
-    // Both ride in `baseParams` on every render (`save-form.ts`'s `buildExternalMcpSaveForm`) — their
-    // absence means the submitted params were not actually produced by this tool's own form.
+    // Both come from prepared state, formerly `baseParams` on every render — their absence means
+    // the domain save port was called without this tool's bound destination.
     throw new Error("external_mcp_save: the submitted form is missing 'id' or 'transport'.");
   }
 
@@ -345,74 +346,119 @@ function buildSaveExternalMcpServerInputFromFormParams(
 }
 
 /**
- * `external_mcp_save`'s `askOnce` answer handling — extracted to a top-level function so its own
- * complexity is measured independently of the handler that opens the exchange and builds the form,
- * mirroring `deployment_propose_custom_provider_credential`'s identical `handleProposeCredentialAnswer`
- * split (`features/deployments/publish-agent-tools.ts`).
+ * `external_mcp_save`'s domain save port — kept separate from the engine's exchange lifecycle so
+ * the field mapper, sealed store, probe and roster fan-out retain their own contracts.
  *
  * `ExternalMcpValidationError` is the one rejection a DIFFERENT form submission would fix, so it is
- * turned into the documented `{ saved: false, reason: 'invalid', ... }` result rather than thrown —
+ * turned by the engine's error allowlist into the documented `{ saved: false, reason: 'invalid', ... }` result —
  * matching `agent-tools.ts`'s own description of this tool's return shapes.
  * `ExternalMcpSecretStoreUnconfiguredError` is deliberately NOT folded into that same branch: its own
  * doc states nothing the operator types can fix it, which is the opposite of what `reason: 'invalid'`
- * promises the model — it propagates as an ordinary thrown error instead.
+ * promises the model — it propagates to the engine's fixed storage-failure outcome instead.
  *
  * @complexity O(1) plus one `saveExternalMcpServer` call.
  */
-async function handleExternalMcpSaveAnswer(
-  routeDeps: ExternalMcpToolDeps,
-  principalId: string,
-  answer: SurfaceMessage,
-  locale: string = "en",
+async function saveSubmittedExternalMcpConfiguration(
+  { routeDeps, principalId, values, save, locale, signal }: {
+    routeDeps: ExternalMcpToolDeps; principalId: string; values: Readonly<Record<string, unknown>>;
+    save: ExternalMcpSaveInput; locale: string; signal: AbortSignal;
+  }, _optional = {},
 ): Promise<Record<string, unknown>> {
-  if (answer.status !== "received") {
-    return {
-      saved: false,
-      cancelled: false,
-      reason: answer.status,
-      note:
-        answer.status === "expired"
-          ? "The user did not respond to the connection form before it expired. Nothing was saved."
-          : "The connection form was closed because the run ended. Nothing was saved.",
-    };
+  // The field set is fixed per call. A submitted routing value cannot change the credential's
+  // destination or switch to an auth/transport mode whose fields the human never reviewed.
+  if (values.id !== undefined && values.id !== save.id) {
+    throw new ExternalMcpValidationError("The server ID must match the connection form. Nothing was saved.", "id");
   }
-  if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
-    return { saved: false, cancelled: true };
+  const params = { ...values, id: save.id, transport: save.transport, authMode: save.authMode };
+  const saveInput = buildSaveExternalMcpServerInputFromFormParams(params, routeDeps.workspaceId, principalId);
+  signal.throwIfAborted();
+  const server = await saveExternalMcpServer(
+    {
+      repo: routeDeps.externalMcpServerRepo,
+      sealer: routeDeps.siteAssistantSecretSealer,
+      keyring: routeDeps.siteAssistantSecretKeyring,
+      clock: routeDeps.clock,
+    },
+    saveInput,
+  );
+  // Same roster-change fan-out `put.ts`/`oauth-callback.ts` fire on their own save/connect success —
+  // see `external-mcp-roster-change.ts`'s own header. Fire-and-forget: this chat-surface save
+  // already succeeded and is durable regardless of whether any registered runtime reloads cleanly.
+  void notifyExternalMcpRosterChanged();
+  let connection = credentialText({ id: 'saved', locale });
+  let connectionCode = 'not_tested';
+  if (server.transport !== 'stdio' && routeDeps.externalMcpProbe) {
+    try {
+      const probe = await routeDeps.externalMcpProbe({ serverId: server.serverId });
+      connectionCode = probe.ok ? 'connected' : String(probe.body.code ?? 'MCP_SERVER_UNREACHABLE');
+      const id = probe.ok ? 'connected' : connectionCode === 'MCP_AUTH_REJECTED' ? 'auth' : connectionCode === 'MCP_TIMEOUT' ? 'timeout' : 'unreachable';
+      connection = credentialText({ id, locale });
+    } catch { connectionCode = 'MCP_SERVER_UNREACHABLE'; connection = credentialText({ id: 'unreachable', locale }); }
   }
+  const hint = [formatCredentialHint({ hint: server.accessTokenHint, locale }), formatCredentialHints({ hints: server.envTokenHints, locale })].filter(Boolean).join(' · ');
+  return { saved: true, server, connection: connectionCode, message: `${hint ? `${hint}. ` : ''}${connection}` };
+}
 
-  const saveInput = buildSaveExternalMcpServerInputFromFormParams(answer.params, routeDeps.workspaceId, principalId);
-  try {
-    const server = await saveExternalMcpServer(
-      {
-        repo: routeDeps.externalMcpServerRepo,
-        sealer: routeDeps.siteAssistantSecretSealer,
-        keyring: routeDeps.siteAssistantSecretKeyring,
-        clock: routeDeps.clock,
+/** Project the engine's classified run without exposing any submitted credential. */
+function externalMcpSaveResult({ run, locale }: { run: SecretCardRun<Record<string, unknown>>; locale: string }, { validationField }: { validationField?: string } = {}): Record<string, unknown> {
+  if (run.status === "saved") return run.saved;
+  if (run.status === "cancelled") return { saved: false, cancelled: true };
+  if (run.status === "blank") return { saved: false, cancelled: false, reason: "invalid", message: credentialText({ id: "blank", locale }) };
+  if (run.status === "failed") return { saved: false, cancelled: false, reason: validationField === undefined ? "error" : "invalid", message: run.safeMessage,
+    ...(validationField === undefined ? {} : { field: validationField }) };
+  return { saved: false, cancelled: false, reason: run.status, note: run.status === "expired"
+    ? "The user did not respond to the connection form before it expired. Nothing was saved."
+    : "The connection form was closed because the run ended. Nothing was saved." };
+}
+
+/** Bind the domain form/save ports to Jini's one lifecycle owner.
+ * @complexity O(s + f) during preparation in server views and fixed form fields, plus store/probe I/O.
+ */
+function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMcpToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): ToolHandler {
+  return async (ctx, optional = {}) => {
+    // Per-call metadata only: concurrent cards must not share a locale or validation field.
+    // The engine owns redaction; this allowlist retains the domain's documented invalid/error shape.
+    let validationField: string | undefined;
+    let errorLocale = "en";
+    const card = defineSecretCardTool<{
+      save: ExternalMcpSaveInput; isUpdate: boolean; locale: string; principalId: string;
+    }, Record<string, unknown>, Record<string, unknown>>({
+      toolId: EXTERNAL_MCP_SAVE_TOOL_ID,
+      prepare: async ({ ctx }) => {
+        const input = requireInputRecord({ input: ctx.input });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+          workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server" });
+        const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+        errorLocale = locale;
+        const modelInput = buildModelSaveInput(input);
+        const views = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
+        const existing = views.find(view => view.serverId === modelInput.id);
+        return { save: mergeExternalMcpSavePrefill(modelInput, existing), isUpdate: existing !== undefined, locale, principalId: ctx.principal.id };
       },
-      saveInput,
-    );
-    // Same roster-change fan-out `put.ts`/`oauth-callback.ts` fire on their own save/connect success —
-    // see `external-mcp-roster-change.ts`'s own header. Fire-and-forget: this chat-surface save
-    // already succeeded and is durable regardless of whether any registered runtime reloads cleanly.
-    void notifyExternalMcpRosterChanged();
-    let connection = credentialText({ id: 'saved', locale });
-    let connectionCode = 'not_tested';
-    if (server.transport !== 'stdio' && routeDeps.externalMcpProbe) {
-      try {
-        const probe = await routeDeps.externalMcpProbe({ serverId: server.serverId });
-        connectionCode = probe.ok ? 'connected' : String(probe.body.code ?? 'MCP_SERVER_UNREACHABLE');
-        const id = probe.ok ? 'connected' : connectionCode === 'MCP_AUTH_REJECTED' ? 'auth' : connectionCode === 'MCP_TIMEOUT' ? 'timeout' : 'unreachable';
-        connection = credentialText({ id, locale });
-      } catch { connectionCode = 'MCP_SERVER_UNREACHABLE'; connection = credentialText({ id: 'unreachable', locale }); }
-    }
-    const hint = [formatCredentialHint({ hint: server.accessTokenHint, locale }), formatCredentialHints({ hints: server.envTokenHints, locale })].filter(Boolean).join(' · ');
-    return { saved: true, server, connection: connectionCode, message: `${hint ? `${hint}. ` : ''}${connection}` };
-  } catch (err) {
-    if (err instanceof ExternalMcpValidationError) {
-      return { saved: false, cancelled: false, reason: "invalid", message: translateCredentialMessage({ message: err.message, locale }), field: err.field };
-    }
-    throw err;
-  }
+      form: ({ prep }) => buildExternalMcpSaveForm({ save: prep.save, isUpdate: prep.isUpdate }),
+      save: ({ values, prep, signal }) => saveSubmittedExternalMcpConfiguration({ routeDeps, values, ...prep, signal }),
+      result: ({ prep, run }) => externalMcpSaveResult({ run, locale: prep.locale }, { validationField }),
+      outcome: ({ prep, run }) => {
+        if (run.status === "cancelled" || run.status === "expired" || run.status === "abandoned") return undefined;
+        const result = externalMcpSaveResult({ run, locale: prep.locale }, { validationField });
+        return {
+          title: result.saved ? credentialText({ id: result.connection === "connected" ? "connected" : "savedTitle", locale: prep.locale }) : credentialText({ id: "unreachable", locale: prep.locale }),
+          state: result.saved ? "success" : "failure",
+          message: typeof result.message === "string" ? result.message : credentialText({ id: "unreachable", locale: prep.locale }),
+        };
+      },
+    }, { uriHost: "tovu", frameSize: ["100%", "640px"], safeError: err => {
+      if (err instanceof ExternalMcpValidationError) {
+        validationField = err.field;
+        return translateCredentialMessage({ message: err.message, locale: errorLocale });
+      }
+      return credentialText({ id: "storage", locale: errorLocale });
+    }, text: {
+      noEmitter: "external_mcp_save: this execution context has no interactive confirmation channel (no emitSurface), so a connection form cannot be shown here. Nothing was saved.",
+      saveFailure: credentialText({ id: "storage", locale: "en" }),
+    } });
+    return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
+  };
 }
 
 /**
@@ -455,45 +501,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
      * this tool exists specifically to render cannot be skipped without abandoning the "never saves
      * silently" guarantee `agent-tools.ts`'s own description makes.
      */
-    external_mcp_save: async (ctx, optional = {}) => {
-      const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "external-mcp-server" });
-
-      if (!optional.emitSurface) {
-        throw new ToolInputError({ message: "external_mcp_save: this execution context has no interactive confirmation channel (no emitSurface), " +
-            "so a connection form cannot be shown here. Nothing was saved." });
-      }
-
-      const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      const modelInput = buildModelSaveInput(input);
-      const existingViews = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
-      const existingView = existingViews.find((view) => view.serverId === modelInput.id);
-      const prefill = mergeExternalMcpSavePrefill(modelInput, existingView);
-
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
-        { toolId: EXTERNAL_MCP_SAVE_TOOL_ID, principalId: ctx.principal.id },
-        optional.emitSurface,
-      );
-
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        const ui = buildExternalMcpSaveForm({ exchange, save: prefill, isUpdate: existingView !== undefined });
-        return await askThenReport(exchange, { channel: 'mcp-ui', payload: { resource: ui } }, async answer => {
-          const result = await handleExternalMcpSaveAnswer(routeDeps, ctx.principal.id, answer, locale);
-          if (answer.status !== 'received' || answer.params[SURFACE_DISMISSED_PARAM] === true) return { result };
-          const message = typeof result.message === 'string' ? result.message : credentialText({ id: 'unreachable', locale });
-          return { result, outcome: { channel: 'mcp-ui', payload: { resource: buildOutcomeSurface({
-            uri: `ui://tovu/external-mcp-save/${exchange.id}` as UIResourceUri,
-            title: result.saved ? credentialText({ id: result.connection === 'connected' ? 'connected' : 'savedTitle', locale }) : credentialText({ id: 'unreachable', locale }),
-            state: result.saved ? 'success' : 'failure', message,
-          }) } } };
-        });
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
-    },
+    external_mcp_save: externalMcpSaveHandler({ routeDeps, surfaces }),
 
     /** See this file's header ("`external_mcp_test_connection` never opens a socket"). */
     external_mcp_test_connection: async (ctx) => {
@@ -577,7 +585,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
 
   // No `unwiredToolIds`: External MCP wires its ENTIRE catalog, same tripwire discipline as
   // Posts/Themes/Plugins — a 6th catalog entry added without a handler fails the build.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "external-mcp",
     catalogModule: "features/external-mcp/agent-tools.ts",
     catalog: CATALOG_BY_ID,

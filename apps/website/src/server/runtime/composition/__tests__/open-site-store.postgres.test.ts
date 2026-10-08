@@ -27,13 +27,13 @@ before(() => {
 });
 
 after(() => {
-  psql("postgres", `DROP DATABASE IF EXISTS ${DATABASE} WITH (FORCE);`);
+  psql({ database: "postgres", sql: `DROP DATABASE IF EXISTS ${DATABASE} WITH (FORCE);` });
   fs.rmSync(siteDir, { recursive: true, force: true });
 });
 
 /** Server-side sessions connected to the test database, other than this query's own. */
 function sessionsOnDatabase(): number {
-  const result = psql("postgres", `SELECT count(*) FROM pg_stat_activity WHERE datname = '${DATABASE}';`);
+  const result = psql({ database: "postgres", sql: `SELECT count(*) FROM pg_stat_activity WHERE datname = '${DATABASE}';` });
   assert.ok(result.ok, result.stderr);
   return Number(result.stdout.trim());
 }

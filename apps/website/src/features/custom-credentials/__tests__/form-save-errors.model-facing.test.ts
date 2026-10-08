@@ -1,3 +1,4 @@
+import { credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 /**
  * @file Regression suite for the SAVE-failure branch of `custom_credential_set_token` and
@@ -27,18 +28,21 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
-import { CREATE_TOOL_ID } from "../custom-credential-create-ui.js";
-import { SET_TOKEN_TOOL_ID } from "../custom-credential-set-token-ui.js";
+const CREATE_TOOL_ID = "credential_save";
+const SET_TOKEN_TOOL_ID = "credential_save";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential } from "../store.js";
-import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
+import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { CustomCredentialSetRepoPort } from "../types.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const WORKSPACE_ID = "ws-cred-form-save-errors";
 const PRINCIPAL_ID = "principal-under-test";
@@ -71,7 +75,7 @@ function plaintextEchoingSealer(inner: SecretSealerPort): SecretSealerPort {
     seal: async (input) => {
       throw new Error(`Unexpected token 'L', "${input.plaintext}" is not valid JSON`);
     },
-    open: (input) => inner.open(input),
+    open: (input, optional) => inner.open(input, optional),
   };
 }
 
@@ -110,7 +114,7 @@ async function buildHarness(options: HarnessOptions = {}) {
   };
 
   // The real store, with `open` observed so a test can answer the exchange the handler opened.
-  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const openedExchangeIds: string[] = [];
   const observedExchanges: SurfaceExchangeStore = Object.assign(Object.create(surfaceExchanges) as SurfaceExchangeStore, {
     open: (...args: Parameters<SurfaceExchangeStore["open"]>) => {
@@ -121,7 +125,7 @@ async function buildHarness(options: HarnessOptions = {}) {
   });
 
   const registry = createToolRegistry({});
-  for (const registration of buildCustomCredentialsRegistrations(deps, { surfaceExchanges: observedExchanges })) {
+  for (const registration of credentialSaveFixtureRegistrations({ registrations: buildCustomCredentialsRegistrations(deps, { surfaceExchanges: observedExchanges }), adapters: { apiCreate: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges: observedExchanges } }).create, apiRotate: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges: observedExchanges } }).rotate } })) {
     registry.register(registration);
   }
   const eventLog = createInMemoryEventLog({});
@@ -147,7 +151,7 @@ async function submitForm(harness: Harness, toolId: string, input: unknown, para
   }
   const exchangeId = harness.openedExchangeIds[0];
   assert.ok(exchangeId, `${toolId}: the form must be raised before it can be answered`);
-  const delivered = harness.surfaceExchanges.deliver({ exchangeId, toolId, principalId: PRINCIPAL_ID, params });
+  const delivered = harness.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params }, { toolId });
   assert.ok(delivered, `${toolId}: the submission must reach the parked call`);
 
   const wire = await pending;
@@ -175,12 +179,12 @@ function assertNowhere(label: string, haystacks: Record<string, string>, needle:
 test("set_token: a seal failure that quotes the submitted token never reaches the model, the outcome resource, or the log", async () => {
   const harness = await buildHarness({ sealer: plaintextEchoingSealer });
 
-  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { label: "fly.io" }, { token: SUBMITTED_TOKEN });
+  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "fly.io" }, { token: SUBMITTED_TOKEN });
 
   assertNowhere("set_token", { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: SECRET_STORE_MESSAGE });
   assert.equal(harness.logLines.length, 1, harness.logLines.join("\n"));
-  assert.match(harness.logLines[0]!, /custom_credential_set_token: save failed .*error=CustomCredentialSecretStoreUnconfiguredError/);
+  assert.match(harness.logLines[0]!, /credential_save: save failed .*error=CustomCredentialSecretStoreUnconfiguredError/);
 });
 
 test("set_token: the SHIPPED keyring's missing-site key text (env var name, absolute key-file path) never reaches the model or the human", async () => {
@@ -188,7 +192,7 @@ test("set_token: the SHIPPED keyring's missing-site key text (env var name, abso
     keyring: new EnvOrFileKeyring({ sources: [{ kind: "env" }, { kind: "per-site-file", path: MISSING_SITE_KEY_PATH }] }, { env: () => ({ TOVU_SITE_KEY: process.env[MISSING_SITE_KEY_ENV] }) }),
   });
 
-  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { label: "fly.io" }, { token: SUBMITTED_TOKEN });
+  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "fly.io" }, { token: SUBMITTED_TOKEN });
 
   const haystacks = { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") };
   assertNowhere("set_token", haystacks, MISSING_SITE_KEY_PATH);
@@ -208,7 +212,7 @@ test("set_token: an UNLISTED failure (a raw repo error) gets the generic message
       }),
   });
 
-  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { label: "fly.io" }, { token: SUBMITTED_TOKEN });
+  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "fly.io" }, { token: SUBMITTED_TOKEN });
 
   assertNowhere("set_token", { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: INTERNAL_FAILURE_MESSAGE });
@@ -229,7 +233,7 @@ test("set_token: an ALLOWLISTED failure keeps its real reason — a row deleted 
     return originalFindById(input);
   };
 
-  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { label: "fly.io" }, { token: SUBMITTED_TOKEN });
+  const { wireText, eventsText } = await submitForm(harness, SET_TOKEN_TOOL_ID, { kind: "api", target: "fly.io" }, { token: SUBMITTED_TOKEN });
 
   assertNowhere("set_token", { "model-facing result": wireText, "run events (outcome resource)": eventsText }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: `no custom credential '${harness.seeded.id}' in this workspace` });
@@ -244,12 +248,15 @@ const CREATE_SUBMISSION = { label: "github", baseUrl: "https://api.github.com", 
 test("create: a seal failure that quotes the submitted token never reaches the model, the outcome resource, or the log", async () => {
   const harness = await buildHarness({ sealer: plaintextEchoingSealer });
 
-  const { wireText, eventsText } = await submitForm(harness, CREATE_TOOL_ID, {}, CREATE_SUBMISSION);
+  const { wireText, eventsText } = await submitForm(harness, CREATE_TOOL_ID, { kind: "api" }, CREATE_SUBMISSION);
 
   assertNowhere("create", { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: SECRET_STORE_MESSAGE });
   assert.equal(harness.logLines.length, 1, harness.logLines.join("\n"));
-  assert.match(harness.logLines[0]!, /custom_credential_create: save failed .*error=CustomCredentialSecretStoreUnconfiguredError/);
+  // The shared engine deliberately logs fixed exchange metadata without exception details.
+  assert.deepEqual(JSON.parse(harness.logLines[0]!), {
+    toolId: CREATE_TOOL_ID, exchangeId: harness.openedExchangeIds[0], saved: false,
+  });
 });
 
 test("create: an UNLISTED failure (a raw insert error) is reported as 'error' with the generic message, never as 'invalid'", async () => {
@@ -262,7 +269,7 @@ test("create: an UNLISTED failure (a raw insert error) is reported as 'error' wi
       }),
   });
 
-  const { wireText, eventsText } = await submitForm(harness, CREATE_TOOL_ID, {}, CREATE_SUBMISSION);
+  const { wireText, eventsText } = await submitForm(harness, CREATE_TOOL_ID, { kind: "api" }, CREATE_SUBMISSION);
 
   assertNowhere("create", { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: INTERNAL_FAILURE_MESSAGE });
@@ -271,7 +278,7 @@ test("create: an UNLISTED failure (a raw insert error) is reported as 'error' wi
 test("create: an ALLOWLISTED validation failure keeps the store's own exact message", async () => {
   const harness = await buildHarness();
 
-  const { wireText } = await submitForm(harness, CREATE_TOOL_ID, {}, { ...CREATE_SUBMISSION, category: "not-a-category" });
+  const { wireText } = await submitForm(harness, CREATE_TOOL_ID, { kind: "api" }, { ...CREATE_SUBMISSION, category: "not-a-category" });
 
   assert.deepEqual(structuredOutput(wireText), { reason: "invalid", message: "category must be one of: source-control, hosting, media, ai, ops, general" });
   assert.ok(!wireText.includes(LEAK_MARKER), wireText);

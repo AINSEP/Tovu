@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { scanEmbedMarkers, type EmbedMarker } from "#src/contracts/core/embeds/marker";
+import { scanEmbedMarkers, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
@@ -181,7 +181,7 @@ function assertMenuAnchors(html: string, marker: EmbedMarker): void {
 /** Compare with rendering the requested partial in isolation, bypassing slot selection. */
 function assertPartialContents(theme: DiscoveredTheme, source: string, full: string, menus: Record<string, StaticMenuItem[]>): number {
   let count = 0;
-  for (const marker of scanEmbedMarkers(source).markers) {
+  for (const marker of scanEmbedMarkers({ html: source }).markers) {
     if (marker.type !== "partial" || marker.id === undefined) continue;
     const descriptor = theme.manifest.slots?.[marker.id];
     assert.ok(descriptor, `shipped partial ${marker.id} must have a declared slot`);
@@ -293,7 +293,7 @@ for (const themeId of STATIC_THEME_IDS) {
       const renderedMain = /<main\b[^>]*>([\s\S]*?)<\/main>/.exec(html as string)?.[1];
       assert.ok(main !== undefined && renderedMain !== undefined, `${themeId}/${pageId}: main survives`);
       let authored = main;
-      for (const marker of scanEmbedMarkers(main).markers) authored = authored.replace(marker.whole, "");
+      for (const marker of scanEmbedMarkers({ html: main }).markers) authored = authored.replace(marker.whole, "");
       const text = (value: string) => value.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
       for (const element of authored.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<(h[1-6]|p)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
         const copy = text(element[2]);
@@ -311,7 +311,7 @@ for (const themeId of STATIC_THEME_IDS) {
       const source = identifyMarkerOccurrences(rawSource);
       const resolved = renderStaticPage({ theme, pageId: "sweep-synthetic", htmlOverride: source, menus }) as string;
       assertNoRetiredMarkers(resolved, `${themeId}/${sourceId}`);
-      for (const marker of scanEmbedMarkers(source).markers) {
+      for (const marker of scanEmbedMarkers({ html: source }).markers) {
         if (marker.type !== "menu" || marker.id === undefined || !(marker.id in menus)) continue;
         assert.ok(
           resolvedElementFor(resolved, marker).includes(`/sentinel-${marker.id}`),
@@ -334,7 +334,7 @@ for (const themeId of STATIC_THEME_IDS) {
     for (const [sourceId, rawSource] of menuMarkerSources(theme)) {
       const source = identifyMarkerOccurrences(rawSource);
       const mixedResolved = renderStaticPage({ theme, pageId: "sweep-synthetic", htmlOverride: source, menus: partial }) as string;
-      for (const marker of scanEmbedMarkers(source).markers) {
+      for (const marker of scanEmbedMarkers({ html: source }).markers) {
         if (marker.type !== "menu" || marker.id === undefined) continue;
         assertHeldBackOrResolved({ marker, heldBack, partial, mixedResolved, label: `${themeId}/${sourceId}` });
       }
@@ -347,7 +347,7 @@ for (const themeId of STATIC_THEME_IDS) {
     for (const [pageId, source] of Object.entries(theme.pages)) {
       const resolvedOnce = renderStaticPage({ theme, pageId, menus: {} }) as string;
       asserted += assertPartialContents(theme, source, resolvedOnce, {});
-      for (const marker of scanEmbedMarkers(source).markers) {
+      for (const marker of scanEmbedMarkers({ html: source }).markers) {
         if (marker.type !== "partial" || marker.id === undefined) continue;
         if (theme.manifest.slots?.[marker.id] === undefined) continue; // undeclared slot: fallback is the correct, tested-elsewhere outcome
         assert.ok(
@@ -387,7 +387,7 @@ for (const themeId of STATIC_THEME_IDS) {
         full.includes("Sweep Sentinel Body"),
         `${themeId}/${choice}: the resolved entity must render into the template's slot`
       );
-      for (const marker of scanEmbedMarkers(resolution.html).markers) {
+      for (const marker of scanEmbedMarkers({ html: resolution.html }).markers) {
         if (marker.type === "content") {
           assert.equal(full.includes("Sweep Sentinel Post"), marker.config.header !== false, "title honors header setting");
         }
@@ -396,7 +396,7 @@ for (const themeId of STATIC_THEME_IDS) {
       assert.ok(!full.includes('"type":"content"'), `${themeId}/${choice}: the content marker itself must not leak into the output`);
       assertNoRetiredMarkers(full, `${themeId}/${choice}`);
 
-      for (const marker of scanEmbedMarkers(resolution.html).markers) {
+      for (const marker of scanEmbedMarkers({ html: resolution.html }).markers) {
         if (marker.type !== "menu" || marker.id === undefined || !(marker.id in menus)) continue;
         assert.ok(full.includes(`/sentinel-${marker.id}`), `${themeId}/${choice}: menu marker "${marker.id}" did not resolve`);
       }

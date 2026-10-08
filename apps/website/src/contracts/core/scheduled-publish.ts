@@ -1,7 +1,7 @@
 import { isTrashed } from "./soft-delete.js";
 
 /**
- * @file Scheduled publishing (2026-10-05) — the one rule for "is this published row live yet?".
+ * @file Scheduled publishing — the one rule for "is this published row live yet?".
  *
  * A scheduled post is NOT a third status. It is a `status: "published"` row whose `publishAt` is
  * still in the future: stored as published, hidden from every public read until that instant
@@ -35,7 +35,7 @@ export function isScheduledAt(record: SchedulableRecord, nowIso: string): boolea
   return record.status === "published" && typeof record.publishAt === "string" && record.publishAt > nowIso;
 }
 
-/** The date a post's date line shows (owner decision 2026-10-05): its go-live time when it has one —
+/** The date a post's date line shows (owner policy): its go-live time when it has one —
  *  so a scheduled post's Preview shows the day it will go live, and the same post shows that date once
  *  live — else `updatedAt`, since `PostRecord` has no separate published-at column. @complexity O(1). */
 export function postDisplayDateIso(record: { readonly publishAt?: string | null; readonly updatedAt: string }): string {

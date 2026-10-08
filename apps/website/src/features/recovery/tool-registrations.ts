@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/recovery.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
@@ -28,7 +29,7 @@ import { confirm as gatewayConfirm, execute as gatewayExecute, plan as gatewayPl
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type {
@@ -50,6 +51,9 @@ import {
 import { computeDisclosure, type DisclosureWatermarkSourcePort } from "./disclosure.js";
 import { confirmRestore, executeRestore, planRestore } from "./recovery-orchestrator.js";
 import { resolveDegradedBanner } from "./ui/degraded-banners.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: recoveryAgentToolCatalog });
 
@@ -175,7 +179,7 @@ function requireDeepLinkEnvelope(raw: unknown): DatabaseContextEnvelope {
 
 export function buildRecoveryRegistrations(
   routeDeps: RecoveryToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const restoreHooks = (actorId: string, restorePointId: string) =>
     buildRestoreHooks({
@@ -204,13 +208,13 @@ export function buildRecoveryRegistrations(
         },
         gateway: {
           plan: (input) =>
-            toRecoveryResult(() =>
+            toRecoveryResult({ run: () =>
               gatewayPlan({
                 deps: routeDeps.gatedMutations.gatewayDeps,
                 principalId: input.principalId,
                 principalKind: input.principalKind,
                 hooks: restoreHooks(actorId, input.restorePointId),
-              }),
+              }) }, {},
             ),
         },
       },
@@ -275,7 +279,7 @@ export function buildRecoveryRegistrations(
       const banner = resolveDegradedBanner({
         capabilities: {
           costClass: capabilities.restorePoint.costClass,
-          operationInFlight: isOperationInFlight(routeDeps.workspaceId),
+          operationInFlight: isOperationInFlight({ siteId: routeDeps.workspaceId }, {}),
           pendingMigration: siteStatus === "PENDING_MIGRATION",
           migrationInterrupted: siteStatus === "BLOCKED_PENDING_RECOVERY",
           // Matches `routes/admin/recovery/status.ts`'s own honest stub — no per-category
@@ -333,7 +337,7 @@ export function buildRecoveryRegistrations(
           deps: {
             gateway: {
               confirm: (params) =>
-                toRecoveryResult(async () => {
+                toRecoveryResult({ run: async () => {
                   const record = await gatewayConfirm({
                     deps: routeDeps.gatedMutations.gatewayDeps,
                     principalId: confirmer.id,
@@ -343,7 +347,7 @@ export function buildRecoveryRegistrations(
                     planHash: params.planHash,
                   });
                   return { confirmationToken: record.confirmationToken };
-                }),
+                } }, {}),
             },
           },
           input: { principalId: confirmer.id, principalKind: confirmer.kind, planId: plan.planId, planHash: plan.planHash, disclosureAcknowledged: true },
@@ -355,14 +359,14 @@ export function buildRecoveryRegistrations(
           deps: {
             gateway: {
               execute: (params) =>
-                toRecoveryResult(() =>
+                toRecoveryResult({ run: () =>
                   gatewayExecute({
                     deps: routeDeps.gatedMutations.gatewayDeps,
                     principalId: ctx.principal.id,
                     principalKind: AGENT_TOOL_PRINCIPAL_KIND,
                     hooks,
                     confirmationToken: params.confirmationToken,
-                  }),
+                  }) }, {},
                 ),
             },
             operationLock: { acquireOperationLock, releaseOperationLock },
@@ -382,7 +386,7 @@ export function buildRecoveryRegistrations(
     }),
   };
 
-  return buildDomainRegistrations({ domain: "recovery", catalogModule: "features/recovery/agent-tools.ts", catalog: CATALOG_BY_ID, handlers, derivedRisk: recoveryDerivedRisk }, { unwiredToolIds: UNWIRED_RECOVERY_TOOL_IDS });
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "recovery", catalogModule: "features/recovery/agent-tools.ts", catalog: CATALOG_BY_ID, handlers, derivedRisk: recoveryDerivedRisk }, { unwiredToolIds: UNWIRED_RECOVERY_TOOL_IDS });
 }
 
 /**

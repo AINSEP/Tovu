@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -9,12 +10,15 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { UIResource } from "../index.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -81,7 +85,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
-  const found = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === toolId);
+  const found = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
@@ -95,8 +99,8 @@ function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistrati
  * itself open — this helper builds against one store passed in (or a fresh one) so the raise-then-
  * confirm round trip lands on the same exchange.
  */
-async function trashFile(deps: RegistryDepsWithoutLimiter, input: Record<string, unknown>, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): Promise<unknown> {
-  const trashTool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "theme_trash_file");
+async function trashFile(deps: RegistryDepsWithoutLimiter, input: Record<string, unknown>, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): Promise<unknown> {
+  const trashTool = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === "theme_trash_file");
   assert.ok(trashTool, "expected 'theme_trash_file' to be wired");
   return trashTool.handler(executionContext(input));
 }
@@ -180,7 +184,7 @@ test("trashing two different files that once shared a path never collides — ea
   assert.equal(fs.readFileSync(path.join(themesDir, "plain", secondTrash.trashedPath), "utf8"), "body{color:blue}");
 });
 
-test("theme_trash_file refuses when authorize() denies, and never touches disk — checked before any dialog is raised", async () => {
+test("theme_trash_file refuses when authorize() denies, and never touches disk after policy approval", async () => {
   const { deps, themesDir } = fakeRouteDeps({ allow: false });
   await assert.rejects(
     () => wired(deps, "theme_trash_file").handler(executionContext({ themeId: "plain", path: "styles.css" })),
@@ -378,9 +382,12 @@ test("a trash-then-restore round trip refreshes the live routeDeps.themes entry 
   assert.equal(deps.themes.find((t) => t.manifest.id === "plain")?.tokens["--ink"], "#abcdef", "restore must reload the live theme data");
 });
 
-test("n06: theme trash runs headlessly and keeps the bytes restorable", async () => {
+test("n06: theme trash requires approval and keeps the approved bytes restorable", async () => {
   const {deps, themesDir} = fakeRouteDeps();
   const original = fs.readFileSync(path.join(themesDir, "plain", "styles.css"));
+  const headless = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find(r => r.descriptor.id === "theme_trash_file")!;
+  await assert.rejects(() => headless.handler(executionContext({ themeId: "plain", path: "styles.css" })), { name: "ToolInputError", message: "TOOL_APPROVAL_NO_CONFIRMATION_CHANNEL: theme_trash_file: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
+  assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", "styles.css")), original);
   const result = await wired(deps, "theme_trash_file").handler(executionContext({themeId: "plain", path: "styles.css"})) as {trashed: boolean; trashedPath: string};
   assert.equal(result.trashed, true);
   assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", result.trashedPath)), original);

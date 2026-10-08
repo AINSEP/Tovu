@@ -199,7 +199,7 @@ test("GET content post by slug: an unrelated or malformed cookie header does not
   );
 
   const res = await fetch(`${baseUrl}${contentUrl("members-only-post-unrelated-cookies")}`, {
-    headers: { cookie: "malformed_cookie_with_no_equals_sign; some_other_cookie=some_value" },
+    headers: { cookie: "malformed_cookie_with_no_equals_sign; some_other_cookie=some_value; tovu_member_session=%E0%A4%A" },
   });
   assert.equal(res.status, 404, "a malformed or unrelated cookie header must not be mistaken for a member session");
 });

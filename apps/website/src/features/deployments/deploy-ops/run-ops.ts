@@ -51,8 +51,8 @@ const TIMEOUT = Symbol("deployment ops timeout");
 export class DeployCredentialSetupRequired extends ToolInputError {
   readonly credentialSetup: ToolFailureDiagnostic;
   constructor({ label, baseUrl }: { label: string; baseUrl: string }, _optional = {}) {
-    super({ message: "No matching deployment credential is saved. Call custom_credential_create to open its secure card, then retry once." });
-    this.credentialSetup = issueCredentialSetup({ setupToolId: "custom_credential_create", prefill: { label, baseUrl, category: "ops" } }, {});
+    super({ message: "No matching deployment credential is saved. Call credential_save with kind api to open its secure card, then retry once." });
+    this.credentialSetup = issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "api", label, baseUrl, category: "ops" } }, {});
   }
 }
 

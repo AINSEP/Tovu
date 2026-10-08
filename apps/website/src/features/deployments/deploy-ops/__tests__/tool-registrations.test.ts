@@ -120,7 +120,7 @@ test('missing deploy credential is returned as a card diagnostic before HTTP', a
   const status = buildDeployOpsRegistrations(f.deps).find(r => r.descriptor.id === 'deployment_ops_status')!;
   const result = await status.handler(execution({ platform: 'fly', target: 'shop' })) as { credentialSetup: unknown };
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: 'custom_credential_create', remedyToolId: 'custom_credential_create', prefill: { label: 'fly', baseUrl: 'https://api.machines.dev', category: 'ops' },
+    setupToolId: 'credential_save', remedyToolId: 'credential_save', prefill: { kind: 'api', label: 'fly', baseUrl: 'https://api.machines.dev', category: 'ops' },
     hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',
   });
   assert.deepEqual(f.calls, []);

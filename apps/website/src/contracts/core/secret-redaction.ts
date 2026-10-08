@@ -23,22 +23,8 @@ const TOVU_SECRET_POLICY: RedactionPolicy = {
  * @example redactSecretShapes({ text: "password=hunter2hunter2" });
  *
  * Blanks secret-shaped VALUES out of arbitrary error text, without touching anything else in
- * it. Originally built for `assistant/tool-failure-redaction.ts` (2026-09-16 owner decision: "hide secrets
- * only" — a failed tool's error stays visible everywhere it already reaches, but a secret-shaped
- * value inside it never does).
- *
- * ## Historical choice (2026-09-16): all four candidates were read and rejected
- * These comparisons describe the APIs at that decision date, before the 2026-10-02 kernel wave.
- * - Jini `@jini-ai/core` `redactSecrets` — also rewrites IPv4 (the owner parked IP handling — it
- *   must not change), mangles an allowlisted message naming a member's email, eats any 10-digit
- *   number (including epoch seconds and ids), and has no options, so fixing any of that needs a
- *   Jini API change and a release.
- * - Jini agent-runtime `connection-guard.ts` `redactSecrets` — too narrow (Bearer/api-key
- *   header/`?key=` only) and its unbounded `Bearer\s+\S+` rewrites ordinary prose like "Bearer
- *   token".
- * - The former Jini cli `redactSecretLike` — blanks every run of 20+ id-shaped characters, which destroys
- *   ordinary tool ids like `custom_credential_make_request`.
- * - Jini diagnostics `redactText` — was not a Tovu dependency, and matched labels only.
+ * it. The owner requires "secrets only": failures stay visible wherever they already reach,
+ * but secret-shaped values never do.
  *
  * ## Reuse, don't duplicate
  * The vendor-credential rules Tovu already trusts as "real credential shape" — Google `AIza`,

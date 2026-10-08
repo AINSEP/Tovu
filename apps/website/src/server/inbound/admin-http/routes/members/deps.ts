@@ -1,45 +1,17 @@
 /**
- * @file Shared `RouteDeps` extension for the members admin routes (ADR-030 wiring).
+ * @file Members admin composition glue (ADR-030).
  *
- * Purpose:
- * This file defines `MembersRouteDeps` — `RouteDeps` intersected with the
- * fields the members routes need — plus a helper that assembles the
- * `MembersWriteServiceDeps` bundle `write-service.ts` requires. Each route in
- * this directory narrows its `RouteDeps` argument to `MembersRouteDeps` via a
- * cast (safe: `MembersRouteDeps` is a strict subtype/extension of `RouteDeps`,
- * so the cast only narrows, never widens).
- *
- * 2026-08-18 (`RouteDeps` decomposition Slice 3): the header above used to say
- * "`src/server/routes/types.ts` does not yet declare the `members` library's
- * repo ports / mailer as `RouteDeps` fields... this task is explicitly scoped
- * to avoid editing it directly" — that was true when this file was written,
- * but ADR-030 wiring has since landed all 6 fields directly on `RouteDeps`
- * (now grouped as `routes/types.ts`'s own `MembersDeps`), which made the
- * `extends RouteDeps` shape's re-declaration of those same 6 fields
- * redundant, the exact stale-`extends`-widening state `routes/admin/
- * integrations/deps.ts`'s `IntegrationsRouteDeps` was in before its own
- * SPEC-034 fix. `MembersRouteDeps` now composes the named `MembersDeps` group
- * instead of re-typing the 6 fields a second time — `magicLinkPerEmailLimiter`
- * is the one genuine addition `RouteDeps` still does not carry, so `extends
- * RouteDeps` stays (this type is still a strict subtype of `RouteDeps`, so
- * every existing `routeDeps as MembersRouteDeps` cast below stays valid
- * unchanged).
- *
- * Architectural role:
- * Composition-boundary glue only — no business logic. Mirrors how
- * `routes/admin/change-sets/revert.ts` assembles a multi-port deps bundle
- * (`reverterDeps`) inline; factored out here because four route files share
- * the same bundle shape.
+ * `MembersRouteDeps` extends `RouteDeps` with the shared per-email magic-link limiter;
+ * `MembersDeps` names the member repo/mailer group. Route casts remain safe because
+ * this is a subtype of `RouteDeps`. The limiter is shared with public sign-in (C-015).
+ * `toMembersWriteServiceDeps` assembles the bundle shared by four admin routes.
  */
 import type { MembersWriteServiceDeps } from "#src/features/members/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MembersDeps, RouteDeps } from "#src/server/routes/types";
 
 /**
- * `RouteDeps` extended with the `members` library's ports. `MembersDeps`
- * supplies the 6 repo/mailer fields (verbatim, already part of `RouteDeps`
- * via intersection — see file header); `magicLinkPerEmailLimiter` below is
- * this file's own addition, not yet on `RouteDeps`.
+ * See the file header for the shared member ports and additional limiter.
  */
 export interface MembersRouteDeps extends RouteDeps, MembersDeps {
   /**

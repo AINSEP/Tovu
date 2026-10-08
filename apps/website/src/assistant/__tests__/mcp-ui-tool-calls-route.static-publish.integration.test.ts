@@ -5,6 +5,7 @@ import express from "express";
 
 import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
+import { applyToolApprovalPolicy } from "../tool-approval-policy.js";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildStaticPublishRegistrations, type StaticPublishToolDeps } from "#src/features/deployments/publish-agent-tools";
@@ -12,10 +13,13 @@ import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget 
 import type { PublishCredentialSource } from "#src/features/deployments/static-publish/index";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Real, non-mocked proof of how the static-publish tools meet the MCP-UI callback route a
@@ -31,10 +35,11 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExch
  * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) removed that gate on
  * the owner's call that publishing is an ordinary action the agent may take, and took the id off
  * the allowlist (`mcp-ui-tool-calls.test.ts`: "runs normally and cannot be executed by a surface
- * callback"). So this file now proves, against the real handler and route: the publish completes in
- * one call with no confirmation exchange, and this route refuses to run it. The read-only sibling
- * (`deployment_get_static_publish_capabilities`) is still refused here too, and still runs through
- * the ordinary executor path.
+ * callback"). The 2026-10-07 owner decision supersedes that policy: publish requires one human
+ * approval through Jini's shared registration wrapper. This file proves the browser's answer
+ * reaches the parked call without executing another tool, while a callback without an exchange
+ * is refused. The read-only sibling (`deployment_get_static_publish_capabilities`) is still
+ * refused here too, and still runs through the ordinary executor path.
  */
 
 const WORKSPACE_ID = "ws-mcp-ui-static-publish-integration";
@@ -83,7 +88,8 @@ function buildRealStaticPublishToolExecutor(
 
   const registry = createToolRegistry({});
   for (const registration of buildStaticPublishRegistrations(deps, { surfaceExchanges })) {
-    registry.register(registration);
+    // Match the assembled assistant surface: domain metadata selects the shared approval owner.
+    registry.register(applyToolApprovalPolicy({ registration, surfaces: { surfaceExchanges } }));
   }
   // Same construction as `agent-daemon-server.ts`'s own `createToolExecutor({ registry })` call —
   // no `delegate` — so this exercises the real production configuration, not an idealized one.
@@ -99,29 +105,48 @@ function surfaceHtml(emission: SurfaceEmission): string {
 
 const PUBLISH_INPUT = { target: "vercel", projectName: "demo-site" };
 
-test("deployment_execute_static_publish publishes in one call and opens no confirmation exchange", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+test("deployment_execute_static_publish waits for one human approval over HTTP before publishing", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor, captured } = buildRealStaticPublishToolExecutor(surfaceExchanges);
 
-  const emitted: SurfaceEmission[] = [];
+  let routeExecutions = 0;
+  const app = express();
+  app.use(express.json());
+  registerMcpUiToolCallsRoute(app, { surfaceExchanges, toolExecutor: {
+    ...toolExecutor,
+    execute: (...args: Parameters<typeof toolExecutor.execute>) => {
+      routeExecutions += 1;
+      return toolExecutor.execute(...args);
+    },
+  } });
+  const baseUrl = await startTestServer(app, t);
+  let approvalCards = 0;
   const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_execute_static_publish", input: PUBLISH_INPUT }, { emitSurface: async (emission: SurfaceEmission) => {
-    emitted.push(emission);
+    const match = surfaceHtml(emission).match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+    if (!match) return; // Outcome surfaces carry no answer correlation.
+    approvalCards += 1;
+    assert.equal(captured.value, null, "no publish may occur before the human approves");
+    const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+      body: JSON.stringify({ toolName: "deployment_execute_static_publish", params: { [SURFACE_EXCHANGE_ID_PARAM]: match[1], decision: "confirm" } }),
+    });
+    assert.equal(response.status, 202);
+    assert.deepEqual(await response.json(), { delivered: true });
   } });
 
-  assert.equal(executed.status, "completed", `the call must complete on its own: ${JSON.stringify(executed)}`);
+  assert.equal(executed.status, "completed", `the approved call must complete: ${JSON.stringify(executed)}`);
+  assert.equal(approvalCards, 1, "exactly one approval mechanism asks for this publish");
+  assert.equal(routeExecutions, 0, "the human answer resumes the parked call without starting another");
   const output = executed.output as { published: boolean; target: string; url: string };
   assert.equal(output.published, true, `expected a real publish to have happened: ${JSON.stringify(output)}`);
   assert.equal(output.target, "vercel");
   assert.equal(output.url, "https://example.test/published");
   assert.ok(captured.value && captured.value.length > 0, "the real hermetic fixture must have actually exported files for the fake deploy target to receive");
-  // Whatever it shows (an outcome card), nothing it emits asks a human for an answer.
-  for (const emission of emitted) {
-    assert.doesNotMatch(surfaceHtml(emission), new RegExp(SURFACE_EXCHANGE_ID_PARAM), "a publish must not open a confirmation exchange");
-  }
 });
 
 test("SECURITY: a surface callback cannot run deployment_execute_static_publish — the route refuses it with 403 and never reaches the executor", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor, captured } = buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   let routeExecutions = 0;
@@ -151,7 +176,7 @@ test("SECURITY: a surface callback cannot run deployment_execute_static_publish 
 });
 
 test("SECURITY: deployment_get_static_publish_capabilities is refused by this same route — it is a read tool with nothing to confirm, and must not become reachable through the confirmation channel", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor } = buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   const app = express();
@@ -174,7 +199,7 @@ test("SECURITY: deployment_get_static_publish_capabilities is refused by this sa
 });
 
 test("deployment_get_static_publish_capabilities still runs fine through the ordinary (non-MCP-UI) executor path — being excluded from the confirmation allowlist does not mean it is broken or unreachable", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor } = buildRealStaticPublishToolExecutor(surfaceExchanges);
 
   const result = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "deployment_get_static_publish_capabilities", input: {} });

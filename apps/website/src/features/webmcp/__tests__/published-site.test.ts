@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { InMemorySettingsRepo, getEffective, set } from '@jini-ai/cms/settings';
+import { InMemorySettingsRepo, getEffective, set } from '@jini-ai/core/settings';
 import { injectPublishedWebMcp } from '../published-html.js';
 import { ensureSettingsUiTabDefinitions, isPublishedWebMcpEnabled, PUBLISHED_WEBMCP_KEY, PUBLISHED_WEBMCP_NAMESPACE } from '../settings.js';
 

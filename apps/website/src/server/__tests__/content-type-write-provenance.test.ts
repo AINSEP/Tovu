@@ -14,6 +14,9 @@ import { startTestServer } from "./helpers/http-test-server.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { createContributionRegistry } from "@jini-ai/core";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { DerivedToolContributor, ToolContributor } from "../../assistant/index.js";
 
 // content-types moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
@@ -252,7 +255,8 @@ test("every agent tool stamps 'agent' — deprecate/reactivate/tombstone include
     body: JSON.stringify({ key: "recipe", label: "Recipe", fields: FIELDS }),
   });
 
-  const byId = new Map(buildAssistantToolRegistrations(toolRegistryDeps(deps), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const byId = new Map(buildAssistantToolRegistrations(toolRegistryDeps(deps), { surfaceExchanges }, { contributions }).map((r) => [r.descriptor.id, r]));
   const ctx = (input: Record<string, unknown>) => ({
     executionId: "exec-1",
     principal: { id: principalId },
@@ -273,7 +277,14 @@ test("every agent tool stamps 'agent' — deprecate/reactivate/tombstone include
   await byId.get("collections_content_type_deprecate")!.handler(ctx({ key: "recipe", expectedVersion: 1 }));
   await byId.get("collections_content_type_reactivate")!.handler(ctx({ key: "recipe", expectedVersion: 2 }));
   await byId.get("collections_content_type_deprecate")!.handler(ctx({ key: "recipe", expectedVersion: 3 }));
-  await byId.get("collections_content_type_tombstone")!.handler(ctx({ key: "recipe", expectedVersion: 4 }));
+  await byId.get("collections_content_type_tombstone")!.handler(ctx({ key: "recipe", expectedVersion: 4 }), {
+    emitSurface: async (surface) => {
+      const html = (surface.payload as { resource: { resource: { text: string } } }).resource.resource.text;
+      const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))?.[1];
+      assert.ok(exchangeId, "tombstone must ask the human before writing its revision");
+      assert.deepEqual(surfaceExchanges.deliver({ exchangeId, principalId, params: { decision: "confirm" } }, { toolId: "collections_content_type_tombstone" }), { ok: true });
+    },
+  });
 
   const agentRevisions = revisionsOf(deps).slice(1);
   assert.equal(agentRevisions.length, 5);

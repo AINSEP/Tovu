@@ -226,7 +226,7 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
 
     // Step 5: config.json write.
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
-    writeJsonFileAtomic(path.join(target, "config.json"), config);
+    writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, {});
 
     // Steps 6-7: content.db create + migrate, then seed insertion on its kernel (see
     // read-template.ts's Known-Gap disclosure on why these two BR-01 steps are not independently
@@ -270,7 +270,7 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
       // Written explicitly (absent also means SQLite) so the choice is visible in the file.
       storage,
     };
-    writeJsonFileAtomic(path.join(target, ".site-meta.json"), meta);
+    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: meta }, {});
 
     return { siteId, dir: target };
   } catch (err) {

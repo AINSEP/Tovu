@@ -5,8 +5,8 @@ import test from "node:test";
 import type { ToolRegistration } from "@jini-ai/core";
 
 import { CONTENT_ANALYZER_MANIFEST } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
-import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
-import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { InstalledExtensionToolDeps } from "#src/assistant/installed-extension-tools";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
@@ -54,9 +54,9 @@ async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Pro
           ext: { "content-analyzer": { score: 12 } },
         },
       ]),
-      pluginActivationRepo: new InMemoryPluginActivationRepo([
+      pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [
         { pluginId: "content-analyzer", workspaceId, version: "1.0.0", enabled: true, updatedAt: "2026-10-04T00:00:00.000Z" },
-      ]),
+      ] }),
       discoverPlugins: async () => [RECORD],
       ...extra,
     },

@@ -35,7 +35,6 @@ interface S3CompatibleBinding {
 const loaded = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployTargetModule; bindS3Compatible(kit: DeployHostKit): S3CompatibleBinding };
 const { S3CompatibleDeployTarget, toDeployLinkStatus } = loaded.bindS3Compatible(createDeployHostKit());
 
-// ---- Moved from Tovu core static-publish/__tests__/s3-compatible-target.unit.test.ts ----
 
 /**
  * @file `S3CompatibleDeployTarget` — SigV4-signed PUT per file (spec §1/§2), path-style addressing,

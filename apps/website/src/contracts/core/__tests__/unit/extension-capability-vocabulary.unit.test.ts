@@ -1,16 +1,17 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { SHARED_EXTENSION_CAPABILITIES } from "../../extension-capability-vocabulary.js";
-import { validateManifest } from "#src/features/plugin-runtime/manifest";
+import { validateManifest } from "@jini-ai/plugins/host";
 import { validateGlueManifest } from "#src/features/site-glue/manifest";
 
 /**
  * @file Guards the single-source-of-truth invariant this module exists for: `content.read` /
  * `content.extend` / `hooks.attach` must be declared exactly once, here, and consumed by import
- * identity from both `plugin-runtime/manifest.ts` and `site-glue/manifest.ts` — never re-typed as
+ * identity from both `Jini/packages/plugins/src/host/manifest.ts` and `site-glue/manifest.ts` — never re-typed as
  * a private literal in either sibling.
  *
  * The import-identity assertions below are deliberately NOT a value comparison. Comparing the two
@@ -32,7 +33,7 @@ function readSiblingSource(relativePath: string): string {
 }
 
 test("plugin-runtime's manifest imports the shared vocabulary rather than re-declaring it", () => {
-  const source = readSiblingSource("../../../../features/plugin-runtime/manifest.ts");
+  const source = readSiblingSource("../../../../features/plugin-runtime/host-binding.ts");
   assert.match(
     source,
     SHARED_IMPORT_PATTERN,
@@ -66,7 +67,7 @@ test("neither sibling imports the other feature's manifest module", () => {
   // headers legitimately *mention* the sibling mechanism by name when explaining why the shared
   // vocabulary lives in core/ instead of one importing the other.
   const importPathPattern = (siblingDir: string) => new RegExp(`from\\s+["'][^"']*/${siblingDir}/`);
-  const pluginSource = readSiblingSource("../../../../features/plugin-runtime/manifest.ts");
+  const pluginSource = readSiblingSource("../../../../features/plugin-runtime/host-binding.ts");
   const glueSource = readSiblingSource("../../../../features/site-glue/manifest.ts");
   assert.doesNotMatch(
     pluginSource,
@@ -84,7 +85,7 @@ test("(supplementary, not the regression guard) both validators still accept exa
   const required = ["content.read", "content.extend", "hooks.attach"];
   assert.deepEqual([...SHARED_EXTENSION_CAPABILITIES].sort(), [...required].sort());
   for (const capability of required) {
-    const pluginResult = validateManifest({
+    const pluginResult = validateManifest({ ...pluginHostBinding,
       manifest: {
         id: "sample",
         name: "Sample",

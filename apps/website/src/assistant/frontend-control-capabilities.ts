@@ -16,9 +16,7 @@
  * true` parks its execution on a promise only `resumeConfirmation` can settle — and nothing calls
  * it. The park is unbounded, not merely slow: `descriptor.timeoutMs`'s timer is armed only AFTER
  * the confirmation await resolves, so a parked confirming call would hang forever rather than time
- * out. The former destructive-confirmation token store recorded the identical reasoning
- * for why a bare `requiresConfirmation` boolean is "not a weaker version of this mechanism; it is a
- * hang." Jini's own build-time guard for the equivalent CMS-tool case
+ * out. Jini's build-time guard for the equivalent CMS-tool case
  * (`ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT`, `@jini-ai/cms`'s `registration-kit.ts`)
  * throws rather than let a confirmation-requiring tool be wired at all, for the same reason.
  *
@@ -42,7 +40,7 @@
  *
  * ## `admin.capture_screenshot` — Tovu-owned, not from either Jini vocabulary
  *
- * Added 2026-08-30 so the assistant can see the admin's OWN rendered pixels rather than only DOM
+ * Lets the assistant see the admin's OWN rendered pixels rather than only DOM
  * structure (`page.find_elements`) — the gap that forced an operator to screenshot-and-paste by
  * hand. It is not part of `PAGE_CAPABILITIES` or `CHAT_CAPABILITIES` because it is not generic chat/
  * page vocabulary; it belongs to Tovu the way `TOVU_FRONTEND_CAPABILITIES` below is scoped.
@@ -61,8 +59,7 @@
  *
  * ## `admin.publish_content` — the chat/WebMCP door to the Publish dialog
  *
- * Added 2026-09-24 (plan §4 S3, `publish-criteria-tool-webmcp-plan-2026-09-24.md`) so chat and,
- * later, Chrome's WebMCP agent can open the admin's Publish dialog pre-filled with what to publish
+ * Chat and WebMCP agents can open the admin's Publish dialog pre-filled with what to publish
  * or overwrite. `risk: 'write'` (publishing writes to the site) but still no `requiresConfirmation`:
  * the executor behind this id (`apps/admin/src/App.hooks.tsx`'s `buildAdminCapabilityExecutors`) can
  * only call `requestPublish`, never `confirmPublish`/`executePublish` — the dialog itself is the
@@ -72,7 +69,7 @@
  *
  * ## `chat.reset_conversation` — a Tovu-owned CLONE, not the filtered-out Jini entry
  *
- * Added 2026-09-24 (unblock-agent-actions dispatch, item 2). The raw `CHAT_CAPABILITIES` entry for
+ * The raw `CHAT_CAPABILITIES` entry for
  * this id is still excluded by the `requiresConfirmation !== true` filter above — that has not
  * changed. `TOVU_FRONTEND_CAPABILITIES` below instead carries a Tovu-owned clone of the SAME
  * descriptor (identical id/description/inputSchema/risk/surface), with `requiresConfirmation`
@@ -92,10 +89,11 @@
  * (`useChatPaneAgentControl.hooks.ts`'s `resetConversationAction` -> `requireConfirmation`) throws
  * unless the model actually passes `confirm: true`. That check is already fully implemented
  * upstream and does not depend on this host's confirmation-transport gap at all.
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 import { PAGE_CAPABILITIES, type CapabilityDef } from "@jini-ai/agentic";
 import type { ToolRegistration } from "@jini-ai/core";
+import { withToolMetadata } from "@jini-ai/core";
+import { toolMetadata } from "../contracts/core/tool-metadata/frontend-control.js";
 import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
 import { PUBLISH_CONTENT_CAPABILITY } from "../features/publish-content/ui/criteria.js";
 
@@ -189,12 +187,12 @@ export const READ_ONLY_FRONTEND_CAPABILITY_IDS: ReadonlySet<string> = new Set(["
 
 /**
  * Marks the {@link READ_ONLY_FRONTEND_CAPABILITY_IDS} registrations `readOnly: true`. Every other
- * registration, and every handler and policy, is returned unchanged.
+ * registration's risk remains unchanged. Domain metadata is bound without changing handlers or policies.
  *
  * @complexity O(n) in the registration count.
  */
 export function withReadOnlyFrontendCapabilities(registrations: readonly ToolRegistration[]): readonly ToolRegistration[] {
-  return registrations.map((registration) =>
+  return withToolMetadata({ registrations, metadata: toolMetadata }).map((registration) =>
     READ_ONLY_FRONTEND_CAPABILITY_IDS.has(registration.descriptor.id)
       ? { ...registration, descriptor: { ...registration.descriptor, readOnly: true } }
       : registration,

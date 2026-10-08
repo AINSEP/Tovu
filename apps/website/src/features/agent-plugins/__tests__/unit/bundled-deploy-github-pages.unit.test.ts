@@ -154,7 +154,6 @@ describe("deploy plugin module contract (github-pages)", () => {
   });
 });
 
-// ---- Ported from @jini-ai/devops 28f67f9a src/deploy/__tests__/github-pages.test.ts ----
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });

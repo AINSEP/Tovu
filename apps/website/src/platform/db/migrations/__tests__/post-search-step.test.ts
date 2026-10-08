@@ -65,7 +65,7 @@ describe("chat history", () => {
     const kernel = open(openPgliteKernel<unknown>());
     assert.deepEqual((await migrateChatDatabase(kernel)).applied, CHAT_MIGRATIONS.map((step) => step.id));
     const [{ n }] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ai_chat.tovu_chat_migrations`);
-    assert.equal(n, 2);
+    assert.equal(n, CHAT_MIGRATIONS.length);
     assert.deepEqual(await listTables(kernel), [], "nothing in public");
     assert.deepEqual((await migrateChatDatabase(kernel)).applied, []);
   });
@@ -78,6 +78,7 @@ describe("chat history", () => {
       "ai_chats",
       "assistant_agent_sessions",
       "assistant_conversation_tool_approvals",
+      "assistant_run_attempts",
       "tovu_chat_migrations",
     ]);
     assert.deepEqual((await migrateChatDatabase(kernel)).applied, []);

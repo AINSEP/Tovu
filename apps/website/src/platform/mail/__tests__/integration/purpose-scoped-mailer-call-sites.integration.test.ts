@@ -4,8 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { registerFormNotifySubscriber } from "#src/features/forms/notify-subscriber";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
+import { registerFormNotifySubscriber } from "@jini-ai/cms/forms";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
 import { requestSignInLink } from "#src/features/members/write-service";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
@@ -34,7 +34,7 @@ const MEMBERS_WRITE_SERVICE = fs.readFileSync(
 );
 const FORMS_NOTIFY_SUBSCRIBER = fs.readFileSync(
   // The send-options construction moved into the package; inspect the implementation loaded by its adapter.
-  path.join(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/cms-forms"))), "notify-subscriber.js"),
+  path.join(path.dirname(fileURLToPath(import.meta.resolve("@jini-ai/cms/forms"))), "notify-subscriber.js"),
   "utf8"
 );
 
@@ -114,7 +114,7 @@ test("real call sites use distinct lanes through the production gate and sign-in
     notify: { enabled: true, recipients: ["ops@example.com"] }, status: "active", version: 1, createdAt: now, updatedAt: now,
   });
   await formSubmissionRepo.create({ id: "submission-1", workspaceId: "ws-1", formDefinitionId: "form-1", data: { name: "Ada" }, sourceIp: "127.0.0.1", submittedAt: now });
-  await registerFormNotifySubscriber({ bus, mailer, formDefinitionRepo, formSubmissionRepo });
+  await registerFormNotifySubscriber({ bus, mailer: { send: ({ message, options }) => mailer.send(message, options) }, formDefinitionRepo, formSubmissionRepo, sender: { email: "no-reply@forms.local", name: "Forms" }, logger: { warn: ({ message }, { error } = {}) => console.warn(message, ...(error === undefined ? [] : [error])) } }, {});
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args));
   await bus.publish({ id: "event-1", name: "form.submission.received", workspaceId: "ws-1", occurredAt: now, payload: { workspaceId: "ws-1", formDefinitionId: "form-1", submissionId: "submission-1" } });

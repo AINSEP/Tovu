@@ -2,15 +2,10 @@
  * @file The agent daemon's `GET /api/active` — the route `@jini-ai/mcp`'s `get_active_context` tool
  * and its active-resource read call, answered from the admin screen each live run was started from.
  *
- * Why it exists: the daemon mounted every other route the `jini-mcp` subprocess calls but never this
- * one, so `get_active_context` answered `daemon 404 on …/api/active` in every chat that tried it (a
- * model asking "which page am I on?" got a 404, then later an explicit "not supported by this host").
- * `@jini-ai/http-kit`'s own `registerActiveContextRoutes` keeps a pointer a client must POST, and
- * nothing in Tovu posts one; the screen a run was sent from is already known at run start
- * (`run-page-context.ts`), so this route answers from that instead.
+ * Run-start screen context is already known; use it instead of requiring a separate client POST
+ * to populate the generic active-context pointer.
  *
- * Which run: `GET /api/active` carries no run id — every `jini-mcp` child authenticates with the same
- * boot-wide daemon token — so the route cannot tell which run is asking. It therefore answers only
+ * Which run: `GET /api/active` carries no run id, so the route cannot tell which run is asking. It therefore answers only
  * when every live run's screen agrees, and `{active: false}` when two live runs were sent from
  * different screens: an ambiguous answer is reported as none, never as another conversation's
  * screen. The run's own prompt carries its exact screen either way (`buildPageContextPromptBlock`).

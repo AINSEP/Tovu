@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString,
   type AgentToolDefinition, type AgentToolSideEffect, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -36,7 +37,7 @@ export function buildPluginMemoryRegistrations(required: {
       };
     }
   }
-  return buildDomainRegistrations({ domain: "agent-plugin-memory", catalogModule: "features/agent-plugins/memory-tools.ts",
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "agent-plugin-memory", catalogModule: "features/agent-plugins/memory-tools.ts",
     catalog: indexCatalogById({ catalog }), handlers, derivedRisk: risk,
   }).map(registration => {
     const owner = owners.get(registration.descriptor.id)!;

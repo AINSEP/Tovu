@@ -56,6 +56,8 @@ function coreIndexes(cfg: ReturnType<typeof getTableConfig>): TransferIndex[] {
       return name;
     }),
     unique: index.config.unique,
+    // Only the developer-owned Postgres schema supplies SQL; plugin predicates stay excluded.
+    ...(index.config.where === undefined ? {} : { where: dialect.sqlToQuery(index.config.where).sql }),
   }));
   const uniqueColumns = cfg.columns.filter((column) => column.isUnique).map((column) => ({ name: column.uniqueName ?? `${cfg.name}_${column.name}_unique`, columns: [column.name], unique: true }));
   const uniqueConstraints = cfg.uniqueConstraints.map((constraint) => ({ name: constraint.getName() ?? `${cfg.name}_unique`, columns: constraint.columns.map((column) => column.name), unique: true }));

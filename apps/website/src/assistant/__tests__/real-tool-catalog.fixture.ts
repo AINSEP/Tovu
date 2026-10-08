@@ -15,6 +15,8 @@ export async function realToolCatalog() {
   installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps();
   await deps.identityReady;
+  // Both boot paths build the limiter themselves and add it to route dependencies;
+  // AssistantToolRegistryDeps requires it, so bare route dependencies do not type-check.
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
   const registry = createToolRegistry({});
   for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(registration);

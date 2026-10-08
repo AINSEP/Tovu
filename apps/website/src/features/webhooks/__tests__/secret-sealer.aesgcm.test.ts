@@ -99,7 +99,7 @@ test("a value sealed with aad opens correctly when the SAME aad is supplied", as
   const aad = "ws-1:github-pages:cred-42";
   const sealed = await sealer.seal({ plaintext: "scoped-token", key: await keyring.activeKey(), aad });
 
-  const opened = await sealer.open({ sealed, aad });
+  const opened = await sealer.open({ sealed }, { aad });
   assert.equal(opened, "scoped-token");
 });
 
@@ -108,7 +108,7 @@ test("a value sealed with aad A throws when opened with aad B (cross-tenant/cros
   const sealer = new AesGcmSecretSealer(keyring);
   const sealed = await sealer.seal({ plaintext: "scoped-token", key: await keyring.activeKey(), aad: "ws-1:github-pages:cred-42" });
 
-  await assert.rejects(() => sealer.open({ sealed, aad: "ws-2:github-pages:cred-42" }));
+  await assert.rejects(() => sealer.open({ sealed }, { aad: "ws-2:github-pages:cred-42" }));
 });
 
 test("a value sealed with aad A throws when opened with NO aad", async () => {
@@ -124,7 +124,7 @@ test("a value sealed with NO aad throws when opened WITH an aad (asymmetry fails
   const sealer = new AesGcmSecretSealer(keyring);
   const sealed = await sealer.seal({ plaintext: "unscoped-token", key: await keyring.activeKey() });
 
-  await assert.rejects(() => sealer.open({ sealed, aad: "ws-1:github-pages:cred-42" }));
+  await assert.rejects(() => sealer.open({ sealed }, { aad: "ws-1:github-pages:cred-42" }));
 });
 
 test("open() re-derives from the sealed row's own keyId, not the keyring's CURRENT active key", async () => {
@@ -155,7 +155,7 @@ for (const aad of [undefined, "workspace-1:empty-verifier"]) {
     const sealer = new AesGcmSecretSealer(keyring);
     const sealed = await sealer.seal({ plaintext: "", key: await keyring.activeKey(), aad });
     assert.equal(Buffer.from(sealed.ciphertext, "base64").length, 16);
-    assert.equal(await sealer.open({ sealed, aad }), "");
+    assert.equal(await sealer.open({ sealed }, { aad }), "");
   });
 }
 

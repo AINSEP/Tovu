@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/trash.js';
 /**
  * @file `trash_item` — one generic "move this to the Trash" tool, built as a fifth DOOR onto the four
  * per-domain delete tools rather than a fifth PATH around them.
@@ -53,7 +54,7 @@ import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@
 import { ToolInputError } from "@jini-ai/core";
 import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
 import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
@@ -81,7 +82,7 @@ const WIDGET_ENTITY_TYPE: TrashEntityType = "widget";
  * Duplicated locally in each of the five delegate tool files rather than imported from here, the
  * same "duplicate the tiny thing" convention {@link WIDGET_ENTITY_TYPE} already documents: those
  * files structurally type their actor/remove seams and import nothing from `features/trash` (see
- * e.g. `comments/write-service.ts`'s own header), and this constant is small enough that keeping it
+ * e.g. `Jini/packages/cms/src/comments/write-service.ts`'s own header), and this constant is small enough that keeping it
  * a plain literal in each file costs less than a cross-feature import would.
  */
 const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
@@ -264,7 +265,6 @@ function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): Ag
  * post-processing pass, not by the trash contributor.
  *
  * @complexity O(k) in the delegate kinds.
- * getTrashAgentToolCatalog (features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export function getTrashItemAgentToolCatalog(): readonly AgentToolDefinition[] {
   return [trashItemToolDefinition([...TRASH_ITEM_DELEGATES.keys(), USER_ENTITY_TYPE])];
@@ -480,7 +480,7 @@ export function deriveTrashItemRegistrations(
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "trash-item",
     catalogModule: "trash/trash-item-tool.ts",
     catalog: indexCatalogById({ catalog: [trashItemToolDefinition(reachableKinds)] }),

@@ -1,10 +1,11 @@
 import { resolveActiveThemeId } from "#src/features/presentation/index";
-import { toSiteProducts } from "#src/features/commerce/index";
+import { toSiteProducts, type CommerceProductRepoPort, type CommercePriceRepoPort } from "@jini-ai/commerce";
+import type { StoreApi } from "@jini-ai/commerce/store";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
 import { CACHE_CONTROL_PRIVATE_STATIC_EXPORT, isStaticExportRequest, resolveSiteTitleForRender, resolveSiteAssistantEnabledForRequest } from "./pages.js";
-import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file Public site: `/products` (grid) and `/products/:id` (detail).
@@ -58,7 +59,13 @@ function cacheControlFor(req: Parameters<typeof isStaticExportRequest>[0]): stri
 /** Exported (2026-08-15, static exporter) so `export/route-manifest.ts` enumerates the SAME
  *  product set `/products`/`/products/:id` actually render — one source of truth for the
  *  Commerce-vs-sample-store fallback below, rather than a second copy that could drift from it. */
-export async function resolveStorefrontProducts(deps: RouteDeps): Promise<SiteProduct[]> {
+export interface CommerceSiteAdapterDeps extends RouteDeps {
+  commerceProductRepo?: CommerceProductRepoPort;
+  commercePriceRepo?: CommercePriceRepoPort;
+  store?: StoreApi;
+}
+
+export async function resolveStorefrontProducts(deps: CommerceSiteAdapterDeps): Promise<SiteProduct[]> {
   const { commerceProductRepo, commercePriceRepo, workspaceId } = deps;
   if (commerceProductRepo && commercePriceRepo) {
     const products = await commerceProductRepo.listActive({ workspaceId });
@@ -68,7 +75,7 @@ export async function resolveStorefrontProducts(deps: RouteDeps): Promise<SitePr
         prices: await commercePriceRepo.listByProduct({ workspaceId, productId: product.id }),
       }))
     );
-    const mapped = toSiteProducts(withPrices);
+    const mapped = toSiteProducts({ items: withPrices });
     if (mapped.length > 0) return mapped;
   }
   return (await deps.store?.listProducts()) ?? [];
@@ -79,7 +86,7 @@ export async function resolveStorefrontProducts(deps: RouteDeps): Promise<SitePr
  * theme's own `products`/`product` templates. Registered BEFORE the `/:slug` catch-all, same
  * reasoning as `registerStoreRoutes`.
  */
-export const registerProductRoutes: RouteRegistrar = (app, deps) => {
+export const registerProductRoutes = (app: import("express").Express, deps: CommerceSiteAdapterDeps): void => {
   app.get("/products", async (req, res) => {
     try {
       const products = await resolveStorefrontProducts(deps);

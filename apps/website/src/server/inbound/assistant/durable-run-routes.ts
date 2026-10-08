@@ -4,7 +4,7 @@ import type { RunStartHandler } from "@jini-ai/daemon/http";
 import type { ChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import type { DurableRunStore } from "#src/assistant/durable-runs/ports";
 import { UNKNOWN_MUTATION_ERROR } from "#src/assistant/durable-runs/continuation";
-import { RUN_PRINCIPAL_HEADER } from "#src/assistant/run-ownership";
+import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 
 type Lifecycle = Parameters<RunStartHandler>[0]["lifecycle"];
 

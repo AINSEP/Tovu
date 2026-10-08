@@ -255,10 +255,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     }
     assert.ok(copiedRow, "the sealed row must have been physically copied by duplicateContentDb");
 
-    const decrypted = await targetSealer.open({
-      sealed: { keyId: copiedRow!.key_id, ciphertext: copiedRow!.sealed_ciphertext, nonce: copiedRow!.nonce, alg: copiedRow!.alg },
-      aad: "row-1",
-    });
+    const decrypted = await targetSealer.open({ sealed: { keyId: copiedRow!.key_id, ciphertext: copiedRow!.sealed_ciphertext, nonce: copiedRow!.nonce, alg: copiedRow!.alg } }, { aad: "row-1" });
     assert.equal(decrypted, plaintext, "the duplicate must be able to decrypt the source's own sealed row byte-for-byte");
 
     // A duplicate's siteId now differs from siteKeyId: deriving a key from siteId breaks this generation.
@@ -275,9 +272,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     try {
       const row = secondDb.prepare("SELECT sealed_ciphertext, nonce, alg, key_id FROM site_key_test_sealed_row").get() as NonNullable<typeof copiedRow>;
       assert.deepEqual(row, copiedRow);
-      assert.equal(await new AesGcmSecretSealer(secondKeyring).open({
-        sealed: { keyId: row.key_id, ciphertext: row.sealed_ciphertext, nonce: row.nonce, alg: row.alg }, aad: "row-1",
-      }), plaintext, "a second-generation duplicate must still decrypt the original credential");
+      assert.equal(await new AesGcmSecretSealer(secondKeyring).open({ sealed: { keyId: row.key_id, ciphertext: row.sealed_ciphertext, nonce: row.nonce, alg: row.alg } }, { aad: "row-1" }), plaintext, "a second-generation duplicate must still decrypt the original credential");
     } finally {
       secondDb.close();
     }

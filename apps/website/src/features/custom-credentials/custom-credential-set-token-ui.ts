@@ -1,6 +1,7 @@
-import { buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
+import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The MCP-UI surfaces `tool-registrations.ts` raises for `custom_credential_set_token`
@@ -18,11 +19,11 @@ import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contra
  * inside Tovu's own process, and never through the spawned agent CLI's stdio at all. There is
  * therefore nothing to rotate afterward.
  *
- * `buildSetTokenFormResource`'s field list has exactly one entry (`token`) — deliberately not a
+ * `setTokenForm`'s field list has exactly one entry (`token`) — deliberately not a
  * `username` field too: `custom_credential_set_username` already owns that plaintext, non-secret
  * column, and folding it in here would blur which of the two tools is the one that can never accept a
- * secret's sibling metadata. `handleSetTokenAnswer` (`tool-registrations.ts`) reads the submitted
- * `token` out of `answer.params` and carries the credential's EXISTING `username` forward into the
+ * secret's sibling metadata. `saveSetToken` (`tool-registrations.ts`) reads the submitted
+ * `token` from the engine-filtered fields and carries the credential's EXISTING `username` forward into the
  * fresh `connection` it seals — see that function's own doc for why forgetting that would silently
  * clear a saved username.
  *
@@ -33,9 +34,9 @@ import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contra
  * secret field, not a yes/no dialog naming a destructive action. Unlike that S3-compatible form,
  * though, `tool-registrations.ts` drives this one through `askThenReport`, not `askOnce` — see that
  * function's own doc for the defect this avoids (a submission's `tools/call` round trip resolving
- * the instant the exchange DELIVERS the click, before the save has actually run). `buildSetTokenOutcomeResource`
+ * the instant the exchange DELIVERS the click, before the save has actually run). `setTokenOutcome`
  * is the correction: sent under the SAME `ui://` URI the form used
- * ({@link setTokenSurfaceUri}), so `McpUiSurfaceCard` (`@jini-ai/chat`) replaces the form in place with
+ * (the engine-owned URI), so `McpUiSurfaceCard` (`@jini-ai/chat`) replaces the form in place with
  * the true result rather than leaving a stale "Done." next to buttons that already fired.
  *
  * ## Why the URI carries only the exchange id
@@ -46,14 +47,11 @@ import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contra
  * a fresh form instance has.
  */
 
-export const SET_TOKEN_TOOL_ID = "custom_credential_set_token";
 
 /** Shared by the form and its later outcome document — see this file's header, "Why the URI carries
  *  only the exchange id". Reusing the SAME uri for both is what makes the outcome REPLACE the form
  *  in the transcript instead of opening a second card. */
-export function setTokenSurfaceUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/custom-credential-set-token/${exchangeId}` as UIResourceUri;
-}
+// The published secret-card engine now supplies and reuses that URI.
 
 /**
  * Renders the masked token-entry form. The rendered field is the ONLY place the token exists outside
@@ -62,18 +60,14 @@ export function setTokenSurfaceUri(exchangeId: string): UIResourceUri {
  *
  * @complexity O(1) — a fixed one-field form.
  */
-export function buildSetTokenFormResource(spec: { label: string; exchangeId: string }): UIResource {
-  const { label, exchangeId } = spec;
-  return buildFormSurface({
-    uri: setTokenSurfaceUri(exchangeId),
+export function setTokenForm({ label }: { label: string }, _optional = {}): SecretCardForm {
+  return {
     title: `Set the token for '${label}'?`,
     description:
       "Type the new token directly into the field below. It is sealed on the server the moment you submit — " +
       "the assistant never sees it, and it is never written to the chat transcript. Any saved username for " +
       "this credential is kept as-is.",
     submitLabel: "Save token",
-    toolName: SET_TOKEN_TOOL_ID,
-    baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId },
     fields: [
       {
         kind: "string",
@@ -81,24 +75,21 @@ export function buildSetTokenFormResource(spec: { label: string; exchangeId: str
         label: "Token",
         hint: "Pasted or typed here only — never shown to the assistant.",
         required: false,
-        secret: true,
+        allowBlank: true,
+        ...SECRET_FORM_CARD_DEFINITIONS.credential_save.secretField,
       },
     ],
-    cancel: {
-      label: "Cancel",
-      toolName: SET_TOKEN_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true },
-    },
+    cancelLabel: "Cancel",
     app: { appName: "tovu-custom-credential-set-token", appVersion: "1" },
     preferredFrameSize: ["100%", "360px"],
-  });
+  };
 }
 
 /**
  * Renders the RESULT of a submitted token — what replaces the form once `askThenReport`'s `handle`
- * callback (`handleSetTokenAnswer`, `tool-registrations.ts`) has actually run `updateCustomCredential`
+ * callback (`saveSetToken`, `tool-registrations.ts`) has actually run `updateCustomCredential`
  * (or refused to, e.g. a blank submission). See this file's header for the mechanism and why the `uri`
- * MUST equal {@link setTokenSurfaceUri} for the same exchange id.
+ * MUST equal the engine-owned URI for the same exchange id.
  *
  * `message` is caller-controlled and must never carry the token itself — enforced by construction at
  * every call site in `tool-registrations.ts`, never by this function, which only renders what it is
@@ -106,15 +97,13 @@ export function buildSetTokenFormResource(spec: { label: string; exchangeId: str
  *
  * @complexity O(1) — fixed-size field reads.
  */
-export function buildSetTokenOutcomeResource(spec: { exchangeId: string; label: string; state: "success" | "failure"; message: string }): UIResource {
-  const { exchangeId, label, state, message } = spec;
-  return buildOutcomeSurface({
-    uri: setTokenSurfaceUri(exchangeId),
+export function setTokenOutcome({ label, state, message }: { label: string; state: "success" | "failure"; message: string }, _optional = {}): SurfaceOutcomeSpec {
+  return {
     title: state === "success" ? "Token saved" : "Token not saved",
     details: [{ label: "Credential", value: label }],
     state,
     message,
     app: { appName: "tovu-custom-credential-set-token-outcome", appVersion: "1" },
     preferredFrameSize: ["100%", "240px"],
-  });
+  };
 }

@@ -87,7 +87,7 @@ test("external-mcp OAuth blob: CROSS-SERVER ciphertext transplant is rejected (t
       }),
     (err: unknown) => {
       assert.ok(err instanceof Error);
-      assert.match(err.message, /^stored OAuth credentials could not be decrypted: /);
+      assert.equal(err.message, "Stored OAuth credentials could not be decrypted.");
       return true;
     },
   );
@@ -149,8 +149,5 @@ test('external-mcp env ciphertext opens only in its original row and slot', asyn
   assert.equal(result.failures.length, 1);
   assert.equal(result.failures[0]!.serverId, SERVER_B);
   assert.match(result.failures[0]!.reason, /could not be decrypted/);
-  await assert.rejects(() => sealer.open({
-    sealed: row.sealedEnv!,
-    aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: SERVER_A }),
-  }));
+  await assert.rejects(() => sealer.open({ sealed: row.sealedEnv! }, { aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: SERVER_A }) }));
 });

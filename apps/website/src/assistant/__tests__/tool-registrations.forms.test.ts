@@ -21,8 +21,8 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../features/forms/repo.memory.js";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms-forms";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -34,11 +34,7 @@ const contributions = {
 };
 
 
-// Forms moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeFormsTools() });
 
@@ -79,9 +75,9 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     formSubmissionRepo: {
       findById: (r: { workspaceId: string; id: string }) => { order.push("submissionRepo.findById"); return submissionRepo.findById(r); },
       create: async (record: FormSubmissionRecord) => { order.push("submissionRepo.create"); return submissionRepo.create(record); },
-      listByDefinition: (r: { workspaceId: string; formDefinitionId: string; limit: number; cursor?: string }) => {
+      listByDefinition: (r: { workspaceId: string; formDefinitionId: string; limit: number }, optional: { cursor?: string | null } = {}) => {
         order.push("submissionRepo.listByDefinition");
-        return submissionRepo.listByDefinition(r);
+        return submissionRepo.listByDefinition(r, optional);
       },
     },
   };
@@ -524,9 +520,9 @@ test("forms_list_submissions: a provided cursor is threaded through to the repo 
 
   let observedCursor: string | undefined;
   const originalList = submissionRepo.listByDefinition.bind(submissionRepo);
-  submissionRepo.listByDefinition = (async (r: { workspaceId: string; formDefinitionId: string; limit: number; cursor?: string }) => {
-    observedCursor = r.cursor;
-    return originalList(r);
+  submissionRepo.listByDefinition = (async (r: { workspaceId: string; formDefinitionId: string; limit: number }, optional: { cursor?: string | null } = {}) => {
+    observedCursor = optional.cursor ?? undefined;
+    return originalList(r, optional);
   }) as typeof submissionRepo.listByDefinition;
 
   await wired("forms_list_submissions", deps).handler(executionContext({ formId, cursor: "cursor-abc" }));

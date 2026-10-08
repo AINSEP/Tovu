@@ -139,9 +139,10 @@ test("GET reports stored metadata even when the keyring can no longer open the k
   const secondUrl = await startTestServer(app, t);
   const response = await get(secondUrl, CREDENTIAL_PATH, cookie);
   assert.equal(response.status, 200);
-  const body = await response.json() as { data: { isSet: boolean; masked: string } };
+  const body = await response.json() as { data: { isSet: boolean; masked: string | null; tokenHint: unknown } };
   assert.equal(body.data.isSet, true);
-  assert.equal(body.data.masked, "••••4321");
+  assert.equal(body.data.masked, null);
+  assert.equal(body.data.tokenHint, null, "an unavailable keyring must not expose cached key hints");
   assert.ok(!JSON.stringify(body).includes("stored-key-4321"));
 });
 

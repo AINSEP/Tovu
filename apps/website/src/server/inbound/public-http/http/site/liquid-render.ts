@@ -116,12 +116,12 @@ export function runLiquidRender({ workerData }: { workerData: unknown }): Liquid
   if (!isLiquidWorkerInput(workerData)) {
     return { ok: false, error: "liquid-worker received malformed workerData" };
   }
-  const { source, ctx, skipLiquidAllowlist } = workerData;
+  const { source, ctx } = workerData;
 
   // Defensive re-check (belt-and-suspenders): `loadTheme()` already linted
-  // this source at discovery time (unless the theme opted out); re-lint here
-  // in case the file changed on disk since, honoring the same opt-out.
-  const violations = skipLiquidAllowlist ? [] : lintLiquidTemplate(source);
+  // this source at discovery time; re-lint unconditionally here in case the
+  // file changed on disk since. No worker payload may bypass this boundary.
+  const violations = lintLiquidTemplate(source);
   if (violations.length > 0) {
     return { ok: false, error: `disallowed Liquid usage: ${violations.join("; ")}` };
   }

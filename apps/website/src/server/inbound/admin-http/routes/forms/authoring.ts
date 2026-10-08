@@ -1,6 +1,6 @@
-import { updateFormDefinition } from "#src/features/forms/write-service";
-import type { FieldDescriptor, NotifyConfig } from "#src/features/forms/index";
-import type { FormAuthoring } from "#src/features/forms/html-authoring";
+import { updateFormDefinition } from "#src/features/forms/index";
+import type { FieldDescriptor, NotifyConfig } from "@jini-ai/cms/forms";
+import type { FormAuthoring } from "@jini-ai/cms/forms/html";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";

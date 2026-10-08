@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
-import { createSurfaceExchangeStore } from "../../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -11,6 +11,9 @@ import { InMemoryPostSearchIndex } from "../search-index.memory.js";
 import { removeVia } from "./remove-post-double.js";
 import type { PostRecord } from "../post.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const NOW = "2026-10-01T00:00:00.000Z";
 const BODY = {
@@ -53,7 +56,7 @@ function fixture(rows: PostRecord[] = [record()]) {
     forgetRemovedPost: async () => {},
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
-  const registration = buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
+  const registration = buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find(
     (r) => r.descriptor.id === "content_post_list",
   );
   assert.ok(registration);
@@ -212,6 +215,9 @@ test("t02: list publishes the optional query, real status enum and exact project
       "adminUrl",
       "excerpt",
       "bodyChars",
+      "publishAt",
+      "featuredMediaId",
+      "scheduled",
     ],
   });
   assert.deepEqual(schema.required, ["kind"]);

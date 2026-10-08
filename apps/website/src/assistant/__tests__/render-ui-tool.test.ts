@@ -6,7 +6,10 @@ import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
 import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations, renderUiAgentToolCatalog } from "../render-ui-tool.js";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The bug this pins: `assistant_render_ui` used to return `{rendered: true}` the instant its
@@ -41,7 +44,7 @@ test("registers unconditionally — no environment can switch this tool off", ()
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
-    const registrations = buildRenderUiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() });
+    const registrations = buildRenderUiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     assert.ok(
       registrations.some((r) => r.descriptor.id === RENDER_UI_TOOL_ID),
       "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",
@@ -90,7 +93,7 @@ test("the tool description says a drawing may land on the screen's canvas, not o
 });
 
 test("returns rendered: true when nothing reports a refusal", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: SurfaceEmission[] = [];
   const components = [{ id: "root", component: "Text", text: "requested text" }];
@@ -114,7 +117,7 @@ test("returns rendered: true when nothing reports a refusal", async () => {
 });
 
 test("a button action during the grace period is not a renderer refusal", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges, 1000);
   const emitted: unknown[] = [];
   const pending = call(handler, { input: { components: [
@@ -124,12 +127,7 @@ test("a button action during the grace period is not a renderer refusal", async 
     emitted.push(surface);
     if (emitted.length === 2) {
       const surfaceId = surfaceIdFromEmitted(emitted);
-      assert.deepEqual(surfaceExchanges.deliver({
-        exchangeId: surfaceId,
-        principalId: "principal-1",
-        channel: "a2ui",
-        params: { message: { version: "v1.0", action: { surfaceId, name: "clicked", sourceComponentId: "root", timestamp: "2026-09-30T00:00:00.000Z", context: {} } } },
-      }), { ok: true });
+      assert.deepEqual(surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: { message: { version: "v1.0", action: { surfaceId, name: "clicked", sourceComponentId: "root", timestamp: "2026-09-30T00:00:00.000Z", context: {} } } } }, { channel: "a2ui" }), { ok: true });
     }
   } });
 
@@ -138,7 +136,7 @@ test("a button action during the grace period is not a renderer refusal", async 
 });
 
 test("returns rendered: false with the real reason when the browser relays a catalog-validation refusal — not a silent false success", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
 
@@ -151,11 +149,7 @@ test("returns rendered: false with the real reason when the browser relays a cat
 
   // Exactly the shape `A2uiSurfaceCard.tsx`'s relayed refusal takes (an `ErrorMessage`, delivered
   // through the same route a button click's `ActionMessage` would use) — not a fabricated shortcut.
-  const delivered = surfaceExchanges.deliver({
-    exchangeId: surfaceId,
-    principalId: "principal-1",
-    channel: "a2ui",
-    params: {
+  const delivered = surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: {
       message: {
         version: "v1.0",
         error: {
@@ -165,8 +159,7 @@ test("returns rendered: false with the real reason when the browser relays a cat
           message: 'Component "root" (recharts.bar-chart) failed catalog validation: categoryKey: Required',
         },
       },
-    },
-  });
+    } }, { channel: "a2ui" });
   assert.deepEqual(delivered, { ok: true });
 
   assert.deepEqual(await pending, {
@@ -180,7 +173,7 @@ test("returns rendered: false with the real reason when the browser relays a cat
 test("falls back to a generic detail string when the relayed refusal carries no string error.message", async () => {
   // `rejectionMessageOf`'s fallback branch — a relayed refusal is still trusted as a refusal even
   // if its `message` field is missing or not a string, rather than silently reporting success.
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
 
@@ -189,17 +182,12 @@ test("falls back to a generic detail string when the relayed refusal carries no 
   await new Promise((resolve) => setImmediate(resolve));
   const surfaceId = surfaceIdFromEmitted(emitted);
 
-  const delivered = surfaceExchanges.deliver({
-    exchangeId: surfaceId,
-    principalId: "principal-1",
-    channel: "a2ui",
-    params: {
+  const delivered = surfaceExchanges.deliver({ exchangeId: surfaceId, principalId: "principal-1", params: {
       message: {
         version: "v1.0",
         error: { code: "VALIDATION_FAILED", surfaceId },
       },
-    },
-  });
+    } }, { channel: "a2ui" });
   assert.deepEqual(delivered, { ok: true });
 
   assert.deepEqual(await pending, {

@@ -11,7 +11,7 @@ import {
   readInstalledSkillMarkdown,
 } from "../../capability-projection.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
-import { PackagePathViolation } from "../../package-paths.js";
+import { PackagePathViolation } from "../../lifecycle.js";
 
 /**
  * @file `capability-projection.ts`'s real, used half — the `stdio` vs remote MCP trust classifier

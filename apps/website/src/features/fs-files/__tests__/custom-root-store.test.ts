@@ -128,7 +128,9 @@ test("a set folder survives a simulated restart — a fresh call against the sam
   setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
 
   const moduleUrl = new URL("../custom-root-store.ts", import.meta.url).href;
-  const script = `import { getCustomFsRoot } from ${JSON.stringify(moduleUrl)}; process.stdout.write(JSON.stringify(getCustomFsRoot(process.argv[1], { siteDir: process.argv[2] })) ?? "null");`;
+  // The site-dir barrel also loads database runtimes whose handles can keep the child alive.
+  // Finish this read-only probe after stdout flushes; persistence is asserted from its actual output.
+  const script = `import { getCustomFsRoot } from ${JSON.stringify(moduleUrl)}; process.stdout.write(JSON.stringify(getCustomFsRoot(process.argv[1], { siteDir: process.argv[2] })) ?? "null", () => process.exit(0));`;
   const persisted = execFileSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script, WORKSPACE_A, siteDir], { encoding: "utf8", timeout: 10000 });
   assert.equal(JSON.parse(persisted), fs.realpathSync(dir), "a new process must load the persisted path without the setter's module state");
   assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), fs.realpathSync(dir));

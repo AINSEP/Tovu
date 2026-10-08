@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 
 import { builtInThemesDir, bundledAgentPluginsDir } from "../../runtime/composition/deps.js";
 
@@ -106,9 +107,19 @@ test("stock resolvers work from a dist/src module layout independently of cwd", 
   // Preserve the module location while loading the real source with tsx; no hand-copied resolver.
   symlinkSync(path.join(REPO_ROOT, "apps", "website", "src"), path.join(product, "src"), "dir");
   symlinkSync(path.join(REPO_ROOT, "node_modules"), path.join(product, "node_modules"), "dir");
-  const moduleUrl = pathToFileURL(path.join(product, "src", "server", "runtime", "composition", "deps.ts")).href;
+  const moduleUrl = pathToFileURL(path.join(product, "src", "platform", "site-dir", "product-root.ts")).href;
   const worker = path.join(product, "stock-paths.mjs");
-  writeFileSync(worker, `const { builtInThemesDir, bundledAgentPluginsDir } = await import(${JSON.stringify(moduleUrl)}); console.log(JSON.stringify([builtInThemesDir(), bundledAgentPluginsDir()]));`);
+  // Only the two real resolver bodies need the product-root port. Importing the entire composition
+  // also loads every feature and its boot graph under a second symlink identity; none of that is
+  // part of this path contract, and it exhausted the child deadline in the snapshot run.
+  const source = ts.createSourceFile("deps.ts", readFileSync(path.join(REPO_ROOT, "apps/website/src/server/runtime/composition/deps.ts"), "utf8"), ts.ScriptTarget.Latest, true);
+  const resolverSource = ["builtInThemesDir", "bundledAgentPluginsDir"].map((name) => {
+    const declaration = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
+    assert.ok(declaration, `missing resolver ${name}`);
+    return declaration.getText(source).replace(/^export\s+/, "");
+  }).join("\n");
+  const compiled = ts.transpileModule(resolverSource, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  writeFileSync(worker, `import { join } from "node:path"; const { resolveProductRoot } = await import(${JSON.stringify(moduleUrl)});\n${compiled}\nconsole.log(JSON.stringify([builtInThemesDir(), bundledAgentPluginsDir()]));`);
   const env = { ...process.env };
   delete env.TOVU_STOCK_THEMES_DIR;
   delete env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
@@ -146,100 +157,48 @@ test("no stock data directory is left behind inside src/", () => {
 });
 
 /**
- * Every `cp -R <src>/. <dest>/` pair in the `build` script, in command order.
- *
- * @complexity O(n) over the length of the build script string.
+ * Stage the real build owner's assets in a disposable tree, with only its compiler/process port
+ * replaced. The old shell's `cp -R`/`rm -rf` spelling is no longer the contract: deleted source
+ * files must not survive in dist/ (this is how dist/src/themes shipped column, grayscale,
+ * handlebars and liquidjs after they were removed from source).
+ * `build` delegates to `build:server`; reading scripts.build alone misses the actual asset owner.
+ * @complexity O(n) fixture writes for the fixed asset roots, plus buildServer's filesystem copies.
  */
-function assetCopies(buildScript: string): { from: string; to: string; at: number }[] {
-  const copies: { from: string; to: string; at: number }[] = [];
-  const pattern = /cp -R (\S+)\/\. (\S+)\/(?=\s|$)/g;
-  for (let m = pattern.exec(buildScript); m !== null; m = pattern.exec(buildScript)) {
-    copies.push({ from: m[1], to: m[2], at: m.index });
-  }
-  return copies;
-}
-
-/**
- * The root `build` script with every root-level `npm run <script>` it delegates to inlined in place,
- * i.e. the command chain `npm run build` actually executes. Since 505f46df7 `build` is only the
- * linked-Jini guard plus `npm run build:server`; the asset copies live in `build:server`. Reading
- * `scripts.build` alone would see no copies at all. `--workspace=` runs are left as-is: they execute
- * another package's script, not a root one.
- *
- * @complexity O(n) over the total length of the inlined scripts.
- */
-function expandedBuildScript(): string {
-  const scripts = (JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")) as {
-    scripts: Record<string, string>;
-  }).scripts;
-  const expand = (name: string, seen: Set<string>): string => {
-    assert.ok(!seen.has(name), `package.json script "${name}" delegates to itself`);
-    const body = scripts[name];
-    assert.equal(typeof body, "string", `package.json has no "${name}" script`);
-    return body.replace(/npm run ([\w:-]+)(?![^&|]*--workspace)/g, (_, next: string) =>
-      expand(next, new Set([...seen, name])),
-    );
-  };
-  return expand("build", new Set());
-}
-
-test("the build script copies stock data to dist/content, not dist/src", () => {
-  const buildScript = expandedBuildScript();
-
-  const stock = assetCopies(buildScript).filter((c) => c.from.startsWith("content/"));
-  assert.deepEqual(
-    stock.map((c) => `${c.from} -> ${c.to}`).sort(),
-    [
-      "content/agent-plugins -> dist/content/agent-plugins",
-      "content/public -> dist/content/public",
-      "content/templates -> dist/content/templates",
-      "content/themes -> dist/content/themes",
-    ],
-    "all four stock trees must be copied from content/ to dist/content/",
-  );
-});
-
-test("every asset copy in the build script cleans its destination first", (t) => {
-  const buildScript = expandedBuildScript();
-
-  for (const copy of assetCopies(buildScript)) {
-    // Any `rm -rf` BEFORE this copy that names the destination or one of its ancestors. Ancestors
-    // count because `rm -rf dist/content` legitimately cleans `dist/content/themes` too.
-    const ancestors = new Set<string>();
-    const segments = copy.to.split("/");
-    for (let i = 1; i <= segments.length; i += 1) ancestors.add(segments.slice(0, i).join("/"));
-
-    const cleaned = [...buildScript.slice(0, copy.at).matchAll(/rm -rf ([^&|]+)/g)]
-      .flatMap((m) => m[1].trim().split(/\s+/))
-      .some((target) => ancestors.has(target));
-
-    assert.ok(
-      cleaned,
-      `build script copies into ${copy.to} without an earlier "rm -rf" of it or an ancestor; ` +
-        `deleted source files would survive in dist/ forever (this is how dist/src/themes/ came to ` +
-        `ship column, grayscale, handlebars and liquidjs after they were removed from source)`,
-    );
-  }
-
-  // Execute the actual asset commands, with compilation excluded, in a disposable tree.
+async function stageBuildAssets(t: import("node:test").TestContext): Promise<string> {
+  const scripts = JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")).scripts;
+  assert.match(scripts.build, /npm run build:server/);
+  assert.equal(scripts["build:server"], "node development/scripts/build-server.mjs");
+  const { buildServer } = await import(pathToFileURL(path.join(REPO_ROOT, "development/scripts/build-server.mjs")).href);
   const fixture = mkdtempSync(path.join(tmpdir(), "tovu-asset-copy-"));
   t.after(() => rmSync(fixture, { recursive: true, force: true }));
-  const copies = assetCopies(buildScript);
-  assert.ok(copies.length > 0);
-  for (const copy of copies) {
-    mkdirSync(path.join(fixture, copy.from), { recursive: true });
-    mkdirSync(path.join(fixture, copy.to), { recursive: true });
-    writeFileSync(path.join(fixture, copy.from, "current.txt"), `current ${copy.from}`);
-    writeFileSync(path.join(fixture, copy.to, "stale.txt"), "deleted from source");
-    assert.ok(existsSync(path.join(fixture, copy.to, "stale.txt")));
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public", "src/platform/db/drizzle"]) {
+    const source = relative.startsWith("src/") ? path.join(fixture, "apps/website", relative) : path.join(fixture, relative);
+    const destination = path.join(fixture, "dist", relative);
+    mkdirSync(source, { recursive: true });
+    mkdirSync(destination, { recursive: true });
+    writeFileSync(path.join(source, ".current"), relative);
+    writeFileSync(path.join(destination, "stale.txt"), "deleted from source");
+    assert.ok(existsSync(path.join(destination, "stale.txt")));
   }
-  for (const command of buildScript.split("&&").map(part => part.trim())) {
-    if (!/\b(?:rm -rf|mkdir -p|cp -R)\b/.test(command)) continue;
-    const result = spawnSync("sh", ["-c", command], { cwd: fixture, encoding: "utf8" });
-    assert.equal(result.status, 0, `${command}: ${result.stderr}`);
+  // Execute the actual asset commands, with compilation excluded, in a disposable tree.
+  buildServer({ repoRoot: fixture }, { npmCli: "/fake/npm-cli.js", tscCli: "/fake/tsc", runNode: () => {} });
+  return fixture;
+}
+
+test("the build script copies stock data to dist/content, not dist/src", async (t) => {
+  const fixture = await stageBuildAssets(t);
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public"]) {
+    assert.equal(readFileSync(path.join(fixture, "dist", relative, ".current"), "utf8"), relative);
+    assert.equal(existsSync(path.join(fixture, "dist/src", relative.slice("content/".length))), false);
   }
-  for (const copy of copies) {
-    assert.equal(existsSync(path.join(fixture, copy.to, "stale.txt")), false, `${copy.to} retained stale data`);
-    assert.equal(readFileSync(path.join(fixture, copy.to, "current.txt"), "utf8"), `current ${copy.from}`);
+});
+
+test("every asset copy in the build script cleans its destination first", async (t) => {
+  const fixture = await stageBuildAssets(t);
+  for (const relative of ["content/templates", "content/themes", "content/agent-plugins", "content/public", "src/platform/db/drizzle"]) {
+    // An ancestor clean counts: cleaning dist/content also cleans dist/content/themes. The
+    // observable contract is that deleted source files cannot survive, whatever the command syntax.
+    assert.equal(existsSync(path.join(fixture, "dist", relative, "stale.txt")), false, `${relative} retained stale data`);
+    assert.equal(readFileSync(path.join(fixture, "dist", relative, ".current"), "utf8"), relative);
   }
 });

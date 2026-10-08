@@ -1,21 +1,10 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/content-types.js';
+import { withToolMetadata } from '@jini-ai/core';
 /**
- * @file Content-types' agent-tool registrations — re-exported from `@jini-ai/cms/content-types`.
- *
- * A shim rather than a rewrite of the one importer, deliberately, mirroring `identity/` and
- * `navigation/`'s own reasoning. `assistant/tool-registrations.ts` imports all 22 domains as a
- * single uniform block of `../<domain>/tool-registrations` lines, and this file keeps that block
- * uniform. When more domains move, this file and its siblings retire together.
- *
- * 2026-08-17 (Stage 2 batch 2 of the registry rollout): converted to
- * `assistant/tool-contribution-registry.ts`'s explicit-call registry, same as `identity`/`members`/
- * `taxonomy`/`redirects`/`widgets` — see that file's header for why. `widgets` (this batch's own
- * first conversion) imports `features/content-types` internally
- * (`widgets/{write-service,embed-service,region-area-service,deps,entry-payload}.ts`), which is why
- * this domain converts AFTER `widgets`, not before: `widgets` was still a legacy static
- * `DOMAIN_SLICES` entry until its own conversion, and converting `content-types` first would have
- * closed `assistant -> widgets -> content-types -> assistant` (the same shape that forced the
- * `themes`/`post` reverts in the prior batch). With `widgets` already off the static array, no
- * remaining still-legacy domain imports `content-types`, so this edge is safe.
+ * @file Content-types' agent-tool registrations, built by `@jini-ai/cms/content-types`.
+ * This host seam binds metadata and model-facing errors to the assistant's domain catalog.
+ * Contributors are installed explicitly at the composition root; importing a feature must not
+ * register tools or create an assistant-to-feature runtime cycle.
  */
 import type { ToolContributor } from "#src/assistant/index";
 import {
@@ -24,12 +13,13 @@ import {
   type ContentTypesToolDeps,
 } from "@jini-ai/cms/content-types";
 
-import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 
 export { buildContentTypesRegistrations, contentTypesDerivedRisk, type ContentTypesToolDeps };
 
 /**
- * Content-types' model-facing allowlist (2026-09-24) — deliberately just `forbiddenRule`.
+ * Content-types' model-facing allowlist — deliberately just `forbiddenRule`.
  *
  * Every content-types domain error EXCEPT `CleanupNotEligibleError` already extends `ToolInputError`
  * at the source (Jini `1029e337`, "model-facing rejections extend ToolInputError"): its own
@@ -58,7 +48,7 @@ export { buildContentTypesRegistrations, contentTypesDerivedRisk, type ContentTy
  * called by every handler here before any content-types-specific check runs) — still plain `Error`,
  * the one rejection this domain actually needs wrapped.
  */
-const CONTENT_TYPES_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [forbiddenRule("CONTENT_TYPES")];
+const CONTENT_TYPES_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [forbiddenRule({ domainPrefix: "CONTENT_TYPES", error: ForbiddenError })];
 
 /**
  * Contributes Content-types' AI tools to the assistant's catalog — called once by
@@ -74,7 +64,7 @@ const CONTENT_TYPES_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [forbi
 export function contributeContentTypesTools(): ToolContributor {
   return {
     domain: "content-types",
-    build: (deps) => withModelFacingRegistrationErrors(buildContentTypesRegistrations(deps), CONTENT_TYPES_MODEL_FACING_RULES),
+    build: (deps) => withModelFacingRegistrationErrors({ registrations: withToolMetadata({ registrations: buildContentTypesRegistrations(deps), metadata: toolMetadata }), rules: CONTENT_TYPES_MODEL_FACING_RULES }),
     risk: contentTypesDerivedRisk,
   };
 }

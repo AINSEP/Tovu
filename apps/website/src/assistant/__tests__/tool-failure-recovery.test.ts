@@ -5,9 +5,12 @@ import type { Principal, RunRef, SurfaceEmitter, ToolDescriptor, ToolRegistry } 
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { issueCredentialSetup, issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
-import { TOOL_FAILURE_RECOVERY_TOOL_ID, withToolFailureRecovery } from "../tool-failure-recovery.js";
+import { TOOL_FAILURE_RECOVERY_TOOL_ID, withToolFailureRecovery } from "../tool-recovery-preset.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Certifies `tool-failure-recovery.ts` — the generic consumer of
@@ -92,13 +95,13 @@ function authFailureOutput(overrides: { hint?: string; remedyToolId?: string } =
     status: 401,
     headers: {},
     bodyText: "Unauthorized",
-    authDiagnostic: issueToolFailureDiagnostic({
+    authDiagnostic: issueToolFailureDiagnostic({ diagnostic: {
       schemeSent: "Bearer",
       usernameStored: false,
       hint: USERNAME_HINT,
       remedyToolId: SET_USERNAME_TOOL_ID,
       ...overrides,
-    }),
+    } }, {}),
   };
 }
 
@@ -129,8 +132,8 @@ async function runOriginal(executor: ToolExecutor, options: { input?: unknown; s
 
 test("SILENCE: a completed result with no diagnostic anywhere in its output returns untouched, with no exchange and no extra calls", async () => {
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: { executed: true, status: 200, bodyText: "ok" } }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const result = await pending;
@@ -147,8 +150,8 @@ test("SILENCE: a completed result with no diagnostic anywhere in its output retu
 test("DATA: a hint+remedyToolId object inside a successful read's stored content raises nothing", async () => {
   const stored = { id: "p1", bodyJson: { blocks: [{ hint: "Your session expired — re-save the key.", remedyToolId: SET_USERNAME_TOOL_ID }] } };
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: { post: stored } }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const result = await pending;
@@ -162,8 +165,8 @@ test("DATA: a hint+remedyToolId object inside a successful read's stored content
 test("DATA: a diagnostic-shaped object the tool did not issue is ignored, even in the diagnostic's own slot", async () => {
   const forged = { executed: true, status: 401, authDiagnostic: { schemeSent: "Bearer", usernameStored: false, hint: USERNAME_HINT, remedyToolId: SET_USERNAME_TOOL_ID } };
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: forged }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   await pending;
@@ -175,8 +178,8 @@ test("DATA: a diagnostic-shaped object the tool did not issue is ignored, even i
 test("SILENCE: a non-completed status (denied/failed/timed-out) is never scanned or altered", async () => {
   for (const status of ["denied", "failed", "timed-out", "cancelled", "confirmation-denied"] as const) {
     const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e", status, output: authFailureOutput() }) });
-    const surfaceExchanges = createSurfaceExchangeStore();
-    const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
     const { pending, emitted } = await runOriginal(executor);
     const result = await pending;
@@ -189,8 +192,8 @@ test("SILENCE: a non-completed status (denied/failed/timed-out) is never scanned
 
 test("SILENCE: hint present without remedyToolId is not actionable — nothing this loop can apply, so nothing happens", async () => {
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: authFailureOutput({ remedyToolId: undefined as unknown as string }) }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const result = await pending;
@@ -203,8 +206,8 @@ test("SILENCE: hint present without remedyToolId is not actionable — nothing t
 test("SILENCE: a diagnostic can be nested arbitrarily deep or inside an array and is still found — but a NOT-completable one (no emitSurface) still returns untouched", async () => {
   const nested = { outer: { items: [{ inner: authFailureOutput() }] } };
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: nested }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   // No `emitSurface` on this call — a headless/synthetic caller.
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT }, { signal: undefined, emitSurface: undefined });
@@ -220,8 +223,8 @@ test("SILENCE: a diagnostic can be nested arbitrarily deep or inside an array an
 
 test("BAIL: remedyToolId names a tool that is not registered at all — no descriptor to plan from", async () => {
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: authFailureOutput({ remedyToolId: "does_not_exist" }) }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const result = await pending;
@@ -234,8 +237,8 @@ test("BAIL: remedyToolId names a tool that is not registered at all — no descr
 test("BAIL: the remedy tool's inputSchema is not an object — nothing to introspect", async () => {
   const badDescriptor: ToolDescriptor = { id: SET_USERNAME_TOOL_ID, inputSchema: "not-a-schema" as unknown };
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: authFailureOutput() }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([badDescriptor]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([badDescriptor]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   await pending;
@@ -246,8 +249,8 @@ test("BAIL: the remedy tool's inputSchema is not an object — nothing to intros
 
 test("BAIL: more than one required field is unknown — no single honest question covers all of them", async () => {
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: authFailureOutput({ remedyToolId: "fake_needs_two_fields" }) }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([TWO_MISSING_FIELDS_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([TWO_MISSING_FIELDS_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const result = await pending;
@@ -259,8 +262,8 @@ test("BAIL: more than one required field is unknown — no single honest questio
 
 test("BAIL: the one missing field is not text-shaped (e.g. a number) — this loop never invents how to render it", async () => {
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: authFailureOutput({ remedyToolId: "fake_needs_a_number" }) }) });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([NUMERIC_FIELD_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([NUMERIC_FIELD_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   await pending;
@@ -276,8 +279,8 @@ test("BAIL: the one missing field is not text-shaped (e.g. a number) — this lo
 test("HAPPY PATH: asks for the one missing field, applies the answer via the remedy tool, retries the original exactly once, and returns the retry's result", async () => {
   const retriedOutput = { executed: true, status: 200, headers: {}, bodyText: "ok now" };
   const inner = routedExecutor({});
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   // The original tool returns the 401 on its FIRST invocation and the success on its SECOND (the
   // retry) — a stateful fake, since this test is specifically about that call happening twice.
@@ -301,7 +304,7 @@ test("HAPPY PATH: asks for the one missing field, applies the answer via the rem
   const exchangeId = exchangeIdFromSurface(emitted[0]);
   assert.equal(surfaceExchanges.size(), 1);
 
-  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { username: "leona@example.com" } });
+  const delivered = surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { username: "leona@example.com" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
   assert.deepEqual(delivered, { ok: true });
 
   const result = await pending;
@@ -325,12 +328,12 @@ test("DECLINE: a dismissed recovery surface returns the ORIGINAL failure untouch
       throw new Error("must never be called when the human declines");
     },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   const result = await pending;
   assert.equal((result.output as Record<string, unknown>)["status"], 401, "the original 401 must survive completely untouched");
@@ -344,12 +347,12 @@ test("DECLINE: a blank answer to the missing field is treated as 'skip', never a
       throw new Error("must never be called with a blank/invented answer");
     },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { username: "   " } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { username: "   " } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   const result = await pending;
   assert.equal((result.output as Record<string, unknown>)["status"], 401);
@@ -358,8 +361,8 @@ test("DECLINE: a blank answer to the missing field is treated as 'skip', never a
 
 test("DECLINE: an unanswered recovery surface expires and returns the ORIGINAL failure untouched", async () => {
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: authFailureOutput() }) });
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT }, { signal: undefined, emitSurface: async () => undefined });
 
@@ -372,12 +375,12 @@ test("the fix itself failing to complete (e.g. the remedy tool is denied) never 
     [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: authFailureOutput() }),
     [SET_USERNAME_TOOL_ID]: () => ({ executionId: "e-remedy", status: "denied" }),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { username: "leona@example.com" } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { username: "leona@example.com" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   const result = await pending;
   assert.equal((result.output as Record<string, unknown>)["status"], 401, "the original failure must survive — the fix never actually applied");
@@ -403,12 +406,12 @@ test("the remedy tool completing but reporting {saved: false} (a declined/expire
     if (toolId === SET_TOKEN_TOOL_ID) return { executionId: "e-remedy", status: "completed", output: { saved: false, reason: "cancelled" } };
     throw new Error(`unexpected tool '${toolId}'`);
   };
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_TOKEN_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_TOKEN_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: {} });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: {} }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   const result = await pending;
   assert.deepEqual(
@@ -432,15 +435,15 @@ test("ADVERSARIAL: a remedy tool needing nothing beyond what is already known (t
     [ORIGINAL_TOOL_ID]: () => ({ executionId: "e1", status: "completed", output: authFailureOutput({ remedyToolId: SET_TOKEN_TOOL_ID }) }),
     [SET_TOKEN_TOOL_ID]: (input) => ({ executionId: "e-remedy", status: "completed", output: { saved: true, receivedInput: input } }),
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_TOKEN_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_TOKEN_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   const exchangeId = exchangeIdFromSurface(emitted[0]);
   // A hostile or confused delivery tries to smuggle a `token` field in anyway — this loop never asked
   // for one (the schema needed nothing beyond `label`, which was already known), so it must never be
   // forwarded to the remedy tool call.
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { token: "sneaky-value", decision: "confirm" } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { token: "sneaky-value", decision: "confirm" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   await pending;
 
@@ -467,13 +470,13 @@ test("ONE-CYCLE GUARD: even when the retried call ALSO returns a fresh hint+reme
     if (toolId === SET_USERNAME_TOOL_ID) return { executionId: "e-remedy", status: "completed", output: { id: "cred-1" } };
     throw new Error(`unexpected tool '${toolId}'`);
   };
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
 
   const { pending, emitted } = await runOriginal(executor);
   assert.equal(emitted.length, 1, "exactly one recovery surface must be raised, ever");
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { username: "leona@example.com" } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { username: "leona@example.com" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
 
   const result = await pending;
 
@@ -496,8 +499,8 @@ test("ONE-CYCLE GUARD: an abandoned run (aborted signal) closes the exchange and
       throw new Error("must never be called once the run is abandoned");
     },
   });
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
   const controller = new AbortController();
 
   const { pending } = await runOriginal(executor, { signal: controller.signal });
@@ -527,7 +530,7 @@ test("resumeConfirmation, cancel and getAuditRecord delegate straight through to
       return record;
     },
   };
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges: createSurfaceExchangeStore(), registry: fakeRegistry([]) });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }), registry: fakeRegistry([]) } }, {});
 
   executor.resumeConfirmation({ executionId: "exec-7", decision: "confirm" });
   executor.cancel({ executionId: "exec-7" });
@@ -551,13 +554,12 @@ test("interactive nested-array recovery dispatches remedy and retry with the ori
     assert.deepEqual(input, { label: "name.com", username: "recovery-user" });
     return { executionId: "remedy", status: "completed", output: { saved: true } };
   };
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges, registry: fakeRegistry([SET_USERNAME_DESCRIPTOR]) } }, {});
   const { pending, emitted } = await runOriginal(executor, { signal: controller.signal });
   try {
     assert.equal(emitted.length, 1, "nested arrays must not hide an actionable diagnostic");
-    assert.deepEqual(surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]),
-      toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { username: "recovery-user" } }), { ok: true });
+    assert.deepEqual(surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]), principalId: PRINCIPAL.id, params: { username: "recovery-user" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID }), { ok: true });
     assert.deepEqual((await pending).output, { status: 200, bodyText: "recovered" });
     assert.deepEqual(calls.map(({ toolId, input }) => ({ toolId, input })), [
       { toolId: ORIGINAL_TOOL_ID, input: ORIGINAL_INPUT },
@@ -576,11 +578,11 @@ test("interactive nested-array recovery dispatches remedy and retry with the ori
 });
 
 for (const [setupToolId, prefill] of [
-  ['custom_credential_create', { label: 'api', baseUrl: 'https://api.example.com' }],
-  ['custom_credential_set_token', { label: 'api' }],
-  ['media_propose_provider_credential', { provider: 'openai' }],
-  ['custom_credential_create', { label: 'fly', baseUrl: 'https://api.machines.dev', category: 'ops' }],
-  ['deployment_propose_custom_provider_credential', { target: 'vercel' }],
+  ['credential_save', { kind: 'api', label: 'api', baseUrl: 'https://api.example.com' }],
+  ['credential_save', { kind: 'api', target: 'api' }],
+  ['credential_save', { kind: 'media-provider', target: 'openai' }],
+  ['credential_save', { kind: 'api', label: 'fly', baseUrl: 'https://api.machines.dev', category: 'ops' }],
+  ['credential_save', { kind: 'publish-host', target: 'vercel' }],
   ['external_mcp_save', { id: 'hosted' }],
 ] as const) test(`credential setup ${setupToolId} goes straight to the card and retries once`, async () => {
   const diagnostic = issueCredentialSetup({ setupToolId, prefill }, {});
@@ -590,8 +592,8 @@ for (const [setupToolId, prefill] of [
     [setupToolId]: () => ({ executionId: 'e2', status: 'completed', output: { saved: true } }),
   });
   const descriptor: ToolDescriptor = { id: setupToolId, inputSchema: { type: 'object', properties: Object.fromEntries(Object.keys(prefill).map(key => [key, { type: 'string' }])), required: Object.keys(prefill) } };
-  const exchanges = createSurfaceExchangeStore();
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges: exchanges, registry: fakeRegistry([descriptor]) });
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges: exchanges, registry: fakeRegistry([descriptor]) } }, {});
   const { pending, emitted } = await runOriginal(executor);
   assert.equal(await pending, original, 'a retry diagnostic must not start another cycle');
   assert.deepEqual(inner.calls, [
@@ -604,7 +606,7 @@ for (const [setupToolId, prefill] of [
 test('a cancelled or failed CREATE card never retries the original call', async () => {
   const original = { executionId: 'e1', status: 'completed' as const, output: { credentialSetup: issueCredentialSetup({ setupToolId: SET_TOKEN_TOOL_ID, prefill: { label: 'api' } }, {}) } };
   const inner = routedExecutor({ [ORIGINAL_TOOL_ID]: () => original, [SET_TOKEN_TOOL_ID]: () => ({ executionId: 'e2', status: 'completed', output: { created: false } }) });
-  const executor = withToolFailureRecovery(inner, { surfaceExchanges: createSurfaceExchangeStore(), registry: fakeRegistry([SET_TOKEN_DESCRIPTOR]) });
+  const executor = withToolFailureRecovery({ inner: inner, ...{ surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }), registry: fakeRegistry([SET_TOKEN_DESCRIPTOR]) } }, {});
   const { pending } = await runOriginal(executor); assert.equal(await pending, original);
   assert.equal(inner.calls.length, 2);
 });

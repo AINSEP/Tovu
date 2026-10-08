@@ -12,11 +12,12 @@ import { EntryNotFoundError } from "@jini-ai/cms/entries";
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolExecutionContext, ToolPolicy, ToolRegistration } from "@jini-ai/core";
 
-import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "../model-facing-tool-errors.js";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 
 const ENTRIES_RULES: readonly ModelFacingErrorRule[] = [
   { error: EntryNotFoundError, code: "ENTRIES_NOT_FOUND" },
-  forbiddenRule("ENTRIES"),
+  forbiddenRule({ domainPrefix: "ENTRIES", error: ForbiddenError }),
 ];
 
 const NOOP_POLICY: ToolPolicy = { authorize: () => ({ allowed: true }) as never };
@@ -40,10 +41,10 @@ function registrationThatThrows(id: string, error: unknown): ToolRegistration {
 }
 
 test("a listed class rejects with a ToolInputError carrying the coded message", async () => {
-  const [wrapped] = withModelFacingRegistrationErrors(
-    [registrationThatThrows("entries_get", new EntryNotFoundError({ message: "entry 'e1' was not found" }))],
-    ENTRIES_RULES
-  );
+  const [wrapped] = withModelFacingRegistrationErrors({
+    registrations: [registrationThatThrows("entries_get", new EntryNotFoundError({ message: "entry 'e1' was not found" }))],
+    rules: ENTRIES_RULES,
+  });
   await assert.rejects(
     () => wrapped.handler(CTX),
     (err: unknown) => {
@@ -56,13 +57,13 @@ test("a listed class rejects with a ToolInputError carrying the coded message", 
 
 test("an unlisted error passes through as the identical object", async () => {
   const boom = new Error("boom");
-  const [wrapped] = withModelFacingRegistrationErrors([registrationThatThrows("entries_get", boom)], ENTRIES_RULES);
+  const [wrapped] = withModelFacingRegistrationErrors({ registrations: [registrationThatThrows("entries_get", boom)], rules: ENTRIES_RULES });
   await assert.rejects(() => wrapped.handler(CTX), (err: unknown) => err === boom);
 });
 
 test("descriptor and policy pass through unchanged; only the handler is wrapped", () => {
   const original = registrationThatThrows("entries_get", new Error("boom"));
-  const [wrapped] = withModelFacingRegistrationErrors([original], ENTRIES_RULES);
+  const [wrapped] = withModelFacingRegistrationErrors({ registrations: [original], rules: ENTRIES_RULES });
   assert.equal(wrapped.descriptor, original.descriptor);
   assert.equal(wrapped.policy, original.policy);
   assert.notEqual(wrapped.handler, original.handler);

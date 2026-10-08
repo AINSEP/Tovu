@@ -3,28 +3,11 @@ import type { Express } from "express";
 import type { ClockDeps, MediaDeps, RouteDeps } from "#src/server/routes/types";
 
 /**
- * @file ADR-046 Phase 3 (SPEC-034) — narrow `RouteDeps` slice for the `media` server module.
+ * @file Narrow media admin composition contract (ADR-046/SPEC-034).
  *
- * Purpose:
- * Unlike `routes/admin/members/deps.ts`/`routes/admin/integrations/deps.ts` (which `extends
- * RouteDeps` to WIDEN it — a historical pattern from when those fields hadn't landed on the
- * shared `RouteDeps` yet), this is a genuine NARROWING: `mediaRepo`/`assetBlobRepo`/
- * `assetRenditionRepo`/`blobStore`/`transformDefinitionRepo`/`imageTransformer` have been on
- * `RouteDeps` since ADR-027, so this file's only job is to state the exact subset the 6 media
- * routes (5 admin + 1 public rendition) actually read, matching `routes/ops/health.ts`'s
- * `NoDepsRouteRegistrar` precedent for what a module's real dependency surface should look like.
- *
- * 2026-08-18 (`RouteDeps` decomposition Slice 2): those same 6 fields are now their own named
- * `MediaDeps` interface in `routes/types.ts`, so this composes `MediaDeps` directly instead of
- * re-listing the keys via a second `Pick`; `workspaceId`/`authorize` (from `IdentityDeps`, picked
- * individually rather than pulling in the whole interface — none of the 14 other identity/auth-repo
- * fields are read here) and `clock`/`idGen` (`ClockDeps`, pulled in whole since it is exactly these
- * two fields) round out the same set as before, byte-for-byte.
- *
- * How it relates to the project:
- * - `modules/media.ts` takes this same `MediaRouteDeps` shape as its factory parameter.
- * - Any `RouteDeps` object (both `server/app.ts`'s and `server/deps.ts`'s) structurally satisfies
- *   this type already — no composition-root change needed to adopt it.
+ * Composes `MediaDeps` and `ClockDeps`, with only the required identity/removal fields
+ * picked separately. Both composition roots satisfy this shape. See `MediaDeps` in
+ * `server/routes/types.ts` for the group boundary.
  */
 export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "removeMedia" | "forgetRemovedMedia"> &
   ClockDeps &
@@ -41,12 +24,9 @@ export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
  * `MediaRouteRegistrar`) never gain unused `postRepo`/member-repo fields on their own composition
  * surface.
  *
- * The 2026-09-03 member-gating sweep (this file's own sibling routes were never gated — see
- * `routes/site/pages.ts` ADR-030 §4, and `9bf661e9`'s content-API fix) found that these two
- * PUBLIC, unauthenticated routes serve an asset's bytes purely by `assetId`, with no
- * member-gating hook at all: an image/video embedded in a members-only post's body stayed
- * directly fetchable by URL even after the post itself 404s to an anonymous caller.
- * `postRepo` is the derivation seam that closes this — `media-rendition.ts` walks published
+ * Public asset URLs must enforce member access even when requested directly, otherwise
+ * an image/video embedded in a members-only post remains fetchable after that post 404s.
+ * `postRepo` provides the derivation seam — `media-rendition.ts` walks published
  * posts' `bodyJson` for the requested `assetId` (mirroring `pages.ts`'s own
  * `collectImageAssetIds` walk) rather than requiring a new asset->post foreign key, and the
  * three member repo ports are the same `MemberAccessResolver` construction ingredients

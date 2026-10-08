@@ -174,11 +174,17 @@ test("omitting env preserves the stored token across an enable/disable toggle", 
   assert.notEqual(record?.sealedEnv, null, "a toggle must not wipe the stored credentials");
 });
 
-test("an explicitly empty env clears the stored token", async (t) => {
+test("blank env keeps sealed bytes; an explicit empty JSON env object clears the stored token", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await req(baseUrl, `${BASE}/github`, cookie, { method: "PUT", body: JSON.stringify(validBody) });
-  await req(baseUrl, `${BASE}/github`, cookie, { method: "PUT", body: JSON.stringify({ ...validBody, env: "" }) });
+  const before = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "github" });
+  assert.ok(before?.sealedEnv);
+  const blank = await req(baseUrl, `${BASE}/github`, cookie, { method: "PUT", body: JSON.stringify({ ...validBody, env: "" }) });
+  assert.equal(blank.status, 200);
+  const kept = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "github" });
+  assert.equal(JSON.stringify(kept?.sealedEnv) === JSON.stringify(before.sealedEnv), true, "blank updates preserve the sealed bytes");
+  await req(baseUrl, `${BASE}/github`, cookie, { method: "PUT", body: JSON.stringify({ ...validBody, env: "{}" }) });
 
   const record = await deps.externalMcpServerRepo.findByServerId({
     workspaceId: deps.workspaceId,

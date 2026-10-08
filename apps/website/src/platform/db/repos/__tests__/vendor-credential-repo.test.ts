@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { describe, test } from "node:test";
+import { InMemoryVendorCredentialSetRepo, type VendorCredentialSetRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { eq } from "drizzle-orm";
 
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
@@ -49,16 +50,13 @@ function openSeededDb() {
   return db;
 }
 
-describeEachDialect(
-  "VendorCredentialSetRepoPort",
-  { tables: ["vendor_credential_sets", "workspaces"], make: (kernel) => ({ kernel, repo: new SqlVendorCredentialSetRepo(kernel) }) },
-  (make) => {
-    async function makeRepo() {
-      const { kernel, repo } = make();
-      await seedWorkspaces(kernel, [WORKSPACE, OTHER_WORKSPACE]);
-      return repo;
-    }
-
+// The same behavioral contract covers Jini memory and the persisted dialect adapters; only
+// SQL adapters need workspace seeding. Raw schema constraints stay in the SQLite-only tests below.
+function registerRepoContract(
+  required: { makeRepo: () => Promise<VendorCredentialSetRepoPort> },
+  _optional: Record<string, never> = {}
+): void {
+  const { makeRepo } = required;
     test("findById returns null when no row exists", async () => {
       const repo = await makeRepo();
       assert.equal(await repo.findById({ workspaceId: WORKSPACE, id: "no-such-id" }), null);
@@ -232,6 +230,23 @@ describeEachDialect(
         await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: "no-such-id", accountLabel: "someone" });
         for (const row of rows) assert.deepEqual(await repo.findById(row), row);
       });
+}
+
+describe("VendorCredentialSetRepoPort (Jini memory)", () => {
+  registerRepoContract({ makeRepo: async () => new InMemoryVendorCredentialSetRepo({}) });
+});
+
+describeEachDialect(
+  "VendorCredentialSetRepoPort",
+  { tables: ["vendor_credential_sets", "workspaces"], make: (kernel) => ({ kernel, repo: new SqlVendorCredentialSetRepo(kernel) }) },
+  (make) => {
+    async function makeRepo() {
+      const { kernel, repo } = make();
+      await seedWorkspaces(kernel, [WORKSPACE, OTHER_WORKSPACE]);
+      return repo;
+    }
+
+    registerRepoContract({ makeRepo });
   }
 );
 

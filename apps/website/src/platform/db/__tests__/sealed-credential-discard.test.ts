@@ -78,15 +78,12 @@ async function credentialRows(kernel: ContentKernel): Promise<Record<string, Arr
 }
 
 async function openStored(sealer: Sealer, row: Record<string, unknown>, aad: string, prefix = ""): Promise<string> {
-  return sealer.open({
-    sealed: {
+  return sealer.open({ sealed: {
       keyId: row[`${prefix}sealed_key_id`] as string,
       ciphertext: row[`${prefix}sealed_ciphertext`] as string,
       nonce: row[`${prefix}sealed_nonce`] as string,
       alg: row[`${prefix}sealed_alg`] as string,
-    },
-    aad,
-  });
+    } }, { aad });
 }
 
 function keyPair(): { sealer: Sealer; keyring: InMemoryKeyring } {
@@ -155,8 +152,8 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
       let changed = false;
       const sealer = {
         seal: right.sealer.seal.bind(right.sealer),
-        open: async (input: Parameters<Sealer["open"]>[0]) => {
-          if (!changed && input.aad === aad) {
+        open: async (input: Parameters<Sealer["open"]>[0], optional: Parameters<Sealer["open"]>[1] = {}) => {
+          if (!changed && optional.aad === aad) {
             changed = true;
             await kernel.execute(sql`UPDATE custom_credential_sets
               SET sealed_key_id = ${replacement.sealed_key_id},
@@ -165,7 +162,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
                   sealed_alg = ${replacement.sealed_alg}
               WHERE id = 'custom-wrong' AND workspace_id = ${WS}`);
           }
-          return right.sealer.open(input);
+          return right.sealer.open(input, optional);
         },
       };
       const common = { kernel, descriptors: SEALED_COLUMN_DESCRIPTORS, sealer };
@@ -242,10 +239,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     const [moved] = await kernel.query<{ sealed_key_id: string; sealed_ciphertext: string; sealed_nonce: string; sealed_alg: string }>(
       sql`SELECT sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg FROM custom_credential_sets WHERE id = 'custom-wrong'`
     );
-    const plaintext = await right.sealer.open({
-      sealed: { keyId: moved!.sealed_key_id, ciphertext: moved!.sealed_ciphertext, nonce: moved!.sealed_nonce, alg: moved!.sealed_alg },
-      aad: buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-wrong" as UUID }),
-    });
+    const plaintext = await right.sealer.open({ sealed: { keyId: moved!.sealed_key_id, ciphertext: moved!.sealed_ciphertext, nonce: moved!.sealed_nonce, alg: moved!.sealed_alg } }, { aad: buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-wrong" as UUID }) });
     assert.equal(plaintext, `secret:${buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-wrong" as UUID })}`, "the same secret, under the same AAD, now under the new key");
     const afterRows = await credentialRows(kernel);
     for (const row of afterRows.custom_credential_sets!) {

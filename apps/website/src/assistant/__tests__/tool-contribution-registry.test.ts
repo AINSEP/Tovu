@@ -175,11 +175,11 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "content-stats",
     "analytics",
     "system-mail",
+    "system-server-logs",
     "identity-policy-list-permissions",
     "sites-list",
     "publish-content-disconnect",
     "theme-set-page-published",
-    "commerce-get-status",
     "agent-plugin-search",
     // 2026-09-27 (S-G1, 1ec285153): `agent_plugin_connect`, the generic "connect this plugin's
     // account" tool (`features/agent-plugins/tool-registrations.ts`).
@@ -208,6 +208,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // 2026-10-01 (82d2be726): `media_view_image`, its own key so it does not replace `media`'s
     // `@jini-ai/cms`-owned catalog.
     "media-view",
+    "media-video-view",
     "media-generation",
     // 2026-10-03 (landed in 5ec1a964d): media-generation provider tools, own key.
     "media-providers",
@@ -220,6 +221,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "plugins",
     // 2026-10-05: confirmed installs, each its own domain beside the tools they feed.
     "plugins-install",
+    "agent-plugins-install",
     "skills-install",
     "post",
     // 2026-10-03 (landed in 5ec1a964d): post preview rendering, own key beside `post`.
@@ -241,6 +243,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "sites",
     "source-control",
     "static-publish",
+    "credential-save",
     "taxonomy",
     "themes",
     // 2026-09-24: `theme_set_active` (F7a, ca9f97328) and `change_sets_list`/`change_sets_revert`

@@ -1,9 +1,10 @@
+import type { Clock } from "@jini-ai/core/primitives";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { isOAuthError, type OAuthClock } from "#src/platform/oauth/index";
+import { OAuthError } from "#src/platform/oauth/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createSqlDeviceAuthorizationStore, createSqlPendingAuthorizationStore } from "../oauth-pending-store.js";
@@ -18,9 +19,10 @@ import { createSqlDeviceAuthorizationStore, createSqlPendingAuthorizationStore }
 
 const WORKSPACE = "ws-oauth";
 
-function createTestClock(startIso = "2026-09-10T12:00:00.000Z"): OAuthClock & { advance(ms: number): void } {
+function createTestClock(startIso = "2026-09-10T12:00:00.000Z"): Clock & { nowIso(): string; advance(ms: number): void } {
   let nowMs = Date.parse(startIso);
   return {
+    nowMs: () => nowMs,
     nowIso: () => new Date(nowMs).toISOString(),
     advance: (ms) => {
       nowMs += ms;
@@ -50,13 +52,20 @@ function makeFixture(base: ContentKernel): Fixture {
 }
 
 async function rejectsInvalidState(promise: Promise<unknown>): Promise<void> {
-  await assert.rejects(promise, (error: unknown) => isOAuthError(error) && error.code === "OAUTH_INVALID_STATE");
+  await assert.rejects(promise, (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE");
 }
 
 describeEachDialect(
   "OAuth pending/device stores",
   { tables: ["workspaces", "oauth_pending_authorizations", "oauth_device_authorizations"], make: makeFixture },
   (makeFx) => {
+    test("a resource binding is refused before minting state because this SQL format cannot retain it", async () => {
+      const store = createSqlPendingAuthorizationStore(makeFx());
+      await assert.rejects(() => store.put(pendingInput(), { resource: "https://resource.example.com" }),
+        { name: "TypeError", message: "OAuth resource binding is not supported by this pending store" });
+      assert.equal(await store.size({}), 0);
+    });
+
     test("put then take returns the entry with the verifier unsealed; the state is single-use", async () => {
       const fx = makeFx();
       const store = createSqlPendingAuthorizationStore(fx);
@@ -76,11 +85,11 @@ describeEachDialect(
 
     test("an expired state is refused and pruned", async () => {
       const fx = makeFx();
-      const store = createSqlPendingAuthorizationStore({ ...fx, ttlMs: 60_000 });
+      const store = createSqlPendingAuthorizationStore({ ...fx }, { ttlMs: 60_000 });
       const minted = await store.put(pendingInput());
       fx.clock.advance(60_000);
       await rejectsInvalidState(store.take({ state: minted.state, ownerKey: "ws-1:higgs" }));
-      assert.equal(await store.size(), 0);
+      assert.equal(await store.size({}), 0);
     });
 
     test("a failed owner check still consumes the row", async () => {
@@ -93,18 +102,18 @@ describeEachDialect(
 
     test("the cap evicts the oldest, never refuses the newest, and holds under concurrent puts", async () => {
       const fx = makeFx();
-      const store = createSqlPendingAuthorizationStore({ ...fx, maxEntries: 3 });
+      const store = createSqlPendingAuthorizationStore({ ...fx }, { maxEntries: 3 });
       const minted = [];
       for (let index = 0; index < 4; index += 1) {
         fx.clock.advance(1);
         minted.push(await store.put(pendingInput(`ws-1:server-${index}`)));
       }
-      assert.equal(await store.size(), 3);
+      assert.equal(await store.size({}), 3);
       await rejectsInvalidState(store.take({ state: minted[0]!.state, ownerKey: "ws-1:server-0" }));
       assert.equal((await store.take({ state: minted[3]!.state, ownerKey: "ws-1:server-3" })).ownerKey, "ws-1:server-3");
 
       await Promise.all(Array.from({ length: 5 }, (_, index) => store.put(pendingInput(`ws-1:concurrent-${index}`))));
-      assert.equal(await store.size(), 3);
+      assert.equal(await store.size({}), 3);
     });
 
     test("the verifier is sealed at rest and AAD-bound to its owner", async () => {
@@ -128,7 +137,7 @@ describeEachDialect(
       );
         await assert.rejects(
           store.take({ state: attacker.state, ownerKey: "ws-1:attacker" }),
-          (error: unknown) => error instanceof Error && !isOAuthError(error) &&
+          (error: unknown) => error instanceof Error && !(error instanceof OAuthError) &&
             error.message === "Unsupported state or unable to authenticate data",
         );
         await rejectsInvalidState(store.take({ state: attacker.state, ownerKey: "ws-1:attacker" }));
@@ -170,7 +179,7 @@ describeEachDialect(
             .where("workspace_id", "=", workspaceId).where("server_id", "=", serverId).execute());
           await assert.rejects(
             store.get(serverId),
-            (error: unknown) => error instanceof Error && !isOAuthError(error) &&
+            (error: unknown) => error instanceof Error && !(error instanceof OAuthError) &&
               error.message === "Unsupported state or unable to authenticate data",
           );
         }

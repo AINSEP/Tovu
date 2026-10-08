@@ -16,6 +16,7 @@ import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { duplicateSite } from "../../duplicate-site.js";
 import { initSite } from "../../init-site.js";
 import { isPortableSiteEntry } from "../../layout.js";
+import { createGitIgnoreFixture } from "./git-ignore.fixture.js";
 
 /**
  * @file R1h: the migration runner's pre-change copy of a SQLite site (`<site>/ops/pre-migrations-<ISO>.db`,
@@ -103,16 +104,18 @@ test("agent file tools and publish trees deny the copy and its sidecars by name"
   }
 });
 
-test("git and Docker ignore the copy in any site folder", () => {
+test("git and Docker ignore the copy in any site folder", (t) => {
+  const gitRoot = createGitIgnoreFixture({ repoRoot: REPO_ROOT, context: t }, {});
   for (const rel of [
     `sites/any-site/ops/${COPY_NAME}`,
     `sites/any-site/ops/${COPY_NAME}-wal`,
     `apps/website/sites/any-site/ops/${COPY_NAME}`,
     `apps/website/sites/any-site/ops/${COPY_NAME}-shm`,
   ]) {
-    const result = spawnSync("git", ["check-ignore", "-q", "--no-index", rel], { cwd: REPO_ROOT });
+    const result = spawnSync("git", ["-c", "core.excludesFile=/dev/null", "check-ignore", "-q", "--no-index", rel], { cwd: gitRoot });
     assert.equal(result.status, 0, `${rel} must be git-ignored`);
   }
+  assert.equal(spawnSync("git", ["-c", "core.excludesFile=/dev/null", "check-ignore", "-q", "--no-index", "sites/any-site/ops/ordinary.json"], { cwd: gitRoot }).status, 1, "ordinary content must not be git-ignored");
   for (const file of [".dockerignore", "Dockerfile.dockerignore"]) {
     const patterns = fs.readFileSync(path.join(REPO_ROOT, file), "utf8");
     for (const rel of [`ops/${COPY_NAME}`, `sites/any-site/ops/${COPY_NAME}`, `nested/site/ops/${COPY_NAME}-wal`, `nested/site/ops/${COPY_NAME}-shm`]) {

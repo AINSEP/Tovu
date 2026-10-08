@@ -8,8 +8,11 @@ import { createByokToolSurface } from "../byok-tool-surface.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { sanitizeGoogleSchema } from "@jini-ai/agent-runtime/providers/tool-turn";
 
-import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -62,7 +65,7 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
     "taxonomy", "themes", "theme-set-active", "change-sets", "trash", "widgets", "workspace",
   ];
   const contributors = contributions.contributors.list({});
-  const surfaces = { surfaceExchanges: createSurfaceExchangeStore() };
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const rawIds = new Set(buildAssistantToolRegistrations(deps as never, surfaces, { ...( { includeContentReadCollapse: false }), contributions }).map((registration) => registration.descriptor.id));
   assert.deepEqual([...ids].sort(), buildAssistantToolRegistrations(deps as never, surfaces, { contributions }).map((registration) => registration.descriptor.id).sort(), "the BYOK surface must retain the complete assembled catalog after content-read collapse");
   for (const domain of requiredDomains) {

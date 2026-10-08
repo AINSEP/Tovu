@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 /**
  * @file SPIKE — public `/store` page + `/store/buy` (D). Renders products that live in a
  * PLUGIN-owned table (`p_store__products`), and a buy action that runs the plugin's checkout
@@ -9,8 +10,8 @@
  */
 import type { Express } from "express";
 
-import { siteRelativeTargetReason } from "#src/features/redirects/index";
-import type { RouteDeps } from "#src/server/routes/types";
+import { siteRelativeTargetReason } from "@jini-ai/cms/redirects";
+import type { StoreApi } from "@jini-ai/commerce/store";
 import { escapeHtml } from "#src/platform/html/escape";
 
 const STORE_PATH = "/store";
@@ -29,12 +30,12 @@ const STORE_PATH = "/store";
  */
 function resolveReturnTo(raw: unknown): string {
   if (typeof raw !== "string" || !raw.startsWith("/")) return STORE_PATH;
-  return siteRelativeTargetReason(raw) === null ? raw : STORE_PATH;
+  return siteRelativeTargetReason({ target: raw, reservedSegments: RESERVED_SEGMENTS }, {}) === null ? raw : STORE_PATH;
 }
 
 const money = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 
-export function registerStoreRoutes(app: Express, deps: Pick<RouteDeps, "store">): void {
+export function registerStoreRoutes(app: Express, deps: { store?: StoreApi }): void {
   app.get("/store", async (req, res) => {
     const store = deps.store;
     if (!store) {
@@ -85,7 +86,7 @@ export function registerStoreRoutes(app: Express, deps: Pick<RouteDeps, "store">
     const productId = String(req.query.productId ?? "");
     let result: Awaited<ReturnType<typeof store.checkout>>;
     try {
-      result = await store.checkout(productId, 1);
+      result = await store.checkout({ productId: productId, qty: 1 });
     } catch {
       res.status(500).type("html").send("<h1>Store error</h1>");
       return;

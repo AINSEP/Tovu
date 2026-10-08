@@ -1,0 +1,89 @@
+import type { ToolMetadataById } from '@jini-ai/core';
+import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+
+/** media registration declarations; shared placement rationale is in ./index.ts. */
+export const toolMetadata = {
+  "chat_list_pending_attachments": {
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "media_promote_chat_attachment": {
+    search: {
+      keywords: "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
+  // --- media -------------------------------------------------------------------------------
+  "media_list_assets": {
+    search: {
+      keywords: "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
+      queries: [
+        "Show me all the images in our media library.",
+        "I need the id of an image before I can edit its alt text.",
+        "Can you list every uploaded file, including trashed ones?",
+        "What media assets do we have and what are their checksums?",
+        "Show me our full media library.",
+      ],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "media_trash_asset": {
+    search: {
+      keywords: "image images photo delete remove trash file picture attachment delete remove photos photo images image picture pictures get rid",
+      queries: [
+        "Can you delete this image from the media library?",
+        "How do I remove a file I no longer need?",
+        "Is there a way to permanently purge a media asset, or just trash it?",
+        "I want to soft-delete this photo.",
+        "What happens if I try to trash an image that's already trashed?",
+      ],
+    },
+    approval: { class: 'trash', confirmation: 'policy' },
+  },
+  "media_update_metadata": {
+    search: {
+      keywords: "image alt text caption description rename file photo metadata video videos autoplay muted loop playsinline poster controls attribute attributes html class classes css lazy loading slug slugs",
+      queries: [
+        "Can you change the alt text on this image?",
+        "How do I update the caption for a media file?",
+        "Can I edit the credit line on this photo?",
+        "I want to change the title of an uploaded image — can I replace the actual file this way?",
+        "How do I fix the metadata on an existing media asset?",
+        "Can you make this video autoplay everywhere it's used?",
+        "How do I add a CSS class to an image?",
+      ],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
+  "media_upload_asset": {
+    search: {
+      keywords: "image images photo upload uploads uploading add attach file files picture logo library uplaod",
+      queries: [
+        "Can you upload this image to the media library?",
+        "How do I add a new photo to our site's media?",
+        "Can I upload an SVG file? What about a file that's too big?",
+        "How do I add a new image from a base64 file?",
+        "If I upload the same picture twice, does it create two entries?",
+      ],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
+  "media_view_image": {
+    search: {
+      keywords: "look at see view open show display inspect describe image images picture pictures photo photos media alt text alt-text caption what does it show contain vision visual",
+      queries: [
+        "Write alt text for this image.",
+        "Can you look at this picture and tell me what it shows?",
+        "Describe the photo in the media library.",
+        "What is in this image? Suggest a caption.",
+        "Open the image and check it before I use it.",
+      ],
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "media_view_video": {
+    search: {
+      keywords: "video videos clip clips movie movies watch see view look describe cat content frames stills screenshot timestamps duration audio attachment attached media library motion movement sequence interval intervals spacing gap gaps every seconds start count sampling sheet sheets grid tiles contact skim overview zoom",
+    },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+} as const satisfies ToolMetadataById<ToolApprovalPolicy>;

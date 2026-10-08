@@ -11,10 +11,8 @@ import type { RevertRegistry } from "./appliers.js";
  * first failure decides the error — no entity write happens during evaluation,
  * so a failed revert never partially applies (INV-05).
  *
- * Task 14b (2026-09-18) — multi-author hardening: the version guard used to be
- * unconditional, which meant a change set became permanently unrevertable the moment ANYONE
- * saved the entity again, even a completely unrelated later edit by a second author. `force`
- * (below) lets an operator explicitly override a stale-version conflict; it never overrides a
+ * `force` lets an operator explicitly override a stale-version conflict after another author
+ * saved the entity. It never overrides a
  * missing entity, and an agent principal may never set it, mirroring the
  * `contracts/core/gated-mutations/gateway.ts` `confirm()` actor-class rule.
  */

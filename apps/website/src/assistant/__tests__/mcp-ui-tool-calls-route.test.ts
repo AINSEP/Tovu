@@ -7,9 +7,12 @@ import type { Principal, RunRef } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Route-level tests for the daemon-side half of the MCP-UI confirmation redemption endpoint
@@ -22,12 +25,10 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../con
  * test: a non-allowlisted `toolName` is rejected, and the fake executor's `execute` is never called.
  */
 
-// The allowlisted tool these cases use is `settings_set_value`: like `content_post_delete` before it,
-// it is reachable by both shapes (an exchange answer and a no-exchange call), so one id exercises
-// every branch. `content_post_delete` left the allowlist with the 2026-10-01 confirmation policy
-// (6eac86229): moving a post to trash is reversible, so it runs without a card and no surface
-// callback may execute it. The permanent-delete ids that kept a card are exchange-only
-// (`isMcpUiToolCallPermitted`), so they cannot stand in for the no-exchange cases.
+// `content_post_search` is the reviewed non-exchange callback carve-out, so it exercises the
+// legacy execution/result-mapping branch. `settings_set_value` now answers protected setting
+// cards only: allowing it to execute without an exchange would bypass the shared approval owner.
+// Destructive tools similarly require a parked exchange, even for reversible trash moves.
 
 interface RecordedCall {
   principal: Principal;
@@ -53,7 +54,7 @@ function createFakeToolExecutor(
   return { executor, calls };
 }
 
-function buildApp(toolExecutor: ToolExecutor, surfaceExchanges = createSurfaceExchangeStore()): express.Express {
+function buildApp(toolExecutor: ToolExecutor, surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): express.Express {
   const app = express();
   app.use(express.json());
   registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
@@ -110,48 +111,48 @@ test("executes an allowlisted toolName, passing the header principal, a syntheti
   const { executor, calls } = createFakeToolExecutor(() => ({
     executionId: "exec-1",
     status: "completed",
-    output: { deleted: true, cancelled: false },
+    output: { posts: [] },
   }));
   const baseUrl = await startTestServer(buildApp(executor), t);
 
   const res = await postToolCall(
     baseUrl,
-    { toolName: "settings_set_value", params: { id: "post-1", kind: "post", confirmationToken: "tok" } },
+    { toolName: "content_post_search", params: { query: "post", limit: 3 } },
     { [RUN_PRINCIPAL_HEADER]: "principal-42" }
   );
 
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { deleted: true, cancelled: false });
+  assert.deepEqual(await res.json(), { posts: [] });
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].principal, { id: "principal-42" });
-  assert.equal(calls[0].toolId, "settings_set_value");
-  assert.deepEqual(calls[0].input, { id: "post-1", kind: "post", confirmationToken: "tok" });
+  assert.equal(calls[0].toolId, "content_post_search");
+  assert.deepEqual(calls[0].input, { query: "post", limit: 3 });
   assert.ok(calls[0].run.id.length > 0, "a synthetic RunRef must still satisfy the structural {id} contract");
 });
 
-test("surfaces a 'failed' execution result (e.g. a stale/reused token) as 400 with the tool's own message", async (t) => {
+test("surfaces a 'failed' execution result as 400 with the tool's own message", async (t) => {
   const { executor } = createFakeToolExecutor(() => ({
     executionId: "exec-2",
     status: "failed",
-    error: "settings_set_value: the confirmation could not be redeemed (unknown-or-expired).",
+    error: "content_post_search: the search could not be completed.",
   }));
   const baseUrl = await startTestServer(buildApp(executor), t);
 
   const res = await postToolCall(
     baseUrl,
-    { toolName: "settings_set_value", params: { id: "post-1", kind: "post" } },
+    { toolName: "content_post_search", params: { query: "post" } },
     { [RUN_PRINCIPAL_HEADER]: "principal-42" }
   );
 
   assert.equal(res.status, 400);
-  assert.match(((await res.json()) as { error: string }).error, /could not be redeemed/);
+  assert.equal(((await res.json()) as { error: string }).error, "content_post_search: the search could not be completed.");
 });
 
 test("maps a non-object params to an empty object rather than forwarding an unexpected shape", async (t) => {
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor), t);
 
-  await postToolCall(baseUrl, { toolName: "settings_set_value", params: "not-an-object" }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+  await postToolCall(baseUrl, { toolName: "content_post_search", params: "not-an-object" }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
 
   assert.deepEqual(calls[0]?.input, {});
 });
@@ -166,12 +167,12 @@ test("maps a non-object params to an empty object rather than forwarding an unex
  */
 
 test("a body carrying an exchange id delivers to the held-open call and never invokes the executor", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
-  const answer = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "settings_set_value", principalId: "principal-1" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const res = await postToolCall(
     baseUrl,
     { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, plan: "pro", extras: ["a", "b"] } },
@@ -188,11 +189,11 @@ test("a body carrying an exchange id delivers to the held-open call and never in
 });
 
 test("the delivery response carries no tool output — the agent's own call returns that, to the model", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: { secret: "leaked" } }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ binding: { toolId: "settings_set_value", principalId: "principal-1" }, emit: async () => undefined });
   const res = await postToolCall(
     baseUrl,
     { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } },
@@ -205,7 +206,7 @@ test("the delivery response carries no tool output — the agent's own call retu
 });
 
 test("an unknown, expired or already-closed exchange is 409, not 404 or a silent success", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
@@ -221,12 +222,12 @@ test("an unknown, expired or already-closed exchange is 409, not 404 or a silent
 });
 
 test("an exchange delivery from the wrong principal is refused and leaves the call still waiting", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "alice" }, async () => undefined);
-  const answer = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "settings_set_value", principalId: "alice" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const res = await postToolCall(
     baseUrl,
     { toolName: "settings_set_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } },
@@ -240,11 +241,11 @@ test("an exchange delivery from the wrong principal is refused and leaves the ca
 });
 
 test("the allowlist gate still applies to an exchange delivery, before the exchange is even looked up", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "not_allowlisted", principalId: "principal-1" }, async () => undefined);
+  const exchange = surfaceExchanges.open({ binding: { toolId: "not_allowlisted", principalId: "principal-1" }, emit: async () => undefined });
   const res = await postToolCall(
     baseUrl,
     { toolName: "not_allowlisted", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } },
@@ -257,8 +258,8 @@ test("the allowlist gate still applies to an exchange delivery, before the excha
   assert.equal(surfaceExchanges.size(), 1);
 });
 
-test("a body with no exchange id still takes the legacy redemption path unchanged", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+test("SECURITY: a protected setting callback without an exchange never executes", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: { ok: true } }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
@@ -268,15 +269,14 @@ test("a body with no exchange id still takes the legacy redemption path unchange
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
-  // ADR-053's path stays in force until ADR-055 Decision 2 replaces it; the discriminator is the
-  // park id's presence, so the delete flow is untouched by this change.
-  assert.equal(res.status, 200);
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0]?.input, { id: "post-1", token: "t" });
+  // Protected settings can only answer the shared owner's parked call; no callback may start one.
+  assert.equal(res.status, 403);
+  assert.deepEqual(await res.json(), { error: "'settings_set_value' is not an MCP-UI-redeemable tool", code: "TOOL_NOT_ALLOWLISTED" });
+  assert.equal(calls.length, 0);
 });
 
-test("an empty or non-string exchange id falls through to the legacy path rather than 409-ing", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+test("SECURITY: an empty or non-string exchange id cannot execute a protected setting", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
@@ -291,18 +291,18 @@ test("an empty or non-string exchange id falls through to the legacy path rather
     { [RUN_PRINCIPAL_HEADER]: "principal-1" }
   );
 
-  assert.equal(empty.status, 200);
-  assert.equal(wrongType.status, 200);
-  assert.equal(calls.length, 2);
+  assert.equal(empty.status, 403);
+  assert.equal(wrongType.status, 403);
+  assert.equal(calls.length, 0);
 });
 
 test("a top-level exchangeId works without any tool-call params — the channel-neutral carrier", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
-  const answer = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "settings_set_value", principalId: "principal-1" }, emit: async () => undefined });
+  const answer = exchange.receive({});
 
   // MCP-UI has to smuggle its correlation through tool-call params, because an mcp-ui surface can
   // only answer by issuing a tool call. A channel that can name the exchange directly — A2UI, the
@@ -320,13 +320,13 @@ test("a top-level exchangeId works without any tool-call params — the channel-
 });
 
 test("a top-level exchangeId wins over a params-borne one, so one body cannot name two exchanges", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
 
-  const real = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
-  const other = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
-  const realAnswer = real.receive();
+  const real = surfaceExchanges.open({ binding: { toolId: "settings_set_value", principalId: "principal-1" }, emit: async () => undefined });
+  const other = surfaceExchanges.open({ binding: { toolId: "settings_set_value", principalId: "principal-1" }, emit: async () => undefined });
+  const realAnswer = real.receive({});
 
   await postToolCall(
     baseUrl,
@@ -336,7 +336,7 @@ test("a top-level exchangeId wins over a params-borne one, so one body cannot na
 
   assert.deepEqual(await realAnswer, { status: "received", params: { [SURFACE_EXCHANGE_ID_PARAM]: other.id } });
   assert.equal(
-    await Promise.race([other.receive(), Promise.resolve("untouched" as const)]),
+    await Promise.race([other.receive({}), Promise.resolve("untouched" as const)]),
     "untouched",
     "the params-borne id must not also be delivered to"
   );
@@ -344,11 +344,11 @@ test("a top-level exchangeId wins over a params-borne one, so one body cannot na
 
 // F6.2: both IDs are redeemable, so only the exchange's tool binding may refuse this answer.
 test("a different allowlisted tool cannot answer another tool's exchange", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { executor, calls } = createFakeToolExecutor(() => ({ executionId: "x", status: "completed", output: {} }));
   const baseUrl = await startTestServer(buildApp(executor, surfaceExchanges), t);
-  const exchange = surfaceExchanges.open({ toolId: "settings_set_value", principalId: "principal-1" }, async () => undefined);
-  const answer = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "settings_set_value", principalId: "principal-1" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   try {
     const res = await postToolCall(baseUrl,
       { toolName: "settings_clear_value", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision: "confirm" } },
@@ -363,6 +363,6 @@ test("a different allowlisted tool cannot answer another tool's exchange", async
     assert.equal(valid.status, 202);
     assert.equal((await answer).status, "received");
   } finally {
-    exchange.close();
+    exchange.close({});
   }
 });

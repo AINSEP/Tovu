@@ -10,18 +10,14 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "../../tool-registrations.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { installFirstPartyToolContributors } from "../../../server/runtime/composition/tool-catalog-manifest.js";
-import type { FieldDescriptor } from "@jini-ai/cms-forms";
+import type { FieldDescriptor } from "@jini-ai/cms/forms";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
 
-// Forms moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2), then self-registration on import was removed
-// entirely (2026-08-27, "invert AI-tool contribution registration") — nothing puts forms tools into
-// the registry now unless something explicitly installs them first, mirroring what the real
-// composition roots do via `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../../tool-contribution-registry.ts.
 installFirstPartyToolContributors({ contributions });
 
 /**

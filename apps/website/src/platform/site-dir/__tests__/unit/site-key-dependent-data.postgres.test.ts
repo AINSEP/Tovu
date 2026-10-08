@@ -16,7 +16,7 @@ import { dropDatabase, freshPostgresDatabase, psql } from "#src/platform/db/__te
 const DATABASE = "tovu_site_key_dependent_data_test";
 const ENV_NAME = "TOVU_TEST_SITE_PG_URL";
 
-after(() => dropDatabase(DATABASE));
+after(() => dropDatabase({ database: DATABASE }));
 
 function postgresSite(t: import("node:test").TestContext): string {
   const dir = mkdtempSync(join(tmpdir(), "tovu-site-key-data-pg-"));
@@ -30,14 +30,14 @@ test("findSiteKeyDependentData: Postgres (env) site — a clean database is no d
   const dir = postgresSite(t);
   const env = { [ENV_NAME]: url };
 
-  const created = psql(DATABASE, "CREATE TABLE publish_credential_sets (id serial PRIMARY KEY, sealed_ciphertext text);");
+  const created = psql({ database: DATABASE, sql: "CREATE TABLE publish_credential_sets (id serial PRIMARY KEY, sealed_ciphertext text);" });
   assert.ok(created.ok, created.stderr);
   assert.equal(await findSiteKeyDependentData(dir, { env }), false);
 
-  const inserted = psql(DATABASE, "INSERT INTO publish_credential_sets (sealed_ciphertext) VALUES (NULL);");
+  const inserted = psql({ database: DATABASE, sql: "INSERT INTO publish_credential_sets (sealed_ciphertext) VALUES (NULL);" });
   assert.ok(inserted.ok, inserted.stderr);
   assert.equal(await findSiteKeyDependentData(dir, { env }), false, "ordinary rows with no ciphertext are clean");
-  const updated = psql(DATABASE, "UPDATE publish_credential_sets SET sealed_ciphertext = 'cipher-bytes';");
+  const updated = psql({ database: DATABASE, sql: "UPDATE publish_credential_sets SET sealed_ciphertext = 'cipher-bytes';" });
   assert.ok(updated.ok, updated.stderr);
   assert.equal(await findSiteKeyDependentData(dir, { env }), true);
 });

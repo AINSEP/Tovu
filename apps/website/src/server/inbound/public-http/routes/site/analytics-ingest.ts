@@ -15,9 +15,7 @@ import type { IngestBeacon, IngestContext } from "#src/features/analytics/index"
  * (ADR-035 §5 — the beacon must work for anonymous visitors).
  *
  * How it relates to the project:
- * - Delegates normalization/policy logic to @jini-ai/analytics. The former ingest.ts fork is
- *   deleted (DELETED-CODE.md); this file
- *   owns only the HTTP boundary: parsing the untrusted request body into an `IngestBeacon`, and
+ * - Delegates normalization/policy logic to @jini-ai/analytics and owns the HTTP boundary: parsing the untrusted request body into an `IngestBeacon`, and
  *   pulling `ip`/`userAgent`/`acceptLanguage` off the request into an `IngestContext`.
  * - The response is ALWAYS `204 No Content`, regardless of `ingestHit`'s `{ accepted, reason }`
  *   result, and regardless of whether `ingestHit` itself throws. Leaking accept/reject (or a

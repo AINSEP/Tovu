@@ -1,16 +1,9 @@
 /**
  * @file Public surface (barrel) for `navigation` — re-exported from `@jini-ai/cms/navigation`.
  *
- * The domain moved into the package on 2026-08-03 so a second host can use the same menus,
- * location bindings, and resolution rules. What is left in this directory is only what is
- * genuinely this host's:
- *
- * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.sqlite.ts`, which is this repo's shared
- *   1,246-line schema covering every domain, so they are host persistence, not library code.
- *
- * Everything else here is a re-export, and the shape of what is *not* re-exported is the point:
- * there is no SQLite export on this barrel, so nothing outside the composition root can
- * accidentally depend on this host's persistence choice.
+ * Jini owns menus, location bindings and resolution rules. SQLite adapters stay host-owned
+ * because they bind the site's schema. This barrel omits SQLite so consumers cannot accidentally
+ * depend on the host's persistence choice.
  */
 export type {
   NavTargetKind,
@@ -73,7 +66,7 @@ export {
 } from "@jini-ai/cms/navigation";
 
 /**
- * `isAllowedHref`/`ALLOWED_HREF_SHAPES_DESCRIPTION` (2026-09-03): the canonical author-link href
+ * `isAllowedHref`/`ALLOWED_HREF_SHAPES_DESCRIPTION`: the canonical author-link href
  * allowlist, promoted into Jini so a host imports it rather than hand-copies it (Jini cannot import
  * Tovu; the reverse is the direction that is actually legal). `render.ts`'s and
  * `features/theme/static-render.ts`'s own `safeHref` render-time coercers have not yet been migrated

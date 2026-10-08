@@ -9,9 +9,7 @@ import { createDefaultConnect } from "../mcp-federation/bootstrap.js";
 import type { McpSessionPort, McpStdioChannel } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "../mcp-federation/presets.js";
 
-// The stdio client moved to @jini-ai/mcp/federation/stdio (adapter.stdio.ts was deleted). Each
-// session below is opened through Tovu's production binding, `createDefaultConnect` with an
-// injected channel, so the handshake still carries Tovu's client identity and close wording.
+// Exercise createDefaultConnect with an injected channel to pin Tovu client identity and close wording.
 function connectMcpStdioSession({ channel, requestTimeoutMs }: { channel: McpStdioChannel; requestTimeoutMs: number }): Promise<McpSessionPort> {
   return createDefaultConnect({ resolver: IDENTITY_STDIO_LAUNCH_RESOLVER }, { spawnChannel: () => channel })({
     config: { connectionId: "supabase", label: "Supabase", allowedToolNames: [], writeAllowedToolNames: [], ...FEDERATED_CONNECTION_DEFAULTS, callTimeoutMs: requestTimeoutMs },

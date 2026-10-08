@@ -21,6 +21,7 @@ import { execFileSync } from "node:child_process";
 import {
   createNodeDaemonProcessAdapter,
   createNodeSupervisorScheduler,
+  type NodeDaemonProcessOptions,
 } from "@jini-ai/sidecar/supervisor/node";
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
@@ -383,7 +384,7 @@ export function isDaemonProcessForWorkspace(commandLine: string, workspaceId: st
  * @returns Process ports; construction never starts a process or writes a registry record.
  * @complexity O(e) environment copying per spawn for e variables; package tree-stop is O(p) processes.
  */
-function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput): DaemonProcessPorts {
+function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optional: Pick<NodeDaemonProcessOptions, "spawn"> = {}): DaemonProcessPorts {
   const daemonPath = resolveDaemonScriptPath();
   const args = buildDaemonSpawnArgs({ daemonPath, workspaceId: input.workspaceId });
   const { registryPath, registry } = createAssistantDaemonRegistry({ siteDir: input.siteDir }, {});
@@ -401,7 +402,7 @@ function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput): DaemonProcess
         TOVU_AGENT_DAEMON_REGISTRY_PATH: registryPath,
       },
       registry,
-    }, { stdout: process.stdout, stderr: process.stderr, platform: process.platform });
+    }, { ...optional, stdout: process.stdout, stderr: process.stderr, platform: process.platform });
   }
   // Termination uses the same registry identity; launch env is refreshed only when spawning.
   const cleanupAdapter = createProcessAdapter();
@@ -411,36 +412,16 @@ function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput): DaemonProcess
   };
 }
 
-// ---------------------------------------------------------------------------------------------
-// Module-singleton wrapper — the ONLY place in this file that touches real `process.on`. `index.ts`
-// calls `startAssistantDaemon` exactly once, from inside `app.listen()`'s callback (same placement
-// as the old `spawnAgentDaemon` call — see that call site's own comment for why it must wait for
-// the boot-readiness promises first). Both `restartAssistantDaemon()` (a future admin "Restart
-// assistant" action) and `ensureAssistantDaemonStarted()` (the on-demand/lazy-start seam —
-// `server/modules/assistant.ts`'s daemon-proxy call site, once wired) are re-exported through
-// `src/assistant/index.ts`'s barrel and report back whatever `{ ok, reason }` they return; no other
-// wiring is required on this side.
-// ---------------------------------------------------------------------------------------------
+// Module-singleton wrapper: the only place in this file that touches real process.on.
+// Top-level boot starts after readiness; restart and lazy-start callers share this lifecycle.
 let singleton: DaemonSupervisor | undefined;
 
 /**
- * Post-shutdown spawn race fix (2026-08-28 dispatch). `shutdownAssistantDaemon()` used to be exactly
- * `singleton?.shutdown()` — a no-op whenever `singleton` was still `undefined`. `cli/commands/
- * serve.ts` kicks off `startAssistantDaemon()` from inside an un-awaited `Promise.all([...]).then(
- * ...)` chain (waiting on first-boot readiness — see that file's own comment on why), so a SIGTERM
- * arriving before that chain settles could call `shutdownAssistantDaemon()` while `singleton` was
- * still `undefined`, then have the pending `.then()` callback call `startAssistantDaemon()` moments
- * later with nothing left to stop it — spawning a fresh, `registerProcessSignalHandlers: false`
- * (i.e. no signal handlers of its own) daemon child that nothing would ever reap.
- *
- * Lives on the module singleton wrapper, not in `serve.ts` (or any other caller), so every current
- * and future caller of `startAssistantDaemon()`/`shutdownAssistantDaemon()` is protected by
- * construction rather than needing to remember its own guard — the same "fix once, structurally,
- * where the invariant actually lives" reasoning `process-error-guards.ts`'s own header uses for the
- * unhandled-rejection guard. Set exactly once, by `shutdownAssistantDaemon()`, and never cleared for
- * the life of the process — like `terminating` on a `DaemonSupervisor` instance (see this file's own
- * header), there is no scenario where a process that has already been asked to shut down should ever
- * legitimately start a daemon afterward.
+ * Latches shutdown even before the singleton exists. A pending readiness continuation
+ * can otherwise start a daemon after shutdown ran, leaving a child no caller will reap.
+ * The guard belongs to the shared lifecycle owner, protecting every start/shutdown caller.
+ * Set once by shutdownAssistantDaemon and never cleared during a real process lifetime:
+ * a process already asked to terminate must never start another daemon.
  */
 let shutdownRequested = false;
 
@@ -457,11 +438,11 @@ export function resetAssistantDaemonSingletonForTests(): void {
 
 export interface StartAssistantDaemonOptions {
   /**
-   * Default `true` — `index.ts`'s original, unchanged behavior: this call registers its own
+   * Default `true`: this call registers its own
    * `process.on(SIGINT/SIGTERM/SIGHUP/"exit", ...)` handlers, and the signal handlers call
    * `process.exit(0)` themselves once the daemon is torn down.
    *
-   * `cli/commands/serve.ts` (2026-08-28 dispatch) passes `false`: that command already owns its own
+   * `cli/commands/serve.ts` passes `false`: that command already owns its own
    * BR-07 graceful-shutdown sequence, registered via `process.once(...)` on the SAME two signals.
    * Node invokes every registered listener for a signal, not just the first — a second listener
    * here calling `process.exit(0)` immediately would race `serve.ts`'s graceful drain (finish the
@@ -480,6 +461,8 @@ export interface StartAssistantDaemonOptions {
    * one layer up.
    */
   spawnDaemonProcess?: (input: DaemonSpawnEnvInput) => SpawnedDaemonProcess;
+  /** Overrides only the native launch effect, retaining the production argv/env assembly. */
+  nativeSpawn?: NodeDaemonProcessOptions["spawn"];
 }
 
 /**
@@ -520,7 +503,7 @@ export function startAssistantDaemon(
       daemonPort: daemonPortOverride,
     });
   } else {
-    supervisor = bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv), { daemonPort: daemonPortOverride });
+    supervisor = bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { daemonPort: daemonPortOverride });
   }
   singleton = supervisor;
   supervisor.start();

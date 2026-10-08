@@ -388,8 +388,8 @@ class GatedSealer implements SecretSealerPort {
     return this.inner.seal(input);
   }
 
-  open(input: Parameters<SecretSealerPort["open"]>[0]) {
-    return this.inner.open(input);
+  open(input: Parameters<SecretSealerPort["open"]>[0], optional: Parameters<SecretSealerPort["open"]>[1] = {}) {
+    return this.inner.open(input, optional);
   }
 }
 
@@ -625,7 +625,7 @@ test("a freshly saved key is sealed with AAD bound to (workspaceId, providerId) 
   await assert.rejects(() => deps.sealer.open({ sealed: row!.sealed! }));
   const aad = "media-provider-credential:v1:workspace-1:openai";
   assert.equal(buildMediaProviderCredentialAad({ workspaceId: WORKSPACE, providerId: "openai" }), aad);
-  const opened = await deps.sealer.open({ sealed: row!.sealed!, aad });
+  const opened = await deps.sealer.open({ sealed: row!.sealed! }, { aad });
   assert.equal(opened, "sk-aad-bound-1234");
 });
 

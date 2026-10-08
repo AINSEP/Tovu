@@ -7,7 +7,7 @@
  * engine, so a future incremental/scheduled exporter (or an admin "N routes will be exported"
  * preview) can depend on the interface without pulling in the HTTP-driving writer.
  *
- * `src/seo/sitemap.ts`'s `buildSitemap` is NOT this port and must never be mistaken for it: it
+ * `Jini/packages/cms/src/seo/sitemap.ts`'s `buildSitemap` is NOT this port and must never be mistaken for it: it
  * enumerates only published, indexable posts, silently omitting home, products, theme-owned static
  * pages, redirects, and 404 — an SEO index and a deployable manifest answer different questions
  * (`development/docs/deployment/deployment-constraints.md` §3).

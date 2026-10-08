@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createLiveRunTracker, type LiveRunTracker } from "../../server/inbound/assistant/agent-run-concurrency.js";
+import { createLiveRunTracker, type LiveRunTracker } from "../agent-session-preset.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,7 +7,7 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { openChatDb } from "../../platform/db/sqlite/chat-db.js";
 import { buildFederatedCallConfirmSpec, createFederatedCallConfirmer } from "../external-mcp-call-confirmation.js";
 import * as shared from "@jini-ai/mcp/federation";
@@ -19,9 +19,11 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-a
 import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
 import { createSqliteConversationToolApprovalStore } from "../persistence/conversation-tool-approval-store.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-// The trust tier and approval fingerprint moved to @jini-ai/mcp/federation. These wrappers keep the
-// original call shapes and bind Tovu's fingerprint domain exactly as the host confirmer does.
+
+// These wrappers bind Jini approval policy to Tovu's fingerprint domain and call contract.
 const federatedToolApprovalFingerprint = (identity: FederatedToolIdentity) =>
   shared.federatedToolApprovalFingerprint({ identity, fingerprintDomain: TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN });
 const describeFederatedTool = ({ remoteDescription, ...required }: { label: string; remoteName: string; remoteDescription?: string | undefined }) =>
@@ -82,7 +84,7 @@ function harness(
   stores: Stores,
   options: { tools?: RemoteToolDescriptor[]; config?: FederatedMcpConnectionConfig; mayManage?: boolean; tracker?: LiveRunTracker } = {},
 ): Harness {
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const sent: { name: string; args: Record<string, unknown> }[] = [];
   const tools = options.tools ?? TOOLS;
   const session = new InMemoryMcpSession({
@@ -110,7 +112,7 @@ function harness(
         chat: stores.chat,
         // Run ids here are "<conversation>/<n>": the daemon maps a run to the conversation it started in.
         conversationIdForRun: options.tracker
-          ? (runId) => options.tracker!.conversationIdForRun(runId)
+          ? (runId) => options.tracker!.conversationIdForRun({ runId: runId }, {})
           : (runId) => (runId.startsWith("none/") ? undefined : runId.split("/")[0]),
       },
     ),
@@ -164,14 +166,14 @@ function call(
     signal: new AbortController().signal,
     emitSurface,
   } as ToolExecutionContext;
-  if (h.tracker) h.tracker.register(options.conversation ?? "chat-a", ctx.run.id);
+  if (h.tracker) h.tracker.register({ conversationId: options.conversation ?? "chat-a", runId: ctx.run.id }, {});
   return { pending: h.registration(name).handler(ctx), cards };
 }
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 function answer(h: Harness, card: Card, name: string, params: Record<string, unknown>, principalId = PRINCIPAL_ID) {
-  return h.store.deliver({ exchangeId: card.exchangeId, params, principalId, toolId: `mcp__supabase__${name}` });
+  return h.store.deliver({ exchangeId: card.exchangeId, params, principalId }, { toolId: `mcp__supabase__${name}` });
 }
 
 /** Calls `name`, waits for its card, answers it with `params`, and returns the card. */
@@ -516,7 +518,7 @@ test("G3 remembered: the fingerprint ignores hint key order but not hint values"
 });
 
 test("remembered chat approvals use the live tracker conversation lookup and stay isolated", async () => {
-  const tracker = createLiveRunTracker();
+  const tracker = createLiveRunTracker({}, {});
   const h = harness(memoryStores(), { tracker });
   await callAndAnswer(h, "send_email", { decision: "confirm", choice: "chat" }, { conversation: "chat-tracker-a" });
   assert.equal(await runsWithoutCard(h, "send_email", { conversation: "chat-tracker-a" }), true);

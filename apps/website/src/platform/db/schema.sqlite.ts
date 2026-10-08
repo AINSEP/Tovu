@@ -3161,7 +3161,7 @@ export const publishContentPeers = sqliteTable(
  * - **Listing must never re-read the entity.** `display_title`/`display_subtitle` are a SNAPSHOT
  *   captured at trash time from columns the caller already held. That is the load-bearing property:
  *   `widgets_trash_instance` today cannot touch two broken production rows because it parses
- *   `fields_json` → rebuilds → re-parses (`features/widgets/entry-payload.ts` throws at three points
+ *   `fields_json` → rebuilds → re-parses (`Jini/packages/cms/src/widgets/entry-payload.ts` throws at three points
  *   in `readPayloadString` plus `JSON.parse`), so it fails precisely on the rows most needing
  *   removal. A row whose payload no parser can read still lists here, and still restores.
  * - **No foreign keys to entity tables, deliberately.** The four phase-1 domains live in three

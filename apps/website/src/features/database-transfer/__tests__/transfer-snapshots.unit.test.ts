@@ -7,10 +7,13 @@ import test from "node:test";
 import Database from "better-sqlite3";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({ input, executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal });
 
@@ -53,7 +56,7 @@ test("planning backs up chat.db read-only, discloses its rows, and running uses 
         runScript: async chunks => { script = [...chunks].join(""); return { ok: true, value: null }; },
       }),
     };
-    const tools = new Map(buildDatabaseTransferRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).map(tool => [tool.descriptor.id, tool]));
+    const tools = new Map(buildDatabaseTransferRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).map(tool => [tool.descriptor.id, tool]));
     const planned = await tools.get("database_transfer_plan")!.handler(ctx()) as { planned: boolean; planId: string; rowCount: number };
     assert.equal(planned.planned, true);
     assert.ok(planned.rowCount >= 3);

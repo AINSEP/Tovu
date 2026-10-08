@@ -2,14 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createToolRegistry, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
-import { createSurfaceExchangeStore } from '../../contracts/core/tool-surface-exchanges.js';
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { applyToolApprovalPolicy, approvalClassFor } from '../tool-approval-policy.js';
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({executionId:'exec',principal:{id:'owner'},run:{id:'run'},input,signal:new AbortController().signal});
 function fixture(id: string) {
   let calls = 0; let executed: unknown;
   const registration: ToolRegistration = {descriptor:{id,description:id,inputSchema:{type:'object'}},policy:{authorize:()=> 'allow'},handler:async context=>{calls++; executed=context.input; return {changed:true};}};
-  const surfaces = {surfaceExchanges:createSurfaceExchangeStore()};
+  const surfaces = {surfaceExchanges:createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })};
   const registry = createToolRegistry({});
   registry.register(applyToolApprovalPolicy({registration,surfaces}));
   return {surfaces,executor:createToolExecutor({registry}),calls:()=>calls,executed:()=>executed};
@@ -50,12 +53,12 @@ test('one principal-bound confirmation approves one frozen call; cancel changes 
       exchangeId=html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1]; emittedResolve();
     }});
     await emitted; assert.equal(f.calls(),0); input.id='changed-after-proposal';
-    assert.equal(f.surfaces.surfaceExchanges.deliver({exchangeId,toolId:'content_post_delete',principalId:'intruder',params:{decision}}).ok,false);
-    f.surfaces.surfaceExchanges.deliver({exchangeId,toolId:'content_post_delete',principalId:'owner',params:{decision}});
+    assert.equal(f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'intruder', params:{decision} }, { toolId:'content_post_delete' }).ok,false);
+    f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'owner', params:{decision} }, { toolId:'content_post_delete' });
     const result=await pending; assert.equal(result.status,'completed');
     assert.equal(f.calls(),decision==='confirm'?1:0);
     if(decision==='confirm') assert.deepEqual(f.executed(),{id:'post-1'});
-    assert.equal(f.surfaces.surfaceExchanges.deliver({exchangeId,toolId:'content_post_delete',principalId:'owner',params:{decision}}).ok,false);
+    assert.equal(f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'owner', params:{decision} }, { toolId:'content_post_delete' }).ok,false);
   }
 });
 
@@ -73,7 +76,7 @@ test('page verbs are classified, ordinary install controls are direct, opaque de
   const { TOOL_APPROVAL_POLICY }=await import('../../contracts/headless/assistant-tool-approval-policy.js');
   for(const capability of PAGE_CAPABILITIES)assert.ok(Object.hasOwn(TOOL_APPROVAL_POLICY,capability.id),capability.id);
   assert.equal(approvalClassFor({toolId:'page.click',input:{handle:'plugins-install-confirm'}}),'edit');
-  assert.equal(approvalClassFor({toolId:'page.click',input:{handle:'trash-purge-confirm'}}),'safety');
+  assert.equal(approvalClassFor({toolId:'page.click',input:{handle:'trash-purge-confirm'}}),'delete');
   assert.equal(approvalClassFor({toolId:'page.fill',input:{handle:'title',text:'Hello'}}),'edit');
   assert.throws(()=>approvalClassFor({toolId:'toString',input:{}}),/has no approval classification/);
 });

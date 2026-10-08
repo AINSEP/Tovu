@@ -1,3 +1,5 @@
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -19,17 +21,17 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryOutbox } from "../../contracts/core/events/index.js";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../features/origin/index.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
-import { redirectMatcher } from "../../features/redirects/matcher.js";
-import type { RedirectDbHandle } from "../../features/redirects/ports.internal.js";
-import { InMemoryRedirectRepo } from "../../features/redirects/repo.memory.js";
+import { redirectMatcher } from "@jini-ai/cms/redirects";
+import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
+import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "../../features/redirects/__tests__/remove-redirect-double.js";
-import type { RedirectsWriteDeps } from "../../features/redirects/redirects.js";
-import type { RedirectHitStats } from "../../features/redirects/types.js";
-import type { RedirectHitSink } from "../../features/redirects/ports.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import type { RedirectHitStats } from "@jini-ai/cms/redirects";
+import type { RedirectHitSink } from "@jini-ai/cms/redirects";
+import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeRedirectsTools } from "../../features/redirects/tool-registrations.js";
@@ -40,10 +42,7 @@ const contributions = {
 };
 
 
-// Redirects moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
-// so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
-// it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeRedirectsTools() });
 
@@ -72,9 +71,9 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   const redirectRepo = new InMemoryRedirectRepo();
-  const originRepo = new InMemoryOriginSettingRepo([
+  const originRepo = new InMemoryOriginSettingRepo({ seeds: [
     { workspaceId: WORKSPACE_ID, origin: createVerifiedOrigin({ scheme: "https", host: "trusted.example", verifiedAt: NOW, source: "workspace-setting" }), redirectAllowlist: [] },
-  ]);
+  ] });
 
   let clockTick = 0;
   let idTick = 0;
@@ -87,6 +86,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     restore: restoreVia(redirectRepo),
     db: redirectRepo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
+    reservedSegments: RESERVED_SEGMENTS,
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
     // One second later on every read, so successive writes carry distinct, ordered timestamps.
@@ -116,7 +116,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function redirectsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("redirects_") || r.descriptor.id === "content_read.redirect").map((r) => [r.descriptor.id, r]));
+  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).filter((r) => r.descriptor.id.startsWith("redirects_") || r.descriptor.id === "content_read.redirect").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -126,12 +126,8 @@ function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistrati
 }
 
 /**
- * Tombstones a rule through the real `redirects_tombstone` tool for this workflow test. It used to
- * raise the 2026-09-08 confirmation dialog (ADS-memory/reports/2026-09-08-delete-confirmation-build.md)
- * against one explicit `SurfaceExchangeStore` and immediately confirm it.
- * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) removed that dialog:
- * moving to Trash is reversible, so only permanent deletes still confirm. The tool now completes in
- * one plain call, which is all this helper ever needed (it was never certifying the gate).
+ * Tombstones a rule through the real tool for workflow setup. Reversible Trash moves complete
+ * in one call; this helper exercises the workflow rather than certifying a confirmation gate.
  */
 async function tombstoneRule(deps: RegistryDepsWithoutLimiter, id: string): Promise<{ rule: { status: string; version: number } }> {
   return wired(deps, "redirects_tombstone").handler(executionContext({ id })) as Promise<{ rule: { status: string; version: number } }>;
@@ -167,7 +163,7 @@ test("exactly the 6 wireable redirects entries plus redirects_import are registe
 
 test("redirects_import is agent-callable across the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).map((r) => r.descriptor.id);
   assert.ok(ids.includes("redirects_import"));
 });
 

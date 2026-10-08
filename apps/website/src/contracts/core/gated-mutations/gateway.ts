@@ -62,8 +62,7 @@
  * first (publish-content captures a whole-workspace restore point there), and this gateway takes
  * no operation lock, so a second derivation can legitimately disagree with the verified one. That
  * gap is a confirm-then-apply integrity hole — the operator authorises one write set and receives
- * another — and passing the verified plan down is what closes it (sol review 2026-09-20,
- * High finding 1).
+ * another — passing the verified plan down closes that integrity gap.
  *
  * A mutation with nothing to re-derive simply ignores the argument; a zero-parameter
  * implementation still satisfies this signature, so every hooks object written before this

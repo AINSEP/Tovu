@@ -1,8 +1,9 @@
 /** t08: output contracts for the shared page body projection. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EventEmitter } from "node:events";
+import { Server } from "node:http";
 import { shapePageBody, readPageBodyOptions } from "../page-body.js";
+import { fetchPublishedPage, type FetchPublishedPageDeps } from "../published-page.js";
 
 test("no-option body identity includes whitespace, entities and non-ASCII bytes", () => {
   const body = '\n<p title="a>b"> café &amp; 😀 </p>\r\n';
@@ -45,31 +46,33 @@ test("page shaping refuses invalid optional inputs rather than silently dropping
   for (const maxBytes of [0, 1.2, 1000001, '20', null]) assert.throws(() => readPageBodyOptions({ maxBytes }), { message: "maxBytes must be an integer of 1..1000000." });
   assert.throws(() => readPageBodyOptions({ textOnly: "yes" }), { message: "textOnly must be a boolean." });
 });
-test("published-page shaping preserves legacy bytes and applies find/textOnly through the real producer without a socket", async t => {
+test("published-page shaping preserves legacy bytes and applies find/textOnly through the real producer without a socket", async () => {
   let closed = 0;
   let requests = 0;
   // Only socket creation and the HTTP response are faked; the producer and bounded body reader run.
-  t.mock.module('node:http', { namedExports: { createServer: () => {
-    const server = Object.assign(new EventEmitter(), {
-      listen: (port: number, host: string) => {
-        assert.equal(port, 0); assert.equal(host, '127.0.0.1');
-        queueMicrotask(() => server.emit('listening')); return server;
-      },
-      address: () => ({ port: 53142 }),
-      closeAllConnections: () => {},
-      close: (done: () => void) => { closed++; done(); },
-    });
-    return server;
-  } } });
   let html = '\n<p>café &amp; 😀</p>\r\n';
-  t.mock.method(globalThis, 'fetch', async (url: string, options: RequestInit) => {
-    requests++;
-    assert.equal(url, 'http://127.0.0.1:53142/about?x=1');
-    assert.equal(options.redirect, 'manual');
-    return new Response(html, { headers: { 'X-Test': 'kept' } });
-  });
-  const { fetchPublishedPage } = await import('../published-page.js');
-  const deps = { createSiteApp: () => () => {} };
+  const deps: FetchPublishedPageDeps = {
+    createSiteApp: () => () => {},
+    createServer: listener => {
+      const server = new Server(listener);
+      Object.assign(server, {
+        listen: (port: number, host: string) => {
+          assert.equal(port, 0); assert.equal(host, '127.0.0.1');
+          queueMicrotask(() => server.emit('listening')); return server;
+        },
+        address: () => ({ port: 53142, address: '127.0.0.1', family: 'IPv4' }),
+        closeAllConnections: () => {},
+        close: (done: () => void) => { closed++; done(); return server; },
+      });
+      return server;
+    },
+    fetch: async (url, options) => {
+      requests++;
+      assert.equal(url, 'http://127.0.0.1:53142/about?x=1');
+      assert.equal(options?.redirect, 'manual');
+      return new Response(html, { headers: { 'X-Test': 'kept' } });
+    },
+  };
   assert.deepEqual(await fetchPublishedPage(deps, { path: '/about?x=1' }), {
     path: '/about?x=1', status: 200, ok: true, headers: { 'content-type': 'text/plain;charset=UTF-8', 'x-test': 'kept' },
     cookies: [], body: html, bodyBytes: Buffer.byteLength(html), truncated: false,

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { scanHtmlEmbeds } from "#src/features/widgets/html-embeds";
+import { scanHtmlEmbeds } from "@jini-ai/cms/widgets/html";
 import { extractEntryRefs, extractHtmlEntryRefs } from "../extractor.js";
 
 /**
- * @file Canaries for `extractHtmlEntryRefs` on the shared marker parser (2026-08-10 unification).
+ * @file Canaries for `extractHtmlEntryRefs` on the shared marker parser.
  *
  * This is the integrity path, not a render path, and it fails in the one direction that is worse
  * than an error: `entry_refs` is what safe-delete's where-used check reads, so a reference this
@@ -14,10 +14,8 @@ import { extractEntryRefs, extractHtmlEntryRefs } from "../extractor.js";
  * between "no reference exists" and "the reference could not be parsed".
  *
  * Hence the two canaries that matter most here are about what happens when parsing FAILS, and about
- * the extractor and the renderer agreeing on what a reference is. The second used to be enforced by
- * `html-entry-refs-consistency.integration.test.ts` comparing two independently-written regexes;
- * both now call one parser, so the property holds by construction and this only pins that the two
- * projections of it stay in step.
+ * the extractor and renderer projecting the shared parser consistently. They already share one
+ * marker definition; these canaries pin the two consumers' projections and parsing failures.
  */
 
 const WORKSPACE = "00000000-0000-4000-8000-000000000001";
@@ -149,7 +147,7 @@ test("canary: the index and the renderer agree on what counts as a reference", (
     `<div data-embed-config='{"type":"partial","id":"nav"}'></div>`;
 
   const indexed = extract(html).map((r) => r.targetId);
-  const rendered = scanHtmlEmbeds(html).filter((r) => r.type !== "partial" && r.id !== null).map((r) => r.id);
+  const rendered = scanHtmlEmbeds({ html: html }).filter((r) => r.type !== "partial" && r.id !== null).map((r) => r.id);
   assert.deepEqual(indexed, rendered);
   assert.deepEqual(indexed, [WIDGET, ASSET]);
   assert.deepEqual(rendered, [WIDGET, ASSET]);

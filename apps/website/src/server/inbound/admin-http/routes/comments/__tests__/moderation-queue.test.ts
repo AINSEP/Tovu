@@ -3,8 +3,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
-import type { CommentRecord } from "#src/features/comments/index";
+import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+import type { CommentRecord } from "@jini-ai/cms/comments";
 import {
   createCapturingResponse,
   extractRouteHandler,
@@ -101,8 +101,8 @@ test("moderation-queue: authorize denial 403s with the FORBIDDEN envelope", asyn
 
 test("moderation-queue: status omitted defaults to 'pending' (typeof raw !== 'string' branch)", async (t) => {
   const { app, commentRepo } = buildApp();
-  await commentRepo.create(makeComment({ id: "p-1", status: "pending" }));
-  await commentRepo.create(makeComment({ id: "a-1", status: "approved" }));
+  await commentRepo.create({ record: makeComment({ id: "p-1", status: "pending" }) }, {});
+  await commentRepo.create({ record: makeComment({ id: "a-1", status: "approved" }) }, {});
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${PATH}`);
@@ -113,7 +113,7 @@ test("moderation-queue: status omitted defaults to 'pending' (typeof raw !== 'st
 
 test("moderation-queue: an off-enum status is a 400 naming the values, not a silent 'pending' page", async (t) => {
   const { app, commentRepo } = buildApp();
-  await commentRepo.create(makeComment({ id: "p-1", status: "pending" }));
+  await commentRepo.create({ record: makeComment({ id: "p-1", status: "pending" }) }, {});
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${PATH}?status=not-a-real-status`);
@@ -123,8 +123,8 @@ test("moderation-queue: an off-enum status is a 400 naming the values, not a sil
 
 test("moderation-queue: a valid status string is honored (spam)", async (t) => {
   const { app, commentRepo } = buildApp();
-  await commentRepo.create(makeComment({ id: "p-1", status: "pending" }));
-  await commentRepo.create(makeComment({ id: "s-1", status: "spam" }));
+  await commentRepo.create({ record: makeComment({ id: "p-1", status: "pending" }) }, {});
+  await commentRepo.create({ record: makeComment({ id: "s-1", status: "spam" }) }, {});
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${PATH}?status=spam`);
@@ -138,7 +138,7 @@ test("moderation-queue: limit omitted defaults to 20; a valid limit is honored a
   const orderedIds = Array.from({ length: 105 }, (_, i) => `p-${i}`);
   for (const [i, id] of orderedIds.entries()) {
     const timestamp = new Date(Date.UTC(2026, 6, 16, 0, i)).toISOString();
-    await commentRepo.create(makeComment({ id, createdAt: timestamp, updatedAt: timestamp }));
+    await commentRepo.create({ record: makeComment({ id, createdAt: timestamp, updatedAt: timestamp }) }, {});
   }
   const baseUrl = await startTestServer(app, t);
 
@@ -168,7 +168,7 @@ test("moderation-queue: limit omitted defaults to 20; a valid limit is honored a
 test("moderation-queue: cursor omitted starts from the beginning; a real cursor resumes pagination", async (t) => {
   const { app, commentRepo } = buildApp();
   for (let i = 0; i < 3; i += 1) {
-    await commentRepo.create(makeComment({ id: `p-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }));
+    await commentRepo.create({ record: makeComment({ id: `p-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }) }, {});
   }
   const baseUrl = await startTestServer(app, t);
 
@@ -196,7 +196,7 @@ test("moderation-queue: a limit that is not an integer >= 1 is a 400, not a sile
 test("moderation-queue: Load more still works after another moderator purged the comment the cursor ended on", async (t) => {
   const { app, commentRepo } = buildApp();
   for (let i = 0; i < 3; i += 1) {
-    await commentRepo.create(makeComment({ id: `p-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }));
+    await commentRepo.create({ record: makeComment({ id: `p-${i}`, createdAt: `2026-07-16T00:0${i}:00.000Z`, updatedAt: `2026-07-16T00:0${i}:00.000Z` }) }, {});
   }
   const baseUrl = await startTestServer(app, t);
 
@@ -212,7 +212,7 @@ test("moderation-queue: Load more still works after another moderator purged the
 // A bare comment id was the cursor format before 2026-10-05; it is malformed now.
 test("moderation-queue: a malformed cursor is a 400 VALIDATION_ERROR, not a silent page 1", async (t) => {
   const { app, commentRepo } = buildApp();
-  await commentRepo.create(makeComment({ id: "p-0" }));
+  await commentRepo.create({ record: makeComment({ id: "p-0" }) }, {});
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${PATH}?cursor=no-such-comment`);
@@ -223,7 +223,7 @@ test("moderation-queue: a malformed cursor is a 400 VALIDATION_ERROR, not a sile
 // A repeated `cursor` parses as an array; it used to read as "no cursor" and silently restart at page 1.
 test("moderation-queue: a non-string cursor is a 400 VALIDATION_ERROR, not a silent page 1", async (t) => {
   const { app, commentRepo } = buildApp();
-  await commentRepo.create(makeComment({ id: "p-0" }));
+  await commentRepo.create({ record: makeComment({ id: "p-0" }) }, {});
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${PATH}?cursor=a&cursor=b`);

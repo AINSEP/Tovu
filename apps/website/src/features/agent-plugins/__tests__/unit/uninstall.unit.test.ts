@@ -11,7 +11,7 @@ import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
 import { ACTIVATIONS_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import {
   AgentPluginChangedSincePreviewError,
@@ -19,7 +19,7 @@ import {
   AgentPluginNotUninstallableError,
   previewAgentPluginUninstall,
   uninstallAgentPlugin,
-} from "../../uninstall.js";
+} from "../../lifecycle.js";
 
 /**
  * @file `uninstallAgentPlugin()` — the RED/GREEN proof this domain's uninstall was missing entirely

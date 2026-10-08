@@ -7,7 +7,7 @@ import { NO_THEME_ID, resolveActiveTheme, isStandaloneThemePage } from "#src/fea
 import { postPublicPath } from "#src/platform/routing/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
-import type { RedirectRecord, RedirectRepoPort } from "#src/features/redirects/index";
+import type { RedirectRecord, RedirectRepoPort } from "@jini-ai/cms/redirects";
 import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports.js";
 
 /**

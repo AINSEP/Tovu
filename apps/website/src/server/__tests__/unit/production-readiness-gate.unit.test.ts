@@ -295,8 +295,8 @@ test("production refuses an always-enabled analytics stub as its sole unsafe def
 });
 
 test("production route guards consult classified inventory entries and keep their classifications", () => {
-  assert.deepEqual(capabilityRouteGuard({ capabilityName: "store", mode: "production" }), { register: false, classification: "experimental" });
+  assert.deepEqual(capabilityRouteGuard({ capabilityName: "seo", mode: "production" }), { register: true });
   assert.deepEqual(capabilityRouteGuard({ capabilityName: "recovery", mode: "production" }), { register: false, classification: "experimental" });
   assert.deepEqual(capabilityRouteGuard({ capabilityName: "posts", mode: "production" }), { register: true });
-  assert.deepEqual(capabilityRouteGuard({ capabilityName: "store", mode: "local" }), { register: true });
+  assert.deepEqual(capabilityRouteGuard({ capabilityName: "seo", mode: "local" }), { register: true });
 });

@@ -3,14 +3,16 @@ import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { mock } from "node:test";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "#src/features/agent-plugins/install";
+import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../../features/agent-plugins/lifecycle.js";
 import type { PluginsToolDeps } from "#src/features/plugin-runtime/tool-registrations";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file C2 busy-mapping proof for `plugins_set_enabled`'s Agent Plugin branch (t91 R2, 2026-09-16):
@@ -23,6 +25,9 @@ import type { PluginsToolDeps } from "#src/features/plugin-runtime/tool-registra
  * real module's own exports through it, before the host activation binding/`tool-registrations.js` are ever
  * imported, and each is imported only once, dynamically.
  *
+ * The former module-mock approach described above is replaced by the lifecycle filesystem
+ * port: both preflight and writes run the owner, which maps the exact injected lock failure.
+ *
  * The enable case also proves the pre-flight ordering (t91 §7.2, extended to R2): a busy lock is
  * caught BEFORE the confirmation dialog is raised, because `unwritableAgentPluginActivationsResult`
  * runs ahead of `confirmEnable` — see `plugin-runtime/tool-registrations.ts`'s `plugins_set_enabled`
@@ -30,29 +35,24 @@ import type { PluginsToolDeps } from "#src/features/plugin-runtime/tool-registra
  */
 
 const real = await import("@jini-ai/platform/fs/file-lock");
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: this file swaps
-// `behavior` per test to cover the lock-failure shape without re-deriving the generic signature.
-let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
-
-mock.module("@jini-ai/platform/fs/file-lock", {
-  namedExports: {
-    ...real,
-    withFileLock: ({ lockPath, run }: { lockPath: string; run: (lock: unknown) => Promise<unknown> }, options?: unknown) => behavior(lockPath, run, options),
-  },
+const realFsp = await import("node:fs/promises");
+const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../features/agent-plugins/lifecycle.js");
+// Exercise the owner's real lock-error translation, not a raw error at its preflight boundary.
+let behavior: typeof realFsp.open = realFsp.open;
+const lifecycle = createTovuAgentPluginLifecycle({}, {
+  filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 
-const { installAgentPlugin } = await import("#src/features/agent-plugins/install");
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
 const { readAgentPluginActivations, setAgentPluginActivation } = (await import("#src/features/agent-plugins/activation-effects")).agentPluginActivations;
 const { forceRemove } = await import("#src/features/agent-plugins/__tests__/fixtures/force-remove");
 const { buildPluginsRegistrations } = await import("#src/features/plugin-runtime/tool-registrations");
 const { InMemoryExternalMcpServerRepo } = await import("#src/assistant/index");
-const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-surface-exchanges");
+const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 const { InMemoryChangeSetRepo } = await import("#src/contracts/core/commands/index");
 const { InMemoryKeyring } = await import("#src/features/webhooks/keyring.memory");
 const { AesGcmSecretSealer } = await import("#src/features/webhooks/secret-sealer.aesgcm");
-const { InMemoryPluginActivationRepo } = await import("#src/features/plugin-runtime/repo.memory");
+const { InMemoryPluginActivationRepo } = await import("@jini-ai/plugins/host");
 
 const WORKSPACE_ID = "66666666-6666-4666-8666-666666666666";
 const PRINCIPAL_ID = "principal-under-test";
@@ -102,7 +102,7 @@ async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promis
     });
     return await fn(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root);
   } finally {
-    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    behavior = realFsp.open;
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
@@ -122,6 +122,8 @@ function fakeRouteDeps(): { deps: PluginsToolDeps } {
     changeSets: new InMemoryChangeSetRepo(),
     outbox: { enqueue: async () => undefined },
     authorize: async () => ({ allowed: true, reason: "matched" }),
+    assertAgentPluginActivationsWritable: lifecycle.assertAgentPluginActivationsWritable,
+    setAgentPluginEnabled: lifecycle.setAgentPluginEnabled,
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => [],
     onPluginEnabled: async () => undefined,
@@ -150,11 +152,13 @@ function call(registration: ToolRegistration, input: unknown, emitSurface?: Surf
     signal: new AbortController().signal,
     ...(emitSurface ? { emitSurface } : {}),
   };
-  return registration.handler(ctx);
+  return registration.handler(ctx, emitSurface ? { emitSurface } : {});
 }
 
 function timeoutBehavior(pid: number): typeof behavior {
-  return async (lockPath) => {
+  return async (...args) => {
+    const lockPath = String(args[0]);
+    if (path.basename(lockPath) !== "activations.json.lock") return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
     throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
@@ -172,7 +176,7 @@ test("plugins_set_enabled: a busy lock on ENABLE returns changed:false/reason:ac
   await withInstalledAgentPlugin(async (workspaceRoot) => {
     behavior = timeoutBehavior(9201);
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     const emitted: unknown[] = [];
 
     const result = await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, async (surface) => void emitted.push(surface));
@@ -198,7 +202,7 @@ test("plugins_set_enabled: a busy lock on DISABLE returns the same changed:false
     const before = await readAgentPluginActivations({ workspaceRoot });
     behavior = timeoutBehavior(9202);
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
 
     const result = await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" });
 
@@ -220,10 +224,13 @@ for (const enabled of [true, false]) {
   test(`plugins_set_enabled: a permission failure on ${enabled ? "ENABLE" : "DISABLE"} is not reported as activations-busy`, async () => {
     await withInstalledAgentPlugin(async (workspaceRoot) => {
       const failure = Object.assign(new Error("permission denied taking activation lock"), { code: "EACCES" });
-      behavior = async () => { throw failure; };
+      behavior = async (...args) => {
+        if (path.basename(String(args[0])) === "activations.json.lock") throw failure;
+        return realFsp.open(...args);
+      };
       const { deps } = fakeRouteDeps();
       const emitted: unknown[] = [];
-      await assert.rejects(() => call(setEnabledTool(deps, createSurfaceExchangeStore()), { pluginId: AGENT_PLUGIN_ID, enabled, family: "agent-plugin" }, async surface => void emitted.push(surface)), error => error === failure);
+      await assert.rejects(() => call(setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), { pluginId: AGENT_PLUGIN_ID, enabled, family: "agent-plugin" }, async surface => void emitted.push(surface)), error => error === failure);
       assert.deepEqual(emitted, []);
       assert.deepEqual((await readAgentPluginActivations({ workspaceRoot })).plugins, {});
     });

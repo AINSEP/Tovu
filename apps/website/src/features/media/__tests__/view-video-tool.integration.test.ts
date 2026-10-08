@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import sharp from 'sharp';
-import { createFfmpegVideoFrameExtractor, findVideoBinaries, VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_EDGE_PX, VIDEO_MAX_SHEET_BYTES, VIDEO_MAX_OUTPUT_BYTES } from '@jini-ai/cms/media';
+import { createFfmpegVideoFrameExtractor, findVideoBinaries } from '@jini-ai/cms/media/node';
+import { VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_EDGE_PX, VIDEO_MAX_SHEET_BYTES, VIDEO_MAX_OUTPUT_BYTES } from '@jini-ai/cms/media';
 import { InMemoryMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, uploadMedia } from '../index.js';
 import { buildMediaViewVideoRegistrations } from '../view-video-tool.js';
 

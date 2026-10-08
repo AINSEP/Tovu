@@ -1,17 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryExternalMcpServerRepo, readEnabledExternalMcpConfigs } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { buildExternalMcpRegistrations } from "../../tool-registrations.js";
 import { externalMcpAgentToolCatalog } from "../../agent-tools.js";
 import { buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill } from "../../save-form.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 for (const transport of ["streamable_http", "stdio"]) test(`static ${transport} token has a human-only secret field`, () => {
   const fields = buildExternalMcpSaveFormFields({ id: "hosted", transport, authMode: "static_env", accessTokenEnvName: "API_TOKEN" }, true);
   const token = fields.find(f => f.name === "accessToken");
-  assert.deepEqual(token, { kind: "string", name: "accessToken", label: "Access token", secret: true, hint: "Leave blank to keep the stored token." });
+  assert.deepEqual(token, { kind: "string", name: "accessToken", label: "Access token", secret: true, allowBlank: true, hint: "Leave blank to keep the stored token." });
   assert.equal(fields.some(f => f.name === "accessTokenEnvName"), transport === "stdio");
   assert.equal(JSON.stringify(externalMcpAgentToolCatalog.find(t => t.name === "external_mcp_save")!.inputSchema).includes('"accessToken"'), false);
 });
@@ -20,7 +23,7 @@ test("hosted static token entered through the form is sealed, used as bearer aut
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
-  const surfaces = createSurfaceExchangeStore();
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps = { workspaceId: "ws-n04-token", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring };
   const regs = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces });
   const secret = "n04-human-secret";
@@ -32,7 +35,7 @@ test("hosted static token entered through the form is sealed, used as bearer aut
     assert.equal(html.includes(secret), false);
     const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
     assert.notEqual(match, null);
-    surfaces.deliver({ exchangeId: match![1]!, toolId: "external_mcp_save", principalId: "owner", params: { id: "hosted", transport: "streamable_http", authMode: "static_env", url: "https://hosted.example/mcp", accessToken } });
+    surfaces.deliver({ exchangeId: match![1]!, principalId: "owner", params: { id: "hosted", transport: "streamable_http", authMode: "static_env", url: "https://hosted.example/mcp", accessToken } }, { toolId: "external_mcp_save" });
     const result = await pending;
     assert.deepEqual(Object.keys(result as object).sort(), ["connection", "message", "saved", "server"]);
     assert.equal((result as { saved: boolean }).saved, true);
@@ -50,7 +53,7 @@ for (const authMode of ["none", "oauth"]) test(`${authMode} auth never asks for 
 
 test("an omitted auth mode uses the store's static-token default and a new token field has no prefill", () => {
   const fields = buildExternalMcpSaveFormFields({ id: "srv", transport: "streamable_http" }, false);
-  assert.deepEqual(fields.find(field => field.name === "accessToken"), { kind: "string", name: "accessToken", label: "Access token", secret: true, hint: "Enter the API key or bearer token for this server." });
+  assert.deepEqual(fields.find(field => field.name === "accessToken"), { kind: "string", name: "accessToken", label: "Access token", secret: true, allowBlank: true, hint: "Enter the API key or bearer token for this server." });
 });
 
 test("stdio token env-name hints preserve stored names unless explicitly changed", () => {
@@ -65,7 +68,7 @@ for (const [env, message] of [
 ]) test(`an invalid human credential block never echoes the submitted secret to the model: ${env.includes("=") ? "name" : "line"}`, async () => {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
-  const surfaces = createSurfaceExchangeStore();
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps = { workspaceId: "ws-n04-invalid", authorize: async () => ({ allowed: true, reason: "matched" }), clock: { nowMs: () => Date.parse("2026-10-01T00:00:00.000Z"), nowIso: () => "2026-10-01T00:00:00.000Z" }, externalMcpServerRepo: repo, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring };
   const save = buildExternalMcpRegistrations(deps, { surfaceExchanges: surfaces }).find(r => r.descriptor.id === "external_mcp_save")!;
   let surface: unknown;
@@ -74,7 +77,7 @@ for (const [env, message] of [
   const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.notEqual(match, null);
-  surfaces.deliver({ exchangeId: match![1]!, toolId: "external_mcp_save", principalId: "owner", params: { id: "local", transport: "stdio", command: "node", authMode: "static_env", env } });
+  surfaces.deliver({ exchangeId: match![1]!, principalId: "owner", params: { id: "local", transport: "stdio", command: "node", authMode: "static_env", env } }, { toolId: "external_mcp_save" });
   assert.deepEqual(await pending, { saved: false, cancelled: false, reason: "invalid", message, field: "env" });
   assert.deepEqual(await repo.listByWorkspaceId(deps.workspaceId), []);
 });
@@ -90,7 +93,7 @@ function invokeFixtureHandler(
 
 test('a rejected saved static token returns a secure update-card diagnostic', async () => {
   const repo = new InMemoryExternalMcpServerRepo(); const keyring = new InMemoryKeyring(); const sealer = new AesGcmSecretSealer(keyring);
-  const surfaces = createSurfaceExchangeStore();
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps = { workspaceId: 'ws-static-recovery', authorize: async () => ({ allowed: true, reason: 'matched' }),
     clock: { nowMs: () => Date.parse('2026-10-07T00:00:00Z'), nowIso: () => '2026-10-07T00:00:00Z' },
     externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
@@ -105,7 +108,7 @@ test('a rejected saved static token returns a secure update-card diagnostic', as
   await new Promise(resolve => setImmediate(resolve));
   const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const match = html.match(/__exchangeId"\s*:\s*"([^"]+)"/); assert.ok(match);
-  surfaces.deliver({ exchangeId: match[1]!, toolId: 'external_mcp_save', principalId: 'owner', params: { id: 'hosted', transport: 'streamable_http', authMode: 'static_env', url: 'https://hosted.example/mcp', accessToken: 'private-test-token' } });
+  surfaces.deliver({ exchangeId: match[1]!, principalId: 'owner', params: { id: 'hosted', transport: 'streamable_http', authMode: 'static_env', url: 'https://hosted.example/mcp', accessToken: 'private-test-token' } }, { toolId: 'external_mcp_save' });
   await save;
   const result = await invokeFixtureHandler(registrations.find(registration => registration.descriptor.id === 'external_mcp_test_connection')!, {
     executionId: 'probe', principal: { id: 'owner' }, run: { id: 'run' }, input: { id: 'hosted' }, signal: new AbortController().signal,

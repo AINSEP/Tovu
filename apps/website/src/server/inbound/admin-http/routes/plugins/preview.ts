@@ -1,4 +1,4 @@
-import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

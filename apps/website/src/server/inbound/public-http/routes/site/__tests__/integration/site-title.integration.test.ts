@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 import test, { type TestContext } from "node:test";
 
 import { resolveDefinitionRaw } from "#src/features/settings/index";
+import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
+import type { CommerceSiteAdapterDeps } from "../../products.js";
 import { resolveStorefrontProducts } from "#src/server/inbound/public-http/routes/site/products";
-import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 
@@ -55,7 +57,7 @@ async function unpublishHomePage(deps: RouteDeps): Promise<void> {
   await deps.postRepo.save({ ...page, status: "draft" });
 }
 
-async function bootSite(t: TestContext): Promise<{ deps: RouteDeps; baseUrl: string; cookie: string }> {
+async function bootSite(t: TestContext): Promise<{ deps: CommerceSiteAdapterDeps; baseUrl: string; cookie: string }> {
   const deps = createRouteDeps();
   publishPricingPage(deps);
   // Pinned to "tovu-theme" rather than the seeded default: S2's `/pricing` surface is Tovu Theme's
@@ -121,7 +123,7 @@ test("AC-04/AC-11 (REQ-02, REQ-03, T-W2): an owner title written through the gen
   // `resolveStorefrontProducts` reads `deps.store` per request, so assigning it after boot is enough.
   site.deps.store = {
     listProducts: () => [{ id: "prod-site-title", slug: "prod-site-title", title: "Title Probe", price: 100, stock: 1, version: 0 }],
-  } as unknown as RouteDeps["store"];
+  } as unknown as CommerceSiteAdapterDeps["store"];
   const [product] = await resolveStorefrontProducts(site.deps);
   assert.ok(product, "expected the injected storefront product for the product-detail surface");
   const surfaces: Array<[string, string]> = [

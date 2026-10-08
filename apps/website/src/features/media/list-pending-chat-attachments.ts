@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
 /**
  * @file `chat_list_pending_attachments` — lets the assistant discover a chat attachment it was never
  * told about in this run: the discovery half of the bridge `promote-chat-attachment.ts` completes
@@ -95,6 +96,7 @@ export function buildListPendingChatAttachmentsTool(deps: {
   return {
     descriptor: {
       id: CHAT_LIST_PENDING_ATTACHMENTS_TOOL_ID,
+      metadata: toolMetadata[CHAT_LIST_PENDING_ATTACHMENTS_TOOL_ID],
       description:
         "Lists files attached to this exact message, including files already claimed by this run. Each result's attachmentRef can be " +
         "passed to media_promote_chat_attachment, plugins_install or agent_plugins_install. Files from other conversations or messages are " +

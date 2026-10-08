@@ -518,3 +518,14 @@ test("media rendition route: an asset embedded in BOTH a public post and a membe
     );
   });
 });
+
+test("malformed member cookies on gated media return 404 rather than 500", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "gated-cookie-bytes", "gated.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+    await deps.postRepo.save(makePost({ id: "malformed-cookie-post", slug: "gated-cookie-post",
+      memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) }, deps.workspaceId));
+    const response = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/gated.webp`, { headers: { cookie: "tovu_member_session=%E0%A4%A" } });
+    assert.equal(response.status, 404);
+  });
+});

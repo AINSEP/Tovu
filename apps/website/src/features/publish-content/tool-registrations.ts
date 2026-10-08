@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/publish-content.js';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import path from "node:path";
@@ -21,7 +22,7 @@ import { entityKey, type PublishContentReport } from "./planner.js";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "./peers.js";
 import { PublishContentPeerTransportError } from "./peer-transport.js";
-import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { PluginHookFailedError, toModelFacingPluginHookError } from "../../contracts/core/plugin-hook-failed-error.js";
 import {
   connectDestination,
@@ -424,7 +425,7 @@ export function buildPublishContentRegistrations(
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "publish-content",
     catalogModule: "features/publish-content/agent-tools.ts",
     catalog: CATALOG_BY_ID as ReadonlyMap<string, AgentToolDefinition>,

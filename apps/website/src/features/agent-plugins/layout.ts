@@ -1,74 +1,19 @@
 import { pluginStatePaths } from "@jini-ai/agent-plugins/persistent-state";
 /**
- * @file Filesystem layout for installed Agent Plugins (the agent-plugins.org package format).
+ * @file Pure filesystem layout computation for installed Agent Plugins; callers perform I/O.
  *
- * ---------------------------------------------------------------------------
- * TENANT-GRADE ISOLATION (owner decision, 2026-08-12) — supersedes this module's original design
- * ---------------------------------------------------------------------------
- * The owner's exact words: "if I have one Tovu website, it should not have anything to do with
- * another Tovu website." This module originally shared one content-addressed `packages/sha256/`
- * across every workspace on an instance, matching `plugin-runtime/discovery.ts`'s own `installDir`
- * (no workspace segment) and `FederatedMcpConnectionConfig` (no `workspaceId`). That design does not
- * hold under a tenant-grade reading, for two reasons argued in full in the handoff's tenancy
- * analysis and summarized here:
+ * The owner requires workspace isolation. A shared content-addressed package directory would
+ * leak another tenant's installs: public archive digests are precomputable and stat-able even
+ * when bytes are frozen. A per-workspace tree enforces isolation by construction rather than
+ * relying on every future reader to check activation records. It also avoids cross-workspace
+ * refcounts and prevents uninstalling one workspace's plugin from deleting another's bytes.
+ * Plugin archives are hostile third-party input; per-workspace extraction costs are bounded by
+ * the lifecycle owner's archive/expanded-byte limits. Content deduplication stays within a workspace.
+ * Writable PLUGIN_DATA belongs to the same workspace tree.
  *
- * 1. **Existence leak.** A shared `packages/sha256/<digest>/` directory is `stat`-able. Digests for
- *    any publicly-distributed plugin archive are trivially precomputable (hash the archive, check
- *    whether that digest exists on disk) — a working oracle for "did some OTHER workspace on this
- *    instance install plugin X," with no need to read a single byte of that workspace's own data.
- *    Frozen-read-only and content-addressed closes TAMPERING, not EXISTENCE.
- * 2. **The leak cannot be closed durably by policy alone.** Closing it without restructuring would
- *    require every future code path touching `packages/` to prove it only ever resolves a digest
- *    present in the CALLING workspace's own activation record, and never exposes raw listing — an
- *    invariant enforced by review discipline, not the type system, and exactly the kind of thing
- *    that erodes as more code touches this tree. A per-workspace layout makes the same guarantee
- *    true by construction: there is no shared enumerable path, so there is nothing to leak through.
- *
- * This is also, incidentally, SIMPLER than the shared design, not merely safer: the shared design
- * needs a refcount (or equivalent) so uninstalling plugin X from workspace A doesn't delete bytes
- * workspace B still points at — a real bug class the per-workspace design does not have. Uninstall
- * is `rm -rf ws/<workspaceId>/packages/sha256/<digest>/`, full stop.
- *
- * Given "anyone can author plugins" (owner decision, same round) — an installed archive is
- * genuinely hostile third-party input, not a curated bundle — the marginal safety this buys is
- * worth the marginal disk/CPU cost of re-extracting a popular plugin once per workspace instead of
- * once per instance. That cost is bounded by this module's own extraction caps
- * (`install.ts`'s `LIMITS`: 32MB archive, 64MB total extracted) and scales with the number of
- * workspaces on one instance, which for a self-hostable product is expected to be small.
- *
- * Content-addressing is KEPT, but scoped to one workspace's own tree: if the same workspace
- * reinstalls, or two of ITS OWN plugins happen to share identical bytes, that dedup is still free
- * and never crosses a tenant boundary.
- *
- * `PLUGIN_DATA` was already workspace-scoped before this revision and is unchanged in spirit — now
- * simply nested under the same workspace root as everything else, rather than living in a separate
- * `data/ws/<workspaceId>/` branch alongside a shared `packages/`.
- *
- * ---------------------------------------------------------------------------
- * Env override and `sites/<name>/` convention (root moved 2026-08-27; shape unchanged)
- * ---------------------------------------------------------------------------
- * `mediaUploadsDir()` (`src/server/deps.ts`) defaults to `join(siteDir(), "uploads")`, overridable
- * by `TOVU_MEDIA_UPLOADS_DIR`; `siteThemesDir()` follows the identical `TOVU_*_DIR` shape.
- * `sites/<name>/` is the SITE's own gitignored runtime-data root (`.gitignore`, `sites/README.md`)
- * and already contains a `ws/<workspaceId>/` shape for per-workspace state
- * (`<site>/uploads/ws/<workspaceId>/blobs`) — this module's `ws/<workspaceId>/` segment is the SAME
- * existing convention, just applied one level higher (to the whole plugin tree, not only a data
- * subdirectory) than the module's original design used it.
- *
- * The root itself was `<cwd>/infra/agent-plugins` until 2026-08-27. That was wrong for the same
- * reason the whole `infra/` -> `sites/` move exists: an installed plugin is SITE data, so it must
- * travel with the site and survive an upgrade rather than sit beside the repo checkout. The default
- * now comes from {@link resolveSiteRoot}, so `TOVU_SITE`/`TOVU_SITE_DIR` move it along with
- * everything else the site owns. `TOVU_AGENT_PLUGINS_DIR` still overrides it outright.
- *
- * `TOVU_AGENT_PLUGINS_DIR` is required to be ABSOLUTE, stricter than `TOVU_MEDIA_UPLOADS_DIR`/
- * `TOVU_THEMES_DIR` (neither validates this) — a relative override resolved against an unpredictable
- * `cwd` would be a correctness/security footgun specific to a feature whose whole point is a
- * `chmod 0o555`-frozen "trusted, per-tenant" root. Production should set this to an absolute path
- * outside the repo tree (e.g. `/var/lib/tovu/agent-plugins`).
- *
- * Architectural role:
- * Pure path computation. No I/O — `install.ts` and its callers create directories as needed.
+ * Installed plugins are site data: they must travel with the site and survive upgrades.
+ * resolveSiteRoot binds the default to TOVU_SITE/TOVU_SITE_DIR; TOVU_AGENT_PLUGINS_DIR overrides it.
+ * Overrides must be absolute because an unpredictable cwd must not redirect a trusted tenant root.
  */
 import path from "node:path";
 
@@ -81,14 +26,8 @@ import { resolveSiteRoot } from "../../platform/site-dir/index.js";
  * which is the entire property this module needs before using a caller-supplied string in a
  * `path.join`.
  *
- * WORKSPACE IDS, revised 2026-08-21 (owner decision, option B). `forWorkspace` previously required a
- * syntactic UUID. That was wrong about this product's own data: the real workspace id in
- * `<site>/content.db` is the literal string `workspace-local`, so the UUID rule could never pass on a
- * real caller's input and made `installAgentPluginFromUrl` unreachable outside tests. The check's
- * actual job was never "is this a UUID" — it was "can this string escape or split the path segment
- * I am about to build". This pattern does that job directly, still accepts every UUID the old rule
- * accepted (so no previously-valid id became invalid), and matches the shape this repo already
- * writes to disk elsewhere (`<site>/uploads/ws/workspace-local/`).
+ * Workspace IDs are safe path segments, not necessarily UUIDs: the site's real ID can be
+ * `workspace-local`. The check must prevent splitting or escaping a path while accepting that ID.
  *
  * Deliberately NOT relaxed further: `_`, uppercase (normalized before this is applied, never
  * accepted raw), and any Unicode remain rejected, because each would let two distinct ids collide
@@ -134,7 +73,7 @@ export interface AgentPluginLayout {
    * `packages`/`staging`/`pluginDataDir` path — there is deliberately no instance-level equivalent
    * of any of them, so a caller cannot accidentally hand `install.ts` a path shared across tenants.
    *
-   * @throws {Error} If `workspaceId` is not a syntactically valid UUID.
+   * @throws {Error} If `workspaceId` is not a bounded, safe path segment.
    */
   forWorkspace(workspaceId: string): AgentPluginWorkspaceLayout;
 }

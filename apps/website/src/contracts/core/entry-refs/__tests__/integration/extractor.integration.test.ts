@@ -5,11 +5,7 @@ import { extractEntryRefs, extractHtmlEntryRefs } from "../../extractor.js";
 
 /**
  * @file C-009 `extractEntryRefs` — SPEC-043 REQ-29..32, AC-21/22, INV-06.
- * TDD-certified against the stub in `extractor.ts`; currently RED — `extractEntryRefs` throws
- * "not implemented" and these assertions describe the real contract. This is the minimal
- * `entry_refs` slice the ADR-047 debate found does not yet exist as running code anywhere in this
- * repo (`src/navigation/resolver.ts`'s own comment names the gap) — widgets is the first real
- * consumer/populator.
+ * Direct coverage of the entry_refs extraction contract used by widget integrity checks.
  */
 
 test("AC-21/REQ-30: a widget referenced in one widget_area placement produces exactly one widget-area-placement ref row", () => {

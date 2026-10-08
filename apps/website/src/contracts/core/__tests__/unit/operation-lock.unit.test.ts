@@ -89,17 +89,17 @@ test("releasing a lock for a site with no held lock is a no-op, not an error (id
 });
 
 test("isOperationInFlight (Finding 3 fix, 2026-07-16 re-audit): false for a site with no held lock, true while one is held, false again after release", async () => {
-  assert.equal(isOperationInFlight("site-4"), false);
+  assert.equal(isOperationInFlight({ siteId: "site-4" }, {}), false);
 
   const acquired = await acquireOperationLock({ deps: { clock }, input: { siteId: "site-4", operationKind: "restore" } });
   assert.equal(acquired.ok, true);
   if (!acquired.ok) return;
 
-  assert.equal(isOperationInFlight("site-4"), true);
-  assert.equal(isOperationInFlight("site-other"), false, "a peek must never leak state across siteId");
+  assert.equal(isOperationInFlight({ siteId: "site-4" }, {}), true);
+  assert.equal(isOperationInFlight({ siteId: "site-other" }, {}), false, "a peek must never leak state across siteId");
 
   await releaseOperationLock({ deps: { clock }, input: { siteId: "site-4", handle: acquired.value } });
-  assert.equal(isOperationInFlight("site-4"), false);
+  assert.equal(isOperationInFlight({ siteId: "site-4" }, {}), false);
 });
 
 // F6.2/F7.5: old holders must not release a newer operation, even at the same pinned timestamp.
@@ -112,7 +112,7 @@ test('releasing a stale handle cannot free a newer holder for the same site', as
   assert.ok(current.ok);
   try {
     await releaseOperationLock({ deps: { clock }, input: { siteId, handle: first.value } });
-    assert.equal(isOperationInFlight(siteId), true);
+    assert.equal(isOperationInFlight({ siteId: siteId }, {}), true);
     const blocked = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: 'migration' } });
     assert.deepEqual(blocked, { ok: false, error: { code: 'OPERATION_IN_FLIGHT', message: `an operation is already in flight for site '${siteId}'` } });
   } finally {

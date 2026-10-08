@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -12,7 +13,7 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { THEME_CATALOG_DIR } from "../../features/theme/theme.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
@@ -23,10 +24,7 @@ const contributions = {
 };
 
 
-// Themes moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17 — see `features/theme/tool-registrations.ts`'s header), so
-// `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs it
-// first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeThemesTools() });
 
@@ -95,7 +93,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function themesRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme" || r.descriptor.id === "preview_reload").map((r) => [r.descriptor.id, r]));
+  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme" || r.descriptor.id === "preview_reload").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -150,28 +148,22 @@ const DESTRUCTIVE_WRITE_TOOL_IDS = [
 // 1. Catalog completeness
 // ---------------------------------------------------------------------------
 
-// Registry-lock test, NOT a safety assertion (contrast the destructive-exclusion test just below,
-// which stays byte-identical) — this one is EXPECTED to change every time the catalog legitimately
-// grows. Updated 2026-09-12: 8 -> 10 (added theme_copy_file then theme_reset_file, the last two
-// gaps a read-only survey found against the human Explore screen's own per-file operations — see
-// `ADS-memory/reports/2026-09-12-theme-agent-tools-survey.md`).
-// t11 adds marketplace browse/install and theme rescan: 10 -> 13. 2026-10-04: the dead theme marketplace
-// (browse/install) is deleted: 13 -> 11.
+// Catalog completeness changes with the declared catalog; safety exclusions below are separate.
 test("exactly the 12 themes entries are registered — nothing else", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...themesRegistrations(deps).keys()].sort(), [...WIRED_THEMES_TOOL_IDS].sort());
   assert.equal(getThemesAgentToolCatalog().length, 12, "sanity: the full themes catalog is 12 entries");
 });
 
-// `theme_delete_file` stays excluded (2026-08-30 re-examination pending an explicit owner call —
-// see `agent-tools.ts`'s own header) — `theme_rename_file` is NOT one of the excluded operations
+// `theme_delete_file` stays excluded pending an explicit owner call —
+// see `agent-tools.ts`'s own header. `theme_rename_file` is NOT one of the excluded operations
 // below: it only ever renames a FILE inside an already-discovered theme's folder, a narrower
 // operation than the whole-theme `theme_rename_folder`/`theme_create`/`theme_delete` this test means
 // to keep excluded (folder rename/create/delete can break the live active-theme resolution; see
 // `agent-tools.ts`'s header for the full reasoning).
 test("no whole-theme or file-delete operation is agent-callable anywhere in the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).map((r) => r.descriptor.id);
   for (const excluded of ["theme_delete_file", "theme_delete", "theme_create", "theme_rename_folder", "theme_rename"]) {
     assert.equal(ids.includes(excluded), false, `'${excluded}' must not be wired — see agent-tools.ts's exclusions`);
   }
@@ -262,14 +254,14 @@ test("every themes tool refuses when authorize() denies, and performs no work", 
 test("each themes tool checks exactly the permission its catalog entry declares", async () => {
   const { deps, authorizeCalls, themesDir } = fakeRouteDeps();
   fs.cpSync(path.join(themesDir, "plain"), path.join(themesDir, THEME_CATALOG_DIR, "declarative", "plain"), { recursive: true });
-  const registrations = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const registrations = new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).map((r) => [r.descriptor.id, r]));
 
   async function checkPermission(toolId: string, input: Record<string, unknown>) {
     authorizeCalls.length = 0;
     const emitted: unknown[] = [];
     const result = await registrations.get(toolId)!.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
     if (toolId === "theme_trash_file") {
-      assert.deepEqual(emitted, [], "reversible theme trash runs without a confirmation card");
+      assert.equal(emitted.length, 1, "theme trash requires one policy approval card");
     }
     assert.deepEqual(authorizeCalls.map((call) => [call.permission, call.principalId, call.workspaceId]), [
       [toolId === "content_read.theme" ? "theme.set" : catalogEntry(toolId).authorization.permission, PRINCIPAL_ID, WORKSPACE_ID],

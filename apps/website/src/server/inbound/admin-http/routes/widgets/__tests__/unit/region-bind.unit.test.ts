@@ -1,44 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { RouteDeps } from "#src/server/routes/types";
+import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
+import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 
-test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
+test("registerAdminWidgetRegionBindRoute: validation, authorization, binding and failure responses", async () => {
   let bindCalls = 0;
   let capturedInput: any = null;
-  let permissionArgs: any[] = [];
-  let bindResult: any = null;
+  let permissionArgs: unknown;
   let bindError: Error | null = null;
-  let mockPrincipal: any = { id: "p1" };
-  let errorMapped: any = null;
-
-  const realHttpWidgets = await import("#src/server/inbound/admin-http/http/widgets");
-  t.mock.module("#src/server/inbound/admin-http/http/widgets", {
-    namedExports: {
-      ...realHttpWidgets,
-      requireWidgetsPermissionOrRespond: async (...args: any[]) => {
-        permissionArgs = args;
-        return mockPrincipal;
-      },
-      mapWidgetErrorToResponse: (err: any, res: any) => {
-        errorMapped = err;
-        res.status(500).json({ error: "mapped" });
-      },
-      toAdminWidgetAreaResponse: (entry: any) => ({ transformed: true, entry }),
-    },
-  });
-
-  const realRegionArea = await import("#src/features/widgets/region-area-service");
-  t.mock.module("#src/features/widgets/region-area-service", {
-    namedExports: {
-      ...realRegionArea,
-      bindWidgetArea: async (args: any) => {
-        bindCalls++;
-        capturedInput = args.input;
-        if (bindError) throw bindError;
-        return bindResult;
-      },
-    },
-  });
+  let allowed = true;
+  // Fault only the binding repository; permission checks, writes and DTO mapping stay real.
+  class BindingRepo extends InMemoryWidgetRegionBindingRepo {
+    /** Records normalized lookup input and injects a repository failure before any binding write. */
+    override async findByRegion(input: Parameters<InMemoryWidgetRegionBindingRepo["findByRegion"]>[0]) {
+      bindCalls++;
+      capturedInput = input;
+      if (bindError) throw bindError;
+      return super.findByRegion(input);
+    }
+  }
+  const widgetBindingRepo = new BindingRepo();
+  let counter = 0;
+  const now = "2026-10-01T12:00:00.000Z";
 
   const { registerAdminWidgetRegionBindRoute } = await import("../../region-bind.js");
 
@@ -51,7 +38,17 @@ test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
 
   const deps = {
     workspaceId: "ws-1",
-    authorize: () => Promise.resolve(true),
+    authorize: async (input: unknown) => {
+      permissionArgs = input;
+      return { allowed, reason: allowed ? "matched" : "denied" };
+    },
+    entryRepo: new InMemoryEntryRepo(),
+    contentTypeRepo: new InMemoryContentTypeRepo(),
+    entryRefsRepo: new InMemoryEntryRefsRepo(),
+    outbox: new InMemoryOutbox(),
+    widgetBindingRepo,
+    clock: { nowMs: () => Date.parse(now) },
+    idGen: { newId: () => `region-bind-${++counter}` },
   } as unknown as RouteDeps;
 
   registerAdminWidgetRegionBindRoute(mockApp as any, deps);
@@ -59,6 +56,7 @@ test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
 
   function createMockRes() {
     return {
+      locals: { principal: { id: "principal-1" } },
       statusCode: 200,
       statusCalls: 0,
       body: null as any,
@@ -110,38 +108,41 @@ test("registerAdminWidgetRegionBindRoute: full unit coverage", async (t) => {
 
   // 3. Permission denied (requireWidgetsPermissionOrRespond returns null)
   {
-    mockPrincipal = null;
-    bindResult = { areaEntry: { id: "should-not-bind" } };
+    allowed = false;
     const callsBefore = bindCalls;
     const res = createMockRes();
     await routeHandler({ params: { workspaceId: "ws-1" }, body: { regionKey: "header" } }, res);
-    assert.equal(res.statusCode, 200); // not modified by handler itself
-    assert.equal(res.statusCalls, 0);
-    assert.equal(res.body, null);
+    assert.equal(res.statusCode, 403);
+    assert.deepEqual(res.body, {
+      error: "principal 'principal-1' is not authorized for 'widgets.place' (denied)",
+      code: "FORBIDDEN", details: { permission: "widgets.place", reason: "denied" },
+    });
     assert.equal(bindCalls, callsBefore, "denied requests must not call the write service");
   }
 
   // 4. Success path
   {
-    mockPrincipal = { id: "principal-1" };
-    bindResult = { areaEntry: { id: "area-1" } };
+    allowed = true;
     bindError = null;
     const res = createMockRes();
     await routeHandler({ params: { workspaceId: "ws-1" }, body: { regionKey: "  header " } }, res);
     assert.equal(res.statusCode, 201);
-    assert.deepEqual(permissionArgs, [deps.authorize, "ws-1", "widgets.place", res]);
+    assert.deepEqual(permissionArgs, { principalId: "principal-1", workspaceId: "ws-1", permission: "widgets.place", entityType: "widget" });
     assert.deepEqual(capturedInput, { workspaceId: "ws-1", regionKey: "header" });
-    assert.deepEqual(res.body, { transformed: true, entry: { id: "area-1" } });
+    const binding = await widgetBindingRepo.findByRegion({ workspaceId: "ws-1", regionKey: "header" });
+    assert.ok(binding);
+    assert.deepEqual(res.body, { area: {
+      id: binding.areaEntryId, workspaceId: "ws-1", regionKey: "header",
+      doc: { schemaVersion: 1, placements: [] }, updatedAt: now, version: 1,
+    } });
   }
 
   // 5. Error handling path
   {
-    mockPrincipal = { id: "principal-1" };
     bindError = new Error("Failed to bind area");
-    errorMapped = null;
     const res = createMockRes();
     await routeHandler({ params: { workspaceId: "ws-1" }, body: { regionKey: "header" } }, res);
     assert.equal(res.statusCode, 500);
-    assert.equal(errorMapped?.message, "Failed to bind area");
+    assert.deepEqual(res.body, { error: "internal error" });
   }
 });

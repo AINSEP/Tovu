@@ -75,6 +75,8 @@ test("the agent daemon boots and listens — no import cycle on its entry path",
       TOVU_WORKSPACE: "workspace-local",
       // Never touch the developer's real content.db.
       TOVU_DB: "memory",
+      // Readiness below consumes this line; npm start may otherwise suppress it in inherited env.
+      TOVU_DAEMON_LIFECYCLE_LOG: "on",
       TOVU_AGENT_DAEMON_TOKEN: "daemon-boots-test-token",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -117,7 +119,9 @@ test("the agent daemon boots and listens — no import cycle on its entry path",
   );
 
   assert.equal(outcome, "listening", `expected the daemon to start listening, got ${outcome}:\n${output}`);
-  const response = await fetch(`http://127.0.0.1:${port}/api/agents`, {
+  // /api/agents also probes installed CLIs for model lists; that I/O is unrelated to boot
+  // readiness and can exceed this probe's budget. The authenticated active-context route is local.
+  const response = await fetch(`http://127.0.0.1:${port}/api/active`, {
     headers: { authorization: "Bearer daemon-boots-test-token" },
     signal: AbortSignal.timeout(5_000),
   });

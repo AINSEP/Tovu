@@ -330,7 +330,7 @@ function avifBytes(): Uint8Array {
  *  2. `content-type-sniffer.ts` identified ISO-BMFF purely by the `ftyp` tag, which AVIF shares
  *     with MP4, so an accepted AVIF was PERSISTED as `video/mp4` in `mediaContentTypeStore`.
  *     That store is the image-vs-video source of truth for both the admin type tabs and
- *     `widgets/resolver-service.ts`, so the asset would have rendered as an unplayable `<video>`
+ *     `Jini/packages/cms/src/widgets/resolver-service.ts`, so the asset would have rendered as an unplayable `<video>`
  *     on a public page — a worse outcome than the clean 400 it replaced. Asserting the persisted
  *     type (not merely the 201) is what makes this test catch defect 2 rather than tolerate it.
  */
@@ -346,7 +346,7 @@ test("admin media upload: a real AVIF is accepted and persisted as image/avif, n
   });
 
   // Defect 2: the type the server RECORDED from the bytes, which is what the admin type tabs and
-  // `widgets/resolver-service.ts` both dispatch on. Before the sniffer fix this read `video/mp4`.
+  // `Jini/packages/cms/src/widgets/resolver-service.ts` both dispatch on. Before the sniffer fix this read `video/mp4`.
   const types = await listMediaContentTypes(baseUrl, cookie);
   assert.equal(types.get(mediaId), "image/avif");
 });

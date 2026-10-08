@@ -6,12 +6,15 @@ import test from "node:test";
 
 import express from "express";
 
-import { createSurfaceExchangeStore } from "../../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { registerAuthRoutes } from "../../inbound/admin-http/dev-auth.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createAssistantModule } from "../../runtime/composition/modules/assistant.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `GET /api/attachments/:ref` — the chat-attachment read-back route.
@@ -96,7 +99,7 @@ async function boot(t: test.TestContext, staged: Staged) {
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes?.(app);
+  createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
 
   const baseUrl = await startTestServer(app, t);
   const uploaderName = `uploader-${Math.random().toString(36).slice(2, 10)}`;

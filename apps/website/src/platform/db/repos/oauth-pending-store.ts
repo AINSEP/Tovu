@@ -1,3 +1,4 @@
+import { nowIso as readNowIso, type Clock } from "@jini-ai/core/primitives";
 import { randomBytes } from "node:crypto";
 
 import type { Insertable, Selectable } from "kysely";
@@ -8,16 +9,15 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/
 import type { DeviceAuthorization } from "@jini-ai/oauth";
 import type { DeviceAuthorizationStore } from "#src/assistant/external-mcp-oauth";
 import {
-  invalidPendingAuthorizationState,
   PENDING_AUTHORIZATION_DEFAULT_MAX_ENTRIES,
   PENDING_AUTHORIZATION_DEFAULT_TTL_MS,
   PENDING_AUTHORIZATION_STATE_BYTES,
   secureEqualsForOwnerBinding,
-  type OAuthClock,
   type OAuthRandomBytes,
   type PendingAuthorization,
   type PendingAuthorizationStore,
-} from "#src/platform/oauth/index";
+} from "@jini-ai/oauth";
+import { invalidState as invalidPendingAuthorizationState } from "#src/platform/oauth/pending-authorizations";
 import type { ContentKernel } from "../content-kernel.js";
 import type { OauthDeviceAuthorizationsTable } from "../content-database.generated.js";
 
@@ -95,16 +95,13 @@ function countOf(row: { n: number | string | bigint } | undefined): number {
 
 export interface SqlPendingAuthorizationStoreDeps {
   readonly kernel: ContentKernel;
-  readonly clock: OAuthClock;
+  readonly clock: Clock;
   readonly sealer: Pick<SecretSealerPort, "seal" | "open">;
   readonly keyring: Pick<KeyringPort, "activeKey">;
-  readonly ttlMs?: number;
-  readonly maxEntries?: number;
-  /** Injected only so tests can pin `state`. Defaults to `node:crypto`'s CSPRNG — same default the
-   *  in-memory adapter uses. */
-  readonly randomBytesFn?: OAuthRandomBytes;
 }
 
+/** Injected only so tests can pin `state`. Defaults to `node:crypto`'s CSPRNG — same default the
+   *  in-memory adapter uses. */
 /**
  * Builds a content-database-backed `PendingAuthorizationStore`.
  *
@@ -115,11 +112,11 @@ export interface SqlPendingAuthorizationStoreDeps {
  *   indexed conditional DELETE plus one unseal on a hit. Both are effectively constant since
  *   `maxEntries` bounds the live row count.
  */
-export function createSqlPendingAuthorizationStore(deps: SqlPendingAuthorizationStoreDeps): PendingAuthorizationStore {
+export function createSqlPendingAuthorizationStore(deps: SqlPendingAuthorizationStoreDeps, optional: { ttlMs?: number; maxEntries?: number; randomBytesFn?: OAuthRandomBytes } = {}): PendingAuthorizationStore {
   const { kernel } = deps;
-  const ttlMs = deps.ttlMs ?? PENDING_AUTHORIZATION_DEFAULT_TTL_MS;
-  const maxEntries = deps.maxEntries ?? PENDING_AUTHORIZATION_DEFAULT_MAX_ENTRIES;
-  const randomBytesFn = deps.randomBytesFn ?? ((n: number) => randomBytes(n));
+  const ttlMs = optional.ttlMs ?? PENDING_AUTHORIZATION_DEFAULT_TTL_MS;
+  const maxEntries = optional.maxEntries ?? PENDING_AUTHORIZATION_DEFAULT_MAX_ENTRIES;
+  const randomBytesFn: OAuthRandomBytes = optional.randomBytesFn ?? (({ byteLength }) => randomBytes(byteLength));
 
   /** Deletes every row past its TTL. Run on every `put` (inside its transaction) and `size`,
    *  matching the in-memory adapter's own prune-on-access (not on a timer) tradeoff. */
@@ -147,9 +144,11 @@ export function createSqlPendingAuthorizationStore(deps: SqlPendingAuthorization
   }
 
   return {
-    async put(input) {
-      const nowIso = deps.clock.nowIso();
-      const state = Buffer.from(randomBytesFn(PENDING_AUTHORIZATION_STATE_BYTES)).toString("base64url");
+    async put(input, optional = {}) {
+      // The current SQL format has no resource column. Refuse a binding we cannot round-trip.
+      if (optional.resource !== undefined) throw new TypeError("OAuth resource binding is not supported by this pending store");
+      const nowIso = readNowIso({ clock: deps.clock });
+      const state = Buffer.from(randomBytesFn({ byteLength: PENDING_AUTHORIZATION_STATE_BYTES })).toString("base64url");
       const expiresAt = new Date(Date.parse(nowIso) + ttlMs).toISOString();
       // Sealed even when `codeVerifier` is `""` (a non-PKCE provider) — see this table's schema doc
       // on why the sealed columns are always fully populated rather than conditionally null.
@@ -197,7 +196,7 @@ export function createSqlPendingAuthorizationStore(deps: SqlPendingAuthorization
     },
 
     async take(input) {
-      const nowIso = deps.clock.nowIso();
+      const nowIso = readNowIso({ clock: deps.clock });
       // Atomic consume: see this file's header for why the expiry check belongs in the `WHERE`
       // rather than a preceding `SELECT`. A miss here means unknown, already-expired, OR
       // already-consumed — this store cannot and need not tell those apart (see `invalidState`'s
@@ -210,12 +209,12 @@ export function createSqlPendingAuthorizationStore(deps: SqlPendingAuthorization
           .returningAll()
           .executeTakeFirst()
       );
-      if (!row) throw invalidPendingAuthorizationState();
+      if (!row) throw invalidPendingAuthorizationState({});
       // Consumed BEFORE the owner check, not after — identical ordering to the in-memory adapter,
       // and for the identical reason (a caller who guesses a `state` must still burn it).
-      if (!secureEqualsForOwnerBinding(row.owner_key, input.ownerKey)) throw invalidPendingAuthorizationState();
+      if (!secureEqualsForOwnerBinding({ a: row.owner_key, b: input.ownerKey })) throw invalidPendingAuthorizationState({});
 
-      const codeVerifier = await deps.sealer.open({ sealed: toSealedSecret(row), aad: row.owner_key });
+      const codeVerifier = await deps.sealer.open({ sealed: toSealedSecret(row) }, { aad: row.owner_key });
       const entry: PendingAuthorization = {
         state: row.state,
         ownerKey: row.owner_key,
@@ -229,8 +228,8 @@ export function createSqlPendingAuthorizationStore(deps: SqlPendingAuthorization
       return entry;
     },
 
-    async size() {
-      await pruneExpired(deps.clock.nowIso());
+    async size(_required: Record<string, never>) {
+      await pruneExpired(readNowIso({ clock: deps.clock }));
       return count();
     },
   };
@@ -239,7 +238,7 @@ export function createSqlPendingAuthorizationStore(deps: SqlPendingAuthorization
 export interface SqlDeviceAuthorizationStoreDeps {
   readonly kernel: ContentKernel;
   readonly workspaceId: UUID;
-  readonly clock: OAuthClock;
+  readonly clock: Clock;
   readonly sealer: Pick<SecretSealerPort, "seal" | "open">;
   readonly keyring: Pick<KeyringPort, "activeKey">;
 }
@@ -262,7 +261,7 @@ export function deviceAad(workspaceId: UUID, serverId: string): string {
  * @complexity `put` is one seal plus one upsert; `get` is one indexed read plus, on a hit, one
  *   unseal; `delete` is one indexed delete. All O(1).
  */
-export function createSqlDeviceAuthorizationStore(deps: SqlDeviceAuthorizationStoreDeps): DeviceAuthorizationStore {
+export function createSqlDeviceAuthorizationStore(deps: SqlDeviceAuthorizationStoreDeps, _optional: Record<string, never> = {}): DeviceAuthorizationStore {
   const { kernel } = deps;
   return {
     async put(serverId, authorization) {
@@ -280,7 +279,7 @@ export function createSqlDeviceAuthorizationStore(deps: SqlDeviceAuthorizationSt
         interval_seconds: authorization.intervalSeconds,
         expires_at: authorization.expiresAt,
         ...sealedColumnValues(sealed),
-        created_at: deps.clock.nowIso(),
+        created_at: readNowIso({ clock: deps.clock }),
       };
       await kernel.run((db) =>
         db
@@ -301,7 +300,7 @@ export function createSqlDeviceAuthorizationStore(deps: SqlDeviceAuthorizationSt
           .executeTakeFirst()
       );
       if (!row) return undefined;
-      const deviceCode = await deps.sealer.open({ sealed: toSealedSecret(row), aad: deviceAad(deps.workspaceId, serverId) });
+      const deviceCode = await deps.sealer.open({ sealed: toSealedSecret(row) }, { aad: deviceAad(deps.workspaceId, serverId) });
       const authorization: DeviceAuthorization = {
         deviceCode,
         userCode: row.user_code,

@@ -85,15 +85,11 @@ type ExecutionSettingKey =
 
 /** Narrows the shared spec's open `key: string` to this namespace's own key
  *  union, so a typo here is a compile error rather than a definition
- *  registered under a key nothing reads. */
-interface ExecutionDefinitionSpec extends SettingDefinitionSpec {
-  key: ExecutionSettingKey;
-}
-
-/** The 9 registered `core.execution.*` definitions. No `byok.apiKey` — see
+ *  registered under a key nothing reads.
+ * The 9 registered `core.execution.*` definitions. No `byok.apiKey` — see
  *  this file's header. Scope is the shared default (workspace): one operator's
  *  endpoint choice doesn't silently become every workspace's. */
-const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
+const EXECUTION_DEFINITIONS: readonly SettingDefinitionSpec<ExecutionSettingKey>[] = [
   { key: "mode", schema: { type: "enum", values: ["local-cli", "byok"] }, defaultValue: "local-cli" },
   {
     key: "byok.protocol",
@@ -154,19 +150,16 @@ const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
 
 /**
  * Structural signature matching `features/settings`'s real `ensureSettingDefinitions` export
- * (`@jini-ai/cms/settings`, re-exported unchanged by `features/settings/index.ts`). Redeclared
- * locally rather than imported as a value — importing it as a value here is exactly the edge that
+ * (`@jini-ai/core/settings`, re-exported unchanged by `features/settings/index.ts`). Referenced
+ * as a type rather than imported as a value — importing it as a value here is exactly the edge that
  * would close an `[assistant, features/settings]` module cycle once `settings` converts to the
  * standard `registerToolContributor` pattern, since this file already sits inside `assistant/`. Same
- * Option-B-style technique `public-assistant-settings.ts`'s own 4 injected functions use. Reuses
+ * Option-B-style technique `public-assistant-settings.ts`'s own injected functions use. Reuses
  * `EnsureSettingDefinitionsDeps`/`SettingDefinitionSpec` directly (both stay `import type` — see this
  * file's import line) rather than redeclaring their fields, since those two types carry no runtime
  * edge of their own.
  */
-type EnsureSettingDefinitions = (
-  deps: EnsureSettingDefinitionsDeps,
-  input: { namespace: string; definitions: readonly SettingDefinitionSpec[]; systemPrincipalId: UUID },
-) => Promise<void>;
+type EnsureSettingDefinitions = typeof import("@jini-ai/core/settings").ensureSettingDefinitions;
 
 export interface EnsureExecutionSettingDefinitionsDeps extends EnsureSettingDefinitionsDeps {
   /** The real `features/settings`'s own `ensureSettingDefinitions` — injected rather than statically
@@ -190,7 +183,6 @@ export interface EnsureExecutionSettingDefinitionsInput {
  *
  * @complexity O(1) — 9 definitions, each a skip-if-registered check plus at
  * most one `registerDefinitions` call.
- * @overallScore 100
  */
 export async function ensureExecutionSettingDefinitions(
   deps: EnsureExecutionSettingDefinitionsDeps,

@@ -1,11 +1,9 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
- * @file Covers the 5 Webhooks tools (formerly published as `integrations_*`, renamed 2026-08-17 to
- * match the `src/webhooks/` module rename — see that rename's own commit for why the tool IDs moved
- * too): catalog completeness (every entry wired — subscription update and signing-secret rotation/
- * generation/reveal are absent from the catalog entirely, not merely unwired — see `agent-tools.ts`'s
- * own file header), published contracts, risk cross-check, the ADR-021 authorization half
+ * @file Webhooks catalog completeness: every entry is wired. Subscription update and
+ * signing-secret rotation/generation/reveal are absent from the catalog; see agent-tools.ts's
+ * header. Also covers published contracts, risk cross-check and the ADR-021 authorization half
  * (explicit-handler style — none of `createSubscription`/`pauseSubscription`/`deleteSubscription`
  * call `authorize()` themselves), and a multi-tool workflow test chaining create -> list -> remove,
  * asserting state stays consistent across the whole sequence.
@@ -19,7 +17,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { UIResource } from "../index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
@@ -29,6 +27,9 @@ import { contributeWebhooksTools } from "../../features/webhooks/tool-registrati
 
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -36,14 +37,9 @@ const contributions = {
 };
 
 
-// Webhooks (registered under the tool-contribution registry's "integrations" domain key — see
-// `webhooks/tool-registrations.ts`'s own header for why that key itself was NOT part of this rename)
-// moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots (`agent-daemon-server.ts`,
-// `assistant-byok.ts`) now do via `installFirstPartyToolContributors()`. Reset first so this file's
-// own registration is the only one this process's registry holds while these tests run.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
+// Reset first to isolate this file's registrations in the process registry.
+// Webhooks retain the public integrations domain key; see their contributor contract.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeWebhooksTools() });
 
@@ -104,7 +100,7 @@ function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistrati
  * `webhooks/__tests__/agent-tools.delete-confirmation.test.ts`).
  */
 async function deleteSubscriptionConfirmed(deps: RegistryDepsWithoutLimiter, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
   assert.ok(deleteTool, "expected 'webhooks_delete_subscription' to be wired");
   const emitted: unknown[] = [];
@@ -113,7 +109,7 @@ async function deleteSubscriptionConfirmed(deps: RegistryDepsWithoutLimiter, sub
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the surface must carry its exchange id");
-  surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: "webhooks_delete_subscription", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  surfaceExchanges.deliver({ exchangeId: match[1]!, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId: "webhooks_delete_subscription" });
   return pending as Promise<{ subscription: { status: string; disabledAt: string | null } }>;
 }
 
@@ -286,9 +282,9 @@ test("webhooks_get_deliveries returns recent delivery details in newest-first or
   const newest = delivery("newest", "2026-07-29T00:02:00.000Z");
   const oldest = delivery("oldest", NOW);
   // Deliberately insert out of order: the handler cannot rely on repo ordering.
-  for (const row of [middle, newest, oldest]) await webhookDeliveryRepo.enqueue(row);
-  await webhookDeliveryRepo.enqueue({ ...newest, id: "foreign-workspace", workspaceId: "other-ws" });
-  await webhookDeliveryRepo.enqueue({ ...newest, id: "foreign-subscription", subscriptionId: "other-sub" });
+  for (const row of [middle, newest, oldest]) await webhookDeliveryRepo.enqueue({ record: row });
+  await webhookDeliveryRepo.enqueue({ record: { ...newest, id: "foreign-workspace", workspaceId: "other-ws" } });
+  await webhookDeliveryRepo.enqueue({ record: { ...newest, id: "foreign-subscription", subscriptionId: "other-sub" } });
   const view = ({ workspaceId: _workspaceId, ...row }: WebhookDeliveryRecord) => row;
 
   const all = await invokeFixtureHandler(wired(deps, "webhooks_get_deliveries"), executionContext({ subscriptionId: created.subscription.id })) as { deliveries: unknown[] };

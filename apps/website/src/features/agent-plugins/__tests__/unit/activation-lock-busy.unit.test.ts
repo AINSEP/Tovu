@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { mock } from "node:test";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -10,36 +9,32 @@ import { forceRemove } from "../fixtures/force-remove.js";
 /**
  * @file B1-B7 — the busy-error mapping every writer performs when `withFileLock` throws:
  * `FileLockTimeoutError`/`FileLockLostError` become `AgentPluginActivationsBusyError`, and every
- * OTHER error (chiefly `AgentPluginActivationsUnreadableError`) passes through unchanged. Mocks
+ * OTHER error (chiefly `AgentPluginActivationsUnreadableError`) passes through unchanged. Formerly mocked
  * `@jini-ai/platform/fs/file-lock` rather than forcing real contention, so each failure mode is exact and
  * instant — `activation-cross-process-writes.integration.test.ts` is the file that proves the REAL
  * lock closes the race this file merely assumes it does.
  *
- * The mock is registered ONCE, at module top level, before the host activation binding/`seed-bundled.js` are
+ * The former mock was registered ONCE, at module top level, before the host activation binding/`seed-bundled.js` are
  * imported (also once) — `mock.module()` cannot retroactively change a binding a module already
  * resolved at its first load (this repo's own established caveat; see
  * `members/__tests__/disable.unit.test.ts`'s header). Each test only reassigns the shared mutable
- * `behavior`; run standalone, like every other file in this directory.
+ * `behavior`; run standalone, like every other file in this directory. That historical module
+ * replacement is now a DI filesystem port: timeout injection preserves the mapping probe and
+ * lost-lock injection removes the real lock before assertHeld(), preserving the no-write proof.
  */
 
 const real = await import("@jini-ai/platform/fs/file-lock");
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: this file swaps
-// `behavior` per test to cover every lock-failure shape without re-deriving the generic signature.
-let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
-
-mock.module("@jini-ai/platform/fs/file-lock", {
-  namedExports: {
-    ...real,
-    withFileLock: ({ lockPath, run }: { lockPath: string; run: (lock: unknown) => Promise<unknown> }, options?: unknown) => behavior(lockPath, run, options),
-  },
+const realFsp = await import("node:fs/promises");
+let behavior: typeof realFsp.open = realFsp.open;
+const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
+// Inject native effects once; every writer and seed preflight uses the same lifecycle owner.
+const lifecycle = createTovuAgentPluginLifecycle({}, {
+  filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
-
-const { assertAgentPluginActivationsWritable, deleteAgentPluginActivation, recordBundledAgentPluginIfAbsent, setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
+const { assertAgentPluginActivationsWritable, deleteAgentPluginActivation, recordBundledAgentPluginIfAbsent, setAgentPluginActivation, seedBundledAgentPlugins, listInstalledPlugins } = lifecycle;
 const { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError,  } = await import("@jini-ai/agent-plugins/lifecycle");
-const { seedBundledAgentPlugins } = await import("../../seed-bundled.js");
 const { resolveAgentPluginLayout } = await import("../../layout.js");
-const { listInstalledPlugins } = await import("../../resolve-agent-plugin-refs.js");
 
 const WORKSPACE_ID = "44444444-4444-4444-8444-444444444444";
 
@@ -61,20 +56,28 @@ async function writeBundledSourceFixture(bundledRoot: string): Promise<void> {
 }
 
 function timeoutBehavior(pid: number): typeof behavior {
-  return async (lockPath) => {
+  return async (...args) => {
+    const lockPath = String(args[0]);
+    if (path.basename(lockPath) !== "activations.json.lock") return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
     throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 
 function lostBehavior(): typeof behavior {
-  return async (lockPath, run) =>
-    run({
-      lockPath,
-      assertHeld: async () => {
-        throw new real.FileLockLostError({ lockPath });
-      },
-    });
+  return async (...args) => {
+    const handle = await realFsp.open(...args);
+    const target = String(args[0]);
+    if (path.basename(target).startsWith("activations.json.tmp-")) {
+      const close = handle.close.bind(handle);
+      // Lose real ownership immediately before assertHeld(), after the temp file is flushed.
+      handle.close = async () => {
+        await close();
+        await realFsp.rm(path.join(path.dirname(target), "activations.json.lock"));
+      };
+    }
+    return handle;
+  };
 }
 
 function assertBusy(error: unknown, expectPid: number): void {
@@ -100,7 +103,7 @@ test("B1: setAgentPluginActivation maps a lock timeout to AgentPluginActivations
     );
     assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), seed);
   } finally {
-    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    behavior = realFsp.open;
     await forceRemove(root);
   }
 });
@@ -119,7 +122,7 @@ test("B2: recordBundledAgentPluginIfAbsent maps a lock timeout to AgentPluginAct
     );
     await assert.rejects(readFile(path.join(root, "activations.json")), { code: "ENOENT" });
   } finally {
-    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    behavior = realFsp.open;
     await forceRemove(root);
   }
 });
@@ -140,7 +143,7 @@ test("B3: deleteAgentPluginActivation maps a lock timeout to AgentPluginActivati
     );
     assert.equal(await readFile(path.join(root, "activations.json"), "utf8"), seed);
   } finally {
-    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    behavior = realFsp.open;
     await forceRemove(root);
   }
 });
@@ -155,7 +158,7 @@ test("B4: assertAgentPluginActivationsWritable maps a lock timeout to AgentPlugi
       return true;
     });
   } finally {
-    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    behavior = realFsp.open;
     await forceRemove(root);
   }
 });
@@ -183,7 +186,7 @@ test("B5: a lock LOST right before the rename maps to AgentPluginActivationsBusy
       `no temp file may survive a lost-lock write: ${JSON.stringify(entries)}`,
     );
   } finally {
-    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    behavior = realFsp.open;
     await forceRemove(root);
   }
 });
@@ -205,7 +208,7 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
     assert.match(outcome.reason ?? "", /write lock/);
     assert.deepEqual(await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).root), []);
   } finally {
-    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    behavior = realFsp.open;
     await forceRemove(cwd);
     await forceRemove(bundledRoot);
   }
@@ -214,7 +217,7 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
 test("B7: a REAL lock combined with a corrupt file rejects AgentPluginActivationsUnreadableError, not Busy — non-lock errors are not remapped", async () => {
   const root = await freshRoot();
   try {
-    behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+    behavior = realFsp.open;
     await writeFile(path.join(root, "activations.json"), "{ not json at all", "utf8");
 
     await assert.rejects(

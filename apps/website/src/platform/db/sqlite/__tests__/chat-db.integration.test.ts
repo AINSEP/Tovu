@@ -49,12 +49,13 @@ test("openSiteChatDb migrates fresh and legacy files, preserves conversations an
           db = undefined;
         }
         db = await openSiteChatDb(file);
-        for (const name of ["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "assistant_conversation_tool_approvals", "tovu_chat_migrations"]) {
+        for (const name of ["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "assistant_conversation_tool_approvals", "assistant_run_attempts", "tovu_chat_migrations"]) {
           assert.ok(tableNames(db).includes(name), `${mode}: ${name} must exist`);
         }
         assert.deepEqual(db.prepare("SELECT id FROM tovu_chat_migrations ORDER BY id").all(), [
           { id: "0000_chat_baseline" },
           { id: "0001_sqlite_chat_tables" },
+          { id: "0002_durable_run_attempts" },
         ]);
         if (mode === "fresh") seed(db);
         const chats = db.prepare("SELECT * FROM ai_chats ORDER BY id").all();

@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/site-backup.js';
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -10,9 +11,10 @@ import { type ToolExecutionContext } from "@jini-ai/core";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
-import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { ObservabilityPort } from "../../platform/observability/index.js";
@@ -31,7 +33,7 @@ import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validate
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { inspectSiteKeyMaterial } from "../webhooks/keyring.env.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/site-key-sources.js";
-import { SITE_BACKUP_PUSH_TOOL_ID } from "./confirmation-ui.js";
+export const SITE_BACKUP_PUSH_TOOL_ID = "site_backup_push";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import { isSourceControlProviderId, resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
@@ -152,7 +154,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: PLAN_TOOL_ID,
     description:
-      "Plans a BACKUP OF THIS SITE to a private repository on a git host a turned-on Agent Plugin provides (source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes) — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through the host's connection saved with source_control_propose_credential or a saved custom credential (Access Tokens page -> 'Add custom provider', base URL = that host's apiOrigin). With no connection yet, tell the person the repository rules below and ask which repository first, then open that form. Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (a media, theme or plugin file over the host's maxFileBytes is left out and listed in skipped; the database over it fails the plan; at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
+      "Plans a BACKUP OF THIS SITE to a private repository on a git host a turned-on Agent Plugin provides (source_control_get_capabilities lists each host with its label, apiOrigin and maxFileBytes) — the site's database (content, members, form submissions, admin accounts, credentials encrypted), media, themes, installed plugins and skills, and settings — as one folder, through the host's connection saved with credential_save with kind source-control or a saved custom credential (Access Tokens page -> 'Add custom provider', base URL = that host's apiOrigin). With no connection yet, tell the person the repository rules below and ask which repository first, then open that form. Use this to back up or keep a copy of the site itself; to publish the RENDERED site to a repository use source_control_execute_commit instead. Read-only: it writes nothing anywhere. It checks the credential, that the repository is PRIVATE (public and internal repositories are refused, because the database holds user data), that the credential can push, that the branch exists (defaults to the repository's default branch; an empty repository is refused — it needs a first commit such as a README), snapshots the database, lists every file with its size, and checks the limits (a media, theme or plugin file over the host's maxFileBytes is left out and listed in skipped; the database over it fails the plan; at most 3000 files and 1 GiB). Returns {planned: true, planId, expiresAt, credential, repository, visibility, branch, folder, folderExists, include, fileCount, totalBytes, totalSize, files: [{path, bytes}], skipped, notes, nextStep}, or {planned: false, code, message} naming what to fix (codes: CREDENTIAL_NOT_FOUND, CREDENTIAL_AMBIGUOUS, CREDENTIAL_UNREADABLE, REPOSITORY_NOT_FOUND, REPOSITORY_NOT_PRIVATE, NO_PUSH_PERMISSION, REPOSITORY_EMPTY, BRANCH_NOT_FOUND, FOLDER_IS_FILE, DATABASE_SNAPSHOT_FAILED, LIMIT_EXCEEDED, PROVIDER_ERROR, NETWORK_UNREACHABLE, UNAVAILABLE). Show the human the plan (repository, branch, folder, what is included, file count and size, anything skipped), then call site_backup_push with the planId.",
     sideEffects: "none",
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PLAN_SCHEMA,
@@ -186,7 +188,7 @@ export interface SiteBackupToolDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly customCredentialSetRepo: CustomCredentialSetRepoPort;
-  /** The connections chat's "Connect <host>" form saves (`source_control_propose_credential`); a
+  /** The connections chat's "Connect <host>" form saves (`credential_save with kind source-control`); a
    *  host's default one is used when no custom credential points at it. `RouteDeps` has it. */
   readonly sourceControlCredentialSetRepo?: SourceControlCredentialSetRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
@@ -302,7 +304,7 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
     return {
       ok: false,
       code: "CREDENTIAL_NOT_FOUND",
-      message: `no saved credential points at ${where} (${labelList(labels)}). Connect ${providers.map((provider) => provider.label).join(" or ")} with source_control_propose_credential (a form in this chat), or save a token on the Access Tokens page ('Add custom provider', base URL ${where}), or name one with 'credential'.`,
+      message: `no saved credential points at ${where} (${labelList(labels)}). Connect ${providers.map((provider) => provider.label).join(" or ")} with credential_save with kind source-control (a form in this chat), or save a token on the Access Tokens page ('Add custom provider', base URL ${where}), or name one with 'credential'.`,
     };
   }
   return { ok: false, code: "CREDENTIAL_AMBIGUOUS", message: `${matching.length} saved credentials point at ${where} (${labelList(matching)}); name one with 'credential'.` };
@@ -766,7 +768,7 @@ async function handlePush(deps: SiteBackupToolDeps, surfaces: AssistantSurfaceDe
  * `CREDENTIAL_UNREADABLE` above, and its own text must never be published.
  */
 const SITE_BACKUP_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("SITE_BACKUP"),
+  forbiddenRule({ domainPrefix: "SITE_BACKUP", error: ForbiddenError }),
   { error: CustomCredentialValidationError, code: "SITE_BACKUP_INVALID_INPUT" },
 ];
 
@@ -780,7 +782,7 @@ export function buildSiteBackupRegistrations(deps: SiteBackupToolDeps, surfaces:
     [PLAN_TOOL_ID]: (ctx) => handlePlan(deps, ctx),
     [SITE_BACKUP_PUSH_TOOL_ID]: (ctx) => handlePush(deps, surfaces, ctx),
   };
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: DOMAIN,
     catalogModule: "features/site-backup/tool-registrations.ts",
     catalog: CATALOG_BY_ID,

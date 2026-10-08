@@ -9,7 +9,7 @@ import type { StorageKernel } from "./kernel/index.js";
  * The journal is per-site ops metadata (restore points, migration runs, the boot ledger) and stays
  * a local SQLite file whatever database the site's content lives in — so its tables are typed here
  * by hand, snake_case, exactly as `sqlite/database-journal-schema.ts` creates them. Type aliases,
- * not interfaces: Kysely's table typing needs them (see `features/comments/repo.rows.ts`).
+ * not interfaces: Kysely's table typing needs them (see `Jini/packages/cms/src/comments/sql/repo.rows.ts`).
  */
 
 export type DatabaseLedgerTable = {

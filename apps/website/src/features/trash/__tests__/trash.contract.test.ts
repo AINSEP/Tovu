@@ -3,7 +3,7 @@ import test from "node:test";
 import type Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { parseWidgetInstancePayload } from "#src/features/widgets/entry-payload";
+import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "../adapters/post.js";
 import { createRedirectTrashAdapter, REDIRECT_ENTITY_TYPE } from "../adapters/redirect.js";
@@ -99,8 +99,8 @@ function readBodyJson(client: Database.Database, id: string): string | null {
 test("RED reference: the existing widget trash primitive still throws on a payload like this", () => {
   // `trashWidgetInstance` parses the payload to flip a status, so it fails on exactly the rows a
   // user most wants gone. The adapters below must not be able to fail this way — hence the next test.
-  assert.throws(() => parseWidgetInstancePayload({ ext: { widget: { payload: "{not json" } } }), SyntaxError);
-  assert.throws(() => parseWidgetInstancePayload(MALFORMED_PAYLOAD), /malformed fieldsJson \(expected an object\)/);
+  assert.throws(() => parseWidgetInstancePayload({ fieldsJson: { ext: { widget: { payload: "{not json" } } } }), SyntaxError);
+  assert.throws(() => parseWidgetInstancePayload({ fieldsJson: MALFORMED_PAYLOAD }), /malformed fieldsJson \(expected an object\)/);
 });
 
 test("hide then unhide a post whose body_json is unparseable — both succeed, bytes are byte-identical", async () => {

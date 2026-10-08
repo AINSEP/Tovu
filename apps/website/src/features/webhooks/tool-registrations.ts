@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/webhooks.js';
 /**
  * @file Integrations' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 5 catalog entries onto
  * the list/create/pause/delete/deliveries operations `server/routes/admin/integrations/*.ts`
@@ -15,21 +16,20 @@
  */
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
-import { ToolInputError } from "@jini-ai/core";
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+// The transport raises ToolInputError for a missing channel: delegated tools must see the
+// missing capability, not an opaque SEC-005-redacted internal error that invites retries.
+import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import type { ToolContributor } from "#src/assistant/index";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import {
   forbiddenRule,
-} from "#src/contracts/core/model-facing-tool-errors";
+} from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import {
   createSurfaceExchangeStore,
-  resolveConfirmationDecision,
-  SURFACE_EXCHANGE_ID_PARAM,
   type AssistantSurfaceDeps,
-  type SurfaceExchange,
-} from "../../contracts/core/tool-surface-exchanges.js";
-import type { OriginRegistryPort } from "../../features/origin/index.js";
+} from "@jini-ai/daemon/surface-exchanges";
+import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { getWebhooksAgentToolCatalog } from "./agent-tools.js";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
 import {
@@ -40,6 +40,9 @@ import {
   WebhookSubscriptionValidationError,
 } from "./subscriptions.js";
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: getWebhooksAgentToolCatalog() });
 
@@ -111,55 +114,6 @@ function toSubscriptionToolView(subscription: WebhookSubscriptionRecord, lastDel
 
 const WEBHOOKS_DELETE_TOOL_ID = "webhooks_delete_subscription";
 
-/** The `ui://` URI for one delete-confirmation instance — keyed by the exchange id, mirroring
- *  `comments/tool-registrations.ts`'s identical `trashConfirmationUri`. */
-function deleteConfirmationUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/webhooks-delete-subscription/${exchangeId}` as UIResourceUri;
-}
-
-/**
- * Renders `webhooks_delete_subscription`'s confirmation dialog. Jini's `buildConfirmationSurface`
- * owns HOW the dialog behaves; this only decides WHAT it says. The warning is unconditional (unlike
- * `content_post_delete`'s status-gated one) because `webhooks_delete_subscription` is classified
- * `deletes-durable-state` precisely because there is no un-disable path anywhere in this domain — see
- * `webhooksDerivedRisk`'s own comment on that entry.
- *
- * @complexity O(1).
- */
-function buildDeleteConfirmationResource(spec: {
-  subscription: { label: string; targetUrl: string; status: string };
-  exchangeId: string;
-  /** The exchange's deadline, so the chat counts the card down — as `requireHumanConfirm` does. */
-  expiresAtMs: number;
-}): UIResource {
-  const { subscription, exchangeId, expiresAtMs } = spec;
-  return buildConfirmationSurface({
-    uri: deleteConfirmationUri(exchangeId),
-    title: "Delete this webhook subscription?",
-    description: "The subscription will stop receiving deliveries.",
-    details: [
-      { label: "Label", value: subscription.label },
-      { label: "Target URL", value: subscription.targetUrl },
-      { label: "Current status", value: subscription.status },
-    ],
-    warning: "There is no un-delete for a webhook subscription — reconnecting it means creating a new one, with a new signing secret.",
-    danger: true,
-    confirm: {
-      label: "Delete subscription",
-      toolName: WEBHOOKS_DELETE_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    cancel: {
-      label: "Cancel",
-      toolName: WEBHOOKS_DELETE_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-webhooks-delete-subscription", appVersion: "1" },
-    preferredFrameSize: ["100%", "320px"],
-    expiresAtMs,
-  });
-}
-
 /** Model-facing delivery view — drops `workspaceId` (redundant: every call is already scoped to
  * the caller's own workspace). */
 function toDeliveryToolView(delivery: WebhookDeliveryRecord) {
@@ -222,16 +176,16 @@ export const webhooksDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
  * the OUTBOUND send path, which no tool in this catalog calls, so listing it would be speculative.
  */
 const WEBHOOKS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("WEBHOOKS"),
+  forbiddenRule({ domainPrefix: "WEBHOOKS", error: ForbiddenError }),
   { error: WebhookSubscriptionNotFoundError, code: "WEBHOOKS_SUBSCRIPTION_NOT_FOUND" },
   { error: WebhookSubscriptionValidationError, code: "WEBHOOKS_VALIDATION_FAILED" },
 ];
 
 export function buildWebhooksRegistrations(
   routeDeps: IntegrationsToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const isAllowedTarget = (url: string) => routeDeps.originRegistry.isAllowedEgressTarget({ workspaceId: routeDeps.workspaceId }, url);
+  const isAllowedTarget = (url: string) => routeDeps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: routeDeps.workspaceId }, url: url });
 
   const handlers: Record<string, ToolHandler> = {
     webhooks_list_subscriptions: async (ctx) => {
@@ -314,67 +268,49 @@ export function buildWebhooksRegistrations(
      * anywhere in its input), so whatever the row looks like at confirm time is exactly what gets
      * deleted, or a fresh `WebhookSubscriptionNotFoundError` if it is gone by then.
      */
-    webhooks_delete_subscription: async (ctx, { emitSurface } = {}) => {
-      const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
-
-      const existing = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
-      if (!existing) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
-
-      if (!emitSurface) {
-        // A `ToolInputError`, not a bare `Error`: that marker is the only thing keeping this out of
-        // the `errorKind: 'internal'` bucket the delegated-tool transport SEC-005-redacts, and a
-        // model that is told only "500" here will retry a delete that can never succeed in this
-        // context. The message names no internals — only the missing capability and the fact that
-        // nothing was deleted, which is exactly what the caller needs to stop and ask a human.
-        throw new ToolInputError({ message:
-          "WEBHOOKS_NO_CONFIRMATION_CHANNEL: webhooks_delete_subscription: this execution context has " +
-            "no interactive confirmation channel (no emitSurface), so a destructive delete cannot be " +
-            "gated here. Nothing was deleted."
-         });
-      }
-
-      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
-        { toolId: WEBHOOKS_DELETE_TOOL_ID, principalId: ctx.principal.id },
-        emitSurface
-      );
-      const ui = buildDeleteConfirmationResource({
-        subscription: { label: existing.label, targetUrl: existing.targetUrl, status: existing.status },
-        exchangeId: exchange.id,
-        expiresAtMs: exchange.expiresAtMs(),
-      });
-
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        const outcome = await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-        if (!outcome.confirmed) {
-          if (outcome.reason === "declined") {
-            return { deleted: false, cancelled: true, subscription: toSubscriptionToolView(existing, null) };
-          }
-          return {
-            deleted: false,
-            cancelled: false,
-            reason: outcome.reason,
-            note:
-              outcome.reason === "expired"
-                ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
-                : "The confirmation dialog was closed because the run ended. Nothing was deleted.",
-          };
-        }
-
+    webhooks_delete_subscription: approvalToolHandler({ surfaces,
+      prepare: async ({ ctx }) => {
+        const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
+        const existing = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
+        if (!existing) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
+        return { subscriptionId, existing };
+      },
+      /**
+       * Describes `webhooks_delete_subscription`'s confirmation dialog. Jini's approval owner
+       * owns HOW the dialog behaves; this only decides WHAT it says. The warning is unconditional (unlike
+       * `content_post_delete`'s status-gated one) because `webhooks_delete_subscription` is classified
+       * `deletes-durable-state` precisely because there is no un-disable path anywhere in this domain — see
+       * `webhooksDerivedRisk`'s own comment on that entry.
+       *
+       * @complexity O(1).
+       */
+      describe: ({ prepared: { existing } }) => ({
+        toolId: WEBHOOKS_DELETE_TOOL_ID, errorCode: "WEBHOOKS",
+        title: "Delete this webhook subscription?", description: "The subscription will stop receiving deliveries.",
+        details: [{ label: "Label", value: existing.label }, { label: "Target URL", value: existing.targetUrl }, { label: "Current status", value: existing.status }],
+        warning: "There is no un-delete for a webhook subscription — reconnecting it means creating a new one, with a new signing secret.",
+        danger: true, confirmLabel: "Delete subscription",
+      }),
+      run: async ({ ctx, prepared: { subscriptionId } }) => {
+        // Authorization can be revoked while the human reads the card; the service has no gate.
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
+        if (ctx.signal.aborted) return { deleted: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
         const { subscription } = await deleteSubscription({
           deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
           input: { workspaceId: routeDeps.workspaceId, id: subscriptionId },
         });
         return { deleted: true, cancelled: false, subscription: toSubscriptionToolView(subscription, null) };
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
-    },
+      },
+    }, { flag: "deleted", declined: ({ reason, prepared }) => {
+      if (reason === "declined" && prepared) return { deleted: false, cancelled: true, subscription: toSubscriptionToolView(prepared.existing, null) };
+      return { deleted: false, cancelled: false, reason, note: reason === "expired"
+        ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
+        : "The confirmation dialog was closed because the run ended. Nothing was deleted." };
+    } }),
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "integrations",
     catalogModule: "webhooks/agent-tools.ts",
     catalog: CATALOG_BY_ID,

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { mock } from "node:test";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -10,13 +9,13 @@ import { forceRemove } from "../fixtures/force-remove.js";
 /**
  * @file D1-D2 (R5, t91 2026-09-16) — proves the durability ORDER `writeActivationsAtomically`
  * promises: the temp file is fsync'd before the rename lands, and the workspace directory is
- * best-effort fsync'd after. Mocks `node:fs/promises` to log `open().sync()` and `rename()` calls by
+ * best-effort fsync'd after. Wraps `node:fs/promises` to log `open().sync()` and `rename()` calls by
  * basename, in call order, while leaving every actual filesystem effect real — a log-only wrapper,
  * not a stub, so `setAgentPluginActivation` still genuinely succeeds and can be asserted on
  * afterwards too.
  *
- * Registered ONCE at module top level, before the host activation binding is imported (also once) — same
- * `mock.module()`-cannot-retroactively-rebind caveat as this directory's other mocked test files.
+ * Supplied once through the lifecycle filesystem port, preserving the native effects. The former
+ * module mock needed registration before import because resolved bindings cannot be rebound.
  */
 
 const realFsp = await import("node:fs/promises");
@@ -40,9 +39,11 @@ const wrappedRename = (async (from: Parameters<typeof realFsp.rename>[0], to: Pa
   return realFsp.rename(from, to);
 }) as typeof realFsp.rename;
 
-mock.module("node:fs/promises", { namedExports: { ...realFsp, open: wrappedOpen, rename: wrappedRename } });
-
-const { setAgentPluginActivation, resolveAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
+const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
+// The same log-only native wrappers are supplied through the owner's filesystem port.
+const { setAgentPluginActivation, resolveAgentPluginActivation } = createTovuAgentPluginLifecycle({}, {
+  filesystem: { ...realFsp, open: wrappedOpen, rename: wrappedRename },
+});
 
 async function freshRoot(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "tovu-activation-durable-"));

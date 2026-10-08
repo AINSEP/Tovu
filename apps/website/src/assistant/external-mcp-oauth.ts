@@ -1,8 +1,7 @@
 import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../platform/oauth/endpoint-safety.js";
 import { randomBytes } from "node:crypto";
 import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
-import type { PendingAuthorizationStore } from "../platform/oauth/pending-authorizations.js";
-import { OAuthError as LegacyOAuthError } from "../platform/oauth/errors.js";
+import type { PendingAuthorizationStore } from "@jini-ai/oauth";
 // Shared OAuth design rationale: Jini/packages/oauth/src/authorization-code.ts.
 
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
@@ -53,20 +52,9 @@ import {
  * `external-mcp-store.ts` knows nothing about token endpoints; this file owns the join and nothing
  * else — no HTTP routing (that is `server/routes/`), no federation (that is `mcp-federation/`).
  *
- * ## What is reused from the connectors subsystem, and what is not
- *
- * REUSED, by the routes that call into this module: the public callback mount point outside
- * `/api/admin`, the XSS-safe callback page, the popup + origin-checked `postMessage` bridge with its
- * focus-regain fallback, and the per-IP rate limiters. Those are the hardened edges, and they were
- * right on the first try in `routes/connectors/` because someone had already got them wrong
- * elsewhere.
- *
- * NOT REUSED: the state machine. The (since-removed) Composio provider performed no token exchange
- * at all — Composio was the OAuth client there, and Tovu asked it for a redirect URL and later for
- * a *connected account*. There was no authorization-code grant, no PKCE, no token endpoint, no refresh
- * token and no expiry column anywhere in that path. There was nothing to port; a direct integration
- * inherits every one of those duties, and they are implemented in `@jini-ai/oauth` behind a
- * provider-agnostic descriptor so no vendor's quirks reach this file either.
+ * Callback routes reuse the connectors' public mount, XSS-safe page, origin-checked popup bridge,
+ * focus-regain fallback and per-IP limiters. Authorization grants, PKCE, exchange, refresh and
+ * expiry are owned by `@jini-ai/oauth` behind provider-agnostic descriptors.
  *
  * ## Connect-time failures are loud, fast and never retried
  *
@@ -345,7 +333,7 @@ export interface ExternalMcpOAuthService {
    *   omit it when there is genuinely no origin. Never pass one built from anything the CALLER
    *   supplied (a form field, a tool-call argument) — only from operator configuration or this
    *   process's own known bind origin (`features/external-mcp/tool-registrations.ts`'s
-   *   `resolveExternalMcpOAuthRedirectUri`, 2026-09-10, covers both). A redirect URI the provider was
+   *   `resolveExternalMcpOAuthRedirectUri` covers both). A redirect URI the provider was
    *   not registered with still fails at the vendor with an error about the client, so this is not a
    *   license to guess from arbitrary caller input — it is what makes a value trustworthy enough to
    *   pass at all.
@@ -528,14 +516,14 @@ async function resolveClient(
 // Self-configuration: discovery + dynamic client registration
 //
 // A connection may reach `beginConnect` missing the two things every grant needs: where the
-// authorization server is, and who Tovu is to it. Both used to be operator-typed, and for a provider
-// with a developer console that is still the right answer. A growing share of hosted MCP servers have
+// authorization server is, and who Tovu is to it. Operators can configure both for a provider
+// with a developer console. A growing share of hosted MCP servers have
 // no console at all — they publish RFC 9728 / RFC 8414 metadata and an RFC 7591 registration endpoint
 // and expect clients to self-register — and for those there is no human path to a client id, so the
 // connection is unreachable without this.
 //
 // It runs ONLY in `beginConnect`, and what it learns is PERSISTED. The callback, poll and refresh
-// paths then read the row exactly as they did before, so there is one place where a connection can
+// paths read the persisted row, so there is one place where a connection can
 // change shape rather than four. Persisting is also what keeps registration a once-per-connection
 // event: an authorization server does not garbage-collect clients, so a connect that registered every
 // time would leave one dead client behind per retry.
@@ -1008,19 +996,8 @@ async function setOAuthStatus(
  */
 export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps): ExternalMcpOAuthService {
   const deps = { ...required, providers: required.providers ?? createOAuthProviderRegistry({ guard: required.httpPorts.guard }) };
-  // The DB lane still supplies its existing store port. Translate its size getter and errors,
-  // preserving atomic redemption; RFC 8707 activation awaits that lane's durable resource handoff.
-  const pending: JiniPendingAuthorizationStore = {
-    put: (input) => deps.pending.put(input),
-    async take(input) {
-      try { return await deps.pending.take(input); }
-      catch (error) {
-        if (!(error instanceof LegacyOAuthError)) throw error;
-        throw new OAuthError({ code: error.code, message: error.message, operatorAction: error.operatorAction }, { cause: error });
-      }
-    },
-    size: () => deps.pending.size(),
-  };
+  // Preserve atomic redemption; RFC 8707 activation awaits the durable resource handoff.
+  const pending: JiniPendingAuthorizationStore = deps.pending;
   const refresher = createTokenRefresher({
     clock: deps.clock,
     sleep: ({ ms }) => new Promise<void>((resolve) => setTimeout(resolve, ms)),

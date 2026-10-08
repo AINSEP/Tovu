@@ -19,8 +19,7 @@ import type { TemplateJson, TemplateSeedContent } from "./types.js";
  * `templates/starter/seed-content.json` is content-equal to `server/seed.ts`'s live output
  * (AC-02) — generated FROM it by `development/scripts/generate-seed-content.ts` (`npm run
  * generate:seed-content`; drift is a blocking `ci-local.sh` gate, `check:seed-content-drift`), not
- * hand-synced (2026-08-21: hand-syncing this file drifted from `seed.ts` twice in one day with no
- * generator between them — see that script's own header). This module never imports `server/seed.ts`
+ * hand-synced, to prevent drift. This module never imports `server/seed.ts`
  * directly: `site-dir` must stay independent of the `server` module (Module Map), and a template
  * is data the runtime reads, not a re-export of another module's code.
  *
@@ -31,10 +30,8 @@ import type { TemplateJson, TemplateSeedContent } from "./types.js";
 /**
  * `content/templates/` dir, resolved from this file's own location, never `process.cwd()`.
  *
- * Templates are stock DATA and moved out of `src/` on 2026-08-27. Walks up to find the product
- * root rather than counting `../` segments — see `product-root.ts`'s header for why a fixed count
- * can't be correct in both the source and compiled trees after the 2026-08-28 `apps/website/`
- * rename. `npm run build` copies this tree into the compiled root's own `content/templates`.
+ * Stock data copied into the compiled root by the build; see `product-root.ts` for
+ * ancestor resolution across source and compiled trees.
  */
 const TEMPLATES_ROOT = path.join(resolveProductRoot(), "content", "templates");
 

@@ -9,7 +9,7 @@ import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.js";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "@jini-ai/daemon/surface-exchanges";
 import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
 import { type AgentToolDefinition as TaxonomyAgentToolDefinition } from "@jini-ai/core";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
@@ -24,6 +24,9 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeTaxonomyTools, taxonomyDerivedRisk } from "../../features/taxonomy/tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -45,10 +48,7 @@ const contributions = {
  * (Integration-First Testing).
  */
 
-// Taxonomy moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
-// so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
-// it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeTaxonomyTools() });
 
@@ -117,8 +117,8 @@ function catalogEntry(toolId: string): TaxonomyAgentToolDefinition {
   return entry;
 }
 
-function taxonomyRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || r.descriptor.id === "content_read.taxonomy").map((r) => [r.descriptor.id, r]));
+function taxonomyRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions, includeContentReadCollapse }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || r.descriptor.id === "content_read.taxonomy").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
@@ -190,7 +190,8 @@ test("no taxonomy tool is named for a confirm step, and only taxonomy_execute_me
 
 test("every wired taxonomy registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
-  for (const [id, registration] of taxonomyRegistrations(deps)) {
+  // Compare the source catalog before the host read-id projection; contracts.test.ts checks that projection.
+  for (const [id, registration] of taxonomyRegistrations(deps, false)) {
     // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
     // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
@@ -539,7 +540,7 @@ async function seedMergeableTerms(deps: RegistryDepsWithoutLimiter): Promise<{ t
  * `answer(principalId, decision)` posts a click the way `mcp-ui-tool-calls-route.ts` does.
  */
 async function startMerge(deps: RegistryDepsWithoutLimiter, input: Record<string, unknown>) {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool, `expected '${MERGE_TOOL}' to be wired`);
   const emitted: unknown[] = [];
@@ -550,7 +551,7 @@ async function startMerge(deps: RegistryDepsWithoutLimiter, input: Record<string
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the dialog carries its exchange id");
   const answer = (principalId: string, decision: "confirm" | "cancel"): DeliverResult =>
-    surfaceExchanges.deliver({ exchangeId: match[1]!, toolId: MERGE_TOOL, principalId, params: { decision } });
+    surfaceExchanges.deliver({ exchangeId: match[1]!, principalId, params: { decision } }, { toolId: MERGE_TOOL });
   return { pending, html, answer };
 }
 
@@ -602,7 +603,7 @@ test(`${MERGE_TOOL}: overlapping assignments merge into exactly one survivor ass
 test(`${MERGE_TOOL}: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog`, async () => {
   const { deps } = fakeRouteDeps();
   const { fromTermId, intoTermId } = await seedMergeableTerms(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool);
 

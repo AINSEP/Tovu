@@ -1,18 +1,10 @@
-import { withCredentialPasteGuidance } from "./credential-guidance.js";
-import { redactUserText } from "@jini-ai/chat/core";
+import { CREDENTIAL_PASTE_MODEL_NOTE } from "./credential-guidance.js";
+import { guardUserText } from "@jini-ai/chat/core";
 /**
  * @file `parseRunStartContextRef` — the decode/validate step for a run-start request's
- * `contextRef` JSON, pulled out of `agent-daemon-server.ts`'s `onStarted` handler into its own
- * module (2026-08-05, model-dropdown wiring fix, Hop 4 of 4) for the same reason `run-ownership.ts`,
- * `custom-instructions.ts`, and `daemon-auth.ts` already live apart from that file rather than
- * inline in it: `agent-daemon-server.ts` is the standalone daemon PROCESS entry point — it ends in
- * an unconditional `void start()` that binds a real port the moment the module is imported (see
- * that file's own header, "a separate OS process from Tovu's own server"). Importing it anywhere,
- * including from a test, triggers that bind attempt; a pure helper needed elsewhere (or tested in
- * isolation) has to live outside it or inherit that hazard. Keeping this function here is what
- * lets `parse-run-start-context-ref.unit.test.ts` exercise it directly, with no Express app,
- * `AttachmentStore`, or `AgentExecutor` involved — and with no risk of the test process binding a
- * real port or being torn down by the daemon's own `EADDRINUSE`/`process.exit()` handling.
+ * `contextRef` JSON. Kept outside the daemon entry point because importing that side-effecting
+ * script binds a real server port. This pure helper is safe to import and test without Express,
+ * an AttachmentStore or an AgentExecutor.
  */
 import { readRunPageContext, type RunPageContext } from "./run-page-context.js";
 
@@ -100,8 +92,11 @@ export function parseRunStartContextRef(contextRef: string): {
     assistantMessageId?: unknown;
     recoveryMode?: unknown;
     recoverySessionId?: unknown;
+    secretRedacted?: unknown;
   };
-  const prompt = withCredentialPasteGuidance({ text: redactUserText({ text: requireNonEmptyContextField(parsed.prompt, "prompt") }).text }, {});
+  const prompt = guardUserText({ text: requireNonEmptyContextField(parsed.prompt, "prompt") }, {
+    modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: parsed.secretRedacted === true,
+  });
   const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
   const attachmentIds = readContextStringArray(parsed.attachmentIds);
   const pluginRefIds = readContextStringArray(parsed.pluginRefIds);

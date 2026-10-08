@@ -3,17 +3,18 @@
  * server code: `run-in-worker.ts` spawns it by file path in a fresh, heap-limited worker per call,
  * and terminates it after the first reply or the timeout.
  *
- * The call logic is `features/plugin-runtime/tier2/run-call.ts`'s pure `runTier2Call()`; this file
+ * The call logic is `Jini/packages/plugins/src/host/worker/run-call.ts`'s pure `runTier2Call()`; this file
  * only wires the worker's own message port and import mechanism to it. `main()` is exported and
  * auto-runs only when `!isMainThread`, so tests cover it in-process.
  *
- * Imports stay relative (not `#src/...`) and minimal: under tsx this entry is loaded through a CJS
- * `require()`, and every module it pulls in is startup time inside the call's timeout budget.
+ * The worker entry imports its product binding relatively: under tsx this entry is loaded through
+ * a CJS `require()`, and every module it pulls in is startup time inside the call's timeout budget.
  */
 import { isMainThread, parentPort, workerData } from "node:worker_threads";
 
-import { runTier2Call } from "../../../features/plugin-runtime/tier2/run-call.js";
-import type { Tier2Request } from "../../../features/plugin-runtime/tier2/protocol.js";
+import { pluginHostBinding } from "../../../features/plugin-runtime/host-binding.js";
+import { runTier2Call } from "@jini-ai/plugins/host/worker";
+import type { Tier2Request } from "@jini-ai/plugins/host/worker";
 import { registerPluginSdkResolver } from "../boot/plugin-sdk-resolver.js";
 
 export interface Tier2WorkerMainRequired {
@@ -54,7 +55,11 @@ export async function main(required: Tier2WorkerMainRequired, optional: Tier2Wor
     registerPluginSdkResolver();
     importModule = importPluginModule;
   }
-  port.postMessage(await runTier2Call({ request: required.workerData as Tier2Request, importModule }));
+  const importEntry = importModule;
+  port.postMessage(await runTier2Call({ ...pluginHostBinding, request: required.workerData as Tier2Request, importModule: async ({ modulePath }) => {
+    const imported = await importEntry(modulePath);
+    return { exported: typeof imported === "object" && imported !== null ? (imported as { default?: unknown }).default : undefined };
+  } }));
 }
 
 /**

@@ -5,6 +5,7 @@ import { isReadOnlyTool } from "@jini-ai/core";
 import { createFrontendControl } from "@jini-ai/daemon/http";
 
 import { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "../frontend-control-capabilities.js";
+import { nativeToolMetadata } from "../../contracts/core/tool-metadata/index.js";
 
 const EXPECTED_PAGE_IDS = ["page.click", "page.fill", "page.find_elements", "page.highlight", "page.navigate", "page.scroll_to", "page.select_option"];
 
@@ -170,7 +171,7 @@ test("only page.find_elements, admin.capture_screenshot and chat.get_state are r
   assert.deepEqual(readOnlyIds, ["admin.capture_screenshot", "chat.get_state", "page.find_elements"]);
 });
 
-test("marking read-only keeps each registration's handler and policy", () => {
+test("marking read-only projects domain metadata and keeps each registration's handler and policy", () => {
   const frontendControl = createFrontendControl({
     capabilities: FRONTEND_CONTROL_CAPABILITIES,
     resolveBindToken: () => undefined,
@@ -181,7 +182,9 @@ test("marking read-only keeps each registration's handler and policy", () => {
     const original = frontendControl.toolRegistrations[i]!;
     assert.equal(registration.handler, original.handler);
     assert.equal(registration.policy, original.policy);
-    assert.deepEqual({ ...registration.descriptor, readOnly: undefined }, { ...original.descriptor, readOnly: undefined });
+    assert.deepEqual({ ...registration.descriptor, readOnly: undefined }, {
+      ...original.descriptor, metadata: nativeToolMetadata.byId[original.descriptor.id], readOnly: undefined,
+    });
   });
 });
 

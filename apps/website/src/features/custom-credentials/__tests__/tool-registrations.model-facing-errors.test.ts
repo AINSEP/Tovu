@@ -1,3 +1,4 @@
+import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
 import { LEGACY_SITE_KEY_FILENAME } from "#src/features/webhooks/site-key-sources";
 /**
  * @file RED regression suite for the custom-credentials half of the 2026-09-16 "always say the real
@@ -30,7 +31,7 @@ import { createToolRegistry, ToolInputError, type ToolExecutionContext } from "@
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
@@ -39,9 +40,12 @@ import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { InMemoryCredentialedRequestAuditLog } from "../credentialed-request.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential } from "../store.js";
-import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
+import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { loadBundledAuthSchemes } from "./bundled-auth-schemes.fixture.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const WORKSPACE_ID = "ws-cred-model-facing";
 const PRINCIPAL_ID = "principal-under-test";
@@ -97,9 +101,16 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
   return { deps, httpClient };
 }
 
+/** The shared save entry retains both API permission/error characterization arms. */
+function buildRegistrations(deps: CustomCredentialsToolDeps) {
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const api = buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces });
+  return credentialSaveFixtureRegistrations({ registrations: buildCustomCredentialsRegistrations(deps, surfaces), adapters: { apiCreate: api.create, apiRotate: api.rotate } });
+}
+
 async function buildHarness(deps: CustomCredentialsToolDeps) {
   const registry = createToolRegistry({});
-  for (const registration of buildCustomCredentialsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
+  for (const registration of buildRegistrations(deps)) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
@@ -114,6 +125,10 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 let toolUseCounter = 0;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
+  if (toolId === "custom_credential_create" || toolId === "custom_credential_set_token") {
+    input = credentialSaveFixtureInput({ input, kind: "api", rotation: toolId === "custom_credential_set_token" });
+    toolId = "credential_save";
+  }
   return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: harness as never });
 }
 
@@ -160,7 +175,7 @@ test("EVERY wired custom-credentials tool surfaces the denial, not just the firs
 
   // Driven off the CATALOG, not a hand-written list: an eighth tool added without a wrap fails here
   // rather than shipping a silently redacted denial.
-  const toolIds = customCredentialsAgentToolCatalog.map((entry) => entry.name);
+  const toolIds = [...customCredentialsAgentToolCatalog.map((entry) => entry.name), "custom_credential_create", "custom_credential_set_token"];
   assert.deepEqual([...toolIds].sort(), Object.keys(inputs).sort(), "every catalog tool needs a denial input above");
 
   for (const toolId of toolIds) {
@@ -204,8 +219,8 @@ test("an unknown label says not-found on every tool that resolves one, rather th
       if (!result.ok) continue;
       const output = result.value.result.output as { credentialSetup?: unknown };
       assert.deepEqual(output.credentialSetup, {
-        setupToolId: "custom_credential_create", remedyToolId: "custom_credential_create",
-        prefill: { label: "nope", ...(input.url ? { baseUrl: "https://api.fly.io" } : {}) },
+        setupToolId: "credential_save", remedyToolId: "credential_save",
+        prefill: { kind: "api", label: "nope", ...(input.url ? { baseUrl: "https://api.fly.io" } : {}) },
         hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
       });
       assert.equal(httpClient.calls.length, 0);
@@ -215,7 +230,7 @@ test("an unknown label says not-found on every tool that resolves one, rather th
     if (result.ok) continue;
     assert.deepEqual(
       result.error,
-      { code: "BAD_REQUEST", message: "CUSTOM_CREDENTIALS_NOT_FOUND: no custom credential labeled 'nope' in this workspace. Call custom_credential_create to open the secure credential card, then retry once." },
+      { code: "BAD_REQUEST", message: "CUSTOM_CREDENTIALS_NOT_FOUND: no custom credential labeled 'nope' in this workspace. Call credential_save with kind api to open the secure credential card, then retry once." },
       name
     );
     assert.equal(httpClient.calls.length, 0, `${name}: nothing may be sent for an unknown label`);
@@ -446,14 +461,14 @@ test("every no-emitSurface guard carries the ToolInputError marker, so it cannot
 
   for (const [toolId, guard] of Object.entries(guards)) {
     const { deps, httpClient } = await makeRouteDeps();
-    const registration = buildCustomCredentialsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find((r) => r.descriptor.id === toolId);
+    const registration = buildRegistrations(deps).find((r) => r.descriptor.id === (toolId === "custom_credential_create" || toolId === "custom_credential_set_token" ? "credential_save" : toolId));
     assert.ok(registration, `expected ${toolId} to be wired`);
 
     const ctx: ToolExecutionContext = {
       executionId: "exec-1",
       principal: { id: PRINCIPAL_ID },
       run: { id: "run-1" },
-      input: guard.input,
+      input: toolId === "custom_credential_create" || toolId === "custom_credential_set_token" ? credentialSaveFixtureInput({ input: guard.input, kind: "api", rotation: toolId === "custom_credential_set_token" }) : guard.input,
       signal: new AbortController().signal,
     };
     const err = await registration.handler(ctx).then(

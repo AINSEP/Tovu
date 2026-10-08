@@ -474,7 +474,7 @@ export async function deleteSourceControlCredential(deps: SourceControlCredentia
 async function decryptRecord(sealer: SecretSealerPort, record: SourceControlCredentialSetRecord): Promise<SourceControlConnectionInput> {
   const aad = buildSourceControlCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId, id: record.id });
   try {
-    const plaintext = await sealer.open({ sealed: record.sealed, aad });
+    const plaintext = await sealer.open({ sealed: record.sealed }, { aad });
     return JSON.parse(plaintext) as SourceControlConnectionInput;
   } catch (err) {
     throw new SourceControlCredentialSecretStoreUnconfiguredError(

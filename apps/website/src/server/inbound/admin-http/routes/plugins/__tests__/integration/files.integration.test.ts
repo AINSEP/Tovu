@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { WORD_COUNT_MANIFEST } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { composePluginRuntime } from "#src/server/runtime/composition/plugin-runtime";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

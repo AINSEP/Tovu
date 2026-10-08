@@ -13,7 +13,7 @@ import { makePglitePostRepo } from "./pglite-repo.fixture.js";
  * wrapper (`post.ts`) — the bounded, query-pushed-down listing the post-previews marker
  * (`features/theme/static-render.ts`'s `injectPostPreviewsEmbeds`) depends on.
  *
- * The load-bearing property under test is REQ-25 discipline (`widgets/resolvers/recent-entries.ts`'s
+ * The load-bearing property under test is REQ-25 discipline (`Jini/packages/cms/src/widgets/resolvers/recent-entries.ts`'s
  * own precedent): `kind: "post"`, `status: "published"`, non-trashed, and the `limit` itself are all
  * enforced by the QUERY — a Page or an over-limit row must never reach the caller for it to be
  * sliced away in JS, since that could silently return fewer than `limit` real posts even when more

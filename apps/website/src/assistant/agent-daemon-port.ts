@@ -1,7 +1,5 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 /**
- * @file Narrow port for `server/agent-daemon/agent-daemon-server.ts` — the daemon entry point
- * (relocated out of `assistant/` to `server/agent-daemon/`, 2026-08-17), which needs deep access to
+ * @file Narrow port for the daemon entry point, which needs deep access to
  * ~17 individual `assistant/` implementation files purely to wire the daemon together. None of that
  * need is shared with any other external consumer, so it does NOT belong in `assistant/index.ts`
  * (that barrel is curated for its own, unrelated consumer set — widening it here would inflate the
@@ -21,11 +19,11 @@
  */
 export { listAssistantAgents, rescanAssistantAgents } from "./agents.js";
 export { createCustomInstructionsCache } from "./custom-instructions.js";
-export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth.js";
+export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-access.js";
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 export { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "./frontend-control-capabilities.js";
 export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
-// Federation hot-reload (2026-09-11): re-admits connections an operator authorized AFTER this
+// Federation hot-reload: re-admits connections an operator authorized AFTER this
 // process already booted, without a restart. See that file's own header for the R5 guarantee it
 // preserves (never revises an already-admitted connection) and for why concurrency is coalesced
 // rather than naively single-flighted.
@@ -47,7 +45,7 @@ export { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
 // The CALL-TIME counterpart to `buildFederatedRefusalPrefix` above — see that file's header and
 // `federated-refusal-diagnosis.ts`'s own for why the boot-time prefix and this decorator
 // deliberately disagree about `not-in-operator-allowlist`.
-export { withFederatedRefusalDiagnosis } from "./federated-refusal-diagnosis.js";
+export { withFederatedRefusalDiagnosis } from "./tool-recovery-preset.js";
 export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 export { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "./external-mcp-store.js";
 // The daemon builds its OWN OAuth service: it refreshes tokens before launching an `authMode:
@@ -61,18 +59,18 @@ export {
 export { registerA2uiActionsRoute } from "./a2ui-actions-route.js";
 export { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route.js";
 export { resolveMcpJsonInjection } from "./mcp-injection.js";
-export { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
+export { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 export { parseRunStartContextRef } from "./run-start-context.js";
 export { buildPageContextPromptBlock } from "./run-page-context.js";
 export { buildComponentCatalogQuery } from "./component-catalog-query.js";
 export { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
-export { withToolAttemptAudit } from "./tool-executor-audit.js";
-export { withToolFailureRecovery } from "./tool-failure-recovery.js";
+export { withToolAttemptAudit } from "./tool-audit-preset.js";
+export { withToolFailureRecovery } from "./tool-recovery-preset.js";
 export { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "./read-only-tool-constraint.js";
-export { createAssistantToolExecutor } from "./tool-executor-stack.js";
+export { createAssistantToolExecutor } from "./tool-recovery-preset.js";
 export {
   UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
   UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
   withToolCatalogAudit,
-} from "./tool-catalog-audit.js";
+} from "./tool-audit-preset.js";
 export { buildAssistantToolRegistrations } from "./tool-registrations.js";

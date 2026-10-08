@@ -1,5 +1,5 @@
 import { buildPermanentDeleteRegistrations } from "#src/features/permanent-delete/tool-registrations";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { PERMANENT_DELETE_SPECS } from "#src/features/permanent-delete/agent-tools";
 import assert from "node:assert/strict";
@@ -18,6 +18,9 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import { createAppPermissionGrants } from "../app-permission-grants.js";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
 import { buildPermanentDeleteDeps } from "../permanent-delete-deps.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 async function setup() {
   const db = openContentDb(":memory:");
@@ -156,7 +159,7 @@ test("registered identity_user_delete admits admin ordinary target up to human c
     const ordinary = await f.make("ordinary");
     const protectedTarget = await f.make("protected", "admin");
     await f.move(ordinary); await f.move(protectedTarget);
-    const registrations = buildPermanentDeleteRegistrations({ ...f.permanent, authorize: f.identity.authorize }, { surfaceExchanges: createSurfaceExchangeStore() });
+    const registrations = buildPermanentDeleteRegistrations({ ...f.permanent, authorize: f.identity.authorize }, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     const registration = registrations.find(r => r.descriptor.id === "identity_user_delete");
     assert.ok(registration);
     const call = (principalId: string) => registration.handler({ principal: { id: caller }, input: { principalId }, signal: new AbortController().signal } as ToolExecutionContext);

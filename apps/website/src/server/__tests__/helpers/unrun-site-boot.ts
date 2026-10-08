@@ -77,7 +77,7 @@ export async function drainBootReadiness(deps: BootReadiness): Promise<void> {
 }
 
 /** Boots a fresh site of `dialect` and registers its teardown on `t`. */
-export async function bootSite(t: TestContext, dialect: SiteDialect): Promise<BootedSite> {
+export async function bootSite(t: TestContext, dialect: SiteDialect, optional: { configureDeps?: (deps: SiteDeps) => void } = {}): Promise<BootedSite> {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), `unrun-site-${dialect}-`));
   const siteDir = path.join(parent, "site");
   const savedSocketEnv = process.env[PG_SOCKET_ENV];
@@ -109,6 +109,8 @@ export async function bootSite(t: TestContext, dialect: SiteDialect): Promise<Bo
     fs.rmSync(socketDir, { recursive: true, force: true });
   });
   await drainBootReadiness(deps);
+
+  optional.configureDeps?.(deps);
 
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: (work) => appBootWork.push(work) }), t);
   return { deps, baseUrl, cookie, ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, siteDir };

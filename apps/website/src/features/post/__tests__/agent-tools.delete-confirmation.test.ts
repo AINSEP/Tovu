@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 import { removeVia } from "./remove-post-double.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /** Owner policy: reversible removal runs immediately; authorization and data integrity remain enforced. */
 
@@ -104,7 +107,7 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
 test("kind:'page' refuses a row whose actual kind is 'post', before any dialog is raised", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { kind: "post" });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
   await assert.rejects(() => call(deleteTool, { input: { id: "p1", kind: "page" } }), /page 'p1' was not found/);
@@ -114,7 +117,7 @@ test("kind:'page' refuses a row whose actual kind is 'post', before any dialog i
 test("n06: reversible removal runs without a confirmation channel", async () => {
   const { deps, postRepo, changeSets } = fakeRouteDeps();
   await seedPost(postRepo);
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, store), "content_post_delete")) as {deleted: boolean; cancelled: boolean};
   assert.equal(result.deleted, true);
   assert.equal(result.cancelled, false);
@@ -128,7 +131,7 @@ test("permissions still deny content reads and writes without trashing the row",
     const {deps, postRepo} = fakeRouteDeps();
     await seedPost(postRepo);
     deps.authorize = async ({permission}) => ({allowed: permission !== deniedPermission, reason: "insufficient_permission"});
-    await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), "content_post_delete")), new RegExp(deniedPermission));
+    await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "content_post_delete")), new RegExp(deniedPermission));
     assert.equal((await postRepo.findById({workspaceId: WORKSPACE_ID, id: "p1"}))?.version, 1);
   }
 });
@@ -143,6 +146,6 @@ test("a concurrent edit is refused by the existing version guard", async (t) => 
     if (++reads === 2 && row) return {...row, version: row.version + 1};
     return row;
   });
-  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), "content_post_delete")), /stale-entity-version/);
+  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "content_post_delete")), /stale-entity-version/);
   assert.equal((await find({workspaceId: WORKSPACE_ID, id: "p1"}))?.version, 1);
 });

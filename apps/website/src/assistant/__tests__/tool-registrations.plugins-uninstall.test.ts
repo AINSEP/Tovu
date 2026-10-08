@@ -15,21 +15,24 @@ import {
   createSurfaceExchangeStore,
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
-} from "../../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
-import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
 // S4 (2026-09-24) fixtures — case (a) below installs a REAL Agent Plugin on disk to prove the
 // 'agent-plugin' family branch, the same way `mcp-ui-tool-calls-route.agent-plugins-uninstall.
 // integration.test.ts` (now retargeted to this same tool) already did for the deleted standalone tool.
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `plugins_uninstall` — the RED/GREEN proof for `ADS-memory/reports/2026-09-07-
@@ -114,7 +117,7 @@ function registrations(deps: PluginsToolDeps): Map<string, ToolRegistration> {
   // `plugins_set_enabled` grew a confirmation-surface dependency (2026-09-09), so the builder now
   // takes the assistant's surface machinery too. This file's own tool (`plugins_uninstall`) raises no
   // surface, so a store nobody opens an exchange on is exactly the right fixture here.
-  return new Map(buildPluginsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).map((r) => [r.descriptor.id, r]));
+  return new Map(buildPluginsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: PluginsToolDeps, id: string): ToolRegistration {
@@ -146,7 +149,7 @@ async function uninstallWithDecision(
   input: Record<string, unknown>,
   decision: "confirm" | "cancel",
 ): Promise<unknown> {
-  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registration = buildPluginsRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "plugins_uninstall");
   assert.ok(registration, "expected 'plugins_uninstall' to be wired");
 
@@ -174,7 +177,7 @@ async function uninstallWithDecision(
   assert.match(html, /Move to trash/);
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the dialog must carry its exchange id");
-  surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision }, principalId: PRINCIPAL_ID, toolId: "plugins_uninstall" });
+  surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision }, principalId: PRINCIPAL_ID }, { toolId: "plugins_uninstall" });
   return pending;
 }
 
@@ -422,7 +425,7 @@ async function withInstalledAgentPlugin<T>(fn: (packageRoot: string) => Promise<
 test("plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm toolName is plugins_uninstall, and confirming removes the package dir", async () => {
   await withInstalledAgentPlugin(async (packageRoot) => {
     const { deps } = fakeRouteDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const registration = buildPluginsRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "plugins_uninstall");
     assert.ok(registration, "expected 'plugins_uninstall' to be wired");
 
@@ -459,10 +462,10 @@ test("plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm 
     const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
     assert.ok(match, "the dialog must carry its exchange id");
     // Load-bearing: `deliver` only resolves this call when its `toolId` matches the id the exchange was
-    // opened with (`tool-surface-exchanges.ts`'s `toolMismatch` guard) — so a successful delivery here
+    // opened with (`@jini-ai/daemon/surface-exchanges`'s `toolMismatch` guard) — so a successful delivery here
     // through "plugins_uninstall" IS the proof the dialog's confirm redeems through that one id, not
     // the deleted family-specific `agent_plugins_uninstall`.
-    surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision: "confirm" }, principalId: PRINCIPAL_ID, toolId: "plugins_uninstall" });
+    surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: "plugins_uninstall" });
 
     const out = (await pending) as { uninstalled: boolean; cancelled: boolean; pluginId: string };
     assert.equal(out.uninstalled, true);

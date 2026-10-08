@@ -11,7 +11,7 @@ import {
   set,
   type AuthorizeFn,
   type SettingsRepoPort,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
 
 /**
@@ -29,7 +29,7 @@ import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
  * Only a workspace-layer value counts as a title. The definition default stays the legacy literal,
  * and a default-layer read means "no owner-set title".
  *
- * `ownerKind: "core"` is forced, not chosen. The settings namespace fence (`@jini-ai/cms/settings`
+ * `ownerKind: "core"` is forced, not chosen. The settings namespace fence (`@jini-ai/core/settings`
  * `NAMESPACE_FENCE`) admits a `core.*` namespace only for a core definition, and requires such a
  * definition to be platform-wide (`workspaceId: null`). Its VALUES stay per-workspace through
  * `scopes: SCOPE_BIT.workspace`, which is REQ-01's shape.

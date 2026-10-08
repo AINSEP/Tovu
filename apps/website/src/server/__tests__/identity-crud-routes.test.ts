@@ -53,7 +53,7 @@ async function createTestUser(baseUrl: string, cookie: string, username: string)
   return body.user.principalId;
 }
 
-test("AC-32: DISABLE_PRINCIPAL route disables a non-owner user, and refuses OWNER_REQUIRED for the seeded owner", async (t) => {
+test("AC-32: DISABLE_PRINCIPAL route disables a non-owner user, and refuses SELF_DELETE for the owner disabling themselves", async (t) => {
   const deps = createRouteDeps();
   const { server, baseUrl } = await bootServer(deps);
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -79,7 +79,8 @@ test("AC-32: DISABLE_PRINCIPAL route disables a non-owner user, and refuses OWNE
   });
   assert.equal(ownerDisable.status, 409);
   const ownerBody = (await ownerDisable.json()) as { code?: string };
-  assert.equal(ownerBody.code, "OWNER_REQUIRED");
+  assert.equal(ownerBody.code, "SELF_DELETE");
+  assert.equal((await loginAs(baseUrl, "admin", "tovu-dev")).res.status, 200, "the refused self-disable leaves the owner active");
 });
 
 test("AC-27: ENABLE_PRINCIPAL route re-activates a disabled user", async (t) => {

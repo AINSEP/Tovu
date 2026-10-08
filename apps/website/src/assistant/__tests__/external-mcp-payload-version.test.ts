@@ -53,7 +53,7 @@ test("the sealed plaintext carries a schemaVersion, not just the secret fields",
   assert.ok(sealedOAuth);
 
   // Inspect the actual wire bytes, not the returned object.
-  const raw = await sealer.open({ sealed: sealedOAuth, aad: buildExternalMcpOAuthAad(IDENTITY) });
+  const raw = await sealer.open({ sealed: sealedOAuth }, { aad: buildExternalMcpOAuthAad(IDENTITY) });
   const parsed = JSON.parse(raw) as Record<string, unknown>;
 
   assert.equal(parsed.schemaVersion, EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION);

@@ -15,9 +15,12 @@ import {
   SURFACE_DISMISSED_PARAM,
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
-} from "#src/contracts/core/tool-surface-exchanges";
+} from "@jini-ai/daemon/surface-exchanges";
 
 import { buildGatedIdentityRegistrations } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The identity tools that delete a role/policy for good, or create a login, ask the human
@@ -71,7 +74,7 @@ async function buildHarness(): Promise<Harness> {
     principalRoleRepo: repos.principalRoles,
     principalPolicyRepo: repos.principalPolicies,
   };
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tools = new Map(buildGatedIdentityRegistrations(deps, { surfaceExchanges: store }).map((r) => [r.descriptor.id, r]));
   return { deps, repos, ownerPrincipalId, store, tools };
 }
@@ -103,7 +106,7 @@ async function raise(h: Harness, toolId: string, input: unknown, signal = new Ab
   assert.equal(emitted.length, 1, `${toolId}: the dialog must be emitted before the call parks`);
   const html = (emitted[0]!.payload as { resource: UIResource }).resource.resource.text;
   const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
-  const answer = (params: Record<string, unknown>) => h.store.deliver({ exchangeId, toolId, principalId: h.ownerPrincipalId, params });
+  const answer = (params: Record<string, unknown>) => h.store.deliver({ exchangeId, principalId: h.ownerPrincipalId, params }, { toolId });
   return { pending, html, answer, emitted, exchangeId };
 }
 
@@ -150,7 +153,7 @@ test("identity_policy_delete: the dialog names the policy; cancel keeps it, conf
   assert.ok(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }));
   assert.equal((await h.repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE_ID, policyId: "pol-review" })).length, 1);
   const second = await raise(h, "identity_policy_delete", { policyId: "pol-review" });
-  assert.deepEqual(h.store.deliver({ exchangeId: second.exchangeId, toolId: "identity_policy_delete", principalId: "p-intruder", params: { decision: "confirm" } }), { ok: false, reason: "binding-mismatch" });
+  assert.deepEqual(h.store.deliver({ exchangeId: second.exchangeId, principalId: "p-intruder", params: { decision: "confirm" } }, { toolId: "identity_policy_delete" }), { ok: false, reason: "binding-mismatch" });
   assert.ok(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }));
   assert.deepEqual(second.answer({ decision: "confirm" }), { ok: true });
   assert.deepEqual(await second.pending, { deleted: { policyId: "pol-review" } });
@@ -261,5 +264,56 @@ test("identity_user_create: a failed creation rejects, reports failure, and pres
   assert.match(outcome, /User not created/);
   assert.match(outcome, /already in use/);
   assert.equal(JSON.stringify(dialog.emitted[1]).includes("rejected-human-password"), false);
+  assert.equal(h.store.size(), 0);
+});
+
+// An abort must win even when delivery has already buffered the password in the same turn.
+test("identity_user_create: a buffered submit followed by abort never hashes or writes", async () => {
+  const h = await buildHarness();
+  const controller = new AbortController();
+  let hashes = 0;
+  const deps = { ...h.deps, passwordHasher: { hash: async () => { hashes++; return "unused"; }, verify: HASHER.verify.bind(HASHER) } };
+  const tool = buildGatedIdentityRegistrations(deps, { surfaceExchanges: h.store }).find(r => r.descriptor.id === "identity_user_create")!;
+  const result = await tool.handler({ ...ctx(h, { username: "buffered" }), signal: controller.signal }, { emitSurface: async () => {
+    const exchangeId = h.store.findTypedAnswerTarget({ principalId: h.ownerPrincipalId, toolId: "identity_user_create" })!;
+    assert.deepEqual(h.store.deliver({ exchangeId, principalId: h.ownerPrincipalId, params: { password: "buffered-only-canary" } }, { toolId: "identity_user_create" }), { ok: true });
+    controller.abort();
+  } });
+  assert.deepEqual(result, { created: false, cancelled: false, reason: "abandoned", note: "The confirmation dialog was closed because the run ended. Nothing was changed." });
+  assert.equal(hashes, 0);
+  assert.equal(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "buffered" }), null);
+  assert.equal(h.store.size(), 0);
+});
+
+test("identity_user_create: an already-aborted run opens no password card", async () => {
+  const h = await buildHarness();
+  const controller = new AbortController();
+  controller.abort();
+  const emitted: SurfaceEmission[] = [];
+  const result = await h.tools.get("identity_user_create")!.handler({ ...ctx(h, { username: "preaborted" }), signal: controller.signal }, { emitSurface: async surface => { emitted.push(surface); } });
+  assert.deepEqual(result, { created: false, cancelled: false, reason: "abandoned", note: "The confirmation dialog was closed because the run ended. Nothing was changed." });
+  assert.deepEqual(emitted, []);
+  assert.equal(h.store.size(), 0);
+  assert.equal(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "preaborted" }), null);
+});
+
+test("identity_user_create: a hasher error containing the password becomes fixed safe text", async () => {
+  const h = await buildHarness();
+  const deps = { ...h.deps, passwordHasher: { hash: async ({ password }: { password: string }) => { throw new Error(`Hasher failed for ${password}`); }, verify: HASHER.verify.bind(HASHER) } };
+  h.tools = new Map(buildGatedIdentityRegistrations(deps, { surfaceExchanges: h.store }).map(r => [r.descriptor.id, r]));
+  const dialog = await raise(h, "identity_user_create", { username: "hasher-failed" });
+  const control = dialog.html.match(/<input\b[^>]*name="password"[^>]*>/)?.[0];
+  assert.ok(control);
+  assert.equal(/\bvalue=/.test(control), false, "the password is never prefilled");
+  const canary = "private-hasher-canary";
+  dialog.answer({ password: canary });
+  await assert.rejects(dialog.pending, { name: "ToolInputError", message: "The user was not created." });
+  assert.equal(dialog.emitted.length, 2);
+  assert.equal(JSON.stringify(dialog.emitted).includes(canary), false);
+  const resources = dialog.emitted.map(e => (e.payload as { resource: UIResource }).resource.resource);
+  assert.equal(resources[0]!.uri, `ui://tovu/secret-card/identity_user_create/${dialog.exchangeId}`);
+  assert.equal(resources[1]!.uri, resources[0]!.uri);
+  assert.equal(resources[1]!.text.includes("The user was not created."), true);
+  assert.equal(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "hasher-failed" }), null);
   assert.equal(h.store.size(), 0);
 });

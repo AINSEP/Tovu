@@ -11,7 +11,7 @@ import {
   DELEGATED_TOOL_CALLS_PATH,
   ensureAgentDaemonToken,
   requireAgentDaemonToken,
-} from "../daemon-auth.js";
+} from "../daemon-access.js";
 
 /**
  * @file Real-HTTP coverage for the agent daemon's caller gate (`assistant/daemon-auth.ts`).
@@ -32,7 +32,7 @@ import {
 async function bootGatedServer(env: NodeJS.ProcessEnv, exemptPaths?: readonly string[]) {
   const app = express();
   let probeReached = 0;
-  app.use(requireAgentDaemonToken({ env, exemptPaths }));
+  app.use(requireAgentDaemonToken({ env, exemptPaths }, {}));
   app.use(express.json());
   const probe = (_req: express.Request, res: express.Response) => {
     probeReached += 1;
@@ -225,7 +225,7 @@ test("an exempt path still works when the token env var is unset — it does not
 
 test("ensureAgentDaemonToken mints a 64-char hex token when the env var is unset", () => {
   const env: NodeJS.ProcessEnv = {};
-  const minted = ensureAgentDaemonToken(env);
+  const minted = ensureAgentDaemonToken({ env: env }, {});
 
   assert.match(minted, /^[0-9a-f]{64}$/, "32 random bytes, hex-encoded");
   assert.equal(env[AGENT_DAEMON_TOKEN_ENV_VAR], minted, "the token must land in the env the child will inherit");
@@ -233,8 +233,8 @@ test("ensureAgentDaemonToken mints a 64-char hex token when the env var is unset
 
 test("ensureAgentDaemonToken is idempotent — a second call never rotates a token the daemon child may already hold", () => {
   const env: NodeJS.ProcessEnv = {};
-  const first = ensureAgentDaemonToken(env);
-  const second = ensureAgentDaemonToken(env);
+  const first = ensureAgentDaemonToken({ env: env }, {});
+  const second = ensureAgentDaemonToken({ env: env }, {});
 
   assert.equal(second, first);
   assert.equal(env[AGENT_DAEMON_TOKEN_ENV_VAR], first);
@@ -242,14 +242,14 @@ test("ensureAgentDaemonToken is idempotent — a second call never rotates a tok
 
 test("ensureAgentDaemonToken preserves an operator-supplied token and overwrites an empty one", () => {
   const operatorEnv: NodeJS.ProcessEnv = { [AGENT_DAEMON_TOKEN_ENV_VAR]: "operator-chosen-token" };
-  assert.equal(ensureAgentDaemonToken(operatorEnv), "operator-chosen-token");
+  assert.equal(ensureAgentDaemonToken({ env: operatorEnv }, {}), "operator-chosen-token");
 
   const emptyEnv: NodeJS.ProcessEnv = { [AGENT_DAEMON_TOKEN_ENV_VAR]: "" };
-  assert.match(ensureAgentDaemonToken(emptyEnv), /^[0-9a-f]{64}$/, "an empty value is a misconfiguration, not a token");
+  assert.match(ensureAgentDaemonToken({ env: emptyEnv }, {}), /^[0-9a-f]{64}$/, "an empty value is a misconfiguration, not a token");
 });
 
 test("two mints are distinct — the token is random per boot, not a fixed constant", () => {
-  assert.notEqual(ensureAgentDaemonToken({}), ensureAgentDaemonToken({}));
+  assert.notEqual(ensureAgentDaemonToken({ env: {} }, {}), ensureAgentDaemonToken({ env: {} }, {}));
 });
 
 test("omitting options.env entirely falls back to the real process.env, not just an explicitly-passed one", async (t) => {
@@ -264,7 +264,7 @@ test("omitting options.env entirely falls back to the real process.env, not just
   });
 
   const app = express();
-  app.use(requireAgentDaemonToken());
+  app.use(requireAgentDaemonToken({}, {}));
   app.post("/api/runs", (_req, res) => res.status(201).json({ started: true }));
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");

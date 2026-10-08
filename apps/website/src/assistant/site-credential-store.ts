@@ -2,6 +2,7 @@ import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type U
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { buildSiteAssistantCredentialAad } from "./site-credential-aad.js";
+import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
 
 /**
  * @file The SITE's provider credential (ADR-058) — one encrypted key per workspace, powering the
@@ -10,9 +11,9 @@ import { buildSiteAssistantCredentialAad } from "./site-credential-aad.js";
  * only) — see ADR-058's "Distinction from BYOK" for why these two are kept structurally apart.
  *
  * Three functions, one contract each:
- * - {@link getSiteAssistantCredential} — read model only. Never decrypts (`masked` is a plain
- *   column, computed once at write time — ADR-058 §3), so this never touches the sealer/keyring and
- *   never fails on a misconfigured site key.
+ * - {@link getSiteAssistantCredential} — read model only. `masked` remains a plain
+ *   column, computed once at write time — ADR-058 §3. An optional server-only open derives a safe
+ *   length hint; open failures never prevent reading metadata after site-key rotation.
  * - {@link setSiteAssistantCredential} — write-only for the key itself: `apiKey`, when provided, is
  *   sealed and never echoed back. Omitted `apiKey` leaves the stored key untouched.
  * - {@link deleteSiteAssistantCredential} — clears the key only; `provider`/`baseUrl`/`model` are
@@ -41,8 +42,8 @@ export interface SiteAssistantCredentialRecord {
   /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
    *  verification fails. `1` = sealed under `site-credential-aad.ts`'s
    *  `buildSiteAssistantCredentialAad`; open MUST supply the byte-identical string. Meaningless
-   *  (and always `0`) when `sealed` is `null`. Added 2026-09-02 (AAD gap closure) — see
-   *  `db/schema.sqlite.ts`'s `siteAssistantCredentials.aad_version` doc for the full migration story. */
+   *  (and always `0`) when `sealed` is `null`. See
+   *  `db/schema.sqlite.ts`'s `siteAssistantCredentials.aad_version` doc for version compatibility. */
   aadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
@@ -64,6 +65,7 @@ export interface SiteAssistantCredentialRepoPort {
 export interface SiteAssistantCredentialView {
   isSet: boolean;
   masked: string | null;
+  tokenHint?: CredentialTokenHint | null;
   provider: string;
   baseUrl: string | null;
   model: string | null;
@@ -77,13 +79,14 @@ const DEFAULT_PROVIDER = "google";
 const MASK_TAIL_LENGTH = 4;
 const MASK_PREFIX = "••••";
 
-function toView(record: SiteAssistantCredentialRecord | null): SiteAssistantCredentialView {
+function toView(record: SiteAssistantCredentialRecord | null, tokenHint: CredentialTokenHint | null = null): SiteAssistantCredentialView {
   if (!record) {
-    return { isSet: false, masked: null, provider: DEFAULT_PROVIDER, baseUrl: null, model: null, updatedAt: null };
+    return { isSet: false, masked: null, tokenHint, provider: DEFAULT_PROVIDER, baseUrl: null, model: null, updatedAt: null };
   }
   return {
     isSet: record.sealed !== null,
-    masked: record.masked,
+    masked: tokenHint?.last4 ? `${MASK_PREFIX}${tokenHint.last4}` : null,
+    tokenHint,
     provider: record.provider,
     baseUrl: record.baseUrl,
     model: record.model,
@@ -93,11 +96,25 @@ function toView(record: SiteAssistantCredentialRecord | null): SiteAssistantCred
 
 export interface SiteAssistantCredentialReadDeps {
   repo: SiteAssistantCredentialRepoPort;
+  sealer?: SecretSealerPort;
+}
+
+/** Hints for existing rows require a server-only open because the schema stores no key length.
+ * Keep metadata readable after key rotation; neither the plaintext nor an open error leaves here. */
+async function siteCredentialTokenHint(
+  { record, sealer }: { record: SiteAssistantCredentialRecord | null; sealer?: SecretSealerPort },
+  _optional = {},
+): Promise<CredentialTokenHint | null> {
+  if (!record?.sealed || !sealer) return null;
+  try {
+    const aad = record.aadVersion === 1 ? buildSiteAssistantCredentialAad({ workspaceId: record.workspaceId }) : undefined;
+    return credentialTokenHint({ token: await sealer.open({ sealed: record.sealed }, { aad }) });
+  } catch { return null; }
 }
 
 /**
- * The read model an admin screen renders. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured site key (ADR-058 §4).
+ * The read model an admin screen renders. Metadata is always readable; an optional server-only
+ * open derives the safe hint and cannot fail the read on a misconfigured site key (ADR-058 §4).
  *
  * @complexity O(1) — one `findByWorkspaceId` lookup.
  * @overallScore 100
@@ -107,7 +124,7 @@ export async function getSiteAssistantCredential(
   input: { workspaceId: UUID }
 ): Promise<SiteAssistantCredentialView> {
   const record = await deps.repo.findByWorkspaceId(input.workspaceId);
-  return toView(record);
+  return toView(record, await siteCredentialTokenHint({ record, sealer: deps.sealer }));
 }
 
 export class SiteAssistantCredentialValidationError extends Error {}
@@ -283,7 +300,9 @@ export async function setSiteAssistantCredential(
   const record = buildSiteAssistantCredentialRecord(input, existing, seal, now);
 
   await deps.repo.upsert(record);
-  return toView(record);
+  return toView(record, input.apiKey === undefined
+    ? await siteCredentialTokenHint({ record, sealer: deps.sealer })
+    : credentialTokenHint({ token: input.apiKey }));
 }
 
 /**
@@ -340,10 +359,10 @@ export async function resolveSiteAssistantApiKey(
 
   try {
     // `aad` only when this row was sealed under one (`aadVersion === 1`) — a legacy row
-    // (`aadVersion === 0`, every row written before the 2026-09-02 AAD gap closure) was sealed with
+    // (`aadVersion === 0`) was sealed with
     // NO aad and must be opened the same way, or auth-tag verification fails closed.
     const aad = record.aadVersion === 1 ? buildSiteAssistantCredentialAad({ workspaceId: input.workspaceId }) : undefined;
-    const apiKey = await deps.sealer.open({ sealed: record.sealed, aad });
+    const apiKey = await deps.sealer.open({ sealed: record.sealed }, { aad });
     return { apiKey, provider: record.provider, baseUrl: record.baseUrl, model: record.model };
   } catch (err) {
     onDecryptFailure(err);

@@ -1,30 +1,13 @@
 import assert from "node:assert/strict";
-import test, { mock } from "node:test";
-import dnsDefault, * as dns from "node:dns";
+import test from "node:test";
 import type { Express } from "express";
 import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
 
-// Mock only DNS answers. The route, credential selection, runtime validators and outbound
+// Inject only DNS answers. The route, credential selection, runtime validators and outbound
 // transports remain real; private-address tests must never open an external connection.
 let addresses = [{ address: "10.0.0.5", family: 4 }];
 const lookups: string[] = [];
-// The namespace carries a runtime `default` key its type omits; it is passed separately below.
-const dnsExports: Record<string, unknown> = { ...dns };
-delete dnsExports.default;
-mock.module("node:dns", {
-  defaultExport: dnsDefault,
-  namedExports: {
-    ...dnsExports,
-    promises: {
-      ...dns.promises,
-      lookup: async (hostname: string) => {
-        assert.equal(hostname, "provider.invalid");
-        lookups.push(hostname);
-        return addresses;
-      },
-    },
-  },
-});
+let transportCalls = 0;
 const { registerAdminAssistantListModelsRoute } = await import("../list-models.js");
 const { registerAdminAssistantTestConnectionRoute } = await import("../test-connection.js");
 
@@ -36,6 +19,15 @@ const unusedByThisRoute = (member: string) => (): never => {
   throw new Error(`the connection probe routes are not expected to call ${member}`);
 };
 const deps: AssistantExecutionRouteDeps = {
+  // A broken guard must fail locally rather than opening a private network connection.
+  probeRequestInit: { dispatcher: {
+    dispatch() { transportCalls++; throw new Error("blocked DNS answers must never reach HTTP"); },
+  } } as NonNullable<AssistantExecutionRouteDeps["probeRequestInit"]>,
+  probeDnsLookup: async ({ hostname }) => {
+    assert.equal(hostname, "provider.invalid");
+    lookups.push(hostname);
+    return addresses;
+  },
   workspaceId: "workspace-local",
   authorize: async () => ({ allowed: true, reason: "allowed" }),
   siteAssistantCredentialRepo: {
@@ -54,7 +46,7 @@ const deps: AssistantExecutionRouteDeps = {
   },
 };
 
-async function probe(registrar: (typeof registrars)[number], baseUrl: string) {
+async function probe(registrar: (typeof registrars)[number], baseUrl: string, options: Partial<AssistantExecutionRouteDeps> = {}) {
   // Only the members the handler actually reads are modelled; the registrar's `app` stub captures it
   // under this narrow signature so no partial Request/Response needs a cast.
   type ProbeHandler = (
@@ -63,7 +55,7 @@ async function probe(registrar: (typeof registrars)[number], baseUrl: string) {
     next: (error?: unknown) => void,
   ) => unknown;
   let handler: ProbeHandler | undefined;
-  registrar({ post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, deps);
+  registrar({ post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, { ...deps, ...options });
   let status = 200;
   let body: { ok: boolean; message: string; models?: string[] } | undefined;
   const response = {
@@ -92,17 +84,18 @@ for (const registrar of registrars) {
     ]) {
       addresses = answers;
       lookups.length = 0;
+      transportCalls = 0;
       const body = await probe(registrar, "http://provider.invalid");
       assert.equal(body.ok, false);
       assert.equal(body.message, "Internal IPs blocked");
       assert.deepEqual(lookups, ["provider.invalid"], "the route must run DNS-aware validation");
+      assert.equal(transportCalls, 0, "blocked and mixed answers must fail before HTTP dispatch");
     }
   });
 
-  test(`${registrar.name}: refuses a provider redirect without reaching its target`, async (t) => {
+  test(`${registrar.name}: refuses a provider redirect without reaching its target`, async () => {
     // Native fetch owns redirect handling. Only its HTTP dispatcher is in-memory, so this
     // exercises fetch's real follow/error behavior without opening sockets in the sandbox.
-    const nativeFetch = globalThis.fetch;
     for (const target of ["http://169.254.169.254/", "http://127.0.0.1:4322/"]) {
       const requests: string[] = [];
       const dispatcher = {
@@ -127,15 +120,11 @@ for (const registrar of registrars) {
           return true;
         },
       };
-      const fetchMock = t.mock.method(globalThis, "fetch", (url: Parameters<typeof nativeFetch>[0], init?: RequestInit) =>
-        nativeFetch(url, { ...init, dispatcher } as RequestInit));
-      try {
-        const body = await probe(registrar, "http://127.0.0.1:4321");
-        assert.equal(requests.length, 1, `redirect to ${target} must never dispatch a second request`);
-        assert.equal(body.ok, false);
-      } finally {
-        fetchMock.mock.restore();
-      }
+      const body = await probe(registrar, "http://127.0.0.1:4321", {
+        probeRequestInit: { dispatcher } as NonNullable<AssistantExecutionRouteDeps["probeRequestInit"]>,
+      });
+      assert.equal(requests.length, 1, `redirect to ${target} must never dispatch a second request`);
+      assert.equal(body.ok, false);
     }
   });
 }

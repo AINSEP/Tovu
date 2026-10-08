@@ -16,11 +16,8 @@ import type { UUID } from "@jini-ai/core/primitives";
  * the same workspace — which is exactly the property this table's own header requires ("two admins
  * on the same install already carry independent keys").
  *
- * This table's rows predate AAD entirely (2026-09-02 gap closure, `SecretSealerPort`'s own header
- * used to name this table by number among the callers with no AAD at all) — see
- * `admin_execution_credentials.aad_version`'s own doc in `db/schema.sqlite.ts` and
- * `development/scripts/backfill-execution-credential-aad.ts` for how existing rows are migrated
- * without becoming unreadable.
+ * Legacy no-AAD rows remain readable via `admin_execution_credentials.aad_version`; see its schema contract
+ * and the owning backfill script. Opening must use the version the row was sealed under.
  */
 const AAD_VERSION = "v1";
 

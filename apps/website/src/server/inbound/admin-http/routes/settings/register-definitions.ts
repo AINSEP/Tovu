@@ -15,9 +15,8 @@ import {
   type SettingValueSchema,
   registerDefinitions,
 } from "#src/features/settings/index";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { respondToSettingsError, toWriteServiceDeps, type SettingsErrorMapping } from "./shared.js";
+import { toWriteServiceDeps, type SettingsErrorMapping, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const REGISTER_DEFINITIONS_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
   { matches: (e) => e instanceof SecretNotSupportedError, status: 400, code: "SECRET_NOT_SUPPORTED" },
@@ -133,35 +132,14 @@ async function applyDefinitionItem(
  * silently guessing.
  */
 export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistrar = (app, deps) => {
-  app.post("/api/admin/v1/workspaces/:workspaceId/settings/definitions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
-    try {
-      await deps.settingsReady;
-      const principal = getAuthedPrincipal(res);
-
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "settings.definitions.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "setting-definition",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'settings.definitions.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "settings.definitions.manage", reason: authResult.reason },
-        });
-        return;
-      }
+  mountSettingsJsonRoute({ app, deps, method: "post", path: "/api/admin/v1/workspaces/:workspaceId/settings/definitions",
+    errorMappings: REGISTER_DEFINITIONS_ERROR_MAPPINGS,
+    handle: async ({ request: req, principal, authorize }) => {
+      await authorize({ permission: "settings.definitions.manage", entityType: "setting-definition" });
 
       const items = parseDefinitionItems(req.body);
       if (!items) {
-        res.status(400).json({ error: "'definitions' must be an array", code: "VALIDATION_ERROR" });
-        return;
+        rejectSettingsRequest({ status: 400, error: "'definitions' must be an array", code: "VALIDATION_ERROR" });
       }
 
       const writeDeps = toWriteServiceDeps(deps);
@@ -172,8 +150,7 @@ export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistr
       for (const raw of items) {
         const outcome = await applyDefinitionItem(raw, opCtx, toRegister);
         if ("unknownOp" in outcome) {
-          res.status(400).json({ error: `unknown op '${outcome.unknownOp}'`, code: "VALIDATION_ERROR" });
-          return;
+          rejectSettingsRequest({ status: 400, error: `unknown op '${outcome.unknownOp}'`, code: "VALIDATION_ERROR" });
         }
         applied.push(outcome.applied);
       }
@@ -185,9 +162,7 @@ export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistr
         });
       }
 
-      res.json({ applied });
-    } catch (err) {
-      respondToSettingsError(res, err, REGISTER_DEFINITIONS_ERROR_MAPPINGS);
-    }
+      return { applied };
+    },
   });
 };

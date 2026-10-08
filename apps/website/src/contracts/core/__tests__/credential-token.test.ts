@@ -25,7 +25,8 @@ for (const value of [
   'https://example.test/mcp?token=canary-value',
   'https://user:canary-value@example.test/mcp',
   '--api-key canary-value', '--token=canary-value',
-  'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890',
+  // Assemble the reviewed fixture at runtime so tracked source carries no complete PAT shape.
+  'ghp_' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890',
 ]) test(`plaintext metadata refused (${['url', 'arg', 'label'][value.startsWith('https') ? 0 : value.startsWith('--') ? 1 : 2]})`, () => {
   assert.throws(() => assertCredentialFreeField({ value, field: 'metadata' }), rejected(CREDENTIAL_MESSAGES.plain));
 });

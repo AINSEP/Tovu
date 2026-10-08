@@ -1,3 +1,4 @@
+import { isNonArrayRecord } from "@jini-ai/core";
 /**
  * @file `extractEntryRefs` — the chokepoint-side `entry_refs` extractor (ADR-022 §5, SPEC-043
  * REQ-29..32).
@@ -18,7 +19,7 @@
  * `extractHtmlEntryRefs()` sibling indexes supported markers in HTML page bodies.
  */
 import type { UUID } from "@jini-ai/core/primitives";
-import { describeRejection, scanEmbedMarkers, type EmbedMarkerRejection } from "#src/contracts/core/embeds/marker";
+import { describeRejection, scanEmbedMarkers, type EmbedMarkerRejection } from "@jini-ai/cms/widgets/markers";
 import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
 
 export interface ExtractEntryRefsInput {
@@ -31,15 +32,11 @@ export interface ExtractEntryRefsInput {
   readonly fieldsExt: Readonly<Record<string, unknown>>;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
  * REQ-31/32's ref-suffix convention: a config field's KEY (not its schema) decides whether its
  * string value is a reference and, if so, which target kind. Keys ending in `TermId` are
  * taxonomy-term-target soft references (REQ-32); keys ending in `RefId`, `Ref`, or `Id` are
- * entry-target references (REQ-31) — covers every v1 ref-typed field `widgets/registry.ts`
+ * entry-target references (REQ-31) — covers every v1 ref-typed field `Jini/packages/cms/src/widgets/registry.ts`
  * declares (`formDefinitionId`, `menuRef`, `categoryTermId`, each now also carrying a matching
  * `x-ref-target` JSON-schema annotation) without this pure function needing to import that
  * registry — `extractEntryRefs` deliberately takes no injected schema/registry dependency (see
@@ -77,20 +74,22 @@ function collectWidgetEmbedRefs(root: unknown, rootPath: string, input: ExtractE
       for (let index = node.length - 1; index >= 0; index--) stack.push({ node: node[index], path: `${path}[${index}]` });
       continue;
     }
-    if (!isPlainObject(node)) continue;
+    const candidate = { value: node };
+    if (!isNonArrayRecord(candidate)) continue;
+    const attrs = { value: candidate.value.type === "widgetEmbed" ? candidate.value.attrs : undefined };
 
-    if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === "string") {
+    if (isNonArrayRecord(attrs) && typeof attrs.value.widgetEntryId === "string") {
       refs.push({
         workspaceId: input.workspaceId,
         sourceEntryId: input.sourceEntryId,
         sourceKind: "widget-embed",
         fieldPath: path,
         targetKind: "entry",
-        targetId: node.attrs.widgetEntryId,
+        targetId: attrs.value.widgetEntryId,
       });
     }
 
-    if (Array.isArray(node.content)) stack.push({ node: node.content, path: `${path}.content` });
+    if (Array.isArray(candidate.value.content)) stack.push({ node: candidate.value.content, path: `${path}.content` });
   }
 }
 
@@ -102,10 +101,12 @@ function collectWidgetEmbedRefs(root: unknown, rootPath: string, input: ExtractE
  * @overallScore 100
  */
 function collectPlacementRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
-  if (!isPlainObject(input.bodyJson) || !Array.isArray(input.bodyJson.placements)) return;
+  const body = { value: input.bodyJson };
+  if (!isNonArrayRecord(body) || !Array.isArray(body.value.placements)) return;
 
-  (input.bodyJson.placements as unknown[]).forEach((placement, index) => {
-    if (!isPlainObject(placement) || typeof placement.widgetEntryId !== "string") return;
+  (body.value.placements as unknown[]).forEach((placement, index) => {
+    const candidate = { value: placement };
+    if (!isNonArrayRecord(candidate) || typeof candidate.value.widgetEntryId !== "string") return;
 
     refs.push({
       workspaceId: input.workspaceId,
@@ -113,7 +114,7 @@ function collectPlacementRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[])
       sourceKind: "widget-area-placement",
       fieldPath: `bodyJson.placements[${index}]`,
       targetKind: "entry",
-      targetId: placement.widgetEntryId,
+      targetId: candidate.value.widgetEntryId,
     });
   });
 }
@@ -157,11 +158,12 @@ function collectNamespaceConfigRefs(
  */
 function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
   for (const [namespace, namespaceValue] of Object.entries(input.fieldsExt ?? {})) {
-    if (!isPlainObject(namespaceValue)) continue;
-    const config = namespaceValue.config;
-    if (!isPlainObject(config)) continue;
+    const namespaceRecord = { value: namespaceValue };
+    if (!isNonArrayRecord(namespaceRecord)) continue;
+    const config = { value: namespaceRecord.value.config };
+    if (!isNonArrayRecord(config)) continue;
 
-    collectNamespaceConfigRefs(namespace, config, input, refs);
+    collectNamespaceConfigRefs(namespace, config.value, input, refs);
   }
 }
 
@@ -171,7 +173,7 @@ function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[
  * any ref-typed config field inside `fieldsExt` (REQ-31/32). Pure and idempotent (INV-06's
  * "same-transaction, re-extract on every write" discipline depends on this being a deterministic
  * function of the entry's own state, never accumulating hidden extractor-local state) — no I/O, no
- * side effects. The caller (the entries write chokepoint composition in `widgets/write-service.ts`/
+ * side effects. The caller (the entries write chokepoint composition in `Jini/packages/cms/src/widgets/write-service.ts`/
  * `region-area-service.ts`) is responsible for writing the returned rows via
  * `EntryRefsRepoPort.replaceForSource`.
  *
@@ -199,11 +201,11 @@ export function extractEntryRefs(input: ExtractEntryRefsInput): readonly EntryRe
 // ---------------------------------------------------------------------------
 
 /**
- * Mirrors `widgets/html-embeds.ts`'s `MAX_HTML_EMBEDS_PER_PAGE` — the index must never grow past
+ * Mirrors `Jini/packages/cms/src/widgets/html/html-embeds.ts`'s `MAX_HTML_EMBEDS_PER_PAGE` — the index must never grow past
  * what a render can actually resolve, so the same resource bound applies here too. */
 const MAX_HTML_PAGE_EMBED_REFS = 50;
 
-/** Mirrors `widgets/html-embeds.ts`'s id sanity bound. */
+/** Mirrors `Jini/packages/cms/src/widgets/html/html-embeds.ts`'s id sanity bound. */
 const MAX_HTML_EMBED_REF_ID_LENGTH = 200;
 
 /**
@@ -212,24 +214,18 @@ const MAX_HTML_EMBED_REF_ID_LENGTH = 200;
  * `menuRef`/`CONTACT_FORM_REGISTRATION`'s `formDefinitionId` both being extracted as
  * `"entry"`-target refs elsewhere in this codebase even though neither a menu nor a Forms definition
  * is a literal `entries`-table row; `targetKind` marks "a durable content object", not literal table
- * membership). `media` -> `"asset"` (2026-08-07,
- * `IMPLEMENTATION-PLAN-data-embed-type-2026-08-07.md` §4 — a media asset lives in a genuinely
- * different storage domain than the generic `entries` graph, so it gets its own target kind rather
+ * membership). `media` -> `"asset"`: a media asset lives in a different storage domain
+ * than the generic `entries` graph, so it gets its own target kind rather
  * than overloading `"entry"`). A type absent from this map is still SCANNED (the shared parser
  * reports every marker regardless of type) but produces no row: an unrecognized/future type has no
  * known target-kind mapping yet, and guessing one would be actively wrong data, not just
  * incomplete. Widening this map is exactly the "one place to change" a new indexable type needs; the
  * parser never does.
  *
- * **`form` mapped to `"entry"` here until 2026-08-10 and is deliberately gone** — see
- * `development/docs/architecture/embed-type-inventory.md`. It was never a distinct target: a `form`
- * marker's id was a Forms *definition* id, and the resolver behind it built a throwaway
- * `contact-form` widget instance around that id rather than resolving anything of its own. Removing
- * it costs this index nothing, because the same reference is still indexed — via the `contact-form`
- * widget instance's own `config.formDefinitionId`, which `classifyRefFieldKey` above already
- * extracts as an `"entry"`-target `config-field` row. The chain is one hop longer (page -> widget ->
- * form definition) and every hop is a real, persisted object, which is what safe-delete's where-used
- * check actually wants.
+ * Forms definitions are referenced through persisted contact-form widget configuration:
+ * `classifyRefFieldKey` indexes `config.formDefinitionId` as an entry-target config-field row.
+ * Safe-delete therefore follows page -> widget -> form definition, with a persisted object at
+ * each hop; see `development/docs/architecture/embed-type-inventory.md`.
  */
 const HTML_EMBED_TARGET_KINDS: ReadonlyMap<string, EntryRefTargetKind> = new Map([
   ["widget", "entry"],
@@ -255,7 +251,7 @@ const HTML_EMBED_TARGET_KINDS: ReadonlyMap<string, EntryRefTargetKind> = new Map
 function warnRejectedMarkers(rejected: readonly EmbedMarkerRejection[], sourceEntryId: UUID): void {
   for (const rejection of rejected) {
     console.warn(
-      `[entry-refs] extractHtmlEntryRefs: UNINDEXED reference — ${describeRejection(rejection)}. ` +
+      `[entry-refs] extractHtmlEntryRefs: UNINDEXED reference — ${describeRejection({ rejection: rejection })}. ` +
         `Safe-delete cannot see it, so a target it references may be deleted as unused.`,
       { sourceEntryId }
     );
@@ -269,13 +265,8 @@ function warnRejectedMarkers(rejected: readonly EmbedMarkerRejection[], sourceEn
  * produces no row rather than a guessed `targetKind`. Pure, never throws, matching
  * `extractEntryRefs`'s own contract.
  *
- * Locating and parsing markers is `core/embeds/marker.ts`'s job (2026-08-10 unification). This file
- * used to carry a deliberate second copy of `widgets/html-embeds.ts`'s regex, with an integration
- * test asserting the two agreed — a guard against drift that could only ever detect drift after it
- * happened, and only on the fixtures someone remembered to write. Both consumers now share one
- * definition, so "what entry_refs indexes" and "what render.ts embeds" cannot disagree at all. The
- * layering objection that justified the copy no longer applies either: the parser lives in `core/`
- * alongside this file, so nothing here depends on `widgets/`.
+ * Marker parsing belongs to Jini CMS's shared widget marker parser. Rendering and indexing
+ * consume the same definition so their marker interpretations cannot drift.
  *
  * A reference whose `id` key is absent, empty, non-string, or beyond
  * {@link MAX_HTML_EMBED_REF_ID_LENGTH} produces no row — `EntryRefRow.targetId` is a required
@@ -284,7 +275,7 @@ function warnRejectedMarkers(rejected: readonly EmbedMarkerRejection[], sourceEn
  * row, since an indexable-or-not decision is exactly what this function's contract already commits
  * to for every other ref kind it extracts).
  *
- * **Disclosed gap (2026-08-31): a `slug`-only `{"type":"widget","slug":"..."}` marker — no `id` at
+ * **Disclosed gap: a `slug`-only `{"type":"widget","slug":"..."}` marker — no `id` at
  * all — produces no `entry_refs` row either, for the same "no id" branch above, even though
  * `resolver-service.ts`'s `resolveWidgetTypeEmbeds` now resolves it to a real widget at render time.**
  * This function is deliberately pure (see this file's own header — no repo/resolver dependency), and
@@ -298,12 +289,9 @@ function warnRejectedMarkers(rejected: readonly EmbedMarkerRejection[], sourceEn
  * does not reach `rejected` (it parses fine), so no warning fires here today. Flagged prominently
  * rather than silently shipped; see this feature's handoff for the same disclosure.
  *
- * `fieldPath`'s occurrence number now counts EVERY marker in the document, not only the indexable
- * ones — it comes from the shared scan, so it is stable against a type being added to
- * {@link HTML_EMBED_TARGET_KINDS} later, which the old local counter was not. `fieldPath` is a
- * human-readable locator that nothing parses (verified across this repo), so rows written before
- * this change simply carry the older spelling until their source page is next written and
- * `replaceForSource` rewrites them.
+ * `fieldPath` counts every marker, not only indexable ones, so adding a target-kind mapping
+ * cannot change an existing occurrence's locator. Nothing parses this human-readable locator;
+ * existing stored rows retain their spelling until the next source-page write replaces them.
  *
  * **Indexes REFERENCES, never RESOLUTIONS — by construction, not by discipline.** This function
  * takes no repo/resolver dependency (only a plain `html` string), so it has no way to check whether
@@ -324,7 +312,7 @@ export function extractHtmlEntryRefs(input: {
   readonly sourceEntryId: UUID;
   readonly html: string;
 }): readonly EntryRefRow[] {
-  const { markers, rejected } = scanEmbedMarkers(input.html);
+  const { markers, rejected } = scanEmbedMarkers({ html: input.html });
   warnRejectedMarkers(rejected, input.sourceEntryId);
 
   const refs: EntryRefRow[] = [];

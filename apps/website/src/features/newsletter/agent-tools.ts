@@ -1,7 +1,7 @@
 /**
  * @file Newsletter composition, list and subscription catalog.
- * Delivery tools live in delivery/tool-registrations.ts. Mass sends, scheduling, resume and confirmation
- * resends require the existing browser-only confirmation channel; owner test sends do not.
+ * Delivery tools live in delivery/tool-registrations.ts. Mass sends, scheduling and resume require
+ * browser-only approval; opt-in resends and owner test sends run directly.
  * Bulk subscription import remains unavailable to the assistant.
  */
 import { PREHEADER_MAX, SUBJECT_MAX, SUBJECT_MIN } from "./campaign-write-service.js";
@@ -250,7 +250,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "newsletter_resend_confirmation",
     description:
-      "Requests a human confirmation card before resending a double-opt-in link. Invalidates prior links for a pending subscription. Returns {delivered:true,mailDeliveryAvailable:true} as a privacy-preserving acknowledgement, without revealing whether the subscription/contact exists or guaranteeing delivery, or {delivered:false,mailDeliveryAvailable:false,note} when mail is off and nothing was sent. Cancellation returns confirmed:false and delivered:false. Requires subscriber-management permission and a browser confirmation channel.",
+      "Resends a double-opt-in link directly. Invalidates prior links for a pending subscription. Returns {delivered:true,mailDeliveryAvailable:true} as a privacy-preserving acknowledgement, without revealing whether the subscription/contact exists or guaranteeing delivery, or {delivered:false,mailDeliveryAvailable:false,note} when mail is off and nothing was sent. Requires subscriber-management permission.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.newsletter.subscriber.manage" },
     inputSchema: {

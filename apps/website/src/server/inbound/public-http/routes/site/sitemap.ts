@@ -1,4 +1,3 @@
-import { buildSitemap } from "#src/features/seo/index";
 import { escapeXml } from "#src/platform/html/escape";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
@@ -15,10 +14,7 @@ export const registerSeoSitemapRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/sitemap.xml", async (_req, res) => {
     try {
       await deps.seoReady;
-      const entries = await buildSitemap(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
-        { workspaceId: deps.workspaceId }
-      );
+      const entries = await deps.sitemapService.buildSitemap({ workspaceId: deps.workspaceId }, {});
       const body =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +

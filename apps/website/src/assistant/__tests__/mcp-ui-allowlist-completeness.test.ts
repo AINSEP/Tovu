@@ -32,6 +32,8 @@ const A2UI_EXCHANGE_TOOL_IDS = new Set(["assistant_render_ui", "assistant_demo_a
  * requireHumanConfirm. Their real exchange/handler tests exercise every id, including bypasses. */
 const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
   ...POLICY_CONFIRMATION_TOOL_IDS,
+  // The host binds this synthetic ID through tool-recovery-preset.ts; Jini opens the exchange.
+  "assistant_tool_failure_recovery",
   // Settings shares a confirmWrite adapter for the set/clear handlers; the behavioral tests
   // exercise both IDs with the real exchange store, including wrong-binding and typed answers.
   "assistant_ask_choice", "settings_set_value", "settings_clear_value",
@@ -40,7 +42,6 @@ const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
   "deployment_delete_provider_credential", "source_control_delete_credential",
   // Newsletter's shared confirmation helper receives the ID from the tested caller.
   "newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign",
-  "newsletter_resend_confirmation",
 ]);
 
 /** Allowlisted without opening an exchange — see `mcp-ui-tool-calls.ts` for each justification. */
@@ -67,14 +68,14 @@ interface ExchangeScan {
 // These exact dynamic expressions are adapters for handlers tested through real exchanges.
 // New unresolved expressions fail closed, including in these same files.
 const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
-  ["contracts/core/human-confirm.ts", new Set(["toolId", "spec.dialog(prepared)"])],
+  ["contracts/core/human-confirm.ts", new Set(["toolId", "description"])],
   ["assistant/external-mcp-call-confirmation.ts", new Set(["actionConfirmSpec(spec, context.approvalRequest)"])],
-  ["assistant/tool-approval-policy.ts", new Set(["toolId"])],
+  ["assistant/tool-approval-policy.ts", new Set(["toolId", "description"])],
   ["assistant/ask-choice-tool.ts", new Set(["toolId"])],
-  ["features/permanent-delete/tool-registrations.ts", new Set(["toolId"])],
   ["features/settings/tool-registrations.ts", new Set(["toolId"])],
-  ["features/newsletter/delivery-confirmation.ts", new Set(["toolId"])],
-  ["features/database-transfer/tool-registrations.ts", new Set(["binding"])],
+  ["features/identity/tool-registrations.ts", new Set(["registration.descriptor.id"])],
+  ["features/permanent-delete/tool-registrations.ts", new Set(["toolId", "spec.name"])],
+  ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
 ]);
 
 function scanExchangeTexts(texts: readonly { file: string; text: string }[]): ExchangeScan {
@@ -135,12 +136,26 @@ function scanExchangeTexts(texts: readonly { file: string; text: string }[]): Ex
         const callee = node.expression;
         if (ts.isPropertyAccessExpression(callee) && callee.name.text === "open") {
           // SecretSealer.open is the other .open API in this tree; its payload is not a binding.
-          if (!property(node.arguments[0], "sealed")) record(node.arguments[0], node);
+          // The AES-GCM host adapter forwards its typed input unchanged. Exempt only that exact
+          // delegation, not other unresolved calls in the file or a receiver named "sealer".
+          const isSealerDelegation = relative === "features/webhooks/secret-sealer.aesgcm.ts"
+            && node.getText(source) === "this.sealer.open(input, optional)";
+          if (!isSealerDelegation && !property(node.arguments[0], "sealed")) record(property(node.arguments[0], "binding") ?? node.arguments[0], node);
         } else if (ts.isIdentifier(callee) && callee.text === "requireHumanConfirm") {
           record(property(node.arguments[0], "spec") ?? node.arguments[2], node);
+        } else if (ts.isIdentifier(callee) && callee.text === "defineSecretCardTool") {
+          // Jini opens the exchange for this spec; enumerate its binding rather than exempting it.
+          record(node.arguments[0], node);
         }
       }
-      if (ts.isPropertyAssignment(node) && node.name.getText(source) === "dialog" && ts.isArrowFunction(node.initializer)) {
+      // approvalToolHandler moved the host dialog facts to `describe`; Jini opens the exchange.
+      // Inspect its inline object contract just like the existing plan handler's `dialog` contract.
+      const isApprovalDescription = ts.isPropertyAssignment(node) && node.name.getText(source) === "describe"
+        && ts.isObjectLiteralExpression(node.parent) && ts.isCallExpression(node.parent.parent)
+        && ts.isIdentifier(node.parent.parent.expression) && node.parent.parent.expression.text === "approvalToolHandler"
+        && ts.isArrowFunction(node.initializer) && !ts.isBlock(node.initializer.body)
+        && ts.isObjectLiteralExpression(unparen(node.initializer.body));
+      if (ts.isPropertyAssignment(node) && (node.name.getText(source) === "dialog" || isApprovalDescription) && ts.isArrowFunction(node.initializer)) {
         const body = node.initializer.body;
         if (ts.isBlock(body)) {
           const returned = body.statements.find(ts.isReturnStatement);
@@ -161,16 +176,20 @@ test("the parser enumerates alternate opener shapes and reports unresolved bindi
   const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, "fixture.ts"), text: `
     const TOOL = "literal_tool";
     const toolId = "shorthand_tool";
-    store.open({ principalId: "p", toolId: TOOL }, emit);
-    anotherStore.open({ principalId: "p", toolId: "inline_tool" }, emit);
-    store.open({ toolId, principalId: "p" }, emit);
-    store.open(binding, emit);
-    store.open({ principalId: "p", toolId: unknownId }, emit);
+    store.open({ binding: { principalId: "p", toolId: TOOL }, emit });
+    anotherStore.open({ emit, binding: { principalId: "p", toolId: "inline_tool" } });
+    store.open({ binding: { toolId, principalId: "p" }, emit });
+    defineSecretCardTool({ toolId: "secret_tool", prepare, form, save });
+    approvalToolHandler({ describe: () => ({ toolId: "approval_tool" }), prepare, run });
+    approvalToolHandler({ describe: () => ({ toolId: unknownApprovalId }), prepare, run });
+    store.open({ binding, emit });
+    store.open({ binding: { principalId: "p", toolId: unknownId }, emit });
   ` }]);
-  assert.deepEqual([...fixture.toolIds].sort(), ["inline_tool", "literal_tool", "shorthand_tool"]);
-  assert.equal(fixture.unresolved.length, 2);
-  assert.match(fixture.unresolved[0]!, /binding$/);
-  assert.match(fixture.unresolved[1]!, /unknownId$/);
+  assert.deepEqual([...fixture.toolIds].sort(), ["approval_tool", "inline_tool", "literal_tool", "secret_tool", "shorthand_tool"]);
+  assert.equal(fixture.unresolved.length, 3);
+  assert.match(fixture.unresolved[0]!, /unknownApprovalId$/);
+  assert.match(fixture.unresolved[1]!, /binding$/);
+  assert.match(fixture.unresolved[2]!, /unknownId$/);
 });
 
 test("the federated card adapter permits only its reviewed dynamic spec expression", () => {
@@ -183,8 +202,23 @@ test("the federated card adapter permits only its reviewed dynamic spec expressi
   ]);
 });
 
+test("the sealer adapter exemption leaves other unresolved open calls visible", () => {
+  const fixture = scanExchangeTexts([{ file: path.join(SRC_ROOT, "features/webhooks/secret-sealer.aesgcm.ts"), text: `
+    this.sealer.open(input, optional);
+    this.sealer.open(otherInput, optional);
+    store.open({ binding, emit });
+  ` }, { file: path.join(SRC_ROOT, "fixture.ts"), text: `
+    this.sealer.open(input, optional);
+  ` }]);
+  assert.deepEqual(fixture.unresolved, [
+    "features/webhooks/secret-sealer.aesgcm.ts:3: otherInput",
+    "features/webhooks/secret-sealer.aesgcm.ts:4: binding",
+    "fixture.ts:2: input",
+  ]);
+});
+
 function missingFromAllowlist(openers: ReadonlySet<string>, allowlist: ReadonlySet<string>): string[] {
-  return [...openers, ...PARAMETERISED_EXCHANGE_TOOL_IDS]
+  return [...new Set([...openers, ...PARAMETERISED_EXCHANGE_TOOL_IDS])]
     .filter((id) => !A2UI_EXCHANGE_TOOL_IDS.has(id) && !allowlist.has(id))
     .sort();
 }
@@ -197,8 +231,12 @@ test("every surfaceExchanges.open(...) call names a toolId constant this scan ca
 
 test("the scan finds the known exchange openers (guards against a scan that silently matches nothing)", () => {
   for (const id of [
-    "external_mcp_save",
+    // Keep the sentinel on a live host opener while credential_save replaces the save tools.
+    "webhooks_delete_subscription",
     "assistant_ask_choice",
+    "credential_save",
+    "external_mcp_save",
+    "identity_user_create",
     "database_transfer_set_destination",
     "assistant_render_ui",
     // Through `humanConfirmedToolHandler`'s `dialog:` spec, not a direct call.
@@ -215,8 +253,8 @@ test("every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS"
 });
 
 test("the completeness check reports a tool whose allowlist entry is missing", () => {
-  const withoutSave = new Set([...MCP_UI_REDEEMABLE_TOOL_IDS].filter((id) => id !== "external_mcp_save"));
-  assert.deepEqual(missingFromAllowlist(scan.toolIds, withoutSave), ["external_mcp_save"]);
+  const withoutDelete = new Set([...MCP_UI_REDEEMABLE_TOOL_IDS].filter((id) => id !== "webhooks_delete_subscription"));
+  assert.deepEqual(missingFromAllowlist(scan.toolIds, withoutDelete), ["webhooks_delete_subscription"]);
 });
 
 test("every allowlisted id opens an exchange or is a named carve-out", () => {

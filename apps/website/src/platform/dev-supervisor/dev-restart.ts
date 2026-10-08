@@ -1,12 +1,11 @@
 import fs from "node:fs";
 
 /**
- * @file The server's side of `npm run dev`'s restart-on-request channel (owner decision OD-S1,
- * 2026-10-05, big-chat-capabilities plan S2): after `sites_switch_site`, the server ASKS
- * `development/scripts/dev.mjs` to restart the API child onto the new site. The server still never
- * kills, signals or re-execs itself — it only writes a small request file that the supervisor
- * watches. This reverses the 2026-09-04 "activate = persist, then a human restarts" rule only for
- * a process that `dev.mjs` started, because only there is something waiting to bring it back.
+ * @file Dev restart-on-request channel (owner decision OD-S1): after `sites_switch_site`,
+ * the server asks `development/scripts/dev.mjs` to restart its API child onto the new site.
+ * The server only writes a supervisor request file; it never kills, signals or re-execs
+ * itself. Automatic restart is limited to supervised dev processes because only that
+ * supervisor can bring the server back.
  *
  * The port exists only when `dev.mjs` set {@link DEV_RESTART_REQUEST_FILE_ENV} (a per-supervisor
  * temp path). `tovu serve`, `npm start`, the desktop app and hosted boots never set it, so there

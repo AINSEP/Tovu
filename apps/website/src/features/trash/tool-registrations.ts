@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/trash.js';
 /**
  * @file Trash's agent-tool wiring: `trash_list_items` and `trash_restore_item`, and nothing else.
  *
@@ -44,7 +45,7 @@ const DEFAULT_LIST_LIMIT = 25;
 const MAX_LIST_LIMIT = 100;
 
 /** The principal id the boot-time widget adoption writes as its actor
- *  (`features/widgets/write-service.ts`'s `ADOPTION_ACTOR`) — duplicated from
+ *  (`Jini/packages/cms/src/widgets/write-service.ts`'s `ADOPTION_ACTOR`) — duplicated from
  *  `server/inbound/admin-http/routes/trash/list.ts`'s constant of the same name/value rather than
  *  imported, so this domain-facing tool file carries no back-edge into the admin HTTP layer. */
 const SYSTEM_ACTOR_PRINCIPAL_ID = "system";
@@ -211,7 +212,7 @@ export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistrat
   // time" rule) could ever reach it.
   const catalog = indexCatalogById({ catalog: buildTrashAgentToolCatalog(trashToolEntityTypes(routeDeps.registry)) });
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "trash",
     catalogModule: "trash/agent-tools.ts",
     catalog,

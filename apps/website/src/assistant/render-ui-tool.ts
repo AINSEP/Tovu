@@ -1,8 +1,9 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { A2UI_DISPLAY_ONLY_PROPERTY, createLabCatalog, parseAgentToRendererMessage, type AgentToRendererMessage } from "@jini-ai/agentic/a2ui";
 
 import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
-import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "@jini-ai/daemon/surface-exchanges";
 
 /**
  * @file A general-purpose "draw whatever you want" tool. Unlike `demo-a2ui-tool.ts` (a scripted,
@@ -14,13 +15,9 @@ import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "../c
  * `components` array in that same shape. Every component the catalog knows is usable — nothing
  * has to be pre-wired into this tool by hand.
  *
- * ## It ships enabled (2026-08-26)
+ * ## Always enabled
  *
- * This tool used to register only when `TOVU_ENABLE_DEMO_TOOLS` was set, through a PRIVATE copy of
- * that check rather than `demo-choices-tool.ts`'s shared `demoToolsEnabled()`. That duplication is
- * worth recording because of what it cost: a grep for the shared helper's name found the three
- * scripted demos and missed this one, so the first attempt to inventory the gate under-counted it.
- * Both implementations are now gone and the env var is read nowhere.
+ * Registration policy: see demo-choices-tool.ts.
  */
 
 export const RENDER_UI_TOOL_ID = "assistant_render_ui";
@@ -37,9 +34,8 @@ export const renderUiAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: RENDER_UI_TOOL_ID,
     description:
-      // Not "inline in the chat" alone: a screen with a canvas (Studio → Playground) shows the
-      // surface there, and the model told the operator "the chart in the chat above" while it sat
-      // on the canvas (demo V3, 2026-10-05). The per-message screen block says which.
+      // A screen with a canvas shows the surface there; the per-message screen block tells
+      // the model which location to describe to the operator.
       "Renders an arbitrary A2UI surface in the admin UI: inline in the chat, or on the open screen's canvas " +
       "when it has one (the Current admin screen block's 'Where drawings appear' line says which). Built from real components (basic layout/text " +
       "primitives like Column/Row/Text/Card, plus every registry component search_components can find, e.g. " +
@@ -88,7 +84,7 @@ const RENDER_REJECTION_GRACE_MS = 4000;
  * of the race is not cancelled — `exchange.close()` (this handler's own `finally`) resolves any
  * still-pending `receive()` with `{status: "abandoned"}` moments later, which nothing here reads. */
 function receiveRejectionWithGrace(exchange: SurfaceExchange, graceMs: number): Promise<SurfaceMessage | null> {
-  return Promise.race([exchange.receive(), new Promise<null>((resolve) => setTimeout(() => resolve(null), graceMs))]);
+  return Promise.race([exchange.receive({}), new Promise<null>((resolve) => setTimeout(() => resolve(null), graceMs))]);
 }
 
 /** `ack.params.message` is whatever `a2ui-actions-route.ts` delivered — the browser's relayed
@@ -121,7 +117,7 @@ export function buildRenderUiRegistrations(
       const components = (ctx.input as { components?: unknown[] }).components ?? [];
 
       const catalog = createLabCatalog({});
-      const exchange = surfaces.surfaceExchanges.open({ toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" }, emitSurface);
+      const exchange = surfaces.surfaceExchanges.open({ binding: { toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" }, emit: emitSurface });
       const surfaceId = exchange.id;
 
       const emitA2ui = async (message: AgentToRendererMessage): Promise<{ ok: true } | { ok: false; reason: string }> => {
@@ -134,7 +130,7 @@ export function buildRenderUiRegistrations(
       try {
         // Display-only: this tool draws and asks nothing, so the chat must not read the surface as
         // a question ("Waiting for your answer above") while the call waits out its refusal grace
-        // period below (demo V3, 2026-10-05). `surfaceProperties` is an open record; renderers ignore it.
+        // period below. `surfaceProperties` is an open record; renderers ignore it.
         const created = await emitA2ui({
           version: "v1.0",
           createSurface: { surfaceId, catalogId: catalog.catalogId, surfaceProperties: { [A2UI_DISPLAY_ONLY_PROPERTY]: true }, dataModel: {} },
@@ -161,12 +157,12 @@ export function buildRenderUiRegistrations(
             "block's 'Where drawings appear' line says (in the chat when there is no such line). Briefly describe what it shows and say where it is.",
         };
       } finally {
-        exchange.close();
+        exchange.close({});
       }
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "render-ui",
     catalogModule: "assistant/render-ui-tool.ts",
     catalog: CATALOG_BY_ID,

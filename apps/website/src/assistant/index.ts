@@ -1,49 +1,31 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 /**
  * @file Public surface (barrel) for `assistant` — ADR-009 §1: "A module's public contract is its
- * `index.ts`; boundary lint forbids deep imports." Six sibling modules already carry this shape
- * (`http`, `mail`, `members`, `navigation`, `media`, `seo`); `assistant` was the one large module
- * that never got it (traced in full: `ADS-memory/reports/architecture/
- * 2026-08-13-api-surface-trace-assistant.md`, 27 deep-imported files / 59 edges).
+ * `index.ts`; boundary lint forbids deep imports."
  *
  * This is a CURATED door, not a re-export of everything `assistant/**` exports. Every symbol below
- * was confirmed, by direct read of every external importer, to have a real external consumer today
- * — or to be the return-type shape of a function that does. Internal-only helpers (e.g.
+ * serves an external consumer or the return-type shape of a function that does. Internal-only helpers (e.g.
  * `resolvePublicTarget`, `resolveExecutionCredential`, the meta-tool descriptor set, the run-owner
  * registry) stay un-re-exported: nothing outside `assistant/` uses them, so exposing them here would
  * widen the surface this file exists to close. Deps/Input parameter types are likewise omitted
  * unless a consumer explicitly type-imports one today — every call site outside this module builds
  * those objects as inline literals, which TypeScript accepts structurally without the exported name.
  *
- * Organized into six sections, matching the six independent consumer clusters the trace found.
+ * Organized by consumer concern.
  *
  * NOT re-exported here FOR `routes/types.ts`'s USE: `ChatStoreFactory` (`./persistence/tenant-scope`),
- * `AgentSessionStore` (`./persistence/agent-session-store`, added 2026-08-30 alongside its store
- * factories — same "routes/types.ts deep-imports the type, this barrel exports only the value
+ * `AgentSessionStore` (`./persistence/agent-session-store` — same "routes/types.ts deep-imports the type, this barrel exports only the value
  * factories" split as `ChatStoreFactory`), `SiteAssistantCredentialRepoPort`
  * (`./site-credential-store`), `AdminExecutionCredentialRepoPort` (`./execution-credential-store`),
  * `ExternalMcpServerRepoPort` (`./external-mcp-store`), and `ExternalMcpOAuthService`
- * (`./external-mcp-oauth`, added 2026-08-25 — it IS exported below for every other consumer, but
+ * (`./external-mcp-oauth` — exported below for other consumers, but
  * `routes/types.ts` deep-imports it for the reason that follows). All six are otherwise-qualifying
  * type-only symbols that `server/routes/types.ts` imports directly instead — deliberately, not an
  * oversight.
- * `routes/types.ts` defines `RouteDeps`, a god-type with ~22 landing imports across `server/routes/**`
- * (2026-08-13 architecture audit). Measured empirically (`npm run check:architecture`, propagation
- * cost = mean fraction of the file graph reachable from each file): routing those 3 lines through
- * this barrel alone moved repo-wide propagation cost from 7.6% to 12.43% — reverting only them
- * recovered it to 8.20%, confirmed by isolating `routes/types.ts` from every other consumer in a
- * worktree bisection. The mechanism: `buildFileGraph` (`development/scripts/check-architecture.ts`)
- * does not distinguish `import type` from value imports, so these three type-only lines are graph
- * edges like any other; and because `routes/types.ts` has enormous fan-IN (every route file depends
- * on it), inflating ITS reachable set transitively inflates every one of its ~22 dependents' own
- * reachable sets too. Composition roots (`app.ts`/`deps.ts`) route through this barrel fine — they
- * have near-zero fan-in, so their own reachable-set growth stays local and costs the metric almost
- * nothing. A "six narrow doors" split (one file per section below) was also measured and rejected:
- * 11.79% propagation / 7 exposed files — worse on both axes than reverting just these 3 lines, because
- * `routes/types.ts` alone needs symbols spanning 4 of the 6 sections regardless of door width. Full
- * writeup: `ADS-memory/reports/architecture/2026-08-13-propagation-cost-barrel-attribution.md`
- * (Result 2 + the FixAssistant addendum). If `routes/types.ts` is ever split or its god-type status
- * resolved, re-evaluate whether these 4 symbols can safely route through this barrel again.
+ * `routes/types.ts` defines the widely imported `RouteDeps`. Routing these types through the
+ * whole barrel expands every route's reachable graph, because `buildFileGraph` treats type-only
+ * imports as edges too. Direct type imports avoid that fan-out. Composition roots have little
+ * fan-in and can use the barrel. Splitting the barrel into narrow sections does not solve this
+ * while `RouteDeps` spans several sections; re-evaluate if that wide type is split.
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -77,7 +59,7 @@ export type { SiteAssistantMode, SiteAssistantModeResolution } from "./site/mode
 // ---------------------------------------------------------------------------------------------
 // B — Assistant Settings & Credentials (admin CRUD + shared public-runtime read)
 //
-// The largest cluster (26 of the 59 traced edges). Straddles the admin CRUD routes, both
+// Straddles the admin CRUD routes, both
 // composition roots (`app.ts`/`deps.ts`), and the public-runtime read path (`isPublicAssistantEnabled`,
 // `resolveSiteAssistantApiKey`) — which is why it is its own section rather than folded into A or C.
 // ---------------------------------------------------------------------------------------------
@@ -167,22 +149,11 @@ export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.j
 // point, for daemon-lifecycle concerns).
 // ---------------------------------------------------------------------------------------------
 export { A2UI_ACTIONS_PATH, a2uiNotPendingBody, deliverA2uiAction, readA2uiAction } from "./a2ui-actions-route.js";
-export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-auth.js";
+export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-access.js";
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
-// `startAssistantDaemon`/`restartAssistantDaemon`/`ensureAssistantDaemonStarted` moved to
-// `server/runtime/lifecycle/daemon-supervisor.ts` (2026-08-17) — that file is now part of the `server`
-// module itself, so its three real callers (`index.ts`, `server/modules/assistant.ts`,
-// `server/routes/admin/system/assistant-daemon.ts`) import it directly rather than through this
-// barrel; re-exporting it here would create an `assistant -> server` edge this barrel exists to
-// avoid.
-//
-// `createRespawnPolicy`/`RespawnDecision`/`RespawnPolicy`, unlike the daemon-supervisor functions
-// above, stay re-exported: `daemon-respawn-policy.ts` is a pure decision module (no `assistant ->
-// server` edge risk the same way daemon-supervisor.ts's own process-spawning code carries), and it
-// has a real external consumer of its own — `server/runtime/lifecycle/daemon-supervisor.ts` (the file
-// described above) plus that file's own test — needing the SAME crash-loop/backoff decision logic
-// the daemon-supervisor code was split out to keep pure and unit-testable in isolation (2026-08-13
-// no-deep-imports:assistant triage).
+// Process-spawning daemon lifecycle belongs to server/runtime/lifecycle/daemon-supervisor.ts;
+// re-exporting it here would create an assistant -> server dependency. The pure respawn policy
+// remains public so the supervisor and its tests share crash-loop/backoff decisions.
 export { createRespawnPolicy } from "./daemon-respawn-policy.js";
 export type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy.js";
 export { getLiveClaudeModels, unionModels } from "./live-model-cache.js";
@@ -195,15 +166,12 @@ export { MCP_UI_TOOL_CALLS_PATH, isTypedSurfaceAnswer } from "./mcp-ui-tool-call
 // un-re-exported — no external caller constructs a `UIResource` today, only reads/asserts on one.
 export { MCP_UI_MIME_TYPE } from "./mcp-ui.js";
 export type { UIResource } from "./mcp-ui.js";
-export { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
+export { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 
-// `tool-surface-exchanges.ts` now lives in `core/` (2026-08-13 architecture audit item 7, executed
-// 2026-08-17) — `features/post/{delete-confirmation-ui, tool-registrations}.ts` and the other
-// cross-module consumers import it directly from `#src/contracts/core/tool-surface-exchanges` now, not through
-// this barrel. Only the ONE symbol pair `server/modules/assistant.ts` actually needs stays
-// re-exported here, byte-identical for that caller (`from "#src/assistant/index"` or `"../../assistant"`).
-export { SURFACE_EXCHANGE_ID_PARAM } from "../contracts/core/tool-surface-exchanges.js";
-export type { SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
+// Cross-domain consumers import the Jini exchange owner directly. Keep only the symbol pair
+// the server's assistant module needs here, so the curated barrel does not widen its consumers.
+export { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
+export type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 // ---------------------------------------------------------------------------------------------
 // E — External MCP Federation (registry)
@@ -219,7 +187,7 @@ export {
   deleteExternalMcpServer,
   ExternalMcpValidationError,
   ExternalMcpSecretStoreUnconfiguredError,
-  // Added 2026-08-26 (write-tools outline, C-007): the admin probe route (`routes/admin/
+  // The admin probe route (`routes/admin/
   // external-mcp/probe.ts`) resolves ONE server's live connection target the same way the daemon's
   // boot path does, so it can open its own short-lived session and ask `tools/list` — reusing this
   // pair rather than re-deriving credential/target resolution a second time.
@@ -237,17 +205,9 @@ export type {
   ExternalMcpServerRecord,
   ExternalMcpServerView,
   SaveExternalMcpOAuthInput,
-  // Added 2026-09-07 (features/external-mcp/tool-registrations.ts, wiring external_mcp_save): the
-  // OAuth half was already exported above; the top-level save input was not, forcing a deep import
-  // straight into `external-mcp-store.ts` (a `no-deep-imports:assistant` warning) for no reason but
-  // this one missing re-export.
   SaveExternalMcpServerInput,
-  // Added 2026-08-26, same reason as the value export above.
   ExternalMcpServerConfig,
-  // Added 2026-09-10 (features/agent-plugins/federate-mcp.ts, wiring a plugin's declared remote MCP
-  // servers into this same store on activation): same missing-re-export reasoning as
-  // `SaveExternalMcpServerInput` above — `saveExternalMcpServer`'s own first parameter had no
-  // re-export, forcing a deep import for no reason but this one gap.
+  // Plugin activation uses the same public store contract.
   ExternalMcpStoreDeps,
 } from "./external-mcp-store.js";
 export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
@@ -277,7 +237,7 @@ export type {
 
 export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "@jini-ai/mcp/federation";
 export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-// Added 2026-08-26 (write-tools outline, C-007): the ONLY other external consumer of the hosted MCP
+// The admin probe is the other external consumer of the hosted MCP
 // transport besides `mcp-federation/bootstrap.ts` itself — the admin probe route needs to open the
 // exact same kind of short-lived session bootstrap.ts's `defaultConnect` opens for a `streamable_http`
 // launch spec, so it can list a remote's tools on demand instead of waiting for the next daemon boot.
@@ -286,7 +246,7 @@ export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 export { connectMcpHttpSession, createFetchMcpHttpExchange } from "./mcp-federation/adapter.http.js";
 export { registerFederatedMcpPreset } from "./mcp-federation/presets.js";
 
-// Roster-change fan-out (2026-09-24): the seam that lets `put.ts`/`oauth-callback.ts`/
+// Roster-change fan-out: the seam that lets `put.ts`/`oauth-callback.ts`/
 // `features/external-mcp/tool-registrations.ts` announce a saved or newly connected row without
 // knowing how many federation runtimes exist in this process — see `external-mcp-roster-change.ts`'s
 // own header. `onExternalMcpRosterChanged` is exported for the composition roots
@@ -303,21 +263,7 @@ export type { ExternalMcpRosterChangeListener } from "./external-mcp-roster-chan
 // ---------------------------------------------------------------------------------------------
 // E2 — AI-Tool Contribution Registry
 //
-// The boot-installed seam a feature's own `tool-registrations.ts` calls to contribute its AI tools
-// to the assistant's catalog, in place of `assistant/tool-registrations.ts` importing that feature
-// by name (see `tool-contribution-registry.ts`'s own header for the full rationale — same
-// registry shape as `registerFederatedMcpPreset` above, one section up). Re-exported here rather
-// than deep-imported so a converting feature (today: `comments`, `newsletter`) gets the same
-// "port, not a file path" seam every other cross-module consumer of this barrel does. `features/post`
-// tried this seam too and reverted the same night — see `features/post/tool-registrations.ts`'s
-// trailing comment for why (it opened a new module cycle through `widgets`/`export`).
-//
-// A sibling CONTENT-source registry (`capability-source-registry.ts`) and the
-// `capability_search`/`capability_get` tool pair it fed used to live here as E3 — REMOVED
-// 2026-08-26 (owner call): every installed Agent Plugin now gets its own real tool,
-// `agent_plugin_<pluginId>` (`features/agent-plugins/tool-registrations.ts`), so a second
-// discovery index was no longer worth the ambiguity of two surfaces for the model to guess
-// between. See `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.
+// Host contribution contracts: see tool-contribution-registry.ts for ownership and dependency direction.
 // ---------------------------------------------------------------------------------------------
 export type { AssistantToolContributions, DerivedToolContributor, ToolContributor } from "./tool-contribution-registry.js";
 
@@ -341,7 +287,7 @@ export { createChatRunLedger, type ChatRunLedger, type RunSettlement } from "./p
 export type { ChatStoreFactory } from "./persistence/tenant-scope.js";
 
 // `persistence/agent-session-store.ts`'s SQLite/in-memory pair, same ADR-006 "composition root
-// selects the adapter" shape as the chat-history pair immediately above, added for the same two
+// selects the adapter" shape as the chat-history pair immediately above, for the same two
 // consumers (`server/app.ts` and `server/deps.ts`) plus `agent-daemon-server.ts`'s `onStarted` —
 // the per-conversation agent-CLI session id lookup that backs `AgentExecutorRunInput.resumeSessionId`/
 // `.newSessionId` (`RunEndPayload.sessionRef`'s round trip, `@jini-ai/protocol`'s doc on that field).

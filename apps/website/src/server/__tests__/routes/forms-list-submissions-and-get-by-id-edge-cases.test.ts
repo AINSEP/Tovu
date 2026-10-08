@@ -146,9 +146,9 @@ test("forms list-submissions: an explicit valid ?limit=&cursor= pair is threaded
   const deps = createRouteDeps();
   let seen: { limit?: number; cursor?: string | null } = {};
   const realListByDefinition = deps.formSubmissionRepo.listByDefinition.bind(deps.formSubmissionRepo);
-  deps.formSubmissionRepo.listByDefinition = async (params) => {
-    seen = { limit: params.limit, cursor: params.cursor };
-    return realListByDefinition(params);
+  deps.formSubmissionRepo.listByDefinition = async (params, optional = {}) => {
+    seen = { limit: params.limit, cursor: optional.cursor };
+    return realListByDefinition(params, optional);
   };
   const { app } = buildTestApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

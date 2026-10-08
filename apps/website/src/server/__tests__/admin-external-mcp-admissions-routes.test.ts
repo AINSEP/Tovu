@@ -6,7 +6,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "../../assistant/daemon-auth.js";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "../../assistant/daemon-access.js";
 import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 import { registerFederationAdmissionsRoute } from "../inbound/assistant/federation-admissions-route.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
@@ -79,7 +79,7 @@ async function withStandInDaemon(
   configFailures?: readonly { readonly connectionId: string; readonly reason: string }[],
 ): Promise<void> {
   const app = express();
-  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
+  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }, {}));
   // `reports` is now a live getter (federation hot-reload, 2026-09-11) — wrapped here so this
   // harness's own fixture keeps passing a plain array, matching its call site's ergonomics unchanged.
   // `configFailures` stays undefined for every pre-existing test below, on purpose — see this file's

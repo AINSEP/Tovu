@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/settings.js';
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireNoInput, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
@@ -43,7 +44,7 @@ interface UiLocalesToolDeps {
  * @example buildUiLocalesRegistrations({ authorize, workspaceId: "ws-main" })
  */
 export function buildUiLocalesRegistrations(deps: UiLocalesToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "settings-ui-locales",
     catalogModule: "features/settings/ui-locales-tool.ts",
     catalog: indexCatalogById({ catalog: uiLocalesAgentToolCatalog }),

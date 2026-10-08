@@ -1,17 +1,18 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildPluginMemoryRegistrations } from "./memory-tools.js";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps } from "./operator-locale.js";
 import { appendPluginNotes } from "./memory.js";
 
-// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
+// Jini owns activation lifecycle; this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
 const { filterActiveAgentPlugins, isAgentPluginActive, readAgentPluginActivations, resolveAgentPluginActivation } = agentPluginActivations;
 import { buildDomainRegistrations, indexCatalogById, isRecord, optionalNumber, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
-import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import {
   AGENT_PLUGIN_CONNECT_TOOL_ID,
   agentPluginConnectAgentToolCatalog,
@@ -19,184 +20,52 @@ import {
   runAgentPluginConnect,
 } from "./connect-tool.js";
 import {
-  agentPluginAccessTokenAgentToolCatalog,
-  agentPluginAccessTokenDerivedRisk,
-  AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID,
-  runAgentPluginSetAccessToken,
   type AgentPluginAccessTokenToolDeps,
 } from "./access-token-tool.js";
 
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
-import { isInstalledDigestPresent, listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
-import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./search.js";
+import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
+import { isInstalledDigestPresent, listInstalledPlugins } from "./lifecycle.js";
+import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./lifecycle.js";
 import type { ToolContributor } from "#src/assistant/index";
 
 /**
- * @file Registers every installed Agent Plugin as ONE real tool in the `ToolRegistry`.
+ * @file Registers each installed, active Agent Plugin as one real ToolRegistry tool.
  *
- * Until it registered alongside — not instead of — `capability-tool-registrations.ts`'s
- * `capability_search`/`capability_get` pair, one tool PAIR feeding a second, parallel discovery
- * index built from Agent Plugins' Skills. That pair was REMOVED 2026-08-26 (owner call): a second
- * index made the agent guess which surface to query, and this file's own per-plugin tool already
- * folds every one of a plugin's skills' vocabulary into one description (see "Why the description
- * must still carry every skill's vocabulary" below), so `search_tools` alone now finds what the
- * removed pair used to. See `ADS-memory/knowledge/2026-08-26-removed-capability-search.md` for the
- * full design that was removed and how to restore it if this trade is ever revisited.
+ * One tool per plugin, with an optional skill argument, matches the composer's plugin chip and
+ * prevents one multi-skill plugin from crowding native tools out of search results. search_tools
+ * is the indexed discovery surface; a parallel capability index would make the agent choose which
+ * one to query. Combining skill descriptions dilutes per-term BM25 scores, but keeps result slots
+ * available for other tools. Every skill's summary must remain in the combined description so
+ * searches can find vocabulary absent from the plugin's top-level name.
  *
- * ---------------------------------------------------------------------------
- * Supersedes the 2026-08-23 one-tool-PER-SKILL pilot
- * ---------------------------------------------------------------------------
- * The prior revision of this file registered each installed plugin's Skills as separate
- * no-argument tools (`skill_ui_ux_design`, `skill_ui_ux_design_frontend_accessibility`, …).
- * Ranking that pilot against the real ~130-tool catalog (this file's own integration test) proved
- * the registration mechanism and the id/description approach both work, but also surfaced a real
- * design flaw the product owner correctly flagged: a single 7-skill plugin filled 7 of 10
- * `search_tools` result slots for an ordinary design query, crowding out genuinely relevant native
- * tools (`theme_read_file` nearly fell off the page), the plugin's own EPONYMOUS skill lost to its
- * own siblings on the very query that names it, and the approach does not scale — 20 installed
- * plugins x 7 skills apiece would mean every design-flavored query returns one plugin's internals.
- * It also contradicted the product's own composer UI, which pins an installed plugin as ONE chip
- * (`pluginRefIds: ["ui-ux-design"]`), not one chip per skill.
+ * Tool id scheme: agent_plugin_<pluginId>, with hyphens folded to underscores. A plugin bundles
+ * skills and MCP servers; it is not itself a skill. The catalog's first-underscore source splitter
+ * labels these as "agent", which is display-only metadata and has no FTS effect. FTS treats
+ * underscores as separators and weights id more heavily than description, so the agent/plugin
+ * words affect ranking. The install digest stays out of the id to avoid diluting that signal.
+ * Multiple installed digests for one id are refused rather than chosen silently. The bundled
+ * digest ledger may select the running build's published package when that digest is present;
+ * operator installs or a ledger pointing to absent bytes still reach the ambiguity refusal.
  *
- * This revision collapses that back to the product's own granularity: one tool per installed
- * plugin, with an optional `skill` argument to reach a specific skill's full guidance. The
- * trade-off this buys, measured rather than assumed, is documented in this pilot's own report —
- * short version: per-term BM25 scores drop because the term now sits inside one longer,
- * heterogeneous description instead of seven short focused ones, but the plugin tool still ranks
- * #1 or top-3 for every query that used to find it, and the six freed-up result slots let natives
- * like `theme_read_file` rank meaningfully better.
+ * The optional skill enum documents available skills; ToolRegistry does not enforce schemas.
+ * Omitted skill returns the eponymous skill, or the alphabetically-first skill when none matches,
+ * plus availableSkills. Concatenating every skill would waste the caller's context. Descriptions
+ * and responses identify the default choice. An unknown skill returns the default with a note
+ * naming the rejected value and valid choices, so a typo remains recoverable.
  *
- * ---------------------------------------------------------------------------
- * Tool id scheme: `agent_plugin_<pluginId>` (hyphens folded to underscores)
- * ---------------------------------------------------------------------------
- * An earlier revision of this file used `skill_<pluginId>` here — a category error the product
- * owner caught. An Agent Plugin is not itself a skill; it is a packaging paradigm that BUNDLES
- * skills, tools, and MCP servers (this codebase already draws that line elsewhere: Jini keeps a
- * separate `packages/agent-plugins/` from `packages/plugins/`, and Tovu's own installer already
- * tags bundled entries with the kind strings `"agent-plugin-skill"` / `"agent-plugin-mcp-server"` —
- * never bare `"skill"`). `skill_` was wrong the moment this file started minting one tool per
- * INSTALLED PLUGIN rather than per skill, and it burned a prefix real standalone skill tools will
- * need later. `agent_plugin_` names what the tool actually represents: one installed plugin, not
- * one of the skills it happens to bundle.
+ * SECURITY: no absolute host path belongs in ids, descriptions, schemas or handler outputs.
+ * packageRoot/skillPath are only local read arguments; AgentPluginToolSource never carries them.
+ * Outputs contain plugin/skill names, guidance markdown and availability, never the source path.
+ * The real-install tests assert that the temporary package root is absent from every public field.
  *
- * This departs on purpose from the immediately-prior revision's stated goal of reusing the id the
- * even-earlier per-skill pilot's own eponymous-skill collapsing rule produced (`skill_<pluginId>`,
- * when `skillName === pluginId`) — that continuity was never actually a reason to keep `skill_`, it
- * just meant the category error shipped twice in a row before it was caught.
- *
- * `sourceForToolId()` (`tool-catalog-query.ts`) derives a tool's catalog `source` by splitting the id
- * on the FIRST underscore with no special-casing — `agent_plugin_ui_ux_design` therefore buckets as
- * source `"agent"`, not `"agent_plugin"` (the splitter only sees the text before the first `_`). That
- * bucket is cosmetic display metadata only: `source` is never part of the FTS index (see
- * `tool-catalog.ts`'s `tool_catalog_fts` schema), so it has zero effect on search ranking.
- * Deliberately NOT "fixed" by editing `sourceForToolId`/`tool-catalog-query.ts` — that splitter is
- * shared by every domain's id, and carving out a special case for this one prefix is not worth it for
- * a display-only bucket.
- *
- * FTS5's default tokenizer treats `_` as a word separator, so the new id indexes as five real,
- * independently matchable words — `agent`, `plugin`, `ui`, `ux`, `design` — rather than a
- * run-together `skillUiUxDesign`-style token. Because `tool-catalog.ts` weights `id` 6x `description`
- * in `bm25()`, those extra tokens are not free: adding "agent" and "plugin" to a 6x field is a real
- * ranking input (it can help a query that mentions "plugin", and can shift other queries slightly via
- * BM25's length normalization), not a cosmetic rename. See this change's own report for the actual
- * before/after rank+score numbers this was re-measured against.
- *
- * The install DIGEST is deliberately NOT part of the id, for the same reason the prior pilot gave:
- * a tool id is typed back into a model's `execute_delegated_tool` call after a `search_tools` hit,
- * and `tool-catalog.ts` (the FTS5 seed) weights `id` 6x `description` in `bm25()` — a 64-hex-char
- * digest folded into every id would only dilute that per-term signal for zero search benefit. That
- * tradeoff makes an ambiguous pluginId — two installed digests of the SAME plugin — a case this
- * loader REFUSES rather than silently picking one: {@link loadInstalledAgentPluginToolSources}
- * logs it loudly and excludes just that one plugin from the returned tool sources, the
- * same "loud, explicit ambiguity error" precedent `resolve-agent-plugin-refs.ts`'s own module doc
- * already establishes for a pinned ref that resolves to more than one digest — except scoped to the
- * one ambiguous plugin rather than aborting every other installed plugin's tool along with it.
- * Adapted here from per-(plugin,skill)-pair to per-plugin, since a plugin id is now the entire
- * granularity of a tool.
- *
- * ONE case is no longer ambiguous, since 2026-09-18: a BUNDLED plugin whose upgraded package landed
- * beside its predecessor. The boot seeder records which digest the running build published
- * (`bundled-digests.ts`), so superseded installs are dropped before this guard sees them — by the
- * build's own answer, never by picking one. Every id that ledger has no authority over (operator
- * installs, a ledger naming a digest that is not present) still reaches the refusal unchanged.
- *
- * ---------------------------------------------------------------------------
- * The optional `skill` argument, and why the default is NOT "dump everything"
- * ---------------------------------------------------------------------------
- * Collapsing to one tool per plugin still needs a way to reach a specific skill's full guidance —
- * that capability must not be lost, only re-shaped. `inputSchema` therefore carries one optional
- * string property, `skill`, whose `enum` names every skill this specific installed plugin actually
- * has (documentation for the model, not an enforced constraint — `@jini-ai/core`'s `ToolRegistry`
- * explicitly never parses or validates `inputSchema`; see that package's own header on the point).
- *
- * The DEFAULT (argument omitted) never returns every skill concatenated — measured on the real
- * `ui-ux-design` install: 32,686 bytes across its 7 SKILL.md files, ~8k tokens, far too much to
- * hand back for a bare no-argument call a model might make just to see what a plugin offers. The
- * default instead returns the plugin's own EPONYMOUS skill (`skills/<pluginId>/SKILL.md` — the
- * same file `resolve-agent-plugin-refs.ts`'s `inject`/`pointer` delivery already treats as "this
- * plugin's own instructions", not a summary of them) plus a short `availableSkills` list of the
- * other skill names, so the model can ask for one of those by name on a follow-up call. A plugin
- * with no eponymous skill folder falls back to its alphabetically-first skill instead — see
- * {@link loadInstalledAgentPluginToolSources} — and both the tool's own description and every
- * default-path response name which skill was chosen and why, so that choice is never a silent
- * guess a caller has to reverse-engineer.
- *
- * An unrecognized `skill` value never throws: it falls back to that same default response, with a
- * `note` field naming the value that was not recognized and listing every valid one. A model that
- * mistypes a skill name gets a usable answer, not a failed turn.
- *
- * ---------------------------------------------------------------------------
- * Why the description must still carry every skill's vocabulary
- * ---------------------------------------------------------------------------
- * BM25 only ranks words present in the indexed text (`id` + `description` — see
- * `tool-catalog-query.ts` / `tool-catalog.ts`), and this tool is now the ONLY indexed surface for
- * all of a plugin's skills at once — a query for "shadcn component library" or "WCAG accessibility"
- * must still be able to find this one tool even though neither term appears in the plugin's own
- * top-level name. {@link buildPluginToolDescription} therefore folds every skill's own summary (its
- * frontmatter `description:`, or its opening prose when there is none — the exact per-skill parsing
- * `readFrontmatterField` / {@link extractFallbackSummary} already did for the prior
- * pilot, reused here rather than re-implemented) into one combined, readable description naming
- * every skill and what it is for.
- *
- * ---------------------------------------------------------------------------
- * SECURITY — no absolute host path ever reaches a tool id, description, schema, or handler output
- * ---------------------------------------------------------------------------
- * The now-removed `capability-source-registry.ts`'s own header used to be explicit that a
- * `CapabilityCard.handle` "must never be serialized into a `capability_search`/`capability_get`
- * response" because it carries `packageRoot`/`skillPath` — absolute host paths. This module never
- * constructs anything shaped like a `handle` at all: {@link loadInstalledAgentPluginToolSources}
- * uses `plugin.packageRoot`/`skill.skillPath` ONLY as local arguments to the one
- * `readInstalledSkillMarkdown` call that reads each skill file, and neither value is stored on the
- * returned {@link AgentPluginToolSource} or threaded anywhere else. The id is built from `pluginId`
- * (a plugin-declared identifier, not a filesystem path); the description and the `skill` schema's
- * `enum`/description are built from skill names and their own frontmatter/prose; the handler
- * returns `{ pluginId, skillName, guidance, availableSkills, note? }`, where `guidance` is a skill's
- * own markdown BODY, never a path naming where it was read from. Verified empirically, not just by
- * construction: this file's own test suite installs a real plugin into a temp directory (an
- * absolute, unpredictable path by construction) and asserts that path's string never appears in any
- * registered id, description, schema, or handler output.
- *
- * ---------------------------------------------------------------------------
- * Why this is NOT a `ToolContributor` (`tool-contribution-registry.ts`)
- * ---------------------------------------------------------------------------
- * Every other domain's contribution is synchronous — `ToolContributor.build: (routeDeps, surfaces)
- * => ToolRegistration[]` — because its tool ids are known statically at module load. This domain's
- * are not: which plugins/skills exist can only be learned by awaiting `listInstalledPlugins`. This
- * file exposes its own async entry point, {@link registerInstalledAgentPluginTools}, which does
- * exactly what
- * `agent-daemon-server.ts`'s existing `for (const registration of build...())
- * registry.register(registration)` loops already do for `buildAssistantToolRegistrations`'s own
- * output — the same registration mechanism, called once more, after an await. It is not wired into
- * that file by this change (a synchronous top-level composition root, already under heavy
- * concurrent edit) — live-boot wiring stays a separate, later decision.
+ * Dynamic registration is async because installed plugin ids require disk reads. It runs at
+ * daemon boot through registerInstalledAgentPluginTools, outside the synchronous ToolContributor
+ * seam. Static tools such as search_agent_plugin_local use that seam and read disk in their handlers.
  */
 
-/** Title-cases a kebab-case name into human words. Duplicated from `capability-projection.ts`'s own
- *  (unexported) `humanize`: a private formatting helper of a sibling module, not a shared utility
- *  either has promised to keep in sync. (A third copy lived in `capability-source.ts` until it was
- *  removed 2026-08-26 — see `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.) */
+/** Local presentation helper; sibling formatting helpers have no shared contract to keep in sync. */
 function humanize(value: string): string {
   return value
     .split("-")
@@ -439,7 +308,7 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
     await readBundledAgentPluginDigests(workspaceLayout.root),
   );
 
-  // ACTIVATION GATE (2026-08-26) — the second of three surfaces (see `activation.ts`). Filtered
+  // Filter inactive plugins through the shared lifecycle owner
   // BEFORE the ambiguity check below on purpose: two installed digests of a plugin nobody has
   // enabled is not an operator-actionable error, and throwing on it would let a dormant, disabled
   // package break tool registration for every OTHER plugin in the workspace.
@@ -583,12 +452,9 @@ function buildPluginToolResult(source: AgentPluginToolSource, requestedSkill: st
  * out ("unregister is not exposed; ... tools are registered once at composition time") — so nothing
  * anywhere can take a registration back out of a daemon that is already running.
  *
- * That left a privilege-retention hole (sol finding 5-1, 2026-09-16): an operator who switched a
- * plugin OFF, from either inbound adapter, kept a live `agent_plugin_<id>` tool serving that
- * plugin's guidance until Tovu was restarted — while both the admin screen and the tool's own
- * success message told them the revocation had taken effect. The activations record really IS
- * re-read per run by the OTHER two gate surfaces (run-start ref injection, discovery); the tool
- * surface was the one that had snapshotted it.
+ * Boot-only activation checks would retain a disabled plugin's guidance until restart, even
+ * while admin/tool responses report successful revocation. Invocation must re-read activation
+ * just as run-start reference injection and discovery do.
  *
  * The gate therefore moves to where the capability is actually spent — the invocation itself. This
  * is not "a filter bolted onto the read path": `@jini-ai/core`'s `authorizeToolInvocation` consults
@@ -598,13 +464,11 @@ function buildPluginToolResult(source: AgentPluginToolSource, requestedSkill: st
  * handler ever being entered, and the daemon's own audit record says so.
  *
  * ---------------------------------------------------------------------------
- * ...and ACTIVE is only half the question — UNINSTALL was the other half (2026-09-16)
+ * Activation and installation must both remain valid
  * ---------------------------------------------------------------------------
- * Gating on the activation record ALONE re-opened the very capability it had just revoked.
- * `uninstall.ts` DELETES the record (a settled decision, argued in its own header), and
- * `activation.ts`'s `isAgentPluginActive` reads an ABSENT record as ACTIVE — so *disable then
- * uninstall* flipped this gate from `deny` straight back to `allow`, and uninstalling a plugin that
- * had never been disabled never revoked anything at all. Absence of a record means "nobody recorded
+ * Gating on the activation record alone would re-admit an uninstalled plugin.
+ * Uninstall deletes the record and isAgentPluginActive treats an absent record as active, so
+ * disable-then-uninstall can otherwise flip deny back to allow. Absence means "nobody recorded
  * a decision", which is only consent while the operator's own install is still standing behind it.
  * Once the package is gone, there is no install left to imply anything.
  *
@@ -763,7 +627,7 @@ export function buildAgentPluginToolRegistrations(
     identityByToolId.set(source.id, { pluginId: source.pluginId, archiveDigest: source.archiveDigest });
   }
 
-  const registrations = buildDomainRegistrations({
+  const registrations = buildDomainRegistrations({ metadata: toolMetadata,
     domain: "agent-plugin-skill",
     catalogModule: "features/agent-plugins/tool-registrations.ts",
     catalog: indexCatalogById({ catalog: catalog }),
@@ -967,7 +831,7 @@ export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = [
  * {@link loadInstalledAgentPluginToolSources} already accepts for this identical catalog, plus one
  * `mcp.json` read per plugin.
  *
- * Exported (2026-09-09) for a second caller outside this module:
+ * Also consumed by the admin installed-plugin listing:
  * `server/inbound/admin-http/routes/agent-plugins/list.ts` — the admin UI's read of the SAME
  * installed-plugin state this tool searches — reuses this loader rather than re-deriving it, so
  * "what plugins are installed" has one source of truth with two consumers (a tool and the admin
@@ -1070,7 +934,7 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "agent-plugin-search",
     catalogModule: "features/agent-plugins/tool-registrations.ts",
     catalog: indexCatalogById({ catalog: agentPluginSearchAgentToolCatalog }),
@@ -1107,10 +971,9 @@ export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAcces
       return runAgentPluginConnect(routeDeps, surfaces, ctx, pluginId, optional);
     },
     // The token fallback (`access-token-tool.ts`) for a plugin whose server declares `tovuTokenAuth`.
-    [AGENT_PLUGIN_SET_ACCESS_TOKEN_TOOL_ID]: async (ctx, optional) => runAgentPluginSetAccessToken(routeDeps, surfaces, ctx, requireInputRecord({ input: ctx.input }), optional),
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "agent-plugin-connect",
     catalogModule: "features/agent-plugins/connect-tool.ts",
     catalog: indexCatalogById({ catalog: agentPluginConnectDomainCatalog }),
@@ -1119,11 +982,11 @@ export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAcces
   });
 }
 
-/** Both tools the `agent-plugin-connect` domain wires: sign-in, and its access-token fallback. */
-export const agentPluginConnectDomainCatalog = [...agentPluginConnectAgentToolCatalog, ...agentPluginAccessTokenAgentToolCatalog, ...pluginNoteCatalog];
-const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPluginConnectDerivedRisk, ...agentPluginAccessTokenDerivedRisk, ...pluginNoteRisk]);
+/** The `agent-plugin-connect` domain wires sign-in and notes; token fallback belongs to credential_save. */
+export const agentPluginConnectDomainCatalog = [...agentPluginConnectAgentToolCatalog, ...pluginNoteCatalog];
+const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPluginConnectDerivedRisk, ...pluginNoteRisk]);
 
-/** Contributes `agent_plugin_connect` and `agent_plugin_set_access_token` to the assistant's static
+/** Contributes plugin sign-in and notes to the assistant's static
  *  tool catalog — called once by `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
 export function contributeAgentPluginConnectTools(): ToolContributor {
   return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDomainRisk };

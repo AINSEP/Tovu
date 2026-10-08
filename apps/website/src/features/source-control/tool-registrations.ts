@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -11,7 +12,7 @@ import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 
-import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 import {
   commitSiteToSourceControl,
@@ -42,7 +43,7 @@ import type { ObservabilityPort } from "../../platform/observability/index.js";
  * exchange gate this reuses; not re-derived here).
  *
  * Three tools:
- * - `source_control_propose_credential` — opens a provider-defined human form and creates a sealed connection; no secret crosses the model boundary.
+ * - `credential_save with kind source-control` — opens a provider-defined human form and creates a sealed connection; no secret crosses the model boundary.
  * - `source_control_get_capabilities` — read-only, risk `"none"`: reports which providers (github,
  *   gitlab, bitbucket) have a saved credential, by id/label/isDefault/timestamps only — never a
  *   token. Deliberately does NOT report a verified/ready tri-state the way
@@ -54,7 +55,7 @@ import type { ObservabilityPort } from "../../platform/observability/index.js";
  *   host (`provider-registry.ts`; the bundled `github` plugin today) — so a workspace that saved a
  *   credential for a host no plugin serves learns from THIS tool that committing isn't available,
  *   never from a failed commit attempt (2026-08-16 review requirement).
- * - `source_control_execute_commit` performs an authorized Git commit after the shared approval gate (owner 2026-10-07). Provider,
+ * - `source_control_execute_commit` performs an authorized Git commit after the shared approval gate. Provider,
  *   credential, target and branch checks still apply; existing Git history preserves overwritten
  *   files. Credentials remain server-side and are never included in the model's call or result.
  */
@@ -163,20 +164,11 @@ const EXECUTE_COMMIT_SCHEMA = {
  * @complexity O(1) — a fixed, statically-defined list.
  */
 export const sourceControlAgentToolCatalog: AgentToolDefinition[] = [
-  {
-    name: "source_control_propose_credential",
-    description: "Opens a human form to connect a source control provider for commits or repository backup. Call when no saved credential exists; the person types the token directly into the form and the server seals it. Supply only provider and optional label, never a secret. Before calling it, tell the person the repository rules and ask which repository to use (source_control_get_capabilities guidance). This call waits for submission or cancellation, then returns {saved, credentialId, provider, label}; when nothing was saved it also returns cancelled (true only when the person pressed Cancel) and message saying why — report that, not a guess. Only enabled providers with declared forms are supported. Permission denied or absent form channel refuses the call; invalid form data or a failed save returns saved:false. Creates a credential; editing and deleting remain admin-only. Use source_control_get_capabilities to inspect hosts and saved connections.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "source-control.credentials.write" },
-    inputSchema: { type: "object", additionalProperties: false, required: ["provider"], properties: {
-      provider: { type: "string", enum: ["github", "gitlab", "bitbucket"], description: "An enabled host listed by source_control_get_capabilities with a declared credential form." },
-      label: { type: "string", maxLength: 200, description: "Optional non-secret label to prefill in the human form." },
-    } },
-  },
+
   {
     name: "source_control_get_capabilities",
     description:
-      "Reports the source control hosts for this workspace — every host a turned-on Agent Plugin provides, every host a plugin declares but is switched off, and every host that has a saved connection — WITHOUT decrypting or exposing any credential. For each provider: providerId; label, apiOrigin (the API base URL a saved custom credential for that host points at) and maxFileBytes (the largest single file the host accepts in a push; absent when it declares none), when a plugin declares the host; whether a credential is configured (a row exists — this is presence only, NOT a live verification that the token still works; a saved credential that the host has since revoked still reports configured:true here and would only be discovered as invalid by an actual commit attempt), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token or any part of one), and whether committing to that provider is supported yet (commitSupported: true only when an enabled Agent Plugin provides committing to that host; a credential for any other host can be saved and is reported honestly here, but source_control_execute_commit will refuse it; do not imply to the user that saving such a credential enables committing). Call this before telling a human what committing would do, before calling source_control_execute_commit, or whenever asked something like 'can I commit, and where'. Do NOT ask the user to paste a token into this chat — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid; call source_control_propose_credential to open a human form, which saves it encrypted server-side and never shows it to you.",
+      "Reports the source control hosts for this workspace — every host a turned-on Agent Plugin provides, every host a plugin declares but is switched off, and every host that has a saved connection — WITHOUT decrypting or exposing any credential. For each provider: providerId; label, apiOrigin (the API base URL a saved custom credential for that host points at) and maxFileBytes (the largest single file the host accepts in a push; absent when it declares none), when a plugin declares the host; whether a credential is configured (a row exists — this is presence only, NOT a live verification that the token still works; a saved credential that the host has since revoked still reports configured:true here and would only be discovered as invalid by an actual commit attempt), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token or any part of one), and whether committing to that provider is supported yet (commitSupported: true only when an enabled Agent Plugin provides committing to that host; a credential for any other host can be saved and is reported honestly here, but source_control_execute_commit will refuse it; do not imply to the user that saving such a credential enables committing). Call this before telling a human what committing would do, before calling source_control_execute_commit, or whenever asked something like 'can I commit, and where'. Do NOT ask the user to paste a token into this chat — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid; call credential_save with kind source-control to open a human form, which saves it encrypted server-side and never shows it to you.",
     sideEffects: "none",
     authorization: { permission: "source-control.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -206,7 +198,7 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // presence check. No decrypt, no network call.
   ["source_control_get_capabilities", "none"],
   // -> proposeSourceControlCredential -> createSourceControlCredential: seals and inserts a saved connection after human submit.
-  ["source_control_propose_credential", "mutates-durable-state"],
+
   // -> calls `commitSiteToSourceControl`: a real `exportSite` pass plus a real GitHub Git
   // Data API commit using a write-scoped credential — genuinely mutates external durable state.
   ["source_control_execute_commit", "mutates-durable-state"],
@@ -218,15 +210,9 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
  * into the composition root — same discipline `comments/tool-registrations.ts`'s `CommentsToolDeps`
  * documents for its own narrowing.
  *
- * 2026-08-20 RouteDeps-narrowing fix (supersedes `b6144774`'s config-only attempt, which the owner
- * rejected — see `ADS-memory/reports/2026-08-20-architecture-step2-routedeps-narrowing.md`): this
- * interface used to `extends RouteDeps` outright, on the grounds that `commitSiteToSourceControl`
- * needs the full composition-root bag to run a real `exportSite` pass. That reasoning about
- * `exportSite`'s own requirement was correct — but it does not follow that THIS interface has to name
- * `RouteDeps` to satisfy it. `exportSiteBound` below is the fix: a pre-bound export call, closed over
- * the full `RouteDeps` at the composition root (`server/app.ts`/`server/deps.ts`), threaded down as
- * one narrow field instead of the whole bag. `server/routes/*` satisfies this structurally by passing
- * its existing `RouteDeps` object (which now also carries `exportSiteBound`); nothing there changes.
+ * exportSiteBound is closed over the full application dependencies at the composition root.
+ * Passing that one pre-bound operation lets the tool run a real export without importing the
+ * composition root's wide RouteDeps type; route callers satisfy the narrower shape structurally.
  */
 export interface SourceControlToolDeps {
   readonly authorize: AuthorizeFn;
@@ -337,7 +323,7 @@ function buildCapabilityGuidance(providerId: string, configured: boolean, commit
     // Demo dry run 2026-10-05: the token form opened before the person had heard any of this.
     return `No ${providerId} credential is saved yet. First tell the person what is needed and ask which repository (owner/name) to use: ` +
       "for a site backup it must be private and already have at least one commit (for example a README), and the token needs " +
-      "Contents read and write on it. Then call source_control_propose_credential to open the human credential form.";
+      "Contents read and write on it. Then call credential_save with kind source-control to open the human credential form.";
   }
   if (!commitReady) {
     return `A ${providerId} credential is saved, but no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;
@@ -356,9 +342,18 @@ function buildCapabilityGuidance(providerId: string, configured: boolean, commit
  * @complexity O(1) registration-time cost; each wired handler's own cost is documented at its call
  *   site above.
  */
+/** Bind the source-control credential owner with the same installed-provider loader as other tools.
+ * @param required - Existing domain dependencies and shared surface exchanges.
+ * @returns Internal save adapter; permissions and errors remain domain-owned.
+ * @example buildSourceControlCredentialHandler({ deps, surfaces });
+ * @complexity O(1) binding; provider/save costs are documented by proposeSourceControlCredential.
+ */
+export function buildSourceControlCredentialHandler({ deps, surfaces }: { deps: SourceControlToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): ToolHandler {
+  return (ctx, optional = {}) => proposeSourceControlCredential({ ctx, deps: { ...deps, loadSourceControlProviders: providerLoader(deps) }, surfaces }, optional);
+}
+
 export function buildSourceControlRegistrations(deps: SourceControlToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    source_control_propose_credential: (ctx, optional = {}) => proposeSourceControlCredential({ ctx, deps: { ...deps, loadSourceControlProviders: providerLoader(deps) }, surfaces }, optional),
     source_control_get_capabilities: async (ctx) => {
       requireNoInput({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.read" }, { entityType: "source-control" });
@@ -388,7 +383,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       return { providers };
     },
 
-    /** Shared owner 2026-10-07 approval precedes real export commits, which can remove stale paths;
+    /** Shared approval precedes real export commits, which can remove stale paths;
      * dry-run previews stay direct. Target, credential and branch checks remain. */
     source_control_execute_commit: async (ctx) => {
       const raw = requireInputRecord({ input: ctx.input });
@@ -448,7 +443,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
         return {
           committed: false,
           reason: "no-credential",
-          message: `No ${hostLabel} source control credential is configured for this workspace. Call source_control_propose_credential to open a human credential form before committing.`,
+          message: `No ${hostLabel} source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.`,
         };
       }
       const commitAdapter = await resolveCommitAdapter(deps, command.provider);
@@ -477,7 +472,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
 
   // No `unwiredToolIds`: this domain wires its ENTIRE catalog — a 3rd catalog entry added without a
   // handler fails the build.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "source-control",
     catalogModule: "features/source-control/tool-registrations.ts",
     catalog: CATALOG_BY_ID,
@@ -487,33 +482,10 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
 }
 
 /**
- * Contributes Source Control's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
- * module.
- *
- * 2026-08-17: Source Control was tried for the tool-contribution registry in Stage 2 batch 2 and
- * reverted the same session — a plain relative/`#src/*` importer grep of `features/source-control`
- * itself found nothing risky (only `server/*`, `db/sqlite/*`, and admin routes — none reachable from
- * `assistant`), but that grep missed the real path: `assistant/tool-registrations.ts` already
- * value-imports `createVendorCredential`/`listVendorCredentials`/`PUBLISH_PROVIDER_TO_VENDOR`/
- * `updateVendorCredential` from `features/vendor-credentials/index` (for
- * `StaticPublishToolDeps.vendorCredentials`'s real implementation), and
- * `features/vendor-credentials/dual-read.ts` itself value-imported `resolveDefaultForSourceControl`
- * from `../source-control/store` for its legacy-fallback read. So `assistant` reached INTO this
- * domain transitively through `vendor-credentials`, even though nothing reached OUT of it that way.
- * Adding `registerToolContributor` here (a `source-control -> assistant` edge) closed a real
- * 3-module cycle: `assistant, features/source-control, features/vendor-credentials` (confirmed via
- * `check:architecture --list`: largest strongly-connected component, runtime-only, went 0 -> 3).
- *
- * Retried and landed here per
- * `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md` (Option
- * B): `dual-read.ts`'s two legacy-table value imports (`resolveDefaultForPublish`/
- * `resolveDefaultForSourceControl`) are now injected via `VendorCredentialDualReadDeps`, typed with
- * locally-declared structural signatures instead of imported function types — see that file's own
- * header. That removes the `features/vendor-credentials -> features/source-control` edge outright
- * (the `assistant -> vendor-credentials` edge for `list`/`create`/`update`/`providerToVendor` stays,
- * but it no longer reaches this domain transitively). `check:architecture` now reports 0 module
- * cycles / largest SCC 0 with Source Control wired this way.
+ * Contributes Source Control's AI tools; called once by the composition root's
+ * `installFirstPartyToolContributors()`, never as an import side effect.
+ * Credential resolution is injected with structural signatures; importing this feature from
+ * credential discovery would close a runtime cycle back through the assistant.
  */
 export function contributeSourceControlTools(): ToolContributor {
   return { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk };

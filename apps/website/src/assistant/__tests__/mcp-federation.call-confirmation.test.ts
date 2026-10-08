@@ -11,7 +11,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
 import { buildFederatedCallConfirmSpec, createFederatedCallConfirmer } from "../external-mcp-call-confirmation.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
@@ -20,10 +20,12 @@ import * as shared from "@jini-ai/mcp/federation";
 import { admitRemoteTools } from "@jini-ai/mcp/federation";
 import { isMcpUiToolCallPermitted } from "../mcp-ui-tool-calls.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-// The trust tier moved to @jini-ai/mcp/federation; this wrapper keeps the original positional call
-// so the assertions below are unchanged.
+
+// This wrapper preserves Tovu's positional call contract for Jini trust policy.
 const refusalForAdmittedToolUnderCurrentGrants = (
   tool: Parameters<typeof shared.refusalForAdmittedToolUnderCurrentGrants>[0]["tool"],
   grants: Parameters<typeof shared.refusalForAdmittedToolUnderCurrentGrants>[0]["grants"],
@@ -127,7 +129,7 @@ interface Harness {
 }
 
 function harness(options: { store?: SurfaceExchangeStore; withConfirmer?: boolean } = {}): Harness {
-  const store = options.store ?? createSurfaceExchangeStore();
+  const store = options.store ?? createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const sent: { name: string; args: Record<string, unknown> }[] = [];
   const session = new InMemoryMcpSession({
     tools: TOOLS }, {
@@ -202,7 +204,7 @@ function call(
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 function answer(h: Harness, card: Card, name: string, decision: "confirm" | "cancel") {
-  return h.store.deliver({ exchangeId: card.exchangeId, params: { decision }, principalId: PRINCIPAL_ID, toolId: `mcp__supabase__${name}` });
+  return h.store.deliver({ exchangeId: card.exchangeId, params: { decision }, principalId: PRINCIPAL_ID }, { toolId: `mcp__supabase__${name}` });
 }
 
 test("G3 card: an unconfirmed call never reaches the remote — nothing is sent while the card waits, one call after Confirm", async () => {
@@ -234,7 +236,7 @@ test("G3 card: Cancel sends nothing and tells the model in words", async () => {
 });
 
 test("G3 card: an expired card sends nothing and says it expired", async () => {
-  const h = harness({ store: createSurfaceExchangeStore({ idleTtlMs: 20 }) });
+  const h = harness({ store: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 20 }) });
   const { pending, cards } = call(h, "execute_sql", { query: "drop table demo" });
 
   assert.deepEqual(await pending, {
@@ -318,7 +320,7 @@ test("G3 card: another principal or tool cannot confirm the call", async () => {
       { principalId: "another-admin", toolId: "mcp__supabase__execute_sql" },
       { principalId: PRINCIPAL_ID, toolId: "mcp__supabase__create_project" },
     ]) {
-      assert.deepEqual(h.store.deliver({ exchangeId: card.exchangeId, params: { decision: "confirm" }, ...binding }),
+      assert.deepEqual(h.store.deliver({ exchangeId: card.exchangeId, params: { decision: "confirm" }, principalId: binding.principalId }, { toolId: binding.toolId }),
         { ok: false, reason: "binding-mismatch" });
       await tick();
       assert.deepEqual(h.sent, []);
@@ -395,9 +397,9 @@ test("G3 route rule: a federated id is permitted only as an answer to an open ca
   assert.equal(isMcpUiToolCallPermitted("mcp__supabase__execute_sql", true), true);
   assert.equal(isMcpUiToolCallPermitted("mcp__supabase__execute_sql", false), false);
   assert.equal(isMcpUiToolCallPermitted("identity_user_delete_everything", true), false);
-  // A native redeemable id needs no open card. (`content_post_delete` left the redeemable set in
-  // 6eac86229 when deletion became a reversible trash move; `settings_set_value` is still on it.)
-  assert.equal(isMcpUiToolCallPermitted("settings_set_value", false), true);
+  // Native policy callbacks also require a parked exchange; ordinary edits use the executor.
+  assert.equal(isMcpUiToolCallPermitted("settings_set_value", false), false);
+  assert.equal(isMcpUiToolCallPermitted("settings_set_value", true), true);
 });
 
 function refusingExecutor(): { executor: ToolExecutor; executed: string[] } {
@@ -420,7 +422,7 @@ test("G3 route: a federated tool call with no exchange is refused 403 and never 
   const { executor, executed } = refusingExecutor();
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges: createSurfaceExchangeStore() });
+  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

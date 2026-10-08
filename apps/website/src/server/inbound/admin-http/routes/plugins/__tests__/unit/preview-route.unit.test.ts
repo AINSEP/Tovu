@@ -3,8 +3,8 @@ import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
 import express from "express";
 import type { ContentEntryDraft } from "@tovu/sdk";
-import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
-import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { registerPluginPreviewRoute } from "../../preview.js";
 import type { PluginsRouteDeps } from "../../deps.js";
 

@@ -35,15 +35,7 @@ const contributions = {
  * key, another operator's layer, a non-user scope), not merely what the happy path returns.
  */
 
-// `settings` moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, the last domain of this rollout to convert the standard
-// way — see `features/settings/tool-registrations.ts`'s own header for the two-stage trace: first
-// pulled out via a one-off exception because 3 files inside `assistant/` value-imported
-// `features/settings` engine functions directly, then fully converted once those 3 files took the
-// functions as injected deps instead). So `buildAssistantToolRegistrations` below no longer wires it
-// unless something explicitly installs it first, mirroring what the real composition roots now do
-// via `installFirstPartyToolContributors()` — same fix `tool-registrations.post.test.ts`/
-// `tool-registrations.entries.test.ts` already apply.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeSettingsTools() });
 
@@ -120,8 +112,8 @@ function executionContext(input: Record<string, unknown> | undefined, principalI
   return { executionId: "exec-1", principal: { id: principalId }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function settingsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("settings_") || r.descriptor.id === "content_read.setting_definition").map((r) => [r.descriptor.id, r]));
+function settingsRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions, includeContentReadCollapse }).filter((r) => r.descriptor.id.startsWith("settings_") || r.descriptor.id === "content_read.setting_definition").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -175,7 +167,8 @@ test("bulk and schema writes stay unreachable; old generic names are replaced", 
 
 test("every wired settings registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
-  for (const [id, registration] of settingsRegistrations(deps)) {
+  // Compare the source catalog before the host read-id projection; contracts.test.ts checks that projection.
+  for (const [id, registration] of settingsRegistrations(deps, false)) {
     // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
     // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL

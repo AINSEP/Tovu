@@ -4,19 +4,20 @@
  * NOTE for anyone reading the design doc alongside this: §6 of
  * `2026-09-20-trash-delete-architecture.md` guesses the literal `'tombstoned'`. It is wrong, and
  * the doc says the implementer must check. `RedirectStatus` is `"active" | "disabled"` and
- * `tombstoneRedirect` writes `"disabled"` (`features/redirects/redirects.ts`). The tombstone is
+ * `tombstoneRedirect` writes `"disabled"` (Jini `packages/cms/src/redirects/redirects.ts`). The tombstone is
  * additionally recorded as a `redirect_revisions.tombstoned = 1` row, which is what the backfill
  * uses to tell a deleted redirect from one an operator merely switched off.
  */
 import { loose } from "../entry-sql.js";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { REDIRECT_TABLES } from "#src/features/redirects/repo.sqlite";
 
 export const REDIRECT_ENTITY_TYPE = "redirect";
 
-const REDIRECTS_TABLE = "redirects";
-const REDIRECT_REVISIONS_TABLE = "redirect_revisions";
-const REDIRECT_HITS_TABLE = "redirect_hits";
+const REDIRECTS_TABLE = REDIRECT_TABLES.redirects;
+const REDIRECT_REVISIONS_TABLE = REDIRECT_TABLES.revisions;
+const REDIRECT_HITS_TABLE = REDIRECT_TABLES.hits;
 
 const REDIRECT_HIDDEN_STATUS = "disabled";
 const REDIRECT_LIVE_STATUS = "active";

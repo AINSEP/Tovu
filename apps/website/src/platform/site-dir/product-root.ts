@@ -6,20 +6,11 @@ import path from "node:path";
  * shipped `content/` tree (`content/templates`, `content/themes`, `content/agent-plugins`) — from
  * wherever the calling module happens to be running.
  *
- * Why a walk-up instead of a fixed `../` count: `tsconfig.json`'s `rootDir: "apps/website"` makes
- * `tsc` mirror compiled output as `dist/src/**`, deliberately UNCHANGED from before the 2026-08-28
- * `src/` -> `apps/website/src/` rename (so `bin`/`start`/the Dockerfile's `dist/src/index.js` never
- * had to move). But the SOURCE tree's own files moved two levels deeper, under `apps/website/`. A
- * file that reaches past its own package into sibling `content/` (which never moved — it isn't part
- * of `rootDir`) now sits at two DIFFERENT depths from that shared ancestor depending on which tree
- * is running it: a hardcoded `../` count can be correct for tsx/source or for the compiled/dist
- * tree, never both at once. This walks up from wherever it actually is instead of assuming a depth,
- * so it's correct in both trees without needing to know which one it's in.
- *
- * Both trees satisfy the same stop condition: `<repo-root>/package.json` + `<repo-root>/content/`
- * in source, `dist/package.json` (written by `emit-dist-package-json.mjs`) + `dist/content/`
- * (copied there by `npm run build`) in the compiled tree — verified there is no closer ancestor
- * that would false-positive on this check (`apps/website/` has no `package.json` of its own).
+ * Source (`apps/website/src/**`) and compiled (`dist/src/**`) modules sit at different
+ * depths from their shipped `content/` tree. A fixed `../` count cannot serve both,
+ * so resolution walks ancestors using the same `package.json` + `content/` condition.
+ * Source finds the repo root; compiled output finds `dist/`, whose package manifest
+ * and content are supplied by the build. `apps/website/` has no competing package manifest.
  */
 
 const MAX_WALK_UP = 12;
@@ -31,7 +22,7 @@ const MAX_WALK_UP = 12;
  * @param fromDir - Override for testing; production callers should omit this and get the real
  *   caller-relative default.
  * @throws If no such ancestor is found within {@link MAX_WALK_UP} levels — a silent wrong guess
- *   (like the two `../` counts this replaced) is worse than a loud failure here.
+ *   is worse than a loud failure here.
  */
 export function resolveProductRoot(fromDir: string = import.meta.dirname): string {
   let dir = path.resolve(fromDir);
@@ -64,7 +55,7 @@ export function resolveProductRoot(fromDir: string = import.meta.dirname): strin
  * @param fromDir - Override for testing; production callers omit it.
  * @returns The `dist` path. Never throws: with no matching ancestor it returns
  *   `<fromDir>/apps/<app>/dist`, which does not exist, so boot still succeeds and the mount 503s —
- *   the same outcome the old fixed path had when it pointed at the wrong place.
+ *   allowing boot to succeed while the missing bundle is disclosed.
  * @complexity O(depth) `existsSync` calls, capped at {@link MAX_WALK_UP}.
  */
 export function resolveAppDistDir(app: string, fromDir: string = import.meta.dirname): string {

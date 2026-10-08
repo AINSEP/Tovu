@@ -127,7 +127,7 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
     }
   }
 
-  async enqueue(record: WebhookDeliveryRecord): Promise<void> {
+  async enqueue({ record }: { record: WebhookDeliveryRecord }, _optional: { envelope?: WebhookEventEnvelope } = {}): Promise<void> {
     if ([...this.rows.values()].some((row) =>
       row.workspaceId === record.workspaceId && row.subscriptionId === record.subscriptionId && row.eventId === record.eventId
     )) return;
@@ -174,8 +174,7 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
     responseStatus: number | null;
     nextStatus: "failed" | "dead";
     nextAttemptAt: string;
-    deadAtIso?: string;
-  }): Promise<void> {
+  }, optional: { deadAtIso?: string } = {}): Promise<void> {
     const row = this.rows.get(rowKey(required.workspaceId, required.id));
     if (!row) return;
 
@@ -185,7 +184,7 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
 
     if (required.nextStatus === "dead") {
       row.status = "dead";
-      row.deadAt = required.deadAtIso ?? row.deadAt;
+      row.deadAt = optional.deadAtIso ?? row.deadAt;
     } else {
       // "failed" re-enters "pending" immediately (WebhookDeliveryStatus doc comment) — the row
       // becomes reclaimable once nextAttemptAt passes.
@@ -234,10 +233,8 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
  * `processDueDeliveries` are independently testable now; swap it for the real re-hydration path
  * (or fold `data` into `webhook_deliveries` directly) once that's decided upstream.
  */
-export interface DeliveryEnvelopeStore {
-  save(input: { deliveryId: IntegrationId; envelope: WebhookEventEnvelope }): Promise<void>;
-  find(input: { deliveryId: IntegrationId }): Promise<WebhookEventEnvelope | null>;
-}
+export type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore } from "@jini-ai/integrations/webhooks";
+import type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore } from "@jini-ai/integrations/webhooks";
 
 /**
  * In-memory `DeliveryEnvelopeStore`. See the interface doc for why this seam exists.

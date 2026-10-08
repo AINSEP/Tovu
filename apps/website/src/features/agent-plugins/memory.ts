@@ -4,7 +4,7 @@ import path from "node:path";
 import { createPluginMemory, migratePluginLayout, assertPluginStatePath, withPluginStateLock, type PluginMemory } from "@jini-ai/agent-plugins/persistent-state";
 import { withFileLock } from "@jini-ai/platform/fs/file-lock";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
-import { assertContainedOnDisk } from "./package-paths.js";
+import { assertContainedOnDisk } from "./lifecycle.js";
 import { resolveAgentPluginLayout, type AgentPluginLayout } from "./layout.js";
 
 const effects = {

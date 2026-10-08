@@ -24,7 +24,7 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  */
 
 interface PlanBody {
-  domain: string;
+  domain?: string;
   planId: string;
   planHash: string;
   details: Record<string, unknown>;
@@ -76,10 +76,13 @@ for (const dialect of SITE_DIALECTS) {
     await assign(site, onlyFrom, [fromTermId]);
 
     const { plan, confirmationToken } = await planAndConfirmMerge(site, fromTermId, intoTermId);
-    assert.equal(plan.domain, "taxonomy.merge");
     assert.deepEqual(plan.details, { fromTermId, intoTermId, overlapLossDisclosed: true, overlappingContentCount: 1 });
     assert.match(confirmationToken, /^ctok_/);
     assert.deepEqual(await tokenStatus(site, confirmationToken), ["minted"], "the token is a durable row, not process memory");
+    const kernel = site.deps.contentKernel;
+    assert.ok(kernel);
+    const bindings = await kernel.run((db) => db.selectFrom("gated_mutation_tokens").select(["plan_hash", "scope_id"]).where("confirmation_token", "=", confirmationToken).execute());
+    assert.deepEqual(bindings, [{ plan_hash: plan.planHash, scope_id: site.deps.workspaceId }], "the token is bound to this plan and workspace; taxonomy's public plan omits the gateway's domain");
 
     const executed = await expectJson<{ mergedCount: number }>(
       await send(site, "POST", `/api/admin/v1/taxonomy/terms/${fromTermId}/merge/execute`, { intoTermId, confirmationToken }),
@@ -183,7 +186,7 @@ test("[unrun] migrate-forward [pglite]: plan reports costClass 'unavailable' and
     409
   );
   assert.deepEqual(refused, {
-    error: `REQ-08: site '${site.deps.workspaceId}' has costClass 'unavailable' — the in-product forward migrate is refused with no attestation override (ADR-041 §2)`,
+    error: `site '${site.deps.workspaceId}' has costClass 'unavailable' — the in-product forward migrate is refused with no attestation override`,
     code: "RESTORE_POINT_UNAVAILABLE",
   });
   assert.deepEqual(await tokenStatus(site, confirmationToken), ["minted"]);

@@ -1,3 +1,5 @@
+import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
+import { saveAgentPluginToken } from "#src/features/agent-plugins/access-token-tool";
 import { contributeAgentPluginsInstallTools } from "#src/features/agent-plugins/install-tool";
 import { createPluginInstallAttachmentReader } from "./plugin-install-attachment-reader.js";
 import type { InstallAttachmentReader } from "#src/features/plugin-runtime/install-source";
@@ -11,7 +13,6 @@ import { contributeIdentityPolicyListPermissionsTools } from "#src/features/iden
 import { contributeSitesListTools } from "#src/features/sites/list-tool";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
 import { contributeThemeSetPagePublishedTools } from "#src/features/theme/index";
-import { contributeCommerceGetStatusTools } from "#src/features/commerce/index";
 import {
   registerDuplicateResourceHandler,
   listDuplicateResourceHandlers,
@@ -23,7 +24,7 @@ import { buildPermanentDeleteDeps } from "./permanent-delete-deps.js";
 import { bindTrashUserForTool } from "./trash-user-tool-port.js";
 import { contributeContentDuplicationTools } from "#src/features/content-duplication/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
-import { contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
+import { buildApiCredentialSaveHandlers, contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
 import { contributeDomainDnsTools } from "#src/features/domain-dns/index";
@@ -63,7 +64,7 @@ import { contributeMediaViewImageTools } from "#src/features/media/view-image-to
 import { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/view-video-tool";
 import { createMediaVideoToolPorts } from "./media-video-ports.js";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
-import { contributeMediaProviderTools } from "#src/features/media-generation/providers-tools";
+import { saveMediaCredential, contributeMediaProviderTools } from "#src/features/media-generation/providers-tools";
 import { contributeMediaImportTools } from "#src/features/media-import/tool-registrations";
 import { contributeMembersTools } from "#src/features/members/tool-registrations";
 import { contributeMenusTools } from "#src/features/navigation/tool-registrations";
@@ -77,10 +78,10 @@ import { contributeSiteBackupTools } from "#src/features/site-backup/tool-regist
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
 import { contributeSitesTools } from "#src/features/sites/index";
-import { contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
+import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
 import { deriveTrashItemRegistrations, trashItemDerivedRisk } from "#src/features/trash/index";
-import { contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
+import { buildPublishHostCredentialHandler, contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
 
 /**
@@ -327,11 +328,10 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeSitesListTools() });
   contributions.contributors.register({ contribution: contributePublishContentDisconnectTools() });
   contributions.contributors.register({ contribution: contributeThemeSetPagePublishedTools() });
-  contributions.contributors.register({ contribution: contributeCommerceGetStatusTools() });
   contributions.contributors.register({ contribution: contributeAgentPluginSearchTools() });
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
-  // this plugin's account" tool any OAuth-authenticated Agent Plugin uses — and its access-token
-  // fallback `agent_plugin_set_access_token`. Static, same seam as `search_agent_plugin_local` above.
+  // this plugin's account" tool any OAuth-authenticated Agent Plugin uses. Its access-token
+  // fallback now uses credential_save with kind agent-plugin-token below. Static, same seam as `search_agent_plugin_local` above.
   contributions.contributors.register({ contribution: contributeAgentPluginConnectTools() });
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
@@ -419,6 +419,20 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeSitesTools() });
   contributions.contributors.register({ contribution: contributeSourceControlTools() });
   contributions.contributors.register({ contribution: contributeStaticPublishTools() });
+  // One save registration routes metadata to existing domain owners; each keeps its own permission.
+  contributions.contributors.register({ contribution: {
+    domain: "credential-save", risk: credentialSaveDerivedRisk,
+    build: (routeDeps, surfaces) => {
+      const api = buildApiCredentialSaveHandlers({ routeDeps, surfaces });
+      return buildCredentialSaveRegistrations({ adapters: {
+        apiCreate: api.create, apiRotate: api.rotate,
+        mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps: routeDeps, surfaces }, optional),
+        sourceControl: buildSourceControlCredentialHandler({ deps: routeDeps, surfaces }),
+        publishHost: buildPublishHostCredentialHandler({ deps: routeDeps, surfaces }),
+        agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps, surfaces }, optional),
+      } });
+    },
+  } });
   contributions.contributors.register({ contribution: contributeTaxonomyTools() });
   contributions.contributors.register({ contribution: contributeThemesTools() });
   // `theme_set_active` (F7a, 2026-09-24) — a SEPARATE contributor, own domain key

@@ -170,7 +170,7 @@ export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteReg
         return;
       }
 
-      const agents = await detectAgents({});
+      const agents = await (deps.detectAgents ?? detectAgents)({});
       res.json({ data: agents.map(toExecutionTabAgent) });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

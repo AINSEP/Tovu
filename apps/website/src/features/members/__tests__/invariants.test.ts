@@ -37,7 +37,7 @@ async function signUpAndSignIn(required: { baseUrl: string; workspaceId: string 
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email: EMAIL }),
     });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 200, "public sign-in request must succeed without an admin session");
   } finally {
     console.log = originalLog;
   }
@@ -48,7 +48,7 @@ async function signUpAndSignIn(required: { baseUrl: string; workspaceId: string 
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ token }),
   });
-  assert.equal(complete.status, 200);
+  assert.equal(complete.status, 200, "public sign-in completion must accept the delivered magic-link token");
 }
 
 /** Every route registered directly on the app under `/api/admin`, with path params filled in. */

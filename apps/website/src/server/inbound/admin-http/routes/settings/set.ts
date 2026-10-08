@@ -9,9 +9,8 @@ import {
   type SettingScope,
   deriveRequiredPermission,
 } from "#src/features/settings/index";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, respondToSettingsError, createTovuSettingsService, type SettingsErrorMapping } from "./shared.js";
+import { resolveTargetWorkspaceId, createTovuSettingsService, type SettingsErrorMapping, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -72,23 +71,15 @@ function parseSetRequestFields(rawBody: unknown): {
  * maps to 404, NOT 500 — this was Red-Team RT-001's flagged gap.
  */
 export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps) => {
-  app.put("/api/admin/v1/workspaces/:workspaceId/settings/value", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
-    try {
-      await deps.settingsReady;
-      const principal = getAuthedPrincipal(res);
-
+  mountSettingsJsonRoute({ app, deps, method: "put", path: "/api/admin/v1/workspaces/:workspaceId/settings/value",
+    errorMappings: SET_ERROR_MAPPINGS,
+    handle: async ({ request: req, principal, authorize }) => {
       const parsed = parseSetRequestFields(req.body);
       if (!parsed) {
-        res.status(400).json({
+        rejectSettingsRequest({ status: 400,
           error: "namespace, key, scope (global|workspace|user), and valueJson are required",
           code: "VALIDATION_ERROR",
         });
-        return;
       }
       const { namespace, key, scope, valueJson, bodyWorkspaceId, principalId } = parsed;
       // The write target is the ambient workspace, never the body's. See
@@ -108,8 +99,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
       // 404-checked against `deps.workspaceId` above (ADR-007).
       const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
       if (!targetWorkspace.ok) {
-        res.status(400).json({ error: targetWorkspace.error, code: "VALIDATION_ERROR" });
-        return;
+        rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }
       const workspaceId = targetWorkspace.workspaceId;
 
@@ -127,20 +117,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
       // `authWorkspaceId` below so the inner chokepoint check uses the same
       // value as this pre-check.
       const authWorkspaceId = deps.workspaceId;
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission,
-        workspaceId: authWorkspaceId,
-        entityType: "setting-value",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${permission}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission, reason: authResult.reason },
-        });
-        return;
-      }
+      await authorize({ permission, entityType: "setting-value" });
 
       const result = await createTovuSettingsService({ deps }).set({
         namespace,
@@ -153,9 +130,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
         authWorkspaceId,
       });
 
-      res.json({ key: `${namespace}.${key}`, scope, value: result.value, revisionSeq: result.revisionSeq });
-    } catch (err) {
-      respondToSettingsError(res, err, SET_ERROR_MAPPINGS);
-    }
+      return { key: `${namespace}.${key}`, scope, value: result.value, revisionSeq: result.revisionSeq };
+    },
   });
 };

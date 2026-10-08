@@ -40,7 +40,7 @@ function assertSafeUrl(raw: string, kind: "provider endpoint" | "provider-suppli
     // Legacy wrappers name their own subject. Strip only the fixed duplicate subject prefixes.
     const message = error.message.replace("provider endpoint: provider endpoint", "provider endpoint")
       .replace("provider-supplied link: provider endpoint", "provider-supplied link");
-    throw new OAuthError(error.code, message, { operatorAction: error.operatorAction, cause: error.cause });
+    throw new OAuthError({ code: error.code, message, operatorAction: error.operatorAction }, { cause: error.cause });
   }
 }
 
@@ -58,10 +58,8 @@ export function assertSafeProviderEndpoint(raw: string, label: string): URL {
     return assertSafeUrl(raw, "provider endpoint");
   } catch (error) {
     if (error instanceof OAuthError) {
-      throw new OAuthError(error.code, `${label}: ${error.message}`, {
-        operatorAction: error.operatorAction,
-        cause: error,
-      });
+      throw new OAuthError({ code: error.code, message: `${label}: ${error.message}`,
+        operatorAction: error.operatorAction }, { cause: error });
     }
     throw error;
   }

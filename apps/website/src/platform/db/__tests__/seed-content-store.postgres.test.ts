@@ -28,7 +28,7 @@ const databases: string[] = [];
 
 after(async () => {
   for (const kernel of opened) await kernel.close();
-  for (const name of databases) dropDatabase(name);
+  for (const name of databases) dropDatabase({ database: name });
 });
 
 /** A fresh database brought to head; `connections` independent kernels (separate pools) on it. */

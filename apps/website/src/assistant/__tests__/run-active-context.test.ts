@@ -6,7 +6,7 @@ import { ACTIVE_CONTEXT_TTL_MS } from "@jini-ai/daemon/http";
 import { getActiveContextTool } from "@jini-ai/mcp";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "../daemon-auth.js";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "../daemon-access.js";
 import { ACTIVE_CONTEXT_PATH, createRunActiveContextStore, registerRunActiveContextRoute } from "../run-active-context.js";
 import type { RunPageContext } from "../run-page-context.js";
 
@@ -124,7 +124,7 @@ test("MCP: get_active_context against the daemon route returns the run's screen 
   const store = createRunActiveContextStore({ now: () => 42 });
   store.record("run-1", PAGE_EDITOR);
   const app = express();
-  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: token } }));
+  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: token } }, {}));
   registerRunActiveContextRoute(app, store);
   const baseUrl = await startTestServer(app, t);
 

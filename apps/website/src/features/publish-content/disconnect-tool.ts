@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/publish-content.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
@@ -29,7 +30,7 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
  * @complexity O(1) wiring; handler O(n) in saved peers plus one config write.
  */
 export function buildRegistrations(deps: Deps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "publish-content-disconnect", catalogModule: "features/publish-content/disconnect-tool.ts", catalog: indexCatalogById({ catalog: catalog }), derivedRisk,
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "publish-content-disconnect", catalogModule: "features/publish-content/disconnect-tool.ts", catalog: indexCatalogById({ catalog: catalog }), derivedRisk,
     handlers: { publish_content_disconnect: async ctx => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "publish_content.apply" });
       try {

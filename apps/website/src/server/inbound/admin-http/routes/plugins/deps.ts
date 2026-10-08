@@ -3,12 +3,12 @@ import type { Express } from "express";
 import type { AuthorizeFn, ChangeSetRepoPort } from "#src/contracts/core/commands/index";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/cms/core";
-import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
-import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
-import type { HookRegistry } from "#src/features/plugin-runtime/hook-registry";
-import type { PluginConflict } from "#src/features/plugin-runtime/plugin-claims";
-import type { PluginPackageFiles } from "#src/features/plugin-runtime/package-files";
-import type { RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
+import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
+import type { PluginConflict } from "@jini-ai/plugins/host";
+import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
+import type { RemovePluginFn } from "@jini-ai/plugins/host";
 
 /**
  * @file Narrow `RouteDeps` slice for the `plugins` admin HTTP surface (SPEC-005 REQ-10, C-016) —
@@ -26,7 +26,7 @@ import type { RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
  * handler bodies are what carry the "not implemented" stub behavior.
  */
 export interface PluginsRouteDeps {
-  pluginInstaller?: import("#src/features/plugin-runtime/install").PluginInstallerPort;
+  pluginInstaller?: import("@jini-ai/plugins/host/node").PluginInstallerPort;
   workspaceId: UUID;
   authorize: AuthorizeFn;
   clock: ClockPort;
@@ -45,7 +45,7 @@ export interface PluginsRouteDeps {
    * captured). See `routes/types.ts`'s `PluginRuntimeDeps.readPluginPackageFiles` doc. */
   readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   /** AW-7 Tier 2 — see `routes/types.ts`'s `previewPluginBeforeSave` doc. */
-  previewPluginBeforeSave: HookRegistry["previewBeforeSave"];
+  previewPluginBeforeSave: PluginBeforeSavePreview;
 }
 
 export type PluginsRouteRegistrar = (app: Express, deps: PluginsRouteDeps) => void;

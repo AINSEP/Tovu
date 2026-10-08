@@ -1,19 +1,10 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/workspace.js';
+import { withToolMetadata } from '@jini-ai/core';
 /**
- * @file Workspace's agent-tool registrations — re-exported from `@jini-ai/cms/workspace`.
- *
- * A shim rather than a rewrite of the one importer, deliberately.
- * `assistant/tool-registrations.ts` imports every not-yet-converted domain as a single uniform block
- * of `../<domain>/tool-registrations` lines. Pointing only workspace somewhere else would make one
- * ported domain the odd line out, and would invite the next reader to "restore consistency" by
- * reaching past a barrel rather than through it. When more domains move, this file and its
- * siblings retire together.
- *
- * 2026-08-17 (Stage 2 batch 2 of the registry rollout): converted to
- * `assistant/tool-contribution-registry.ts`'s explicit-call registry, same as `identity`. Safe: the
- * only importer of this file (relative or `#src/*` subpath) is `assistant/tool-registrations.ts`
- * itself, and every OTHER importer of `features/workspace` at large is either `server/*` (never
- * reachable from `assistant`) or a `import type` from `site-dir/*` (erased at compile time, no
- * runtime edge either way).
+ * @file Workspace' agent-tool registrations, built by `@jini-ai/cms/workspace`.
+ * This host seam binds metadata and model-facing errors to the assistant's domain catalog.
+ * Contributors are installed explicitly at the composition root; importing a feature must not
+ * register tools or create an assistant-to-feature runtime cycle.
  */
 import type { ToolContributor } from "#src/assistant/index";
 import {
@@ -26,12 +17,13 @@ import {
   type WorkspaceToolDeps,
 } from "@jini-ai/cms/workspace";
 
-import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 
 export { buildWorkspaceRegistrations, workspaceDerivedRisk, type WorkspaceToolDeps };
 
 /**
- * Workspace's model-facing allowlist (2026-09-24). `create.ts`/`update.ts`/`delete.ts` throw these
+ * Workspace's model-facing allowlist. `create.ts`/`update.ts`/`delete.ts` throw these
  * four classes from fixed text plus caller-supplied slugs/ids only (verified against every
  * `new X(...)` call site) — safe to publish verbatim. Per plan follow-up F2, `workspace/
  * tool-registrations.ts:85` (Jini) still throws a plain `Error("workspace … was not found")` on one
@@ -43,7 +35,7 @@ const WORKSPACE_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
   { error: WorkspaceConflictError, code: "WORKSPACE_CONFLICT" },
   { error: WorkspaceNotFoundError, code: "WORKSPACE_NOT_FOUND" },
   { error: WorkspaceLastRemainingError, code: "WORKSPACE_LAST_REMAINING" },
-  forbiddenRule("WORKSPACE"),
+  forbiddenRule({ domainPrefix: "WORKSPACE", error: ForbiddenError }),
 ];
 
 /**
@@ -52,14 +44,14 @@ const WORKSPACE_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
  * module. `assistant/tool-registrations.ts` no longer imports `buildWorkspaceRegistrations`/
  * `workspaceDerivedRisk` by name; this is the seam that replaced it.
  *
- * `build` wraps every registration with {@link withModelFacingRegistrationErrors} (2026-09-24): every
+ * `build` wraps every registration with {@link withModelFacingRegistrationErrors}: every
  * workspace domain error still extends plain `Error`, so without this wrap each one reached the model
  * as a redacted `INTERNAL_ERROR` 500.
  */
 export function contributeWorkspaceTools(): ToolContributor {
   return {
     domain: "workspace",
-    build: (deps) => withModelFacingRegistrationErrors(buildWorkspaceRegistrations(deps), WORKSPACE_MODEL_FACING_RULES),
+    build: (deps) => withModelFacingRegistrationErrors({ registrations: withToolMetadata({ registrations: buildWorkspaceRegistrations(deps), metadata: toolMetadata }), rules: WORKSPACE_MODEL_FACING_RULES }),
     risk: workspaceDerivedRisk,
   };
 }

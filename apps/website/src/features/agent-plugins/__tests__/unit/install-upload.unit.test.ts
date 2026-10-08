@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { AgentPluginInstallError } from "../../install.js";
+import { AgentPluginInstallError } from "../../lifecycle.js";
 import { AgentPluginUploadError, installUploadedAgentPlugin, previewUploadedAgentPlugin } from "../../install-upload.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { buildZipFixture } from "../fixtures/build-zip.js";

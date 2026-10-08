@@ -21,17 +21,14 @@ const modules = {
   sites_list: () => import("../../sites/list-tool.js"),
   publish_content_disconnect: () => import("../../publish-content/disconnect-tool.js"),
   theme_set_page_published: async () => ({ buildRegistrations: (await import("../../theme/index.js")).buildThemePagePublishedRegistrations }),
-  commerce_get_status: async () => ({ buildRegistrations: (await import("../../commerce/index.js")).buildCommerceStatusRegistrations }),
 };
 const permissions = {
   identity_policy_list_permissions: "role.manage", sites_list: "system.read",
   publish_content_disconnect: "publish_content.apply", theme_set_page_published: "theme.set",
-  commerce_get_status: "admin.integrations.manage",
 };
 const entities = {
   identity_policy_list_permissions: undefined, sites_list: "site-registry",
   publish_content_disconnect: undefined, theme_set_page_published: "presentation",
-  commerce_get_status: "integration",
 };
 type Id = keyof typeof modules;
 async function registration(id: Id, deps: Record<string, unknown>) {
@@ -115,18 +112,6 @@ test("sites list: registered active site and pending choice stay distinct", asyn
   assert.deepEqual(await call(r), { switchingEnabled: true, sites: [{ ...site, registration: "registered" }], currentSite: { ...binding, listed: true }, persistedSiteName: "queued" });
 });
 
-test("commerce status: truthful absence; available runtime only enables provider discovery", async () => {
-  const deps = { ...auth().deps } as any;
-  const r = await registration("commerce_get_status", deps);
-  const result = await call(r) as any;
-  assert.deepEqual(Object.keys(result).sort(), ["capabilities", "configuration", "contractVersion", "paymentRuntime", "providers", "workspaceId"]);
-  assert.deepEqual(result.paymentRuntime, { status: "unavailable", reason: "No payment runtime is composed for this workspace." });
-  assert.deepEqual(result.providers, []);
-  deps.lipay = { listProviders: () => [] };
-  const available = await call(r) as any;
-  assert.deepEqual(available.paymentRuntime, { status: "available", reason: null });
-  assert.deepEqual(available.capabilities, { providerDiscovery: "available", checkout: "unavailable", subscriptions: "unavailable", webhookReconciliation: "unavailable", revenue: "unavailable" });
-});
 
 test("disconnect: removes connected destination, reverses grant, and is idempotent", async () => {
   const repo = new InMemoryPublishContentPeerRepo();

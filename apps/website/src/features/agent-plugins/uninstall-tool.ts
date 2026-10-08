@@ -2,12 +2,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import {
-  askOnce,
-  classifyConfirmationAnswer,
-  type AssistantSurfaceDeps,
-  type ConfirmationOutcome,
-} from "../../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
 import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
@@ -21,8 +17,8 @@ import {
   uninstallAgentPlugin,
   type AgentPluginUninstallPreview,
   type UninstallAgentPluginRequired,
-} from "./uninstall.js";
-import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstall-confirmation-ui.js";
+} from "./lifecycle.js";
+import { describeAgentPluginUninstallApproval } from "./uninstall-confirmation-ui.js";
 
 /**
  * @file The Agent Plugin family's half of `plugins_uninstall` (S4, 2026-09-24).
@@ -59,6 +55,8 @@ import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from ".
 export interface AgentPluginUninstallToolDeps extends OperatorLocaleDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
+  /** The lifecycle owner with host-supplied effects, used for the confirmed write. */
+  readonly uninstallAgentPlugin?: typeof uninstallAgentPlugin;
 }
 
 /**
@@ -155,67 +153,12 @@ async function previewOrRefusal(
   }
 }
 
-/**
- * Raises the uninstall-confirmation dialog and parks on the human's answer.
- *
- * Fails CLOSED when the execution context cannot hold a call open, exactly like
- * `content_post_delete`/`plugins_set_enabled`: degrading to "remove it and mention we could not ask"
- * would make the confirmation decorative in precisely the contexts that most need it.
- *
- * The exchange's `toolId` is `PLUGINS_UNINSTALL_TOOL_ID` — the ONE id both plugin families redeem
- * through (S4) — not a family-specific id, so the dialog's confirm/cancel click resolves through
- * `plugins_uninstall` regardless of which family raised it.
- *
- * @throws {Error} When there is no `emitSurface` to raise a dialog through.
- * @complexity O(1) plus the human's own latency, bounded by the exchange store's TTLs.
- */
-async function confirmUninstall(
-  surfaces: AssistantSurfaceDeps,
-  ctx: Pick<ToolExecutionContext, "principal" | "signal">,
-  preview: AgentPluginUninstallPreview,
-  locale: string,
-  optional: ToolExecutionOptions = {},
-): Promise<ConfirmationOutcome & { deleteMemory?: boolean }> {
-  const emitSurface = optional.emitSurface;
-  if (!emitSurface) {
-    throw new Error(
-      "plugins_uninstall: this execution context has no interactive confirmation channel (no emitSurface), so a " +
-        "permanent uninstall cannot be gated here. Nothing was removed.",
-    );
-  }
-
-  const exchange = surfaces.surfaceExchanges.open({ toolId: PLUGINS_UNINSTALL_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs() }, { locale });
-
-  // A cancelled run must not leave a dialog holding a call nobody is listening to.
-  const closeOnAbort = () => exchange.close();
-  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-  try {
-    const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-    const outcome = classifyConfirmationAnswer(answer);
-    return { ...outcome, deleteMemory: outcome.confirmed && answer.status === "received" && answer.params.choice === "delete-memory" };
-  } finally {
-    ctx.signal.removeEventListener("abort", closeOnAbort);
-  }
-}
-
-/** ADR-055 Decision 6: a no-answer is a RESULT, not an exception — nothing was removed either way,
- *  and the model is still alive to say so. @complexity O(1). */
-function notConfirmedUninstallResult(outcome: Exclude<ConfirmationOutcome, { confirmed: true }>, pluginId: string): unknown {
-  const base = { uninstalled: false, pluginId, restartRequired: false };
-  if (outcome.reason === "declined") {
-    return { ...base, cancelled: true, note: `The user declined. '${pluginId}' was NOT uninstalled and nothing changed.` };
-  }
-  return {
-    ...base,
-    cancelled: false,
-    reason: outcome.reason,
-    note:
-      outcome.reason === "expired"
-        ? `The user did not answer the confirmation before it expired. '${pluginId}' was NOT uninstalled.`
-        : `The confirmation was closed because the run ended. '${pluginId}' was NOT uninstalled.`,
-  };
-}
+// Fails closed when no interactive transport exists: removing bytes and merely mentioning
+// that we could not ask would make consent decorative. The shared owner closes cards on abort;
+// a cancelled run must not leave a dialog holding a call nobody is listening to.
+// The exchange uses plugins_uninstall, the ONE id both families redeem through, not a family
+// specific id. ADR-055 Decision 6: a no-answer is a RESULT, not an exception — nothing was
+// removed either way, and the model is still alive to say so.
 
 /**
  * The post-confirmation half: uninstalls exactly what the human was shown. If the installed archives changed while
@@ -224,9 +167,9 @@ function notConfirmedUninstallResult(outcome: Exclude<ConfirmationOutcome, { con
  * `uninstallRefusedResult`, like the preview's.
  * @complexity O(1) beyond `uninstallAgentPlugin`.
  */
-async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequired, preview: AgentPluginUninstallPreview, deleteMemory = false): Promise<unknown> {
+async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequired, preview: AgentPluginUninstallPreview, deleteMemory = false, uninstall = uninstallAgentPlugin): Promise<unknown> {
   try {
-    const result = await uninstallAgentPlugin(request, { confirmedPreview: preview, deleteMemory });
+    const result = await uninstall(request, { confirmedPreview: preview, deleteMemory });
     return {
       uninstalled: true,
       cancelled: false,
@@ -280,6 +223,7 @@ export async function runAgentPluginUninstall(
   pluginId: string,
   optional: ToolExecutionOptions = {},
 ): Promise<unknown> {
+  ctx = { ...ctx, input: structuredClone(ctx.input), principal: { ...ctx.principal }, run: { ...ctx.run } };
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "agent-plugin", entityId: pluginId });
 
   const request = { layout: resolveAgentPluginLayout(), workspaceId: routeDeps.workspaceId, pluginId };
@@ -287,8 +231,13 @@ export async function runAgentPluginUninstall(
   if ("refusal" in previewed) return previewed.refusal;
 
   const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-  const outcome = await confirmUninstall(surfaces, ctx, previewed.preview, locale, optional);
-  if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
-
-  return uninstallConfirmedAgentPlugin(request, previewed.preview, outcome.deleteMemory === true);
+  return approvalToolHandler({ surfaces,
+    prepare: async () => previewed.preview,
+    describe: ({ prepared }) => describeAgentPluginUninstallApproval({ preview: prepared }, { locale }),
+    run: async ({ ctx: approvedCtx, prepared, choice }) => {
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: approvedCtx.principal.id, permission: "admin.plugins.enable" }, { entityType: "agent-plugin", entityId: pluginId });
+      if (approvedCtx.signal.aborted) return { uninstalled: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
+      return uninstallConfirmedAgentPlugin(request, prepared, choice === "delete-memory", routeDeps.uninstallAgentPlugin);
+    },
+  }, { flag: "uninstalled", declined: ({ reason }) => ({ uninstalled: false, pluginId, restartRequired: false, ...notConfirmedResult({ confirmed: false, reason }) }) })(ctx, optional);
 }

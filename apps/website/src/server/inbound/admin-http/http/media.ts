@@ -50,7 +50,7 @@ export interface AdminMediaResponse {
   contentType: string | null;
   /**
    * The asset's real, public, readable `/m/...` URL (readable-slugs S5a, 2026-09-23) — the same
-   * `mediaUrlKey`/`mediaPublicPath` contract `features/seo/media.ts` and
+   * `mediaUrlKey`/`mediaPublicPath` contract `Jini/packages/cms/src/seo/media.ts` and
    * `features/media/tool-registrations.ts`'s own `resolveMediaPublicUrls` already use, keyed by the
    * asset's current slug when it has a valid one, otherwise its id. `null` for every case
    * `resolveMediaPublicUrls` itself returns `null` for — a trashed asset (never a link a visitor

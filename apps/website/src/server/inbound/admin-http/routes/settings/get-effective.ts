@@ -1,9 +1,8 @@
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService } from "./shared.js";
+import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 /**
- * Resolution and rationale now live in Jini packages/cms/src/http/settings/cms-adapter.ts:
+ * Resolution and rationale now live in Jini packages/core/src/settings/express/cms-adapter.ts:
  * Resolves every effective value for a namespace across the keys registered on either the
  * platform partition (`workspaceId=null`) or this workspace's own site-owned partition — see the
  * route doc above for why both partitions are enumerated.
@@ -37,35 +36,13 @@ import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, c
  * only takes one exact `workspaceId` per call.
  */
 export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = (app, deps) => {
-  app.get("/api/admin/v1/workspaces/:workspaceId/settings/effective", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
-    try {
-      await deps.settingsReady;
-      const principal = getAuthedPrincipal(res);
-
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "settings.read",
-        workspaceId: deps.workspaceId,
-        entityType: "setting-value",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'settings.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "settings.read", reason: authResult.reason },
-        });
-        return;
-      }
+  mountSettingsJsonRoute({ app, deps, method: "get", path: "/api/admin/v1/workspaces/:workspaceId/settings/effective",
+    handle: async ({ request: req, principal, authorize }) => {
+      await authorize({ permission: "settings.read", entityType: "setting-value" });
 
       const namespace = String(req.query.namespace ?? "");
       if (!namespace) {
-        res.status(400).json({ error: "'namespace' query param is required", code: "VALIDATION_ERROR" });
-        return;
+        rejectSettingsRequest({ status: 400, error: "'namespace' query param is required", code: "VALIDATION_ERROR" });
       }
       // `authorize()` above was checked against `deps.workspaceId` and `principal.id` — never let
       // the actual read target a different workspace or principal than what was authorized.
@@ -99,21 +76,17 @@ export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = (a
         callerPrincipalId: principal.id,
       });
       if (!readTarget.allowed) {
-        res.status(403).json({
+        rejectSettingsRequest({ status: 403,
           error: `principal '${principal.id}' is not authorized to read another principal's user-layer value (${readTarget.reason})`,
           code: "FORBIDDEN",
           details: { permission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, reason: readTarget.reason },
         });
-        return;
       }
       const principalId = readTarget.principalId;
 
       const data = await createTovuSettingsService({ deps }).effective({ namespace, workspaceId, principalId });
 
-      res.json({ data });
-    } catch (err) {
-      void err;
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
-    }
+      return { data };
+    },
   });
 };

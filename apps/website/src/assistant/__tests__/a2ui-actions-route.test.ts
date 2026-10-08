@@ -4,9 +4,12 @@ import test from "node:test";
 import express from "express";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
-import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Route-level tests for the daemon-side inbound half of A2UI (`a2ui-actions-route.ts`,
@@ -17,7 +20,7 @@ import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-ex
  * wrong), so there is nothing to assert was never called beyond the exchange itself staying open.
  */
 
-function buildApp(surfaceExchanges = createSurfaceExchangeStore()): express.Express {
+function buildApp(surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): express.Express {
   const app = express();
   app.use(express.json());
   registerA2uiActionsRoute(app, { surfaceExchanges });
@@ -44,10 +47,10 @@ const ACTION_MESSAGE = {
 };
 
 test("rejects a call with no principal header — 401, and nothing is delivered", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
-  t.after(() => exchange.close());
-  const answer = exchange.receive();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
+  t.after(() => exchange.close({}));
+  const answer = exchange.receive({});
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
   const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
 
@@ -63,7 +66,7 @@ test("rejects a call with no principal header — 401, and nothing is delivered"
 });
 
 test("rejects a missing or empty exchangeId — 400", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
   const headers = { [RUN_PRINCIPAL_HEADER]: "principal-1" };
 
@@ -75,7 +78,7 @@ test("rejects a missing or empty exchangeId — 400", async (t) => {
 });
 
 test("rejects a message that fails A2UI's own renderer->agent schema — 400, with the schema's own reason", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const res = await postAction(
@@ -89,9 +92,9 @@ test("rejects a message that fails A2UI's own renderer->agent schema — 400, wi
 });
 
 test("rejects a message whose declared surfaceId disagrees with the route's exchangeId", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
-  const answer = exchange.receive();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const res = await postAction(
@@ -106,9 +109,9 @@ test("rejects a message whose declared surfaceId disagrees with the route's exch
 });
 
 test("delivers a matching action to the held-open exchange, and never needs a toolId", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
-  const answer = exchange.receive();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
@@ -120,9 +123,9 @@ test("delivers a matching action to the held-open exchange, and never needs a to
 });
 
 test("a functionResponse message (no surfaceId at all) delivers without tripping the cross-check", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
-  const answer = exchange.receive();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const message = { version: "v1.0", functionResponse: { functionCallId: "call-1", call: "greetUser", value: "hi" } };
@@ -133,9 +136,9 @@ test("a functionResponse message (no surfaceId at all) delivers without tripping
 });
 
 test("an error message carrying surfaceId is cross-checked against exchangeId, same as an action", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
-  const answer = exchange.receive();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: exchange.id, path: "/foo", message: "bad" } };
@@ -146,8 +149,8 @@ test("an error message carrying surfaceId is cross-checked against exchangeId, s
 });
 
 test("an error message declaring the WRONG surfaceId is rejected, just like a mismatched action", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: "some-other-surface", path: "/foo", message: "bad" } };
@@ -158,9 +161,9 @@ test("an error message declaring the WRONG surfaceId is rejected, just like a mi
 });
 
 test("a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
-  const answer = exchange.receive();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const message = { version: "v1.0", error: { code: "TIMEOUT", functionCallId: "call-1", message: "timed out" } };
@@ -171,7 +174,7 @@ test("a generic error message keyed by functionCallId (no surfaceId) delivers wi
 });
 
 test("an unknown, expired, or already-closed exchange is 409, not 404 or a silent success", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const res = await postAction(
@@ -185,11 +188,11 @@ test("an unknown, expired, or already-closed exchange is 409, not 404 or a silen
 });
 
 test("an actually expired exchange rejects delivery with 409", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
-  t.after(() => exchange.close());
-  assert.deepEqual(await exchange.receive(), { status: "expired" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
+  t.after(() => exchange.close({}));
+  assert.deepEqual(await exchange.receive({}), { status: "expired" });
   const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
 
   const res = await postAction(baseUrl, { exchangeId: exchange.id, message }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
@@ -197,33 +200,33 @@ test("an actually expired exchange rejects delivery with 409", async (t) => {
   assert.equal(res.status, 409);
   assert.equal(((await res.json()) as { code: string }).code, "SURFACE_NOT_PENDING");
   assert.equal(surfaceExchanges.size(), 0);
-  assert.deepEqual(await exchange.receive(), { status: "expired" }, "rejected delivery must not buffer an answer");
+  assert.deepEqual(await exchange.receive({}), { status: "expired" }, "rejected delivery must not buffer an answer");
 });
 
 test("an answered exchange rejects a replay with 409 after the handler closes it", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, async () => undefined);
-  t.after(() => exchange.close());
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "principal-1", channel: "a2ui" }, emit: async () => undefined });
+  t.after(() => exchange.close({}));
   const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
   const headers = { [RUN_PRINCIPAL_HEADER]: "principal-1" };
   const first = await postAction(baseUrl, { exchangeId: exchange.id, message }, headers);
   assert.equal(first.status, 202);
-  assert.deepEqual(await exchange.receive(), { status: "received", params: { message } });
-  exchange.close();
+  assert.deepEqual(await exchange.receive({}), { status: "received", params: { message } });
+  exchange.close({});
 
   const replay = await postAction(baseUrl, { exchangeId: exchange.id, message }, headers);
 
   assert.equal(replay.status, 409);
   assert.equal(((await replay.json()) as { code: string }).code, "SURFACE_NOT_PENDING");
   assert.equal(surfaceExchanges.size(), 0);
-  assert.deepEqual(await exchange.receive(), { status: "abandoned" }, "replay must not buffer a second answer");
+  assert.deepEqual(await exchange.receive({}), { status: "abandoned" }, "replay must not buffer a second answer");
 });
 
 test("an action from the wrong principal is refused and leaves the call still waiting", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "alice", channel: "a2ui" }, async () => undefined);
-  const answer = exchange.receive();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_demo_a2ui", principalId: "alice", channel: "a2ui" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };
@@ -235,10 +238,10 @@ test("an action from the wrong principal is refused and leaves the call still wa
 });
 
 test("an A2UI post cannot answer or cancel a pending MCP-UI confirmation of the same principal", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   // No channel: every MCP-UI tool opens this way, e.g. a delete confirmation.
-  const exchange = surfaceExchanges.open({ toolId: "content_post_delete", principalId: "principal-1" }, async () => undefined);
-  const answer = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "content_post_delete", principalId: "principal-1" }, emit: async () => undefined });
+  const answer = exchange.receive({});
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
 
   const message = { ...ACTION_MESSAGE, action: { ...ACTION_MESSAGE.action, surfaceId: exchange.id } };

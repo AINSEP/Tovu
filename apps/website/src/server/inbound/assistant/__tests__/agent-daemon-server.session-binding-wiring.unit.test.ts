@@ -4,9 +4,9 @@ import path from "node:path";
 import test, { describe } from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../agent-session-binding.js";
-import { resolveResumeSessionField } from "../agent-session-resume.js";
-import { createConversationStartLock } from "../conversation-start-lock.js";
+import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../assistant/agent-session-preset.js";
+import { resolveResumeSessionField } from "../../../../assistant/agent-session-preset.js";
+import { createConversationStartLock } from "../../../../assistant/agent-session-preset.js";
 
 /**
  * @file Wiring proof for the Defect 1 fix (2026-09-11 chat-lifecycle repair), in the same
@@ -67,7 +67,7 @@ function sessionHarness() {
         stored = sessionId;
       },
     } },
-    conversationStartLock: createConversationStartLock(),
+    conversationStartLock: createConversationStartLock({}, {}),
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField, resolveResumeSessionField,
     randomUUID: () => `minted-${++minted}`, DEFAULT_AGENT_ID: "claude",
     waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
@@ -140,8 +140,8 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
     // buries the one-line reason under a screenful of unrelated text.
     for (const name of ["agentAcceptsHostMintedSessionId", "resolveHostMintedSessionId", "resolveNewSessionField"]) {
       assert.ok(
-        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-session-binding(\\.js)?["']`, "s").test(DAEMON_ENTRY_SOURCE),
-        `onStarted must import ${name} from agent-session-binding.ts, not reimplement that decision inline`,
+        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-session-preset(\\.js)?["']`, "s").test(DAEMON_ENTRY_SOURCE),
+        `onStarted must import ${name} from agent-session-preset.ts, not reimplement that decision inline`,
       );
     }
   });
@@ -188,7 +188,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
       "the dispatch-time binding write must be awaited — a fire-and-forget write can lose the race with the run it is supposed to be binding",
     );
     assert.ok(
-      /await\s+conversationStartLock\.run\(conversationId,\s*resolveSessionBinding\)/.test(preDispatch),
+      /await\s+conversationStartLock\.run\(\{\s*conversationId:\s*conversationId,\s*critical:\s*resolveSessionBinding\s*\},\s*\{\}\)/.test(preDispatch),
       "dispatch must await the locked binding function before agentExecutor.run",
     );
   });
@@ -200,7 +200,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
     assert.ok(mintIndex < runCallIndex, "the mint decision must be made before agentExecutor.run is called");
 
     assert.ok(
-      /resolveNewSessionField\(hostMintedSessionId\)/.test(onStartedSource),
+      /resolveNewSessionField\(\{\s*hostMintedSessionId:\s*hostMintedSessionId\s*\},\s*\{\}\)/.test(onStartedSource),
       "agentExecutor.run must be handed the SAME id that was persisted (via resolveNewSessionField(hostMintedSessionId)) — persisting one id and spawning the CLI under another is the fork this fix exists to prevent",
     );
     assert.ok(
@@ -211,7 +211,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
 
   test("the mint decision is gated on the def actually accepting a host-minted id", () => {
     assert.ok(
-      /acceptsHostMintedSessionId:\s*agentAcceptsHostMintedSessionId\(agentId\)/.test(onStartedSource),
+      /acceptsHostMintedSessionId:\s*agentAcceptsHostMintedSessionId\(\{\s*agentId:\s*agentId\s*\},\s*\{\}\)/.test(onStartedSource),
       "resolveHostMintedSessionId must be told whether THIS run's def accepts a host-minted id — minting for a capture-style def (codex, opencode) would store an id the CLI never uses, which is worse than storing nothing",
     );
   });
@@ -220,11 +220,11 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
 describe("Defect 1 wiring — run starts must be serialized per conversation", () => {
   test("imports createConversationStartLock and constructs exactly one module-level instance", () => {
     assert.ok(
-      /import\s*\{[^}]*createConversationStartLock[^}]*\}\s*from\s*["'][^"']*conversation-start-lock(\.js)?["']/s.test(DAEMON_ENTRY_SOURCE),
-      "agent-daemon-server.ts must import createConversationStartLock from conversation-start-lock.ts",
+      /import\s*\{[^}]*createConversationStartLock[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/s.test(DAEMON_ENTRY_SOURCE),
+      "agent-daemon-server.ts must import createConversationStartLock from agent-session-preset.ts",
     );
     assert.ok(
-      /const\s+conversationStartLock\s*=\s*createConversationStartLock\(\)\s*;/.test(DAEMON_ENTRY_SOURCE),
+      /const\s+conversationStartLock\s*=\s*createConversationStartLock\(\{\},\s*\{\}\)\s*;/.test(DAEMON_ENTRY_SOURCE),
       "there must be exactly one lock instance for this process's whole lifetime — a fresh one per run would serialize nothing",
     );
   });

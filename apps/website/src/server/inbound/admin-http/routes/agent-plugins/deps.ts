@@ -40,6 +40,8 @@ export interface AgentPluginsRouteDeps {
   externalMcpServerRepo: RouteDeps["externalMcpServerRepo"];
   siteAssistantSecretSealer: RouteDeps["siteAssistantSecretSealer"];
   siteAssistantSecretKeyring: RouteDeps["siteAssistantSecretKeyring"];
+  /** The shared lifecycle owner, optionally bound to host effects for this surface. */
+  setAgentPluginEnabled?: typeof import("#src/features/agent-plugins/set-enabled").setAgentPluginEnabled;
 }
 
 export type AgentPluginsRouteRegistrar = (app: Express, deps: AgentPluginsRouteDeps) => void;

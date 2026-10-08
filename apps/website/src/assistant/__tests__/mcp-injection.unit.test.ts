@@ -13,7 +13,7 @@ const SERVE_JS = realpathSync(
 const DAEMON_URL = "http://127.0.0.1:4242";
 const mintStub = (runId: string): string => `minted-for-${runId}`;
 
-// 2026-10-01 desktop incident: inside the packaged app `execPath` is the Tovu Electron binary. Without
+// Inside the packaged app `execPath` is the Tovu Electron binary. Without
 // ELECTRON_RUN_AS_NODE it boots as a GUI app, never speaks MCP, and every run gets zero Tovu tools.
 test("under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1", () => {
   const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
@@ -59,8 +59,7 @@ test("defaults to this process's own runtime", () => {
   assert.equal("env" in injection, false);
 });
 
-// 2026-10-01: the bridge used to receive TOVU_AGENT_DAEMON_TOKEN, the proxy's own boot-wide token.
-// It now gets the per-run credential the daemon mints, which resolves to that run's principal only.
+// Bridge credentials must resolve to the run's principal; a boot-wide proxy token cannot bind a run.
 test("hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token", async () => {
   const minted: string[] = [];
   const injection = resolveMcpJsonInjection(DAEMON_URL, (runId) => {

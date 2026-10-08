@@ -12,8 +12,8 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { createContentModule } from "../../runtime/composition/modules/content.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { buildWidgetInstanceFieldsJson } from "#src/features/widgets/entry-payload";
-import { WIDGET_CONTENT_TYPE } from "#src/features/widgets/types";
+import { buildWidgetInstanceFieldsJson } from "@jini-ai/cms/widgets";
+import { WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
 
 /**
@@ -833,7 +833,7 @@ test("a doc-format bare Page's inline widget previews resolved, matching the liv
     status: "published",
     title: "Inline text widget",
     bodyJson: null,
-    fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: "text", config: { body: "Hello from a bare inline widget" }, status: "active" }),
+    fieldsJson: buildWidgetInstanceFieldsJson({ payload: { widgetType: "text", config: { body: "Hello from a bare inline widget" }, status: "active" } }),
     publishedAt: now,
     createdAt: now,
     updatedAt: now,

@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../../contracts/core/tool-metadata/newsletter.js';
 /**
  * Newsletter delivery registrations over the existing send pipeline and campaign write services.
  * Subscriber delivery uses browser-only confirmation; test recipients resolve from the owner profile.
@@ -7,16 +8,21 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, require
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UserRepoPort } from "@jini-ai/user-management";
 import type { ToolContributor } from "#src/assistant/index";
-import { forbiddenRule } from "#src/contracts/core/model-facing-tool-errors";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { AgentToolDefinition } from "@jini-ai/core";
 import { isValidScheduleTimestamp, scheduleCampaign } from "../campaign-write-service.js";
-import { confirmNewsletterDelivery } from "../delivery-confirmation.js";
+import { approvalToolHandler } from "../../../contracts/core/human-confirm.js";
+import type { CampaignRecord } from "../types.js";
 import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterLaunchGateBlockedError, NewsletterValidationError } from "../errors.js";
 import { evaluateLaunchGate } from "../launch-gate.js";
 import { authorizeSend, claimBatch, completeIfDrained, freezeAudience, resumeCampaign, sendTestCampaign } from "../send-pipeline.js";
 import { toNewsletterSendPipelineDeps, type NewsletterToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /** Owner identity is injected by composition; recipient addresses never come from tool input. */
 export interface NewsletterDeliveryToolDeps extends NewsletterToolDeps {
@@ -94,7 +100,7 @@ async function requireMassLaunchReady(deps: NewsletterToolDeps): Promise<void> {
  * @throws ToolInputError for permissions, missing configuration, invalid input or stale consent.
  * @complexity O(1) registration setup; launch uses the existing pipeline's audience cost.
  */
-export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToolDeps, surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() }): ToolRegistration[] {
+export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToolDeps, surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     newsletter_send_test: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -113,38 +119,50 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
     },
   };
   for (const toolId of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign"]) {
-    handlers[toolId] = async (ctx, options = {}) => {
+    type Prepared = { refusal: NonNullable<ReturnType<typeof mailOffResult>> } | { campaignId: string; existing: CampaignRecord; scheduledAt: string | null };
+    handlers[toolId] = approvalToolHandler<Prepared>({ surfaces, prepare: async ({ ctx }) => {
       const input = requireInputRecord({ input: ctx.input });
       const campaignId = requireString({ input: input, key: "campaignId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
       const mailOff = mailOffResult(deps);
-      if (mailOff) return mailOff;
+      if (mailOff) return { refusal: mailOff };
       await deps.newsletterReady;
       const existing = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
       if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
       const scheduledAt = toolId === "newsletter_schedule_campaign" ? requireString({ input: input, key: "scheduledAt" }) : null;
       if (scheduledAt !== null && !isValidScheduleTimestamp(scheduledAt)) throw new NewsletterValidationError("scheduledAt must be a valid ISO date-time string with an explicit timezone", "scheduledAt", "format");
-      const decision = await confirmNewsletterDelivery({ ctx, surfaces, toolId, title: toolId === "newsletter_schedule_campaign" ? "Schedule this newsletter?" : toolId === "newsletter_resume_campaign" ? "Resume this newsletter?" : "Send this newsletter?", details: [
+      return { campaignId, existing: structuredClone(existing), scheduledAt };
+    }, describe: ({ prepared }) => {
+      const spec = { toolId, errorCode: "NEWSLETTER", title: toolId === "newsletter_schedule_campaign" ? "Schedule this newsletter?" : toolId === "newsletter_resume_campaign" ? "Resume this newsletter?" : "Send this newsletter?",
+        description: "This action can send email to real people. Only your confirmation can authorize it.", confirmLabel: "Confirm" };
+      if ("refusal" in prepared) return { ...spec, details: [] };
+      const { existing, campaignId, scheduledAt } = prepared;
+      return { ...spec, details: [
         { label: "Subject", value: existing.subject }, { label: "Campaign", value: campaignId }, { label: "Subscriber list", value: existing.listId }, { label: "Status", value: existing.status },
         ...(scheduledAt === null ? [] : [{ label: "Scheduled date", value: scheduledAt }]),
-      ] }, options);
-      if (!decision.confirmed) return { ...decision, delivered: false, mailDeliveryAvailable: true };
-      if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
+      ] };
+    }, run: async ({ ctx, prepared }) => {
+      if ("refusal" in prepared) return prepared.refusal;
+      const { campaignId, existing, scheduledAt } = prepared;
       // Authorization and mail configuration may change while the human reads the card.
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
+      if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
       const currentMailOff = mailOffResult(deps);
       if (currentMailOff) return currentMailOff;
       const transition = await deps.newsletterCampaignRepo.transaction(async () => {
         const current = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
         // Pipeline transitions do not always increment version; compare the complete snapshot as well.
         if (JSON.stringify(current) !== JSON.stringify(existing)) throw new ToolInputError({ message: "NEWSLETTER_STALE_CONFIRMATION: The campaign changed while the card was open. Review it and request a new confirmation." });
+        if (ctx.signal.aborted) return { abandoned: true as const };
         if (scheduledAt !== null) return scheduleCampaign({ deps: { campaignRepo: deps.newsletterCampaignRepo, listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen }, input: { workspaceId: deps.workspaceId, id: campaignId, actorId: ctx.principal.id, scheduledAt } });
         if (toolId === "newsletter_resume_campaign") {
           await requireMassLaunchReady(deps);
+          if (ctx.signal.aborted) return { abandoned: true as const };
           return resumeCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
         }
         return authorizeSend({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
       });
+      if ("abandoned" in transition) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
       const { campaign } = transition;
       if (scheduledAt !== null) return { confirmed: true, scheduled: true, campaignId, status: campaign.status, scheduledAt: campaign.scheduledAt, delivered: false, mailDeliveryAvailable: true, note: "The issue's scheduled date was saved. Automatic delivery at that time is not wired; launch it with newsletter_send_campaign when due." };
       if ("requeueFailed" in transition && transition.requeueFailed) return processingAttentionResult(campaignId, campaign.status);
@@ -159,7 +177,9 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
         return processingAttentionResult(campaignId, campaign.status);
       }
       return { confirmed: true, started: true, campaignId, status: campaign.status, delivered: false, mailDeliveryAvailable: true };
-    };
+    } }, { ask: ({ prepared }) => !("refusal" in prepared),
+      declined: ({ reason }) => ({ confirmed: false, reason, delivered: false, mailDeliveryAvailable: true }),
+    });
   }
   // authorizeSend's gate result is safe vocabulary; its generic message alone omits the reason.
   const guarded: Record<string, ToolHandler> = {};
@@ -169,7 +189,7 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
       throw error;
     }
   };
-  return buildDomainRegistrations({ domain: "newsletter-delivery", catalogModule: "newsletter/delivery/tool-registrations.ts", catalog: indexCatalogById({ catalog: newsletterDeliveryAgentToolCatalog }), handlers: withModelFacingErrors({ handlers: guarded, rules: [forbiddenRule("NEWSLETTER"), { error: NewsletterCampaignNotFoundError, code: "NEWSLETTER_CAMPAIGN_NOT_FOUND" }, { error: NewsletterCampaignNotEditableError, code: "NEWSLETTER_CAMPAIGN_NOT_EDITABLE" }, { error: NewsletterValidationError, code: "NEWSLETTER_VALIDATION_FAILED" }] }), derivedRisk: newsletterDeliveryDerivedRisk });
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "newsletter-delivery", catalogModule: "newsletter/delivery/tool-registrations.ts", catalog: indexCatalogById({ catalog: newsletterDeliveryAgentToolCatalog }), handlers: withModelFacingErrors({ handlers: guarded, rules: [forbiddenRule({ domainPrefix: "NEWSLETTER", error: ForbiddenError }), { error: NewsletterCampaignNotFoundError, code: "NEWSLETTER_CAMPAIGN_NOT_FOUND" }, { error: NewsletterCampaignNotEditableError, code: "NEWSLETTER_CAMPAIGN_NOT_EDITABLE" }, { error: NewsletterValidationError, code: "NEWSLETTER_VALIDATION_FAILED" }] }), derivedRisk: newsletterDeliveryDerivedRisk });
 }
 
 /** Registers delivery under its own key so it cannot replace the existing newsletter catalog. */

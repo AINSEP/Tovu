@@ -5,8 +5,9 @@ import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
-import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
-import type { WidgetRenderIR } from "#src/features/widgets/types";
+import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
+import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
+import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import {
   injectExtraHeadIntoStaticPage,
   injectSiteAssistantIntoStaticPage,

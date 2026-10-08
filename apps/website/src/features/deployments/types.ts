@@ -1,9 +1,8 @@
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 /**
- * @file Provider input records retained for the GitHub adapter. The never-written table model
- * was retired on 2026-10-03; these are in-memory contracts, not persisted records. Releases name
- * existing artifacts for promotion; the provider does not build those artifacts.
+ * @file GitHub provider input records: in-memory contracts, not persisted records.
+ * Releases name existing artifacts for promotion; the provider does not build those artifacts.
  */
 
 /** Open string, not a closed union — see `features/plugins/lipay/ports.ts`'s `PaymentProviderId`
@@ -11,7 +10,6 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
  * a real adapter this pass (`./providers/github.ts`). */
 export type DeploymentProviderId = string;
 
-// Environment/run/event persistence records retired with the never-written deployment tables (2026-10-03).
 
 /** One provider connection, scoped to a single environment. `config` carries non-secret provider
  * config only (repo owner/name, GitHub environment name); the adapter receives credentials

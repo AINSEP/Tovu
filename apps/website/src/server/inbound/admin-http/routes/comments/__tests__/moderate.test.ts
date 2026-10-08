@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import type { CommentWriteService } from "#src/features/comments/index";
+import type { CommentWriteService } from "@jini-ai/cms/comments";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createApp } from "#src/server/runtime/composition/app";
 import {
@@ -404,13 +404,13 @@ test("moderate RBAC: a 'comments.moderate'-only principal can approve/spam/resto
   const { baseUrl } = await bootAuthenticated(app, t);
   const moderatorCookie = await loginWithPermissions(deps, baseUrl, ["comments.moderate"]);
 
-  await deps.commentRepo.create({
+  await deps.commentRepo.create({ record: {
     id: "c1", workspaceId: deps.workspaceId, entryId: "entry-1", parentId: null,
     threadRootId: "c1", depth: 0, status: "pending", authorPrincipalId: null,
     authorName: "Visitor", authorEmail: "visitor@example.com", authorUrl: null,
     authorIpHash: "hash-1", bodyText: "Please moderate me", spamScore: null, spamProvider: null,
     createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(), version: 0,
-  });
+  } }, {});
   for (const [version, action] of ["approve", "spam", "restore"].entries()) {
     const response = await fetch(`${baseUrl}${BASE}/c1/${action}`, {
       method: "POST", headers: { "content-type": "application/json", cookie: moderatorCookie },

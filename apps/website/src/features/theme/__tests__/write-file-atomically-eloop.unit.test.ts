@@ -23,14 +23,12 @@ import test from "node:test";
  * opened) while letting the REAL, second call hit an ACTUAL circular symlink on disk — proving
  * `writeFileAtomically`'s own wrapper converts the resulting ELOOP correctly, independent of whether
  * `writeThemeFile`'s earlier check happens to catch it first (mirrors this repo's own
- * `members/__tests__/disable.unit.test.ts` "currently dead, defensive" `mock.module()` technique for
- * the identical shape of problem — a catch branch shadowed by an earlier, identical check).
+ * `members/__tests__/disable.unit.test.ts` "currently dead, defensive" technique for the identical
+ * shape of problem — a catch branch shadowed by an earlier, identical check).
  *
- * Deliberately does NOT statically import `theme-files.js` — `theme-files.test.ts` already does, at
- * module-load time, with the REAL `node:fs`; `mock.module()` cannot retroactively change a binding a
- * module already resolved at its first load, so this lives in its own file (run standalone, per this
- * repo's "explicit test path only" convention) and imports `theme-files.js` dynamically, after the
- * mock is registered.
+ * The original module mock required a standalone file and import after registration: it could not
+ * retroactively change the real fs binding already loaded by `theme-files.test.ts`. A per-write stat
+ * dependency now opens the same race window without experimental module replacement.
  */
 
 function makeThemesRoot(): { root: string; themeDir: string } {
@@ -41,7 +39,7 @@ function makeThemesRoot(): { root: string; themeDir: string } {
   return { root, themeDir };
 }
 
-test("writeFileAtomically's own existing-target stat converts a circular-symlink ELOOP to ThemePathError, independent of writeThemeFile's earlier identical check", async (t) => {
+test("writeFileAtomically's own existing-target stat converts a circular-symlink ELOOP to ThemePathError, independent of writeThemeFile's earlier identical check", async () => {
   const { root, themeDir } = makeThemesRoot();
   const a = path.join(themeDir, "a");
   const b = path.join(themeDir, "b");
@@ -50,25 +48,20 @@ test("writeFileAtomically's own existing-target stat converts a circular-symlink
 
   const realFs = await import("node:fs");
   let statCalls = 0;
-  t.mock.module("node:fs", {
-    namedExports: {
-      ...realFs,
-      statSync: (...args: Parameters<typeof realFs.statSync>) => {
-        statCalls += 1;
-        // Call 1 = writeThemeFile's own pre-existing-file check, standing in for it having run
-        // BEFORE an external process created the circular symlink loop at `target` (the TOCTOU
-        // window this test simulates). Every later call is the REAL statSync against the REAL
-        // fixture, which by then genuinely is the circular pair created above.
-        if (statCalls === 1) return undefined;
-        return realFs.statSync(...args);
-      },
-    },
-  });
+  const stat = ((...args: Parameters<typeof realFs.statSync>) => {
+    statCalls += 1;
+    // Call 1 = writeThemeFile's own pre-existing-file check, standing in for it having run
+    // BEFORE an external process created the circular symlink loop at `target` (the TOCTOU
+    // window this test simulates). Every later call is the REAL statSync against the REAL
+    // fixture, which by then genuinely is the circular pair created above.
+    if (statCalls === 1) return undefined;
+    return realFs.statSync(...args);
+  }) as typeof realFs.statSync;
 
   try {
     const { writeThemeFile, ThemePathError } = await import("../theme-files.js");
     assert.throws(
-      () => writeThemeFile({ themeDir, themesRoot: root, relativePath: "a", content: "x" }),
+      () => writeThemeFile({ themeDir, themesRoot: root, relativePath: "a", content: "x" }, { stat }),
       ThemePathError
     );
     assert.equal(

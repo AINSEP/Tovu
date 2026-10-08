@@ -485,7 +485,7 @@ test("getPublishedPostBySlug hides drafts", async () => {
 /**
  * {@link findPublishedPostById} — the non-throwing, id-based counterpart to `getPublishedPostBySlug`
  * (2026-08-11, guard 2 of the unified-content-marker design). This is the seam the `content`/`post`
- * embed resolvers (`widgets/resolver-service.ts`) and the recursive `"html"`-format pre-splice
+ * embed resolvers (`Jini/packages/cms/src/widgets/resolver-service.ts`) and the recursive `"html"`-format pre-splice
  * (`server/routes/site/pages.ts`) consult before letting an author- or auto-filled id reach a public
  * page — see that function's own doc for the hazard an id-driven lookup introduces that a slug-driven
  * route lookup never had.

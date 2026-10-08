@@ -3,12 +3,14 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { mock } from "node:test";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file C2 busy-mapping proof for `plugins_uninstall`'s Agent Plugin family (t91 R2, 2026-09-16): when the
@@ -16,7 +18,7 @@ import type { SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exch
  * `{uninstalled:false, reason:"activations-busy", ...}` — the same ADR-055 Decision 6 RESULT shape
  * `plugins_set_enabled` returns for the sibling family, never an opaque thrown error. Mirrors this
  * directory's sibling `agent-plugin-uninstall-tool.integration.test.ts`'s UNREADABLE tests, but
- * forces the failure by mocking `@jini-ai/platform/fs/file-lock` rather than corrupting the file, per this
+ * formerly forced the failure by mocking `@jini-ai/platform/fs/file-lock` rather than corrupting the file, per this
  * repo's proven `activation-lock-busy.unit.test.ts` idiom: `mock.module()` is registered, spreading
  * the real module's own exports through it, before the host activation binding/`tool-registrations.js` are ever
  * imported, and each is imported only once, dynamically.
@@ -26,27 +28,23 @@ import type { SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exch
  *
  * The package is confirmed STILL installed afterwards, and `uninstall.ts`'s `restoreStagedTrees`
  * leaves no staged/quarantined leftovers — a busy lock is a refused delete, not a partial one.
+ * The historical module replacement above is now filesystem DI into that same uninstall owner.
  */
 
 const real = await import("@jini-ai/platform/fs/file-lock");
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: this file swaps
-// `behavior` per test to cover the lock-failure shape without re-deriving the generic signature.
-let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
-
-mock.module("@jini-ai/platform/fs/file-lock", {
-  namedExports: {
-    ...real,
-    withFileLock: ({ lockPath, run }: { lockPath: string; run: (lock: unknown) => Promise<unknown> }, options?: unknown) => behavior(lockPath, run, options),
-  },
+const realFsp = await import("node:fs/promises");
+let behavior: typeof realFsp.open = realFsp.open;
+const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../lifecycle.js");
+// The real uninstall owner stages and restores disk trees; only lock acquisition is faulted.
+const lifecycle = createTovuAgentPluginLifecycle({}, {
+  filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
-
-const { installAgentPlugin } = await import("#src/features/agent-plugins/install");
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
 const { setAgentPluginActivation } = (await import("../../activation-effects.js")).agentPluginActivations;
 const { forceRemove } = await import("../fixtures/force-remove.js");
 const { buildPluginsUninstallRegistration } = await import("../fixtures/plugins-uninstall-registration.js");
-const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-surface-exchanges");
+const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 
 type AgentPluginArchiveEntry = Parameters<typeof reader>[0][number];
 type AgentPluginUninstallToolDeps = Parameters<typeof buildPluginsUninstallRegistration>[0];
@@ -114,11 +112,12 @@ function fakeDeps(): { deps: AgentPluginUninstallToolDeps } {
     deps: {
       workspaceId: WORKSPACE_A,
       authorize: async () => ({ allowed: true, reason: "matched" }),
+      uninstallAgentPlugin: lifecycle.uninstallAgentPlugin,
     },
   };
 }
 
-function findRegistration(deps: AgentPluginUninstallToolDeps, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): ToolRegistration {
+function findRegistration(deps: AgentPluginUninstallToolDeps, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): ToolRegistration {
   return buildPluginsUninstallRegistration(deps, { surfaceExchanges });
 }
 
@@ -162,8 +161,9 @@ async function waitForDialog(first: Promise<unknown>, pending: Promise<unknown>)
  *  the activations one, so "every lock is busy" no longer reaches the activations lock at all — each
  *  test names the one lock it means. */
 function timeoutBehavior(pid: number, lockBasename = "activations.json.lock"): typeof behavior {
-  return async (lockPath, run, options) => {
-    if (path.basename(lockPath) !== lockBasename) return real.withFileLock({ lockPath, run }, options);
+  return async (...args) => {
+    const lockPath = String(args[0]);
+    if (path.basename(lockPath) !== lockBasename) return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
     throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
@@ -197,24 +197,19 @@ test("t91 R2: a lock already busy before the call still raises the confirmation 
     try {
       behavior = timeoutBehavior(9301);
       const { deps } = fakeDeps();
-      const surfaceExchanges = createSurfaceExchangeStore();
+      const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
       const recorder = surfaceRecorder();
 
       const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
       const surface = await waitForDialog(recorder.first, pending);
-      const delivery = surfaceExchanges.deliver({
-        exchangeId: exchangeIdFromSurface(surface),
-        params: { decision: "confirm" },
-        principalId: PRINCIPAL_ID,
-        toolId: TOOL_ID,
-      });
+      const delivery = surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
       assert.equal(delivery.ok, true);
 
       const result = await pending;
       assert.deepEqual(result, busyOutput("operator-plugin"));
       assert.equal((await stat(installed.packageRoot)).isDirectory(), true, "the package must still be installed");
     } finally {
-      behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+      behavior = realFsp.open;
     }
   });
 });
@@ -231,18 +226,13 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
     assert.deepEqual(await readdir(pluginPackagesDir), [installed.archiveDigest]);
     try {
       const { deps } = fakeDeps();
-      const surfaceExchanges = createSurfaceExchangeStore();
+      const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
       const recorder = surfaceRecorder();
 
       const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
       const surface = await waitForDialog(recorder.first, pending);
       behavior = timeoutBehavior(9302);
-      const delivery = surfaceExchanges.deliver({
-        exchangeId: exchangeIdFromSurface(surface),
-        params: { decision: "confirm" },
-        principalId: PRINCIPAL_ID,
-        toolId: TOOL_ID,
-      });
+      const delivery = surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
       assert.equal(delivery.ok, true);
 
       const result = await pending;
@@ -252,7 +242,7 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
       assert.deepEqual(await readFile(activationsPath), activationBefore, "refusal must preserve the activation record byte for byte");
       assert.deepEqual(await readdir(pluginPackagesDir), [installed.archiveDigest], "no .uninstalling-* tree may remain");
     } finally {
-      behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+      behavior = realFsp.open;
     }
   });
 });
@@ -265,18 +255,13 @@ test("Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT 
     const packageBefore = await snapshotTree(installed.packageRoot);
     try {
       const { deps } = fakeDeps();
-      const surfaceExchanges = createSurfaceExchangeStore();
+      const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
       const recorder = surfaceRecorder();
 
       const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
       const surface = await waitForDialog(recorder.first, pending);
       behavior = timeoutBehavior(9303, ".plugin-state-operator-plugin.lock");
-      const delivery = surfaceExchanges.deliver({
-        exchangeId: exchangeIdFromSurface(surface),
-        params: { decision: "confirm" },
-        principalId: PRINCIPAL_ID,
-        toolId: TOOL_ID,
-      });
+      const delivery = surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
       assert.equal(delivery.ok, true);
 
       assert.deepEqual(await pending, {
@@ -293,7 +278,7 @@ test("Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT 
       assert.deepEqual(await snapshotTree(installed.packageRoot), packageBefore, "a busy state lock must leave every package byte in place");
       assert.deepEqual(await readdir(pluginPackagesDir), [installed.archiveDigest]);
     } finally {
-      behavior = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
+      behavior = realFsp.open;
     }
   });
 });

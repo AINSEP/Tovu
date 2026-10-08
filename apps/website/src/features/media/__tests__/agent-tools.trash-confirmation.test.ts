@@ -4,7 +4,7 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo } from "../index.js";
 import { makeRemoveMediaDouble, type RecordedMediaRemoval } from "./remove-media-double.js";
 import {
@@ -14,6 +14,9 @@ import {
   type MediaTrashToolDeps,
 } from "../tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /** Owner policy: reversible removal runs immediately; authorization and data integrity remain enforced. */
 
@@ -88,10 +91,10 @@ async function seedMediaAsset(deps: MediaToolDeps & MediaPublicUrlDeps & MediaTr
 test("media.delete is checked before any dialog is raised, and a denied principal never sees one", async () => {
   const mediaRepo = new InMemoryMediaRepo({});
   const seedDeps = makeDeps({ mediaRepo });
-  const seedSurfaces = createSurfaceExchangeStore();
+  const seedSurfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const asset = await seedMediaAsset(seedDeps, seedSurfaces);
   const deps = makeDeps({ allowedPermissions: ["media.upload", "media.read"], mediaRepo });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   let emissions = 0;
@@ -112,7 +115,7 @@ test("media.delete is checked before any dialog is raised, and a denied principa
 
 test("a nonexistent media id is refused before any dialog is raised", async () => {
   const deps = makeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   await assert.rejects(() => call(trashTool, { input: { mediaId: "nope" } }), /was not found/);
@@ -121,7 +124,7 @@ test("a nonexistent media id is refused before any dialog is raised", async () =
 
 test("n06: reversible removal runs without a confirmation channel", async () => {
   const deps = makeDeps();
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const asset = await seedMediaAsset(deps, store);
   const result = await call(tool(buildRegistrations(deps, store), TRASH_TOOL_ID), {input: {mediaId: asset.id}}) as {trashed: boolean; media: {status: string}};
   assert.equal(result.trashed, true);

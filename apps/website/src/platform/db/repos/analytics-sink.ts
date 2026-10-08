@@ -1,4 +1,4 @@
-// Deleted analytics/repo.memory.ts fork: @jini-ai/analytics owns the memory sink (DELETED-CODE.md).
+// @jini-ai/analytics owns the memory sink.
 import type { Insertable, Selectable } from "kysely";
 
 import type { AnalyticsSinkCapabilities, AnalyticsSinkPort } from "#src/features/analytics/ports";

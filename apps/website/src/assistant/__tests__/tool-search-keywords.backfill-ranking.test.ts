@@ -1,29 +1,12 @@
-import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
-import { createToolRegistry } from "@jini-ai/core";
-
-import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { createRouteDeps } from "../../server/runtime/composition/app.js";
-import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-
-import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 
-const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
-};
-
 /**
- * @file Search-behavior evidence for the 2026-09-01 keyword backfill: `tool-search-keywords.ts`
- * previously had no entry at all for 66 of the then-162 registered tool ids (measured by diffing
- * `buildAssistantToolRegistrations`'s real output against `TOOL_SEARCH_KEYWORDS`'s keys — see this
- * change's own report for the enumeration). Per this module's own header, "a tool that does not
- * rank is, functionally, a tool that does not exist" once a BYOK turn is reduced to the
- * `search_tools`/`describe_tool`/`execute_delegated_tool` meta-tool surface.
+ * @file Operator vocabulary must make registered tools discoverable through the BYOK meta-tools;
+ * a tool that cannot rank is functionally unavailable. See tool-search-keywords.ts's owner contract.
  *
  * Unlike `tool-search-keywords.test.ts` (which tests `indexedDescriptionFor`'s fold/strip contract
  * directly, on one tool id at a time), this file proves RANKING BEHAVIOR: a natural-language query,
@@ -102,21 +85,9 @@ function rankOf(hits: readonly { readonly id: string }[], c: RankingCase): numbe
  *  measure "before this file existed." Same registry, so the only variable between the two is
  *  whether `TOOL_SEARCH_KEYWORDS`/doc2query get folded into the indexed text. */
 async function buildBeforeAndAfterCatalogs() {
-  contributions.contributors.clear({});
-  installFirstPartyToolContributors({ contributions });
-  const routeDeps = createRouteDeps();
-  await routeDeps.identityReady;
-
-  // Both boot paths build the limiter themselves and add it to `routeDeps`; `AssistantToolRegistryDeps`
-  // requires it, so passing bare `routeDeps` does not type-check.
-  const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) {
-    registry.register(registration);
-  }
-
+  const { registry, catalog } = await realToolCatalog();
   return {
-    after: buildToolCatalogQuery(registry),
+    after: catalog,
     before: buildToolCatalogQuery(registry, { includeSearchKeywords: false }),
   };
 }
@@ -158,6 +129,8 @@ test("the backfill measurably improves top-3 ranking for these cases versus the 
   );
 });
 
+// Copy/duplicate/clone vocabulary must serve operator phrasing through the real ranked catalog.
+
 test("the production copy phrasing finds sites_duplicate_site in the top three", async () => {
   const { after } = await buildBeforeAndAfterCatalogs();
   const hits = after.search({ query: "copy Landing sample" }, { limit: 3 });
@@ -171,8 +144,7 @@ test("backfilled ids remain wired except explicitly unwired tools and the merged
     "collections_execute_cleanup",
     "collections_plan_cleanup",
     "custom_credential_set_username",
-    "custom_credential_set_token",
-    "custom_credential_create",
+    "credential_save",
     "database_execute_migrate_forward",
     "database_get_restore_guidance",
     "external_mcp_list",

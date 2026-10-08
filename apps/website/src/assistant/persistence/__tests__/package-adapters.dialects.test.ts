@@ -38,14 +38,19 @@ describeEachChatDialect("package adapter composition", kernel => ({
     assert.equal(await sessions.getSessionId({ conversationId: "c", agentId: "a" }), null);
   });
 
-  test("a late browser save cannot erase the first terminal answer; a new run can retry", async () => {
+  test("a late browser save cannot erase the first terminal answer; a request-bound run can retry", async () => {
     const { kernel, history, ledger } = make();
     const guarded = createTenantScopedChatStore(kernel, { kind: "user", workspaceId: "ws", userId: "alice" }, ledger);
     await history.create({ id: "c" });
     await guarded.appendMessage({ conversationId: "c", message: { id: "m", role: "assistant", content: "draft", runId: "r", runStatus: "running" } });
     assert.equal(await ledger.settle({ ...RUN, content: "Final answer", events: [], status: "succeeded", endedAt: 1_790_000_000_005 }), true);
     assert.equal((await guarded.appendMessage({ conversationId: "c", message: { id: "m", role: "assistant", content: "", events: [], runId: "r", runStatus: "failed" } }))?.content, "Final answer");
-    assert.equal((await guarded.appendMessage({ conversationId: "c", message: { id: "m", role: "assistant", content: "retry", runId: "r2", runStatus: "running" } }))?.content, "retry");
+    // Daemon acceptance owns retries; changing a browser's run id cannot replace its row.
+    assert.equal((await guarded.appendMessage({ conversationId: "c", message: { id: "m", role: "assistant", content: "retry", runId: "r2", runStatus: "running" } }))?.content, "Final answer");
+    await guarded.appendMessage({ conversationId: "c", message: { id: "byok-m", role: "assistant", content: "draft", runId: "byok:r", runStatus: "running" } });
+    assert.equal(await ledger.settle({ conversationId: "c", messageId: "byok-m", runId: "byok:r", content: "BYOK final", events: [], status: "succeeded", endedAt: 1_790_000_000_006 }), true);
+    assert.equal((await guarded.appendMessage({ conversationId: "c", message: { id: "byok-m", role: "assistant", content: "", runId: "byok:r", runStatus: "failed" } }))?.content, "BYOK final");
+    assert.equal((await guarded.appendMessage({ conversationId: "c", message: { id: "byok-m", role: "assistant", content: "retry", runId: "byok:r2", runStatus: "running" } }))?.content, "retry");
   });
 
   test("package delete cascades sessions AND host-owned approvals", async () => {

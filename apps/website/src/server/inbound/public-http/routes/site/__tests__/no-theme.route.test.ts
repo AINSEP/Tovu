@@ -1,3 +1,5 @@
+import { createCommerceSiteTestApp as createApp } from "./commerce-site-app.js";
+import type { CommerceSiteAdapterDeps } from "../products.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -5,9 +7,9 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { InMemoryPresentationSettingsRepo, type PresentationSettingsRecord } from "#src/features/presentation/index";
-import type { CommerceProductRecord, CommerceProductRepoPort, CommercePriceRepoPort } from "#src/features/commerce/index";
+import type { CommerceProductRecord, CommerceProductRepoPort, CommercePriceRepoPort } from "@jini-ai/commerce";
 import { NO_THEME_ID } from "#src/features/theme/index";
-import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
  * @file The public site with the theme DELIBERATELY turned off — state 3 of the optional-theme
@@ -32,7 +34,7 @@ const NO_THEME_SETTINGS: PresentationSettingsRecord = {
   updatedAt: "2026-09-12T00:00:00.000Z",
 } as PresentationSettingsRecord;
 
-async function startServer(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}) {
+async function startServer(overrides: Partial<CommerceSiteAdapterDeps> = {}) {
   const deps = { ...createRouteDeps(), ...overrides };
   const server = createServer(createApp(deps));
   server.listen(0);

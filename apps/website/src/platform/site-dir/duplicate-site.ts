@@ -242,7 +242,7 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
 
     // config.json — new display name, domain/port reset (see this file's own header).
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
-    writeJsonFileAtomic(path.join(target, "config.json"), config);
+    writeJsonFileAtomic({ filePath: path.join(target, "config.json"), data: config }, {});
 
     // content.db — WAL-safe physical copy, with the chat/session tables emptied from it by name and
     // the source's legacy site-title pin and marker reset (SPEC-050 REQ-12), so the duplicate renders
@@ -279,7 +279,7 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
       siteKeyId: sourceMeta.siteKeyId ?? sourceMeta.siteId,
       storage,
     };
-    writeJsonFileAtomic(path.join(target, ".site-meta.json"), meta);
+    writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: meta }, {});
 
     return { siteId, dir: target };
   } catch (err) {

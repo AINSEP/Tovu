@@ -31,91 +31,32 @@ import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-s
 import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/admin-dev-proxy.js";
 
 /**
- * @file SPEC-003 C-002 (`CLI_SERVE`) — wires a commander action's parsed arguments to
- * `site-dir/boot-site-dir.ts`'s `bootSiteDir`, then `server/deps.ts` + `server/app.ts` +
- * `app.listen` (Wiring Map W-002).
+ * @file SPEC-003 C-002 (`CLI_SERVE`) — boot a site, compose its server and listen (W-002).
  *
- * Purpose:
- * Owns the one HTTP-listen side effect this feature introduces, isolated from `site-dir` (which
- * has zero Express awareness) — port precedence (BR-02), the legacy-env-var-ignored warning
- * (BR-04/EC-08), the one boot-line log (api.spec.md §5), and graceful shutdown (BR-07). Also owns
- * the bind HOST (LAN-bind plan, 2026-09-23, BR-02a): defaults to loopback-only via
- * `resolveBindHost`/`bind-host.ts`, opt-in-widened by `--host` (this file's own flag, which wins)
- * or `TOVU_HOST`, with a stderr warning when the resolved host is not loopback.
+ * The CLI owns HTTP listen, port precedence (BR-02), legacy-env warnings (BR-04/EC-08),
+ * the boot log and graceful shutdown (BR-07); `site-dir` remains independent of Express.
+ * Bind host is loopback by default (BR-02a), with `--host` overriding `TOVU_HOST` and a
+ * warning for a non-loopback result. Errors propagate to `cli/main.ts`; `cli/errors.ts`
+ * owns exit-code mapping.
  *
- * Architectural role:
- * `cli` layer. Never maps errors to exit codes itself (`cli/errors.ts`'s job) — lets `site-dir`
- * errors and `PortInUseError` propagate uncaught to `cli/main.ts`.
+ * Daemon startup waits for settings readiness to avoid duplicate settings writes and
+ * resolves an instance-specific port before app composition to avoid cross-site collisions.
+ * The CLI owns signal handling: a second daemon signal handler could exit before its
+ * graceful drain. Mint the daemon token before spawning so the child inherits it;
+ * the daemon auth gate fails closed when no token is configured.
  *
- * Agent daemon (2026-08-28 dispatch): this command previously never started the agent daemon at
- * all — `src/index.ts` was the only boot path that did (`startAssistantDaemon`, at the bottom of
- * this file's `app.listen()` callback), so a Tovu instance launched via `tovu serve` (the packaged
- * CLI path, and what the Tovu-Runner desktop app spawns per project) served an admin UI whose
- * assistant could never respond. Fixed by mirroring `index.ts`'s own readiness-await-then-spawn
- * ordering exactly (see that file's own comment on why spawning too early shipped a real
- * duplicate-settings-row defect), plus resolving this instance's own daemon port BEFORE `createApp()`
- * (`ensureAgentDaemonPortResolved()` — see `runtime/lifecycle/agent-daemon-port.ts`'s header for why
- * an unconfigured instance now self-allocates a free port instead of every unconfigured Tovu on the
- * box converging on the same fixed 4319). Shutdown calls `shutdownAssistantDaemon()` directly rather
- * than letting `daemon-supervisor.ts` register its own signal handlers here — see
- * `startAssistantDaemon`'s `registerProcessSignalHandlers` option doc for why a second SIGINT/SIGTERM
- * listener calling `process.exit(0)` would race this command's own BR-07 graceful drain below.
+ * CIC U-002-B1/ORD1 and ADR-005 require synchronous SDK resolver registration before
+ * any route or plugin-import path, with no preceding await. Otherwise a site plugin
+ * can shadow `@tovu/sdk` with its own node_modules and defeat the deep-import boundary.
+ * See `runtime/boot/plugin-sdk-resolver.ts` for the owner contract.
  *
- * Daemon token (2026-09-05 dispatch): this command never minted `TOVU_AGENT_DAEMON_TOKEN` either —
- * only `src/index.ts`'s `main()` did, as its own first statement (see `daemon-auth.ts`'s module
- * doc). So a `tovu serve`-booted daemon always ran with the token env var unset, and
- * `requireAgentDaemonToken`'s fail-closed gate (`daemon-auth.ts`) answered every request — including
- * this same process's own assistant proxy — with 503 `AGENT_DAEMON_UNCONFIGURED`, silently. Fixed by
- * calling `ensureAgentDaemonToken()` here too, immediately after the unhandled-rejection guard and
- * before anything else, mirroring `index.ts`'s exact ordering: it must run before
- * `startAssistantDaemon()` spawns the daemon child below (the child inherits this process's env at
- * spawn time), and — like in `index.ts` — placing it first costs nothing, since it is a single
- * synchronous env assignment with no dependency on any boot step before it.
+ * Shared production-readiness and boot lifecycle gates run before listening or daemon
+ * startup: crash-interrupted migrations are reconciled and critical settings/SEO failures
+ * refuse serving. Lifecycle failures throw here rather than exiting inside the command.
  *
- * Plugin SDK resolver (2026-09-05 dispatch, CIC U-002/ADR-005, ESCALATE_SECURITY): this command
- * never called `registerPluginSdkResolver()` either — only `src/index.ts`'s `main()` did. CIC
- * U-002-B1/ORD1 requires it registered synchronously, before any route is registered and before any
- * code path that could reach `loadPlugin()`'s dynamic `import()` — `createApp()` below unconditionally
- * mounts the `plugins` module (`PLUGIN_SET_ENABLED`), and `createSiteRouteDeps()` above always wires
- * a real `installDir`, so a site-installed plugin enabled through this command's own admin route (or
- * the equivalent `plugins_set_enabled` agent tool) reached a real `import()` with the resolution hook
- * never registered — ordinary Node resolution then governs, which a plugin can defeat by planting its
- * own `node_modules/@tovu/sdk` (defeating ADR-005 rule 1's deep-import blocking). Reproduced directly:
- * `cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts` planted exactly
- * such a shadow package next to a site-installed plugin and, pre-fix, observed the plugin's
- * `@tovu/sdk` import resolve to the planted copy. Fixed by calling `registerPluginSdkResolver()` here
- * too, mirroring `index.ts`'s exact placement: immediately after `ensureAgentDaemonToken()`, before
- * `warnIfLegacyEnvVarsIgnored()` and every boot step after it — there is no `await` point ahead of it
- * in this function either, so the same "no window exists for a plugin import to become reachable
- * first" guarantee `index.ts`'s own comment describes holds here too.
- *
- * Production-readiness gate + boot lifecycle (2026-09-05 dispatch, boot-path parity): this command
- * ran NEITHER `runProductionReadinessGate` NOR `runBootLifecycle` — both `index.ts`-only until now.
- * Fixed by calling the same shared `runProductionReadinessGateOrExit()` (see that file's own
- * header) right after `registerPluginSdkResolver()`, and by composing+running the same
- * `buildBootModules()` set via `runBootLifecycle()` right after `deps` is built, BEFORE
- * `ensureAgentDaemonPortResolved()`/`createApp()`/`app.listen()` — so a `tovu serve`-booted site now
- * gets the crash-interrupted-migration scan (previously never invoked for this boot path at all)
- * and refuses to serve on a critical `settings`/`seo` failure, exactly like `index.ts`. Unlike
- * `index.ts`, a lifecycle failure here `throw`s rather than `process.exit()`s, per this file's own
- * "never map errors to exit codes" contract above.
- *
- * `agentDaemonWanted`/`logCriticalBootFailures` (2026-09-06 composition-root fix): both used to be
- * defined again, verbatim, in this file — see `server/runtime/boot/agent-daemon-wanted.ts`'s and
- * `bootstrap.ts`'s own headers for why that duplication (and the comment justifying it) was wrong.
- * Both are imported now, same as every other shared boot-only function this file already used.
- *
- * Admin dev-proxy HMR upgrade (2026-09-11 dispatch): the FIFTH entry in the list above, same shape
- * as the other four. `registerAdminDevProxyUpgrade` had exactly one production call site,
- * `src/index.ts`, so an `upgrade` request never got forwarded on this boot path — `createApp` mounts
- * `registerAdminStatic`, which proxies ordinary `/admin/*` requests to Vite when
- * `TOVU_ADMIN_DEV_PROXY_URL` is set, but a WebSocket handshake arrives as a raw `http.Server`
- * `upgrade` event that Express routing never sees. Measured, same handshake against the same Vite
- * upstream: `index.ts`'s listener answered `101 Switching Protocols`, this one answered nothing.
- * This matters because `apps/desktop` spawns THIS command per site, so a desktop site window using
- * the dev proxy showed current admin source that could never hot-reload. Fixed at the `app.listen`
- * call site below; the function self-gates on the env var and on SEA, so nothing changes for a
- * production or packaged boot.
+ * Dev-proxy HMR needs `registerAdminDevProxyUpgrade` on the raw HTTP server: WebSocket
+ * upgrade events bypass Express, even though ordinary admin requests reach the proxy.
+ * The helper gates itself on the dev-proxy env and SEA packaging.
  */
 
 export interface RunServeCommandInput {
@@ -187,53 +128,27 @@ export function pinPlainHttpIntoEnv(env: NodeJS.ProcessEnv = process.env): void 
 }
 
 /**
- * Pins this process's `TOVU_SITE_DIR` to the site directory `tovu serve <dir>` was actually given,
- * so every `siteDir()`-derived path in THIS process and in the agent daemon it spawns resolves to
- * the same place.
+ * Pins `TOVU_SITE_DIR` to the resolved CLI target before any site-derived read or spawn.
+ * API and daemon must share chat, journal, skills, plugin and attachment paths; deriving
+ * them from cwd would disagree with explicit `tovu serve <dir>` overrides.
+ * The explicit CLI target wins over an existing env value for every path family.
+ * Setting the parent env also propagates the same binding to its daemon child.
  *
- * THE DIVERGENCE THIS CLOSES (2026-09-07 audit, claim #5). `runServeCommand` overrides `uploadsDir`,
- * `themesDir` and the content-db path explicitly, but it set no `TOVU_SITE_DIR`, so everything else
- * this process derives from `siteDir()` — `chat.db`, `ops/database-journal.db`, `features/skills`,
- * `features/agent-plugins`, and `chat-attachment-directory.ts`'s staging root — still resolved
- * against `<process.cwd()>/sites/tovu-dev`, an unrelated directory whenever this command runs from
- * outside it. The daemon child did NOT share that fate: `daemon-supervisor.ts`'s
- * `buildDaemonSpawnEnvOverrides` sets `TOVU_SITE_DIR: input.siteDir` on the child when the parent
- * has none, and `startAssistantDaemon` below passes `target`. So the two processes disagreed, by
- * construction, on every one of those paths. Measured, before this function existed, for
- * `tovu serve /tmp/client-a`:
- *
- *     API  reads   : <repo>/sites/tovu-dev/uploads/chat-attachments
- *     daemon writes: /tmp/client-a/uploads/chat-attachments
- *
- * — the admin's attachment read-back route (`registerAdminChatAttachmentReadRoute`) looking in a
- * directory the daemon never writes.
- *
- * Set unconditionally, overwriting an operator's own `TOVU_SITE_DIR` when one is present: `<dir>` is
- * an explicit argument naming the site this invocation serves, and it already wins for `content.db`,
- * `uploads/` and `themes/`. Leaving one path family pointed somewhere else would be the same
- * split-brain in a quieter form. `buildDaemonSpawnEnvOverrides`'s own "only when the parent has
- * none" guard then leaves the child alone, because the parent now has one — the same value.
- *
- * Same mechanism (and same reason) as `ensureAgentDaemonToken()`: written into THIS
- * process's env so the `spawn()`ed child inherits it, rather than threaded through a second
- * argument every call site in between would have to carry.
- *
- * @param target - the already-resolved absolute install-dir target (`resolveInstallDirTarget`).
- * @param env - defaults to `process.env`; injectable so this is directly testable without mutating
- *   the test runner's own environment.
+ * @param target - Already-resolved absolute install-dir target.
+ * @param env - Defaults to `process.env`; injectable to avoid mutating the test runner.
  * @complexity O(1) — one assignment.
  */
 export function pinServedSiteDirIntoEnv(target: string, env: NodeJS.ProcessEnv = process.env): void {
   env.TOVU_SITE_DIR = target;
-  // The SECOND half of the same fact, for the same inheritance reason (2026-09-07 audit, claim #4):
-  // this boot's site was pinned by an explicit argument, so the Sites switcher's write paths must
-  // refuse. The API learns that from its own `siteBinding` override below; the agent daemon — a
-  // separate process that rebuilds its own `RouteDeps` through `createSiteRouteDepsForWorkspace`,
-  // and the process where `sites_duplicate_site` actually EXECUTES — falls back to
-  // `describeSiteBinding()` and would otherwise reconstruct the binding as switchable, duplicating
-  // under whatever `<process.cwd()>/sites` happens to be while the HTTP routes refuse the identical
-  // request. See `SITE_BINDING_NOT_SWITCHABLE_ENV`'s own doc.
+  // An explicit CLI target must be unswitchable in the daemon as well as the API.
+  // The child reconstructs its binding from env; see SITE_BINDING_NOT_SWITCHABLE_ENV.
   env[SITE_BINDING_NOT_SWITCHABLE_ENV] = "1";
+}
+
+export interface RunServeCommandOptional {
+  /** Preserve the real boot while allowing per-command resolver and worker lifecycle witnesses. */
+  registerPluginSdkResolver?: typeof registerPluginSdkResolver;
+  createServingApp?: typeof createServingApp;
 }
 
 /**
@@ -247,18 +162,9 @@ export function pinServedSiteDirIntoEnv(target: string, env: NodeJS.ProcessEnv =
  *   the listener is bound (the process then stays alive on the open socket, not on this promise).
  * @overallScore 100
  */
-export async function runServeCommand(input: RunServeCommandInput): Promise<void> {
-  // Unhandled-rejection guard (2026-08-28 dispatch): `index.ts`'s `main()` installs this same guard
-  // first, before any boot step (see `process-error-guards.ts`'s own header for the live crash that
-  // motivated it) — this command never had it, and it is the one boot path Tovu-Runner actually
-  // spawns. Verified live: `features/identity/wiring.ts`'s `ownerPrincipalId` is forked off
-  // `seedResult` with no `.catch()` of its own anywhere; when `seedIdentity()` rejects (reproduced
-  // with a real `UNIQUE constraint failed: roles.workspace_id, roles.name` from a corrupted
-  // identity table), the `Promise.all([...]).catch(...)` below catches `identityReady`'s own
-  // rejection fine, but that `ownerPrincipalId` fork is a SEPARATE promise with no handler at all —
-  // an unhandled rejection that crashed the entire process a few seconds after boot. Installed as
-  // the guard module's own header prescribes: fixed structurally, once, here, rather than chasing
-  // down every individual forked promise that lacks a `.catch()` today or might tomorrow.
+export async function runServeCommand(input: RunServeCommandInput, optional: RunServeCommandOptional = {}): Promise<void> {
+  // Install before boot: detached identity seed promises can reject independently of identityReady.
+  // See runtime/boot/process-error-guards.ts for the process-wide guard rationale.
   installUnhandledRejectionGuard();
   // Server log capture (gap A-04): keeps recent console output in memory, redacted, so the admin
   // server-logs route and the `system_read_server_logs` chat tool can show recent errors. Installed
@@ -267,30 +173,21 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
 
   // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
   // so `startAssistantDaemon()` — called later, from inside `app.listen()`'s callback — hands it to
-  // the daemon child through the inherited env. See this file's header for the full incident.
-  ensureAgentDaemonToken();
+  // the daemon child through the inherited env. See this file's header for the ordering contract.
+  ensureAgentDaemonToken({}, {});
 
   // CIC U-002/ADR-005 (ESCALATE_SECURITY) — see this file's header. Must precede `createApp()`
   // below (and therefore every route it mounts, including the `plugins` module's
   // `PLUGIN_SET_ENABLED`) and every boot step that could lead there; placed here, with no `await`
   // ahead of it, for the same reason `index.ts`'s own call site gives.
-  registerPluginSdkResolver();
+  (optional.registerPluginSdkResolver ?? registerPluginSdkResolver)();
 
-  // 2026-09-05 dispatch (boot-path parity): this command never ran the production-readiness gate
-  // either — only `src/index.ts`'s `main()` did, gated on `resolveRuntimeMode() === "production"`.
-  // That mode is a plain `TOVU_RUNTIME_MODE` env read (see `runtime-mode.ts`), not something only
-  // `index.ts`'s own boot path can reach — a self-hosted deployment launched via the packaged
-  // `tovu serve` CLI can set it exactly the same way, and until now got zero unsafe-default
-  // containment for doing so (dev secret placeholders, the default owner password, undurable
-  // "production"-classified capabilities). Inert (an immediate return) whenever
-  // `TOVU_RUNTIME_MODE` is not `"production"`, so this costs every ordinary `tovu serve` run
-  // nothing. See `boot-readiness-gate.ts`'s own header for why this is now one shared function
-  // rather than a second copy of `index.ts`'s original inline gate.
+  // The shared gate contains unsafe defaults for production CLI boots and is inert locally.
+  // See runtime/boot/boot-readiness-gate.ts for the policy.
   await runProductionReadinessGateOrExit();
 
-  // Same pairing as `index.ts`: the gate above is production-only, so a LOCAL `tovu serve` — which
-  // is what the desktop shell spawns for every site — said nothing at all about a missing site key
-  // until this existed. See `site-key-boot-notice.ts`.
+  // Local boots also need the missing-site-key notice; the readiness gate is production-only.
+  // See runtime/boot/site-key-boot-notice.ts.
   warnIfNoSiteKeyAtBoot();
 
   warnIfLegacyEnvVarsIgnored();
@@ -311,7 +208,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // refused boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
   const owned: ServeOwnership = { bootResult, composedStore: undefined, workers: [], bootWork: [] };
   try {
-    await serveBootedSite(input, target, owned);
+    await serveBootedSite(input, target, owned, optional);
   } catch (err) {
     await releaseServeOwnership(owned);
     throw err;
@@ -347,7 +244,7 @@ async function closeOwnedStore(owned: ServeOwnership): Promise<void> {
  * {@link runServeCommand} after `bootSiteDir`: compose, run the boot lifecycle, bind the listener and
  * install the BR-07 shutdown. Records what it starts in `owned`, so a rejection can be cleaned up.
  */
-async function serveBootedSite(input: RunServeCommandInput, target: string, owned: ServeOwnership): Promise<void> {
+async function serveBootedSite(input: RunServeCommandInput, target: string, owned: ServeOwnership, optional: RunServeCommandOptional): Promise<void> {
   const { bootResult } = owned;
   const port = resolveServePort(input, bootResult.config);
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
@@ -431,7 +328,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
   // `createApp` has attached every subscriber) and the Trash auto-purge sweeper. Both are stopped
   // in `shutdown` below.
-  const { app, outboxDrainer, trashSweeper, bootWork } = createServingApp(deps);
+  const { app, outboxDrainer, trashSweeper, bootWork } = (optional.createServingApp ?? createServingApp)(deps);
   owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) });
   owned.bootWork.push(...bootWork);
 

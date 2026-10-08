@@ -1,6 +1,5 @@
-import { buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
-
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
+import { buildOutcomeSurface, type SurfaceOutcomeSpec, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
 /**
  * @file The card `agent_plugin_connect` shows while it parks on a human's sign-in (`connect-tool.ts`).
@@ -63,37 +62,30 @@ export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec): U
   });
 }
 
-function agentPluginAccessTokenSurfaceUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/agent-plugins-access-token/${exchangeId}` as UIResourceUri;
-}
-
 /**
  * The masked access-token form `agent_plugin_set_access_token` shows (`access-token-tool.ts`), for a
- * plugin whose server declares `tovuTokenAuth`. Moved from `features/supabase-connect/` on
- * 2026-09-29; the vendor's tokens page now comes from the plugin's own `mcp.json`.
+ * plugin whose server declares `tovuTokenAuth`; its tokens page comes from the plugin metadata.
  *
  * Its one field is the only place the token exists outside the sealed ciphertext it becomes: it is
  * posted straight to the tool-calls route, never through chat. Never pre-filled — every render starts
- * empty. The URI carries only the exchange id, and the outcome reuses it so it replaces the form.
+ * empty. The engine's URI carries the tool/exchange identity, and the outcome reuses it so it
+ * replaces the form. This builder supplies domain copy only; the engine owns routing and dismissal.
  *
+ * @returns A secret-card form spec without routing parameters or prefilled credentials.
+ * @example buildAgentPluginAccessTokenForm({ pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" });
  * @complexity O(1).
  */
 export function buildAgentPluginAccessTokenForm(spec: {
-  readonly toolName: string;
-  readonly exchangeId: string;
   readonly pluginDisplayName: string;
   readonly helpUrl: string;
-}): UIResource {
-  const { toolName, exchangeId, pluginDisplayName, helpUrl } = spec;
-  return buildFormSurface({
-    uri: agentPluginAccessTokenSurfaceUri(exchangeId),
+}, _optional = {}): SecretCardForm {
+  const { pluginDisplayName, helpUrl } = spec;
+  return {
     title: `Connect ${pluginDisplayName} with an access token`,
     description:
       `Create a personal access token at ${helpUrl}, then paste it below. Tovu checks it with ` +
       `${pluginDisplayName} and seals it the moment you submit. The assistant never sees it, and it is never written to the chat.`,
     submitLabel: "Save token",
-    toolName,
-    baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId },
     fields: [
       {
         kind: "string",
@@ -104,32 +96,29 @@ export function buildAgentPluginAccessTokenForm(spec: {
         secret: true,
       },
     ],
-    cancel: { label: "Cancel", toolName, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true } },
+    cancelLabel: "Cancel",
     app: { appName: "tovu-agent-plugins-access-token", appVersion: "1" },
-    preferredFrameSize: ["100%", "380px"],
-  });
+  };
 }
 
 /**
  * The result that replaces the token form. `message` is caller-controlled and must never carry a
  * token — every call site passes a fixed sentence.
  *
+ * @returns Outcome copy; the engine supplies the form's URI when rendering it.
  * @complexity O(1).
  */
 export function buildAgentPluginAccessTokenOutcome(spec: {
-  readonly exchangeId: string;
   readonly pluginDisplayName: string;
   readonly state: "success" | "failure";
   readonly title: string;
   readonly message: string;
-}): UIResource {
-  return buildOutcomeSurface({
-    uri: agentPluginAccessTokenSurfaceUri(spec.exchangeId),
+}, _optional = {}): SurfaceOutcomeSpec {
+  return {
     title: spec.title,
     details: [{ label: "Connection", value: spec.pluginDisplayName }],
     state: spec.state,
     message: spec.message,
     app: { appName: "tovu-agent-plugins-access-token-outcome", appVersion: "1" },
-    preferredFrameSize: ["100%", "240px"],
-  });
+  };
 }

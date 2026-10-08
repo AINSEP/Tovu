@@ -26,7 +26,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { lstat } from "node:fs/promises";
 import { assertOwnedPluginPath } from "./memory.js";
-import { stageForRemoval, restoreStagedTrees, removeFrozenPackageTree, type StagedTree } from "./uninstall.js";
+import { stageForRemoval, restoreStagedTrees, removeFrozenPackageTree, type StagedTree } from "./lifecycle.js";
 
 import * as yauzl from "yauzl";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
@@ -40,9 +40,9 @@ import {
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
   type InstalledAgentPlugin,
-} from "./install.js";
+} from "./lifecycle.js";
 import { resolveAgentPluginLayout, type AgentPluginLayout } from "./layout.js";
-import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
+import { listInstalledPlugins } from "./lifecycle.js";
 
 const { setAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } = agentPluginActivations;
 
@@ -101,7 +101,7 @@ async function readBounded(stream: AsyncIterable<Uint8Array>): Promise<Buffer> {
   let length = 0;
   for await (const chunk of stream) {
     length += chunk.byteLength;
-    if (length > MAX_MANIFEST_BYTES) throw new AgentPluginInstallError("MANIFEST_INVALID", "plugin.json is larger than 1 MiB");
+    if (length > MAX_MANIFEST_BYTES) throw new AgentPluginInstallError({ code: "MANIFEST_INVALID", message: "plugin.json is larger than 1 MiB" });
     chunks.push(Buffer.from(chunk));
   }
   return Buffer.concat(chunks, length);
@@ -118,7 +118,7 @@ async function locatePackage(reader: AgentPluginArchiveReaderPort, archive: Uint
   let count = 0;
   try {
     for await (const entry of reader.entries(archive)) {
-      if (++count > MAX_PREPASS_ENTRIES) throw new AgentPluginInstallError("TOO_MANY_ENTRIES", `archive exceeds the ${MAX_PREPASS_ENTRIES}-entry cap`);
+      if (++count > MAX_PREPASS_ENTRIES) throw new AgentPluginInstallError({ code: "TOO_MANY_ENTRIES", message: `archive exceeds the ${MAX_PREPASS_ENTRIES}-entry cap` });
       const name = entry.entryPath.replaceAll("\\", "/").replace(/^\.\//, "");
       const [head] = name.split("/");
       if (head && !IGNORED_TOP_LEVEL.has(head)) topLevel.add(name.includes("/") ? `${head}/` : head);
@@ -132,16 +132,16 @@ async function locatePackage(reader: AgentPluginArchiveReaderPort, archive: Uint
   const prefix = manifests.has(MANIFEST) ? "" : topLevel.size === 1 && folders.length === 1 ? folders[0]! : null;
   const raw = prefix === null ? undefined : manifests.get(prefix + MANIFEST);
   if (prefix === null || raw === undefined) {
-    throw new AgentPluginInstallError("MANIFEST_MISSING", "the archive does not contain a plugin.json at its root or inside one top-level folder");
+    throw new AgentPluginInstallError({ code: "MANIFEST_MISSING", message: "the archive does not contain a plugin.json at its root or inside one top-level folder" });
   }
   let value: unknown;
   try {
     value = JSON.parse(raw.toString("utf8"));
   } catch (error) {
-    throw new AgentPluginInstallError("MANIFEST_INVALID", "plugin.json is not valid JSON", { cause: error });
+    throw new AgentPluginInstallError({ code: "MANIFEST_INVALID", message: "plugin.json is not valid JSON" }, { cause: error });
   }
   const parsed = parseAgentPluginManifest({ value });
-  if (!parsed.ok) throw new AgentPluginInstallError("MANIFEST_INVALID", `plugin.json failed validation: ${parsed.errors.join("; ")}`);
+  if (!parsed.ok) throw new AgentPluginInstallError({ code: "MANIFEST_INVALID", message: `plugin.json failed validation: ${parsed.errors.join("; ")}` });
   return { prefix, pluginId: parsed.manifest.name };
 }
 
@@ -270,11 +270,11 @@ export async function previewUploadedAgentPlugin(required: InstallUploadedAgentP
  * installAgentPlugin repeats these checks at the extraction boundary. */
 function validateUploadedBytes(required: { archive: Uint8Array; expectedSha256: string }, _optional: Record<string, never> = {}): string {
   if (required.archive.byteLength > maxAgentPluginInstallArchiveBytes()) {
-    throw new AgentPluginInstallError("ARCHIVE_TOO_LARGE", "archive exceeds the 32 MiB upload cap");
+    throw new AgentPluginInstallError({ code: "ARCHIVE_TOO_LARGE", message: "archive exceeds the 32 MiB upload cap" });
   }
   const digest = createHash("sha256").update(required.archive).digest("hex");
   if (!/^[a-f0-9]{64}$/i.test(required.expectedSha256) || digest !== required.expectedSha256.toLowerCase()) {
-    throw new AgentPluginInstallError("DIGEST_MISMATCH", "the uploaded bytes do not match the file that was chosen");
+    throw new AgentPluginInstallError({ code: "DIGEST_MISMATCH", message: "the uploaded bytes do not match the file that was chosen" });
   }
   return digest;
 }

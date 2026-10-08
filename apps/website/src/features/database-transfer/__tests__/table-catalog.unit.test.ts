@@ -3,7 +3,15 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
-import { planSnapshotTables } from "../table-catalog.js";
+import { collectSchemaTables, planSnapshotTables } from "../table-catalog.js";
+
+test("the host schema retains the submission-IP retention index's partial predicate", () => {
+  const submissions = collectSchemaTables().find(table => table.name === "form_submissions");
+  assert.deepEqual(submissions?.indexes.find(index => index.name === "idx_form_submissions_ip_retention"), {
+    name: "idx_form_submissions_ip_retention", columns: ["submitted_at", "id"], unique: false,
+    where: "source_ip IS NOT NULL",
+  });
+});
 
 test("plugin layout uses affinity, literal defaults and INTEGER identity; drops partial and expression indexes", (t) => {
   // F2.6: introspect a real snapshot, rather than faking PRAGMA results.

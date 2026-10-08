@@ -1,8 +1,7 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 /**
  * @file G3: the per-call Confirm/Cancel card for protected external actions: permanent deletion,
  * delivery to people, and changes to assistant privacy/instructions/access (shared trust R3,
- * plus trash/restore-over-existing/publication (owner rule 2026-10-07). The handler classifies actual arguments as well as remote hints;
+ * plus trash/restore-over-existing/publication under owner policy). The handler classifies actual arguments as well as remote hints;
  * neither removing a card nor remembering approval grants admission or permissions.
  *
  * Built on `requireHumanConfirm` (`contracts/core/human-confirm.ts`) — the same held-open MCP-UI
@@ -16,7 +15,7 @@
  * are the frozen object the handler sends on Confirm (`registrations.ts`'s `frozenArguments`), so what
  * the human approves is what runs.
  *
- * Remembered approvals (owner rule 2026-09-27): besides Allow (this one call) and Cancel, the card
+ * Remembered approvals under owner policy: besides Allow (this one call) and Cancel, the card
  * offers "Allow for this chat" (kept with the conversation) and, for a call that can be remembered,
  * "Always allow" (kept per site + connection + tool). Both are pinned to the tool's identity
  * (@jini-ai/mcp/federation), so a changed server, name or hints asks again. A remembered
@@ -36,8 +35,8 @@ import {
   createFederatedCallConfirmer as createJiniConfirmer,
   type FederatedCardOffers,
 } from "@jini-ai/mcp/federation/approvals";
-import { notConfirmedResult, requireHumanConfirm, type HumanConfirmSpec } from "../contracts/core/human-confirm.js";
-import type { AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
+import { notConfirmedResult, approvalToolHandler, type HumanConfirmSpec } from "../contracts/core/human-confirm.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "./external-mcp-tool-approval-ports.js";
 import { toJiniConversationApprovalStore, toJiniToolApprovalRepo } from "./external-mcp-tool-approval-adapters.js";
 import type { FederatedPolicyConfirmationRequest, FederationDeps } from "./mcp-federation/registrations.js";
@@ -89,10 +88,11 @@ export function createFederatedCallConfirmer(surfaces: AssistantSurfaceDeps,
     fingerprintDomain: TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN,
     errorCode: "EXTERNAL_MCP", messages: tovuFederationMessages, surfaceExchanges: surfaces,
     humanConfirm: { ask: async ({ context, surfaceExchanges, spec }) => {
-      const outcome = await requireHumanConfirm({ ctx: context, surfaces: surfaceExchanges,
-        spec: actionConfirmSpec(spec, context.approvalRequest),
-      }, { emitSurface: context.emitSurface });
-      return outcome.confirmed ? outcome : { confirmed: false, result: notConfirmedResult(outcome) };
+      return approvalToolHandler({ surfaces: surfaceExchanges,
+        prepare: async () => actionConfirmSpec(spec, context.approvalRequest),
+        describe: ({ prepared }) => prepared,
+        run: async ({ choice }) => ({ confirmed: true, ...(choice === undefined ? {} : { choice }) }),
+      }, { declined: ({ reason }) => ({ confirmed: false, result: notConfirmedResult({ confirmed: false, reason }) }) })(context, { emitSurface: context.emitSurface }) as Promise<{ confirmed: true; choice?: string } | { confirmed: false; result: ReturnType<typeof notConfirmedResult> }>;
     } },
   }, {
     ...(approvals ? { scope: approvals.workspaceId, approvals: {

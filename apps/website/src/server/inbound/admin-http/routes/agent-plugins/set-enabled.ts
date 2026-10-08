@@ -255,7 +255,7 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
         return;
       }
 
-      const written = await setAgentPluginEnabled({ workspaceId: deps.workspaceId, pluginId, enabled, actor: principal.id });
+      const written = await (deps.setAgentPluginEnabled ?? setAgentPluginEnabled)({ workspaceId: deps.workspaceId, pluginId, enabled, actor: principal.id });
 
       // Provisioning only ever runs on enable — disabling has nothing to provision, and a
       // previously-provisioned row survives a disable untouched (`federate-mcp.ts`'s own header).

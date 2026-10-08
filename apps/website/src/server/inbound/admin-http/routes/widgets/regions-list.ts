@@ -1,4 +1,4 @@
-import { parseWidgetAreaPayload } from "#src/features/widgets/entry-payload";
+import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
 
@@ -24,7 +24,7 @@ export const registerAdminWidgetRegionsListRoute: RouteRegistrar = (app, deps) =
       const regions = await Promise.all(
         bindings.map(async (binding) => {
           const areaEntry = await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: binding.areaEntryId });
-          const placementCount = areaEntry ? parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements.length : 0;
+          const placementCount = areaEntry ? parseWidgetAreaPayload({ fieldsJson: areaEntry.fieldsJson }).doc.placements.length : 0;
           return { ...binding, placementCount };
         })
       );

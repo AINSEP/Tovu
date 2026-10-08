@@ -6,8 +6,8 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import type { ToolAttemptAuditSink } from "../../features/tool-audit/types.js";
-import { describeInput, withToolAttemptAudit } from "../tool-executor-audit.js";
-import type { RedactedToolExecutionResult } from "../tool-failure-redaction.js";
+import { describeInput, withToolAttemptAudit } from "../tool-audit-preset.js";
+import type { RedactedToolExecutionResult } from "../tool-recovery-preset.js";
 
 /**
  * @file `tool-executor-audit.ts` â€” the durable tool-attempt trail.
@@ -46,7 +46,7 @@ function fakeExecutor(behavior: { result?: ToolExecutionResult; throws?: unknown
 
 function wrap(inner: ToolExecutor, sink: ToolAttemptAuditSink) {
   let sequence = 0;
-  return withToolAttemptAudit(inner, sink, {
+  return withToolAttemptAudit({ inner: inner, sink: sink }, {
     workspaceId: WORKSPACE_ID,
     now: () => `2026-07-29T00:00:0${sequence++}.000Z`,
     newAttemptId: () => "attempt-1",
@@ -168,7 +168,7 @@ test("ADVERSARIAL: a sink that throws on every append cannot break tool executio
     },
   };
   const inner = fakeExecutor({ result: { executionId: "exec-3", status: "completed", output: "ok" } });
-  const executor = withToolAttemptAudit(inner, hostileSink, { workspaceId: WORKSPACE_ID, onSinkError: (e) => sinkErrors.push(e) });
+  const executor = withToolAttemptAudit({ inner: inner, sink: hostileSink }, { workspaceId: WORKSPACE_ID, onSinkError: (e) => sinkErrors.push(e) });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "collections_content_type_define", input: {} });
 
@@ -184,7 +184,7 @@ test("ADVERSARIAL: a throwing sink on the error path does not mask the tool's ow
     },
   };
   const boom = new Error("the real failure");
-  const executor = withToolAttemptAudit(fakeExecutor({ throws: boom }), hostileSink, { workspaceId: WORKSPACE_ID, onSinkError: () => {} });
+  const executor = withToolAttemptAudit({ inner: fakeExecutor({ throws: boom }), sink: hostileSink }, { workspaceId: WORKSPACE_ID, onSinkError: () => {} });
 
   const thrown = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} }).then(
     () => null,
@@ -257,7 +257,7 @@ test("2026-09-16: a redacted internal failure's row links to its error ID, never
 
 test("distinct executions get distinct attempt ids, so concurrent runs cannot be conflated", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  const executor = withToolAttemptAudit(fakeExecutor({ result: { executionId: "e", status: "completed", output: null } }), sink, { workspaceId: WORKSPACE_ID });
+  const executor = withToolAttemptAudit({ inner: fakeExecutor({ result: { executionId: "e", status: "completed", output: null } }), sink: sink }, { workspaceId: WORKSPACE_ID });
 
   await Promise.all([executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} }), executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} })]);
 
@@ -278,7 +278,7 @@ test("resumeConfirmation, cancel and getAuditRecord delegate straight through â€
     },
   } as unknown as ToolExecutor;
 
-  const executor = withToolAttemptAudit(inner, createInMemoryToolAttemptAuditSink(), { workspaceId: WORKSPACE_ID });
+  const executor = withToolAttemptAudit({ inner: inner, sink: createInMemoryToolAttemptAuditSink() }, { workspaceId: WORKSPACE_ID });
   executor.resumeConfirmation({ executionId: "exec-7", decision: "confirm" });
   executor.cancel({ executionId: "exec-7" });
 
@@ -287,11 +287,11 @@ test("resumeConfirmation, cancel and getAuditRecord delegate straight through â€
 });
 
 test("describeInput handles every shape without throwing, and never returns a value", () => {
-  assert.equal(describeInput({ key: "recipe", fields: [1, 2] }), "keys: fields[2], key");
-  assert.equal(describeInput({}), "keys: none");
-  assert.equal(describeInput(null), "input: null");
-  assert.equal(describeInput(undefined), "input: undefined");
-  assert.equal(describeInput([1, 2, 3]), "input: an array of 3");
-  assert.equal(describeInput("a-secret-string"), "input: a string");
-  assert.equal(describeInput(42), "input: a number");
+  assert.equal(describeInput({ input: { key: "recipe", fields: [1, 2] } }, {}), "keys: fields[2], key");
+  assert.equal(describeInput({ input: {} }, {}), "keys: none");
+  assert.equal(describeInput({ input: null }, {}), "input: null");
+  assert.equal(describeInput({ input: undefined }, {}), "input: undefined");
+  assert.equal(describeInput({ input: [1, 2, 3] }, {}), "input: an array of 3");
+  assert.equal(describeInput({ input: "a-secret-string" }, {}), "input: a string");
+  assert.equal(describeInput({ input: 42 }, {}), "input: a number");
 });

@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/site-inspection.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -171,7 +172,7 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "site-inspection",
     catalogModule: "features/site-inspection/agent-tools.ts",
     catalog: CATALOG_BY_ID,

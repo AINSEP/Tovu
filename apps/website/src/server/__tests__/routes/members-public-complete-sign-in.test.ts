@@ -22,7 +22,7 @@ import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-htt
  * `MAGIC_LINK_COMPLETE_ATTEMPT` is enforced (T016/W-004).
  */
 
-function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps } {
+function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: MemberPublicRouteDeps } {
   const routeDeps = createRouteDeps();
   const deps: MemberPublicRouteDeps = {
     workspaceId: routeDeps.workspaceId,
@@ -41,6 +41,7 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
   };
   const app = express();
   app.use(express.json());
+  if (upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
   registerPublicMemberSignInRequestRoute(app, deps);
   registerPublicMemberCompleteSignInRoute(app, deps);
   return { app, deps };
@@ -321,4 +322,18 @@ test("req.body ?? {}: an undefined body (impossible with express.json() mounted)
   await handler(req, res);
   assert.equal(capture.statusCode, 401);
   assert.equal((capture.jsonBody as { code: string }).code, "MEMBER_AUTH_ERROR");
+});
+
+test("member sign-in appends its cookie without replacing an earlier cookie", async t => {
+  const { app, deps } = buildPublicApp(true);
+  const baseUrl = await startTestServer(app, t);
+  const token = await requestAndExtractToken(baseUrl, deps, "cookie-append@example.com");
+  const response = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in/complete`, { method: "POST",
+    headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) });
+  assert.equal(response.status, 200);
+  const cookies = response.headers.getSetCookie();
+  assert.equal(cookies[0], "upstream=kept; Path=/");
+  assert.ok(cookies[1].startsWith("tovu_member_session="));
+  const maxAge = Number(/Max-Age=(\d+)/.exec(cookies[1])?.[1]);
+  assert.ok(maxAge > 60 && maxAge < 366 * 24 * 60 * 60, "Express maxAge input must be milliseconds");
 });

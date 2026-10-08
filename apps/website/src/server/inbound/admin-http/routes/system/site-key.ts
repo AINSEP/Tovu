@@ -226,7 +226,7 @@ async function siteHasKeyDependentData(deps: AdminSiteKeyDeps): Promise<boolean>
 function stampSiteKeyFingerprint(siteDir: string, fingerprint: string): void {
   const meta = readSiteMetaJson(siteDir);
   if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
-  writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
+  writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint } }, {});
 }
 
 /** Shared workspace-path-param + permission check every verb below performs first — same

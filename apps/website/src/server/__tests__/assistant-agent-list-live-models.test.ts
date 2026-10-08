@@ -13,6 +13,9 @@ import { AGENT_DAEMON_TOKEN_ENV_VAR, setExecutionCredential } from "../../assist
 // violation rather than forced into the production barrel).
 import { resetLiveModelCacheForTesting } from "../../assistant/live-model-cache.js";
 import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "./helpers/http-test-server.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Route-level coverage for `respondWithEnrichedAgentList` (`server/modules/assistant.ts`) —
@@ -111,7 +114,7 @@ function harness() {
     const { createRouteDeps } = await import("../runtime/composition/app.js");
     const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
     const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
-    const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
+    const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 
     return {
       daemon: server,
@@ -120,7 +123,7 @@ function harness() {
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
-        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes?.(app);
+        createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
         return { app, deps };
       },
     };

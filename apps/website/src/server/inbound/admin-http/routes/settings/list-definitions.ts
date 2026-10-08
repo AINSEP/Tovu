@@ -1,6 +1,5 @@
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { createTovuSettingsService } from "./shared.js";
+import { createTovuSettingsService, mountSettingsJsonRoute } from "./shared.js";
 
 /**
  * GET active setting definitions, grouped by namespace (SPEC-007 api.spec.md
@@ -22,30 +21,9 @@ import { createTovuSettingsService } from "./shared.js";
  * "grouped by namespace" means here.
  */
 export const registerAdminSettingsListDefinitionsRoute: SettingsRouteRegistrar = (app, deps) => {
-  app.get("/api/admin/v1/workspaces/:workspaceId/settings/definitions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
-    try {
-      await deps.settingsReady;
-      const principal = getAuthedPrincipal(res);
-
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "settings.read.definitions",
-        workspaceId: deps.workspaceId,
-        entityType: "setting-definition",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'settings.read.definitions' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "settings.read.definitions", reason: authResult.reason },
-        });
-        return;
-      }
+  mountSettingsJsonRoute({ app, deps, method: "get", path: "/api/admin/v1/workspaces/:workspaceId/settings/definitions",
+    handle: async ({ authorize }) => {
+      await authorize({ permission: "settings.read.definitions", entityType: "setting-definition" });
 
       const definitions = await createTovuSettingsService({ deps }).listDefinitions({ workspaceId: deps.workspaceId });
       const data = definitions
@@ -59,10 +37,7 @@ export const registerAdminSettingsListDefinitionsRoute: SettingsRouteRegistrar =
         }))
         .sort((a, b) => a.namespace.localeCompare(b.namespace) || a.key.localeCompare(b.key));
 
-      res.json({ data });
-    } catch (err) {
-      void err;
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
-    }
+      return { data };
+    },
   });
 };

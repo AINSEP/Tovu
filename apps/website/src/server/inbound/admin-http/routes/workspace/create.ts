@@ -5,12 +5,9 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps.js";
 
 /**
- * POST workspaces — `CREATE_WORKSPACE` (SPEC-044 REQ-01). Moved from the original unauthenticated
- * `POST /workspaces` in `server/app.ts` (removed there) — this is the same `hybrid execution model`
- * (synchronous command path + outbox flush) that route always had, now gated by `AUTH_SESSION`
- * (mounted globally on `/api/admin` by `core.ts`'s `requireAdminSession`) + `authorize()` for
- * `workspace.manage`, closing the gap this spec exists to close: any unauthenticated caller could
- * previously create a workspace row.
+ * POST workspaces — `CREATE_WORKSPACE` (SPEC-044 REQ-01). The hybrid synchronous command
+ * and outbox-flush path requires AUTH_SESSION (mounted on /api/admin by core.ts) plus
+ * `workspace.manage` authorization; unauthenticated callers must not create workspace rows.
  */
 export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces", async (req, res) => {

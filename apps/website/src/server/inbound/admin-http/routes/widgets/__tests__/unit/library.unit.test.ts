@@ -14,8 +14,8 @@ import { registerAdminWidgetRegionGetRoute } from "../../region-get.js";
 import { registerAdminWidgetRegionsListRoute } from "../../regions-list.js";
 import { registerAdminWidgetRegionMutatePlacementsRoute } from "../../region-mutate-placements.js";
 import { registerAdminWidgetTrashRoute } from "../../trash.js";
-import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memory";
-import { bindWidgetArea } from "#src/features/widgets/region-area-service";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
+import { bindWidgetArea } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
 
 const base = "/api/admin/v1/workspaces/:workspaceId/widgets";

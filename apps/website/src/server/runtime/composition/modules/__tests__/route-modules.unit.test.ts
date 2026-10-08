@@ -8,7 +8,6 @@ import { createAgentPluginsModule } from "../agent-plugins.js";
 import { createAnalyticsModule } from "../analytics.js";
 import { createApiKeysModule } from "../api-keys.js";
 import { createCommentsModerationModule } from "../comments-moderation.js";
-import { createCommerceModule } from "../commerce.js";
 import { createDatabaseRecoveryModule } from "../database-recovery.js";
 import { createFormsAdminModule } from "../forms-admin.js";
 import { createIntegrationsAdminModule } from "../integrations-admin.js";
@@ -86,7 +85,6 @@ const CASES: readonly ModuleCase[] = [
       `PUT ${W}/comments/settings`,
     ],
   },
-  { name: "commerce", create: () => createCommerceModule(noDeps), routes: [`GET ${W}/commerce/status`] },
   {
     name: "database-recovery",
     create: () => createDatabaseRecoveryModule(noDeps),

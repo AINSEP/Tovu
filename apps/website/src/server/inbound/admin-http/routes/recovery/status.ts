@@ -54,7 +54,7 @@ export function registerAdminRecoveryStatusRoute(app: Express, deps: DatabaseRec
       const banner = resolveDegradedBanner({
         capabilities: {
           costClass: capabilities.restorePoint.costClass,
-          operationInFlight: isOperationInFlight(deps.workspaceId),
+          operationInFlight: isOperationInFlight({ siteId: deps.workspaceId }, {}),
           pendingMigration: siteStatus === "PENDING_MIGRATION",
           migrationInterrupted: siteStatus === "BLOCKED_PENDING_RECOVERY",
           watermarkBaselineAvailable: false,

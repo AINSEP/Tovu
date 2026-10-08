@@ -17,6 +17,7 @@ import { ValidationError } from "../../errors.js";
 import { initSite } from "../../init-site.js";
 import { isPortableSiteEntry, STORAGE_SECRET_FILENAME } from "../../layout.js";
 import { SITE_META_FILENAME } from "../../site-storage.js";
+import { createGitIgnoreFixture } from "./git-ignore.fixture.js";
 
 /**
  * @file R1f security: a Postgres site's sealed connection string (`.storage-secret.json`, O3) never
@@ -119,15 +120,17 @@ test("agent file tools and publish trees deny the secret by name, at any depth",
   assert.match(checkTreePath(`nested/dir/${STORAGE_SECRET_FILENAME}`) ?? "", /sealed database connection string/);
 });
 
-test("git ignores the secret in any site folder (sites/ is tracked and deployed from git)", () => {
+test("git ignores the secret in any site folder (sites/ is tracked and deployed from git)", (t) => {
+  const gitRoot = createGitIgnoreFixture({ repoRoot: REPO_ROOT, context: t }, {});
   for (const rel of [
     `sites/any-site/${STORAGE_SECRET_FILENAME}`,
     `apps/website/sites/any-site/${STORAGE_SECRET_FILENAME}`,
     `sites/any-site/.${STORAGE_SECRET_FILENAME}.123.abc.tmp`,
   ]) {
-    const result = spawnSync("git", ["check-ignore", "-q", "--no-index", rel], { cwd: REPO_ROOT });
+    const result = spawnSync("git", ["-c", "core.excludesFile=/dev/null", "check-ignore", "-q", "--no-index", rel], { cwd: gitRoot });
     assert.equal(result.status, 0, `${rel} must be git-ignored`);
   }
+  assert.equal(spawnSync("git", ["-c", "core.excludesFile=/dev/null", "check-ignore", "-q", "--no-index", "sites/any-site/ordinary.json"], { cwd: gitRoot }).status, 1, "ordinary content must not be git-ignored");
   for (const file of [".dockerignore", "Dockerfile.dockerignore"]) {
     const patterns = fs.readFileSync(path.join(REPO_ROOT, file), "utf8");
     for (const rel of [STORAGE_SECRET_FILENAME, `sites/any-site/${STORAGE_SECRET_FILENAME}`, `themes/nested/.${STORAGE_SECRET_FILENAME}.123.abc.tmp`]) {

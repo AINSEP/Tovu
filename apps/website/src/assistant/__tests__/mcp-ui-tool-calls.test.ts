@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallAllowed } from "../mcp-ui-tool-calls.js";
+import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from "../mcp-ui-tool-calls.js";
 
-test("content_post_delete runs normally and cannot be executed by an untrusted surface callback", () => {
-  assert.equal(isMcpUiToolCallAllowed("content_post_delete"), false);
-  assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_delete"), false);
+test("content_post_delete allows an answer to its parked policy card", () => {
+  assert.equal(isMcpUiToolCallAllowed("content_post_delete"), true);
+  assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_delete"), true);
+  assert.equal(isMcpUiToolCallPermitted("content_post_delete", false), false, "an untrusted callback cannot start a fresh execution");
+  assert.equal(isMcpUiToolCallPermitted("content_post_delete", true), true);
 });
 
 test("content_post_search is on the allowlist — the real execution path behind the /search composer capability", () => {
@@ -13,9 +15,11 @@ test("content_post_search is on the allowlist — the real execution path behind
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_search"));
 });
 
-test("deployment_execute_static_publish runs normally and cannot be executed by a surface callback", () => {
-  assert.equal(isMcpUiToolCallAllowed("deployment_execute_static_publish"), false);
-  assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("deployment_execute_static_publish"), false);
+test("deployment_execute_static_publish allows an answer to its parked policy card", () => {
+  assert.equal(isMcpUiToolCallAllowed("deployment_execute_static_publish"), true);
+  assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("deployment_execute_static_publish"), true);
+  assert.equal(isMcpUiToolCallPermitted("deployment_execute_static_publish", false), false, "an untrusted callback cannot start a fresh execution");
+  assert.equal(isMcpUiToolCallPermitted("deployment_execute_static_publish", true), true);
 });
 
 test("the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason", () => {
@@ -23,9 +27,12 @@ test("the two read-only static-publish tools are NOT on the allowlist — neithe
   assert.equal(isMcpUiToolCallAllowed("deployment_preview_static_publish"), false);
 });
 
-test("deployment_propose_custom_provider_credential is on the allowlist — it holds up the SAME held-open-exchange shape content_post_delete/deployment_execute_static_publish do (spec §6d)", () => {
-  assert.equal(isMcpUiToolCallAllowed("deployment_propose_custom_provider_credential"), true);
-  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("deployment_propose_custom_provider_credential"));
+test("credential_save redeems the publish-host card; the retired save id cannot redeem", () => {
+  assert.equal(isMcpUiToolCallAllowed("credential_save"), true);
+  assert.equal(isMcpUiToolCallPermitted("credential_save", false), false);
+  assert.equal(isMcpUiToolCallPermitted("credential_save", true), true);
+  assert.equal(isMcpUiToolCallAllowed("deployment_propose_custom_provider_credential"), false);
+  assert.equal(isMcpUiToolCallPermitted("deployment_propose_custom_provider_credential", true), false);
 });
 
 test("deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is a plain read tool that never opens an exchange (spec §3a)", () => {
@@ -69,8 +76,8 @@ test("custom_credential_make_request is on the allowlist — its DELETE method h
 });
 
 test("custom_credential_create is on the allowlist — it holds up the same held-open-exchange shape custom_credential_set_token does (2026-09-03)", () => {
-  assert.equal(isMcpUiToolCallAllowed("custom_credential_create"), true);
-  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_create"));
+  assert.equal(isMcpUiToolCallAllowed("credential_save"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("credential_save"));
 });
 
 test("external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02)", () => {
@@ -120,12 +127,39 @@ test("custom_credential_write_files runs normally and cannot be executed by a su
  * unrelated-looking reason.
  */
 const EXPECTED_ALLOWLIST = [
-  "media_propose_provider_credential",
-  "source_control_propose_credential",
+  // Owner-approved policy cards and the host-secret form, each principal-bound and parked.
+  "change_sets_revert",
+  "collections_content_type_tombstone",
+  "collections_entry_publish",
+  "collections_entry_unpublish",
+  "comments_approve_comment",
+  "comments_mark_comment_spam",
+  "comments_restore_comment",
+  "comments_trash_comment",
+  "content_duplicate",
+  "content_post_create",
+  "content_post_delete",
+  "content_post_update",
+  "deployment_execute_static_publish",
+  "deployment_ops_deploy",
+  "deployment_ops_set_secret",
+  "deployment_ops_unset_secret",
+  "media_trash_asset",
+  "page.click",
+  "publish_content_publish",
+  "redirects_tombstone",
+  "source_control_execute_commit",
+  "theme_reset_file",
+  "theme_set_page_published",
+  "theme_trash_file",
+  "trash_item",
+  "widgets_trash_instance",
+
+  "credential_save",
+
   "newsletter_send_campaign",
   "newsletter_schedule_campaign",
   "newsletter_resume_campaign",
-  "newsletter_resend_confirmation",
   "trash_empty",
   "trash_purge_item",
   "media_purge_asset",
@@ -139,17 +173,16 @@ const EXPECTED_ALLOWLIST = [
   "settings_clear_value",
   // 2026-09-27 (S-G1, 1ec285153) — the generic Agent Plugin Connect card; see the allowlist's own entry.
   "agent_plugin_connect",
-  "agent_plugin_set_access_token",
+
   // 2026-10-04 (852d711e6, Layout B) — the confirmed plugin-note save (`requireHumanConfirm`).
-  "agent_plugin_write_note",
   "assistant_ask_choice",
   "assistant_demo_choices",
   "assistant_tool_failure_recovery",
   "content_post_search",
-  "custom_credential_create",
+
   "custom_credential_make_request",
-  "custom_credential_set_token",
-  "deployment_propose_custom_provider_credential",
+
+
   "external_mcp_reauth_prompt",
   "external_mcp_save",
   "backup_execute_restore",
@@ -178,6 +211,8 @@ test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if 
   const probes = [
     // Real production tool ids that are not allowlisted, several of them destructive.
     "plugins_install",
+    "agent_plugin_write_note",
+    "newsletter_resend_confirmation",
     "skills_install",
     "collections_execute_cleanup",
     "deployment_get_static_publish_capabilities",

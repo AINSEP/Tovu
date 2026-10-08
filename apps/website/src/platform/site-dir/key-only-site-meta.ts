@@ -222,7 +222,7 @@ export async function completeKeyOnlySiteMeta(required: { dir: string }): Promis
     if (keyOnly === undefined) return undefined;
     const completed = await buildCompletedMeta(dir, keyOnly);
     if (readMetaText(dir) !== before) continue;
-    writeJsonFileAtomic(path.join(dir, SITE_META_FILENAME), completed);
+    writeJsonFileAtomic({ filePath: path.join(dir, SITE_META_FILENAME), data: completed }, {});
     return completed;
   }
   return undefined;

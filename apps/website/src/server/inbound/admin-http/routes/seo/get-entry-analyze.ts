@@ -1,4 +1,4 @@
-import { analyzeEntry, SeoEntryNotFoundError } from "#src/features/seo/index";
+import { analyzeEntry, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 
@@ -30,10 +30,10 @@ export const registerAdminSeoGetEntryAnalyzeRoute: SeoRouteRegistrar = (app, dep
         return;
       }
 
-      const analysis = await analyzeEntry(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
-        { workspaceId: deps.workspaceId, entryId }
-      );
+      const analysis = await analyzeEntry({
+        deps: deps.seoDeps,
+        input: { workspaceId: deps.workspaceId, entryId },
+      }, {});
       res.json({ data: analysis });
     } catch (err) {
       if (err instanceof SeoEntryNotFoundError) {

@@ -2,6 +2,7 @@ import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type U
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { buildExecutionCredentialAad } from "./execution-credential-aad.js";
+import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
 
 /**
  * @file The ADMIN's own BYOK credential — one encrypted key per `(workspace, principal)`, powering
@@ -12,9 +13,9 @@ import { buildExecutionCredentialAad } from "./execution-credential-aad.js";
  *
  * Same four-function shape as `site-credential-store.ts`, same contracts, composite-scoped instead
  * of workspace-only:
- * - {@link getExecutionCredential} — read model only. Never decrypts (`masked` is a plain column,
- *   computed once at write time), so this never touches the sealer/keyring and never fails on a
- *   misconfigured site key.
+ * - {@link getExecutionCredential} — read model only. `masked` remains a plain column,
+ *   computed once at write time. An optional server-only open derives a safe length hint; an open
+ *   failure never prevents reading metadata after site-key rotation.
  * - {@link setExecutionCredential} — write-only for the key itself: `apiKey`, when provided, is
  *   sealed and never echoed back. Omitted `apiKey` leaves the stored key untouched.
  * - {@link deleteExecutionCredential} — clears the key only; `protocol`/`providerId`/`baseUrl`/
@@ -46,8 +47,8 @@ export interface AdminExecutionCredentialRecord {
   /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
    *  verification fails. `1` = sealed under `execution-credential-aad.ts`'s
    *  `buildExecutionCredentialAad`; open MUST supply the byte-identical string. Meaningless (and
-   *  always `0`) when `sealed` is `null`. Added 2026-09-02 (AAD gap closure) — see
-   *  `db/schema.sqlite.ts`'s `adminExecutionCredentials.aad_version` doc for the full migration story. */
+   *  always `0`) when `sealed` is `null`. See
+   *  `db/schema.sqlite.ts`'s `adminExecutionCredentials.aad_version` doc for version compatibility. */
   aadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
@@ -70,6 +71,7 @@ export interface AdminExecutionCredentialRepoPort {
 export interface AdminExecutionCredentialView {
   isSet: boolean;
   masked: string | null;
+  tokenHint?: CredentialTokenHint | null;
   protocol: string;
   providerId: string | null;
   baseUrl: string | null;
@@ -83,11 +85,12 @@ const DEFAULT_PROTOCOL = "anthropic";
 const MASK_TAIL_LENGTH = 4;
 const MASK_PREFIX = "••••";
 
-function toView(record: AdminExecutionCredentialRecord | null): AdminExecutionCredentialView {
+function toView(record: AdminExecutionCredentialRecord | null, tokenHint: CredentialTokenHint | null = null): AdminExecutionCredentialView {
   if (!record) {
     return {
       isSet: false,
       masked: null,
+      tokenHint,
       protocol: DEFAULT_PROTOCOL,
       providerId: null,
       baseUrl: null,
@@ -98,7 +101,8 @@ function toView(record: AdminExecutionCredentialRecord | null): AdminExecutionCr
   }
   return {
     isSet: record.sealed !== null,
-    masked: record.masked,
+    masked: tokenHint?.last4 ? `${MASK_PREFIX}${tokenHint.last4}` : null,
+    tokenHint,
     protocol: record.protocol,
     providerId: record.providerId,
     baseUrl: record.baseUrl,
@@ -110,11 +114,25 @@ function toView(record: AdminExecutionCredentialRecord | null): AdminExecutionCr
 
 export interface ExecutionCredentialReadDeps {
   repo: AdminExecutionCredentialRepoPort;
+  sealer?: SecretSealerPort;
+}
+
+/** Existing rows have no length column. Open only on the server, under this admin's original
+ * AAD, and keep metadata readable if the site key has rotated or the ciphertext is corrupt. */
+async function executionCredentialTokenHint(
+  { record, sealer }: { record: AdminExecutionCredentialRecord | null; sealer?: SecretSealerPort },
+  _optional = {},
+): Promise<CredentialTokenHint | null> {
+  if (!record?.sealed || !sealer) return null;
+  try {
+    const aad = record.aadVersion === 1 ? buildExecutionCredentialAad({ workspaceId: record.workspaceId, principalId: record.principalId }) : undefined;
+    return credentialTokenHint({ token: await sealer.open({ sealed: record.sealed }, { aad }) });
+  } catch { return null; }
 }
 
 /**
- * The read model an admin screen renders. Pure DB read — no sealer, no keyring, cannot fail on a
- * misconfigured site key.
+ * The read model an admin screen renders. Metadata is always readable; an optional server-only
+ * open derives the safe hint and cannot fail the read on a misconfigured site key.
  *
  * @complexity O(1) — one `findByWorkspaceAndPrincipal` lookup.
  * @overallScore 100
@@ -124,7 +142,7 @@ export async function getExecutionCredential(
   input: { workspaceId: UUID; principalId: UUID }
 ): Promise<AdminExecutionCredentialView> {
   const record = await deps.repo.findByWorkspaceAndPrincipal(input);
-  return toView(record);
+  return toView(record, await executionCredentialTokenHint({ record, sealer: deps.sealer }));
 }
 
 export class ExecutionCredentialValidationError extends Error {}
@@ -335,7 +353,9 @@ export async function setExecutionCredential(
   const record = buildExecutionCredentialRecord(input, existing, seal, now);
 
   await deps.repo.upsert(record);
-  return toView(record);
+  return toView(record, input.apiKey === undefined
+    ? await executionCredentialTokenHint({ record, sealer: deps.sealer })
+    : credentialTokenHint({ token: input.apiKey }));
 }
 
 /**
@@ -392,10 +412,10 @@ export async function resolveExecutionCredential(
 
   try {
     // `aad` only when this row was sealed under one (`aadVersion === 1`) — a legacy row
-    // (`aadVersion === 0`, every row written before the 2026-09-02 AAD gap closure) was sealed with
+    // (`aadVersion === 0`) was sealed with
     // NO aad and must be opened the same way, or auth-tag verification fails closed.
     const aad = record.aadVersion === 1 ? buildExecutionCredentialAad({ workspaceId: input.workspaceId, principalId: input.principalId }) : undefined;
-    const apiKey = await deps.sealer.open({ sealed: record.sealed, aad });
+    const apiKey = await deps.sealer.open({ sealed: record.sealed }, { aad });
     return {
       apiKey,
       protocol: record.protocol,

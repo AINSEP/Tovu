@@ -1,3 +1,4 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { buildComponentCatalogQuery } from "./component-catalog-query.js";
@@ -152,7 +153,7 @@ export function buildComponentCatalogRegistrations(_routeDeps: unknown, _surface
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "component-catalog",
     catalogModule: "assistant/component-catalog-tool.ts",
     catalog: CATALOG_BY_ID,

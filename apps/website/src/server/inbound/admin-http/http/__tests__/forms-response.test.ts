@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError, FormSubmissionNotFoundError } from "#src/features/forms/index";
+import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError, FormSubmissionNotFoundError } from "@jini-ai/cms/forms";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 import {
   mapFormsWriteError, toAdminFormDefinitionResponse, toAdminFormDefinitionListResponse,

@@ -1,4 +1,4 @@
-import { embedMarkerTarget, scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
+import { embedMarkerTarget, scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 import { extractEntryRefs } from "#src/contracts/core/entry-refs/extractor";
 
 import { collectReferencedMediaKeys } from "./media-references.js";
@@ -38,9 +38,9 @@ export function collectBodyReferences(state: Readonly<Record<string, unknown>>):
   for (const row of rows) if (row.sourceKind === "widget-embed") add(out, "widget", row.targetId);
 
   if (typeof state.bodyHtml === "string") {
-    for (const marker of scanEmbedMarkers(state.bodyHtml).markers) {
+    for (const marker of scanEmbedMarkers({ html: state.bodyHtml }).markers) {
       if (marker.type.toLowerCase() !== "widget") continue;
-      const target = embedMarkerTarget(marker.type, marker.config);
+      const target = embedMarkerTarget({ type: marker.type, config: marker.config });
       if (target !== undefined && target.key !== "none") add(out, "widget", target.value);
     }
   }

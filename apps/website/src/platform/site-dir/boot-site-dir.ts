@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { AtomicFilesystemPort } from "@jini-ai/platform/fs";
 
 import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
@@ -42,6 +43,8 @@ export interface BootSiteDirRequired {
 export interface BootSiteDirOptions {
   /** Resolve this exact workspace id instead of the default (oldest) — `tovu serve --workspace <id>`. */
   workspaceId?: string;
+  /** Atomic metadata effects; defaults to the native filesystem, with Jini owning replacement. */
+  metadataFilesystem?: AtomicFilesystemPort;
 }
 
 interface BootSiteDirResultBase {
@@ -153,7 +156,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
     if (decision === "migrate") {
       const runtime = runtimeSchemaVersion();
       const updatedMeta: SiteMetaJson = { ...meta, schemaVersion: runtime.index, schemaTag: runtime.tag };
-      writeJsonFileAtomic(path.join(target, ".site-meta.json"), updatedMeta);
+      writeJsonFileAtomic({ filePath: path.join(target, ".site-meta.json"), data: updatedMeta }, { filesystem: options.metadataFilesystem });
     }
 
     // BR-05 step 6 / CIC U-002-ORD2: workspace resolution is the final gate before the caller

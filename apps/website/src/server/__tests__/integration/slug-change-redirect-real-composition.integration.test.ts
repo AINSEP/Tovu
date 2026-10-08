@@ -3,10 +3,13 @@ import test from "node:test";
 
 import type { ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildPostRegistrations } from "#src/features/post/tool-registrations";
 
 import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../helpers/unrun-site-boot.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file SPEC-009 REQ-15 end to end, through the real `tovu serve` composition on both dialects: a
@@ -70,7 +73,7 @@ async function autoRedirects(site: BootedSite): Promise<RedirectRow[]> {
 async function agentUpdateTool(site: BootedSite): Promise<(input: Record<string, unknown>) => Promise<unknown>> {
   const owner = await site.deps.userRepo.findByUsername({ workspaceId: site.deps.workspaceId, username: "admin" });
   assert.ok(owner, "the seeded owner exists");
-  const registration = buildPostRegistrations(site.deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
+  const registration = buildPostRegistrations(site.deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find(
     (r: ToolRegistration) => r.descriptor.id === "content_post_update"
   );
   assert.ok(registration, "content_post_update is registered");

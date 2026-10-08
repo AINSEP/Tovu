@@ -13,12 +13,12 @@ import type { MailAdapterModule, MailerPort, MailerSendOptions, OutboundEmail } 
 
 import { forceRemove } from "../fixtures/force-remove.js";
 
-import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
+import { packAgentPluginDirectory } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { MAIL_ADAPTERS_FILENAME, loadMailAdapterRegistry, loadMailAdapterRegistryFromSource } from "../../mail-adapter-registry.js";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 
 /**
  * @file The bundled `resend` Agent Plugin: a valid package, seeded ENABLED so a site that already
@@ -105,7 +105,7 @@ test("an operator who switched resend off stays switched off across boots, and t
 });
 
 // ---------------------------------------------------------------------------------------------
-// The adapter itself (moved from `platform/mail/adapters/__tests__/http-api.resend.unit.test.ts`).
+// The bundled mail adapter.
 // ---------------------------------------------------------------------------------------------
 
 type ScriptedResponse = HttpResponse | (() => HttpResponse);

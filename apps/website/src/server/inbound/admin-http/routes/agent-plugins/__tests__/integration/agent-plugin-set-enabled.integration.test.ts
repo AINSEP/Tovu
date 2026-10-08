@@ -17,12 +17,12 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveAgentPluginRefs } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
+import { resolveAgentPluginRefs } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import {
   installAgentPlugin,
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
-} from "#src/features/agent-plugins/install";
+} from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { registerAgentPluginSetEnabledRoute } from "../../set-enabled.js";
 import type { AgentPluginsRouteDeps } from "../../deps.js";
@@ -398,9 +398,13 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling adopts an operator's pre-existing row a
         args: "",
         allowedToolNames: "generate_image",
         writeAllowedToolNames: "generate_image",
+        accessToken: "fixture-operator-access-token",
         principalId: "operator-1",
       },
     );
+
+    const before = await baseDeps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "higgsfield" });
+    assert.ok(before?.sealedOAuth, "the operator's credential must be sealed before adoption");
 
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     assert.equal((await patch(baseUrl, cookie, "higgsfield-fixture", { enabled: true })).status, 200);
@@ -413,6 +417,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling adopts an operator's pre-existing row a
     assert.deepEqual(JSON.parse(row?.allowedToolNames ?? "[]"), ["generate_image"]);
     assert.deepEqual(JSON.parse(row?.writeAllowedToolNames ?? "[]"), ["generate_image"]);
     assert.equal(row?.provisionedByPluginId, "higgsfield-fixture", "the association is recorded even though the row itself was untouched");
+    assert.deepEqual({ ...row, provisionedByPluginId: before.provisionedByPluginId }, before);
   });
 });
 

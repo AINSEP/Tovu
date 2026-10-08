@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
-import type { ResolveHtmlPageEmbedsResult } from "#src/features/widgets/resolver-service";
+import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import { isFullHtmlDocument, renderBareEntryDocument } from "../bare-page.js";
 
 /**

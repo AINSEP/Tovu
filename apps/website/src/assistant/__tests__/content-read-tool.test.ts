@@ -38,8 +38,7 @@ const contributions = {
 };
 installFirstPartyToolContributors({ contributions });
 
-/** The 35 Tier-1 read tools the collapse retires, transcribed from the eval's own `TIER1_CLEAN` minus
- *  `deployment_list`, retired with the deleted deployment tables (2026-10-03). */
+/** The Tier-1 read tools represented by the shipped content_read cards. */
 const RETIRED_TIER1_IDS: readonly string[] = [
   "backup_list_restore_points",
   "collections_content_type_list",

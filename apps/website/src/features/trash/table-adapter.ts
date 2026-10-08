@@ -3,9 +3,7 @@
  * (`registry.ts`), written once as ONE Kysely body over the content database's storage kernel
  * (`TrashDb`, `db-port.ts`) instead of once per domain — the same statements on SQLite, PGlite and
  * Postgres. Design of record: `ADS-memory/.local-artifacts/handoffs/2026-09-21-t8f-trash-more-plan.md`
- * §1. Supersedes the prior `t8f-trash-g1` handoff's sketch on one point: this file implements the
- * `"status"` marker kind fully, rather than throwing for it — the G1b dispatch asks for a tested
- * status-marker case, so there is no untested branch left to guard against with a thrown error.
+ * §1. Both timestamp and status markers implement the same transition contract.
  *
  * Reproduces the bespoke `flipMarker`/`compareAndDelete` pair's (`adapters/marker-sql.ts`) exact
  * contract, generically:
@@ -52,7 +50,6 @@ interface MarkerRow {
  * has the value in hand from a prior read, not a `WHERE` clause left to build.
  *
  * @complexity O(1).
- * isCurrentlyTrashed (features/trash/not-trashed.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 function isMarkerValueLive(marker: TrashMarkerSpec, value: unknown): boolean {
   return marker.kind === "timestamp" ? value === null : value !== marker.trashed;

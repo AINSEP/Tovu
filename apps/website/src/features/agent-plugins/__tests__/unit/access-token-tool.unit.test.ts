@@ -1,10 +1,12 @@
+import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../../__tests__/support/credential-save.js";
+import { saveAgentPluginToken } from "../../access-token-tool.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryExternalMcpServerRepo, readEnabledExternalMcpConfigs, saveExternalMcpServer, type UIResource } from "#src/assistant/index";
 import { isMcpUiToolCallAllowed } from "#src/assistant/mcp-ui-tool-calls";
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchange } from "#src/contracts/core/tool-surface-exchanges";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
@@ -12,6 +14,9 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 import type { AgentPluginAccessTokenToolDeps } from "../../access-token-tool.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { buildAgentPluginConnectRegistrations } from "../../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `agent_plugin_set_access_token`, the generic access-token fallback any Agent Plugin gets by
@@ -28,7 +33,7 @@ const WORKSPACE = "ws-access-token";
 const PRINCIPAL = "principal-1";
 const TOKEN = "sbp_unit_test_token_that_must_never_echo";
 const RAW_VENDOR_BODY = "raw vendor error body";
-const SET_TOKEN = "agent_plugin_set_access_token";
+const SET_TOKEN = "credential_save";
 const PROBE_URL = "https://api.supabase.com/v1/projects";
 const TOKENS_PAGE = "https://supabase.com/dashboard/account/tokens";
 
@@ -102,8 +107,8 @@ async function setup(
     // Never the real activations file (switch-on-saved-token.unit.test.ts covers that one).
     switchPluginOn: async () => options.pluginOffByOperator !== true,
   };
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const tools = new Map(buildAgentPluginConnectRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const tools = new Map(credentialSaveFixtureRegistrations({ registrations: buildAgentPluginConnectRegistrations(deps, { surfaceExchanges }), adapters: { agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps: deps, surfaces: { surfaceExchanges } }, optional) } }).map((r) => [r.descriptor.id, r]));
   const readRow = () => repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" });
   return { repo, sealer, http, surfaceExchanges, tools, readRow, connected };
 }
@@ -116,7 +121,7 @@ function call(registration: ToolRegistration | undefined, options: { input?: unk
     executionId: "exec-1",
     principal: { id: PRINCIPAL },
     run: { id: "run-1" },
-    input: options.input ?? { pluginId: "supabase" },
+    input: registration.descriptor.id === SET_TOKEN ? credentialSaveFixtureInput({ input: options.input ?? { pluginId: "supabase" }, kind: "agent-plugin-token" }) : options.input ?? { pluginId: "supabase" },
     signal: options.signal ?? new AbortController().signal,
     ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
   };
@@ -136,7 +141,7 @@ async function raise(tools: Map<string, ToolRegistration>, signal?: AbortSignal)
 
 async function submit(env: Env, params: Record<string, unknown>) {
   const raised = await raise(env.tools);
-  env.surfaceExchanges.deliver({ exchangeId: raised.exchangeId, toolId: SET_TOKEN, principalId: PRINCIPAL, params });
+  env.surfaceExchanges.deliver({ exchangeId: raised.exchangeId, principalId: PRINCIPAL, params }, { toolId: SET_TOKEN });
   return { ...raised, result: (await raised.pending) as Record<string, unknown> };
 }
 
@@ -187,13 +192,19 @@ test("the form names the plugin and displays its declared tokens page in the hel
   assert.match(html, /Connect Supabase with an access token/);
   assert.ok(html.includes(`Create a personal access token at ${TOKENS_PAGE}, then paste it below.`));
   assert.match(html, /Supabase access token/);
-  env.surfaceExchanges.deliver({ exchangeId, toolId: SET_TOKEN, principalId: PRINCIPAL, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  env.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: SET_TOKEN });
   await pending;
 });
 
 test("AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere", async () => {
   const env = await setup();
-  const { html, result, emitted } = await submit(env, { token: TOKEN });
+  const { html, result, emitted, exchangeId } = await submit(env, { token: TOKEN });
+
+  const uris = emitted.map(surface => (surface as { payload: { resource: UIResource } }).payload.resource.resource.uri);
+  assert.deepEqual(uris, [
+    `ui://tovu/secret-card/credential_save/${exchangeId}`,
+    `ui://tovu/secret-card/credential_save/${exchangeId}`,
+  ], "the engine replaces the form with its real save outcome");
 
   assert.match(html, /type="password"/, "the token field must be masked");
   assert.equal(result.saved, true);
@@ -326,7 +337,7 @@ test("a store failure after a successful probe is redacted and leaves the previo
   const { pending, exchangeId, emitted } = await raise(env.tools);
   const before = await env.readRow();
   const writes = t.mock.method(env.repo, "upsert", async () => { throw new Error(`store failed ${TOKEN}`); });
-  env.surfaceExchanges.deliver({ exchangeId, toolId: SET_TOKEN, principalId: PRINCIPAL, params: { token: TOKEN } });
+  env.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { token: TOKEN } }, { toolId: SET_TOKEN });
   const result = await pending;
   assert.deepEqual(result, { saved: false, reason: "error", message: "The access token could not be saved. Nothing was changed." });
   assert.equal(writes.mock.callCount(), 1);
@@ -352,10 +363,10 @@ for (const ending of ["expired", "abandoned", "abort"] as const) {
     assert.equal(env.surfaceExchanges.size(), 1);
     if (ending === "expired") t.mock.timers.tick(5 * 60 * 1000);
     else if (ending === "abort") controller.abort();
-    else exchange!.close();
+    else exchange!.close({});
     assert.deepEqual(await pending, { saved: false, reason: ending === "abort" ? "abandoned" : ending });
     assert.equal(env.surfaceExchanges.size(), 0);
-    assert.deepEqual(env.surfaceExchanges.deliver({ exchangeId, toolId: SET_TOKEN, principalId: PRINCIPAL, params: { token: TOKEN } }), { ok: false, reason: "unknown-or-closed" });
+    assert.deepEqual(env.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { token: TOKEN } }, { toolId: SET_TOKEN }), { ok: false, reason: "unknown-or-closed" });
     assert.deepEqual(env.http.requests, []);
     assert.deepEqual(await env.readRow(), before);
   });
@@ -380,4 +391,46 @@ for (const [token, message] of [
   assert.deepEqual(result, { saved: false, reason: 'invalid', message });
   assert.equal(env.http.requests.length, 0, 'invalid bytes must not be probed');
   assert.equal((await env.readRow())?.authMode, 'oauth', 'invalid bytes must not replace a working grant');
+});
+
+test("an abort during the token probe prevents the sealed write and plugin activation", async () => {
+  const env = await setup();
+  const before = await env.readRow();
+  const controller = new AbortController();
+  const { pending, exchangeId } = await raise(env.tools, controller.signal);
+  env.http.respond = () => { controller.abort(); return probeOk(); };
+  env.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { token: TOKEN } }, { toolId: SET_TOKEN });
+  assert.deepEqual(await pending, { saved: false, reason: "abandoned" });
+  assert.deepEqual(await env.readRow(), before);
+  assert.deepEqual(env.connected, []);
+  assert.equal(env.surfaceExchanges.size(), 0);
+});
+
+test("a run aborted before preparation opens no form and leaves the plugin row unchanged", async () => {
+  const env = await setup();
+  const before = await env.readRow();
+  const controller = new AbortController();
+  controller.abort();
+  const emitted: unknown[] = [];
+  await assert.rejects(call(env.tools.get(SET_TOKEN), { signal: controller.signal, emitSurface: async surface => { emitted.push(surface); } }),
+    (error: unknown) => error === controller.signal.reason);
+  assert.deepEqual(await env.readRow(), before);
+  assert.deepEqual(emitted, []);
+  assert.deepEqual(env.http.requests, []);
+  assert.equal(env.surfaceExchanges.size(), 0);
+});
+
+test("a destination repointed while the token form is open cannot receive the submitted credential", async () => {
+  const env = await setup();
+  const { pending, exchangeId, emitted } = await raise(env.tools);
+  const row = await env.readRow();
+  assert.ok(row);
+  const changed = { ...row, url: "https://elsewhere.example.com/mcp" };
+  await env.repo.upsert(changed);
+  env.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { token: TOKEN } }, { toolId: SET_TOKEN });
+  assert.deepEqual(await pending, { saved: false, reason: "error", message: "agent_plugin_set_access_token: the 'supabase' connection no longer points at Supabase. Nothing was changed." });
+  assert.deepEqual(await env.readRow(), changed);
+  assert.deepEqual(env.connected, []);
+  assert.equal(env.surfaceExchanges.size(), 0);
+  assert.equal(JSON.stringify(emitted).includes(TOKEN), false);
 });

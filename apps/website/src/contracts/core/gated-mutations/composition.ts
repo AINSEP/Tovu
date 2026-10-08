@@ -9,10 +9,7 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
 
 /**
  * @file Composes `core/gated-mutations`'s `plan()`/`confirm()`/`execute()` primitive into this
- * codebase's real and hermetic-test composition roots (`server/runtime/composition/deps.ts`/`server/runtime/composition/app.ts`) — the gap
- * every prior session of the spec-016-020 workstream disclosed but left open (Session 5: "a
- * token-store-backed primitive composed into ZERO composition roots in this codebase as of this
- * session, confirmed by direct grep").
+ * codebase's real and hermetic-test composition roots.
  *
  * Purpose:
  * `buildGatewayDeps` builds the one shared `GatewayDeps` (clock/idGen/authorize/authorizeInstance/
@@ -25,33 +22,14 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
  * granting instance scope to exactly the seeded owner principal, mirroring how `setting_values_global`
  * sits alongside `setting_values_workspace` as a genuinely separate surface rather than an overloaded
  * scope value. `resolveActorClassIdentity` and `buildConfirmOnlyHooks` are the two pieces every
- * ceremony's hooks reuse verbatim. The three per-ceremony `buildXHooks` factories that used to live
- * alongside these in this file's predecessor (`server/gated-mutations-composition.ts`) — taxonomy
- * `mergeTerm`, database `migrate-forward`, recovery `restore` — moved to their owning domains
- * (`features/taxonomy/gated-hooks.ts`, `features/database/gated-hooks.ts`,
- * `features/recovery/gated-hooks.ts` respectively), each importing `planHashOf` and
- * `resolveActorClassIdentity` from here. That split closes the back-edge those three domains'
- * `tool-registrations.ts` files previously had into `server/` for a domain-specific hook builder —
- * this file is the one quarter of the old composition root that is genuinely generic (no
- * domain-specific type or logic), so it lives in `core/gated-mutations` itself rather than in
- * `server/`. Each route still constructs its ceremony's hooks fresh per request (hooks close over
- * request-scoped identifiers like `fromTermId`/`intoTermId` or `restorePointId`, which are only
- * known once a request arrives).
+ * ceremony's hooks reuse. Domain-specific hooks live in their owning taxonomy, database and
+ * recovery modules, each importing these shared contracts. This keeps features from reaching
+ * back into `server/` for domain logic. Hooks close over request identifiers, so routes construct
+ * them per request.
  *
- * TokenStorePort decision (revised — SPEC-022 durability fix): `core/gated-mutations/token.ts`'s
- * own doc comment used to argue a durable SQLite-backed token store "is not required by this test
- * slice", reasoning that a mid-ceremony process restart failing an in-flight `confirm()`->
- * `execute()` round-trip is an accepted, low-blast-radius edge case (the caller re-plans/
- * re-confirms). That reasoning was about CORRECTNESS, but it left `gated-mutations` the one
- * `classification: "production"` capability-inventory entry with `hasDurableAdapter: false` —
- * which `production-readiness-gate.ts`'s `collectDurabilityFailures` unconditionally fails on,
- * making `TOVU_RUNTIME_MODE=production` refuse to boot at all, regardless of env vars (verified
- * empirically, not just by reading). `buildGatewayDeps` now accepts an optional `tokens` override;
- * `server/runtime/composition/deps.ts` (the real SQLite composition root) passes `SqliteTokenStore`
- * (`platform/db/sqlite/gated-mutation-token-repo.sqlite.ts`), while `server/runtime/composition/app.ts` (the hermetic
- * in-memory test/dev composition, per `capability-inventory.ts`'s own file header) omits it and
- * keeps the default `InMemoryTokenStore` — unchanged, since that composition root is in-memory
- * everywhere by design and is never production-classified-relevant.
+ * Production readiness requires durable confirmation tokens (SPEC-022). The real SQLite root
+ * passes `SqliteTokenStore`; the hermetic in-memory root omits the override and keeps the
+ * in-memory default because it is not a production composition.
  *
  * Architectural role:
  * `core/gated-mutations`'s own composition helper — generic across every ceremony, holding no
@@ -138,16 +116,10 @@ export function planHashOf(details: unknown): string {
  * `resolveCurrentDelegator(agentId)`/`resolveApiKeyOwner(apiKeyId)` port Evidence=ADR-041 §5, this
  * file.
  *
- * 2026-09-19 — this doc previously asserted that every route wired through these ceremonies
- * authenticates as `kind='user'`, which made the simplification inert. That is no longer true:
- * `routes/publish-content/import.ts` now reports the credential it actually saw
- * (`dev-auth.ts`'s `gatedPrincipalKindFor`), so `api_key` and `publish_key` reach here with their
- * real kind. Nothing about the RESULT changes — this function already ignored `principalKind` —
- * but the remaining gap is now reachable rather than hypothetical for `api_key` (REQ-13 wants the
- * key's owning user, and gets the key's own principal id instead). For `publish_key` the identity
- * function is the CORRECT answer and not a simplification: a publishing installation has no
- * delegator and no owning user, so "only the installation that confirmed may redeem" is exactly
- * the rule REQ-13 asks for.
+ * Publish import reports its actual credential kind, so the api_key gap is reachable: REQ-13
+ * needs the key's owning user, but this binding returns the key's principal id. For publish_key,
+ * that identity is correct: a publishing installation has no delegator or owning user, and only
+ * the installation that confirmed may redeem.
  */
 export async function resolveActorClassIdentity(params: { principalId: string; principalKind: PrincipalKind }): Promise<string | null> {
   return params.principalId;

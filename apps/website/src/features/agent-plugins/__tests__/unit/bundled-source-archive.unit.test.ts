@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "../../bundled-source-archive.js";
+import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "../../lifecycle.js";
 
 /**
  * @file The directory-to-archive round trip that lets a bundled package go THROUGH

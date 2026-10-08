@@ -14,9 +14,9 @@ test("explicit and single-host credential resolution issue only audited GETs", a
 });
 test("zero, multiple, and missing explicit labels give exact actionable refusals", async () => {
   for (const [labels, credentialLabel, message] of [
-    [[], undefined, "No matching deployment credential is saved. Call custom_credential_create to open its secure card, then retry once."],
+    [[], undefined, "No matching deployment credential is saved. Call credential_save with kind api to open its secure card, then retry once."],
     [["z", "a"], undefined, "Several saved custom credentials match 'api.machines.dev'. Set credentialLabel to one of: a, z."],
-    [["ops"], "absent", "No matching deployment credential is saved. Call custom_credential_create to open its secure card, then retry once."],
+    [["ops"], "absent", "No matching deployment credential is saved. Call credential_save with kind api to open its secure card, then retry once."],
   ] as const) {
     const f = await fixture([...labels]);
     await assert.rejects(runDeployOps(f.deps, { platform: "fly", target: "shop", credentialLabel }, "status"), { name: "ToolInputError", message });
@@ -99,7 +99,7 @@ test("cancellation reaches the HTTP transport and preserves an actionable abort 
 test("zero host matches list saved labels without sending a request", async () => {
   const f = await fixture(["other"], "https://elsewhere.test", []);
   await assert.rejects(runDeployOps(f.deps, { platform: "fly", target: "shop" }, "status"), {
-    name: "ToolInputError", message: "No matching deployment credential is saved. Call custom_credential_create to open its secure card, then retry once.",
+    name: "ToolInputError", message: "No matching deployment credential is saved. Call credential_save with kind api to open its secure card, then retry once.",
   });
   assert.deepEqual(f.calls, []);
 });

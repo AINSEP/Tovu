@@ -8,7 +8,7 @@ test("a purchase preserves existing return query parameters and places the messa
   const app = express();
   registerStoreRoutes(app, { store: {
     listProducts: async () => [],
-    checkout: async (id: string, quantity: number) => {
+    checkout: async ({ productId: id, qty: quantity }) => {
       assert.equal(id, "product-1");
       assert.equal(quantity, 1);
       return { ok: true, orderId: "order-1", remainingStock: 4, retries: 0 };

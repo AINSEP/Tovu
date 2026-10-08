@@ -2,23 +2,14 @@
  * @file Public surface (barrel) for `features/content-types` — re-exported from
  * `@jini-ai/cms/content-types`.
  *
- * The domain moved into the package on 2026-08-03. What is left in this directory is only what is
- * genuinely this host's:
+ * Jini owns content-type behavior. SQLite adapters stay host-owned because they bind the site's
+ * schema. This barrel omits SQLite so consumers cannot accidentally depend on that persistence choice.
  *
- * - `repo.sqlite.ts` — the Drizzle adapter. It names `db/schema.sqlite.ts`, this repo's shared 1,246-line
- *   schema covering every domain, so it is host persistence, not library code.
- *
- * There is no SQLite export on this barrel, deliberately: nothing outside the composition root can
- * accidentally depend on this host's persistence choice.
- *
- * `repo.memory.ts` and `write-service.ts` also survive as per-file re-export shims. `src/widgets/`'s
- * deep imports were redirected here on 2026-08-17 (matching the `features/entries` shim
- * retirement in c3c030a9); the one remaining direct importer is
+ * `repo.memory.ts` and `write-service.ts` retain their per-file exports for
  * `src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts` (dynamic
  * `await import(...)`), which `.dependency-cruiser.mjs`'s `TOOL_REGISTRATION_TEST_FROM` pattern
- * deliberately, permanently exempts as a tool-registration-seam contract test — not a pending
- * migration. Retiring these shims depends on whether that file's own owner redirects it to
- * `./index.ts`, which already exports everything it needs.
+ * deliberately exempts as a tool-registration-seam contract test. That contract keeps these paths
+ * available until its owner redirects the imports to this barrel.
  */
 export type { ContentTypeFieldKind, ContentTypeFieldDef, ContentTypeStatus, ContentTypeRecord, ActorPrincipalKind, ActorIdentityInput } from "@jini-ai/cms/content-types";
 export type { Result } from "@jini-ai/core/primitives";

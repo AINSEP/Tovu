@@ -5,7 +5,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createTrashService, type TrashPort } from "@jini-ai/cms/trash";
 import { assignRole, createUser } from "@jini-ai/user-management/server";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
@@ -23,6 +23,9 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "#src/server/inbound/admin-http/routes/users/deps";
 import { bindTrashUserForTool } from "../trash-user-tool-port.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `trash_item {entityType: "user"}` end to end over a real SQLite identity store and a real
@@ -90,7 +93,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
     {
       registrations: [],
       routeDeps: { workspaceId: WORKSPACE_ID, isTrashableEntityType: (entityType: string) => entityType === USER_ENTITY_TYPE } as unknown as TrashItemToolDeps,
-      surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
+      surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
     },
     { trashUser: bindTrashUserForTool(deps) }
   );

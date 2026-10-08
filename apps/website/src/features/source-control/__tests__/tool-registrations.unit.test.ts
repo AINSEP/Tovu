@@ -10,12 +10,15 @@ import { registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-ro
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { SourceControlCommitAdapter, SourceControlCommitResult } from "../commit-site.js";
 import { loadSourceControlProviderRegistryFromSource, type LoadSourceControlProviders } from "../provider-registry.js";
 import { createSourceControlCredential } from "../store.js";
 
 import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `tool-registrations.ts` wiring proof — modelled on `deployments/__tests__/
@@ -178,10 +181,10 @@ function neverCalledGitAdapter(): SourceControlCommitAdapter {
 
 test("buildSourceControlRegistrations wires all tools, each with an input schema", () => {
   const { deps } = fakeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = buildSourceControlRegistrations(deps, { surfaceExchanges });
   const ids = registrations.map((r) => r.descriptor.id).sort();
-  assert.deepEqual(ids, ["source_control_execute_commit", "source_control_get_capabilities", "source_control_propose_credential"]);
+  assert.deepEqual(ids, ["source_control_execute_commit", "source_control_get_capabilities"]);
   for (const entry of registrations) {
     assert.ok(entry.descriptor.inputSchema, `${entry.descriptor.id} must publish an input schema`);
   }
@@ -212,7 +215,7 @@ test("source_control_execute_commit's schema carries no token/credential field o
 test("source_control_get_capabilities reports the hosts the registry provides, with their declared facts, honestly distinguishing configured from commitSupported", async () => {
   const { deps } = fakeDeps();
   await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "source_control_get_capabilities");
 
   const result = (await call(capabilities)) as { providers: { providerId: string; label?: string; apiOrigin?: string; maxFileBytes?: number; configured: boolean; commitSupported: boolean; guidance?: string }[] };
@@ -234,7 +237,7 @@ test("source_control_get_capabilities: a SAVED gitlab credential is still honest
     { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
     { workspaceId: deps.workspaceId, label: "GL", connection: { providerId: "gitlab", token: "glpat_secret" } }
   );
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "source_control_get_capabilities");
 
   const result = (await call(capabilities)) as { providers: { providerId: string; configured: boolean; commitSupported: boolean; guidance?: string; savedCredentials: unknown[] }[] };
@@ -254,7 +257,7 @@ test("source_control_get_capabilities never touches the sealer — a broken seal
     ...deps,
     siteAssistantSecretSealer: { async seal() { throw new Error("must not be called"); }, async open() { throw new Error("must not be called — this is a read-only capabilities check"); } },
   };
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(brokenSealerDeps, surfaceExchanges), "source_control_get_capabilities");
 
   const result = (await call(capabilities)) as { providers: { providerId: string; configured: boolean }[] };
@@ -269,7 +272,7 @@ test("requires source-control.commit, checked before any dialog is raised", asyn
   const { deps, authorizeCalls, setAllow } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
   await seedGithubCredential(deps);
   setAllow(false);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(() => call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => {} }));
@@ -279,7 +282,7 @@ test("requires source-control.commit, checked before any dialog is raised", asyn
 
 test("a provider no plugin declares and no credential can be saved for throws before any permission check, dialog, or credential lookup", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(
@@ -298,7 +301,7 @@ test("a provider no plugin declares and no credential can be saved for throws be
 
 test("an unsupported provider is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(
@@ -317,7 +320,7 @@ test("a saved gitlab credential with no plugin providing gitlab is refused as 'n
     { workspaceId: deps.workspaceId, label: "GL", connection: { providerId: "gitlab", token: "glpat_secret" } }
   );
   const emitted: unknown[] = [];
-  const result = await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit"), { input: { provider: "gitlab", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async (s) => void emitted.push(s) });
+  const result = await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "source_control_execute_commit"), { input: { provider: "gitlab", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async (s) => void emitted.push(s) });
   assert.deepEqual(result, {
     committed: false,
     reason: "no-provider",
@@ -329,7 +332,7 @@ test("a saved gitlab credential with no plugin providing gitlab is refused as 'n
 test("an invalid target (bad owner) is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
   await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(
@@ -344,7 +347,7 @@ test("an invalid target (bad owner) is a ToolInputError (400), not a bare Error 
 test("an invalid target (bad owner) throws before any dialog is raised", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
   await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(
@@ -359,7 +362,7 @@ test("an invalid target (bad owner) throws before any dialog is raised", async (
 test("a present non-string branch is a ToolInputError naming the field, before any dialog or adapter call", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
   await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(
@@ -378,7 +381,7 @@ test("a present non-string branch is a ToolInputError naming the field, before a
 // below described.
 test("source_control_execute_commit's copy names the failure shape the handler actually returns", () => {
   const { deps } = fakeDeps();
-  const descriptor = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit").descriptor;
+  const descriptor = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "source_control_execute_commit").descriptor;
   const branch = (descriptor.inputSchema as { properties: { branch: { description: string } } }).properties.branch.description;
   const description = descriptor.description;
   assert.ok(description, "source_control_execute_commit must carry a description");
@@ -390,7 +393,7 @@ test("source_control_execute_commit's copy names the failure shape the handler a
 
 test("no saved github credential: refused with reason 'no-credential', WITHOUT ever opening a dialog", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   const result = (await call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async () => undefined })) as {
@@ -418,7 +421,7 @@ test("confirm: a successful commit reports committed:true with every field from 
     }),
   });
   await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   const { pending } = await beginCall(executeTool, { provider: "github", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "content update" });
@@ -441,7 +444,7 @@ test("confirm: a successful commit reports committed:true with every field from 
 test("confirm: a DIVERGED_BRANCH result from the adapter is surfaced distinctly, never overwritten silently", async () => {
   const { deps } = fakeDeps({ gitAdapter: fakeGitAdapter({ ok: false, code: "diverged", message: "the branch has moved" }) });
   await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   const { pending } = await beginCall(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
@@ -455,14 +458,14 @@ test("confirm: a DIVERGED_BRANCH result from the adapter is surfaced distinctly,
 test("confirm: a NETWORK_UNREACHABLE result is distinct from a PROVIDER_ERROR result — never conflated", async () => {
   const { deps: unreachableDeps } = fakeDeps({ gitAdapter: fakeGitAdapter({ ok: false, code: "network-unreachable", message: "getaddrinfo ENOTFOUND" }) });
   await seedGithubCredential(unreachableDeps);
-  const surfaceExchanges1 = createSurfaceExchangeStore();
+  const surfaceExchanges1 = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool1 = tool(buildRegistrations(unreachableDeps, surfaceExchanges1), "source_control_execute_commit");
   const dialog1 = await beginCall(executeTool1, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
   const unreachableResult = (await dialog1.pending) as { code: string };
 
   const { deps: rejectedDeps } = fakeDeps({ gitAdapter: fakeGitAdapter({ ok: false, code: "provider-error", message: "401 Bad credentials" }) });
   await seedGithubCredential(rejectedDeps);
-  const surfaceExchanges2 = createSurfaceExchangeStore();
+  const surfaceExchanges2 = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool2 = tool(buildRegistrations(rejectedDeps, surfaceExchanges2), "source_control_execute_commit");
   const dialog2 = await beginCall(executeTool2, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
   const rejectedResult = (await dialog2.pending) as { code: string };
@@ -478,7 +481,7 @@ test("confirm: a NETWORK_UNREACHABLE result is distinct from a PROVIDER_ERROR re
 test("with no gitAdapter override, a confirmed commit reaches the real GitHub adapter", async () => {
   const { deps } = fakeDeps();
   await seedGithubCredential(deps, "ghp_wiring_probe");
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   const requested: { url: string; authorization: string | null }[] = [];
@@ -507,7 +510,7 @@ test("with no gitAdapter override, a confirmed commit reaches the real GitHub ad
 test("with no plugin providing github, a malformed owner gets core's generic refusal, not GitHub's", async () => {
   const { deps } = fakeDeps({ loadSourceControlProviders: noProviders, gitAdapter: neverCalledGitAdapter() });
   await seedGithubCredential(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
 
   await assert.rejects(
@@ -523,7 +526,7 @@ test("with no plugin providing github, a malformed owner gets core's generic ref
 
 test("a dry run with a malformed owner is refused with the plugin's GitHub text before any export", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
-  const executeTool = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit");
+  const executeTool = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "source_control_execute_commit");
 
   await assert.rejects(
     () => call(executeTool, { input: { provider: "github", owner: "-leading-hyphen", repo: "demo", commitMessage: "x", dryRun: true } }),
@@ -540,7 +543,7 @@ test("a dry run with a malformed owner is refused with the plugin's GitHub text 
 test("with no plugin providing github, capabilities report commitSupported:false and say how to turn it on", async () => {
   const { deps } = fakeDeps({ loadSourceControlProviders: noProviders });
   await seedGithubCredential(deps);
-  const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_get_capabilities");
+  const capabilities = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "source_control_get_capabilities");
 
   const result = (await call(capabilities)) as { providers: { providerId: string; configured: boolean; commitSupported: boolean; guidance?: string }[] };
   const github = result.providers.find((p) => p.providerId === "github");
@@ -553,7 +556,7 @@ test("with the github plugin switched off, capabilities and a commit both name t
   const switchedOff: LoadSourceControlProviders = async () => ({ list: () => [], get: () => undefined, refusals: [], switchedOff: new Map([["github", "github"]]) });
   const { deps } = fakeDeps({ loadSourceControlProviders: switchedOff });
   await seedGithubCredential(deps);
-  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const howTo = "the 'github' Agent Plugin is switched off. To switch it back on, open the admin's Add-Ons > Agent Plugins screen and turn on 'github'.";
 
   const capabilities = (await call(tool(registrations, "source_control_get_capabilities"))) as { providers: { providerId: string; guidance?: string }[] };
@@ -568,7 +571,7 @@ test("with the github plugin switched off, capabilities and a commit both name t
 test("with no plugin providing github, a commit is refused with reason 'no-provider' and never raises a dialog", async () => {
   const { deps } = fakeDeps({ loadSourceControlProviders: noProviders });
   await seedGithubCredential(deps);
-  const executeTool = tool(buildRegistrations(deps, createSurfaceExchangeStore()), "source_control_execute_commit");
+  const executeTool = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), "source_control_execute_commit");
 
   const emitted: unknown[] = [];
   const result = await call(executeTool, { input: { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" }, emitSurface: async (s) => void emitted.push(s) });
@@ -583,7 +586,7 @@ test("with no plugin providing github, a commit is refused with reason 'no-provi
  test("n06: repository write runs without a confirmation channel", async (t) => {
   const {deps} = fakeDeps({gitAdapter: fakeGitAdapter(FAKE_SUCCESS)});
   await seedGithubCredential(deps);
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, store), "source_control_execute_commit"), {input: {provider: "github", owner: "octo", repo: "demo", commitMessage: "Save"}}) as {committed: boolean; commitSha: string};
   assert.equal(result.committed, true);
   assert.equal(result.commitSha, "abc123");

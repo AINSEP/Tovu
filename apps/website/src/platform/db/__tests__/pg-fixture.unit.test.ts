@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { dropDatabase, psql, recreateDatabase } from "../migration/pg-fixture.js";
+import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";
+
+const { dropDatabase, psql, recreateDatabase } = createPgFixture({
+  host: process.env.PGHOST ?? "/tmp",
+  user: process.env.PGUSER ?? "la",
+  port: process.env.PGPORT,
+});
 
 /**
  * @file Direct unit coverage of `pg-fixture.ts`'s own failure paths — every one of which read 0%
@@ -20,13 +26,13 @@ import { dropDatabase, psql, recreateDatabase } from "../migration/pg-fixture.js
 const FIXTURE_DB = `tovu_pg_fixture_unit_${process.pid}`;
 
 test("psql() returns ok:true with stdout for a successful query", () => {
-  const result = psql("postgres", "SELECT 1;");
+  const result = psql({ database: "postgres", sql: "SELECT 1;" });
   assert.equal(result.ok, true);
   assert.equal(result.stdout.trim(), "1");
 });
 
 test("psql() returns ok:false with stderr populated, never throwing, for a failing statement", () => {
-  const result = psql("postgres", "SELECT * FROM this_table_does_not_exist_xyz;");
+  const result = psql({ database: "postgres", sql: "SELECT * FROM this_table_does_not_exist_xyz;" });
   assert.equal(result.ok, false);
   assert.match(result.stderr, /this_table_does_not_exist_xyz/);
 });
@@ -35,7 +41,7 @@ test("psql() throws when the psql binary cannot be found on PATH", () => {
   const originalPath = process.env.PATH;
   process.env.PATH = "/nonexistent-empty-dir-for-pg-fixture-test";
   try {
-    assert.throws(() => psql("postgres", "SELECT 1;"), (err: unknown) => {
+    assert.throws(() => psql({ database: "postgres", sql: "SELECT 1;" }), (err: unknown) => {
       assert.ok(err instanceof Error);
       assert.match(
         (err as Error).message,
@@ -52,19 +58,19 @@ test("dropDatabase() throws the exact wrapped message when the underlying DROP f
   // Postgres refuses to drop the database a connection is currently open against -- a real,
   // reliably-reproducible failure with no risk to the actual "postgres" database (nothing is
   // dropped; the statement errors before any change).
-  const probe = psql("postgres", "DROP DATABASE IF EXISTS postgres;");
+  const probe = psql({ database: "postgres", sql: "DROP DATABASE IF EXISTS postgres;" });
   assert.equal(probe.ok, false, "sanity check: dropping the currently-open admin database must fail");
 
-  assert.throws(() => dropDatabase("postgres"), {
+  assert.throws(() => dropDatabase({ database: "postgres" }), {
     message: `failed to drop fixture database "postgres": ${probe.stderr}`,
   });
 });
 
 test("recreateDatabase() throws the exact wrapped DROP message and never attempts CREATE when DROP fails", () => {
-  const probe = psql("postgres", "DROP DATABASE IF EXISTS postgres;");
+  const probe = psql({ database: "postgres", sql: "DROP DATABASE IF EXISTS postgres;" });
   assert.equal(probe.ok, false, "sanity check: dropping the currently-open admin database must fail");
 
-  assert.throws(() => recreateDatabase("postgres"), {
+  assert.throws(() => recreateDatabase({ database: "postgres" }), {
     message: `failed to drop fixture database "postgres": ${probe.stderr}`,
   });
 
@@ -73,21 +79,21 @@ test("recreateDatabase() throws the exact wrapped DROP message and never attempt
   // asserting the opposite (rejected by "already exists", not silently succeeded) would only
   // prove CREATE never got a chance to run. Simplest direct proof: "postgres" is still reachable
   // and unchanged.
-  const stillThere = psql("postgres", "SELECT current_database();");
+  const stillThere = psql({ database: "postgres", sql: "SELECT current_database();" });
   assert.equal(stillThere.ok, true);
   assert.equal(stillThere.stdout.trim(), "postgres");
 });
 
 test("recreateDatabase() + dropDatabase() happy path round-trips a real throwaway database", () => {
-  recreateDatabase(FIXTURE_DB);
+  recreateDatabase({ database: FIXTURE_DB });
   try {
-    const created = psql(FIXTURE_DB, "SELECT 1;");
+    const created = psql({ database: FIXTURE_DB, sql: "SELECT 1;" });
     assert.equal(created.ok, true, "the newly created database must be connectable");
   } finally {
-    dropDatabase(FIXTURE_DB);
+    dropDatabase({ database: FIXTURE_DB });
   }
 
-  const gone = psql("postgres", `SELECT 1 FROM pg_database WHERE datname = '${FIXTURE_DB}';`);
+  const gone = psql({ database: "postgres", sql: `SELECT 1 FROM pg_database WHERE datname = '${FIXTURE_DB}';` });
   assert.equal(gone.ok, true);
   assert.equal(gone.stdout.trim(), "", "the fixture database must no longer exist after dropDatabase()");
 });

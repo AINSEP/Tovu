@@ -1,4 +1,4 @@
-import { createRedirect, type RedirectMatchType, type RedirectStatusCode } from "#src/features/redirects/index";
+import { createRedirect, type RedirectMatchType, type RedirectStatusCode } from "@jini-ai/cms/redirects";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

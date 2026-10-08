@@ -83,18 +83,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * additionally fire. See `account-label-heal-scheduler.ts`'s own header for the fire-and-forget/
  * in-flight-dedupe contract that keeps this off the hot path and safe under `62ca21c7`'s guard.
  *
- * 2026-08-18 (`RouteDeps` decomposition Slice 3): was a bare `RouteDeps` alias; narrowed to a `Pick`
- * naming exactly the fields `registerAdminPublishCredentialsRoutes`/`verifyAfterSave` read below
- * (confirmed by reading every `deps.*` access in this file, not guessed) — `vendorCredentialSetRepo`
- * (part of `routes/types.ts`'s `CredentialsDeps` group; publish credentials live there since the
- * vendor move) plus the two shared ADR-058 sealing fields, `clock`/`idGen`, `workspaceId`/`authorize`,
- * and this route's own four extra reads (`publishExecutionMode`, `publishCredentialVerificationCache`,
- * `loadDeployTargets`, and `observability`, which traces the verify probe's egress — none is part of
- * `CredentialsDeps`, all stay declared directly on `RouteDeps`). Not composed from `CredentialsDeps` directly: this route only ever touches one
- * credential repo, and pulling in the whole group would add the other credential repos
- * (custom/source-control/media-provider/... ) this file never reads — the same "would widen, not narrow" reasoning `routes/types.ts`'s own `CredentialsDeps` doc
- * gives for why `MediaProviderRouteDeps`/`ExternalMcpRouteDeps` were left alone instead of composing
- * the group.
+ * See `CredentialsDeps` in `server/routes/types.ts` for why each route picks only its own repo.
  */
 export type AdminPublishCredentialsDeps = Pick<
   RouteDeps,

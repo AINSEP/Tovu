@@ -331,6 +331,20 @@ test("starting a run stamps the session principal into contextRef, same as the L
   assert.equal(contextRef.principalId, expectedPrincipalId);
 });
 
+test("AG-UI carries only a boolean redaction signal into the daemon context", async (t) => {
+  const { baseUrl, cookie } = await bootAgUi(t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ messages: [{ role: "user", content: "Connect [token removed]" }], forwardedProps: { secretRedacted: true } }),
+  });
+  assert.equal(response.status, 200); await response.text();
+  const startCall = recorded.find(r => r.method === "POST" && r.url === "/api/runs");
+  assert.ok(startCall);
+  const contextRef = JSON.parse(JSON.parse(startCall.body).contextRef);
+  assert.equal(contextRef.secretRedacted, true);
+  assert.equal(contextRef.prompt, "## user\nConnect [token removed]");
+});
+
 test("full round trip: daemon frames -> real AG-UI SSE events, including the interruption sequence", async (t) => {
   const { baseUrl, cookie } = await bootAgUi(t);
 

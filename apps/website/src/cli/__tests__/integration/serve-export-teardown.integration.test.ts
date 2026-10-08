@@ -3,7 +3,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { after, before, mock, test } from "node:test";
+import { after, before, test } from "node:test";
 
 import { sql } from "kysely";
 
@@ -12,36 +12,32 @@ import { initSite } from "#src/platform/site-dir/init-site";
 import { openSiteStore, PG_SOCKET_ENV } from "#src/server/runtime/composition/open-site-store";
 import { PortInUseError } from "../../errors.js";
 import { removeFixtureTree } from "../helpers/remove-fixture-tree.js";
+import { createServingApp } from "#src/server/runtime/composition/serving-app";
+import { runExportCommand } from "../../commands/export.js";
+import { runServeCommand, type RunServeCommandOptional } from "../../commands/serve.js";
 
 // `registerPluginSdkResolver` refuses a second call per process, and every case here runs a command
 // in this one process: the resolver itself is `*-plugin-sdk-resolver.integration.test.ts`'s subject.
-const realResolver = await import("#src/server/runtime/boot/plugin-sdk-resolver");
-mock.module(new URL("../../../server/runtime/boot/plugin-sdk-resolver.ts", import.meta.url).href, {
-  namedExports: { ...realResolver, registerPluginSdkResolver: () => {} },
-});
-const realServing = await import("#src/server/runtime/composition/serving-app");
 const workerStops: { name: string; stopped: boolean }[] = [];
-mock.module(new URL("../../../server/runtime/composition/serving-app.ts", import.meta.url).href, {
-  namedExports: {
-    ...realServing,
-    createServingApp: (...args: Parameters<typeof realServing.createServingApp>) => {
-      const serving = realServing.createServingApp(...args);
-      for (const name of ["outboxDrainer", "trashSweeper"] as const) {
-        const worker = serving[name];
-        const stop = worker.stop.bind(worker);
-        const witness = { name, stopped: false };
-        workerStops.push(witness);
-        mock.method(worker, "stop", async () => {
-          await stop({});
-          witness.stopped = true;
-        });
-      }
-      return serving;
-    },
+const commandEffects: RunServeCommandOptional = {
+  registerPluginSdkResolver: () => {},
+  createServingApp: (...args) => {
+    const serving = createServingApp(...args);
+    const outbox = { name: "outboxDrainer", stopped: false };
+    const trash = { name: "trashSweeper", stopped: false };
+    workerStops.push(outbox, trash);
+    return { ...serving,
+      outboxDrainer: { ...serving.outboxDrainer, stop: async () => {
+        await serving.outboxDrainer.stop();
+        outbox.stopped = true;
+      } },
+      trashSweeper: { ...serving.trashSweeper, stop: async (...stopArgs: Parameters<typeof serving.trashSweeper.stop>) => {
+        await serving.trashSweeper.stop(...stopArgs);
+        trash.stopped = true;
+      } },
+    };
   },
-});
-const { runExportCommand } = await import("../../commands/export.js");
-const { runServeCommand } = await import("../../commands/serve.js");
+};
 
 /**
  * @file `tovu serve` and `tovu export` on a PGlite site close what `bootSiteDir` opened when a later
@@ -110,19 +106,19 @@ async function freePort(): Promise<number> {
 
 test("export: a composition failure after the boot closes the store", async () => {
   const dir = await pgliteSite({ brokenComposition: true });
-  await assert.rejects(runExportCommand({ dir, out: path.join(parent, "export-out") }), /publish_trust_revocations/);
+  await assert.rejects(runExportCommand({ dir, out: path.join(parent, "export-out") }, commandEffects), /publish_trust_revocations/);
   await assertOwnerReleased(dir);
 });
 
 test("serve: an invalid --host after the boot closes the store", async () => {
   const dir = await pgliteSite();
-  await assert.rejects(runServeCommand({ dir, port: String(await freePort()), host: "not-an-ip" }), ValidationError);
+  await assert.rejects(runServeCommand({ dir, port: String(await freePort()), host: "not-an-ip" }, commandEffects), ValidationError);
   await assertOwnerReleased(dir);
 });
 
 test("serve: a composition failure after the boot closes the store", async () => {
   const dir = await pgliteSite({ brokenComposition: true });
-  await assert.rejects(runServeCommand({ dir, port: String(await freePort()), host: "127.0.0.1" }), /publish_trust_revocations/);
+  await assert.rejects(runServeCommand({ dir, port: String(await freePort()), host: "127.0.0.1" }, commandEffects), /publish_trust_revocations/);
   await assertOwnerReleased(dir);
 });
 
@@ -133,7 +129,7 @@ test("serve: EADDRINUSE stops the started workers and closes the store", async (
   await new Promise<void>((resolve) => blocker.listen(0, "127.0.0.1", resolve));
   const { port } = blocker.address() as net.AddressInfo;
   try {
-    await assert.rejects(runServeCommand({ dir, port: String(port), host: "127.0.0.1" }), PortInUseError);
+    await assert.rejects(runServeCommand({ dir, port: String(port), host: "127.0.0.1" }, commandEffects), PortInUseError);
     assert.deepEqual(workerStops, [
       { name: "outboxDrainer", stopped: true },
       { name: "trashSweeper", stopped: true },

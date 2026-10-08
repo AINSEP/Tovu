@@ -10,7 +10,7 @@ import {
   TOOL_ERROR_ID_PATTERN,
   withRedactedToolFailures,
   type ToolFailureRecord,
-} from "../tool-failure-redaction.js";
+} from "../tool-recovery-preset.js";
 
 /**
  * @file `tool-failure-redaction.ts` — the decorator that blanks secret-shaped values out of a FAILED
@@ -63,14 +63,14 @@ test("an internal failure whose text holds secrets is redacted, ID-prefixed, and
     errorKind: "internal",
     error: `request failed: key=${STRIPE_KEY} Authorization: Bearer ${GHP_TOKEN}`,
   });
-  const executor = withRedactedToolFailures(inner, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
+  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "custom_credential_make_request", input: {} });
 
   assert.match(result.error!, /^Error ERR-[0-9A-F]{4}(-[0-9A-F]{4}){3}: /);
   assert.equal(result.error!.includes(STRIPE_KEY), false);
   assert.equal(result.error!.includes(GHP_TOKEN), false);
-  assert.equal(readToolErrorId(result), FIXED_ID);
+  assert.equal(readToolErrorId({ result: result }, {}), FIXED_ID);
   assert.equal(records.length, 1);
   assert.deepEqual(records[0], {
     errorId: FIXED_ID,
@@ -88,7 +88,7 @@ test("an internal failure whose text holds secrets is redacted, ID-prefixed, and
 test("an internal failure with no secret gives exactly 'Error <ID>: <original>', with redactions: 0", async () => {
   const records: ToolFailureRecord[] = [];
   const inner = fakeExecutor({ executionId: "exec-2", status: "failed", errorKind: "internal", error: "connect ECONNREFUSED 10.0.4.7:443" });
-  const executor = withRedactedToolFailures(inner, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
+  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
@@ -98,12 +98,12 @@ test("an internal failure with no secret gives exactly 'Error <ID>: <original>',
 
 test("a missing errorKind is treated as internal", async () => {
   const inner = fakeExecutor({ executionId: "exec-3", status: "failed", error: "boom" });
-  const executor = withRedactedToolFailures(inner, { mintErrorId: () => FIXED_ID });
+  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
   assert.equal(result.error, `Error ${FIXED_ID}: boom`);
-  assert.equal(readToolErrorId(result), FIXED_ID);
+  assert.equal(readToolErrorId({ result: result }, {}), FIXED_ID);
 });
 
 test("a validation failure is redacted with no ID minted and onFailure never called", async () => {
@@ -114,23 +114,23 @@ test("a validation failure is redacted with no ID minted and onFailure never cal
     errorKind: "validation",
     error: "MEMBERS_NOT_FOUND: member 'x' was not found",
   });
-  const executor = withRedactedToolFailures(inner, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
+  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID, onFailure: (r) => records.push(r) });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
   assert.equal(result.error, "MEMBERS_NOT_FOUND: member 'x' was not found");
-  assert.equal(readToolErrorId(result), undefined);
+  assert.equal(readToolErrorId({ result: result }, {}), undefined);
   assert.equal(records.length, 0);
 });
 
 test("a validation failure whose message holds a secret is still blanked, with no ID", async () => {
   const inner = fakeExecutor({ executionId: "exec-5", status: "failed", errorKind: "validation", error: `bad key: ${STRIPE_KEY}` });
-  const executor = withRedactedToolFailures(inner, { mintErrorId: () => FIXED_ID });
+  const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID });
 
   const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
   assert.equal(result.error!.includes(STRIPE_KEY), false);
-  assert.equal(readToolErrorId(result), undefined);
+  assert.equal(readToolErrorId({ result: result }, {}), undefined);
 });
 
 test("every non-failed status is returned strictly unchanged", async () => {
@@ -138,7 +138,7 @@ test("every non-failed status is returned strictly unchanged", async () => {
   for (const status of statuses) {
     const original: ToolExecutionResult = { executionId: "exec-6", status, output: { a: 1 } };
     const inner = fakeExecutor(original);
-    const executor = withRedactedToolFailures(inner, { mintErrorId: () => FIXED_ID });
+    const executor = withRedactedToolFailures({ inner: inner }, { mintErrorId: () => FIXED_ID });
 
     const result = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
@@ -149,7 +149,7 @@ test("every non-failed status is returned strictly unchanged", async () => {
 test("the inner executor throwing is rethrown untouched, and onFailure is never called", async () => {
   const records: ToolFailureRecord[] = [];
   const boom = new Error("unknown tool \"typo\"");
-  const executor = withRedactedToolFailures(throwingExecutor(boom), { onFailure: (r) => records.push(r) });
+  const executor = withRedactedToolFailures({ inner: throwingExecutor(boom) }, { onFailure: (r) => records.push(r) });
 
   const thrown = await executor.execute({ principal: PRINCIPAL, run: RUN, toolId: "typo", input: {} }).then(
     () => null,
@@ -164,23 +164,23 @@ test("with the default minter, two internal failures get two different IDs, and 
   const inner1 = fakeExecutor({ executionId: "e1", status: "failed", errorKind: "internal", error: "boom 1" });
   const inner2 = fakeExecutor({ executionId: "e2", status: "failed", errorKind: "internal", error: "boom 2" });
 
-  const r1 = await withRedactedToolFailures(inner1).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
-  const r2 = await withRedactedToolFailures(inner2).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
+  const r1 = await withRedactedToolFailures({ inner: inner1 }, {}).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
+  const r2 = await withRedactedToolFailures({ inner: inner2 }, {}).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: {} });
 
-  const id1 = readToolErrorId(r1)!;
-  const id2 = readToolErrorId(r2)!;
+  const id1 = readToolErrorId({ result: r1 }, {})!;
+  const id2 = readToolErrorId({ result: r2 }, {})!;
   assert.notEqual(id1, id2);
   assert.match(id1, TOOL_ERROR_ID_PATTERN);
   assert.match(id2, TOOL_ERROR_ID_PATTERN);
 });
 
 test("mintToolErrorId always matches TOOL_ERROR_ID_PATTERN", () => {
-  for (let i = 0; i < 20; i += 1) assert.match(mintToolErrorId(), TOOL_ERROR_ID_PATTERN);
+  for (let i = 0; i < 20; i += 1) assert.match(mintToolErrorId({}, {}), TOOL_ERROR_ID_PATTERN);
 });
 
 test("an onFailure that throws still returns the redacted result", async () => {
   const inner = fakeExecutor({ executionId: "exec-7", status: "failed", errorKind: "internal", error: "boom" });
-  const executor = withRedactedToolFailures(inner, {
+  const executor = withRedactedToolFailures({ inner: inner }, {
     mintErrorId: () => FIXED_ID,
     onFailure: () => {
       throw new Error("sink exploded");
@@ -205,7 +205,7 @@ test("resumeConfirmation, cancel and getAuditRecord delegate straight through", 
     },
   } as unknown as ToolExecutor;
 
-  const executor = withRedactedToolFailures(inner);
+  const executor = withRedactedToolFailures({ inner: inner }, {});
   executor.resumeConfirmation({ executionId: "e", decision: "confirm" });
   executor.cancel({ executionId: "e" });
 
@@ -218,7 +218,7 @@ test("redaction forwards every execute argument, including the cancellation and 
   const signal = new AbortController().signal;
   const input = { field: "value" };
   const inner = fakeExecutor({ executionId: "e", status: "completed" });
-  await withRedactedToolFailures(inner).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: input }, { signal: signal, emitSurface: emit });
+  await withRedactedToolFailures({ inner: inner }, {}).execute({ principal: PRINCIPAL, run: RUN, toolId: "t", input: input }, { signal: signal, emitSurface: emit });
   assert.equal(inner.arguments.length, 1);
   assert.equal(inner.arguments[0].length, 2);
   const [required, optional] = inner.arguments[0];

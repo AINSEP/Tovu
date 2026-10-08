@@ -13,16 +13,19 @@ import { createToolRegistry, type SurfaceEmitter, type ToolExecutionContext, typ
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
 
 
 import { forceRemove } from "../fixtures/force-remove.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { pluginAgentToolCatalog } from "#src/features/plugin-runtime/agent-tools";
 import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
 import { buildPluginsUninstallRegistration } from "../fixtures/plugins-uninstall-registration.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `plugins_uninstall`'s Agent Plugin family (`family: "agent-plugin"`) tool-boundary behavior: authorization, the held-open human
@@ -111,7 +114,7 @@ function fakeDeps(options: { allow?: boolean } = {}): { deps: AgentPluginUninsta
   };
 }
 
-function findRegistration(deps: AgentPluginUninstallToolDeps, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore()): ToolRegistration {
+function findRegistration(deps: AgentPluginUninstallToolDeps, surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): ToolRegistration {
   return buildPluginsUninstallRegistration(deps, { surfaceExchanges });
 }
 
@@ -163,12 +166,7 @@ async function answerDialog(
   const recorder = surfaceRecorder();
   const pending = registration.handler(fakeCtx({ pluginId }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
   const surface = await waitForDialog(recorder.first, pending);
-  const delivery = surfaceExchanges.deliver({
-    exchangeId: exchangeIdFromSurface(surface),
-    params: { decision },
-    principalId: PRINCIPAL_ID,
-    toolId: TOOL_ID,
-  });
+  const delivery = surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
   assert.equal(delivery.ok, true, `the human's answer did not reach the parked call: ${JSON.stringify(delivery)}`);
   return { result: await pending, surface };
 }
@@ -200,7 +198,7 @@ test("checks admin.plugins.enable for this run's principal, scoped to this works
   await withAgentPluginsDir(async () => {
     await installReal(WORKSPACE_A, "my-plugin", "archive-authz-check");
     const { deps, authorizeCalls } = fakeDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
     await answerDialog(findRegistration(deps, surfaceExchanges), surfaceExchanges, "my-plugin", "cancel");
 
@@ -216,7 +214,7 @@ test("the dialog's memory choices are in the calling operator's saved admin lang
     await installReal(WORKSPACE_A, "my-plugin", "archive-locale");
     const { saveOperatorLocale, settingsRepo } = await operatorLocaleLedger(WORKSPACE_A);
     await saveOperatorLocale(PRINCIPAL_ID, "de");
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const { surface } = await answerDialog(findRegistration({ ...fakeDeps().deps, settingsRepo }, surfaceExchanges), surfaceExchanges, "my-plugin", "cancel");
     assert.match(surfaceHtml(surface), />Deinstallieren · Speicher behalten</);
     assert.match(surfaceHtml(surface), />Deinstallieren und Speicher löschen</);
@@ -295,7 +293,7 @@ test("t91 §7.1: a corrupt activations.json reaches the model through the real e
     t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
 
     const registry = createToolRegistry({});
-    registry.register(buildPluginsUninstallRegistration(fakeDeps().deps, { surfaceExchanges: createSurfaceExchangeStore() }));
+    registry.register(buildPluginsUninstallRegistration(fakeDeps().deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }));
     const toolExecutor = createToolExecutor({ registry });
     const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
     const { run } = await lifecycle.start({ contextRef: "ctx-1" });
@@ -324,7 +322,7 @@ test("t91 §7.1: activations.json corrupted while the dialog is open: confirm re
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-corrupt-confirm");
     const activationsPath = path.join(resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root, "activations.json");
     const { deps } = fakeDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const recorder = surfaceRecorder();
     const warnings: string[] = [];
     t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
@@ -332,12 +330,7 @@ test("t91 §7.1: activations.json corrupted while the dialog is open: confirm re
     const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
     const surface = await waitForDialog(recorder.first, pending);
     await writeFile(activationsPath, "[]");
-    const delivery = surfaceExchanges.deliver({
-      exchangeId: exchangeIdFromSurface(surface),
-      params: { decision: "confirm" },
-      principalId: PRINCIPAL_ID,
-      toolId: TOOL_ID,
-    });
+    const delivery = surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
     assert.equal(delivery.ok, true);
 
     const out = await pending;
@@ -369,7 +362,7 @@ test("the dialog names the plugin and its version, targets plugins_uninstall, an
   await withAgentPluginsDir(async (dir) => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-dialog-content");
     const { deps } = fakeDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
     const { surface } = await answerDialog(findRegistration(deps, surfaceExchanges), surfaceExchanges, "operator-plugin", "cancel");
 
@@ -396,7 +389,7 @@ test("confirm: uninstalls — package root gone, activation record deleted, and 
     const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const { deps } = fakeDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
     const { result } = await answerDialog(findRegistration(deps, surfaceExchanges), surfaceExchanges, "operator-plugin", "confirm");
     const out = result as UninstallToolOutput;
@@ -424,7 +417,7 @@ test("confirm: the result note says the plugin's provisioned external MCP connec
   await withAgentPluginsDir(async () => {
     await installReal(WORKSPACE_A, "operator-plugin", "archive-note-mcp");
     const { deps } = fakeDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
     const { result } = await answerDialog(findRegistration(deps, surfaceExchanges), surfaceExchanges, "operator-plugin", "confirm");
     const out = result as UninstallToolOutput;
@@ -448,7 +441,7 @@ test("cancel: nothing is removed and the result reports the cancellation, not an
     const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const { deps } = fakeDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
     const { result } = await answerDialog(findRegistration(deps, surfaceExchanges), surfaceExchanges, "operator-plugin", "cancel");
     const out = result as UninstallToolOutput;
@@ -466,18 +459,13 @@ test("an archive installed for the same id while the dialog is open: confirm rem
   await withAgentPluginsDir(async () => {
     const first = await installReal(WORKSPACE_A, "operator-plugin", "archive-changed-a");
     const { deps } = fakeDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const recorder = surfaceRecorder();
 
     const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
     const surface = await waitForDialog(recorder.first, pending);
     const second = await installReal(WORKSPACE_A, "operator-plugin", "archive-changed-b");
-    const delivery = surfaceExchanges.deliver({
-      exchangeId: exchangeIdFromSurface(surface),
-      params: { decision: "confirm" },
-      principalId: PRINCIPAL_ID,
-      toolId: TOOL_ID,
-    });
+    const delivery = surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
     assert.equal(delivery.ok, true);
     const out = (await pending) as UninstallToolOutput;
 

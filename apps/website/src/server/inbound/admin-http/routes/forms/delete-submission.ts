@@ -1,4 +1,4 @@
-import { deleteFormSubmission } from "#src/features/forms/index";
+import { deleteFormSubmission } from "@jini-ai/cms/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteDeps, FormsRouteRegistrar } from "./deps.js";
 import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
@@ -51,8 +51,9 @@ export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app
             form: { id: definition.id, name: definition.name },
             submissionId,
             actor: { principalId: principal.id, pluginId: null },
+            submissionRepo: deps.formSubmissionRepo, remove: deps.removeFormSubmission, clock: deps.clock,
           },
-          { submissionRepo: deps.formSubmissionRepo, remove: deps.removeFormSubmission, clock: deps.clock }
+          {}
         );
         if (!outcome.ok && outcome.reason === "not-found") {
           res

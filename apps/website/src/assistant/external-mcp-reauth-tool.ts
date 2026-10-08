@@ -1,3 +1,4 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/external-mcp.js';
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -12,7 +13,7 @@ import {
   askOnce,
   type AssistantSurfaceDeps,
   type SurfaceExchange,
-} from "../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
 import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "./external-mcp-oauth.js";
 import {
   resolveExternalMcpAuthMode,
@@ -199,7 +200,7 @@ async function resolveReauthAcknowledgement(
   exchange: SurfaceExchange,
   ui: UIResource,
 ): Promise<{ acknowledged: true } | { acknowledged: false; reason: "expired" | "abandoned" }> {
-  const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+  const answer = await askOnce({ exchange, emission: { channel: "mcp-ui", payload: { resource: ui } } });
   if (answer.status !== "received") return { acknowledged: false, reason: answer.status };
   return { acknowledged: true };
 }
@@ -347,13 +348,13 @@ export function buildExternalMcpReauthRegistrations(
 
       activePrompts.add(promptKey);
       const exchange = surfaces.surfaceExchanges.open(
-        { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: ctx.principal.id },
-        optional.emitSurface,
+        { binding: { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: ctx.principal.id },
+        emit: optional.emitSurface },
       );
       // A cancelled run closes its notice at once, like every sibling exchange tool. Left open, the
       // notice waited out its idle TTL and the guard above stayed set, silently suppressing every
       // re-auth prompt for this server meanwhile.
-      const closeOnAbort = () => exchange.close();
+      const closeOnAbort = () => exchange.close({});
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
         const ui = buildReauthSurface({ exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs(), label, settingsLink: externalMcpSettingsDeepLink(serverId) });
@@ -372,7 +373,7 @@ export function buildExternalMcpReauthRegistrations(
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "external-mcp-reauth",
     catalogModule: "assistant/external-mcp-reauth-tool.ts",
     catalog: CATALOG_BY_ID,

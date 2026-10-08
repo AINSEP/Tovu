@@ -632,7 +632,7 @@ test("publishStaticSite: a buildTarget that THROWS (credential missing a target-
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.equal(result.message, "credential is not usable for s3-compatible");
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: "deployment_propose_custom_provider_credential", remedyToolId: "deployment_propose_custom_provider_credential", prefill: { target: "s3-compatible" },
+    setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "publish-host", target: "s3-compatible" },
     hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
   });
 });

@@ -1,55 +1,9 @@
 /**
- * @file Tovu policy adapter for the async fixed-window rate limiter (SPEC-006 REQ-14 / api.spec §3).
- *
- * Purpose:
- * Provides the counting primitive behind the `LOGIN_STRICT` profile
- * (`AUTH_LOGIN`, 10 requests / 60s / client IP) and the client-IP resolution
- * rule that keys it. Structured so `WRITE_STANDARD`/`READ_STANDARD` (out of
- * scope this pass — see api.spec §3) can reuse the same primitive later with
- * a different `RateLimitProfile` and key function; the profiles below now cover
- * login, magic-link, anonymous assistant and outbound-service routes.
- *
- * How it relates to the project:
- * - `server/inbound/admin-http/dev-auth.ts`'s login route calls `loginRateLimiter.check(...)`
- *   before calling `identity.login()`, keyed by `resolveClientIp(req)`.
- * - Reuses the repo's injectable `Clock` (`{ nowMs(): number }`,
- *   `@jini-ai/core/primitives`) instead of `Date.now()` directly, matching the pattern
- *   `identity/auth-service.ts` and its tests already use — so tests can fake
- *   the window boundary without real sleeps.
- *
- * Why it lives in `core/rate-limit` rather than `server/middleware` (where it used to be):
- * a policy primitive (fixed-window counting + client-IP resolution), not a piece of transport —
- * it takes a minimal structural `ClientIpSource`, not an Express `Request`, and returns plain data.
- * It was the single import edge that made `assistant`, `comments`, and `forms` each depend back on
- * the composition root, closing three separate module cycles simultaneously (2026-08-02 module-graph
- * analysis, Phase 3) — the same "domain importing its host's transport module" misplacement
- * `widgets/where-used.ts` and `core/entry-refs/repo.sqlite.ts` (now `db/sqlite/entry-refs-repo.sqlite.ts`)
- * were each relocated for.
- *
- * Architectural role:
- * Tovu retains profiles and proxy policy; generic counting and its rationale now live in
- * `@jini-ai/http-kit/rate-limit`, over a required clock and async CounterStore port. ADR-006's
- * original single in-memory implementation and RT-006 Library-First concern predate extraction;
- * the default remains in-memory, while a dedicated store can now be injected.
- *
- * Disclosed simplification:
- * Single-process, in-memory only (no Redis/distributed store) — acceptable
- * per REQ-14's note that this only needs to survive one process in v1;
- * multiple instances behind a load balancer each get their own budget
- * (SPEC-046 §4 "Disclosed limitation" — noted, not fixed, fine for today's
- * deployment).
- *
- * Stale per-key windows ARE evicted as of SPEC-046 REQ-8: `createRateLimiter`
- * sweeps expired windows out of its map at most once per `windowSeconds`
- * (amortized — see that function's doc for why this isn't a scan on every
- * `check()` call), which bounds memory to roughly "distinct keys active
- * within the trailing window" instead of "every distinct key ever seen."
- * This was acceptable debt while every consumer was an authenticated login
- * route (bounded, trusted key space); SPEC-046 wires this same primitive to
- * an anonymous public endpoint (`SITE_ASSISTANT_PER_IP`), where key growth
- * is attacker-controlled — a caller rotating source IPs would otherwise grow
- * the map without bound, a real memory-exhaustion path rather than a
- * cosmetic one.
+ * @file Tovu's rate-limit profiles and trusted-proxy policy (REQ-14, SPEC-046).
+ * HTTP-kit owns fixed-window counting, injected clocks/stores and expired-window eviction.
+ * The default is a dedicated in-memory store per limiter: multiple serving processes each get
+ * their own budget (SPEC-046 §4). A distributed budget requires a different atomic algorithm.
+ * Minimal structural inputs keep policy independent of Express and the server composition root.
  */
 
 // Implementation: /Users/la/Programming/Jini/packages/http-kit/src/rate-limit.ts

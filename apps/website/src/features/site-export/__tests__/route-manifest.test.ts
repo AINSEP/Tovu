@@ -5,8 +5,8 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
-import { InMemoryRedirectRepo } from "#src/features/redirects/index";
-import type { RedirectRecord } from "#src/features/redirects/index";
+import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
+import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "../route-manifest.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
@@ -92,8 +92,8 @@ test("buildRouteManifest: includes home and every seeded published post/page, an
   assert.equal(home?.kind, "page");
 
   // `server/seed.ts`'s `seededPosts` includes a published post at slug "welcome" — asserted by
-  // path+kind (not by importing `seo/sitemap.ts` in any form) so this test can never pass merely
-  // because the two modules happen to agree; `buildRouteManifest` never imports `seo/sitemap.ts` at
+  // path+kind (not by importing `Jini/packages/cms/src/seo/sitemap.ts` in any form) so this test can never pass merely
+  // because the two modules happen to agree; `buildRouteManifest` never imports `Jini/packages/cms/src/seo/sitemap.ts` at
   // all (verified by this file's import list above), so there is no seam for their behavior to leak
   // into each other through.
   const welcome = manifest.routes.find((r) => r.path === "/welcome");
@@ -350,7 +350,7 @@ test("buildRouteManifest: an exact-match active redirect is enumerated; a prefix
   };
   const prefixRule: RedirectRecord = { ...exactRule, id: "redir-prefix", matchType: "prefix", fromPattern: "/old" };
   const disabledRule: RedirectRecord = { ...exactRule, id: "redir-disabled", fromPattern: "/disabled-redirect", status: "disabled" };
-  const redirectRepo = new InMemoryRedirectRepo([exactRule, prefixRule, disabledRule]);
+  const redirectRepo = new InMemoryRedirectRepo({ seed: [exactRule, prefixRule, disabledRule] }, {});
 
   const manifest = await buildRouteManifest(baseDeps({ redirectRepo }));
   assert.equal(manifest.routes.some((route) => route.path === "/disabled-redirect"), false);

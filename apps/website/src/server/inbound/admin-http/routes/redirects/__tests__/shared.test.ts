@@ -3,12 +3,7 @@ import test from "node:test";
 import type { Response } from "express";
 import { EntityNotLiveError } from "@jini-ai/cms/core";
 
-import {
-  RedirectConflictError,
-  RedirectLoopError,
-  RedirectTargetNotAllowedError,
-  RedirectValidationError,
-} from "#src/features/redirects/index";
+import { RedirectConflictError, RedirectLoopError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
 import {
   respondToRedirectError,
   REDIRECT_WRITE_ERROR_MAPPINGS,

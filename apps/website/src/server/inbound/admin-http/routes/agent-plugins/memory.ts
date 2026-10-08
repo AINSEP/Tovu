@@ -1,6 +1,6 @@
 import { pluginMemory } from "#src/features/agent-plugins/memory";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
+import { listInstalledPlugins } from "../../../../../features/agent-plugins/lifecycle.js";
 import { DEFAULT_PLUGIN_MEMORY_LIMITS } from "@jini-ai/agent-plugins/persistent-state";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

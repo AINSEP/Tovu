@@ -157,7 +157,7 @@ test("a handlebars theme missing home/entry reports the .hbs extension in its re
   assert.ok(theme.errors.includes("templates/entry.hbs is required"));
 });
 
-test("skipLiquidAllowlist in a theme's OWN theme.json has no effect — it is trusted local policy, not publisher-controlled (schema v2, 2026-08-18)", () => {
+test("skipLiquidAllowlist in a theme's OWN theme.json has no effect — lint is unconditional (schema v2, 2026-08-18)", () => {
   const dir = makeThemeDir({
     "theme.json": JSON.stringify({
       id: "t",

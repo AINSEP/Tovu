@@ -7,7 +7,7 @@ import { createCoreModule } from "../../runtime/composition/modules/core.js";
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 import { createIntegrationsModule } from "../../runtime/composition/modules/integrations.js";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { ConsoleMailerAdapter } from "#src/features/members/index";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";

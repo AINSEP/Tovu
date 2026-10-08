@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalString, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -24,11 +25,8 @@ import { getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRun
  * every handler below calls the kit's `requireToolPermission` itself — the same shape
  * `recovery`/`database` already use.
  *
- * 2026-08-15 (Terra audit finding C5): `deployment_set_dockerfile` now requires an `ifMatch` etag
- * and goes through `writeDockerfileSourceWithIfMatch` rather than the old unconditional
- * `writeDockerfileSource`, so a human editing the same file in the admin UI's Dockerfile tab and
- * this tool can no longer silently overwrite each other — see that function's own doc in
- * `dockerfile.ts` for the full decision record.
+ * deployment_set_dockerfile requires an ifMatch etag through writeDockerfileSourceWithIfMatch,
+ * so concurrent admin/tool edits cannot silently overwrite each other; dockerfile.ts owns the rationale.
  */
 
 /**
@@ -37,24 +35,11 @@ import { getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRun
  * `tool-registrations.ts` already follows (see `features/recovery/tool-registrations.ts`'s file
  * header), now including this one.
  *
- * 2026-08-20 RouteDeps-narrowing fix (supersedes `b6144774`'s config-only attempt, which the owner
- * rejected — see `ADS-memory/reports/2026-08-20-architecture-step2-routedeps-narrowing.md`): this
- * used to be a bare `export type DeploymentsToolDeps = RouteDeps` alias, on the grounds that
- * `deployment_trigger_export` genuinely needs the full composition-root bag to boot a real
- * `createApp(routeDeps)` and crawl every route — that part was, and remains, true. What changed is
- * `startExportRun` no longer has to receive the REAL `RouteDeps.runExportSite` (`ExportEngine<RouteDeps>`,
- * which contravariantly requires the FULL bag on every call): `exportSiteBound` below is a pre-bound
- * export call, closed over `RouteDeps` once at the composition root (`server/app.ts`/`server/deps.ts`
- * — see `routes/types.ts`'s own doc on that field), so this domain only ever has to describe the
- * narrow slice it directly touches. The adapter passed to `startExportRun` (in
- * `deployment_trigger_export` below) EXPLICITLY DESTRUCTURES `{outputDir, clean, basePath}` off the
- * `ExportEngine`-shaped options object rather than forwarding it wholesale — `ExportEngine<T>`'s own
- * options ALWAYS carry a `routeDeps: T` field (`export-run.ts`), and forwarding that bag straight into
- * `exportSiteBound` (whose own type has no `routeDeps` parameter at all, so an excess one on a
- * non-literal argument passes `tsc` silently) would let a NARROW `DeploymentsToolDeps` value reach the
- * real `exportSite` in place of the actual `RouteDeps` — caught during this fix, closed at both the
- * composition root (spread-ordering fix, `routes/types.ts`'s `exportSiteBound` doc) AND here, and
- * covered by a regression test in `__tests__/integration/tool-registrations.integration.test.ts`.
+ * exportSiteBound captures full application dependencies at the composition root. The export-run
+ * adapter must destructure only outputDir/clean/basePath instead of forwarding ExportEngine's
+ * routeDeps field: an excess field on a non-literal argument can pass TypeScript and replace the
+ * full application bag with this narrow tool bag. The root's spread order and this adapter both
+ * enforce that boundary; the owning integration test covers it.
  */
 export interface DeploymentsToolDeps {
   readonly authorize: AuthorizeFn;
@@ -130,7 +115,6 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
       return getExportRunSnapshot();
     },
 
-    // deployment_list retired with the never-written deployment tables (2026-10-03).
 
     deployment_get_dockerfile: async (ctx) => {
       requireNoInput({ input: ctx.input });
@@ -170,7 +154,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "deployments",
     catalogModule: "features/deployments/agent-tools.ts",
     catalog: CATALOG_BY_ID,
@@ -180,52 +164,10 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
 }
 
 /**
- * Contributes Deployments' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
- * module.
- *
- * 2026-08-17: Deployments was tried for the tool-contribution registry in Stage 2 batch 2 and
- * reverted the same session. This file's own imports looked clean in isolation (`export-run.ts`
- * imports nothing beyond `node:path`; `DeploymentsToolDeps = RouteDeps` is type-only), and no sibling
- * domain imports `features/deployments/tool-registrations` itself. But `check:architecture`'s module
- * graph is PER-DIRECTORY, not per-file: `src/features/deployments` is one module, and this
- * directory's sibling `static-publish/index.ts` exports `extractGitHubLogin`, which
- * `features/source-control/store.ts` value-imported (`from "../deployments/static-publish/index.js"`).
- * Chain that closed the cycle: `assistant -> features/vendor-credentials`
- * (`tool-registrations.ts`'s own `REAL_VENDOR_CREDENTIAL_PORT` wiring, unconditional) ->
- * `features/source-control` (`vendor-credentials/dual-read.ts`'s `resolveDefaultForSourceControl`
- * import) -> `features/deployments` (via that `extractGitHubLogin` import) -> back to `assistant`
- * (this file's own attempted `registerToolContributor` call). Confirmed via `check:architecture
- * --list`: largest strongly-connected component (runtime-only) went 0 -> 4 — `[assistant,
- * features/deployments, features/source-control, features/vendor-credentials]`. Same root cause as
- * `features/source-control/tool-registrations.ts`'s own former revert comment, reached from the
- * opposite end of the chain. Also blocked `static-publish` (`publish-agent-tools.ts`, this
- * directory's other domain) for the identical reason, since both live in the same
- * `features/deployments` module.
- *
- * RETRIED 2026-08-17 (same day, later pass) after `vendor-credentials/dual-read.ts`'s Option B fix
- * (`ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`) landed
- * and `source-control` converted cleanly on top of it — the design report's own chain trace named
- * `dual-read.ts`'s imports as the root cause, and fixing those alone WAS sufficient for
- * `source-control`. It was NOT sufficient for `deployments`: reverted again, this time on a
- * DIFFERENT, previously-undocumented edge the design report never analyzed —
- * `features/vendor-credentials/store.ts:5` (not `dual-read.ts`) value-imported `extractGitHubLogin`
- * from `./static-publish/index` directly, for `createVendorCredential`'s own GitHub-login-probe
- * logic. That edge was untouched by the Option B fix (which only rewired `dual-read.ts`). Confirmed
- * via `check:architecture --list`: adding `registerToolContributor` here closed a NEW, smaller
- * 3-module cycle — `[assistant, features/deployments, features/vendor-credentials]` — via
- * `assistant -> features/vendor-credentials` (unconditional, `REAL_VENDOR_CREDENTIAL_PORT`) ->
- * `features/vendor-credentials/store.ts` (`extractGitHubLogin`) -> `features/deployments` -> back to
- * `assistant`.
- *
- * RETRIED AND LANDED HERE (2026-08-17, same session) once `vendor-credentials/store.ts`'s own
- * `extractGitHubLogin` value import was ALSO cut using the same Option-B-style injection technique —
- * see that file's header ("Why `probeAccountLabel`'s GitHub-login extractor is INJECTED, not
- * imported") for the full trace. With both `dual-read.ts` and `store.ts` no longer value-importing
- * anything from `features/source-control`/`features/deployments`, `assistant -> features/vendor-
- * credentials` no longer reaches back into this module at all, so this registry edge is now
- * one-directional. `check:architecture` confirms 0 module cycles / largest SCC 0 with Deployments
- * wired this way.
+ * Contributes Deployments's AI tools; called once by the composition root's
+ * `installFirstPartyToolContributors()`, never as an import side effect.
+ * Credential lookup and GitHub-login extraction are injected into credential owners so this
+ * feature does not acquire a runtime path back to the assistant through credential discovery.
  */
 export function contributeDeploymentsTools(): ToolContributor {
   return { domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk };

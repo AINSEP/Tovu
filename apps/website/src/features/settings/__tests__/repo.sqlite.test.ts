@@ -6,7 +6,7 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 import { workspaces } from "#src/platform/db/schema.sqlite";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
-import { set, type SettingDefinitionRecord } from "@jini-ai/cms/settings";
+import { set, type SettingDefinitionRecord } from "@jini-ai/core/settings";
 
 /**
  * Integration tests against a real SQLite `content.db` (Article V —

@@ -10,9 +10,9 @@ import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
 import { createRunActiveContextStore, type RunActiveContextStore } from "#src/assistant/run-active-context";
 import { assemblePromptWithPluginPrefix } from "../../plugin-prompt-prefix.js";
-import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext } from "../../agent-session-resume.js";
-import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../agent-session-binding.js";
-import { createConversationStartLock } from "../../conversation-start-lock.js";
+import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext } from "../../../../../assistant/agent-session-preset.js";
+import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../../assistant/agent-session-preset.js";
+import { createConversationStartLock } from "../../../../../assistant/agent-session-preset.js";
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
 
 export const daemonSource = ts.createSourceFile(
@@ -71,14 +71,14 @@ export async function captureDaemonRun(
     buildCapabilityManifestPrefix: () => "",
     resolveCapabilityManifestArm: () => "off",
     toolExtensions: undefined,
-    conversationStartLock: createConversationStartLock(),
+    conversationStartLock: createConversationStartLock({}, {}),
     routeDeps: { workspaceId: "ws-daemon-test" },
     randomUUID: () => "unused-session-id",
     process: { env: {}, cwd: () => "/tmp/daemon-test" },
     resolvePermissionMode: () => "bypassPermissions",
     homedir: () => "/home/daemon-test",
     existsSync: (file: string) => options.hookPresent === true && file === "/home/daemon-test/.claude/hooks/no-system-search",
-    failRunBeforeStart: async (_lifecycle: unknown, _id: string, message: string) => { reject(new Error(message)); },
+    failRunBeforeStart: async ({ message }: { message: string }) => { reject(new Error(message)); },
     console: { error: (...args: unknown[]) => { if (!options.terminalFailure) reject(new Error(args.map(String).join(" "))); }, log() {} },
     // `run()` takes Jini's (required, optional) pair; the executor reassembles one
     // AgentExecutorRunInput from them, so the capture does the same.

@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/permanent-delete.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import {
@@ -12,8 +13,8 @@ import {
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { SurfaceDetail } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
-import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
-import { notConfirmedResult, refuseUnexpectedKeys, requireHumanConfirm } from "../../contracts/core/human-confirm.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { approvalToolHandler, notConfirmedResult, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import { PERMANENT_DELETE_SPECS, permanentDeleteAgentToolCatalog, type PermanentDeleteToolId } from "./agent-tools.js";
 import type { ForgetRemovedEntity } from "@jini-ai/cms/trash";
 import type { StaticPublishToolDeps } from "../deployments/publish-agent-tools.js";
@@ -71,7 +72,7 @@ export const permanentDeleteDerivedRisk: DerivedRiskByToolId = new Map([
 export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {};
   for (const spec of PERMANENT_DELETE_SPECS) {
-    handlers[spec.name] = async (ctx, optional = {}) => {
+    handlers[spec.name] = approvalToolHandler({ surfaces, prepare: async ({ ctx }) => {
       const input = requireInputRecord({ input: ctx.input });
       refuseUnexpectedKeys(input, spec.key === null ? [] : [spec.key]);
       const id = spec.key === null ? null : requireString({ input: input, key: spec.key }).trim();
@@ -79,22 +80,20 @@ export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps,
       const authorize = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: spec.permission }, { entityType: spec.entityType, ...(id === null ? {} : { entityId: id }) });
       await authorize();
       const plan = await deps.prepare(spec.name, id, ctx.principal.id);
-      // Already-aborted calls cannot ask the human or perform an irreversible effect.
-      if (ctx.signal.aborted) return { removed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
-      const toolId = spec.name;
-      const outcome = await requireHumanConfirm({ ctx, surfaces, spec: {
-        toolId, errorCode: "PERMANENT_DELETE", title: `Permanently delete ${spec.subject}?`,
+      return { plan, authorize };
+    }, describe: ({ prepared: { plan } }) => ({
+        toolId: spec.name, errorCode: "PERMANENT_DELETE", title: `Permanently delete ${spec.subject}?`,
         description: "Review the exact saved items below. This action cannot be undone.",
         details: plan.details, warning: plan.warning ?? "Permanent deletion has no undo or restore.",
         danger: true, confirmLabel: "Permanently delete",
-      } }, optional);
-      if (!outcome.confirmed) return { removed: false, ...notConfirmedResult(outcome) };
+    }), run: async ({ ctx, prepared: { plan, authorize } }) => {
       await authorize();
+      // Already-aborted calls cannot ask the human or perform an irreversible effect.
       if (ctx.signal.aborted) return { removed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
       return plan.execute();
-    };
+    } }, { flag: "removed" });
   }
-  return buildDomainRegistrations({ domain: "permanent-delete", catalogModule: "features/permanent-delete/agent-tools.ts", catalog: indexCatalogById({ catalog: permanentDeleteAgentToolCatalog }), handlers, derivedRisk: permanentDeleteDerivedRisk });
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "permanent-delete", catalogModule: "features/permanent-delete/agent-tools.ts", catalog: indexCatalogById({ catalog: permanentDeleteAgentToolCatalog }), handlers, derivedRisk: permanentDeleteDerivedRisk });
 }
 
 /** Compose with host adapters without importing server/assistant implementations into the feature. */

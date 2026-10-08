@@ -7,10 +7,10 @@ import test from "node:test";
 
 import { HOOK_CONTENT_ENTRY_BEFORE_SAVE, type ContentEntryDraft } from "@tovu/sdk";
 
-import { setPluginEnabled } from "#src/features/plugin-runtime/activation";
-import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
-import type { PluginManifest } from "#src/features/plugin-runtime/manifest";
-import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
+import { setPluginEnabled } from "@jini-ai/plugins/host";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
+import type { PluginManifest } from "@jini-ai/plugins/host";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { createPost, InMemoryPostRepo } from "#src/features/post/index";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { createTier2WorkerRunner } from "../run-in-worker.js";

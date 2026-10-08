@@ -9,7 +9,7 @@ const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "#src/assistant/index";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 
 import { type IdentityRepos, GrantExceedsIssuerError, IdentityForbiddenError } from "@jini-ai/user-management";
 import { identityAgentToolCatalog, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
@@ -18,6 +18,9 @@ import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeIdentityTools } from "../../features/identity/tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -25,10 +28,7 @@ const contributions = {
 };
 
 
-// Identity moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
-// so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
-// it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeIdentityTools() });
 
@@ -151,7 +151,7 @@ async function grant(repos: IdentityRepos, principalId: string, permissions: rea
 
 
 /** One store for every registration built here, so {@link autoAnswer} can answer its dialogs. */
-const SURFACE_EXCHANGES = createSurfaceExchangeStore();
+const SURFACE_EXCHANGES = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
 /**
  * Answers every dialog a call raises the way a human saying yes would — Confirm, or, for
@@ -556,7 +556,7 @@ test("identity_user_disable: the seeded owner cannot be disabled through a tool,
 
   await assert.rejects(
     () => wired(deps, "identity_user_disable").handler(...executionContext(ownerPrincipalId, { principalId: ownerPrincipalId })),
-    /seeded owner principal can never be disabled/,
+    { name: "ToolInputError", message: "identity_user_disable: SELF_DELETE: you cannot disable your own account. Nothing was changed." },
     "locking the workspace out of its own management plane must not be an agent-reachable outcome",
   );
 });

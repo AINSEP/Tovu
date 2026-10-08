@@ -11,7 +11,7 @@ import {
   set,
   type AuthorizeFn,
   type SettingRevisionRecord,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 
 import {

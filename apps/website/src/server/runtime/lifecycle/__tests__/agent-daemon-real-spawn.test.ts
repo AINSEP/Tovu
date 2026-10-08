@@ -1,46 +1,34 @@
 import assert from "node:assert/strict";
 import { spawn as realSpawn, type ChildProcess } from "node:child_process";
-import childProcessDefault, * as childProcess from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test, { mock } from "node:test";
-import * as daemonPort from "../agent-daemon-port.js";
+import test from "node:test";
+import { ensureAgentDaemonPortResolved, getAgentDaemonPortForSpawnEnv } from "../agent-daemon-port.js";
 
 let stubPath: string;
 let child: ChildProcess | undefined;
 let report: Promise<Record<string, unknown>>;
-// The namespace carries a runtime `default` key its type omits; it is passed separately below.
-const childProcessExports: Record<string, unknown> = { ...childProcess };
-delete childProcessExports.default;
-// Represent an already-resolved proxy port independently of inherited env. An omitted
-// daemonPortOverride must fail, even though the child still inherits a different port.
-mock.module(new URL("../agent-daemon-port.ts", import.meta.url).href, {
-  namedExports: { ...daemonPort, getAgentDaemonPortForSpawnEnv: () => "9999" },
-});
-// Keep the production start -> spawnRealDaemonProcessFor -> spawn chain and its real
+// Represent an already-resolved proxy port and assert the native spawn receives that value.
+// An omitted daemonPortOverride must fail: the parent keeps its allocated port out of its env.
+// Keep the production start -> createRealDaemonProcessPorts -> spawn chain and its real
 // env/argv options. Substitute only the daemon script at the OS boundary, so this never
 // starts a dev server, invokes npx, or opens a real site's stores.
-mock.module("node:child_process", {
-  defaultExport: childProcessDefault,
-  namedExports: {
-    ...childProcessExports,
-    spawn: (command: string, args: string[], options: Parameters<typeof realSpawn>[2]) => {
-      const daemonArgs = command === process.execPath ? args : args.slice(1);
-      assert.ok(daemonArgs[0]?.endsWith("agent-daemon-server.ts") || daemonArgs[0]?.endsWith("agent-daemon-server.js"));
-      child = realSpawn(process.execPath, [stubPath, ...daemonArgs.slice(1)], options);
-      report = new Promise((resolve, reject) => {
-        let output = "";
-        child!.once("error", reject);
-        child!.stdout!.on("data", (chunk) => {
-          output += String(chunk);
-          if (output.includes("\n")) resolve(JSON.parse(output.split("\n")[0]!));
-        });
-      });
-      return child;
-    },
-  },
-});
+const nativeSpawn: NonNullable<import("../daemon-supervisor.js").StartAssistantDaemonOptions["nativeSpawn"]> = ({ command, args, options }) => {
+  const daemonArgs = command === process.execPath ? args : args.slice(1);
+  assert.ok(daemonArgs[0]?.endsWith("agent-daemon-server.ts") || daemonArgs[0]?.endsWith("agent-daemon-server.js"));
+  assert.equal(options.env?.JINI_AGENT_DAEMON_PORT, getAgentDaemonPortForSpawnEnv());
+  child = realSpawn(process.execPath, [stubPath, ...daemonArgs.slice(1)], options);
+  report = new Promise((resolve, reject) => {
+    let output = "";
+    child!.once("error", reject);
+    child!.stdout!.on("data", (chunk) => {
+      output += String(chunk);
+      if (output.includes("\n")) resolve(JSON.parse(output.split("\n")[0]!));
+    });
+  });
+  return child;
+};
 const { startAssistantDaemon, shutdownAssistantDaemon, resetAssistantDaemonSingletonForTests } = await import("../daemon-supervisor.js");
 
 test("startAssistantDaemon passes the resolved port, site, socket and identity through the real spawn env", { timeout: 10_000 }, async () => {
@@ -50,7 +38,9 @@ test("startAssistantDaemon passes the resolved port, site, socket and identity t
   resetAssistantDaemonSingletonForTests();
   try {
     for (const key of keys) delete process.env[key];
-    process.env.JINI_AGENT_DAEMON_PORT = "4320";
+    await ensureAgentDaemonPortResolved();
+    const resolvedPort = getAgentDaemonPortForSpawnEnv();
+    assert.ok(resolvedPort, "the proxy must resolve its own port before spawning");
     process.env.TOVU_THEMES_DIR = "/custom/themes";
     stubPath = path.join(fixture, "daemon-stub.cjs");
     writeFileSync(stubPath, `
@@ -66,10 +56,10 @@ test("startAssistantDaemon passes the resolved port, site, socket and identity t
       setInterval(() => {}, 1000);
     `);
     startAssistantDaemon({ workspaceId: "workspace-stub", siteDir: "/site/stub", pgSocketPath: "/tmp/stub/.s.PGSQL.5432" }, {
-      registerProcessSignalHandlers: false,
+      registerProcessSignalHandlers: false, nativeSpawn,
     });
     assert.deepEqual(await report!, {
-      argv: ["--workspace", "workspace-stub"], port: "9999", site: "/site/stub",
+      argv: ["--workspace", "workspace-stub"], port: resolvedPort, site: "/site/stub",
       workspace: "workspace-stub", parent: String(process.pid), socket: "/tmp/stub/.s.PGSQL.5432", themes: "/custom/themes",
     });
   } finally {

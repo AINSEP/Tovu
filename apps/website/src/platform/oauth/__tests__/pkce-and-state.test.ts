@@ -118,17 +118,17 @@ test("a failed owner check still consumes the state, so it cannot be used as a r
 
 test("a state expires and is pruned rather than lingering redeemable", async () => {
   const clock = createTestClock();
-  const store = createPendingAuthorizationStore({ clock, ttlMs: 60_000 });
+  const store = createPendingAuthorizationStore({ clock }, { ttlMs: 60_000 });
   const entry = await store.put({ ownerKey: "ws:server", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
-  assert.equal(await store.size(), 1);
+  assert.equal(await store.size({}), 1);
 
   clock.advance(60_001);
   await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
-  assert.equal(await store.size(), 0);
+  assert.equal(await store.size({}), 0);
 });
 
 test("the store is bounded — at the cap the oldest entry is evicted, never the newest refused", async () => {
-  const store = createPendingAuthorizationStore({ clock: createTestClock(), maxEntries: 3 });
+  const store = createPendingAuthorizationStore({ clock: createTestClock() }, { maxEntries: 3 });
   // Sequential `await`s, not `Promise.all` — insertion order is what "oldest" below depends on.
   const entries = [];
   for (let index = 0; index < 4; index += 1) {
@@ -139,7 +139,7 @@ test("the store is bounded — at the cap the oldest entry is evicted, never the
 
   const [oldest, , , newest] = entries;
   assert.ok(oldest && newest);
-  assert.equal(await store.size(), 3);
+  assert.equal(await store.size({}), 3);
   // Oldest gone...
   await assertOAuthRejects(() => store.take({ state: oldest.state, ownerKey: "ws:server-0" }), "OAUTH_INVALID_STATE");
   // ...newest still redeemable, which is the property that keeps one caller from wedging the flow.
@@ -165,5 +165,5 @@ test("pending authorization cannot be rewritten through the returned scopes", as
 // REGRESSION: fails if invalid capacity falls through to the old permissive Map implementation.
 test("pending authorization rejects invalid limits at construction", () => {
   for (const maxEntries of [0, -1, NaN])
-    assert.throws(() => createPendingAuthorizationStore({ clock: createTestClock(), maxEntries }));
+    assert.throws(() => createPendingAuthorizationStore({ clock: createTestClock() }, { maxEntries }));
 });

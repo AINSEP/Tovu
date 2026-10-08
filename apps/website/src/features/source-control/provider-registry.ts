@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { parseDescriptorI18n, type DescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
+import { defineExecutablePluginContribution, loadPluginContributions, loadPluginContributionsFromSource, readTrustedPluginFile, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
@@ -66,10 +66,12 @@ export interface SourceControlProviderRegistry {
 
 type ParseResult = { readonly ok: true; readonly descriptors: readonly SourceControlProviderDescriptor[] } | { readonly ok: false; readonly reason: string };
 
-interface PackageLoad {
-  readonly providers: readonly LoadedSourceControlProvider[];
-  readonly refusals: readonly string[];
-}
+const providerContribution = defineExecutablePluginContribution<SourceControlProviderDescriptor, SourceControlProviderModule>({
+  filename: SOURCE_CONTROL_PROVIDERS_FILENAME, contribution: "source-control providers",
+  parse: ({ raw }) => parseSourceControlProvidersFile(raw), modulePath: ({ descriptor }) => descriptor.module,
+  validate: ({ exported }) => asProviderModule(exported),
+  refusal: ({ plugin, descriptor, reason }) => `source-control provider '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
+});
 
 type ProviderPackage = TrustedPluginPackage;
 
@@ -84,32 +86,17 @@ function toRegistry(providers: readonly LoadedSourceControlProvider[], refusals:
  * @throws Nothing for a plugin-level fault; only a filesystem fault listing the package directory itself.
  * @complexity O(p) installed plugins, one small read plus one import per declared provider.
  */
-export async function loadSourceControlProviderRegistry(ctx: { readonly workspaceId: string }): Promise<SourceControlProviderRegistry> {
+export async function loadSourceControlProviderRegistry(ctx: { readonly workspaceId: string }, _optional: Record<string, never> = {}): Promise<SourceControlProviderRegistry> {
   const switchedOff = new Map<string, string>();
-  const verdicts = await findTrustedPluginPackages({
-    workspaceId: ctx.workspaceId,
-    filename: SOURCE_CONTROL_PROVIDERS_FILENAME,
-    contribution: "source-control providers",
-    requireActive: true,
+  const load = await loadPluginContributions({ ...ctx, definition: providerContribution }, {
     orderByPluginId: true,
     // A switched-off plugin's JSON is read as data (no module imported) so a refusal can name it.
-    onInactive: async (plugin) => {
+    onInactive: async ({ plugin }) => {
       for (const providerId of await declaredProviderIds(plugin)) if (!switchedOff.has(providerId)) switchedOff.set(providerId, plugin.pluginId);
     },
   });
 
-  const providers: LoadedSourceControlProvider[] = [];
-  const refusals: string[] = [];
-  for (const verdict of verdicts) {
-    if ("refusal" in verdict) {
-      refusals.push(verdict.refusal);
-      continue;
-    }
-    const load = await loadPackageProviders(verdict.trusted);
-    providers.push(...load.providers);
-    refusals.push(...load.refusals);
-  }
-  return toRegistry(providers, refusals, switchedOff);
+  return toRegistry(load.items, load.refusals, switchedOff);
 }
 
 /**
@@ -118,9 +105,9 @@ export async function loadSourceControlProviderRegistry(ctx: { readonly workspac
  *
  * @complexity O(n) providers, one import each.
  */
-export async function loadSourceControlProviderRegistryFromSource(plugin: ProviderPackage): Promise<SourceControlProviderRegistry> {
-  const load = await loadPackageProviders(plugin);
-  return toRegistry(load.providers, load.refusals);
+export async function loadSourceControlProviderRegistryFromSource(plugin: ProviderPackage, _optional: Record<string, never> = {}): Promise<SourceControlProviderRegistry> {
+  const load = await loadPluginContributionsFromSource({ plugin, definition: providerContribution });
+  return toRegistry(load.items, load.refusals);
 }
 
 /** The provider ids a package declares, read as data only; none when its file is invalid. @complexity O(n). */
@@ -129,28 +116,8 @@ async function declaredProviderIds(plugin: ProviderPackage): Promise<readonly st
   return parsed.ok ? parsed.descriptors.map((descriptor) => descriptor.id) : [];
 }
 
-/** A package's own providers, trusted by the caller. @complexity O(n) providers, one import each. */
-async function loadPackageProviders(plugin: ProviderPackage): Promise<PackageLoad> {
-  const parsed = parseSourceControlProvidersFile(await readTrustedPluginFile(plugin, SOURCE_CONTROL_PROVIDERS_FILENAME));
-  if (!parsed.ok) {
-    return { providers: [], refusals: [`source-control providers from '${plugin.pluginId}' were not loaded: ${SOURCE_CONTROL_PROVIDERS_FILENAME} is invalid: ${parsed.reason}`] };
-  }
-
-  const providers: LoadedSourceControlProvider[] = [];
-  const refusals: string[] = [];
-  for (const descriptor of parsed.descriptors) {
-    const loaded = await loadProviderModule(plugin, descriptor);
-    if (typeof loaded === "string") refusals.push(`source-control provider '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${loaded}`);
-    else providers.push({ descriptor, pluginId: plugin.pluginId, module: loaded });
-  }
-  return { providers, refusals };
-}
-
-/** Imports one module after the containment check; the module, or the refusal reason. @complexity O(1). */
-async function loadProviderModule(plugin: ProviderPackage, descriptor: SourceControlProviderDescriptor): Promise<SourceControlProviderModule | string> {
-  const imported = await importContainedModule(plugin, descriptor.module);
-  if (typeof imported === "string") return imported;
-  const candidate = imported.exported;
+/** Validate the default export after Jini's contained import. @complexity O(1). */
+function asProviderModule(candidate: unknown): SourceControlProviderModule | string {
   if (!isPlainObject(candidate) || typeof candidate.create !== "function") return "its module has no create() function";
   if (candidate.validateTarget !== undefined && typeof candidate.validateTarget !== "function") return "its module's validateTarget is not a function";
   return candidate as unknown as SourceControlProviderModule;

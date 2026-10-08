@@ -1,4 +1,5 @@
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
+import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
 import { createPluginInstallAttachmentReader } from "../../runtime/composition/plugin-install-attachment-reader.js";
 import { sniffContentType } from "#src/features/media/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
@@ -73,9 +74,7 @@ import express from "express";
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, type MessageAttachmentImage } from "@jini-ai/daemon";
-// From `@jini-ai/agent-runtime`, which owns the seam — not `@jini-ai/daemon`, which only accepts
-// one as an option. The ambient shim this repo used to carry declared it on `daemon`, and being a
-// shim it made that wrong claim typecheck cleanly.
+// @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { getAgentDef, resolveAgentLaunch } from "@jini-ai/agent-runtime";
 import { createDiskAttachmentStore, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
@@ -99,20 +98,20 @@ import {
   resolveResumeSessionField,
   shouldClearSessionOnFailedResume,
   wouldForcedColdStartLoseConversationContext,
-} from "./agent-session-resume.js";
+} from "../../../assistant/agent-session-preset.js";
 import {
   CONCURRENT_RUN_REFUSAL_MESSAGE,
   createLiveRunTracker,
   failRunBeforeStart,
   STOPPING_RUN_WAIT_MS,
   waitForStoppingRuns,
-} from "./agent-run-concurrency.js";
+} from "../../../assistant/agent-session-preset.js";
 import {
   agentAcceptsHostMintedSessionId,
   resolveHostMintedSessionId,
   resolveNewSessionField,
-} from "./agent-session-binding.js";
-import { createConversationStartLock } from "./conversation-start-lock.js";
+} from "../../../assistant/agent-session-preset.js";
+import { createConversationStartLock } from "../../../assistant/agent-session-preset.js";
 import {
   ASSISTANT_DISALLOWED_TOOLS,
   ASSISTANT_SETTING_SOURCES,
@@ -164,20 +163,23 @@ import {
   UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
   buildAssistantToolRegistrations,
 } from "#src/assistant/agent-daemon-port";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/promote-chat-attachment";
 import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
-import { delegatedToolErrorDisclosure } from "#src/assistant/tool-failure-redaction";
+import { delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
 import { registerCredentialRunIntake, registerDurableRunStartRoute, registerDurableToolGuard } from "./durable-run-routes.js";
 import { createEarlySessionCapture } from "./early-run-session.js";
 import { readProcessStart } from "./attempt-process-identity.js";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
 import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
-import { createRunScopedCredentials } from "#src/assistant/run-scoped-credential";
+import { createRunScopedCredentials } from "#src/assistant/daemon-access";
 import type { RunPageContext } from "#src/assistant/run-page-context";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
@@ -435,7 +437,7 @@ const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMA
  * `registerMcpUiToolCallsRoute` (which delivers the human's answer into a park). Two instances would
  * not fail loudly — every delivery would 409 while the agent sat blocked until its TTL expired.
  */
-const surfaceExchanges = createSurfaceExchangeStore();
+const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
 // Must run before `buildAssistantToolRegistrations` below: that function reads whatever the
 // registry currently holds, and the registry starts empty every process boot (it is ordinary
@@ -462,7 +464,12 @@ const assistantRegistrations = buildAssistantToolRegistrations(
   // `listCatalogTools` is `site_describe_capabilities`' reader over THIS registry, the one the
   // `search_tools`/`describe_tool` routes below snapshot. A thunk, read when the tool runs, so it
   // also lists the agent-plugin, skill and federated tools `start()` registers after this line.
-  { ...routeDeps, magicLinkPerEmailLimiter, listCatalogTools: () => listToolCatalogEntries(registry) },
+  { ...routeDeps, magicLinkPerEmailLimiter, listCatalogTools: () => listToolCatalogEntries(registry),
+    ...(routeDeps.conversationToolApprovals ? { nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createNativeApprovalMemory({
+      store: routeDeps.conversationToolApprovals, workspaceId: routeDeps.workspaceId, clock: routeDeps.clock,
+      conversationIdForRun: ({ runId }) => liveRunTracker.conversationIdForRun({ runId }, {}),
+    }) } : {}),
+  },
   { surfaceExchanges },
   { contributions },
 );
@@ -615,14 +622,11 @@ const auditSink = routeDeps.toolAttemptAuditSink;
 // model as an opaque `INTERNAL_ERROR` that names neither the tool nor the reason. This layer catches
 // exactly that throw and, only when the id matches a refusal in `toolExtensions.federation.reports()`,
 // returns a real result naming the tool, the server, and the fix instead. See that file's own header.
-const toolExecutor = withFederatedRefusalDiagnosis(
-  createAssistantToolExecutor({
+const toolExecutor = withFederatedRefusalDiagnosis({ inner: createAssistantToolExecutor({
     registry,
     surfaceExchanges,
     toolAttemptAudit: { sink: auditSink, workspaceId: routeDeps.workspaceId },
-  }),
-  () => toolExtensions?.federation.reports() ?? [],
-);
+  }, {}), getSnapshot: () => toolExtensions?.federation.reports() ?? [] }, {});
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
@@ -681,7 +685,7 @@ const agentExecutor = createAgentExecutor({
   resolveAgentLaunch,
   // Each run's bridge gets its own credential, resolved back to that run's principal; see
   // `run-scoped-credential.ts`. A closure because `runCredentials` is declared further down.
-  mcpJsonInjection: resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint(runId)),
+  mcpJsonInjection: resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {})),
   promptAugmenter: assistantPromptAugmenter,
   // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
   // see `CreateAgentExecutorOptions.claudeConfigDirIsolationEnabled`'s own doc (Jini) for the full
@@ -715,7 +719,7 @@ const messageAttachmentRefsByRunId = new Map<string, readonly string[]>();
 const durableMessageIdsByRunId = new Map<string, string>();
 /** Per-run bridge credentials. Valid only while `principalByRunId` tracks the run, so they share its
  * lifetime; `revoke` on terminal only keeps the map small. See `run-scoped-credential.ts`. */
-const runCredentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => principalByRunId.get(runId)?.id });
+const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principalByRunId.get(runId)?.id }, {});
 
 /**
  * Assigned once, inside `start()`, before `app.listen()` ever binds the port — `onStarted` cannot
@@ -747,7 +751,7 @@ let toolExtensions: AssistantToolExtensions | undefined;
 
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
-const runOwners = createRunOwnerRegistry();
+const runOwners = createRunOwnerRegistry({}, {});
 /** Each live run's admin screen, recorded at run start and forgotten at run end — what `GET /api/active`
  * (`@jini-ai/mcp`'s `get_active_context`) answers from. See `run-active-context.ts`. */
 const runActiveContexts = createRunActiveContextStore();
@@ -757,12 +761,12 @@ const RUN_OWNER_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 /** H2 fix — see `agent-run-concurrency.ts`'s own doc. One instance for this process's whole
  * lifetime, registered/unregistered per run inside `onStarted` below. */
-const liveRunTracker = createLiveRunTracker();
+const liveRunTracker = createLiveRunTracker({}, {});
 
 /** Defect 1 fix (2026-09-11) — see `conversation-start-lock.ts`'s own doc. One instance for this
  * process's whole lifetime; `onStarted` runs its read-decide-write session-binding section through
  * it so two near-simultaneous turns on one conversation cannot both mint a session. */
-const conversationStartLock = createConversationStartLock();
+const conversationStartLock = createConversationStartLock({}, {});
 
 /**
  * Claims `attachmentIds` against `attachmentStore` and resolves the extra `AgentExecutor.run()`
@@ -783,7 +787,7 @@ async function resolveAttachmentRunFields(
   if (!attachmentStore) {
     // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run, not the
     // process, if it somehow is.
-    await failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: attachments are not ready yet.");
+    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: attachments are not ready yet." }, {});
     console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
     return null;
   }
@@ -816,7 +820,7 @@ async function resolveAttachmentRunFields(
     // integrity check failure) would otherwise get a confusing answer about content the agent never
     // looked at, with nothing explaining why.
     const message = error instanceof Error ? error.message : String(error);
-    await failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: an attached file could not be read.");
+    await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: an attached file could not be read." }, {});
     console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
     return null;
   }
@@ -868,7 +872,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     recoverySessionId = decoded.recoverySessionId;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    void failRunBeforeStart(runLifecycle, run.id, "The assistant could not start: the request was malformed.");
+    void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start: the request was malformed." }, {});
     console.error(`[agent-daemon] run ${run.id}: malformed contextRef`, message);
     return;
   }
@@ -876,25 +880,25 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   principalByRunId.set(run.id, principal);
   messageAttachmentRefsByRunId.set(run.id, attachmentIds);
   if (durableMessageId !== undefined) durableMessageIdsByRunId.set(run.id, durableMessageId);
-  runOwners.record(run.id, principal.id);
+  runOwners.record({ runId: run.id, principalId: principal.id }, {});
   // H2 fix (`agent-run-concurrency.ts`): registered synchronously, in this same
   // never-`await`-ed-yet prefix, so a second `onStarted` call for the same conversation — however
   // close together the two requests arrive — is guaranteed to observe this run as already live.
   // A no-op when `conversationId` is absent, matching the stream subscription below: there is
   // nothing to key concurrency by for a daemon client other than the admin chat pane.
-  if (conversationId !== undefined) liveRunTracker.register(conversationId, run.id);
+  if (conversationId !== undefined) liveRunTracker.register({ conversationId: conversationId, runId: run.id }, {});
   if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
   void runLifecycle.waitForTerminal({ runId: run.id }).catch(() => undefined).finally(() => {
     principalByRunId.delete(run.id);
     messageAttachmentRefsByRunId.delete(run.id);
     durableMessageIdsByRunId.delete(run.id);
-    runCredentials.revoke(run.id);
+    runCredentials.revoke({ runId: run.id }, {});
     runActiveContexts.forget(run.id);
     // The owner must outlive the run's end (a finished run is still read and replayed), but not the
     // lifecycle's own terminal record, or this map grows for the daemon's lifetime. Once forgotten,
     // a still-present run is denied to everyone (`requireRunOwnership` fails closed), never opened.
-    setTimeout(() => runOwners.forget(run.id), RUN_OWNER_RETENTION_MS).unref();
-    if (conversationId !== undefined) liveRunTracker.unregister(conversationId, run.id);
+    setTimeout(() => runOwners.forget({ runId: run.id }, {}), RUN_OWNER_RETENTION_MS).unref();
+    if (conversationId !== undefined) liveRunTracker.unregister({ conversationId: conversationId, runId: run.id }, {});
     // Safe to call even for a run that claimed nothing (`AttachmentStore.cleanupRun`'s own
     // contract) — always wired, not only when `attachmentIds` was non-empty, so a run that failed
     // before reaching the claim step below still releases anything a *retry* of the same run id
@@ -937,13 +941,13 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // not lose its locator; generation checks also prevent a stale attempt changing the session.
       void captureEarlySession({ event, runId: run.id, conversationId: resolvedConversationId, agentId: resolvedAgentId }, { durableBinding: durableMessageId !== undefined })
         .catch((error: unknown) => console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error));
-      if (extractSessionRefFromEndEvent(event) !== undefined) return;
+      if (extractSessionRefFromEndEvent({ event: event }, {}) !== undefined) return;
       // H1 fix: this run attempted `--resume <attemptedResumeSessionId>` and reached its terminal
       // `end` event without the CLI ever reconfirming a session id — the stored id is unconfirmed
       // at best, and per this repo's own daemon-restarted-from-a-different-cwd hazard, frequently
       // dead. Clear it so the NEXT turn falls back to a cold start instead of retrying the same
       // dead id forever. See `shouldClearSessionOnFailedResume`'s own doc for the full condition.
-      if (shouldClearSessionOnFailedResume(event, attemptedResumeSessionId)) {
+      if (shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: attemptedResumeSessionId }, {})) {
         const cleared = durableMessageId && routeDeps.chatRunLedger.durable
           ? routeDeps.chatRunLedger.durable.clearSession({ runId: run.id, sessionId: attemptedResumeSessionId! }, {})
           : routeDeps.agentSessions.clearSessionId({ conversationId: resolvedConversationId, agentId: resolvedAgentId });
@@ -1039,13 +1043,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // A run the user just stopped is still exiting for a few seconds. Wait for it, so a message
         // sent right after Stop resumes the session instead of being refused (2026-09-27).
         if (conversationId !== undefined) {
-          await waitForStoppingRuns({
-            tracker: liveRunTracker,
-            lifecycle: runLifecycle,
-            conversationId,
-            runId: run.id,
-            timeoutMs: STOPPING_RUN_WAIT_MS,
-          });
+          await waitForStoppingRuns({ tracker: liveRunTracker, lifecycle: runLifecycle, conversationId, runId: run.id }, { timeoutMs: STOPPING_RUN_WAIT_MS });
         }
         // The H2 fix: refusing to resume when another run for this conversation is already live
         // means at most one process ever holds `--resume <id>` for that CLI session at a time,
@@ -1053,7 +1051,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // two runs' `end` events can still race each other for the store's last write — see
         // `agent-run-concurrency.ts`'s own module doc for the full reasoning and why an in-process
         // tracker needs no special handling across a daemon restart.
-        const hasConcurrentLiveRun = conversationId !== undefined && liveRunTracker.hasConcurrentLiveRun(conversationId, run.id);
+        const hasConcurrentLiveRun = conversationId !== undefined && liveRunTracker.hasConcurrentLiveRun({ conversationId: conversationId, runId: run.id }, {});
 
         // H2-context-loss fix: H2 alone silently drops conversation history for a
         // `carriesOwnMemory` agent — see `wouldForcedColdStartLoseConversationContext`'s own doc for
@@ -1066,10 +1064,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
           wouldForcedColdStartLoseConversationContext({
             storedSessionId,
             hasConcurrentLiveRun,
-            carriesOwnMemory: agentCarriesOwnMemory(agentId),
-          })
+            carriesOwnMemory: agentCarriesOwnMemory({ agentId: agentId }, {}),
+          }, {})
         ) {
-          await failRunBeforeStart(runLifecycle, run.id, CONCURRENT_RUN_REFUSAL_MESSAGE);
+          await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: CONCURRENT_RUN_REFUSAL_MESSAGE }, {});
           console.error(
             `[agent-daemon] run ${run.id}: refused — conversation "${conversationId}" has a live concurrent run holding agent "${agentId}"'s resumable session, and this agent carries its own memory; starting cold would silently drop conversation history`,
           );
@@ -1100,9 +1098,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         const hostMintedSessionId = resolveHostMintedSessionId({
           conversationId,
           effectiveResumeSessionId,
-          acceptsHostMintedSessionId: agentAcceptsHostMintedSessionId(agentId),
+          acceptsHostMintedSessionId: agentAcceptsHostMintedSessionId({ agentId: agentId }, {}),
           mint: randomUUID,
-        });
+        }, {});
         if (conversationId !== undefined && hostMintedSessionId !== null) {
           // Awaited, and inside the conversation lock: the whole point is that the binding is
           // durable BEFORE the CLI is spawned. A failure here is logged and the run continues —
@@ -1118,7 +1116,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
 
         return {
           agentId,
-          sessionFields: { ...resolveResumeSessionField(effectiveResumeSessionId), ...resolveNewSessionField(hostMintedSessionId) },
+          sessionFields: { ...resolveResumeSessionField({ storedSessionId: effectiveResumeSessionId }, {}), ...resolveNewSessionField({ hostMintedSessionId: hostMintedSessionId }, {}) },
         };
       }
       // Serialized per conversation (`conversation-start-lock.ts`): `resolveSessionBinding` is a
@@ -1127,12 +1125,12 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // slot and both mint — forking the conversation exactly the way the terminal-event-only write
       // did. Deliberately does NOT cover `agentExecutor.run` below: holding the lock across a whole
       // agent run would queue a second tab's turn behind it for minutes with no feedback.
-      const sessionBinding = await conversationStartLock.run(conversationId, resolveSessionBinding);
+      const sessionBinding = await conversationStartLock.run({ conversationId: conversationId, critical: resolveSessionBinding }, {});
       if (sessionBinding === null) return;
       if (durableMessageId && routeDeps.chatRunLedger.durable) {
         const attempt = await routeDeps.chatRunLedger.durable.find({ runId: run.id }, {});
         if (!attempt || attempt.cancelReason || !["queued", "running"].includes(attempt.message.runStatus ?? "")) {
-          await failRunBeforeStart(runLifecycle, run.id, "This execution attempt no longer owns the answer."); return;
+          await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
         }
       }
 
@@ -1174,7 +1172,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     .catch((error: unknown) => {
       console.error(`[agent-daemon] run ${run.id} failed to start`, error);
       // A startup rejection must terminalize its attempt so its slot and credentials release.
-      void failRunBeforeStart(runLifecycle, run.id, "The assistant could not start this execution attempt.");
+      void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt." }, {});
     });
 };
 
@@ -1202,7 +1200,7 @@ const app = express();
 // `runScopedCallers`: each run's bridge presents its own per-run credential, which reaches only the
 // bridge's routes and stands for that run's principal, never one the caller asserts
 // (`run-scoped-credential.ts`). The proxy token alone still carries a proxy-asserted principal.
-app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));
+app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }, {}));
 // Read skills before discovery or execution, including changes made by another process.
 app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], createSkillRefreshMiddleware({ registry, onChanged: () => refreshSkillsCatalog() }));
 // Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
@@ -1217,7 +1215,7 @@ app.use(express.json({ limit: "6mb" }));
 // Re-resolve the bearer after parsing, so even a credential that expired while parsing fails
 // closed. Run credentials must match body.runId before any delegated handler or tool can execute;
 // proxy credentials retain their existing authority.
-app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }));
+app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));
 const adapter: AdapterContext = { resolvedPortRef: { current: port }, env: process.env,
   // These are the environment names the previously imported http-kit origin guard read.
   // Preserve that deployed contract when supplying the now-explicit origin configuration.
@@ -1229,8 +1227,8 @@ const adapter: AdapterContext = { resolvedPortRef: { current: port }, env: proce
 // precede `registerRunRoutes`: the middleware so it runs first, and the list handler so it shadows
 // http-kit's unscoped `runListRoute` under Express's first-match-wins routing. See
 // `run-ownership.ts` for the ownership model and the 404-not-403 rationale.
-app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));
-app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));
+app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));
+app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));
 
 registerCredentialRunIntake({ app }, {});
 if (routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app, lifecycle, onStarted, store: routeDeps.chatRunLedger.durable }, {});
@@ -1260,7 +1258,7 @@ const delegatedToolRouteDeps = {
   toolExecutor,
   resolvePrincipal,
   toolRegistry: registry,
-  ...delegatedToolErrorDisclosure(),
+  ...delegatedToolErrorDisclosure({}, {}),
 };
 registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
   isReadOnly: ({ toolId }) => checkReadOnlyTool({ toolId, registry, messages: defaultDaemonMessages.readOnly }, {}) === null,
@@ -1303,12 +1301,11 @@ frontendControl.httpExtension({ app, context: { adapter } });
  *
  * The MECHANISM is core (`mcp-federation/`); which VENDORS exist is not. Vendors arrive as Agent
  * Plugins (`content/agent-plugins/<id>/mcp.json`), whose servers become rows in the stored roster
- * read below; no env-var vendor preset is registered any more (the Supabase one was retired on
- * 2026-09-29 — its env token is copied onto the Supabase plugin's row at boot instead, see
- * `features/agent-plugins/import-access-token.ts`). `mcp-federation/presets.ts` stays as the seam.
+ * read below. Env-token onboarding populates plugin-owned rows; see
+ * `features/agent-plugins/import-access-token.ts`. `mcp-federation/presets.ts` is the seam.
  *
  * Off unless configured: with no enabled roster row `attachFederatedMcpTools` resolves zero
- * connections, and this boot is byte-for-byte the one that ran before the capability existed. It never rejects — a third
+ * connections. It never rejects — a third
  * party's server must not be able to stop Tovu's daemon booting — so there is no failure branch to
  * handle here; see `mcp-federation/bootstrap.ts` for the fail-open rationale and why it is the
  * opposite of `daemon-auth.ts`'s fail-closed posture.
@@ -1405,7 +1402,7 @@ async function start(): Promise<void> {
     approvals: {
       ...(routeDeps.externalMcpToolApprovalRepo ? { always: routeDeps.externalMcpToolApprovalRepo } : {}),
       ...(routeDeps.conversationToolApprovals ? { chat: routeDeps.conversationToolApprovals } : {}),
-      conversationIdForRun: (runId) => liveRunTracker.conversationIdForRun(runId),
+      conversationIdForRun: (runId) => liveRunTracker.conversationIdForRun({ runId: runId }, {}),
     },
   });
 
@@ -1434,11 +1431,11 @@ async function start(): Promise<void> {
         // in the roster) never calls this — see `external-mcp-federation-runtime.ts`'s own doc.
         onAdmitted: (result) => {
           liveToolCatalog.rebind(
-            withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
+            withToolCatalogAudit({ catalog: buildToolCatalogQuery(registry), sink: auditSink, identity: {
               workspaceId: routeDeps.workspaceId,
               runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
               principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-            }),
+            } }, {}),
           );
           console.log(
             `[agent-daemon] mcp-federation: reload admitted ${result.newlyAdmittedConnectionIds.length} new connection(s): ${result.newlyAdmittedConnectionIds.join(", ")}`,
@@ -1528,18 +1525,18 @@ async function start(): Promise<void> {
   // that a reload could ever trigger, so `onAdmitted`'s closure (created above, before this exists)
   // never sees it undefined by the time a reload can actually call it.
   const liveToolCatalog = createLiveToolCatalogQuery(
-    withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
+    withToolCatalogAudit({ catalog: buildToolCatalogQuery(registry), sink: auditSink, identity: {
       workspaceId: routeDeps.workspaceId,
       runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
       principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-    }),
+    } }, {}),
   );
   refreshSkillsCatalog = () => liveToolCatalog.rebind(
-    withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
+    withToolCatalogAudit({ catalog: buildToolCatalogQuery(registry), sink: auditSink, identity: {
       workspaceId: routeDeps.workspaceId,
       runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
       principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
-    }),
+    } }, {}),
   );
   registerToolCatalogRoutes({ app, deps: { catalog: liveToolCatalog.query }, adapter });
 

@@ -13,7 +13,7 @@ import {
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
   type InstallAgentPluginRequired,
-} from "../../install.js";
+} from "../../lifecycle.js";
 
 /**
  * @file `installAgentPlugin()` — content-addressed extraction of one Agent Plugin archive.
@@ -335,8 +335,12 @@ test("the entry-count cap is enforced", async () => {
     const archive = new Uint8Array(Buffer.from("archive-bytes-many-entries"));
     const digest = createHash("sha256").update(archive).digest("hex");
 
-    const manyEntries: AgentPluginArchiveEntry[] = [fileEntry("plugin.json", VALID_MANIFEST)];
-    for (let i = 0; i < 5000; i += 1) manyEntries.push(fileEntry(`skills/a/refs/f${i}.md`, "x"));
+    let streamsOpened = 0;
+    const countedFile = (entryPath: string, content: string) => fileEntry(entryPath, content, {
+      async *openReadStream() { streamsOpened++; yield Buffer.from(content); },
+    });
+    const manyEntries: AgentPluginArchiveEntry[] = [countedFile("plugin.json", VALID_MANIFEST)];
+    for (let i = 0; i < 5000; i += 1) manyEntries.push(countedFile(`skills/a/refs/f${i}.md`, "x"));
 
     await assert.rejects(
       () =>
@@ -349,6 +353,7 @@ test("the entry-count cap is enforced", async () => {
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "TOO_MANY_ENTRIES",
     );
+    assert.equal(streamsOpened, 0, "over-cap archives must be refused before any content is extracted");
     assert.deepEqual(await readPublishedDigests(layout), [], "rejection must not publish a package");
     assert.deepEqual(await readdir(layout.staging), [], "rejection must remove the staging transaction");
   } finally {
@@ -396,8 +401,10 @@ test("identical installs stage twice to identify the plugin, then deduplicate pu
     let extractCount = 0;
     const countingReader: AgentPluginArchiveReaderPort = {
       async *entries() {
-        extractCount += 1;
-        yield* validPackageEntries();
+        yield fileEntry("plugin.json", VALID_MANIFEST, {
+          async *openReadStream() { extractCount++; yield Buffer.from(VALID_MANIFEST); },
+        });
+        yield fileEntry("skills/ui-ux-design/SKILL.md", "# UI/UX Design\n\nGuidance.");
       },
     };
 
@@ -492,7 +499,8 @@ test("publication failure preserves an obstructing file and cleans all staging o
       archiveReader: { async *entries() {
         // Obstruct publication only after the initial dedup check, using the real filesystem.
         await mkdir(path.dirname(finalRoot), { recursive: true });
-        await writeFile(finalRoot, "existing file", { flag: "wx" });
+        try { await writeFile(finalRoot, "existing file", { flag: "wx" }); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
         yield* validPackageEntries();
       } },
     }), (error: unknown) => error instanceof AgentPluginInstallError && error.code === "PUBLISH_FAILED");
@@ -616,8 +624,10 @@ test("TENANT-GRADE: two workspaces installing the identical archive extract INDE
     let extractCount = 0;
     const countingReader: AgentPluginArchiveReaderPort = {
       async *entries() {
-        extractCount += 1;
-        yield* validPackageEntries();
+        yield fileEntry("plugin.json", VALID_MANIFEST, {
+          async *openReadStream() { extractCount++; yield Buffer.from(VALID_MANIFEST); },
+        });
+        yield fileEntry("skills/ui-ux-design/SKILL.md", "# UI/UX Design\n\nGuidance.");
       },
     };
 

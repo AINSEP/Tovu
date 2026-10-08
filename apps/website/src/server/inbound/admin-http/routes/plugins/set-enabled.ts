@@ -1,16 +1,10 @@
 import type { Response } from "express";
 
 import { DuplicateCommandError, executeCommand, ForbiddenError } from "@jini-ai/cms/core";
-import {
-  PluginIncompatibleError,
-  PluginInvalidError,
-  PluginNotFoundError,
-  setPluginEnabled,
-  type PluginActivationRecord,
-} from "#src/features/plugin-runtime/activation";
-import { PluginLoadError } from "#src/features/plugin-runtime/loader";
-import { PluginConflictError } from "#src/features/plugin-runtime/plugin-claims";
-import { PluginInstallError } from "#src/features/plugin-runtime/install";
+import { PluginIncompatibleError, PluginInvalidError, PluginNotFoundError, setPluginEnabled, type PluginActivationRecord } from "@jini-ai/plugins/host";
+import { PluginLoadError } from "@jini-ai/plugins/host/node";
+import { PluginConflictError } from "@jini-ai/plugins/host";
+import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";

@@ -188,7 +188,7 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
    * delivery row can never exist with a missing envelope. A row that collides with any unique
    * index (`(workspace_id, subscription_id, event_id)` or the id) is already enqueued: idempotent
    * by design (INV-P4), a silent no-op. */
-  async enqueue(record: WebhookDeliveryRecord, envelope?: WebhookEventEnvelope): Promise<void> {
+  async enqueue({ record }: { record: WebhookDeliveryRecord }, { envelope }: { envelope?: WebhookEventEnvelope } = {}): Promise<void> {
     await this.kernel.run((db) =>
       db
         .insertInto("webhook_deliveries")
@@ -273,8 +273,7 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
     responseStatus: number | null;
     nextStatus: Extract<WebhookDeliveryStatus, "failed" | "dead">;
     nextAttemptAt: string;
-    deadAtIso?: string;
-  }): Promise<void> {
+  }, optional: { deadAtIso?: string } = {}): Promise<void> {
     const dead = required.nextStatus === "dead";
     await this.kernel.run((db) =>
       db
@@ -285,7 +284,7 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
           last_error: required.error,
           last_response_status: required.responseStatus,
           next_attempt_at: required.nextAttemptAt,
-          ...(dead && required.deadAtIso !== undefined ? { dead_at: required.deadAtIso } : {}),
+          ...(dead && optional.deadAtIso !== undefined ? { dead_at: optional.deadAtIso } : {}),
         })
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)

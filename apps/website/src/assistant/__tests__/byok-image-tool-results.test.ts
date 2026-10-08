@@ -46,6 +46,8 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
     outbox: { enqueue: async () => {} },
+    // Catalog construction binds the SEO host port; these cases never execute SEO.
+    seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
   } as unknown as ByokToolSurfaceDeps;
 }
 

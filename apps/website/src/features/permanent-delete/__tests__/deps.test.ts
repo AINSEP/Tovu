@@ -3,6 +3,9 @@ import test from "node:test";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TrashItem } from "@jini-ai/cms/trash";
 import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";
+import { InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryPrincipalPolicyRepo, InMemoryRoleRepo,
+  InMemoryRolePolicyRepo, InMemoryPolicyPermissionRepo } from "@jini-ai/user-management/server";
+import type { PrincipalRecord } from "@jini-ai/user-management";
 
 const row = (id: string, entityType = "post", entityId = `entity-${id}`): TrashItem => ({
   id, workspaceId: "ws", entityType, entityId, trashedAt: "2026-10-01T00:00:00Z", purgeAfter: "2026-12-01T00:00:00Z",
@@ -19,6 +22,13 @@ function harness(initial: TrashItem[] = [row("a")]) {
     delete: async (spec: unknown) => { effects.push({ deleted: spec }); record = null; },
   };
   let media: Record<string, unknown> | null = { id: "target", title: "Test photo", status: "trashed", source: { sha256: "hash" } };
+  // Account protection now reads the real target and effective grants. Seed both owners and the
+  // disabled principals behind user Trash rows so missing-fixture errors cannot mask those guards.
+  const principalIds = new Set(["owner", "seeded-owner", "live-user", ...initial.filter(item => item.entityType === "user").map(item => item.entityId)]);
+  const principalRepo = new InMemoryPrincipalRepo({}, { initialRows: [...principalIds].map((id): PrincipalRecord => ({
+    id, workspaceId: "ws", kind: "user", displayName: id,
+    status: ["owner", "seeded-owner", "live-user"].includes(id) ? "active" : "disabled", createdAt: "2026-10-01T00:00:00Z",
+  })) });
   const routeDeps = {
     workspaceId: "ws", clock: { nowIso: () => "2026-10-01T00:00:00Z" }, registry: new Map(), ownerPrincipalId: Promise.resolve("seeded-owner"),
     authorize: async (spec: { permission: string }) => { permissions.push(spec.permission); return { allowed, reason: "test-policy" }; },
@@ -40,7 +50,12 @@ function harness(initial: TrashItem[] = [row("a")]) {
       },
     },
     customCredentialSetRepo: repo, sourceControlCredentialSetRepo: repo, vendorCredentialSetRepo: repo,
-    principalRepo: { findById: async (spec: { id: string }) => spec.id === "live-user" ? { id: spec.id, status: "active" } : null },
+    principalRepo,
+    principalRoleRepo: new InMemoryPrincipalRoleRepo({}), roleRepo: new InMemoryRoleRepo({}), rolePolicyRepo: new InMemoryRolePolicyRepo({}),
+    principalPolicyRepo: new InMemoryPrincipalPolicyRepo({}, { initialRows: ["owner", "seeded-owner"].map(principalId => ({
+      id: `${principalId}-grant`, workspaceId: "ws", principalId, policyId: "owner-policy",
+    })) }),
+    policyPermissionRepo: new InMemoryPolicyPermissionRepo({}, { initialRows: [{ id: "owner-wildcard", workspaceId: "ws", policyId: "owner-policy", permission: "*" }] }),
     loadDeployTargets: async () => ({ list: () => [{ descriptor: { id: "host", credential: { vendorId: "hosting" } } }] }),
     externalMcpServerRepo: {
       findByServerId: async () => record,

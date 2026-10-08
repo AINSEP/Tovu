@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/sites.js';
 import { buildDomainRegistrations, indexCatalogById, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
@@ -27,7 +28,7 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
  * @complexity O(1) wiring; handler cost follows the wrapped service.
  */
 export function buildRegistrations(deps: Deps): ToolRegistration[] {
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "sites-list", catalogModule: "features/sites/list-tool.ts",
     catalog: indexCatalogById({ catalog }), derivedRisk,
     handlers: { sites_list: async ctx => {

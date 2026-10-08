@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -26,12 +27,12 @@ import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../
 import { registerContentType } from "../../features/content-types/index.js";
 import type { TrashAwareInMemoryEntryRepo } from "../../features/entries/trash-aware-memory-repo.js";
 import { createEntry } from "../../features/entries/index.js";
-import { PRE_AUTHORIZED } from "../../features/widgets/authorize-helper.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { memoryWidgetTrash } from "../../features/widgets/__tests__/support/memory-widget-trash.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
@@ -43,11 +44,7 @@ const contributions = {
 };
 
 
-// Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeWidgetsTools() });
 
@@ -103,7 +100,7 @@ const WIDGETS_COLLAPSED_CONTENT_READ_IDS: ReadonlySet<string> = new Set(["conten
 
 function widgetsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("widgets_") || WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
@@ -116,18 +113,12 @@ function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistrati
 }
 
 /**
- * Trashes an instance through the real `widgets_trash_instance` tool for this workflow test. It used
- * to raise the 2026-09-08 confirmation dialog (ADS-memory/reports/2026-09-08-delete-confirmation-build.md)
- * against one explicit `SurfaceExchangeStore` and immediately confirm it.
- * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) removed that dialog:
- * moving to Trash is reversible, so only permanent deletes still confirm. The tool now completes in
- * one plain call, which is all this helper ever needed (it was never certifying the gate).
+ * Trashes an instance through the real tool for workflow setup. Reversible Trash moves complete
+ * in one call; this helper exercises the workflow rather than certifying a confirmation gate.
  */
 async function trashInstance(deps: RegistryDepsWithoutLimiter, widgetInstanceId: string): Promise<{ trashed: boolean; cancelled: boolean }> {
-  // `{trashed, cancelled, widgetInstanceId, title, slug, version?}` (2026-09-21) — the confirmed
-  // return shape dropped `instance: toWidgetInstanceToolView(...)` so a corrupt payload can still be
-  // reported as trashed without parsing it. See `features/widgets/tool-registrations.ts`'s
-  // `widgets_trash_instance` handler.
+  // Return summaries avoid parsing widget payloads, so corrupt instances can still be trashed.
+  // See the widgets_trash_instance handler for its public result contract.
   return wired("widgets_trash_instance", deps).handler(executionContext({ widgetInstanceId })) as Promise<{ trashed: boolean; cancelled: boolean }>;
 }
 

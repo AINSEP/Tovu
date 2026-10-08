@@ -177,7 +177,7 @@ function countingSealer(inner: Sealer): Sealer & { calls: number } {
   const counter = {
     calls: 0,
     seal: async (input: Parameters<Sealer["seal"]>[0]) => (counter.calls++, inner.seal(input)),
-    open: async (input: Parameters<Sealer["open"]>[0]) => (counter.calls++, inner.open(input)),
+    open: async (input: Parameters<Sealer["open"]>[0], optional: Parameters<Sealer["open"]>[1] = {}) => (counter.calls++, inner.open(input, optional)),
   };
   return counter;
 }
@@ -310,9 +310,9 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     const opened: Array<string | undefined> = [];
     const lying: Sealer = {
       seal: (input) => fixture.sealer.seal(input),
-      open: async (input) => {
-        opened.push(input.aad);
-        await fixture.sealer.open(input);
+      open: async (input, optional = {}) => {
+        opened.push(optional.aad);
+        await fixture.sealer.open(input, optional);
         return `${LEAK}not the probe plaintext`;
       },
     };
@@ -362,9 +362,9 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
         return fixture.sealer.seal(input);
       },
       open: async (input) => {
-        if (input.aad !== "sealed-credential-inventory-probe:v1") healthy = false;
+        if (optional.aad !== "sealed-credential-inventory-probe:v1") healthy = false;
         if (!healthy) throw new Error("keyring went away");
-        return fixture.sealer.open(input);
+        return fixture.sealer.open(input, optional);
       },
     };
     const inventory = await listSealedCredentials(depsFor(fixture, { sealer: flaky, keyring: fixture.keyring }));

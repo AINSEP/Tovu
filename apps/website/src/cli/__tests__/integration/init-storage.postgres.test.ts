@@ -44,7 +44,7 @@ after(() => {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
-  for (const db of [ENV_DB, SEALED_DB, TAKEN_DB]) psql("postgres", `DROP DATABASE IF EXISTS ${db} WITH (FORCE);`);
+  for (const db of [ENV_DB, SEALED_DB, TAKEN_DB]) psql({ database: "postgres", sql: `DROP DATABASE IF EXISTS ${db} WITH (FORCE);` });
   fs.rmSync(parent, { recursive: true, force: true });
   fs.rmSync(home, { recursive: true, force: true });
 });

@@ -158,6 +158,24 @@ export async function derivePublishSigningKey(input: {
   };
 }
 
+interface DecodedPublishSignature {
+  rawPublicKey: Buffer;
+  message: string;
+  signature: Buffer;
+}
+
+/** Performs the crypto effect after the publishing verifier validates both inputs. Key construction
+ * and crypto errors propagate to that verifier's fail-closed catch. @complexity O(n) in message
+ * length plus one Ed25519 verification. */
+function verifyDecodedPublishSignature(input: DecodedPublishSignature, _optional: Record<string, never> = {}): boolean {
+  const publicKey = createPublicKey({
+    key: Buffer.concat([ED25519_SPKI_PREFIX, input.rawPublicKey]),
+    format: "der",
+    type: "spki",
+  });
+  return cryptoVerify(null, Buffer.from(input.message, "utf8"), publicKey, input.signature);
+}
+
 /**
  * Verifies a detached Ed25519 signature against a raw public key.
  *
@@ -171,18 +189,16 @@ export function verifyPublishSignature(input: {
   publicKeyB64u: string;
   message: string;
   signatureB64u: string;
-}): boolean {
+}, optional: {
+  /** Malformed material must be refused before entering this injectable crypto effect. */
+  verifyDecoded?: (input: DecodedPublishSignature, optional?: Record<string, never>) => boolean;
+} = {}): boolean {
   const rawPublicKey = fromBase64Url(input.publicKeyB64u, ED25519_RAW_KEY_BYTES);
   const signature = fromBase64Url(input.signatureB64u, ED25519_SIGNATURE_BYTES);
   if (!rawPublicKey || !signature) return false;
 
   try {
-    const publicKey = createPublicKey({
-      key: Buffer.concat([ED25519_SPKI_PREFIX, rawPublicKey]),
-      format: "der",
-      type: "spki",
-    });
-    return cryptoVerify(null, Buffer.from(input.message, "utf8"), publicKey, signature);
+    return (optional.verifyDecoded ?? verifyDecodedPublishSignature)({ rawPublicKey, message: input.message, signature });
   } catch {
     return false;
   }

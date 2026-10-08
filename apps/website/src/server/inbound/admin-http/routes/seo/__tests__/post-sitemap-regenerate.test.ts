@@ -1,3 +1,5 @@
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,8 +7,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { buildSitemap, invalidateSitemapCache } from "#src/features/seo/sitemap";
-import type { VerifiedOrigin } from "#src/features/origin/index";
+import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -32,6 +33,9 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     clock: base.clock,
     idGen: base.idGen,
     seoReady: base.seoReady,
+    seoDeps: base.seoDeps,
+    sitemapService: base.sitemapService,
+    mediaContentTypeStore: base.mediaContentTypeStore,
     postRepo: base.postRepo,
     settingsRepo: base.settingsRepo,
     principalRepo: base.principalRepo,
@@ -44,6 +48,8 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
+  deps.seoDeps = depsOverrides.seoDeps ?? createSeoDeps({ deps }, {});
+  deps.sitemapService = depsOverrides.sitemapService ?? createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => {
@@ -99,25 +105,30 @@ test("post-sitemap-regenerate: forbidden 403s", async (t) => {
 test("post-sitemap-regenerate: returns 202 on successful regeneration", async (t) => {
   const base = createRouteDeps();
   await base.seoReady;
-  invalidateSitemapCache({ workspaceId: WORKSPACE_ID });
-  t.after(() => invalidateSitemapCache({ workspaceId: WORKSPACE_ID }));
   const original = {
     id: "sitemap-canary", workspaceId: WORKSPACE_ID, title: "Canary", slug: "before-regeneration",
     kind: "post" as const, status: "published" as const, bodyJson: { type: "doc", content: [] }, bodyFormat: "doc" as const, bodyHtml: null,
     version: 1, updatedAt: "2026-09-01T00:00:00.000Z", seoExtJson: null,
   };
   const postRepo = new InMemoryPostRepo([original]);
-  const originRegistry = { ...base.originRegistry, canonicalOrigin: async () => ({ scheme: "https", host: "sitemap.example.com", basePath: "", source: "workspace-setting", verifiedAt: "2026-09-30T00:00:00.000Z" } satisfies VerifiedOrigin) };
-  const sitemapDeps = { postRepo, settingsRepo: base.settingsRepo, media: base, originRegistry };
+  const originRegistry = {
+    isAllowedRedirectTarget: base.originRegistry.isAllowedRedirectTarget.bind(base.originRegistry),
+    isAllowedEgressTarget: base.originRegistry.isAllowedEgressTarget.bind(base.originRegistry),
+    canonicalOrigin: async () => ({ scheme: "https", host: "sitemap.example.com", basePath: "", source: "workspace-setting", verifiedAt: "2026-09-30T00:00:00.000Z" } satisfies VerifiedOrigin),
+  };
+  const seoDeps = createSeoDeps({ deps: { ...base, postRepo, originRegistry } }, {});
+  const sitemapService = createSitemapService({ deps: seoDeps }, {});
+  sitemapService.invalidateSitemapCache({ workspaceId: WORKSPACE_ID }, {});
+  t.after(() => sitemapService.invalidateSitemapCache({ workspaceId: WORKSPACE_ID }, {}));
   const before = [{ loc: "https://sitemap.example.com/before-regeneration", lastmod: original.updatedAt }];
-  assert.deepEqual(await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID }), before);
+  assert.deepEqual(await sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {}), before);
   await postRepo.save({ ...original, slug: "after-regeneration", updatedAt: "2026-09-30T00:00:00.000Z", version: 2 });
-  assert.deepEqual(await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID }), before, "control: cache is stale before regeneration");
-  const app = buildApp({ postRepo, settingsRepo: base.settingsRepo, seoReady: base.seoReady, originRegistry });
+  assert.deepEqual(await sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {}), before, "control: cache is stale before regeneration");
+  const app = buildApp({ postRepo, settingsRepo: base.settingsRepo, seoReady: base.seoReady, originRegistry, seoDeps, sitemapService });
   const { status, json } = await post(t, app);
   assert.equal(status, 202);
   assert.deepEqual(json, { data: { accepted: true } });
-  assert.deepEqual(await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID }), [
+  assert.deepEqual(await sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {}), [
     { loc: "https://sitemap.example.com/after-regeneration", lastmod: "2026-09-30T00:00:00.000Z" },
   ]);
 });

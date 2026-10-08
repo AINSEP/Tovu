@@ -1,9 +1,11 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/analytics.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { forbiddenRule } from "#src/contracts/core/model-facing-tool-errors";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { AnalyticsSinkPort, NormalizedHit } from "./index.js";
@@ -33,7 +35,7 @@ function topTen(values: Array<string | null>) {
  * @complexity O(limit log limit) time, O(limit) space, limit <= 500; one sink read.
  */
 export function buildAnalyticsRegistrations(deps: AnalyticsToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "analytics", catalogModule: "features/analytics/agent-tools.ts", catalog: indexCatalogById({ catalog: analyticsAgentToolCatalog }), derivedRisk: analyticsDerivedRisk, handlers: withModelFacingErrors({ handlers: {
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "analytics", catalogModule: "features/analytics/agent-tools.ts", catalog: indexCatalogById({ catalog: analyticsAgentToolCatalog }), derivedRisk: analyticsDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     analytics_list_recent_hits: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       const requested = input.limit === undefined ? 100 : input.limit;
@@ -53,7 +55,7 @@ export function buildAnalyticsRegistrations(deps: AnalyticsToolDeps): ToolRegist
         byDeviceClass: Object.fromEntries(byDeviceClass),
       } };
     },
-  }, rules: [forbiddenRule("ANALYTICS")] }) });
+  }, rules: [forbiddenRule({ domainPrefix: "ANALYTICS", error: ForbiddenError })] }) });
 }
 
 /** Contributes only the analytics read domain. */

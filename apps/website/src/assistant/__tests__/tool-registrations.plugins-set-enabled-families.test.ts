@@ -1,4 +1,4 @@
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -15,26 +15,34 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
 import { agentPluginActivations } from "../../features/agent-plugins/activation-effects.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../features/agent-plugins/install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../features/agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
-import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
-import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import {
   buildPluginsRegistrations,
   contributePluginsTools,
   pluginsDerivedRisk,
   type PluginsToolDeps,
 } from "../../features/plugin-runtime/tool-registrations.js";
+import { createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
+import { createNativeApprovalMemory } from "../../contracts/core/native-approval-memory.js";
+import { createRouteDeps } from "../../server/runtime/composition/app.js";
+import { createLiveRunTracker } from "../agent-session-preset.js";
+import { daemonInitializer, evaluateDaemonExpression } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../mcp-ui-tool-calls.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 
@@ -235,12 +243,7 @@ async function answerDialog(
     assert.deepEqual(plan[actionId].params, { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: actionId });
   }
   const action = plan[decision];
-  const delivery = surfaceExchanges.deliver({
-    exchangeId: action.params[SURFACE_EXCHANGE_ID_PARAM] as string,
-    params: action.params,
-    principalId: PRINCIPAL_ID,
-    toolId: action.toolName,
-  });
+  const delivery = surfaceExchanges.deliver({ exchangeId: action.params[SURFACE_EXCHANGE_ID_PARAM] as string, params: action.params, principalId: PRINCIPAL_ID }, { toolId: action.toolName });
   assert.equal(delivery.ok, true, `the human's answer did not reach the parked call: ${JSON.stringify(delivery)}`);
   return { result: await pending, emitted };
 }
@@ -282,7 +285,7 @@ test("the catalog schema requires 'family' and enumerates exactly the two real p
 
 test("plugins_set_enabled: a missing 'family' is a ToolInputError, not an opaque 500", async () => {
   const { deps } = fakeRouteDeps();
-  const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+  const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   await assert.rejects(
     () => call(tool, { pluginId: SITE_PLUGIN.id, enabled: false }),
     (error: unknown) => {
@@ -295,7 +298,7 @@ test("plugins_set_enabled: a missing 'family' is a ToolInputError, not an opaque
 
 test("plugins_set_enabled: an unrecognized 'family' is a ToolInputError naming both valid values", async () => {
   const { deps } = fakeRouteDeps();
-  const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+  const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   await assert.rejects(
     () => call(tool, { pluginId: SITE_PLUGIN.id, enabled: false, family: "wordpress" }),
     (error: unknown) => {
@@ -314,7 +317,7 @@ test("plugins_set_enabled: an unrecognized 'family' is a ToolInputError naming b
 test("plugins_set_enabled: enabling refuses outright when the execution context has no confirmation channel", async () => {
   await withInstalledAgentPlugin(async (workspaceRoot) => {
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     await assert.rejects(() => call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }), /confirmation/i);
 
     const activations = await readAgentPluginActivations({ workspaceRoot });
@@ -325,7 +328,7 @@ test("plugins_set_enabled: enabling refuses outright when the execution context 
 test("plugins_set_enabled: disabling an Agent Plugin needs no confirmation — it only ever removes capability", async () => {
   await withInstalledAgentPlugin(async (workspaceRoot) => {
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as {
       agentPlugin: { enabled: boolean };
     };
@@ -341,7 +344,7 @@ test("plugins_set_enabled: disabling an explicitly enabled Agent Plugin persists
     await setAgentPluginActivation({ workspaceRoot, pluginId: AGENT_PLUGIN_ID, enabled: true, actor: "test-operator" });
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins[AGENT_PLUGIN_ID]?.enabled, true);
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as { agentPlugin: { enabled: boolean } };
     assert.equal(out.agentPlugin.enabled, false);
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins[AGENT_PLUGIN_ID]?.enabled, false);
@@ -354,7 +357,7 @@ test("plugins_set_enabled: a corrupt activations file returns changed:false with
     await writeFile(activationsPath, "{ not json", "utf8");
 
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as {
       changed: boolean;
       cancelled: boolean;
@@ -385,7 +388,7 @@ test("t91 §7.2: ENABLING on a corrupt activations file returns activations-unre
     t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.map(String).join(" ")));
 
     const { deps } = fakeRouteDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = setEnabledTool(deps, surfaceExchanges);
     const emitted: unknown[] = [];
     let dialogRaised: (surface: unknown) => void = () => undefined;
@@ -402,7 +405,7 @@ test("t91 §7.2: ENABLING on a corrupt activations file returns activations-unre
       dialog.then((surface) => ({ kind: "dialog" as const, surface })),
     ]);
     if (first.kind === "dialog") {
-      surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(first.surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID, toolId: SET_ENABLED });
+      surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(first.surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: SET_ENABLED });
       assert.fail(`a confirmation dialog was raised for a write that must refuse; after the human confirmed, the tool returned ${JSON.stringify(await pending)}`);
     }
 
@@ -428,7 +431,7 @@ test("t91 §7.2: ENABLING on a corrupt activations file returns activations-unre
 test("plugins_set_enabled: a confirmed enable writes the Agent Plugin's activation record", async () => {
   await withInstalledAgentPlugin(async (workspaceRoot) => {
     const { deps } = fakeRouteDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = setEnabledTool(deps, surfaceExchanges);
 
     const { result } = await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "confirm");
@@ -444,7 +447,7 @@ test("plugins_set_enabled: a confirmed in-chat enable also provisions the plugin
   await withInstalledAgentPlugin(
     async () => {
       const { deps, externalMcpServerRepo } = fakeRouteDeps();
-      const surfaceExchanges = createSurfaceExchangeStore();
+      const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
       const tool = setEnabledTool(deps, surfaceExchanges);
 
       await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "confirm");
@@ -473,7 +476,7 @@ test("plugins_set_enabled: a confirmed in-chat enable also provisions the plugin
 test("plugins_set_enabled: a declined enable writes nothing and says so", async () => {
   await withInstalledAgentPlugin(async (workspaceRoot) => {
     const { deps } = fakeRouteDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = setEnabledTool(deps, surfaceExchanges);
 
     const { result } = await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "cancel");
@@ -490,7 +493,7 @@ test("plugins_set_enabled: a declined enable writes nothing and says so", async 
 test("the confirmation dialog is a real MCP-UI resource naming the plugin, and calls back into THIS tool id", async () => {
   await withInstalledAgentPlugin(async () => {
     const { deps } = fakeRouteDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = setEnabledTool(deps, surfaceExchanges);
 
     const { emitted } = await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "confirm");
@@ -511,7 +514,7 @@ test("the confirmation dialog is a real MCP-UI resource naming the plugin, and c
 test("enabling an Agent Plugin reports restartRequired:true and says why — its tool is registered only at daemon boot", async () => {
   await withInstalledAgentPlugin(async () => {
     const { deps } = fakeRouteDeps();
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = setEnabledTool(deps, surfaceExchanges);
 
     const { result } = await answerDialog(tool, surfaceExchanges, { pluginId: AGENT_PLUGIN_ID, enabled: true, family: "agent-plugin" }, "confirm");
@@ -524,7 +527,7 @@ test("enabling an Agent Plugin reports restartRequired:true and says why — its
 test("disabling reports restartRequired:false — the activation gate is re-read per run, so an off switch lands immediately", async () => {
   await withInstalledAgentPlugin(async () => {
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as { restartRequired: boolean };
     assert.equal(out.restartRequired, false);
   });
@@ -537,7 +540,7 @@ test("disabling reports restartRequired:false — the activation gate is re-read
 test("plugins_set_enabled: an Agent Plugin id that is not installed in this workspace is a ToolInputError", async () => {
   await withInstalledAgentPlugin(async () => {
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     await assert.rejects(
       () => call(tool, { pluginId: "not-installed", enabled: false, family: "agent-plugin" }),
       (error: unknown) => {
@@ -555,7 +558,7 @@ test("plugins_set_enabled: an Agent Plugin id that is not installed in this work
 
 test("plugins_set_enabled: family 'site-runtime' still enables a .tovu-plugin through executeCommand, behind the same confirmation", async () => {
   const { deps, pluginActivationRepo } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tool = setEnabledTool(deps, surfaceExchanges);
 
   const { result } = await answerDialog(tool, surfaceExchanges, { pluginId: SITE_PLUGIN.id, enabled: true, family: "site-runtime" }, "confirm");
@@ -568,7 +571,7 @@ test("plugins_set_enabled: family 'site-runtime' still enables a .tovu-plugin th
 test("plugins_set_enabled: disabling a site-runtime plugin says its tool is refused from now on, not merely that it stays listed", async () => {
   const { deps, pluginActivationRepo } = fakeRouteDeps();
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: SITE_PLUGIN.version, enabled: true, updatedAt: NOW });
-  const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+  const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
 
   const out = (await call(tool, { pluginId: SITE_PLUGIN.id, enabled: false, family: "site-runtime" })) as { restartRequired: boolean; note: string };
 
@@ -582,7 +585,7 @@ test("plugins_set_enabled: disabling a site-runtime plugin says its tool is refu
 test("disabling an Agent Plugin says exactly what stopped — and that its provisioned external MCP connections did NOT", async () => {
   await withInstalledAgentPlugin(async () => {
     const { deps } = fakeRouteDeps();
-    const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+    const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     const out = (await call(tool, { pluginId: AGENT_PLUGIN_ID, enabled: false, family: "agent-plugin" })) as { note: string };
 
     assert.equal(
@@ -598,7 +601,7 @@ test("disabling an Agent Plugin says exactly what stopped — and that its provi
 
 test("plugins_set_enabled: authorize() runs before any confirmation dialog is raised", async () => {
   const { deps, authorizeCalls } = fakeRouteDeps({ allow: false });
-  const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+  const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const emitted: unknown[] = [];
 
   await assert.rejects(
@@ -617,7 +620,7 @@ for (const enabled of [true, false]) {
       const activationsPath = path.join(workspaceRoot, "activations.json");
       const before = await readFile(activationsPath, "utf8");
       const { deps, authorizeCalls } = fakeRouteDeps({ allow: false });
-      const tool = setEnabledTool(deps, createSurfaceExchangeStore());
+      const tool = setEnabledTool(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
       const emitted: unknown[] = [];
       await assert.rejects(
         () => call(tool, { pluginId: AGENT_PLUGIN_ID, enabled, family: "agent-plugin" }, async (surface) => void emitted.push(surface)),
@@ -642,3 +645,70 @@ function invokeFixtureHandler(
   const { emitSurface, ...required } = context;
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
+
+test("enabling reuses one saved identity grant; changed versions ask again and revocation still refuses", async () => {
+  const { deps } = fakeRouteDeps();
+  const store = createInMemoryConversationToolApprovalStore();
+  deps.nativeApprovalMemory = createNativeApprovalMemory({ store, workspaceId: WORKSPACE_ID, clock: { nowMs: () => 0 }, conversationIdForRun: () => "chat-1" });
+  let version = "1.0.0";
+  deps.discoverPlugins = async () => [{ ...SITE_PLUGIN, version }];
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const tool = setEnabledTool(deps, surfaces);
+  const enable = { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true };
+  assert.equal((await answerDialog(tool, surfaces, enable, "confirm")).emitted.length, 1);
+  await call(tool, { ...enable, enabled: false }, async () => assert.fail("disable asked"));
+  await call(tool, enable, async () => assert.fail("same identity asked twice"));
+  version = "2.0.0";
+  assert.equal((await answerDialog(tool, surfaces, enable, "confirm")).emitted.length, 1);
+  deps.authorize = async () => ({ allowed: false, reason: "insufficient_permission" });
+  await assert.rejects(call(tool, enable, async () => assert.fail("unauthorized call asked")), /insufficient_permission/);
+  assert.equal(surfaces.size(), 0);
+});
+
+test("a version changed while enabling was approved is refused without an activation write", async () => {
+  const { deps, pluginActivationRepo } = fakeRouteDeps();
+  let version = "1.0.0"; deps.discoverPlugins = async () => [{ ...SITE_PLUGIN, version }];
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const tool = setEnabledTool(deps, surfaces);
+  await assert.rejects(call(tool, { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true }, async surface => {
+    version = "2.0.0";
+    surfaces.deliver({ exchangeId: exchangeIdFromSurface(surface), principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId: SET_ENABLED });
+  }), { message: "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed." });
+  assert.equal(await pluginActivationRepo.getActivation({ workspaceId: WORKSPACE_ID, pluginId: SITE_PLUGIN.id }), null);
+});
+
+test("daemon-composed approval memory asks on first enable, skips the same version, and asks on a new version", async () => {
+  const { deps } = fakeRouteDeps();
+  const store = createInMemoryConversationToolApprovalStore();
+  const nativeApprovalMemory = createNativeApprovalMemory({ store, workspaceId: WORKSPACE_ID,
+    clock: deps.clock, conversationIdForRun: ({ runId, principalId }) => runId === "run-1" && principalId === PRINCIPAL_ID ? "chat-1" : undefined });
+  const approvalIdentityForRun = async () => ({ key: "trusted-host-identity", label: "Host provenance port" });
+  const composed = createRouteDeps({ nativeApprovalMemory, approvalIdentityForRun });
+  assert.equal(composed.nativeApprovalMemory, nativeApprovalMemory);
+  assert.equal(composed.approvalIdentityForRun, approvalIdentityForRun);
+  let version = "1.0.0";
+  deps.discoverPlugins = async () => [{ ...SITE_PLUGIN, version }];
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const liveRunTracker = createLiveRunTracker({}, {});
+  liveRunTracker.register({ runId: "run-1", conversationId: "chat-1" }, {});
+  const daemonContributions = {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+  };
+  daemonContributions.contributors.register({ contribution: contributePluginsTools() });
+  const registrations = evaluateDaemonExpression<ToolRegistration[]>(daemonInitializer("assistantRegistrations"), {
+    routeDeps: { ...deps, conversationToolApprovals: store }, registry: createToolRegistry({}),
+    contributions: daemonContributions, listToolCatalogEntries: () => [], buildAssistantToolRegistrations,
+    createNativeApprovalMemory, liveRunTracker, magicLinkPerEmailLimiter: {}, surfaceExchanges: surfaces,
+  });
+  const tool = registrations.find((registration) => registration.descriptor.id === SET_ENABLED);
+  assert.ok(tool);
+  const enable = { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true };
+  const first = await answerDialog(tool, surfaces, enable, "confirm");
+  assert.equal(first.emitted.length, 1);
+  await call(tool, enable, async () => assert.fail("the same version must reuse the saved enable grant"));
+  version = "2.0.0";
+  const changed = await answerDialog(tool, surfaces, enable, "confirm");
+  assert.equal(changed.emitted.length, 1);
+  assert.equal(surfaces.size(), 0);
+});

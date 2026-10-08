@@ -1,11 +1,12 @@
+import { toolMetadata } from '../../../contracts/core/tool-metadata/deploy-ops.js';
 import { collectTypedDeploySecret } from "./typed-secret-card.js";
 import { nowIso } from "@jini-ai/core/primitives";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { notConfirmedResult, requireHumanConfirm } from "#src/contracts/core/human-confirm";
-import type { AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import { notConfirmedResult, approvalToolHandler } from "#src/contracts/core/human-confirm";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-permission";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { runListSecrets, runSetSecret, runUnsetSecret, type SecretConfirm, type SecretConfirmRequest, type SecretValueSource } from "./secrets.js";
@@ -73,12 +74,18 @@ function secretConfirm(ctx: ToolExecutionContext, surfaces: AssistantSurfaceDeps
     { label: "Takes effect", value: TAKES_EFFECT[request.appliesOn] },
   ];
   return async request => {
-    const outcome = request.action === "remove"
-      ? await requireHumanConfirm({ ctx, surfaces, spec: { toolId: "deployment_ops_unset_secret", errorCode: "DEPLOY_OPS", title: `Remove secret ${request.name} from ${request.target}?`, description: "The platform deletes this environment variable. Tovu cannot restore its value.", details: details(request), warning: "An app that still reads this variable may fail to boot after the next deploy.", danger: true, confirmLabel: "Remove secret" } }, options)
-      : await requireHumanConfirm({ ctx, surfaces, spec: { toolId: "deployment_ops_set_secret", errorCode: "DEPLOY_OPS", title: `Replace secret ${request.name} on ${request.target}?`, description: "The current value is overwritten. Tovu cannot restore it.", details: details(request), danger: true, confirmLabel: "Replace secret" } }, options);
-    if (!outcome.confirmed) return { confirmed: false, result: notConfirmedResult(outcome) };
-    await permit("custom-credentials.write");
-    return { confirmed: true };
+    // Only public target/name/source metadata enters the generic description. Values remain
+    // inside the secret-card/provider engine; a create still needs no replacement approval.
+    return approvalToolHandler({ surfaces,
+      prepare: async () => request,
+      describe: ({ prepared }) => prepared.action === "remove"
+        ? { toolId: "deployment_ops_unset_secret", errorCode: "DEPLOY_OPS", title: `Remove secret ${prepared.name} from ${prepared.target}?`, description: "The platform deletes this environment variable. Tovu cannot restore its value.", details: details(prepared), warning: "An app that still reads this variable may fail to boot after the next deploy.", danger: true, confirmLabel: "Remove secret" }
+        : { toolId: "deployment_ops_set_secret", errorCode: "DEPLOY_OPS", title: `Replace secret ${prepared.name} on ${prepared.target}?`, description: "The current value is overwritten. Tovu cannot restore it.", details: details(prepared), danger: true, confirmLabel: "Replace secret" },
+      run: async ({ ctx: snapshot }) => {
+        await permit("custom-credentials.write");
+        return snapshot.signal.aborted ? { confirmed: false, result: notConfirmedResult({ confirmed: false, reason: "abandoned" }) } : { confirmed: true };
+      },
+    }, { declined: ({ reason }) => ({ confirmed: false, result: notConfirmedResult({ confirmed: false, reason }) }) })(ctx, options) as ReturnType<SecretConfirm>;
   };
 }
 const SECRET_KEYS: Record<string, readonly string[]> = {
@@ -129,7 +136,7 @@ export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps, surfaces?: 
       throw error;
     }
   };
-  return buildDomainRegistrations({ domain: "deploy-ops", catalogModule: "features/deployments/deploy-ops/agent-tools.ts", catalog: indexCatalogById({ catalog: catalog }), handlers, derivedRisk: deployOpsDerivedRisk });
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "deploy-ops", catalogModule: "features/deployments/deploy-ops/agent-tools.ts", catalog: indexCatalogById({ catalog: catalog }), handlers, derivedRisk: deployOpsDerivedRisk });
 }
 /** Contribute five read-only tools, the deploy tool and the secret writers; the composition root supplies a gated registry for daemon schemas. */
 export function contributeDeployOpsTools(options: { registry?: DeployOpsRegistry } = {}): ToolContributor {

@@ -74,12 +74,12 @@ test("AC-05: the real restore gateway requires backup.restore for confirm and ex
       checks.push(params); return { allowed: params.permission === "backup.read", reason: "insufficient_permission" };
     } };
   const gateway = {
-    confirm: (params: { planId: string; planHash: string }) => toRecoveryResult(() => confirm({
+    confirm: (params: { planId: string; planHash: string }) => toRecoveryResult({ run: () => confirm({
       ...params, deps: gatewayDeps, principalId: "user-read-only", principalKind: "user", hooks,
-    })),
-    execute: (params: { confirmationToken: string }) => toRecoveryResult(() => execute({
+    }) }, {}),
+    execute: (params: { confirmationToken: string }) => toRecoveryResult({ run: () => execute({
       ...params, deps: gatewayDeps, principalId: "user-read-only", principalKind: "user", hooks,
-    })),
+    }) }, {}),
   };
   const result = await confirmRestore({ deps: { gateway }, input: {
     principalId: "user-read-only", principalKind: "user", planId: "plan-1", planHash: "hash-1", disclosureAcknowledged: true,

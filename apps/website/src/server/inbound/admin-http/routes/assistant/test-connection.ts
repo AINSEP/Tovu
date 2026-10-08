@@ -1,7 +1,7 @@
 import { testProviderConnection, type ConnectionTestResponse } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
+import type { AssistantExecutionRouteDeps, AssistantExecutionRouteRegistrar } from "./execution-deps.js";
 import { readOptionalString, validateSupportedProtocol, type SupportedExecutionProtocol } from "./execution-request-fields.js";
 import { resolveProbeCredential, type ProbeCredentialResolution } from "./stored-credential-probe.js";
 
@@ -33,6 +33,7 @@ function renderMessage(result: ConnectionTestResponse): string {
 /**
  * Calls `testProviderConnection` and shapes this route's response body — isolated so the
  * spread-if-present `apiVersion` shape doesn't add to the handler's own branching.
+ * Host DNS/dispatcher dependencies are forwarded while redirect refusal is enforced here.
  *
  * @complexity O(1).
  */
@@ -40,13 +41,14 @@ async function fetchTestConnectionResponse(
   protocol: SupportedExecutionProtocol,
   credential: Extract<ProbeCredentialResolution, { ok: true }>,
   model: string,
-  apiVersion: string | undefined
+  apiVersion: string | undefined,
+  deps: AssistantExecutionRouteDeps
 ) {
   // The runtime validates only the initial base URL. A provider redirect must not send
   // this probe (and its credentials) to a destination that never passed that guard.
   // The current runtime types put requestInit in optional argument two and require its dispatcher
   // key; undefined uses fetch's default.
-  const requestInit = { redirect: "error", dispatcher: undefined } satisfies
+  const requestInit = { ...deps.probeRequestInit, redirect: "error", dispatcher: deps.probeRequestInit?.dispatcher } satisfies
     RequestInit & NonNullable<NonNullable<Parameters<typeof testProviderConnection>[1]>["requestInit"]>;
   const result = await testProviderConnection({
     protocol,
@@ -54,6 +56,7 @@ async function fetchTestConnectionResponse(
     apiKey: credential.apiKey,
     model,
   }, {
+    dnsLookup: deps.probeDnsLookup,
     requestInit,
     ...(apiVersion ? { apiVersion } : {}),
   });
@@ -140,7 +143,7 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
         return;
       }
 
-      res.json(await fetchTestConnectionResponse(protocol as SupportedExecutionProtocol, credential, model, apiVersion));
+      res.json(await fetchTestConnectionResponse(protocol as SupportedExecutionProtocol, credential, model, apiVersion, deps));
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

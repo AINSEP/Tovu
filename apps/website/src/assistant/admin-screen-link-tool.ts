@@ -1,3 +1,4 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { buildDomainRegistrations, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
@@ -11,12 +12,12 @@ import { ToolInputError } from "@jini-ai/core";
  *
  * ## The observed failure this closes
  *
- * Asked to save a GitHub token, the assistant (before `custom_credential_create` existed) had no
+ * Asked to save a GitHub token, the assistant (before `credential_save with kind api` existed) had no
  * tool that could save one, so it emitted a card reading "Create it once in Admin → Access Tokens →
  * 'Add custom provider' with Label: github, Base URL: https://api.github.com, Category:
  * source-control." — a breadcrumb the human had to re-walk by hand, with no guarantee "Access
  * Tokens" is still the sidebar label or that the path is still `/admin/access-tokens`. That specific
- * gap is closed now (`features/custom-credentials/agent-tools.ts`'s `custom_credential_create`), but
+ * gap is closed now (`features/custom-credentials/agent-tools.ts`'s `credential_save with kind api`), but
  * the SAME failure shape recurs for every capability gap without an in-chat form. This tool is the
  * fallback for those: not "how to do the thing" (that is a domain tool's job, when one exists), but
  * "where the human can go do it themselves."
@@ -42,7 +43,7 @@ import { ToolInputError } from "@jini-ai/core";
  *    `inputSchema` has no enum either — "a published data-agent-page id, as listed by
  *    page.find_elements"). The model already has to know the screen exists — from a sidebar label
  *    seen earlier in the conversation, a URL it was told, or another tool's own description (e.g.
- *    `custom_credential_create`'s description names "Access Tokens") — and this tool only turns that
+ *    `credential_save with kind api`'s description names "Access Tokens") — and this tool only turns that
  *    knowledge into a well-formed path, not into stale-or-not authority to trust it.
  *
  * 2. **Driving the human's browser instead of returning a link.** `@jini-ai/agentic`'s
@@ -60,11 +61,9 @@ import { ToolInputError } from "@jini-ai/core";
  *
  * ## Why the result is a relative path, not a fabricated absolute URL
  *
- * `features/origin`'s `OriginRegistryPort` now exists (it landed 2026-09-03, and
- * `features/seo/sitemap.ts`'s `buildRobots` was wired onto it 2026-09-04 — the sitemap URL it
- * advertises is absolute whenever the workspace has a verified origin), but that registry is keyed by
- * `workspaceId` and this tool's `build` signature is handed neither a workspace-scoped dependency bag
- * nor a `workspaceId` (see this file's own doc on `_routeDeps`/`_surfaces` being unused placeholders,
+ * features/origin's OriginRegistryPort is keyed by workspaceId, but this tool's build signature
+ * receives neither a workspace-scoped dependency bag nor a workspaceId (see this file's doc on
+ * _routeDeps/_surfaces being unused placeholders,
  * further down) — there is no `deps.originRegistry` to call here at all, unlike `buildRobots`. A
  * `ToolHandler` (`@jini-ai/core`'s `ToolExecutionContext`) carries no HTTP request either — no `req`,
  * no `Host` header, nothing `server/inbound/public-http/routes/oauth/public-origin.ts`'s
@@ -135,7 +134,7 @@ export const adminScreenLinkAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: ADMIN_SCREEN_LINK_TOOL_ID,
     description:
-      "FALLBACK ONLY — call this LAST, after checking whether an in-chat tool already covers what the human actually needs (e.g. custom_credential_create to save a provider credential, custom_credential_set_token to rotate one). Reach for this only when no tool exists to perform the action itself and the human must finish it manually in the admin UI. Turns an admin screen's route segment into the path that opens it, so you can hand the human something to open directly instead of a prose breadcrumb like 'go to Admin → Access Tokens → ...'. READ-ONLY: it only builds a path — it never performs the action still waiting on that screen, so pair it with a plain-language description of what to do once the human gets there. It does not verify the segment names a real screen (see the 'path' field's own description). Returns 'path', a site-relative URL (e.g. '/admin/access-tokens') that is ALWAYS present, and — only when this deployment has a configured public origin — an absolute 'url' you should present as the clickable link instead. When 'url' is absent, present 'path' as plain text for the human to open themselves; this chat surface does not render a bare relative path as a clickable link.",
+      "FALLBACK ONLY — call this LAST, after checking whether an in-chat tool already covers what the human actually needs (e.g. credential_save with kind api to save a provider credential, credential_save with kind api and target set to the saved label to rotate one). Reach for this only when no tool exists to perform the action itself and the human must finish it manually in the admin UI. Turns an admin screen's route segment into the path that opens it, so you can hand the human something to open directly instead of a prose breadcrumb like 'go to Admin → Access Tokens → ...'. READ-ONLY: it only builds a path — it never performs the action still waiting on that screen, so pair it with a plain-language description of what to do once the human gets there. It does not verify the segment names a real screen (see the 'path' field's own description). Returns 'path', a site-relative URL (e.g. '/admin/access-tokens') that is ALWAYS present, and — only when this deployment has a configured public origin — an absolute 'url' you should present as the clickable link instead. When 'url' is absent, present 'path' as plain text for the human to open themselves; this chat surface does not render a bare relative path as a clickable link.",
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
     inputSchema: INPUT_SCHEMA,
@@ -227,7 +226,7 @@ export function buildAdminScreenLinkRegistrations(_routeDeps: unknown, _surfaces
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "admin-screen-link",
     catalogModule: "assistant/admin-screen-link-tool.ts",
     catalog: CATALOG_BY_ID,

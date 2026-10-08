@@ -7,7 +7,7 @@ import {
 } from "../repos/origin-repo.js";
 import type { ContentDb } from "./content-db.js";
 import type { UUID } from "@jini-ai/core/primitives";
-import type { VerifiedOrigin } from "#src/features/origin/index";
+import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 
 export type { ConfiguredOriginWriteResult } from "../repos/origin-repo.js";
 

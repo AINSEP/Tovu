@@ -144,7 +144,7 @@ for (const dialect of SITE_DIALECTS) {
       { "@type": "Question", name: "Can I return it?", acceptedAnswer: { "@type": "Answer", text: "Within 30 days." } },
       { "@type": "Question", name: "Do you ship abroad?", acceptedAnswer: { "@type": "Answer", text: "Yes, worldwide." } },
     ]);
-    assert.doesNotMatch(html, /No FAQ yet/, "the marker resolved");
+    assert.doesNotMatch(html.slice(html.indexOf("<body")), /No FAQ yet/, "the marker resolved");
   });
 
   test(`[unrun] plugins [${dialect}]: Tier-2 Content Analyzer preview runs in a worker once enabled, is 409 before, and saves nothing`, async (t) => {

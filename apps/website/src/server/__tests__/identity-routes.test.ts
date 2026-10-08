@@ -1,3 +1,5 @@
+import express from "express";
+import { currentCredential, registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -302,4 +304,35 @@ test("AC-03: an editor CAN create a post through the gateway, and the change-set
   const changeSets = await deps.changeSets.listByWorkspace({ workspaceId: deps.workspaceId });
   const latest = changeSets[0];
   assert.equal(latest.actorId, editorPrincipalId, "the change-set actorId is the real principal, not 'user-local'");
+});
+
+test("malformed admin session cookies remain unauthenticated instead of throwing", async () => {
+  const deps = createRouteDeps();
+  assert.equal(await currentCredential(deps, { headers: { cookie: "tovu_session=%E0%A4%A" } } as express.Request), null);
+});
+
+test("login and logout append their session cookies without replacing an earlier cookie", async t => {
+  const deps = createRouteDeps();
+  const app = express();
+  app.use(express.json());
+  app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
+  registerAuthRoutes(app, deps);
+  const server = createServer(app);
+  server.listen(0);
+  await once(server, "listening");
+  t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+  const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "tovu-dev" }) });
+  assert.equal(login.status, 200);
+  const cookies = login.headers.getSetCookie();
+  assert.equal(cookies[0], "upstream=kept; Path=/");
+  assert.ok(cookies[1].startsWith("tovu_session="));
+  const maxAge = Number(/Max-Age=(\d+)/.exec(cookies[1])?.[1]);
+  assert.ok(maxAge > 60 && maxAge < 366 * 24 * 60 * 60, "Express maxAge input must be milliseconds");
+  const logout = await fetch(`${baseUrl}/api/admin/v1/auth/logout`, { method: "POST" });
+  assert.equal(logout.status, 200);
+  assert.deepEqual(logout.headers.getSetCookie(), [
+    "upstream=kept; Path=/",
+    "tovu_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict",
+  ]);
 });

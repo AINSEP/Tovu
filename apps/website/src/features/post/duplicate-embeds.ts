@@ -7,7 +7,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
  *
  * A page's `bodyJson` can carry `widgetEmbed` nodes. `agent-tools.ts`'s own published
  * `TIPTAP_DOC_SCHEMA` documents a `widgetEmbed` node's `attrs` as carrying only `placementId` — but
- * the REAL node this codebase's write path (`widgets/embed-service.ts`'s `collectEmbeds`/
+ * the REAL node this codebase's write path (`Jini/packages/cms/src/widgets/embed-service.ts`'s `collectEmbeds`/
  * `widgetEmbedNode`) actually reads and writes carries BOTH `placementId` AND `widgetEntryId` in
  * `attrs` (confirmed by reading that file directly: `collectEmbeds` requires
  * `typeof node.attrs.widgetEntryId === "string"` to even recognize the node as an embed). That

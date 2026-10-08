@@ -58,7 +58,7 @@ async function freshPgliteSite(t: TestContext): Promise<PgliteSite> {
   return { siteDir, dataDir, socketPath: path.join(socketDir, PGLITE_SOCKET_FILE) };
 }
 
-const LIFECYCLE_MODULES = ["database-migration-reconciliation", "settings", "seo", "comments", "store-plugin"];
+const LIFECYCLE_MODULES = ["database-migration-reconciliation", "settings", "seo", "comments"];
 
 test("[unrun] pglite boot: a lock held by a live foreign process refuses the boot with PgliteOwnerLockedError and is left in place", async (t) => {
   const { siteDir, dataDir, socketPath } = await freshPgliteSite(t);
@@ -141,7 +141,7 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   assert.equal(fs.existsSync(path.join(dataDir, "PG_VERSION")), true, "the data dir itself is kept");
 });
 
-test("[unrun] pglite boot: the serve boot modules all come up ready on Postgres and a second lifecycle run is idempotent (store seeded once)", async (t) => {
+test("[unrun] pglite boot: the serve boot modules all come up ready on Postgres and a second lifecycle run is idempotent (commerce stays off)", async (t) => {
   const site = await bootSite(t, "pglite");
   const modules = buildBootModules(site.deps, { useMemory: false, defaultContentDbPath: () => path.join(site.siteDir, "content.db") }).filter((module) =>
     LIFECYCLE_MODULES.includes(module.name)
@@ -159,21 +159,12 @@ test("[unrun] pglite boot: the serve boot modules all come up ready on Postgres 
       { name: "settings", owner: "features/settings", criticality: "critical", lifecycle: { status: "ready" } },
       { name: "seo", owner: "seo", criticality: "critical", lifecycle: { status: "ready" } },
       { name: "comments", owner: "comments", criticality: "optional", lifecycle: { status: "ready" } },
-      { name: "store-plugin", owner: "features/plugins/store", criticality: "optional", lifecycle: { status: "ready" } },
     ],
   };
   assert.deepEqual(await runBootLifecycle(modules), expected);
   assert.equal(await site.deps.siteStatusRepo.get(site.deps.workspaceId), "SERVING", "no interrupted migration was found");
 
-  const seeded = [
-    { id: "prod-candle", slug: "prod-candle", title: "Beeswax Candle", price: 1200, stock: 5, version: 0 },
-    { id: "prod-teacup", slug: "prod-teacup", title: "Hand-thrown Teacup", price: 2800, stock: 5, version: 0 },
-    { id: "prod-notebook", slug: "prod-notebook", title: "Linen Notebook", price: 1600, stock: 5, version: 0 },
-  ];
-  assert.ok(site.deps.store, "the store-plugin module wired deps.store");
-  assert.deepEqual(await site.deps.store.listProducts(), seeded, "the plugin tables were declared on Postgres and seeded; integers come back as numbers");
-
+  assert.equal("store" in site.deps, false, "commerce is not composed into the serve dependencies");
+  assert.equal(buildBootModules(site.deps, { useMemory: false, defaultContentDbPath: () => path.join(site.siteDir, "content.db") }).some(module => module.name === "store-plugin"), false);
   assert.deepEqual(await runBootLifecycle(modules), expected, "a re-run (the next boot) is ready again");
-  assert.ok(site.deps.store);
-  assert.deepEqual(await site.deps.store.listProducts(), seeded, "the seed ran once: no duplicate products");
 });

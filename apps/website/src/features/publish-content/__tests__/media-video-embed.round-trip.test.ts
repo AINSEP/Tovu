@@ -1,3 +1,4 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 /**
  * @file A published VIDEO media item must render as a `<video>` on the receiving site, with its
  * poster there too — the 2026-09-26 live bug: tovu.dev rendered the home hero's
@@ -28,7 +29,7 @@ import {
   type MediaRecord,
 } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
-import { resolveHtmlPageEmbeds } from "#src/features/widgets/resolver-service";
+import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 
 import { includeReferencedEntities } from "../export-bundle.js";
@@ -125,7 +126,7 @@ test("publishing only a video media item carries its poster along, and the recei
 
   const html = `<figure class="hero-media"><div class="video-embed" data-embed-config='{"type":"media","slug":"promo-01"}' autoplay muted loop playsinline></div></figure>`;
   const resolved = await resolveHtmlPageEmbeds({
-    deps: {
+    deps: { host: buildWidgetHostPorts({}, {}),
       entryRepo: new InMemoryEntryRepo(),
       mediaRepo: destination.repo,
       transformRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [

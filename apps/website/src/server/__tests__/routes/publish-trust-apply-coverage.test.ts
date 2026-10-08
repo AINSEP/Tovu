@@ -1,3 +1,4 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { chmod, cp, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
@@ -9,9 +10,9 @@ import Database from "better-sqlite3";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { computeBlobStorageKey } from "#src/features/media/index";
 import { rescanThemes } from "#src/features/theme/index";
-import { createRedirect } from "#src/features/redirects/redirects";
-import { bindWidgetArea, mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
-import { createWidgetInstance } from "#src/features/widgets/write-service";
+import { createRedirect } from "@jini-ai/cms/redirects";
+import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
+import { createWidgetInstance } from "@jini-ai/cms/widgets";
 import { resolveDefinitionRaw, set, type SettingDefinitionRecord } from "#src/features/settings/index";
 import { applyReport, packAll, plan } from "#src/features/publish-content/__tests__/round-trip-harness";
 import {
@@ -152,15 +153,15 @@ const FIXTURES: Record<string, (s: Site) => Promise<void>> = {
   },
   widget: async (s) => {
     await createWidgetInstance({
-      deps: widgetService(s),
+      deps: { host: buildWidgetHostPorts({}, {}), ...widgetService(s) },
       input: { workspaceId: s.workspaceId, actor: { principalId: "owner" }, widgetType: "text", title: "About", config: { body: "Hi" }, slug: "cov-widget" },
     });
   },
   "widget-area": async (s) => {
     const widget = await s.entryRepo.findBySlug?.({ workspaceId: s.workspaceId, type: "widget", slug: "cov-widget" } as never);
-    const { areaEntry } = await bindWidgetArea({ deps: widgetService(s), input: { workspaceId: s.workspaceId, regionKey: "sidebar" } });
+    const { areaEntry } = await bindWidgetArea({ deps: { host: buildWidgetHostPorts({}, {}), ...widgetService(s) }, input: { workspaceId: s.workspaceId, regionKey: "sidebar" } });
     await mutateWidgetAreaPlacements({
-      deps: widgetService(s),
+      deps: { host: buildWidgetHostPorts({}, {}), ...widgetService(s) },
       input: {
         workspaceId: s.workspaceId, actor: { principalId: "owner" }, areaEntryId: areaEntry.id, baseVersion: areaEntry.version,
         placements: widget ? [{ placementId: "p-1", widgetEntryId: (widget as { id: string }).id, enabled: true }] : [],

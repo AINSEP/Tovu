@@ -1,8 +1,8 @@
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
-import { createWidgetInstance } from "#src/features/widgets/write-service";
+import { createWidgetInstance } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { WidgetTypeKey } from "#src/features/widgets/types";
+import type { WidgetTypeKey } from "@jini-ai/cms/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
 
 /** This route's validated POST body shape, or `null` when `widgetType`/`title` failed validation.

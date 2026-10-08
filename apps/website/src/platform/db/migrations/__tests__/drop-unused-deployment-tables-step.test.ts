@@ -30,17 +30,20 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       const before = await listTables(kernel);
       for (const name of RETIRED_TABLES) assert.ok(before.includes(name), `${name} exists before upgrade`);
 
-      const report = await migrateContentDatabase(kernel);
+      // Isolate the retiring step: later migrations legitimately add live tables.
+      const step = CONTENT_MIGRATIONS.find((candidate) => candidate.id === DROP_UNUSED_DEPLOYMENT_TABLES_ID);
+      assert.ok(step);
+      const report = await runMigrations(kernel, [...previous, step]);
       assert.deepEqual(report.applied, [DROP_UNUSED_DEPLOYMENT_TABLES_ID]);
       assert.deepEqual(
         (await listTables(kernel)).sort(),
         before.filter((name) => !RETIRED_TABLES.includes(name)).sort()
       );
+      assert.deepEqual((await migrateContentDatabase(kernel)).applied,
+        CONTENT_MIGRATIONS.filter(candidate => candidate.id > step.id).map(candidate => candidate.id));
       assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "booting again applies nothing");
 
       // PARITY: an already-absent table is harmless, including partial manual cleanup before boot.
-      const step = CONTENT_MIGRATIONS.find((candidate) => candidate.id === DROP_UNUSED_DEPLOYMENT_TABLES_ID);
-      assert.ok(step);
       await step.up(kernel, { note: () => {} });
     } finally {
       await kernel.close();

@@ -3,13 +3,16 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryMediaContentTypeStore, InMemoryMediaRepo, type MediaRecord } from "../../media/index.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 import { postAgentToolCatalog } from "../agent-tools.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Scheduled publishing + featured image through the chat tools (2026-10-05):
@@ -70,7 +73,7 @@ async function fakeRouteDeps(options: { withMedia?: boolean } = {}) {
 }
 
 function tool(deps: PostToolDeps, id: string): ToolRegistration {
-  const found = buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find((r) => r.descriptor.id === id);
+  const found = buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find((r) => r.descriptor.id === id);
   assert.ok(found, `expected '${id}' to be wired`);
   return found;
 }

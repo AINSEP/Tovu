@@ -141,8 +141,7 @@ function runContractSuite(label: string, makeOutbox: (options?: OutboxOptions) =
     assert.equal(final.length, 0, "adapter must honor an early terminal decision from the caller, not recompute it");
   });
 
-  // 2026-09-14: a claimer that dies between claimPending and markDelivered/markFailed used to leave
-  // the row `processing` forever. A claim is now a lease; once it expires the row is claimable again.
+  // A claimer may die before settlement; an expired processing lease must make its row claimable.
   test(`[${label}] a row left in processing is claimed again once its claim lease has expired`, async () => {
     const outbox = makeOutbox({ claimLeaseMs: 60_000 });
     await outbox.enqueue(makeEvent());

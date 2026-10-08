@@ -1,3 +1,5 @@
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,13 +10,13 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "#src/features/origin/index";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { registerLlmsTxtRoute } from "../llms.js";
 
 /**
  * @file `registerLlmsTxtRoute` (`routes/site/llms.ts`) — 2026-09-04 rewrite from a hand-curated
  * `CURATED_DOCS` allowlist to a derived index built on `computeIndexableEntries`
- * (`features/seo/sitemap.ts`), the same publish/visibility/indexability filter `sitemap.xml` uses
+ * (`Jini/packages/cms/src/seo/sitemap.ts`), the same publish/visibility/indexability filter `sitemap.xml` uses
  * (INV-04/05). This intentionally REPLACES the prior "only these 6 curated slugs, if published and
  * ungated" behavior — every published, publicly-visible, non-`noindex` post/page is now listed, not
  * just a curated subset — because a hand-maintained list drifts the moment a page is published or
@@ -27,12 +29,14 @@ import { registerLlmsTxtRoute } from "../llms.js";
 function buildLlmsOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Express {
   const base = createRouteDeps();
   const deps: SeoRouteDeps = { ...base, ...depsOverrides };
+  deps.seoDeps = createSeoDeps({ deps }, {});
+  deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
   registerLlmsTxtRoute(app, deps);
   return app;
 }
 
-/** A short single-paragraph body so `deriveExcerpt` (`features/seo/seo.ts`) resolves a real,
+/** A short single-paragraph body so `deriveExcerpt` (`Jini/packages/cms/src/seo/seo.ts`) resolves a real,
  *  non-truncated description from actual content — proving descriptions come from the page's own
  *  SEO meta rather than being invented by the route. */
 function pagePost(overrides: Partial<PostRecord> = {}): PostRecord {

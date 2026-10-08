@@ -17,9 +17,10 @@ const adapters: { name: string; make: () => StorageKernel<unknown> }[] = [
 ];
 
 test("publish backstop step is registered after submission IP retention with its new pin", () => {
-  assert.equal(CONTENT_MIGRATIONS.at(-2)?.id, "0006_submission_ip_retention");
-  assert.equal(CONTENT_MIGRATIONS.at(-1)?.id, "0007_publish_backstop");
-  assert.equal(CONTENT_MIGRATIONS.at(-1)?.checksum, MIGRATION_CHECKSUMS["0007_publish_backstop"]);
+  const index = CONTENT_MIGRATIONS.findIndex(step => step.id === "0007_publish_backstop");
+  assert.ok(index > 0);
+  assert.equal(CONTENT_MIGRATIONS[index - 1]?.id, "0006_submission_ip_retention");
+  assert.equal(CONTENT_MIGRATIONS[index]?.checksum, MIGRATION_CHECKSUMS["0007_publish_backstop"]);
   assert.equal(CONTENT_MIGRATIONS.filter(step => step.id === "0007_publish_backstop").length, 1);
 });
 

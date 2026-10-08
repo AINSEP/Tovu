@@ -1,19 +1,24 @@
+import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../__tests__/support/credential-save.js";
+import { credentialSaveCatalog, credentialSaveDerivedRisk } from "../credential-save-tool.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { createCustomCredential, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "../store.js";
-import { buildCustomCredentialsRegistrations, customCredentialsDerivedRisk, type CustomCredentialsToolDeps } from "../tool-registrations.js";
+import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Certification of `custom_credential_create` (2026-09-03) — the MCP-UI surface that lets an
@@ -30,7 +35,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 const WORKSPACE_ID = "ws-cred-create";
 const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-03T00:00:00.000Z";
-const TOOL_ID = "custom_credential_create";
+const TOOL_ID = "credential_save";
 
 class TrackingSecretSealer implements SecretSealerPort {
   sealCalls = 0;
@@ -40,9 +45,9 @@ class TrackingSecretSealer implements SecretSealerPort {
     this.sealCalls += 1;
     return this.inner.seal(input);
   }
-  open(input: Parameters<SecretSealerPort["open"]>[0]): ReturnType<SecretSealerPort["open"]> {
+  open(input: Parameters<SecretSealerPort["open"]>[0], optional: Parameters<SecretSealerPort["open"]>[1] = {}): ReturnType<SecretSealerPort["open"]> {
     this.openCalls += 1;
-    return this.inner.open(input);
+    return this.inner.open(input, optional);
   }
 }
 
@@ -93,7 +98,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
 }
 
 function buildRegistrations(deps: CustomCredentialsToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
-  return new Map(buildCustomCredentialsRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+  return new Map(credentialSaveFixtureRegistrations({ registrations: buildCustomCredentialsRegistrations(deps, { surfaceExchanges }), adapters: { apiCreate: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges } }).create, apiRotate: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges } }).rotate } }).map((r) => [r.descriptor.id, r]));
 }
 
 function tool(registrations: Map<string, ToolRegistration>, id: string): ToolRegistration {
@@ -116,7 +121,7 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
     executionId: "exec-1",
     principal: { id: PRINCIPAL_ID },
     run: { id: "run-1" },
-    input: options.input ?? {},
+    input: registration.descriptor.id === TOOL_ID ? credentialSaveFixtureInput({ input: options.input ?? {}, kind: "api", rotation: false }) : options.input ?? {},
     signal: options.signal ?? new AbortController().signal,
   };
   return registration.handler(ctx, options.emitSurface ? { emitSurface: options.emitSurface } : {});
@@ -166,25 +171,25 @@ async function seedGithub(writeDeps: CustomCredentialWriteDeps, connection: { to
 // ---------------------------------------------------------------------------
 
 test("custom_credential_create has a catalog entry gated on the WRITE permission, with a schema carrying no token or username field at all", () => {
-  const entry = customCredentialsAgentToolCatalog.find((t) => t.name === TOOL_ID);
+  const entry = credentialSaveCatalog.find((t) => t.name === TOOL_ID);
   assert.ok(entry, `expected '${TOOL_ID}' in customCredentialsAgentToolCatalog`);
-  assert.equal(entry!.authorization.permission, "custom-credentials.write");
+  assert.equal(entry!.authorization.permission, "resolved-per-kind");
   const schema = entry!.inputSchema as { required: unknown[]; additionalProperties: boolean; properties: Record<string, unknown> };
   assert.equal(schema.additionalProperties, false);
-  assert.deepEqual([...schema.required], []);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "label"]);
+  assert.deepEqual([...schema.required], ["kind"]);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["baseUrl", "category", "kind", "label", "prefill", "reason", "target"]);
   assert.ok(!("token" in schema.properties));
   assert.ok(!("username" in schema.properties));
   assert.ok(!("connection" in schema.properties));
 });
 
 test("custom_credential_create is classified as mutates-durable-state in this domain's own derived-risk map", () => {
-  assert.equal(customCredentialsDerivedRisk.get(TOOL_ID), "mutates-durable-state");
+  assert.equal(credentialSaveDerivedRisk.get(TOOL_ID), "mutates-durable-state");
 });
 
 test("custom_credential_create is wired to a real handler", () => {
   const { deps } = fakeRouteDeps();
-  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   tool(registrations, TOOL_ID); // throws if missing
 });
 
@@ -194,7 +199,7 @@ test("custom_credential_create is wired to a real handler", () => {
 
 test("with no emitSurface, the call is refused outright with the exact fail-closed message — no exchange, no seal", async () => {
   const { deps, sealer } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   await assert.rejects(
@@ -215,7 +220,7 @@ test("with no emitSurface, the call is refused outright with the exact fail-clos
 
 test("a denied principal never even sees the form, and nothing is sealed", async () => {
   const { deps, sealer, authorizeCalls } = fakeRouteDeps({ allow: false });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   await assert.rejects(() => call(createTool), /is not authorized for 'custom-credentials\.write'/);
@@ -231,7 +236,7 @@ test("a denied principal never even sees the form, and nothing is sealed", async
 
 test("the call stays open after the form is shown, and nothing is sealed while it is pending", async () => {
   const { deps, sealer } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { pending, ui, exchangeId } = await raiseForm(createTool);
@@ -246,13 +251,13 @@ test("the call stays open after the form is shown, and nothing is sealed while i
   );
   assert.equal(sealer.sealCalls, 0);
 
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: TOOL_ID });
   await pending;
 });
 
 test("submit: a new credential is created, sealed exactly once, the token decrypts correctly, and the SAME call reports the safe summary — never the token", async () => {
   const { deps, sealer, repo } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { pending, ui, exchangeId, emitted } = await raiseForm(createTool);
@@ -263,12 +268,7 @@ test("submit: a new credential is created, sealed exactly once, the token decryp
     [formControl(ui, "Category").name, "source-control"],
     [formControl(ui, "Token").name, "brand-new-secret-token"],
   ]);
-  const delivered = surfaceExchanges.deliver({
-    exchangeId,
-    toolId: TOOL_ID,
-    principalId: PRINCIPAL_ID,
-    params,
-  });
+  const delivered = surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params }, { toolId: TOOL_ID });
   assert.deepEqual(delivered, { ok: true });
 
   const result = (await pending) as { created: true; credential: { id: string; label: string; category: string; baseUrl: string } };
@@ -296,16 +296,11 @@ test("submit: a new credential is created, sealed exactly once, the token decryp
 
 test("submit: an optional username is saved alongside the token", async () => {
   const { deps, repo, sealer } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { pending, exchangeId } = await raiseForm(createTool);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: TOOL_ID,
-    principalId: PRINCIPAL_ID,
-    params: { label: "name.com", baseUrl: "https://api.name.com", category: "hosting", username: "leonaburime@gmail.com", token: "a-token" },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "name.com", baseUrl: "https://api.name.com", category: "hosting", username: "leonaburime@gmail.com", token: "a-token" } }, { toolId: TOOL_ID });
   await pending;
 
   const resolved = await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "name.com" });
@@ -319,16 +314,11 @@ test("submit: an optional username is saved alongside the token", async () => {
 
 test("submit: a blank token is refused as invalid, and nothing is written or sealed", async () => {
   const { deps, sealer, repo } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { pending, exchangeId, emitted } = await raiseForm(createTool);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: TOOL_ID,
-    principalId: PRINCIPAL_ID,
-    params: { label: "github", baseUrl: "https://api.github.com", category: "source-control", token: "   " },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "github", baseUrl: "https://api.github.com", category: "source-control", token: "   " } }, { toolId: TOOL_ID });
 
   const result = await pending;
   assert.deepEqual(result, { created: false, reason: "invalid", message: "Enter a token. Spaces alone are not a token." });
@@ -341,23 +331,18 @@ test("submit: a duplicate label is refused with the exact message pointing at cu
   const { deps, sealer, repo, writeDeps } = fakeRouteDeps();
   await seedGithub(writeDeps, { token: "original-token" });
   sealer.sealCalls = 0; // ignore the seed's own seal call
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { pending, exchangeId } = await raiseForm(createTool);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: TOOL_ID,
-    principalId: PRINCIPAL_ID,
-    params: { label: "github", baseUrl: "https://api.github.com/v2", category: "source-control", token: "attempted-overwrite-token" },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "github", baseUrl: "https://api.github.com/v2", category: "source-control", token: "attempted-overwrite-token" } }, { toolId: TOOL_ID });
 
   const result = await pending;
   assert.deepEqual(result, {
     created: false,
     reason: "duplicate-label",
     message:
-      "A custom credential labeled 'github' already exists in this workspace. To rotate its token, use custom_credential_set_token — this tool only creates NEW credentials and never overwrites an existing one.",
+      "A custom credential labeled 'github' already exists in this workspace. To rotate its token, use credential_save with kind api and target set to this label — this tool only creates NEW credentials and never overwrites an existing one.",
   });
   // `store.ts`'s own `createCustomCredential` seals the CANDIDATE connection before it ever attempts
   // the insert whose UNIQUE constraint actually catches the collision (see that function's own body) —
@@ -375,16 +360,11 @@ test("submit: a duplicate label is refused with the exact message pointing at cu
 
 test("submit: an invalid category is refused with the store's own exact validation message, and nothing is written", async () => {
   const { deps, sealer, repo } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { pending, exchangeId } = await raiseForm(createTool);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: TOOL_ID,
-    principalId: PRINCIPAL_ID,
-    params: { label: "widgetco", baseUrl: "https://api.widgetco.example", category: "not-a-real-category", token: "a-token" },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "widgetco", baseUrl: "https://api.widgetco.example", category: "not-a-real-category", token: "a-token" } }, { toolId: TOOL_ID });
 
   const result = await pending;
   assert.deepEqual(result, {
@@ -402,11 +382,11 @@ test("submit: an invalid category is refused with the store's own exact validati
 
 test("cancel: a dismissed form saves nothing, never seals, and sends no outcome emission", async () => {
   const { deps, sealer } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { pending, exchangeId, emitted } = await raiseForm(createTool);
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: TOOL_ID });
 
   const result = await pending;
   assert.deepEqual(result, { created: false, reason: "cancelled" });
@@ -416,7 +396,7 @@ test("cancel: a dismissed form saves nothing, never seals, and sends no outcome 
 
 test("an unanswered form expires and reports {created:false, reason:'expired'} — never seals", async () => {
   const { deps, sealer } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const result = await call(createTool, { emitSurface: async () => undefined });
@@ -430,7 +410,7 @@ test("an unanswered form expires and reports {created:false, reason:'expired'} �
 // The short TTL makes that regression an 'expired' result instead of a hang.
 test("a run cancelled before the form opens returns {created:false, reason:'abandoned'} at once — no form is emitted, nothing seals", async () => {
   const { deps, sealer } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 50 });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 50 });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
   const controller = new AbortController();
   controller.abort();
@@ -450,7 +430,7 @@ test("a run cancelled before the form opens returns {created:false, reason:'aban
 
 test("optional label/baseUrl/category prefill hints on the model-issued call pre-fill the form", async () => {
   const { deps } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { ui, pending, exchangeId } = await raiseForm(createTool, { label: "github", baseUrl: "https://api.github.com", category: "source-control" });
@@ -464,7 +444,7 @@ test("optional label/baseUrl/category prefill hints on the model-issued call pre
   assert.ok(categorySelect);
   assert.match(categorySelect, /<option value="source-control" selected>source-control<\/option>/);
 
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: TOOL_ID });
   await pending;
 });
 
@@ -475,30 +455,25 @@ test("optional label/baseUrl/category prefill hints on the model-issued call pre
 
 test("with no category prefill hint, the rendered form's Category select already has 'general' selected, not blank", async () => {
   const { deps } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { ui, pending, exchangeId } = await raiseForm(createTool);
   assert.match(ui.resource.text, /<option value="general" selected>general<\/option>/, "the Category field must start pre-selected on 'general', not on the blank required placeholder");
 
-  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } }, { toolId: TOOL_ID });
   await pending;
 });
 
 test("submit with no category hint at all: the credential is still created, landing on 'general' rather than being blocked", async () => {
   const { deps, repo } = fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   // No `category` key in the model-issued call at all — the realistic "human typed 'save my fly.io
   // token', model had no category guess" path this fix closes.
   const { pending, exchangeId } = await raiseForm(createTool);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: TOOL_ID,
-    principalId: PRINCIPAL_ID,
-    params: { label: "fly.io", baseUrl: "https://api.fly.io", token: "a-fly-token" },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "fly.io", baseUrl: "https://api.fly.io", token: "a-fly-token" } }, { toolId: TOOL_ID });
 
   const result = (await pending) as { created: true; credential: { category: string } };
   assert.equal(result.created, true, "an omitted category must never block the save");
@@ -513,12 +488,10 @@ test('card-created credential is reused by the same label with the exact Authori
   const { deps } = fakeRouteDeps();
   const requests: HttpRequest[] = [];
   deps.customCredentialsHttpClient = { send: async request => { requests.push(request); return { status: 200, headers: {}, bodyText: 'ok' }; } };
-  const exchanges = createSurfaceExchangeStore(); const registrations = buildRegistrations(deps, exchanges);
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const registrations = buildRegistrations(deps, exchanges);
   const secret = 'exact-token.Mixed_0123456789-+/=';
   const { pending, exchangeId } = await raiseForm(tool(registrations, TOOL_ID));
-  assert.deepEqual(exchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID,
-    params: { label: 'billing', baseUrl: 'https://api.example.com', category: 'general', token: secret },
-  }), { ok: true });
+  assert.deepEqual(exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: 'billing', baseUrl: 'https://api.example.com', category: 'general', token: secret } }, { toolId: TOOL_ID }), { ok: true });
   const saved = await pending;
   assert.equal((saved as { created: boolean }).created, true);
   const result = await call(tool(registrations, 'custom_credential_make_request'), { input: { label: 'billing', method: 'GET', url: 'https://api.example.com/account' } });
@@ -529,10 +502,10 @@ test('card-created credential is reused by the same label with the exact Authori
 });
 
 test('missing request credential returns the create-card diagnostic with URL origin prefill', async () => {
-  const { deps } = fakeRouteDeps(); const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const { deps } = fakeRouteDeps(); const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const result = await call(tool(registrations, 'custom_credential_make_request'), { input: { label: 'billing', method: 'GET', url: 'https://api.example.com/account' } }) as { credentialSetup: unknown };
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: 'custom_credential_create', remedyToolId: 'custom_credential_create', prefill: { label: 'billing', baseUrl: 'https://api.example.com' },
+    setupToolId: 'credential_save', remedyToolId: 'credential_save', prefill: { kind: 'api', label: 'billing', baseUrl: 'https://api.example.com' },
     hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',
   });
 });
@@ -541,11 +514,35 @@ for (const mode of ['request', 'verify'] as const) test(`${mode} credential reje
   const { deps, writeDeps } = fakeRouteDeps();
   await seedGithub(writeDeps, { token: 'private-test-token', username: 'account' });
   deps.customCredentialsHttpClient = { send: async () => ({ status: 401, headers: {}, bodyText: 'Unauthorized' }) };
-  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const id = mode === 'verify' ? 'custom_credential_verify' : 'custom_credential_make_request';
   const result = await call(tool(registrations, id), { input: { label: 'github', ...(mode === 'request' ? { method: 'GET', url: 'https://api.github.com/user' } : {}) } }) as { credentialSetup: unknown };
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: 'custom_credential_set_token', remedyToolId: 'custom_credential_set_token', prefill: { label: 'github' },
+    setupToolId: 'credential_save', remedyToolId: 'credential_save', prefill: { kind: 'api', target: 'github' },
     hint: 'A missing or rejected credential may be fixed by saving it through the secure card.',
   });
+});
+
+// The run can end after sealing starts but before the store invokes its insert port.
+test("create: abort during sealing writes nothing and closes the exchange", async () => {
+  const { deps, sealer, repo } = fakeRouteDeps();
+  const controller = new AbortController();
+  const seal = sealer.seal.bind(sealer);
+  sealer.seal = async input => {
+    const sealed = await seal(input);
+    controller.abort();
+    return sealed;
+  };
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const createTool = tool(buildRegistrations(deps, exchanges), TOOL_ID);
+  const emitted: unknown[] = [];
+  const pending = call(createTool, { signal: controller.signal, emitSurface: async surface => void emitted.push(surface) });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(emitted.length, 1);
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  assert.deepEqual(exchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "github", baseUrl: "https://api.github.com", category: "source-control", token: "private-card-token" } }, { toolId: TOOL_ID }), { ok: true });
+  assert.deepEqual(await pending, { created: false, reason: "abandoned" });
+  assert.deepEqual(await repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
+  assert.equal(emitted.length, 1);
+  assert.equal(exchanges.size(), 0);
 });

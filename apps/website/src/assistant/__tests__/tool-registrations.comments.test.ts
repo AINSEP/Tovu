@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -21,15 +22,14 @@ import {
 } from "../../features/settings/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
-import { InMemoryCommentRepo } from "../../features/comments/repo.memory.js";
-import { createCommentHookRegistry } from "../../features/comments/hooks.js";
-import { createCommentWriteService } from "../../features/comments/write-service.js";
+import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+import { createCommentHookRegistry } from "@jini-ai/cms/comments";
+import { createCommentWriteService } from "@jini-ai/cms/comments";
 import { ensureCommentsSettingDefinitions } from "../../features/comments/settings.js";
-import type { CommentRecord } from "../../features/comments/types.js";
+import type { CommentRecord } from "@jini-ai/cms/comments";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
   assertRiskMetadataIsWirable,
-  buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -43,12 +43,8 @@ const contributions = {
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
 
-// Comments moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so
-// `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
-// it first, mirroring what the real composition roots (`agent-daemon-server.ts`,
-// `assistant-byok.ts`) now do via `installFirstPartyToolContributors()`. Reset first so this file's
-// own registration is the only one this process's registry holds while these tests run.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
+// Reset first to isolate this file's registrations in the process registry.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeCommentsTools() });
 
@@ -86,7 +82,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const commentWriteService = createCommentWriteService({
     repo: commentRepo,
     outbox: new InMemoryOutbox(),
-    hooks: createCommentHookRegistry(),
+    hooks: createCommentHookRegistry({}, {}),
     clock,
     idGen,
     ...commentTrashDoubles(),
@@ -120,7 +116,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 function commentsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("comments_") || r.descriptor.id === "content_read.comment_moderation_queue")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -261,7 +257,7 @@ const MODERATION_TOOLS: Record<string, { permission: string; toStatus: string }>
 for (const [toolId, spec] of Object.entries(MODERATION_TOOLS)) {
   test(`${toolId}: calls authorize() with its declared permission before touching the repo`, async () => {
     const { deps, commentRepo, authorizeCalls } = await fakeRouteDeps();
-    await commentRepo.create(seedComment());
+    await commentRepo.create({ record: seedComment() }, {});
     authorizeCalls.length = 0;
     const order: string[] = [];
     const authorize = deps.authorize;
@@ -286,7 +282,7 @@ for (const [toolId, spec] of Object.entries(MODERATION_TOOLS)) {
 
   test(`${toolId}: a denied principal is refused with COMMENTS_FORBIDDEN and the comment is left unchanged`, async () => {
     const { deps, commentRepo } = await fakeRouteDeps({ allow: false });
-    await commentRepo.create(seedComment());
+    await commentRepo.create({ record: seedComment() }, {});
 
     await assert.rejects(
       () => wired(toolId, deps).handler(executionContext({ commentId: "comment-1", expectedVersion: 1 })),
@@ -307,7 +303,7 @@ for (const [toolId, spec] of Object.entries(MODERATION_TOOLS)) {
 
   test(`${toolId}: transitions the comment to '${spec.toStatus}' on success`, async () => {
     const { deps, commentRepo } = await fakeRouteDeps();
-    await commentRepo.create(seedComment());
+    await commentRepo.create({ record: seedComment() }, {});
 
     const result = (await wired(toolId, deps).handler(executionContext({ commentId: "comment-1", expectedVersion: 1 }))) as {
       moderated: { commentId: string; toStatus: string };
@@ -321,7 +317,7 @@ for (const [toolId, spec] of Object.entries(MODERATION_TOOLS)) {
 
   test(`${toolId}: a stale expectedVersion is rejected as a conflict, not silently applied`, async () => {
     const { deps, commentRepo } = await fakeRouteDeps();
-    await commentRepo.create(seedComment());
+    await commentRepo.create({ record: seedComment() }, {});
 
     await assert.rejects(
       () => wired(toolId, deps).handler(executionContext({ commentId: "comment-1", expectedVersion: 99 })),
@@ -332,7 +328,7 @@ for (const [toolId, spec] of Object.entries(MODERATION_TOOLS)) {
 
 test("comments_list_moderation_queue: calls authorize() with 'comments.read' and is read-only", async () => {
   const { deps, commentRepo, authorizeCalls } = await fakeRouteDeps();
-  await commentRepo.create(seedComment());
+  await commentRepo.create({ record: seedComment() }, {});
   authorizeCalls.length = 0;
 
   const result = (await wired("content_read.comment_moderation_queue", deps).handler(executionContext({}))) as {
@@ -408,7 +404,7 @@ test("comments_update_settings: persists a partial patch and leaves omitted fiel
 
 test("workflow: comments_update_settings -> comments_list_moderation_queue -> comments_approve_comment -> comments_list_moderation_queue chains correctly and leaves consistent state", async () => {
   const { deps, commentRepo } = await fakeRouteDeps();
-  await commentRepo.create(seedComment({ id: "c-workflow", bodyText: "Needs review" }));
+  await commentRepo.create({ record: seedComment({ id: "c-workflow", bodyText: "Needs review" }) }, {});
 
   // Step 1: tighten moderation settings (a real admin task before reviewing the queue).
   const settingsResult = (await wired("comments_update_settings", deps).handler(executionContext({ requireModeration: true, maxDepth: 4 }))) as {

@@ -3,12 +3,15 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "../post.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Regression coverage for H3: `content_post_list` was an unbounded N+1 — resolving each row's
@@ -72,7 +75,7 @@ function call(registration: ToolRegistration, input: unknown) {
 }
 
 function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
-  return buildRegistrations(deps, createSurfaceExchangeStore());
+  return buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
 }
 
 async function seedPublishedPosts(postRepo: InMemoryPostRepo, count: number): Promise<void> {

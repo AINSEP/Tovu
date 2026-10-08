@@ -1,4 +1,3 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 // Boot-loop implementation and rationale: Jini/packages/mcp/src/federation/bootstrap.ts.
 import { attachFederatedMcpTools as attachJiniTools } from "@jini-ai/mcp/federation";
 import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
@@ -12,65 +11,9 @@ import { buildFederatedMcpRegistrations, toJiniFederationDeps, type FederationDe
 import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 
 /**
- * @file The composition root for outbound MCP federation: the one function
- * `agent-daemon-server.ts` calls, and the only place in this subtree that performs I/O it was not
- * handed.
- *
- * Split out of `agent-daemon-server.ts` for the reason `tool-catalog-query.ts` and `daemon-auth.ts`
- * were: that file is a top-level side-effecting script which opens a real port and a real DB
- * connection on import, so nothing in it can be imported by a test. Everything here can be.
- *
- * FAIL-OPEN, and deliberately the opposite of `daemon-auth.ts`'s fail-closed gate. The two are
- * answering different questions. `requireAgentDaemonToken` guards ACCESS TO Tovu, where failing
- * open would admit unauthenticated callers, so an unconfigured gate must refuse to serve. This
- * guards an OPTIONAL OUTBOUND CONVENIENCE, where failing closed would mean a third party's server
- * being slow, broken, or absent takes Tovu's own assistant down with it. A vendor Tovu does not
- * control must never be on the critical path of Tovu booting. So every failure here — unreachable
- * server, timed-out handshake, malformed tool list, invalid config — is logged and stepped over,
- * and the daemon continues with its native catalog exactly as it did before this capability
- * existed.
- *
- * The one thing that is NOT stepped over is a native id collision (`trust.ts` R1): that throws out
- * of `federateSession` and is caught here like any other failure, so the connection is dropped
- * whole rather than partially registered. Dropping the connection is the safe direction — the
- * failure mode it prevents is a remote shadowing a Tovu tool, and "no federated tools" is always an
- * acceptable outcome.
- *
- * VENDOR-BLIND. Nothing in this file names a vendor: which servers exist is whatever registered
- * itself with `presets.ts` (none today: the Supabase env preset was retired on 2026-09-29), plus the
- * stored roster. Before 2026-07-30 this file imported
- * Supabase's resolver directly, which meant adding a second vendor was an edit to core federation.
- * See `presets.ts` for the seam's rationale.
- *
- * Delegated boot-loop rationale (Jini helper names):
- * Registers every admitted tool from one connection's {@link federateSession} pass into
- *  `registry`, returning the ids actually registered. Split out of
- *  {@link attachOneFederatedConnection} purely to keep that function's complexity under the shop
- *  ceiling.
- * Logs one connection's full admission accounting. Refusals are reported, never silent —
- *  `buildDomainRegistrations`'s own "silence is never the outcome" discipline. An operator
- *  debugging a missing tool needs the reason, and an operator reading logs after an incident needs
- *  to see what a remote TRIED to expose. Split out of {@link attachOneFederatedConnection} purely
- *  to keep that function's complexity under the shop ceiling.
- *
- *  The two `writeAuthorized`/`writeAllowedButNotAllowlisted` lines are WARN, not INFO, on purpose:
- *  an operator-authorized write tool entering the model's catalog — or an operator's write
- *  authorization silently doing nothing because the same name is missing from the allowlist — is a
- *  security-relevant boot event, not routine informational noise. See the write-tools
- *  implementation outline §9.
- * One iteration of {@link attachFederatedMcpTools}'s original inline loop body — connect, list,
- *  admit, register, log — extracted purely to keep that function's complexity under the shop
- *  ceiling. Fail-open per connection: any failure (connect, list, or admission) is logged and
- *  swallowed here rather than propagated, matching this file's own fail-open doc. A session that
- *  connected but failed later still gets closed.
- * The admission report `federateSession` produced, or `null` when this connection never reached
- *  that step (connect failed, listing failed, or a native-id collision dropped it whole).
- * Set (never `""`) exactly when `report` is `null` — the human-readable reason this connection
- *  never reached admission, for the caller to surface as a {@link AttachFederatedToolsResult.connectFailures}
- *  entry instead of leaving the connection silently absent everywhere. `undefined` on success.
- * Snapshotted here, immediately before the admission check, so the collision assertion sees
- * every native tool AND every tool an earlier connection in this same loop already claimed.
- * A session that connected but failed during listing/admission still owns a child process.
+ * @file Tovu binds host ports, presets, messages and launch policy to Jini's federation boot loop.
+ * Optional outbound failures must not disable the native assistant; inbound daemon auth remains
+ * fail-closed. The detailed admission, collision and session-cleanup rationale is at the Jini owner.
  */
 
 /** Where the admission report goes. Injected so tests assert on it instead of scraping stdout, and
@@ -110,22 +53,17 @@ export interface AttachFederatedToolsResult {
      * Whether this connection came from `presets.ts`'s registry rather than the operator-editable
      * roster (`extraConnections` below). Threaded through so a consumer — today, the admin admissions
      * banner (`external-mcp-admissions-rules.ts`) — can tell "no roster card because this is a preset,
-     * by design" apart from "no roster card because the operator just deleted it". Both looked
-     * identical before this field existed (`connectionId` absent from the roster either way), which
-     * is exactly why a genuinely-deleted-but-still-live roster connection was silently reported as
-     * agreeing instead of as drift (2026-09-07, the follow-on ADM-001 left open).
+     * by design" apart from "no roster card because the operator just deleted it".
+     * A deleted-but-live roster connection must be reported as drift.
      */
     readonly isPreset: boolean;
   }[];
   /**
    * One entry per connection that failed BEFORE reaching admission — a bad spawn, a timed-out
-   * handshake, a malformed tool listing, or a native-id collision (2026-09-24). This is the
+   * handshake, a malformed tool listing, or a native-id collision. This is the
    * connection-level counterpart to `reports` above: `reports` never carries an entry for one of
-   * these (see {@link attachOneFederatedConnection}'s catch branch), which used to mean the
-   * connection was simply invisible everywhere an operator could look — `GET
-   * /api/federation/admissions` showed no row for it and `configFailures` (a SEPARATE, boot-time
-   * config-resolution channel — see `external-mcp-connection-source.ts`) has no way to know about a
-   * failure that happens deeper, inside `connect()` itself. `reason` is `messageOf(error)` — the
+   * these. `configFailures` covers separate boot-time configuration resolution and cannot know
+   * about failures inside `connect()`. `reason` is the human-readable connection error, the
    * same text `logger.warn` already prints for this exact failure, so this field discloses nothing
    * that was not already reaching this process's own stderr; it is never a raw env value or secret,
    * since nothing in this file's `connect`/`spawn` error paths ever formats one into a message.
@@ -196,14 +134,13 @@ interface OriginTaggedConnection {
 
 /** Resolves the defaulted inputs `attachFederatedMcpTools` needs — `logger`, `connect`, and the
  *  merged connection list (presets or an injected override, plus any extra roster connections),
- *  each tagged with its origin. Split out purely to keep that function under the shop complexity
- *  ceiling.
+ *  each tagged with its origin.
  *
  *  `params.connections` (an injected override, used throughout this file's own tests) stands in for
  *  the preset list, not the roster — it replaces `resolveRegisteredPresets`'s result, and
  *  `extraConnections` is documented on {@link AttachFederatedMcpToolsParams} as specifically the
  *  operator-editable roster. So the origin tag is exactly which of the two arrays a connection came
- *  from, unchanged from before this field existed. */
+ *  from. */
 /** Stamps a preset-sourced connection's config with `origin: {kind:"preset"}`, so
  *  `external-mcp-revocation.ts`'s per-call gate can tell it apart from a roster connection (which
  *  carries its OWN origin already, stamped by `external-mcp-store.ts`'s
@@ -246,7 +183,7 @@ export function tovuStdioLaunchResolverFromEnv(env: NodeJS.ProcessEnv, options: 
   }, options);
 }
 
-// Warning deduplication moved with the launch factory to @jini-ai/mcp/federation/stdio.
+// Warning deduplication is owned by @jini-ai/mcp/federation/stdio.
 
 export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> {
   const { logger, connect, connections } = resolveFederationAttachInputs(params);

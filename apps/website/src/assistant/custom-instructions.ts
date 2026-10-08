@@ -4,48 +4,22 @@ import { type SettingsRepoPort } from "../features/settings/index.js";
 /**
  * @file The read half of the admin Instructions tab's system-prompt seam: turns the stored
  * `core.instructions.custom` value into text `agent-daemon-server.ts`'s `PromptAugmenter.
- * systemOverlay()` hands the spawned agent CLI. Before this file, the setting had zero consumers —
- * an operator could type instructions, watch them persist, and nothing about the assistant's
- * behavior would change (see `agent-daemon-server.ts`'s module doc for why the daemon process,
- * not Tovu's main process, is where a system prompt gets assembled at all).
+ * systemOverlay()` hands the spawned agent CLI. Prompt assembly belongs to the daemon process.
  *
- * Two problems this file exists to solve — "read the ledger value" on its own is not one of them:
+ * `getEffective` must read fresh values: main-server writes cannot invalidate a cache keyed by
+ * this daemon's independent repository instance. An indexed local row read is cheaper than
+ * cross-process cache incoherence; see the owning settings module's cache rationale.
  *
- * 1. CROSS-PROCESS CACHE STALENESS — RESOLVED UPSTREAM (2026-07-31); no longer this file's problem.
- *    `getEffective` (`features/settings/settings.ts`) used to cache its per-layer reads in a
- *    `WeakMap` keyed by JS object identity of the `SettingsRepoPort`, invalidated only by a `set()`
- *    against that SAME instance. The admin's settings-dialog write happens in Tovu's MAIN process;
- *    this daemon process opens a second, independent connection to the same SQLite file
- *    (`agent-daemon-server.ts`'s module doc) with its own repo instance and therefore its own cache,
- *    which the main process's write could never invalidate. An operator's first saved instructions
- *    took effect and no edit after that ever did, short of restarting the daemon.
- *
- *    This file worked around it by calling `invalidateWorkspaceValueCache` immediately before every
- *    read. That fixed this call site and only this call site — the same staleness later surfaced
- *    through `settings_set_ui_preference`, where an agent's language change was invisible to the
- *    main server across full page reloads. The per-layer value cache has since been removed
- *    outright (see `settings.ts`'s cache header), which generalizes the conclusion this file had
- *    already reached: an uncached layer read is one indexed row from a local SQLite file, and that
- *    is cheaper than a correctness bug that only reproduces when the cache happens to be warm.
- *
- *    Nothing is needed here anymore; `getEffective` is always fresh. The note is kept because the
- *    reasoning is the record of WHY the cache went away, and because a future reader tempted to
- *    reintroduce one should find this first.
- *
- * 2. THE SYNCHRONOUS SEAM. `PromptAugmenter.systemOverlay()` (`@jini-ai/agent-runtime`) returns
- *    `string | null`, not a `Promise` — `@jini-ai/daemon`'s `AgentExecutor` calls it once per
- *    `run()`, synchronously, while building the spawned CLI's argv. An async ledger read cannot
- *    happen inside that call. `createCustomInstructionsCache` bridges the gap the only way the
- *    synchronous contract allows: hold the last successfully resolved value in memory, let the
- *    caller refresh it on its own async schedule (`agent-daemon-server.ts` refreshes once per run,
- *    before starting the agent), and let `systemOverlay()` read the cache synchronously.
+ * `PromptAugmenter.systemOverlay()` returns synchronously, while the settings read is async.
+ * `createCustomInstructionsCache` holds the last successfully resolved value; the caller refreshes
+ * it before each run so the synchronous overlay can read it without I/O.
  */
 
 const CUSTOM_INSTRUCTIONS_KEY = "custom";
 
 /**
  * Structural signature matching `features/settings`'s real `getEffective` export
- * (`@jini-ai/cms/settings`, re-exported unchanged by `features/settings/index.ts`). Redeclared
+ * (`@jini-ai/core/settings`, re-exported unchanged by `features/settings/index.ts`). Redeclared
  * locally rather than shared from `public-assistant-settings.ts`'s own identical-shaped type — this
  * repo redeclares small structural types per-file rather than sharing them across the module-cycle
  * boundary (same precedent as `assistant/site/tools.ts`'s/`client-directives.ts`'s own two
@@ -89,8 +63,8 @@ export interface ResolveCustomInstructionsInput {
 }
 
 /**
- * Reads `core.instructions.custom` fresh from the ledger for one workspace. "Fresh" needs nothing
- * from this function anymore — see this file's header for the cache that used to make it a problem.
+ * Reads `core.instructions.custom` fresh from the ledger for one workspace. getEffective owns
+ * fresh reads; see the header for why independent processes cannot rely on cache invalidation.
  *
  * FAILS OPEN: any error (a repo I/O failure, `settingsReady` rejecting, a malformed stored value) is
  * logged and reads as `""` — a broken settings read must degrade the assistant to "no custom

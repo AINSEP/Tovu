@@ -1,4 +1,3 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import { ToolInputError } from "@jini-ai/core";
 import { federatedApprovalClassFor } from "../tool-approval-policy.js";
 import type { ToolApprovalClass } from "../../contracts/headless/assistant-tool-approval-policy.js";
@@ -54,56 +53,8 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
  * ONE evaluator, run before anything crosses the network — not after, so a denied principal's
  * arguments are never even sent to a third party. `entityId` is the connection, so a
  * deployment can grant per-connection rather than all-or-nothing.
- * Fixed ONCE, before any card is drawn: the frozen copy the human sees is the same object that
- * is sent, so nothing that happens to `ctx.input` while the card waits can change what runs.
- * The REMOTE name, not the namespaced id — namespacing exists for Tovu's registry, and a
- * remote must never see, or be able to depend on, Tovu's naming.
- * A token valid at boot can die mid-session; nothing here re-probes it proactively (no
- * periodic refresh exists), so this is where that discovery actually happens. Handed to
- * `onAuthFailed` so the SAME durable state and terminal, non-retryable error this file's
- * `assertConnectionUsable` doc already promises apply here too — not just to a connection
- * already known dead at the call's start.
- * R7's media carve-out (trust.ts): image blocks are pulled out of `result.content` BEFORE the
- * untrusted-data envelope is built, so they reach the model through the daemon's typed
- * `media` channel (`extractResultMedia`) intact — see the shared Jini media-extraction rationale
- * for why stringifying them into the byte-capped text boundary instead would corrupt them.
- * R7. Every federated result reaches the model inside an untrusted-data boundary, including
- * the remote's own `isError` claim — which is reported as data rather than acted on, because
- * a remote lying about its own success is not a case this side can adjudicate.
- * The ONLY field `@jini-ai/daemon`'s `extractResultMedia` reads to hoist inline media onto
- * the `tool_result` wire event — see `demo-image-tool.ts` for the identical shape proven
- * end to end through the chat pane. Omitted (not an empty array) when there is nothing to
- * hoist, so a text-only result's return shape is byte-identical to before this existed.
- * Pass-through, matching `buildDomainRegistrations`'s identical choice and for the identical
- * ADR-021 §2 reason: the handler above IS this tool's one gate, and a `ToolPolicy` check would
- * be a second evaluator of the same rule.
- * Connects nothing and lists nothing itself — takes a session, drains its tool list, and returns
- * registrations. The one place `listTools` is called, so `trust.ts` R5's "frozen at connect" is a
- * property of the code rather than a convention: there is no other path that could re-list.
- *
- * @throws {Error} If `listTools` rejects — a connection that cannot enumerate is not usable, and
- * `bootstrap.ts` is where that is turned into "carry on without federation".
- * @complexity O(t) in the advertised tool count.
- * @overallScore 100
- * G3: the per-call human gate for protected actions (permanent deletion, delivery to people,
- * and changes to assistant privacy/instructions/access). Write-shaped names describe the card;
- * they do not independently require one (owner policy, 2026-10-07). Returns
- * `null` when the call may proceed — a read-only tool with ordinary inputs, or an explicit Confirm — and otherwise the
- * model-facing result that replaces the call. One card per call: the card is opened here, inside the
- * call it guards, and closes when answered, so one Confirm authorizes exactly one call.
- *
- * @throws {ToolInputError} `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL` when the root wired no confirmer —
- *   nothing is sent.
- * @complexity O(1) plus the wait for the human.
- * {@link normalizeArguments}, then a deep, frozen copy — the one object both shown and sent (G3).
- * Narrows `ToolExecutionContext.input` to the `arguments` object a `tools/call` carries.
- *
- * Undefined and `{}` both become `{}` — MCP servers routinely publish parameterless tools, and the
- * kit's own `requireNoInput` establishes that "omit it or pass `{}`" is this codebase's convention
- * for one. Anything else is refused rather than coerced: forwarding an array or a string as
- * `arguments` would produce a remote-side error the model cannot act on, and silently dropping it
- * would teach the model its argument was accepted.
- * extractFederatedImageBlocks (assistant/mcp-federation/trust.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ * Frozen arguments, single-evaluator permissions and untrusted-result/media handling are
+ * owned by Jini/packages/mcp/src/federation/registrations.ts.
  */
 
 /** Jini's mandatory-per-call flag also controls deletion styling; retain the actual host action

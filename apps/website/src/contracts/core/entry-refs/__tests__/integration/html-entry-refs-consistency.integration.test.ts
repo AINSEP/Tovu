@@ -1,20 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { scanHtmlEmbeds } from "#src/features/widgets/html-embeds";
+import { scanHtmlEmbeds } from "@jini-ai/cms/widgets/html";
 import { extractHtmlEntryRefs } from "../../extractor.js";
 
 /**
  * @file SPEC-047 Slice 3 — keeps `core/entry-refs/extractor.ts`'s `extractHtmlEntryRefs` and
- * `widgets/html-embeds.ts`'s `scanHtmlEmbeds` agreeing on what counts as a reference.
+ * `Jini/packages/cms/src/widgets/html/html-embeds.ts`'s `scanHtmlEmbeds` agreeing on what counts as a reference.
  *
- * **This suite's original premise is gone, and that is the point.** It was written when the two
- * functions were DELIBERATELY separate implementations of the same `data-embed-type` regex — a
- * tradeoff taken so `core/` need not import `widgets/` — and it existed to catch the two copies
- * drifting apart. A guard of that shape can only ever detect drift AFTER it has happened, and only
- * on the fixtures someone remembered to write.
- *
- * Since the 2026-08-10 marker unification both functions call `core/embeds/marker.ts`. There is one
+ * Both functions call Jini/packages/cms/src/widgets/markers/marker.ts. There is one
  * definition, so the two cannot disagree about what a marker IS. What remains worth pinning is that
  * their two PROJECTIONS of a marker stay in step: the extractor keeps only types it has an
  * `EntryRefTargetKind` for and needs a usable id; the scanner reports every type it finds and leaves
@@ -22,16 +16,12 @@ import { extractHtmlEntryRefs } from "../../extractor.js";
  * extractor reports, the scanner reports too — the index never treats as real a reference the
  * renderer cannot see.
  *
- * Retired with the old premise: a fixture asserting that a marker with inner content must NOT match.
- * That encoded the old empty-`<div>`-only rule, which the shared parser deliberately widened so a
- * theme marker's authored fallback content survives. Keeping it would have pinned behavior the
- * migration set out to remove.
+ * Markers may carry authored fallback content; the shared parser must preserve those references.
  */
 
 const FIXTURES: readonly string[] = [
   `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`,
-  // `form` was removed as an embed type on 2026-08-10 (see `embed-type-inventory.md`). Kept as a
-  // fixture precisely BECAUSE it is retired: stored Page bodies written before the removal may still
+  // Legacy form markers remain a fixture because stored Page bodies may still
   // carry one, and the invariant this suite exists for must hold for a dead type exactly as it does
   // for a live one — the scanner still reports it, the extractor no longer indexes it, and that
   // asymmetry is the safe direction (an unindexed reference never lets safe-delete believe something
@@ -77,7 +67,7 @@ for (const [i, html] of FIXTURES.entries()) {
       (r) => `${fieldPathType(r.fieldPath)}:${r.targetId}`
     );
     const scanned = new Set(
-      scanHtmlEmbeds(html)
+      scanHtmlEmbeds({ html: html })
         .filter((r) => r.id !== null)
         .map((r) => `${r.type}:${r.id}`)
     );
@@ -94,7 +84,7 @@ for (const [i, html] of FIXTURES.entries()) {
 test('html-entry-refs consistency: a media embed is indexed with targetKind "asset" (2026-08-07 §4) — never "entry", since a media asset lives in a different storage domain than the generic entries graph', () => {
   const html = `<div data-embed-config='{"type":"media","id":"asset-1","variant":"thumb"}'></div>`;
 
-  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "media", id: "asset-1", slug: null, name: null, variant: "thumb", header: true }]);
+  assert.deepEqual(scanHtmlEmbeds({ html: html }), [{ type: "media", id: "asset-1", slug: null, name: null, variant: "thumb", header: true }]);
 
   const fromExtractor = extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html });
   assert.equal(fromExtractor.length, 1);
@@ -105,7 +95,7 @@ test('html-entry-refs consistency: a media embed is indexed with targetKind "ass
 test("html-entry-refs consistency: an unregistered/future embed type is scanned but not indexed, with neither side needing a code change to tolerate it", () => {
   const html = `<div data-embed-config='{"type":"some-future-type","id":"x1"}'></div>`;
 
-  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "some-future-type", id: "x1", slug: null, name: null, variant: null, header: true }]);
+  assert.deepEqual(scanHtmlEmbeds({ html: html }), [{ type: "some-future-type", id: "x1", slug: null, name: null, variant: null, header: true }]);
   assert.deepEqual(extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html }), []);
 });
 
@@ -122,7 +112,7 @@ test("html-entry-refs consistency: an unregistered/future embed type is scanned 
 test('html-entry-refs consistency: DISCLOSED GAP — a slug-only "widget" marker (no id key) is scanned by scanHtmlEmbeds but produces NO entry_refs row, unlike an equivalent id-only marker', () => {
   const html = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
 
-  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "widget", id: null, slug: "contact-form", name: null, variant: null, header: true }]);
+  assert.deepEqual(scanHtmlEmbeds({ html: html }), [{ type: "widget", id: null, slug: "contact-form", name: null, variant: null, header: true }]);
   assert.deepEqual(
     extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html }),
     [],
@@ -138,7 +128,7 @@ test("html-entry-refs consistency: a marker neither side can parse is dropped by
   const original = console.warn;
   console.warn = () => {};
   try {
-    assert.deepEqual(scanHtmlEmbeds(html), []);
+    assert.deepEqual(scanHtmlEmbeds({ html: html }), []);
     assert.deepEqual(extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html }), []);
   } finally {
     console.warn = original;

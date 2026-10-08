@@ -10,7 +10,7 @@ import {
   searchToolsAuditDetail,
   SEARCH_TOOLS_TOOL_ID,
   withToolCatalogAudit,
-} from "../tool-catalog-audit.js";
+} from "../tool-audit-preset.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 
 /**
@@ -41,12 +41,7 @@ function fakeRegistry() {
 
 function wrap(sink: ToolAttemptAuditSink) {
   let sequence = 0;
-  return withToolCatalogAudit(
-    buildToolCatalogQuery(fakeRegistry(), { includeSearchKeywords: false }),
-    sink,
-    { workspaceId: WORKSPACE_ID, runId: RUN_ID, principalId: PRINCIPAL_ID },
-    { now: () => `2026-09-01T00:00:0${sequence++}.000Z`, newAttemptId: () => "attempt-catalog-1" },
-  );
+  return withToolCatalogAudit({ catalog: buildToolCatalogQuery(fakeRegistry(), { includeSearchKeywords: false }), sink: sink, identity: { workspaceId: WORKSPACE_ID, runId: RUN_ID, principalId: PRINCIPAL_ID } }, { now: () => `2026-09-01T00:00:0${sequence++}.000Z`, newAttemptId: () => "attempt-catalog-1" });
 }
 
 test("INCIDENT FIX: a search_tools call is durably recorded with its query length, limit, and ranked hit ids — never the raw query text", async () => {
@@ -125,12 +120,7 @@ test("ADVERSARIAL: a sink that throws cannot break a search or describe call —
       throw new Error("disk full");
     },
   };
-  const catalog = withToolCatalogAudit(
-    buildToolCatalogQuery(fakeRegistry()),
-    hostileSink,
-    { workspaceId: WORKSPACE_ID, runId: RUN_ID, principalId: PRINCIPAL_ID },
-    { onSinkError: (e) => errors.push(e) },
-  );
+  const catalog = withToolCatalogAudit({ catalog: buildToolCatalogQuery(fakeRegistry()), sink: hostileSink, identity: { workspaceId: WORKSPACE_ID, runId: RUN_ID, principalId: PRINCIPAL_ID } }, { onSinkError: (e) => errors.push(e) });
 
   const hits = catalog.search({ query: "form" }, { limit: 5 });
   const entry = catalog.describe({ id: "forms_create_definition" });
@@ -142,17 +132,13 @@ test("ADVERSARIAL: a sink that throws cannot break a search or describe call —
 });
 
 test("searchToolsAuditDetail/describeToolAuditDetail are pure JSON builders", () => {
-  assert.equal(searchToolsAuditDetail("q", 10, [{ id: "a", description: "", source: "s", score: 1 }]), JSON.stringify({ queryLength: 1, limit: 10, resultIds: ["a"], resultCount: 1 }));
-  assert.equal(describeToolAuditDetail("a", null), JSON.stringify({ id: "a", found: false }));
+  assert.equal(searchToolsAuditDetail({ query: "q", limit: 10, hits: [{ id: "a", description: "", source: "s", score: 1 }] }, {}), JSON.stringify({ queryLength: 1, limit: 10, resultIds: ["a"], resultCount: 1 }));
+  assert.equal(describeToolAuditDetail({ id: "a", entry: null }, {}), JSON.stringify({ id: "a", found: false }));
 });
 
 test("appendToolCatalogAttempt appends exactly the fields it is given, plus a minted attemptId/executionId/phase/at", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
-  appendToolCatalogAttempt(
-    sink,
-    { workspaceId: WORKSPACE_ID, runId: RUN_ID, principalId: PRINCIPAL_ID, toolId: SEARCH_TOOLS_TOOL_ID, detail: "d" },
-    { now: () => "2026-09-01T00:00:00.000Z", newAttemptId: () => "attempt-x" },
-  );
+  appendToolCatalogAttempt({ sink: sink, event: { workspaceId: WORKSPACE_ID, runId: RUN_ID, principalId: PRINCIPAL_ID, toolId: SEARCH_TOOLS_TOOL_ID, detail: "d" } }, { now: () => "2026-09-01T00:00:00.000Z", newAttemptId: () => "attempt-x" });
   await Promise.resolve();
   assert.deepEqual(sink.events[0], {
     attemptId: "attempt-x",

@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { parseDescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
+import { defineExecutablePluginContribution, loadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
@@ -41,10 +41,13 @@ const MAX_LABEL_LENGTH = 100;
 
 type ParseResult = { readonly ok: true; readonly descriptors: readonly DeployTargetDescriptor[] } | { readonly ok: false; readonly reason: string };
 
-interface PluginLoad {
-  readonly targets: readonly LoadedDeployTarget[];
-  readonly refusals: readonly string[];
-}
+/** Every trust gate is the installed CALLER's job, or the hermetic source registry's trust basis. */
+const targetContribution = defineExecutablePluginContribution<DeployTargetDescriptor, DeployTargetModule>({
+  filename: DEPLOY_TARGETS_FILENAME, contribution: "deploy targets",
+  parse: ({ raw }) => parseDeployTargetsFile(raw), modulePath: ({ descriptor }) => descriptor.module,
+  validate: ({ exported }) => asTargetModule(exported),
+  refusal: ({ plugin, descriptor, reason }) => `deploy target '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
+});
 
 /**
  * Builds this workspace's deploy-target registry from its installed Agent Plugins.
@@ -56,41 +59,12 @@ interface PluginLoad {
  * the workspace's package directory itself propagates.
  * @complexity O(p) installed plugins, each one small file read plus one import per declared target.
  */
-export async function loadDeployTargetRegistry(ctx: { readonly workspaceId: string }): Promise<DeployTargetRegistry> {
-  const verdicts = await findTrustedPluginPackages({ workspaceId: ctx.workspaceId, filename: DEPLOY_TARGETS_FILENAME, contribution: "deploy targets", requireActive: true });
-
-  const targets: LoadedDeployTarget[] = [];
-  const refusals: string[] = [];
-  for (const verdict of verdicts) {
-    if ("refusal" in verdict) {
-      refusals.push(verdict.refusal);
-      continue;
-    }
-    const load = await loadPackageTargets(verdict.trusted);
-    targets.push(...load.targets);
-    refusals.push(...load.refusals);
-  }
-  return buildRegistry(targets, refusals);
+export async function loadDeployTargetRegistry(ctx: { readonly workspaceId: string }, _optional: Record<string, never> = {}): Promise<DeployTargetRegistry> {
+  const load = await loadPluginContributions({ ...ctx, definition: targetContribution });
+  return buildRegistry(load.items, load.refusals);
 }
 
-/** A package's own targets, trusted: parses its descriptor file and imports each module. Every trust
- *  gate is the CALLER's job ({@link loadDeployTargetRegistry}, or the hermetic source registry below).
- *  @complexity O(t) targets, one import each. */
-async function loadPackageTargets(plugin: TargetPackage): Promise<PluginLoad> {
-  const parsed = parseDeployTargetsFile(await readTrustedPluginFile(plugin, DEPLOY_TARGETS_FILENAME));
-  if (!parsed.ok) return { targets: [], refusals: [`deploy targets from '${plugin.pluginId}' were not loaded: ${DEPLOY_TARGETS_FILENAME} is invalid: ${parsed.reason}`] };
-
-  const targets: LoadedDeployTarget[] = [];
-  const refusals: string[] = [];
-  for (const descriptor of parsed.descriptors) {
-    const loaded = await loadTargetModule(plugin, descriptor);
-    if (typeof loaded === "string") refusals.push(`deploy target '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${loaded}`);
-    else targets.push({ descriptor, pluginId: plugin.pluginId, module: loaded });
-  }
-  return { targets, refusals };
-}
-
-/** The two facts {@link loadPackageTargets} needs about a package: whose it is and where it lives. */
+/** The two facts the source loader needs about a package: whose it is and where it lives. */
 type TargetPackage = TrustedPluginPackage;
 
 /**
@@ -101,17 +75,13 @@ type TargetPackage = TrustedPluginPackage;
  *
  * @complexity O(t) targets, one import each.
  */
-export async function loadDeployTargetRegistryFromSource(plugin: TargetPackage): Promise<DeployTargetRegistry> {
-  const load = await loadPackageTargets(plugin);
-  return buildRegistry(load.targets, load.refusals);
+export async function loadDeployTargetRegistryFromSource(plugin: TargetPackage, _optional: Record<string, never> = {}): Promise<DeployTargetRegistry> {
+  const load = await loadPluginContributionsFromSource({ plugin, definition: targetContribution });
+  return buildRegistry(load.items, load.refusals);
 }
 
-/** Imports one module after the containment check. Returns the module, or the refusal reason.
- *  @complexity One `realpath` walk plus one dynamic import. */
-async function loadTargetModule(plugin: TargetPackage, descriptor: DeployTargetDescriptor): Promise<DeployTargetModule | string> {
-  const imported = await importContainedModule(plugin, descriptor.module);
-  if (typeof imported === "string") return imported;
-  const candidate = imported.exported;
+/** Validate the default export after Jini's contained import. @complexity O(1). */
+function asTargetModule(candidate: unknown): DeployTargetModule | string {
   if (!isPlainObject(candidate) || typeof candidate.create !== "function") return "its module has no create() function";
   return candidate as unknown as DeployTargetModule;
 }

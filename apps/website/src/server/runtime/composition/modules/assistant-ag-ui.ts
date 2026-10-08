@@ -569,6 +569,7 @@ interface AgUiRunRequest {
   requestId: string;
   agentId?: string;
   messages: AgUiChatMessage[];
+  secretRedacted: boolean;
 }
 
 /** `value` when it's a non-empty string, else `undefined` — the shared shape behind `threadId`,
@@ -602,6 +603,8 @@ function resolveAgUiRunRequest(body: {
     runId: resolveNonEmptyString(body.runId) ?? randomUUID(),
     requestId: randomUUID(),
     agentId: resolveForwardedAgentId(body.forwardedProps),
+    secretRedacted: typeof body.forwardedProps === "object" && body.forwardedProps !== null
+      && (body.forwardedProps as { secretRedacted?: unknown }).secretRedacted === true,
     messages,
   };
 }
@@ -622,7 +625,7 @@ async function startDaemonRun(
   const startUpstream = await fetchAgentDaemon(req, res, {
     path: "/api/runs",
     method: "POST",
-    body: { contextRef: JSON.stringify({ prompt, principalId }), agentId: run.agentId },
+    body: { contextRef: JSON.stringify({ prompt, principalId, ...(run.secretRedacted ? { secretRedacted: true } : {}) }), agentId: run.agentId },
     observability: daemon.observability,
   });
   if (!startUpstream) return { ok: false }; // fetchAgentDaemon already wrote a 503/502.

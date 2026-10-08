@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readFile, writeFile, rename, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { computePluginIntegrity } from "#src/features/plugin-runtime/install";
+import { computePluginIntegrity } from "@jini-ai/plugins/host/node";
 
 /** Authoring helper: hashes bytes only; never imports the package's entry point. */
 export async function runPluginIntegrityCommand(required: { dir: string; write?: boolean }, optional: { output?: (message: string) => void } = {}): Promise<void> {

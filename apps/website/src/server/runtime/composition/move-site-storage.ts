@@ -110,7 +110,7 @@ export async function moveSiteStorage(required: MoveSiteStorageRequired, optiona
 
     if (secretRef === "site") await writeSealedConnectionString({ siteDir, connectionString }, optional.sealer);
     const storage: SiteStorage = { kind: "postgres", secretRef };
-    writeJsonFileAtomic(path.join(siteDir, SITE_META_FILENAME), { ...meta, storage });
+    writeJsonFileAtomic({ filePath: path.join(siteDir, SITE_META_FILENAME), data: { ...meta, storage } }, {});
     return { storage, tables, keptPgliteDir: dataDir };
   } finally {
     await target?.close();

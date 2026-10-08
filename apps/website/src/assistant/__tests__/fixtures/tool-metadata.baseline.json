@@ -1,0 +1,3121 @@
+{
+  "keywords": {
+    "content_stats": "how many count number of posts pages articles statistics stats word count words long length percentage chart pie breakdown",
+    "analytics_list_recent_hits": "analytics traffic visitors visits views page views hits who visited popular pages referrers where from recent",
+    "system_get_mail_status": "email mail not arriving didn't get email sending configured smtp provider delivery magic link",
+    "system_read_server_logs": "server errors logs console crash crashed exception stack trace warnings what went wrong failed broken debug terminal output 500",
+    "taxonomy_get_assigned_terms": "which tags categories does this post have assigned terms show tags of page",
+    "media_list_providers": "image generation provider video generation which ai image provider configured set up api key openai replicate available list providers images videos",
+    "credential_save": "credential save connect add create new account api key token set update change rotate replace expired refresh secret human form image generation video media provider openai repository backup git github gitlab source control commits static publish hosting storage s3 bucket registrar dns third-party stripe mailchimp fly flyio fly.io plugin personal access token pat fallback",
+    "identity_policy_list_permissions": "policy permissions permission rows grants resource constraints role access privileges what can role do inspect list read",
+    "sites_list": "local sites computer clients registry list folders serving active current queued pending restart switching disabled",
+    "publish_content_disconnect": "disconnect publishing live site connected destination stop computer forget grant undo connection",
+    "theme_set_page_published": "static theme standalone about pricing visibility publishedPages allowlist",
+    "trash_empty": "empty clear trash bin recycle permanently purge everything all deleted items forever erase",
+    "trash_purge_item": "purge one item trash trashed permanently delete deleted post page remove forever erase",
+    "media_purge_asset": "permanently delete purge erase media asset assets image images photo photos picture pictures file files forever",
+    "comments_purge_comment": "permanently delete purge erase comment comments spam forever remove",
+    "identity_user_delete": "permanently delete purge erase user users account accounts trashed forever remove",
+    "external_mcp_delete": "delete permanently remove erase external mcp server servers connection connections integration integrations saved",
+    "custom_credential_delete": "delete remove erase permanently saved custom provider credential credentials api key keys token tokens",
+    "deployment_delete_provider_credential": "delete remove erase permanently saved publish publishing host hosting deployment provider credential credentials token tokens",
+    "source_control_delete_credential": "delete remove erase permanently saved source control git repository credential credentials api key keys token tokens",
+    "deployment_ops_status": "deploy deployment status is my app up running healthy fly fly.io machines github actions workflow run build ci passed failed",
+    "deployment_ops_logs": "logs log output error why did deploy fail build failed crash fly github actions",
+    "deployment_ops_wait": "wait until deployed finished done poll check again in a minute",
+    "deployment_ops_list_targets": "list my fly apps which apps do I have deployments",
+    "deployment_ops_deploy": "deploy now redeploy ship release roll out push the server app to production start a deploy fly github actions workflow dispatch latest commit main",
+    "deployment_ops_list_secrets": "list secrets environment variables env vars which secrets are set on my app server host fly names digests",
+    "deployment_ops_set_secret": "set secret STRIPE_KEY on my app add environment variable env var copy site key to host server rename secret copy secret fly stage",
+    "deployment_ops_unset_secret": "unset secret remove delete environment variable env var old secret from host server app fly",
+    "domain_lookup_dns": "domain DNS dig lookup resolve records A AAAA CNAME MX TXT NS nameservers propagation apex www IP mail verification ACME challenge _acme-challenge DKIM DMARC _dmarc _domainkey",
+    "domain_check_dns": "domain DNS custom points pointing host hosting deploy target expected compare mismatch apex www publish destination",
+    "domain_tls_status": "domain TLS SSL HTTPS certificate status valid trust trusted expired hostname mismatch security",
+    "media_list_assets": "image images photo photos picture pictures file files upload uploads uploaded library gallery attachment attachments slug slugs",
+    "media_upload_asset": "image images photo upload uploads uploading add attach file files picture logo library uplaod",
+    "media_trash_asset": "image images photo delete remove trash file picture attachment delete remove photos photo images image picture pictures get rid",
+    "media_view_image": "look at see view open show display inspect describe image images picture pictures photo photos media alt text alt-text caption what does it show contain vision visual",
+    "media_update_metadata": "image alt text caption description rename file photo metadata video videos autoplay muted loop playsinline poster controls attribute attributes html class classes css lazy loading slug slugs",
+    "media_generate_asset": "image images generate generated generating create created ai art artwork draw drawing design logo banner illustration picture dall-e dalle openai gpt make making",
+    "media_promote_chat_attachment": "image images photo attachment attachments attached uploaded chat file files add save promote this the one I sent library gallery",
+    "media_view_video": "video videos clip clips movie movies watch see view look describe cat content frames stills screenshot timestamps duration audio attachment attached media library motion movement sequence interval intervals spacing gap gaps every seconds start count sampling sheet sheets grid tiles contact skim overview zoom",
+    "media_import_local_file": "upload import add local file files computer disk downloads desktop folder folders video videos image images photo photos to media library my mac hero mp4 logo theme",
+    "media_import_from_url": "url urls link links address addresses href http https web internet online remote external elsewhere cdn s3 cloudfront bucket import imports importing download downloads downloading fetch fetching grab pull get save saving store storing copy add attach image images photo photos picture pictures file files asset assets media library gallery",
+    "webhooks_list_subscriptions": "webhook webhooks endpoint endpoints callback callbacks integration integrations outgoing notification configured",
+    "webhooks_create_subscription": "webhook webhooks endpoint callback integration connect notify subscribe outgoing form submission submitted fires",
+    "webhooks_delete_subscription": "webhook webhooks endpoint remove delete disconnect integration",
+    "webhooks_pause_subscription": "webhook webhooks pause stop disable suspend integration",
+    "webhooks_get_deliveries": "webhook webhooks delivery deliveries fired sent failed failure retry retries attempts log history",
+    "external_mcp_probe_connection": "probe hosted remote endpoint live reachability advertised tools external mcp server connection test working check diagnose",
+    "external_mcp_get_admissions": "external mcp admissions admitted refused missing configured tools live roster assistant running actual allowlisted blocked failures",
+    "external_mcp_list": "mcp server servers external tool tools integration integrations connected connections configured list existing model context protocol third-party ai higgsfield",
+    "external_mcp_save": "connect add new save external tool server integration mcp hook up set up configure model context protocol third-party ai higgsfield update edit change existing",
+    "external_mcp_test_connection": "test check connection working works verify diagnose troubleshoot external tool server integration mcp",
+    "external_mcp_oauth_connect": "connect sign in log in authorize authorization oauth account link external tool server integration mcp",
+    "external_mcp_oauth_poll_device": "check status finished done connected ready oauth device code sign in external tool server mcp waiting",
+    "backup_create_restore_point": "snapshot snapshots backup backups checkpoint save point restore safety before break",
+    "backup_list_restore_points": "snapshot snapshots backup backups checkpoint restore points list history",
+    "backup_plan_restore": "restore rollback revert recover undo snapshot backup",
+    "backup_execute_restore": "restore rollback revert recover undo run execute confirm confirmed apply go back to an earlier version snapshot restore point actually do the restore",
+    "backup_get_capabilities": "backup snapshot restore support capability available",
+    "recovery_get_status": "backup restore status health check migration in progress warning banner problem",
+    "recovery_resolve_deep_link": "restore point link verify check database timeline deep link envelope",
+    "redirects_create": "url urls link links redirect forward point moved old new address route vanity short redirect blog url path forward 301 302 moved",
+    "redirects_list": "url urls link links redirect redirects forward list existing",
+    "redirects_get": "url link redirect read view details one specific existing",
+    "redirects_get_hits": "url link redirect hits traffic clicks visits how many people broken followed",
+    "redirects_update": "url link redirect change edit update destination target",
+    "redirects_tombstone": "url link redirect delete remove disable",
+    "redirects_import": "url urls link links redirect redirects import bulk upload csv batch add many rules all at once migrate old urls",
+    "identity_role_assign": "admin administrator access permission permissions grant give role promote make elevate someone user remove role unassign role take away role revoke",
+    "identity_role_create": "role roles permission group admin editor create new access level",
+    "identity_role_list": "role roles permission groups access levels who can",
+    "identity_policy_attach": "permission permissions policy grant allow access rule attach give",
+    "identity_policy_create": "permission permissions policy rule access control create allow deny",
+    "identity_user_disable": "lock out block ban suspend deactivate revoke disable access someone user account",
+    "identity_user_enable": "unlock unblock reactivate restore enable access user account",
+    "identity_user_create": "add user account new person invite staff admin create",
+    "identity_user_list": "users accounts people staff admins who has access list",
+    "identity_user_update_email": "email address change update user account password reset forgot password change password",
+    "identity_policy_delete": "permission access rule delete remove",
+    "identity_policy_list": "permission access rules list existing available what policies",
+    "identity_policy_update": "permission access rule edit change update rename re-describe",
+    "identity_role_delete": "role access level delete remove",
+    "identity_role_rename": "role access level rename edit change name",
+    "members_list": "members subscribers customers audience people registered signed up",
+    "members_disable": "member block ban suspend revoke deactivate lock out",
+    "members_request_magic_link": "login link sign in passwordless magic email member access send",
+    "members_get_by_id": "member lookup find details profile",
+    "newsletter_list_subscriptions": "signed up subscriber subscribers mailing list audience joined email list who",
+    "newsletter_cancel_campaign": "stop cancel kill abort email campaign newsletter send going out",
+    "newsletter_send_test": "newsletter email campaign test preview send myself site owner only proof inbox",
+    "newsletter_send_campaign": "newsletter send now launch issue subscribers mailing list email everyone blast deliver announcement",
+    "newsletter_schedule_campaign": "newsletter schedule campaign scheduled date time tomorrow later future issue email send",
+    "newsletter_resume_campaign": "newsletter resume paused continue sending restart delivery remaining campaign email mailing list",
+    "newsletter_pause_campaign": "pause hold stop email campaign newsletter sending",
+    "newsletter_create_campaign": "email campaign newsletter blast send announcement compose",
+    "newsletter_list_campaigns": "email campaigns newsletters sent scheduled drafts list",
+    "newsletter_remove_subscription": "unsubscribe remove subscriber opt out mailing list",
+    "newsletter_list_send_log": "email sent delivery log history newsletter campaign who received",
+    "newsletter_list_lists": "subscriber lists mailing lists available existing audience segments what lists",
+    "newsletter_create_list": "subscriber list new create mailing list audience segment group",
+    "newsletter_archive_list": "subscriber list archive retire remove hide stop using mailing list",
+    "newsletter_create_subscription": "add subscribe someone member to a list mailing list sign up manually",
+    "newsletter_resend_confirmation": "resend confirmation email opt-in link subscribe again didn't get the email",
+    "newsletter_get_campaign": "email campaign read view details one specific status",
+    "newsletter_update_campaign": "email campaign edit update change subject draft",
+    "comments_list_moderation_queue": "comments waiting approval pending moderate moderation review queue unapproved held",
+    "comments_approve_comment": "comment approve publish allow accept moderation",
+    "comments_trash_comment": "comment hide remove delete trash reported abusive",
+    "comments_mark_comment_spam": "comment spam junk abusive reported flag",
+    "comments_restore_comment": "comment undelete bring back recover unspam un-spam",
+    "comments_get_settings": "comment settings configuration config current rules how comments work",
+    "comments_update_settings": "comment settings configure change require approval turn on off limit rate moderation rules",
+    "forms_list_submissions": "form submitted submissions contact responses replies entries messages people sent enquiries",
+    "forms_get_submission": "form submission response reply entry message detail",
+    "forms_list_definitions": "forms contact form list existing built",
+    "forms_create_definition": "form contact form build create new fields",
+    "forms_update_definition": "form edit change existing update fields recipients send email notify notification notifications submissions address recipient recipients inbox forward",
+    "forms_set_definition_status": "form enable disable turn off retire deactivate activate",
+    "menus_update_menu_tree": "navigation nav menu header top link links add item items reorder site structure",
+    "menus_create_menu": "navigation nav menu new create header footer",
+    "menus_list_menus": "navigation nav menus list existing header footer",
+    "menus_assign_location": "navigation nav menu location slot header footer place assign",
+    "menus_get_menu": "navigation nav menu read view details one specific existing item tree",
+    "seo_regenerate_sitemap": "sitemap google search engine index rebuild regenerate crawl submit",
+    "seo_analyze_entry": "seo search results ranking google visibility not showing up indexed problems audit page",
+    "seo_get_entry_meta": "seo meta title description tags page preview snippet",
+    "seo_set_entry_overrides": "seo meta title description override page tags hide google noindex robots search engines index indexing exclude",
+    "seo_get_settings": "seo settings current site wide defaults meta social",
+    "seo_set_settings": "seo settings change update site wide defaults meta social robots",
+    "taxonomy_assign_terms": "tag tags label labels categorize category categories assign article post topic",
+    "taxonomy_create_term": "tag category term topic create new label",
+    "taxonomy_create_taxonomy": "taxonomy category system tags group create new",
+    "taxonomy_list": "tags categories taxonomies topics labels list",
+    "taxonomy_rename_term": "tag category term rename edit change name",
+    "taxonomy_plan_merge_term": "tag category term merge combine duplicate preview before",
+    "taxonomy_execute_merge_term": "tag category term merge combine execute run confirm confirmed apply proceed",
+    "widgets_bind_region": "widget sidebar footer region area slot place put add section",
+    "widgets_create_instance": "widget create add new block sidebar footer",
+    "widgets_list_regions": "widget regions areas slots sidebar footer available",
+    "widgets_list_instances": "widget widgets list existing placed blocks",
+    "widgets_get_instance": "widget read view details one existing current where used which pages use uses used usage where banner",
+    "widgets_get_region": "widget region read view current placements existing",
+    "widgets_update_instance": "widget update edit change config settings instance",
+    "widgets_trash_instance": "widget delete remove trash soft delete remove delete take off widget footer sidebar header",
+    "widgets_set_region_placements": "widget region replace set whole list sidebar footer bulk update",
+    "widgets_insert_embed": "widget embed insert add put inline post entry body content",
+    "widgets_remove_embed": "widget embed remove delete take out inline post body",
+    "widgets_reorder_embeds": "widget embed reorder rearrange change order position swap",
+    "preview_reload": "preview reload refresh hard cache theme css stylesheet template navigate page changes saved",
+    "theme_write_file": "theme stylesheet css template edit change design code file overwrite replace whole file copy duplicate clone font fonts typography color colors colour primary brand palette style styles look",
+    "theme_edit_file": "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section font fonts typography color colors colour primary brand palette style styles look",
+    "theme_read_file": "theme stylesheet css template view read design code file",
+    "theme_list_files": "theme files templates stylesheets css list design",
+    "theme_list": "theme themes design appearance skin installed",
+    "theme_rescan": "rescan themes refresh themes new theme folder not showing reload themes",
+    "fs_list_files": "folder directory local computer machine desktop dropped path browse inside contents list files explore",
+    "fs_read_file": "folder directory local computer machine desktop dropped path open view read show file contents text",
+    "theme_reset_file": "theme file reset restore revert original undo pristine default discard changes modified changed header footer template",
+    "theme_rename_file": "theme file rename renaming move name change filename css template stylesheet",
+    "theme_copy_file": "theme file copy duplicate clone branch variant new name",
+    "theme_trash_file": "theme file delete remove trash soft delete",
+    "theme_restore_trashed_file": "theme file bring back undelete recover",
+    "theme_set_active": "theme switch activate change active theme live site look design",
+    "change_sets_list": "change set history recent edits undo list revert log",
+    "change_sets_revert": "change set undo revert restore rollback previous version post page edit",
+    "database_transfer_plan": "transfer move copy migrate export my data database sqlite to postgres postgresql another database server",
+    "database_transfer_run": "transfer move copy migrate export data database postgres postgresql confirm copy run",
+    "database_transfer_set_destination": "transfer copy destination database address connection string postgres postgresql hosted database where to copy",
+    "database_transfer_status": "transfer copy status last copy when copied database postgres postgresql",
+    "database_get_health": "database health healthy status ok working check diagnose",
+    "database_get_schema_state": "database schema tables structure state",
+    "database_list_pending_migrations": "database migration migrations pending upgrade schema",
+    "database_list_restore_points": "backup snapshot history available recovery points",
+    "database_plan_migrate_forward": "database migration migrate upgrade schema preview plan dry run what would happen before",
+    "database_execute_migrate_forward": "database migration migrate run execute apply confirm confirmed upgrade schema forward proceed go ahead",
+    "database_get_restore_guidance": "database restore recover rollback revert snapshot earlier version how do i where do i go recovery guidance link help",
+    "database_query_timeline": "database history log timeline events audit trail what happened ledger",
+    "sites_duplicate_site": "site sites copy duplicate clone new client starting point template sample landing based on existing existing site spin up stand up set up create from a copy of same content",
+    "sites_create_site": "new site create site make site add site new website start blank empty another client folder init",
+    "sites_switch_site": "switch site change site activate site serve served serving which site use open work on another different client website restart dev server go to",
+    "content_post_search": "post posts blog article articles find search title lookup copy duplicate clone",
+    "content_post_list": "post posts blog articles list all recent copy duplicate clone",
+    "content_post_create": "post blog article write new create draft copy duplicate clone schedule featured image",
+    "content_post_update": "post page pages blog article edit change update publish draft unpublish unpublished take down offline hide draft status publish fix typo latest title",
+    "content_post_delete": "post blog article delete remove trash",
+    "content_post_get": "post page article lookup find fetch read single one by id details specific copy duplicate clone",
+    "content_duplicate": "copy duplicate clone replicate reuse make a copy of this page make a copy of this post copy this form duplicate a form copy a page copy a post copy this image copy a media asset duplicate an image reuse this picture same image different alt text same content new name new title starting point template based on existing existing page existing post existing form existing media",
+    "collections_entry_publish": "publish live go public release draft entry post article product products listing",
+    "collections_entry_unpublish": "unpublish hide draft retract take down entry post",
+    "collections_entry_create": "entry create new record item content add",
+    "collections_entry_list": "entries records items content list all",
+    "collections_entry_update": "entry record item content edit change save update field value",
+    "collections_plan_cleanup": "content type content types cleanup clean up purge wipe delete permanently preview plan check what would happen before dry run eligible eligibility tombstoned old unused",
+    "collections_execute_cleanup": "content type content types cleanup clean up purge wipe delete permanently erase get rid of remove run execute confirm confirmed tombstoned old unused rows records data",
+    "collections_content_type_define": "content type custom fields schema model post type kind of content structure define build register new new content type collection kind model schema team staff products bio fields custom",
+    "collections_content_type_deprecate": "content type retire stop using disable old outdated no longer need freeze",
+    "collections_content_type_list": "content types schema models available what content kinds exist fields structure collections collection list what have",
+    "collections_content_type_reactivate": "content type bring back restore undeprecate enable again turn back on",
+    "collections_content_type_tombstone": "content type delete remove permanently destroy get rid of",
+    "collections_content_type_update_fields": "content type fields schema add remove change edit structure update model rename field add field new field fields column property collection products price schema",
+    "workspace_get": "site name title settings workspace details info about",
+    "workspace_update": "site name title rename change workspace settings brand rename site site name rename my site",
+    "workspace_create": "workspace site create new add",
+    "workspace_delete": "workspace site delete remove destroy get rid of",
+    "settings_get_effective": "setting settings configuration config value current site settings what settings configuration options current values",
+    "settings_list_definitions": "setting settings configuration options available what can all site settings",
+    "settings_get_raw": "setting raw value layer global workspace user default unresolved debug",
+    "settings_set_ui_preference": "preference language theme accent color notification sounds personal admin ui my settings",
+    "settings_list_ui_locales": "supported available languages locale codes admin interface UI menus labels Spanish Portuguese pt-BR Italian Polish German English switch change language translation options",
+    "settings_set_value": "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable",
+    "settings_clear_value": "reset setting back to default clear override undo setting",
+    "settings_reset": "setting settings reset all defaults wipe clear everything bulk namespace",
+    "settings_register_definitions": "setting settings definition definitions register schema rename change type deprecate add new remove",
+    "plugins_set_enabled": "plugin plugins agent plugin agent-plugin agent-plugins enable disable turn on off activate deactivate switch on switch off extension addon add-on skill skills capability use it install it already installed not active inactive",
+    "plugins_list": "plugin plugins extensions installed available list have installed my",
+    "plugins_uninstall": "plugin plugins uninstall remove delete trash extension get rid of agent plugin agent-plugin agent-plugins skill skills package packages permanently",
+    "agent_plugins_install": "agent plugin plugins install add upload attachment zip folder package agent-plugins plugin.json upgrade replace version",
+    "plugins_install": "plugin plugins install add new upload folder zip attachment local package upgrade replace version site plugin tovu-plugin extension addon add-on",
+    "skills_install": "skill skills install add new github repo repository url agent skill SKILL.md from github",
+    "search_agent_plugin_local": "agent plugin plugins agent-plugin agent-plugins search find looking for do I have installed capability capabilities skill skills addon add-on package packages extension extensions bundle available covers supports mcp server marketplace",
+    "search_components": "component components widget widgets chart charts graph graphs table tables button buttons checkbox card cards render rendering draw drawing display visualize visualization interactive ui shadcn recharts pie bar line",
+    "describe_component": "component props properties schema fields interactive ui widget render rendering",
+    "assistant_render_ui": "render show display draw put a chart here show me a graph draw a table build a dashboard visualize view results embed inline in chat",
+    "pages_read_html": "page html source code view read existing content current markup body regions region handles sections what is on the page show current version",
+    "pages_write_html": "custom page html code write create new design page build a page landing page whole entire full complete rewrite rewriting redo start over from scratch replace the page restructure add a section remove a section",
+    "pages_write_region": "section sections region regions part parts piece block chunk area one single just the only the hero headline heading title banner cta call to action pricing faq testimonial footer text copy edit editing change changing update updating tweak adjust revise reword swap replace fix amend without rewriting not the whole page leave the rest keep the rest surgical targeted in place handle data-agent-element",
+    "pages_move_region": "move moving reorder reordering rearrange rearranging reposition order ordering sequence position swap places above below before after higher lower up down earlier later top bottom first last",
+    "deployment_get_static_publish_capabilities": "can I publish yet ready deploy hosting connected status providers where github pages vercel netlify cloudflare",
+    "deployment_preview_static_publish": "dry run check before deploy what would happen test",
+    "deployment_execute_static_publish": "deploy push ship go live make it live publish the site hosting netlify vercel cloudflare",
+    "deployment_generate_bucket_hosting_setup": "instructions steps how to setup guide public website cloud storage host",
+    "deployment_trigger_export": "build generate export files download self host static site",
+    "deployment_get_export_status": "progress done finished check static site build",
+    "deployment_get_dockerfile": "docker container read view current build file",
+    "deployment_set_dockerfile": "docker container write edit update change build file",
+    "source_control_get_capabilities": "git source control connected ready can I commit repository credentials setup github gitlab bitbucket",
+    "source_control_execute_commit": "commit my site to a git repository push the site code export to repo commit changes github gitlab",
+    "site_backup_plan": "backup back up save copy snapshot archive keep safe my site database content github repository private repo",
+    "site_backup_push": "backup back up save copy snapshot archive site database github repository confirm push",
+    "site_get_profile": "site overview summary snapshot everything about the site inventory status",
+    "site_describe_capabilities": "describe_site_capabilities capabilities capability capable what can this site do features abilities possible available tools admin screens content types",
+    "site_collect_page_evidence": "evidence audit check compliance verify rendered really does prove tracking consent",
+    "fetch_live_url": "live site production deployed check live is it updated did it publish public website domain online real site compare local",
+    "content_post_preview": "preview draft before publishing how will it look render template unpublished see page unsaved edits",
+    "fetch_published_page": "check local page visitor sees rendered output verify loads works test does it work find text on page search page contains visible text markup",
+    "assistant_ask_choice": "ask question decide decision confirm confirmation choose choice choices options option select single multi checklist checkbox radio approve approval permission go-ahead consent which one poll survey form dialog interactive get input from user administrator before doing proceed",
+    "admin.capture_screenshot": "screenshot screenshots screen capture picture image photo see view look looks looking visual visually appearance layout broken cramped misaligned overlapping clipped cut off ugly render rendering rendered how does this look what does this look like show me the screen check the ui verify visually",
+    "admin.publish_content": "publish publishing go live push to live deploy deployment content site update the live site overwrite overwrite live replace what's on live make changes live send to production release ship pages posts media menus redirects navigation pending unpublished changes changed not yet published what would be published preview review before publishing without publishing dry run hasn't haven't been published yet",
+    "trash_restore_item": "recover undelete restore deleted bring back get back undo delete removed page post image",
+    "trash_list_items": "whats what's trash bin recycle deleted items recently deleted show list empty trash permanently delete purge",
+    "trash_item": "delete remove get rid of menu menus submission submissions form entry entries spam navigation nav header footer delete menu remove menu delete menus remove menus",
+    "publish_backstop_gaps": "manual send by hand backstop gaps sent manually not covered unsupported uncovered missing type history counts reasons",
+    "publish_content_publish": "publish pending changes live posts pages publish selected items exclude leave out overwrite replace live content",
+    "publish_content_status": "push changes live is my site set up to publish publishing setup readiness changes live go live update live site not updating",
+    "publish_content_connect": "changes live go live",
+    "publish_content_plan_pull": "pull download bring back sync from live copy live content down to local get changes from live site",
+    "publish_content_execute_pull": "apply pull overwrite local with live confirm sync",
+    "custom_credential_list": "credential credentials token tokens api key keys secret secrets saved connected account accounts provider providers registrar registrars dns domain domains hosting host deployment deploy deployments third-party thirdparty external outside service services vendor vendors inventory what do i have do i have list existing configured connections name.com flyio fly.io",
+    "custom_credential_verify": "verify verifying valid invalid expired revoked revoke working works work test testing check checking credential token api key secret still good bad broken status health healthy alive dead stale current",
+    "custom_credential_make_request": "call calling request requests curl wget http https api endpoint third-party thirdparty external outside service services vendor provider dns registrar hosting deployment domain credential credentials token tokens use using saved fetch send get post put patch delete hit query invoke run execute",
+    "custom_credential_set_username": "credential username set add fix repair update change login sign in basic auth account name saved api key token 401 unauthorized broken not working",
+    "agent_plugin_connect": "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin"
+  },
+  "queries": {
+    "publish_content_publish": [
+      "Publish my changes to the live site.",
+      "Publish only the About page.",
+      "Publish everything except the contact page.",
+      "Overwrite the live blog post."
+    ],
+    "publish_content_status": [
+      "Is my site set up to publish?",
+      "Before pushing changes live, is publishing connected?",
+      "Can this computer publish changes to the live site?",
+      "Where does this local site publish to?"
+    ],
+    "publish_content_plan_pull": [
+      "Pull the live site's content down to my computer.",
+      "Sync my local site with what's live.",
+      "Download live content to review changes here.",
+      "Bring back changes from the live site before applying them locally."
+    ],
+    "publish_content_execute_pull": [
+      "Apply the planned pull after I confirm.",
+      "Overwrite local content with the live site's changes.",
+      "Confirm sync and apply the downloaded live content here.",
+      "Apply pull changes to my local site."
+    ],
+    "content_stats": [
+      "How many posts and pages are on my site?",
+      "Give me a pie chart breakdown of posts versus pages.",
+      "What is the word count of my articles?",
+      "Which articles are longest and what is their average length?",
+      "Count drafts, published content, collection entries and media."
+    ],
+    "analytics_list_recent_hits": [
+      "Show me recent traffic to my site.",
+      "Which pages are getting visits in the recent buffer?",
+      "Summarize recent page views by path and referrer.",
+      "Where did recent visits come from, including Google search, and what devices were used?",
+      "Who visited my site recently? Show anonymous hits, not identities."
+    ],
+    "system_get_mail_status": [
+      "Why is my email not arriving?",
+      "I didn't get the sign-in email; is sending configured?",
+      "Check which mail provider or SMTP driver is active.",
+      "Can this site deliver real email or does it print to the console?",
+      "Why didn't my magic link arrive?"
+    ],
+    "taxonomy_get_assigned_terms": [
+      "Which tags does this post have?",
+      "Show assigned categories for this page.",
+      "Read assigned taxonomy terms for this collection entry.",
+      "What categories are on this post?",
+      "Show the names of the terms already attached to this content."
+    ],
+    "fetch_live_url": [
+      "Has the live website updated after my publish?",
+      "Fetch the production site's public page to verify the deployment.",
+      "Compare what visitors get on the live domain with the local render.",
+      "Is my real online site showing the newly published content?",
+      "Check the deployed public website after publishing."
+    ],
+    "content_post_preview": [
+      "Preview this unpublished draft before publishing it.",
+      "Render unsaved edits through the page's theme template.",
+      "How will this draft page look once published?",
+      "Try another template on this post without saving changes.",
+      "Show a draft post preview with its pending body."
+    ],
+    "fetch_published_page": [
+      "Find a string on the local rendered page.",
+      "Does this page contain the text I asked for?",
+      "Get visible text without markup from this local route.",
+      "Search the published page for mentions of this phrase.",
+      "Check what a visitor receives from the local site's rendered page."
+    ],
+    "media_list_providers": [
+      "Which image and video generation providers have a saved connection?",
+      "Can you list the AI media vendors this site knows about?",
+      "Is an OpenAI image provider credential configured?",
+      "Which image providers still need their API key?"
+    ],
+    "credential_save": [
+      "Save a new API credential through a secure human form.",
+      "Set up my Fly.io account with a Fly API token before deploying an app.",
+      "Add a provider token so this site can use my hosting account.",
+      "Rotate the token on an existing saved account without changing the username.",
+      "Connect an image or video generation provider with an API key.",
+      "Save a GitHub or GitLab source control credential for commits and site backups.",
+      "Connect a static publishing host or object storage account.",
+      "Use personal access token sign-in when a plugin OAuth connection cannot start."
+    ],
+    "deployment_get_static_publish_capabilities": [
+      "Which static publishing hosts are available?",
+      "Can this site publish to Netlify?",
+      "Where can I publish a static site?",
+      "Which hosting credentials are connected?",
+      "Is my site ready to publish yet?",
+      "Can I publish my site yet, or is hosting not set up?"
+    ],
+    "source_control_get_capabilities": [
+      "Is GitHub connected for source control?",
+      "Is git set up for this site yet?",
+      "Which repository host is connected?",
+      "Are my source control credentials ready?"
+    ],
+    "site_describe_capabilities": [
+      "What is this site capable of?",
+      "What features and tools does this site have?",
+      "What can I do with this site?",
+      "What is possible here?"
+    ],
+    "site_get_profile": [
+      "Give me an overview of my site.",
+      "Summarize how the whole site is set up.",
+      "What is on this site right now?",
+      "Show me a snapshot of the site's pages, theme and settings."
+    ],
+    "site_backup_plan": [
+      "Can you back up my site to a private GitHub repository?",
+      "Save a backup of my site in GitHub.",
+      "Plan a site backup without changing remote files.",
+      "Archive my content and database into a repository."
+    ],
+    "identity_policy_list_permissions": [
+      "What access does this policy grant?",
+      "Show the permission rows and resource constraints for this policy.",
+      "What can this role do after its policies are attached?",
+      "Read the grants on this policy before changing user access.",
+      "What actions is this role allowed to perform?",
+      "Show the permissions granted by the role's policy."
+    ],
+    "sites_list": [
+      "Which client sites are stored on this computer?",
+      "List my local sites before copying one.",
+      "Which site is currently serving and which is queued for restart?",
+      "Can I see the site registry when switching is disabled?"
+    ],
+    "sites_create_site": [
+      "Make a new site for another client.",
+      "Create a blank website next to this one.",
+      "Start a fresh empty site called acme.",
+      "Add a new site to my sites folder."
+    ],
+    "sites_switch_site": [
+      "Switch to my other site.",
+      "Work on the acme site instead of this one.",
+      "Change which site the dev server is serving.",
+      "Activate a different site and restart."
+    ],
+    "publish_content_disconnect": [
+      "Disconnect this computer from the live publish destination.",
+      "Stop publishing content to the connected site.",
+      "Forget the connected destination and reverse its publishing grant.",
+      "Undo the connection to my live site."
+    ],
+    "theme_set_page_published": [
+      "Publish the about page supplied by this theme.",
+      "Unpublish a standalone static theme page.",
+      "Hide the pricing page in this theme.",
+      "Show this theme page publicly again."
+    ],
+    "trash_empty": [
+      "Can you empty my Trash?",
+      "Clear everything out of the recycle bin permanently.",
+      "I want all deleted items gone forever.",
+      "Purge the entire Trash after I confirm the selection."
+    ],
+    "trash_purge_item": [
+      "Permanently delete this one item from Trash.",
+      "Purge the deleted post I selected.",
+      "Remove this trashed page forever.",
+      "Erase one deleted item permanently."
+    ],
+    "media_purge_asset": [
+      "Permanently delete this media file.",
+      "Erase the trashed photo forever.",
+      "Purge a media asset from my library.",
+      "Remove this image permanently after confirmation."
+    ],
+    "comments_purge_comment": [
+      "Permanently delete this comment.",
+      "Erase a spam comment forever.",
+      "Purge this comment after I approve it.",
+      "Remove a comment permanently."
+    ],
+    "identity_user_delete": [
+      "Permanently delete this user account.",
+      "Remove the trashed user forever.",
+      "Purge a user after I confirm.",
+      "Erase this user's account permanently."
+    ],
+    "external_mcp_delete": [
+      "Delete a saved External MCP server.",
+      "Remove an external MCP integration permanently.",
+      "Erase this MCP connection configuration.",
+      "Disconnect and delete the saved MCP server."
+    ],
+    "custom_credential_delete": [
+      "Delete this saved custom provider credential.",
+      "Remove a custom API key from Access Tokens.",
+      "Erase the custom provider token I saved.",
+      "Permanently delete a custom credential after I confirm."
+    ],
+    "deployment_delete_provider_credential": [
+      "Delete a saved publish host credential.",
+      "Remove the hosting token from my saved credentials.",
+      "Erase this deployment provider credential.",
+      "Permanently remove my publishing credential."
+    ],
+    "source_control_delete_credential": [
+      "Delete a saved source control credential.",
+      "Remove my saved git token.",
+      "Erase this repository credential.",
+      "Permanently remove my source control API key."
+    ],
+    "deployment_ops_status": [
+      "Is my Fly app healthy?",
+      "Is my Fly app up?",
+      "Did the GitHub Actions workflow build pass?",
+      "Show deployment status for my running app."
+    ],
+    "deployment_ops_logs": [
+      "Why did the GitHub Actions deploy fail?",
+      "Show the error logs from my Fly app.",
+      "What failed steps explain the build error?",
+      "Read deployment logs for this crash."
+    ],
+    "deployment_ops_wait": [
+      "Wait until the deploy finishes and tell me.",
+      "Poll until my deployment is healthy.",
+      "Check again in a minute until it is done.",
+      "Wait for the deployment to finish."
+    ],
+    "deployment_ops_list_targets": [
+      "List my Fly apps.",
+      "Which apps do I have on Fly?",
+      "Show available deployment targets.",
+      "What Fly apps can you inspect?"
+    ],
+    "deployment_ops_deploy": [
+      "Deploy the server now.",
+      "Redeploy my app to production.",
+      "Ship the latest commit on main to Fly.",
+      "Start a deploy through GitHub Actions."
+    ],
+    "deployment_ops_list_secrets": [
+      "Which secrets are set on my Fly app?",
+      "List the environment variables on the server.",
+      "Is TOVU_SITE_KEY set in production?",
+      "Show my app's secrets."
+    ],
+    "deployment_ops_set_secret": [
+      "Set TOVU_SITE_KEY on Fly from my site key.",
+      "Copy the site key to the production server.",
+      "Add a secret to my hosted app.",
+      "Copy one secret to a new name on Fly."
+    ],
+    "deployment_ops_unset_secret": [
+      "Remove the old secret from Fly.",
+      "Unset an environment variable on my server.",
+      "Delete the OLD_API_KEY secret from production.",
+      "Remove a secret from my hosted app."
+    ],
+    "domain_lookup_dns": [
+      "What DNS records does my domain have?",
+      "Show the A and AAAA IP addresses for the apex and www.",
+      "Look up the MX and TXT records for my domain.",
+      "Which nameservers handle this domain?",
+      "Has the DNS change propagated yet?",
+      "Look up ACME challenge CNAME and DKIM or DMARC TXT records."
+    ],
+    "domain_check_dns": [
+      "Does my custom domain point at the right host?",
+      "Compare my domain DNS against the hosting address.",
+      "Is www pointing to the deploy target?",
+      "Check whether the apex DNS matches my publish destination.",
+      "Why is the domain pointing at a different hosting IP?"
+    ],
+    "domain_tls_status": [
+      "Is the TLS certificate for my domain valid?",
+      "Check my SSL certificate status.",
+      "Is HTTPS trusted on this domain?",
+      "Has my site's certificate expired?",
+      "Does the certificate match the domain hostname?"
+    ],
+    "external_mcp_list": [
+      "Which external MCP servers are configured and enabled?",
+      "Show the status of my connected external MCP servers.",
+      "What external MCP integrations have I already set up?",
+      "List saved MCP servers and their OAuth connection status."
+    ],
+    "external_mcp_save": [
+      "Add an MCP server for a new integration.",
+      "Configure an external MCP server with a credential form.",
+      "Change my existing external MCP server settings.",
+      "Connect a new external MCP integration securely."
+    ],
+    "external_mcp_probe_connection": [
+      "Probe my hosted MCP server and show its advertised tools.",
+      "Test live external MCP reachability.",
+      "List tools advertised by my remote MCP server.",
+      "Check my hosted MCP endpoint connection.",
+      "Can the assistant reach this saved remote MCP server right now?"
+    ],
+    "external_mcp_get_admissions": [
+      "Show external MCP admissions from the running assistant.",
+      "Which external MCP tools were actually admitted?",
+      "Why are configured MCP tools missing from the live roster?",
+      "Which external MCP tools did the assistant refuse?",
+      "I allowed tools in Settings but the assistant cannot use them; show configuration failures."
+    ],
+    "trash_item": [
+      "How do I delete a navigation menu from the footer?",
+      "Can you remove the old menu in the header?",
+      "I want to delete a menu by moving it to the Trash so I can restore it later."
+    ],
+    "collections_content_type_list": [
+      "What content types do we have set up on the site?",
+      "Where can I see all my content type schemas and their current version?",
+      "Is the 'Recipe' content type still active or did someone retire it?",
+      "I need the current version number for a content type before I edit it.",
+      "Can you show me every content type, including old ones nobody uses anymore?",
+      "Which collections / content types do I have?"
+    ],
+    "collections_content_type_define": [
+      "How do I add a brand new content type to the CMS?",
+      "We need a new kind of entry for 'Events' — how do I register that?",
+      "Can you set up a new content model with its own fields?",
+      "I want to create a custom content type from scratch.",
+      "How do I register a new entry schema in the workspace?"
+    ],
+    "collections_content_type_update_fields": [
+      "I need to change the fields on an existing content type.",
+      "How do I add a new field to the 'Product' content type?",
+      "Can you replace the whole schema for this content type?",
+      "The fields on our content type are wrong, how do I fix them?",
+      "I want to overwrite the field list for a content type."
+    ],
+    "collections_content_type_deprecate": [
+      "How do I stop people from creating new entries of a certain type?",
+      "We don't want any more 'Legacy Post' entries made, can you retire that type?",
+      "Can you mark this content type as deprecated?",
+      "I want to phase out an old content type without deleting existing entries.",
+      "How do I block new entries for a content type but keep the old ones?"
+    ],
+    "collections_content_type_reactivate": [
+      "I deprecated a content type by mistake, can you turn it back on?",
+      "How do I bring back a retired content type?",
+      "Can you make a deprecated content type active again?",
+      "We need to start using that old content type again.",
+      "How do I undo a content type deprecation?"
+    ],
+    "collections_content_type_tombstone": [
+      "How do I permanently get rid of a deprecated content type?",
+      "Can you fully remove a content type and its indexes?",
+      "We're done with this content type forever, how do I tear it down?",
+      "How do I clean up the search indexes for an old content type?",
+      "Is there a way to finalize deleting a content type that's already deprecated?"
+    ],
+    "collections_entry_list": [
+      "Show me all the entries for our 'Product' collection.",
+      "What draft entries do we have in this collection type?",
+      "Can I see a list of every entry, including unpublished ones?",
+      "I want to browse the Collections list like the admin screen shows.",
+      "What are the ids and slugs for entries under this content type?"
+    ],
+    "collections_entry_create": [
+      "How do I add a new entry to a collection?",
+      "Can you create a draft record under the 'Testimonials' type?",
+      "I need to add a new item with these field values.",
+      "How do I make a new collection entry that isn't published yet?",
+      "Can you create an entry but keep it as a draft for now?"
+    ],
+    "collections_entry_update": [
+      "How do I change the title on an existing collection entry?",
+      "I need to update some fields on this entry without touching the rest.",
+      "Can you fix the field values on this record?",
+      "How do I edit an entry's data — will it fail if my version is out of date?",
+      "I want to update just the fields I changed, not the whole entry."
+    ],
+    "collections_entry_publish": [
+      "How do I make this draft entry go live?",
+      "Can you publish this collection item?",
+      "I want this entry visible on the site now.",
+      "How do I flip a draft to published status?",
+      "Can you set the publish date on this entry to right now?"
+    ],
+    "collections_entry_unpublish": [
+      "How do I take this entry down without deleting it?",
+      "Can you pull this published item back to unpublished?",
+      "I want to hide this entry from the site but keep it around.",
+      "How do I revert something back to draft after publishing it?",
+      "Can you unpublish this collection item temporarily?"
+    ],
+    "comments_list_moderation_queue": [
+      "What comments are waiting for me to approve?",
+      "Show me the pending comments queue.",
+      "Are there any comments stuck in moderation right now?",
+      "I need the id of a comment before I can approve it.",
+      "Can you list comments that were marked as spam so I can review them?"
+    ],
+    "comments_get_settings": [
+      "What are our current comment moderation settings?",
+      "Is comment approval required before comments show up?",
+      "How many comments can one visitor post per hour right now?",
+      "What's our spam auto-reject threshold set to?",
+      "Do we have comments closed after a certain number of days?"
+    ],
+    "comments_update_settings": [
+      "Can you turn on comment moderation for the site?",
+      "I want to change how deep a nested reply thread can go.",
+      "Can you raise the spam score threshold for auto-rejecting comments?",
+      "How do I set comments to close automatically after 30 days?",
+      "Can you limit how many comments one IP can post per hour?"
+    ],
+    "comments_approve_comment": [
+      "Can you approve this comment so it shows up publicly?",
+      "This comment got flagged as spam but it's legit, can you approve it?",
+      "How do I let this pending comment through?",
+      "Can you make this comment visible to visitors?",
+      "I want to unhide a trashed comment by approving it."
+    ],
+    "comments_mark_comment_spam": [
+      "This comment looks like spam, can you hide it?",
+      "How do I flag a comment as junk?",
+      "Can you mark this as spam so it's not shown publicly?",
+      "I need to hide an obviously fake comment.",
+      "How do I mark a bad comment without deleting it permanently?"
+    ],
+    "comments_trash_comment": [
+      "Can you delete this comment?",
+      "How do I remove a rude comment from the site?",
+      "I want to trash a comment but be able to bring it back later.",
+      "Can you soft-delete this comment?",
+      "How do I hide a comment without permanently losing it?"
+    ],
+    "comments_restore_comment": [
+      "I trashed a comment by accident, can you bring it back?",
+      "Can you undo marking this comment as spam?",
+      "How do I restore a comment I deleted?",
+      "Can you make a spam comment approved again?",
+      "I want to recover a comment from the trash."
+    ],
+    "content_post_search": [
+      "Where's the page about our pricing on the site?",
+      "I don't know the exact URL, can you find the post that mentions refunds?",
+      "Search our posts and pages for anything about shipping.",
+      "Can you find a page by what it's about instead of its title?",
+      "What page or post talks about our return policy?"
+    ],
+    "content_post_list": [
+      "Show me every post we have, drafts included.",
+      "Can I get the full inventory of pages on the site?",
+      "List every draft and published post.",
+      "Give me the complete body text for all our pages.",
+      "How many posts do we have total?"
+    ],
+    "content_post_get": [
+      "Can you open up this specific post's full content?",
+      "I have the id, show me the whole page body.",
+      "Show me the details of this one page including its current version.",
+      "Can you pull up the full text of this post by its id?",
+      "I want to read the complete content of one page, not a summary."
+    ],
+    "content_post_create": [
+      "Can you draft a new blog post for me?",
+      "How do I create a new page on the site?",
+      "Can you make a new post that's published right away?",
+      "I need a new page with this title, and can the URL be auto-generated?",
+      "How do I add a brand-new post to the site?",
+      "Write a post and schedule it to publish on Friday morning."
+    ],
+    "content_post_update": [
+      "Unpublish this page for now, hide the page and take it offline.",
+      "Can you change the title of this page?",
+      "I need to fix a typo in the latest blog post title.",
+      "How do I publish this post by updating its status?",
+      "Can you rewrite this page's body and slug at the same time?",
+      "How do I take a live post back to draft?",
+      "Can you unpublish this page for now and put it back in draft?",
+      "Can you schedule this post to go live next Monday at 9am?"
+    ],
+    "content_post_delete": [
+      "Can you delete this blog post?",
+      "How do I remove a page from the site?",
+      "I want to trash this post — will someone need to confirm it?",
+      "Can you get rid of this old page for me?",
+      "How do I delete a post that's cluttering the list?"
+    ],
+    "database_query_timeline": [
+      "What's the history of migrations and restores on our database?",
+      "Can you show me a timeline of everything that's happened to the database?",
+      "Was there an interrupted migration recently?",
+      "I want to see the past database snapshots in order.",
+      "What database events happened most recently?"
+    ],
+    "database_list_restore_points": [
+      "What restore points do we have for the database?",
+      "When was the last database backup point taken?",
+      "Can you list all the snapshots I could roll back to?",
+      "How many restore points exist and what triggered them?",
+      "Show me the database recovery points available."
+    ],
+    "database_get_health": [
+      "Is the database okay right now?",
+      "Are we running low on disk space for the database?",
+      "Is there a stuck or pending migration I should worry about?",
+      "Can you check if the database is connected and healthy?",
+      "Is anything wrong with the database at the moment?"
+    ],
+    "database_get_schema_state": [
+      "Is our database schema out of sync with what it should be?",
+      "Has the database schema drifted from the expected version?",
+      "Is the database ahead or behind on schema changes?",
+      "Can you check if our schema matches the saved snapshot?",
+      "Do we need to run a migration to fix schema drift?"
+    ],
+    "database_list_pending_migrations": [
+      "Are there any database migrations waiting to be applied?",
+      "What updates haven't been run on the database yet?",
+      "Can you show me the migrations that are queued but not done?",
+      "Is there pending schema work I need to apply?",
+      "What migrations are outstanding right now?"
+    ],
+    "database_plan_migrate_forward": [
+      "What would happen if I ran the pending migrations right now?",
+      "Can you preview the migration before actually running it?",
+      "How much would it cost to migrate the schema forward?",
+      "I want to see the plan for a forward migration without applying it.",
+      "Can you dry-run the schema migration first?"
+    ],
+    "forms_list_definitions": [
+      "What forms do we have set up on the site?",
+      "I need the id for our contact form before I can edit it.",
+      "Show me all our form definitions and how many fields each has.",
+      "Which forms are active versus disabled?",
+      "Can you list every form by name and slug?"
+    ],
+    "forms_create_definition": [
+      "How do I build a new contact form?",
+      "Can you set up a new form with a specific URL slug?",
+      "I want to create a signup form with these fields.",
+      "How do I add a brand-new form to the site?",
+      "Can you make a new form definition — can the slug ever change later?"
+    ],
+    "forms_update_definition": [
+      "Can you add a new field to our existing form?",
+      "I need to change who gets notified when this form is submitted.",
+      "Can you rename this form without changing its URL?",
+      "How do I edit the fields on a form I already made?",
+      "Can I remove a field from a form, or does that get blocked?"
+    ],
+    "forms_set_definition_status": [
+      "How do I turn off a form so people can't submit it anymore?",
+      "Can you disable this old form?",
+      "Is there a way to delete a form, or just disable it?",
+      "How do I re-enable a form I turned off earlier?",
+      "Can you take this form out of service?"
+    ],
+    "forms_list_submissions": [
+      "What submissions have come in on our contact form?",
+      "Can you show me the latest form entries, newest first?",
+      "Who submitted this form and when?",
+      "I want to see all the responses to our survey form.",
+      "Show me the IP addresses on recent form submissions."
+    ],
+    "forms_get_submission": [
+      "Can you pull up the full details of one specific form submission?",
+      "I have a submission id, show me everything that was submitted.",
+      "What did this particular visitor fill out on the form?",
+      "Can you show me the exact time and IP for this one submission?",
+      "I need to look at a single form response in detail."
+    ],
+    "identity_user_list": [
+      "Who are the admin users on this site?",
+      "Can you show me everyone with access to the admin panel?",
+      "I need a user's id before I can change their role.",
+      "What roles does each operator currently have?",
+      "Show me which admin accounts are active versus disabled."
+    ],
+    "identity_role_list": [
+      "What roles exist in our workspace?",
+      "Can you show me the built-in roles plus any custom ones we made?",
+      "I need the role id before I can assign it to someone.",
+      "What are all the permission roles available?",
+      "List the roles so I know what I can assign to a new hire."
+    ],
+    "identity_policy_list": [
+      "What permission policies do we have set up?",
+      "Can you show me which policies are frozen and can't be changed?",
+      "I need a policy id before I can attach it to a user.",
+      "What custom policies exist besides the built-in ones?",
+      "List all the access policies in the workspace."
+    ],
+    "identity_user_create": [
+      "How do I add a new admin user?",
+      "Can you create a login for a new team member?",
+      "I want to set up a new operator account — will they have any permissions right away?",
+      "How do I make a new user account with a username and password?",
+      "Can you create a brand new principal for someone joining the team?"
+    ],
+    "identity_user_update_email": [
+      "Can you update this admin's email address?",
+      "How do I remove the email on file for a user?",
+      "I need to change the contact email for one of our operators.",
+      "Can you set a new email for this account? Can I also change their password here?",
+      "How do I clear out a stored email address for a user?"
+    ],
+    "identity_user_disable": [
+      "How do I revoke someone's admin access?",
+      "Can you lock out a former employee from the admin panel?",
+      "I want to disable a user but not delete their account.",
+      "Can you remove the owner's access? What if there's no other owner?",
+      "How do I deactivate an admin account that's already inactive?"
+    ],
+    "identity_user_enable": [
+      "Can you turn a disabled admin account back on?",
+      "How do I restore access for someone I locked out earlier?",
+      "I need to re-enable a user I disabled by mistake.",
+      "Can you reactivate this operator's login?",
+      "How do I give a disabled user their access back?"
+    ],
+    "identity_role_create": [
+      "How do I make a custom role for our team?",
+      "Can you create a new role called 'Editor'? Will it have any permissions right away?",
+      "I want a new permission group that starts empty.",
+      "How do I set up a brand-new custom role?",
+      "Can you add a new role I can assign later?"
+    ],
+    "identity_role_assign": [
+      "Can you give this user the Editor role?",
+      "How do I grant admin access to a new team member?",
+      "I want to assign a role to a user — can I give them more power than I have myself?",
+      "How do I actually grant permissions to someone by role?",
+      "Can you assign the moderator role to this account?"
+    ],
+    "identity_role_rename": [
+      "Can you rename this custom role?",
+      "How do I change the label on one of our roles?",
+      "Can I rename the built-in 'Viewer' role to something else?",
+      "I want to give a custom role a clearer name.",
+      "How do I relabel a role we created?"
+    ],
+    "identity_role_delete": [
+      "Can you delete a custom role we don't use anymore?",
+      "How do I remove a role, and what happens if someone still has it?",
+      "Can I delete one of the built-in roles?",
+      "I want to get rid of an unused permission role.",
+      "Why can't I delete this role — is it still assigned to someone?"
+    ],
+    "identity_policy_create": [
+      "How do I create a new permission policy?",
+      "Can you set up a custom policy — does it have any permissions to start?",
+      "I want to make a new policy I can attach to users later.",
+      "How do I add a brand-new access policy?",
+      "Can you create an empty policy for me to configure?"
+    ],
+    "identity_policy_update": [
+      "Can you rename this policy?",
+      "How do I update the description on a custom policy?",
+      "Can I edit a built-in or frozen policy?",
+      "I want to change the name and description of a policy.",
+      "How do I edit the label on a policy I created?"
+    ],
+    "identity_policy_delete": [
+      "Can you delete this custom policy?",
+      "Why can't I remove a policy that's still attached to someone?",
+      "How do I get rid of an unused permission policy?",
+      "Can I delete a built-in or frozen policy?",
+      "I want to clean up a policy nobody needs anymore."
+    ],
+    "identity_policy_attach": [
+      "Can you directly grant this policy to a user, no role needed?",
+      "How do I attach a permission policy straight to someone's account?",
+      "I want to give this user extra permissions from a policy — can I detach it later?",
+      "Can I attach a policy that's more powerful than my own access?",
+      "How do I grant a specific policy to one named user?"
+    ],
+    "webhooks_list_subscriptions": [
+      "What webhooks do we have set up?",
+      "Can you show me our integration subscriptions and their last delivery?",
+      "I need to see which webhooks are active.",
+      "List all our outbound webhook connections.",
+      "What integrations are currently configured?"
+    ],
+    "webhooks_get_deliveries": [
+      "Did our webhook actually fire successfully?",
+      "Can you show me the delivery log for this webhook?",
+      "Why did this integration fail — what was the last response?",
+      "I want to see all the delivery attempts for one webhook subscription.",
+      "How many times has this webhook retried?"
+    ],
+    "webhooks_create_subscription": [
+      "Can you set up a new webhook for us?",
+      "How do I add an integration that starts active?",
+      "I need a new webhook subscription — where do I get the signing secret?",
+      "Can you create a new outbound webhook connection?",
+      "How do I wire up a new integration endpoint?",
+      "Add a webhook for form submissions."
+    ],
+    "webhooks_pause_subscription": [
+      "Can you pause this webhook so it stops sending?",
+      "How do I temporarily stop an integration from firing?",
+      "Can you resume a webhook I paused earlier?",
+      "I want to turn off deliveries for this subscription without deleting it.",
+      "Can I pause and later resume the same webhook with one tool?"
+    ],
+    "webhooks_delete_subscription": [
+      "Can you remove this webhook subscription?",
+      "How do I delete an integration we don't use anymore?",
+      "I want to disable a webhook permanently.",
+      "Can you deactivate this integration subscription?",
+      "What happens if I try deleting a webhook that's already deleted?"
+    ],
+    "media_list_assets": [
+      "Show me all the images in our media library.",
+      "I need the id of an image before I can edit its alt text.",
+      "Can you list every uploaded file, including trashed ones?",
+      "What media assets do we have and what are their checksums?",
+      "Show me our full media library."
+    ],
+    "media_upload_asset": [
+      "Can you upload this image to the media library?",
+      "How do I add a new photo to our site's media?",
+      "Can I upload an SVG file? What about a file that's too big?",
+      "How do I add a new image from a base64 file?",
+      "If I upload the same picture twice, does it create two entries?"
+    ],
+    "media_view_image": [
+      "Write alt text for this image.",
+      "Can you look at this picture and tell me what it shows?",
+      "Describe the photo in the media library.",
+      "What is in this image? Suggest a caption.",
+      "Open the image and check it before I use it."
+    ],
+    "media_update_metadata": [
+      "Can you change the alt text on this image?",
+      "How do I update the caption for a media file?",
+      "Can I edit the credit line on this photo?",
+      "I want to change the title of an uploaded image — can I replace the actual file this way?",
+      "How do I fix the metadata on an existing media asset?",
+      "Can you make this video autoplay everywhere it's used?",
+      "How do I add a CSS class to an image?"
+    ],
+    "media_trash_asset": [
+      "Can you delete this image from the media library?",
+      "How do I remove a file I no longer need?",
+      "Is there a way to permanently purge a media asset, or just trash it?",
+      "I want to soft-delete this photo.",
+      "What happens if I try to trash an image that's already trashed?"
+    ],
+    "media_generate_asset": [
+      "Can you generate an image of a red bicycle for me?",
+      "I need a logo — can you create one with AI?",
+      "Generate a hero banner image for the homepage.",
+      "Draw me an illustration of a mountain landscape.",
+      "Can you make an AI image and add it to the media library?"
+    ],
+    "media_import_local_file": [
+      "Add the video in my Downloads folder to the media library.",
+      "Upload this photo from my desktop to the site.",
+      "Import the logo file from the theme folder into media.",
+      "Put hero.mp4 from my computer on the site."
+    ],
+    "media_import_from_url": [
+      "I have a URL for an image, put it in the media library.",
+      "Put the image from this URL in my media library, saving the remote image link.",
+      "Can you save the image at this link into our media library?",
+      "I have a URL for a picture — how do I get it into the CMS?",
+      "Download this image from the web and add it to our media files.",
+      "Another tool gave me a link to an image it made. Can you import it?",
+      "How do I add a photo that lives on someone else's site or CDN?"
+    ],
+    "members_list": [
+      "Who are our site members right now?",
+      "Can you show me pending, active, and disabled members?",
+      "I need a member's id before I can look at their details.",
+      "List everyone who's signed up as a member.",
+      "Show me our member roster."
+    ],
+    "members_get_by_id": [
+      "Can you pull up this one member's full details?",
+      "I have the member id, show me their info.",
+      "What does this specific member's record look like?",
+      "Can you show me one member's account details?",
+      "I want to check a single member's status."
+    ],
+    "members_disable": [
+      "Can you revoke this member's access?",
+      "How do I kick a member out and end their sessions?",
+      "I want to disable a member's account.",
+      "Can I re-enable a member after disabling them?",
+      "What happens if I disable a member who's already disabled?"
+    ],
+    "members_request_magic_link": [
+      "Can you resend the sign-in link to this member?",
+      "This member says they can't log in, can you send them a fresh link?",
+      "How do I trigger a passwordless login email for a member?",
+      "Can you resend a magic link even if I'm not sure the email is registered?",
+      "Is there a rate limit on resending sign-in links?"
+    ],
+    "menus_list_menus": [
+      "What menus do we have set up on the site?",
+      "Can you show me all our navigation menus and where they're placed?",
+      "I need to see the current version of a menu before editing it.",
+      "List every menu with its status and item tree.",
+      "Show me the menus and what locations they're assigned to."
+    ],
+    "menus_get_menu": [
+      "Can you show me the full item tree for this one menu?",
+      "I have a menu id, pull up its details.",
+      "What items are in this specific menu right now?",
+      "Show me one menu's structure and version number.",
+      "Can I see the current layout of our main navigation menu?"
+    ],
+    "menus_create_menu": [
+      "How do I create a new navigation menu?",
+      "Can you make a new menu — will it show up on the site right away?",
+      "I want to build a draft menu before assigning it anywhere.",
+      "Can you create a menu with a unique slug?",
+      "How do I start a brand-new menu from scratch?"
+    ],
+    "menus_update_menu_tree": [
+      "Can you rearrange the items in this menu?",
+      "I need to replace the whole structure of a menu.",
+      "How do I add a new link to an existing menu — do I need to list everything else too?",
+      "Can you rename this menu while you're updating its items?",
+      "How do I edit a menu's item tree?"
+    ],
+    "menus_assign_location": [
+      "How do I put this menu in the header?",
+      "Can you assign this menu to the footer location?",
+      "If another menu is already in that spot, what happens to it?",
+      "How do I make a menu actually show up on the live site?",
+      "Can you swap which menu is bound to the primary navigation slot?"
+    ],
+    "newsletter_list_campaigns": [
+      "What email campaigns do we have going?",
+      "Can you show me our draft newsletters?",
+      "I need a campaign's id before I can edit it.",
+      "List all our newsletter campaigns by status.",
+      "What campaigns have we sent or scheduled?"
+    ],
+    "newsletter_get_campaign": [
+      "Can you show me the full details of this one campaign?",
+      "What's the current status and delivery count for this newsletter?",
+      "I have a campaign id, pull up everything about it.",
+      "How many emails has this campaign actually sent so far?",
+      "Show me one campaign's full info."
+    ],
+    "newsletter_list_lists": [
+      "What subscriber lists do we have?",
+      "I need a list id before creating a new campaign.",
+      "Can you show me all our newsletter lists?",
+      "What are the names of our mailing lists?",
+      "List every subscriber list in the workspace."
+    ],
+    "newsletter_list_subscriptions": [
+      "Who's subscribed to this particular list?",
+      "Can you show me the subscribers on our main mailing list?",
+      "I want to see everyone signed up for a specific newsletter list.",
+      "Show me the subscription records for one list.",
+      "How many people are on this mailing list?"
+    ],
+    "newsletter_list_send_log": [
+      "Did everyone actually receive this newsletter?",
+      "Can you show me the delivery log for this campaign, email by email?",
+      "Who didn't get this newsletter and why?",
+      "I want to see the per-recipient send status for a campaign.",
+      "How many attempts did it take to deliver to each subscriber?"
+    ],
+    "newsletter_create_campaign": [
+      "Can you draft a new email newsletter?",
+      "How do I start a new campaign — will it send automatically?",
+      "I want to create a newsletter draft I can edit later.",
+      "Can you set up a new campaign in draft status?",
+      "How do I begin a new email blast without sending it yet?"
+    ],
+    "newsletter_update_campaign": [
+      "Can you change the subject line on this draft newsletter?",
+      "I need to edit the from-email and reply-to on a campaign.",
+      "Can I still edit this campaign once it's scheduled?",
+      "How do I update the preheader text on a draft?",
+      "Can you switch which list this campaign is going to?"
+    ],
+    "newsletter_cancel_campaign": [
+      "Can you cancel this newsletter before it sends?",
+      "I want to stop a scheduled campaign from going out.",
+      "Can I cancel a campaign that's already sending?",
+      "How do I pull the plug on a draft campaign permanently?",
+      "Can you take this campaign out of the send pipeline entirely?"
+    ],
+    "newsletter_send_test": [
+      "Send a test newsletter to myself.",
+      "Test this email campaign before sending it.",
+      "Email a newsletter preview to the site owner.",
+      "Send me a proof of this newsletter issue.",
+      "Can I check the newsletter in my own inbox first?"
+    ],
+    "newsletter_send_campaign": [
+      "Send this newsletter now.",
+      "Launch this newsletter to subscribers.",
+      "Send the newsletter to everyone.",
+      "Email this newsletter to my mailing list.",
+      "Send the newsletter issue after I confirm."
+    ],
+    "newsletter_schedule_campaign": [
+      "Schedule this newsletter for tomorrow.",
+      "Set a send date for this email campaign.",
+      "Schedule the newsletter issue for later.",
+      "Save a scheduled date for this subscriber newsletter send.",
+      "Can I record when this newsletter should go out?"
+    ],
+    "newsletter_resume_campaign": [
+      "Resume this paused newsletter.",
+      "Continue sending the newsletter.",
+      "Restart paused newsletter delivery.",
+      "Resume the email campaign's remaining recipients.",
+      "Unpause this newsletter send after I approve it."
+    ],
+    "newsletter_pause_campaign": [
+      "Can you stop this newsletter that's currently sending?",
+      "How do I halt an in-progress campaign send?",
+      "Once I pause a campaign, can I resume it later?",
+      "I need to stop outbound mail on this campaign right now.",
+      "Can you pause a campaign that's already fully sent?"
+    ],
+    "newsletter_create_list": [
+      "Can you create a new subscriber list?",
+      "How do I set up a new mailing list with its own slug?",
+      "I want a fresh list for a specific audience segment.",
+      "Can a brand-new list become the default one automatically?",
+      "How do I make a new newsletter list?"
+    ],
+    "newsletter_archive_list": [
+      "Can you archive this old subscriber list?",
+      "How do I retire a mailing list we don't use anymore?",
+      "Can I archive our default 'all subscribers' list?",
+      "I want to get rid of an unused list.",
+      "How do I shelve a subscriber list?"
+    ],
+    "newsletter_create_subscription": [
+      "Can you add this member to our newsletter list?",
+      "How do I subscribe an existing member — do they need to confirm it?",
+      "I want to add someone to a mailing list and send them a confirmation.",
+      "Can this also send them marketing content right away?",
+      "How do I sign up an existing member for a specific list?"
+    ],
+    "newsletter_remove_subscription": [
+      "Can you unsubscribe this person from the list?",
+      "How do I remove a subscription by its id?",
+      "What happens if I try to unsubscribe someone who's already unsubscribed?",
+      "I want to take someone off a mailing list.",
+      "Can you cancel this subscriber's spot on the list?"
+    ],
+    "newsletter_resend_confirmation": [
+      "This subscriber never got their confirmation email, can you resend it?",
+      "Can you send a fresh double opt-in link, invalidating the old one?",
+      "How do I resend the confirmation for a pending subscription?",
+      "What happens if I try resending confirmation for an unknown subscription?",
+      "Can you re-trigger the opt-in email for someone who lost it?"
+    ],
+    "plugins_list": [
+      "What plugins are installed on the site?",
+      "Can you show me which plugins are enabled versus disabled?",
+      "Is there a plugin with a validation error I should know about?",
+      "What's the trust tier on this third-party plugin?",
+      "Show me every discovered plugin, built-in and site-installed."
+    ],
+    "plugins_set_enabled": [
+      "Can you turn on this plugin?",
+      "How do I disable a plugin we don't want running?",
+      "Why won't this plugin enable — is it invalid or incompatible?",
+      "Will enabling this plugin change our database schema?",
+      "Can you toggle this plugin off?"
+    ],
+    "search_agent_plugin_local": [
+      "Is there a plugin for deploying to fly.io?",
+      "What agent plugins do I have installed?",
+      "Do we already have something installed that handles GDPR or cookie consent?",
+      "Find a plugin that can help with accessibility review.",
+      "Is there an installed plugin that declares an MCP server, and what does it cover?"
+    ],
+    "recovery_get_status": [
+      "Is there anything wrong with our database recovery state right now?",
+      "Is a migration currently stuck or interrupted?",
+      "What's our current restore-point cost class?",
+      "Is there an operation already in progress I should wait for?",
+      "Are we missing a baseline watermark for recovery?"
+    ],
+    "recovery_resolve_deep_link": [
+      "Is this restore-point link still valid, or was it faked?",
+      "Can you double check this deep link actually points to a real restore point?",
+      "Someone sent me a database timeline link, is it legit?",
+      "How do I verify a restore point id from a link instead of trusting it blindly?",
+      "Can you re-resolve this link server-side to make sure it's not stale?"
+    ],
+    "redirects_list": [
+      "What redirects do we have set up on the site?",
+      "Can you show me only the active redirect rules?",
+      "I need to see redirects filtered by source URL.",
+      "List all our URL redirect rules.",
+      "What redirects are currently disabled?"
+    ],
+    "redirects_get": [
+      "Can you show me the details of this one redirect rule?",
+      "I have a redirect id, pull up its info.",
+      "What does this specific redirect rule point to?",
+      "Show me one redirect's source and target.",
+      "Can you fetch a single redirect by id?"
+    ],
+    "redirects_get_hits": [
+      "How many times has this redirect actually been used?",
+      "When was the last time someone hit this redirect?",
+      "I want to see traffic stats for a specific redirect.",
+      "Has anyone even used this redirect rule?",
+      "Can you show me the hit count for this redirect?"
+    ],
+    "redirects_create": [
+      "Can you set up a new redirect from the old URL to the new one?",
+      "How do I create a redirect — will it stop me from making a loop?",
+      "Can you add a redirect rule, or will it reject an unsafe target?",
+      "I need a new URL forwarding rule.",
+      "What happens if I try to create a duplicate redirect for the same source?"
+    ],
+    "redirects_update": [
+      "Can you change where this redirect points to?",
+      "I need to edit just the target URL on an existing redirect.",
+      "How do I update a redirect rule's status?",
+      "Can you fix a broken redirect without recreating it?",
+      "Can I change a redirect's destination while keeping its source URL and status code unchanged?"
+    ],
+    "redirects_tombstone": [
+      "Can you disable this redirect rule?",
+      "How do I turn off a redirect without deleting its history?",
+      "I want to soft-delete a redirect we don't need anymore.",
+      "What happens if I try to disable a redirect that's already disabled?",
+      "Can you retire an old redirect rule for audit purposes?"
+    ],
+    "seo_get_entry_meta": [
+      "What SEO title and description is actually showing for this page?",
+      "Can you show me the effective meta tags for this entry?",
+      "What's the resolved Open Graph and Twitter card data for this page?",
+      "I want to see the final SEO values after overrides are applied.",
+      "What does the JSON-LD look like for this specific entry?"
+    ],
+    "seo_analyze_entry": [
+      "How's this page's SEO score?",
+      "What SEO issues does this page have, like a missing description?",
+      "Can you audit this entry's search-engine metadata?",
+      "Is this page missing anything important for SEO?",
+      "Can you grade this page's SEO out of 100?"
+    ],
+    "seo_set_entry_overrides": [
+      "Can you set a custom SEO title for just this one page?",
+      "I want to override the meta description on this entry.",
+      "How do I mark this page as noindex?",
+      "Can you set a canonical URL for this entry — does that also refresh the sitemap?",
+      "How do I override SEO fields for one page without touching the site defaults?"
+    ],
+    "seo_get_settings": [
+      "What are our site-wide SEO defaults?",
+      "What's our default Open Graph image set to?",
+      "Is the sitemap toggle turned on for the whole site?",
+      "What do our robots.txt custom rules look like?",
+      "What's the title template applied across all pages?"
+    ],
+    "seo_set_settings": [
+      "Can you update our default meta description for the whole site?",
+      "How do I change the site-wide title template?",
+      "Can you turn off the sitemap for the whole site?",
+      "I want to update our robots.txt rules — will it fail entirely if one field is wrong?",
+      "How do I set a new default social share image sitewide?"
+    ],
+    "seo_regenerate_sitemap": [
+      "Can you force the sitemap to rebuild right now?",
+      "Our sitemap seems stale, can you refresh it?",
+      "How do I bypass the sitemap cache and regenerate it immediately?",
+      "Can you rebuild the sitemap without losing any entries?",
+      "I just changed a bunch of pages, can you regenerate the sitemap now?"
+    ],
+    "settings_list_definitions": [
+      "What settings are available in this workspace?",
+      "Can you show me every setting definition, platform and site-owned?",
+      "I want to see setting keys and their current status, not values.",
+      "What namespace do our settings live under?",
+      "List all the active setting definitions we can configure."
+    ],
+    "settings_set_value": [
+      "Change the site's timezone to Pacific.",
+      "Turn off comments on new posts.",
+      "Set the date format to day-month-year.",
+      "Change a site setting.",
+      "Update a configuration option."
+    ],
+    "settings_clear_value": [
+      "Put that setting back to its default.",
+      "Clear a setting override.",
+      "Undo that setting.",
+      "Reset one setting to default."
+    ],
+    "settings_get_effective": [
+      "What's the actual value being used for this setting right now?",
+      "Can you resolve the final setting value after all the overrides?",
+      "What settings apply to me as a user versus the whole workspace?",
+      "I want the effective, precedence-resolved values for a namespace.",
+      "What's the value that actually wins between global, workspace, and user settings?",
+      "What settings does my site have?",
+      "Show me all current site settings."
+    ],
+    "settings_get_raw": [
+      "Can you show me the raw values for this setting at every layer?",
+      "What's the workspace-level value versus the global default for this setting?",
+      "I want to see all the unresolved layers for one setting key.",
+      "Can you break down this setting by global, workspace, user, and default?",
+      "Before precedence is applied, what does each layer say for this setting?"
+    ],
+    "settings_list_ui_locales": [
+      "Which languages can the admin interface use?",
+      "What locale code do I use for Portuguese?",
+      "Does the admin support Italian?",
+      "List supported UI languages.",
+      "Can you switch to Polish?",
+      "Change the language to Spanish."
+    ],
+    "settings_set_ui_preference": [
+      "Can you switch my admin panel to dark theme?",
+      "How do I change my interface language in the admin UI?",
+      "Can you turn off notification sounds for me?",
+      "I want to change my own accent color in the admin panel.",
+      "Can this change another operator's preferences, or just mine?"
+    ],
+    "taxonomy_list": [
+      "What categories and tags do we have?",
+      "Can you show me all our taxonomies and their terms?",
+      "I want to see the full category and tag structure.",
+      "What terms exist under each taxonomy?",
+      "Show me everything on the Categories and Tags screen."
+    ],
+    "taxonomy_create_taxonomy": [
+      "Can you create a new tag group?",
+      "How do I set up a new hierarchical category taxonomy?",
+      "I want a flat taxonomy for simple tags, not a nested one.",
+      "Can you add a brand-new taxonomy to the workspace?",
+      "How do I create a new grouping system for content?"
+    ],
+    "taxonomy_create_term": [
+      "Can you add a new tag under this taxonomy?",
+      "How do I create a subcategory under an existing category?",
+      "Can you add a term with a parent — does it check the parent is in the same taxonomy?",
+      "I want to add a new term to our category list.",
+      "How do I create a new tag term?"
+    ],
+    "taxonomy_rename_term": [
+      "Can you rename this tag?",
+      "How do I fix a typo in a category name?",
+      "Can you relabel a term without changing its parent or taxonomy?",
+      "I want to rename an existing term in place.",
+      "How do I change the display name of a category?"
+    ],
+    "taxonomy_assign_terms": [
+      "Can you tag this post with a couple categories?",
+      "How do I assign tags to a piece of content?",
+      "If I assign the same tag twice, does it duplicate?",
+      "Can this remove tags too, or only add them?",
+      "How do I attach existing terms to a collection entry?"
+    ],
+    "taxonomy_plan_merge_term": [
+      "What would happen if I merged these two tags together?",
+      "Can you preview a term merge before actually doing it?",
+      "How much overlap is there between these two categories if I merge them?",
+      "Can this tool actually perform the merge, or just show me what would happen?",
+      "What content would lose its duplicate tag assignment if I merge these terms?"
+    ],
+    "theme_rescan": [
+      "Rescan themes after I added a folder.",
+      "Refresh themes; my new theme folder is not showing.",
+      "Reload themes from disk.",
+      "Pick up my new theme folder without restarting.",
+      "Scan for added, removed or invalid themes."
+    ],
+    "theme_reset_file": [
+      "Undo my changes to the header template.",
+      "Restore a theme file to its original version.",
+      "Discard my stylesheet edits and reset it.",
+      "Bring back the original footer template in my theme.",
+      "Can you revert this theme file from its stored pristine copy?"
+    ],
+    "theme_set_active": [
+      "Switch my site to the Nordic theme.",
+      "Activate an installed theme on my live site.",
+      "Change which theme my site uses.",
+      "Set the active theme to my existing design.",
+      "Turn off the theme on my site."
+    ],
+    "theme_list": [
+      "What themes do we have installed?",
+      "Is our current theme valid, or does it have errors?",
+      "Can you show me the theme id I need for other theme tools?",
+      "What's the validation status of each theme?",
+      "List every theme available on the site."
+    ],
+    "fs_list_files": [
+      "What's in this folder on my computer?",
+      "Can you look inside the folder I just dropped into the chat?",
+      "What files are in a directory on my machine?",
+      "Browse a local folder that isn't part of the site.",
+      "Show me what a website folder on my desktop contains."
+    ],
+    "fs_read_file": [
+      "Can you open a file from the folder I dropped?",
+      "Read this file on my computer and tell me what it says.",
+      "Show me the contents of a local HTML file.",
+      "What does the index.html in that folder contain?",
+      "Read a text file from a directory on my machine."
+    ],
+    "theme_list_files": [
+      "What files does this theme actually have?",
+      "Can you show me the folder structure of a theme?",
+      "I want to see what templates exist before I edit one.",
+      "What's inside the theme's templates folder?",
+      "Can you list the files in a theme without guessing filenames?"
+    ],
+    "theme_read_file": [
+      "Can you show me the contents of this theme file?",
+      "I want to read the home template's Liquid code.",
+      "Can you open theme.json for this theme?",
+      "Show me the raw text of one file inside the theme.",
+      "Can I read a file from outside the theme's own folder?"
+    ],
+    "theme_write_file": [
+      "Can you update this theme template for me?",
+      "How do I edit a theme file — does it check for errors after saving?",
+      "I want to overwrite a template file completely, not patch it.",
+      "What happens to the live site if I write invalid code to a theme file?",
+      "Can you create a new file inside the theme folder?"
+    ],
+    "widgets_list_instances": [
+      "What widgets do we have set up on the site?",
+      "Can you show me only active widgets, not trashed ones?",
+      "I want to filter widgets by type.",
+      "Show me every widget instance and its current config.",
+      "What widgets are currently active in the workspace?"
+    ],
+    "widgets_get_instance": [
+      "Where is this widget actually being used on the site?",
+      "Can you show me one widget's config and everywhere it's placed?",
+      "I want to see a widget's current state plus its region placements.",
+      "Is this widget embedded inline anywhere?",
+      "Can you show me the full details for a single widget instance?"
+    ],
+    "widgets_list_regions": [
+      "What widget regions are currently bound on the site?",
+      "Can you show me each region and how many widgets are placed there?",
+      "I want to see which theme areas have widgets assigned.",
+      "Are there any regions that got orphaned after a theme switch?",
+      "What widget slots exist right now?"
+    ],
+    "widgets_get_region": [
+      "What widgets are placed in this specific region?",
+      "Can you show me if any widget in this region is broken?",
+      "I need the current version of a region before I update its placements.",
+      "What's actually filling the sidebar widget area right now?",
+      "Is a widget in this region missing or the wrong type?"
+    ],
+    "widgets_create_instance": [
+      "Can you create a new widget?",
+      "How do I make a new widget instance with a specific config?",
+      "If I create a widget, does it automatically show up on the site?",
+      "I want to set up a new widget of a certain type.",
+      "Can you validate a widget's config against its schema when creating it?"
+    ],
+    "widgets_update_instance": [
+      "Can you change the settings on this existing widget?",
+      "How do I edit a widget's config?",
+      "Can I change what type this widget is?",
+      "I want to replace a widget's configuration entirely.",
+      "How do I update the content inside a widget instance?"
+    ],
+    "widgets_trash_instance": [
+      "Can you delete this widget?",
+      "What happens to the places this widget is used if I trash it?",
+      "How do I remove a widget instance — is it a hard delete?",
+      "Can I trash a widget even if it's currently placed somewhere?",
+      "Is there a way to permanently purge a widget, or just trash it?"
+    ],
+    "widgets_bind_region": [
+      "How do I set up a new widget area?",
+      "Can you bind a new region key for widgets?",
+      "If I bind a region that already exists, does it create a duplicate?",
+      "I want to create an empty widget slot to fill later.",
+      "How do I register a new widget region on the theme?"
+    ],
+    "widgets_set_region_placements": [
+      "How do I change which widgets show up in the sidebar?",
+      "Can you replace the whole list of widgets in this region?",
+      "What happens if I reference a widget that's trashed in the placement list?",
+      "I need to see the current placements before I overwrite them, right?",
+      "How do I reorder or swap out widgets in a region all at once?"
+    ],
+    "widgets_insert_embed": [
+      "Can you embed a widget inside this post's body?",
+      "How do I add an inline widget to a page's content?",
+      "Can I put a widget inside another widget?",
+      "What happens if I try to embed too many widgets in one document?",
+      "How do I insert a widget reference into the middle of a page?"
+    ],
+    "widgets_remove_embed": [
+      "Can you remove this inline widget from the page body?",
+      "How do I delete one embedded widget without deleting the widget itself?",
+      "I want to take out a widget embed by its placement id.",
+      "Can you pull a widget out of the page content?",
+      "How do I remove an inline widget slot from an entry?"
+    ],
+    "widgets_reorder_embeds": [
+      "Can you swap which widget shows in each embed slot?",
+      "How do I change the widgets assigned to existing embed slots without changing the layout?",
+      "I want to reassign what fills each inline widget spot in a document.",
+      "Can this add new embed slots, or only reshuffle existing ones?",
+      "Do I need to specify a widget for every single slot, or can I skip some?"
+    ],
+    "workspace_get": [
+      "What's our workspace's name and id?",
+      "Can you show me when this workspace was created?",
+      "What's our current workspace slug?",
+      "I want basic info about our own workspace.",
+      "Do we have more than one workspace here?"
+    ],
+    "workspace_update": [
+      "Can you rename our workspace?",
+      "How do I change the workspace's URL slug?",
+      "Will renaming the workspace affect anything else?",
+      "Can I update just the name and leave the slug alone?",
+      "How do I change our site's workspace name?"
+    ],
+    "backup_create_restore_point": [
+      "Can you create a manual backup point right now?",
+      "I want a new restore point outside of any migration.",
+      "Does creating a backup point require me to acknowledge a cost first?",
+      "Can you snapshot the database state as it is now?",
+      "How do I make a fresh restore point on demand?"
+    ],
+    "backup_list_restore_points": [
+      "What backup points do we have for this site?",
+      "Can you list restore points newest first with what triggered them?",
+      "How many restore points are there and what's their cost class?",
+      "Show me all our site's snapshots.",
+      "What restore points can I choose from?"
+    ],
+    "backup_get_capabilities": [
+      "How expensive would restoring from backup be for this site?",
+      "What mechanism does our backup system use?",
+      "What's the cost class for restore points on this site?",
+      "Can you tell me what kind of restore capability we have?",
+      "Before I restore anything, what would it cost?"
+    ],
+    "backup_plan_restore": [
+      "If I restore to this point, what would actually change?",
+      "Can you preview a restore before I commit to it?",
+      "How much data would I lose if I restored to this backup point?",
+      "What's the discarded-write window if I roll back to this restore point?",
+      "Can you show me what a restore would do without actually doing it?"
+    ],
+    "custom_credential_list": [
+      "List my API keys and show my saved API keys.",
+      "What tokens do I have saved? List my tokens.",
+      "What credentials do I have saved?",
+      "Do I have an API key or token saved for name.com?",
+      "What did I save for fly.io — is there already a token for that?",
+      "What third-party accounts or providers are connected to this site?",
+      "Before I use curl for this, is there already a saved credential I should use instead?"
+    ],
+    "custom_credential_verify": [
+      "Is my fly.io token still valid?",
+      "Can you check if this saved API key still works?",
+      "Has my name.com credential expired or been revoked?",
+      "Test whether this saved token is still good before I rely on it.",
+      "Why did my last request through a saved credential fail — is the credential itself the problem?"
+    ],
+    "custom_credential_make_request": [
+      "Call an external service API with a saved API token, keeping authentication on the server.",
+      "Send an authenticated HTTP request using credentials already stored for the service.",
+      "Can you call the name.com API using my saved credential instead of curl?",
+      "Make a request to my fly.io account using the token I already saved.",
+      "I need to hit a third-party API with my saved credential — can you do that instead of shelling out?",
+      "Can you check my domain's DNS records using the registrar credential I saved?",
+      "Use my saved deployment provider token to make an authenticated request to their API."
+    ],
+    "pages_read_html": [
+      "Read this page's stored HTML source.",
+      "Show the current markup and body content for the page.",
+      "List this page's editable regions.",
+      "Read the section handles available in the page HTML.",
+      "Return the current page version number."
+    ],
+    "pages_write_html": [
+      "Build me a landing page for our new product.",
+      "Replace this page's whole body with a completely new design.",
+      "Start this page over from scratch — throw away what's there.",
+      "I want to restructure the page and add two new sections.",
+      "Create the full HTML for a bespoke page on our site."
+    ],
+    "pages_write_region": [
+      "Just change the headline on our landing page, leave the rest alone.",
+      "Update the pricing section of this page without touching anything else.",
+      "Can you reword the call to action but keep the page as it is?",
+      "Edit one section of a page instead of rewriting the whole thing.",
+      "I want to edit just the hero copy on this page and nothing more."
+    ],
+    "pages_move_region": [
+      "Swap the order of two sections on our landing page.",
+      "Move the testimonials above the pricing on this page.",
+      "Can you put the FAQ right after the hero instead of at the bottom?",
+      "Rearrange the blocks on this page into a different order.",
+      "Shift the contact block up so it comes first."
+    ]
+  },
+  "approvals": {
+    "content_read.backup_restore_point": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.collection_content_type": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.collection_entry": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.comment_moderation_queue": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.content_post": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.custom_credential": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.database_pending_migration": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.database_restore_point": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.external_mcp": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.form_definition": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.identity_policy": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.identity_role": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.identity_user": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.media_asset": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.member": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.menu": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.newsletter_campaign": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.newsletter_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.plugin": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.post": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.redirect": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.seo_entry_meta": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.setting_definition": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.taxonomy": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.theme": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.webhook_subscription": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.widget_instance": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.widget_region": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.workspace": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "page.find_elements": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "page.highlight": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "page.scroll_to": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "page.click": {
+      "class": "delete",
+      "confirmation": "policy",
+      "rule": "page-control"
+    },
+    "page.fill": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "page.select_option": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "page.navigate": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "chat.send_message": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "chat.set_draft": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "chat.select_agent": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "chat.cancel_run": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "chat.reset_conversation": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "chat.set_working_directory": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "chat.get_state": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "admin.publish_content": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "media_promote_chat_attachment": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "chat_list_pending_attachments": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "admin.capture_screenshot": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "agent_plugin_connect": {
+      "class": "edit",
+      "confirmation": "direct",
+      "input": "human-form"
+    },
+    "credential_save": {
+      "class": "edit",
+      "confirmation": "direct",
+      "input": "human-form"
+    },
+    "agent_plugin_write_note": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "agent_plugins_install": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "analytics_list_recent_hits": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "assistant_admin_screen_link": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "assistant_ask_choice": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "assistant_demo_a2ui": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "assistant_demo_choices": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "assistant_demo_image": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "assistant_render_ui": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "site_backup_plan": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "backup_create_restore_point": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "backup_execute_restore": {
+      "class": "restore-over-existing",
+      "confirmation": "plan"
+    },
+    "backup_get_capabilities": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "backup_list_restore_points": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "backup_plan_restore": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "change_sets_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "change_sets_revert": {
+      "class": "restore-over-existing",
+      "confirmation": "policy"
+    },
+    "collections_content_type_define": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "collections_content_type_deprecate": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "collections_content_type_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "collections_content_type_reactivate": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "collections_content_type_tombstone": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
+    "collections_content_type_update_fields": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "collections_entry_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "collections_entry_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "collections_entry_publish": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "collections_entry_unpublish": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "collections_entry_update": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "comments_approve_comment": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "comments_get_settings": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "comments_list_moderation_queue": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "comments_mark_comment_spam": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "comments_purge_comment": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "comments_restore_comment": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "comments_trash_comment": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
+    "comments_update_settings": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "content_duplicate": {
+      "class": "edit",
+      "confirmation": "direct",
+      "rule": "duplicate-status"
+    },
+    "content_post_create": {
+      "class": "edit",
+      "confirmation": "direct",
+      "rule": "create-status"
+    },
+    "content_post_delete": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
+    "content_post_get": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_post_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_post_preview": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_post_search": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_post_update": {
+      "class": "edit",
+      "confirmation": "direct",
+      "rule": "update-status"
+    },
+    "content_stats": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "custom_credential_delete": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "custom_credential_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "custom_credential_make_request": {
+      "class": "edit",
+      "confirmation": "plan",
+      "rule": "http-method"
+    },
+    "custom_credential_set_username": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "custom_credential_verify": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "custom_credential_write_files": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "database_execute_migrate_forward": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "database_get_health": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "database_get_schema_state": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "database_list_pending_migrations": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "database_list_restore_points": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "database_plan_migrate_forward": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "database_query_timeline": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "database_transfer_plan": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "database_transfer_run": {
+      "class": "restore-over-existing",
+      "confirmation": "plan"
+    },
+    "database_transfer_set_destination": {
+      "class": "edit",
+      "confirmation": "direct",
+      "input": "human-form"
+    },
+    "database_transfer_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_delete_provider_credential": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "deployment_execute_static_publish": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "deployment_generate_bucket_hosting_setup": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_get_dockerfile": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_get_export_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_get_static_publish_capabilities": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_ops_deploy": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "deployment_ops_list_secrets": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_ops_list_targets": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_ops_logs": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_ops_set_secret": {
+      "class": "replace-secret",
+      "confirmation": "plan"
+    },
+    "deployment_ops_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_ops_unset_secret": {
+      "class": "replace-secret",
+      "confirmation": "plan"
+    },
+    "deployment_ops_wait": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_preview_static_publish": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "deployment_set_dockerfile": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "deployment_trigger_export": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "describe_component": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "domain_check_dns": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "domain_lookup_dns": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "domain_tls_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "external_mcp_delete": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "external_mcp_get_admissions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "external_mcp_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "external_mcp_oauth_connect": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "external_mcp_oauth_poll_device": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "external_mcp_probe_connection": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "external_mcp_reauth_prompt": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "external_mcp_save": {
+      "class": "edit",
+      "confirmation": "direct",
+      "input": "human-form"
+    },
+    "external_mcp_test_connection": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "fetch_live_url": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "fetch_published_page": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "forms_create_definition": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "forms_get_submission": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "forms_list_definitions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "forms_list_submissions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "forms_set_definition_status": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "forms_update_definition": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "fs_list_files": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "fs_read_file": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "identity_policy_attach": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "identity_policy_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "identity_policy_delete": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "identity_policy_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "identity_policy_list_permissions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "identity_policy_update": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "identity_role_assign": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "identity_role_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "identity_role_delete": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "identity_role_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "identity_role_rename": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "identity_user_create": {
+      "class": "edit",
+      "confirmation": "direct",
+      "input": "human-form"
+    },
+    "identity_user_delete": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "identity_user_disable": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "identity_user_enable": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "identity_user_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "identity_user_update_email": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "media_generate_asset": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "media_import_from_url": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "media_import_local_file": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "media_list_assets": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "media_list_providers": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "media_purge_asset": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "media_trash_asset": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
+    "media_update_metadata": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "media_upload_asset": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "media_view_image": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "media_view_video": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "members_disable": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "members_get_by_id": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "members_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "members_request_magic_link": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "menus_assign_location": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "menus_create_menu": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "menus_get_menu": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "menus_list_menus": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "menus_update_menu_tree": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_archive_list": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_cancel_campaign": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_create_campaign": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_create_list": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_create_subscription": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_get_campaign": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "newsletter_list_campaigns": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "newsletter_list_lists": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "newsletter_list_send_log": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "newsletter_list_subscriptions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "newsletter_pause_campaign": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_remove_subscription": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_resend_confirmation": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_resume_campaign": {
+      "class": "publish",
+      "confirmation": "plan"
+    },
+    "newsletter_schedule_campaign": {
+      "class": "publish",
+      "confirmation": "plan"
+    },
+    "newsletter_send_campaign": {
+      "class": "publish",
+      "confirmation": "plan"
+    },
+    "newsletter_send_test": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "newsletter_update_campaign": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "pages_move_region": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "pages_read_html": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "pages_write_html": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "pages_write_region": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "plugins_install": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "plugins_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "plugins_set_enabled": {
+      "class": "escalation",
+      "confirmation": "plan",
+      "rule": "plugin-enable"
+    },
+    "plugins_uninstall": {
+      "class": "trash",
+      "confirmation": "plan"
+    },
+    "preview_reload": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "publish_backstop_gaps": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "publish_content_connect": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "publish_content_disconnect": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "publish_content_execute_pull": {
+      "class": "restore-over-existing",
+      "confirmation": "plan"
+    },
+    "publish_content_plan_pull": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "publish_content_publish": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "publish_content_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "recovery_get_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "recovery_resolve_deep_link": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "redirects_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "redirects_get": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "redirects_get_hits": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "redirects_import": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "redirects_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "redirects_tombstone": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
+    "redirects_update": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "search_agent_plugin_local": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "search_components": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "seo_analyze_entry": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "seo_get_entry_meta": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "seo_get_settings": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "seo_regenerate_sitemap": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "seo_set_entry_overrides": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "seo_set_settings": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "settings_clear_value": {
+      "class": "escalation",
+      "confirmation": "plan",
+      "rule": "execution-setting"
+    },
+    "settings_get_effective": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "settings_get_raw": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "settings_list_definitions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "settings_list_ui_locales": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "settings_set_ui_preference": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "settings_set_value": {
+      "class": "escalation",
+      "confirmation": "plan",
+      "rule": "execution-setting"
+    },
+    "site_backup_push": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "site_collect_page_evidence": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "site_describe_capabilities": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "site_get_profile": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "sites_create_site": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "sites_duplicate_site": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "sites_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "sites_switch_site": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "skills_install": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "source_control_delete_credential": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "source_control_execute_commit": {
+      "class": "publish",
+      "confirmation": "policy",
+      "rule": "export-commit"
+    },
+    "source_control_get_capabilities": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "system_get_mail_status": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "system_read_server_logs": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "taxonomy_assign_terms": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "taxonomy_create_taxonomy": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "taxonomy_create_term": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "taxonomy_execute_merge_term": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "taxonomy_get_assigned_terms": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "taxonomy_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "taxonomy_plan_merge_term": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "taxonomy_rename_term": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "taxonomy_unassign_terms": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "theme_copy_file": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "theme_edit_file": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "theme_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "theme_list_files": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "theme_read_file": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "theme_rename_file": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "theme_rescan": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "theme_reset_file": {
+      "class": "restore-over-existing",
+      "confirmation": "policy"
+    },
+    "theme_restore_trashed_file": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "theme_set_active": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "theme_set_page_published": {
+      "class": "publish",
+      "confirmation": "policy"
+    },
+    "theme_trash_file": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
+    "theme_write_file": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "trash_empty": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "trash_item": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
+    "trash_list_items": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "trash_purge_item": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "trash_restore_item": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "webhooks_create_subscription": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "webhooks_delete_subscription": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "webhooks_get_deliveries": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "webhooks_list_subscriptions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "webhooks_pause_subscription": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "widgets_bind_region": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "widgets_create_instance": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "widgets_get_instance": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "widgets_get_region": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "widgets_insert_embed": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "widgets_list_instances": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "widgets_list_regions": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "widgets_remove_embed": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "widgets_reorder_embeds": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "widgets_set_region_placements": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "widgets_trash_instance": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
+    "widgets_update_instance": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "workspace_get": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "workspace_update": {
+      "class": "edit",
+      "confirmation": "direct"
+    }
+  },
+  "policyConfirmationIds": [
+    "page.click",
+    "backup_execute_restore",
+    "change_sets_revert",
+    "collections_content_type_tombstone",
+    "collections_entry_publish",
+    "collections_entry_unpublish",
+    "comments_approve_comment",
+    "comments_mark_comment_spam",
+    "comments_purge_comment",
+    "comments_restore_comment",
+    "comments_trash_comment",
+    "content_duplicate",
+    "content_post_create",
+    "content_post_delete",
+    "content_post_update",
+    "custom_credential_delete",
+    "custom_credential_make_request",
+    "database_execute_migrate_forward",
+    "database_transfer_run",
+    "deployment_delete_provider_credential",
+    "deployment_execute_static_publish",
+    "deployment_ops_deploy",
+    "deployment_ops_set_secret",
+    "deployment_ops_unset_secret",
+    "external_mcp_delete",
+    "identity_policy_delete",
+    "identity_role_delete",
+    "identity_user_delete",
+    "media_purge_asset",
+    "media_trash_asset",
+    "newsletter_resume_campaign",
+    "newsletter_schedule_campaign",
+    "newsletter_send_campaign",
+    "plugins_set_enabled",
+    "plugins_uninstall",
+    "publish_content_execute_pull",
+    "publish_content_publish",
+    "redirects_tombstone",
+    "settings_clear_value",
+    "settings_set_value",
+    "source_control_delete_credential",
+    "source_control_execute_commit",
+    "taxonomy_execute_merge_term",
+    "theme_reset_file",
+    "theme_set_page_published",
+    "theme_trash_file",
+    "trash_empty",
+    "trash_item",
+    "trash_purge_item",
+    "webhooks_delete_subscription",
+    "widgets_trash_instance"
+  ],
+  "secretForms": {
+    "credential_save": {
+      "secretField": {
+        "secret": true
+      }
+    },
+    "external_mcp_save": {
+      "secretField": {
+        "secret": true
+      }
+    },
+    "database_transfer_set_destination": {
+      "secretField": {
+        "secret": true
+      }
+    },
+    "identity_user_create": {
+      "secretField": {
+        "secret": true
+      }
+    },
+    "deployment_ops_set_secret": {
+      "secretField": {
+        "secret": true
+      }
+    }
+  },
+  "redeemableIds": [
+    "credential_save",
+    "external_mcp_save",
+    "database_transfer_set_destination",
+    "identity_user_create",
+    "deployment_ops_set_secret",
+    "page.click",
+    "backup_execute_restore",
+    "change_sets_revert",
+    "collections_content_type_tombstone",
+    "collections_entry_publish",
+    "collections_entry_unpublish",
+    "comments_approve_comment",
+    "comments_mark_comment_spam",
+    "comments_purge_comment",
+    "comments_restore_comment",
+    "comments_trash_comment",
+    "content_duplicate",
+    "content_post_create",
+    "content_post_delete",
+    "content_post_update",
+    "custom_credential_delete",
+    "custom_credential_make_request",
+    "database_execute_migrate_forward",
+    "database_transfer_run",
+    "deployment_delete_provider_credential",
+    "deployment_execute_static_publish",
+    "deployment_ops_deploy",
+    "deployment_ops_unset_secret",
+    "external_mcp_delete",
+    "identity_policy_delete",
+    "identity_role_delete",
+    "identity_user_delete",
+    "media_purge_asset",
+    "media_trash_asset",
+    "newsletter_resume_campaign",
+    "newsletter_schedule_campaign",
+    "newsletter_send_campaign",
+    "plugins_set_enabled",
+    "plugins_uninstall",
+    "publish_content_execute_pull",
+    "publish_content_publish",
+    "redirects_tombstone",
+    "settings_clear_value",
+    "settings_set_value",
+    "source_control_delete_credential",
+    "source_control_execute_commit",
+    "taxonomy_execute_merge_term",
+    "theme_reset_file",
+    "theme_set_page_published",
+    "theme_trash_file",
+    "trash_empty",
+    "trash_item",
+    "trash_purge_item",
+    "webhooks_delete_subscription",
+    "widgets_trash_instance",
+    "agent_plugin_connect",
+    "content_post_search",
+    "assistant_demo_choices",
+    "assistant_ask_choice",
+    "assistant_tool_failure_recovery",
+    "external_mcp_reauth_prompt"
+  ],
+  "exchangeOnlyIds": [
+    "credential_save",
+    "external_mcp_save",
+    "database_transfer_set_destination",
+    "identity_user_create",
+    "deployment_ops_set_secret",
+    "page.click",
+    "backup_execute_restore",
+    "change_sets_revert",
+    "collections_content_type_tombstone",
+    "collections_entry_publish",
+    "collections_entry_unpublish",
+    "comments_approve_comment",
+    "comments_mark_comment_spam",
+    "comments_purge_comment",
+    "comments_restore_comment",
+    "comments_trash_comment",
+    "content_duplicate",
+    "content_post_create",
+    "content_post_delete",
+    "content_post_update",
+    "custom_credential_delete",
+    "custom_credential_make_request",
+    "database_execute_migrate_forward",
+    "database_transfer_run",
+    "deployment_delete_provider_credential",
+    "deployment_execute_static_publish",
+    "deployment_ops_deploy",
+    "deployment_ops_unset_secret",
+    "external_mcp_delete",
+    "identity_policy_delete",
+    "identity_role_delete",
+    "identity_user_delete",
+    "media_purge_asset",
+    "media_trash_asset",
+    "newsletter_resume_campaign",
+    "newsletter_schedule_campaign",
+    "newsletter_send_campaign",
+    "plugins_set_enabled",
+    "plugins_uninstall",
+    "publish_content_execute_pull",
+    "publish_content_publish",
+    "redirects_tombstone",
+    "settings_clear_value",
+    "settings_set_value",
+    "source_control_delete_credential",
+    "source_control_execute_commit",
+    "taxonomy_execute_merge_term",
+    "theme_reset_file",
+    "theme_set_page_published",
+    "theme_trash_file",
+    "trash_empty",
+    "trash_item",
+    "trash_purge_item",
+    "webhooks_delete_subscription",
+    "widgets_trash_instance"
+  ]
+}

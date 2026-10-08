@@ -1,201 +1,28 @@
 /**
- * @file Port contracts introduced by the `integrations` library (ADR-036).
+ * @file Canonical Jini webhook port exports with Tovu's outbound HTTP policy (ADR-036/ADR-038).
+ * Webhook dispatch is core outbox orchestration, not an extra mediator/port (ADR-006/ADR-009).
+ * Repo contracts are workspace-scoped; adapters own durable claims and deduplication.
  *
- * Purpose:
- * The dependency-inversion seams webhook delivery needs. `HttpClientPort`/`EgressPolicy` are
- * imported from the shared `../http` core primitive (ADR-038) — Round-3 audit fold
- * (TM-admin-sweep-001): these were previously declared locally here, but Newsletter's
- * the hosted mail adapters and Analytics' `ForwardingSink` also need the same SSRF-guarded
- * client, so the port + policy moved to a shared home. Dispatch itself is deliberately NOT a
- * port — it is ordinary core code on the outbox spine (ADR-006 features-not-ports; ADR-009
- * rejected a mediator layer), exactly as ADR-021's `authorize()` is core code, not a port.
+ * Site-key custody: raw key bytes remain outside portable content.db and never cross the SDK/ABI
+ * surface (ADR-024); handles name the active generation. Signing secrets are deterministically
+ * derived per workspace/subscription/version, never stored. Rotation requires receivers to
+ * re-copy signing material and export to rewrap sealed credentials. Other consumers use generic
+ * derive because analytics/unsubscribe contexts cannot fit the webhook-specific derivation shape.
+ * purpose MUST affect HKDF and stay domain-separated from deriveSigningSecret; info alone would
+ * make that namespace decorative and allow cross-purpose collisions.
  *
- * How it relates to the project:
- * - `KeyringPort` / `SecretSealerPort` keep secret material out of the portable `content.db`
- *   (ADR-024 secret invariant; ADR-012 install-dir portability). Per the ADR-036 Round-3 fold,
- *   this is the canonical home for `KeyringPort` until a dedicated ADR-041 is written — other
- *   consumers (Newsletter's unsubscribe token, Analytics' salt derivation) use the generic
- *   `derive()` method (Round-4 audit fold) rather than the webhook-specific
- *   `deriveSigningSecret()`.
- * - The repo ports mirror the existing `OutboxPort` / `ChangeSetRepoPort` shape and are
- *   workspace-scoped in their required-parameters object (ADR-007 §1).
+ * Recoverable outbound credentials are sealed under the site key; content.db holds ciphertext.
+ * New seals require AAD. Opens require the byte-identical binding or authentication fails, so rows
+ * cannot transplant ciphertext across workspace/provider/credential scope. GCM authenticates AAD
+ * without storing it; callers re-derive it from context. Absent open AAD remains valid for old
+ * unbound rows; per-store aad_version/backfill policy belongs to each credential store.
  *
- * Architectural role:
- * INTERFACES ONLY. In-memory adapters back local dev/tests; the SQLite/undici adapters are the
- * production second half of each rule-of-two.
- *
- * Contract rationale for the Jini implementation and this host boundary:
- *
- * Opaque site-key handle. The raw bytes never cross the SDK/ABI surface (ADR-024 §3 by-handle).
- *
- * Names the active site-key generation, stamped into {@link SealedSecret.keyId}.
+ * Delivery retry state stays in a distinct table because each endpoint retries independently of
+ * the source event outbox. Durable enqueue may atomically co-persist the envelope with its record;
+ * delivery.ts documents why the following envelopeStore.save remains safe for both adapter forms.
+ * listBySubscription orders newest-first by createdAt/id before applying the limit.
+ * Integration-secret persistence is a seam for outbound connectors, not ownership of their runtime.
  */
-import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
-import type { EgressPolicy, HttpClientPort } from "../../platform/http/index.js";
-import type {
-  IntegrationId,
-  IntegrationSecretRecord,
-  SealedSecret,
-  WebhookDeliveryRecord,
-  WebhookDeliveryStatus,
-  WebhookEventEnvelope,
-  WebhookSubscriptionRecord,
-  WebhookTopic,
-} from "./types.js";
-
+// Canonical webhook ABI; Tovu supplies persistence and outbound HTTP policy.
+export type { IntegrationSecretRepoPort, KeyringPort, RootKeyHandle as SiteKeyHandle, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "@jini-ai/integrations/webhooks";
 export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "../../platform/http/index.js";
-
-/* -------------------------------------------------------------------------- */
-/* Secret material — kept OUT of the portable content.db                       */
-/* -------------------------------------------------------------------------- */
-
-export type { RootKeyHandle as SiteKeyHandle } from "@jini-ai/platform/secrets"; // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-import type { RootKeyHandle as SiteKeyHandle } from "@jini-ai/platform/secrets"; // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-
-/**
- * Access to the install's site key, held OUTSIDE `content.db` (env var now → OS keychain next =
- * rule-of-two), so the portable folder never carries usable secret material (ADR-024 secret
- * invariant). Signing secrets are DERIVED from it (never stored): the delivery worker calls
- * {@link deriveSigningSecret} at sign time. Rotating the site key re-derives all signing secrets
- * (receivers must re-copy) and is the trigger for a sealed-secret rewrap on export.
- */
-export interface KeyringPort {
-  activeKey(): Promise<SiteKeyHandle>;
-  /**
-   * HKDF(siteKey, info = `${workspaceId}:${subscriptionId}:v${version}`) → raw signing secret.
-   * Deterministic for a fixed site key, so no per-subscription secret is ever persisted.
-   */
-  deriveSigningSecret(input: {
-    workspaceId: UUID;
-    subscriptionId: IntegrationId;
-    version: number;
-  }): Promise<Uint8Array>;
-  /**
-   * Generic labeled derivation for crosscutting consumers whose payload doesn't fit
-   * {@link deriveSigningSecret}'s webhook-specific shape (Round-4 audit fold, TM-admin-sweep-001 —
-   * round-2 re-audit finding `gemini-r2-001`/Codex `R2-002`/Fable `R2-002`: three independent
-   * auditors converged on the same gap — `deriveSigningSecret`'s fixed `subscriptionId`/`version`
-   * fields can't express Analytics' `analytics-salt:{workspaceId}:{utcDate}` info string or
-   * Newsletter's unsubscribe-token info string, which must include `consent_revision_id`).
-   * `purpose` namespaces the caller (e.g. `'analytics-salt'`, `'newsletter-unsubscribe'`); `info`
-   * is the caller-owned, fully-formed HKDF info string. Same site-key custody guarantee as
-   * `deriveSigningSecret` — no raw key material crosses this interface, only derived output.
-   * **Implementations MUST bind `purpose` into the derivation** (e.g. effective HKDF info =
-   * `${purpose}:${info}`, or `purpose` as the HKDF salt/label) and MUST keep `derive()`
-   * domain-separated from `deriveSigningSecret()`'s derivation — round-3 audit finding
-   * `fable-r3-003`: as originally worded, a conforming implementation could HKDF over `info`
-   * alone, making `purpose` decorative rather than a real separation boundary.
-   */
-  derive(input: { workspaceId: UUID; purpose: string; info: string }): Promise<Uint8Array>;
-}
-
-/**
- * Seals/opens recoverable outbound credentials (unlike signing secrets, these must round-trip).
- * Rule-of-two: a real AEAD adapter (libsodium/AES-GCM) built now + an in-memory test double.
- * Wrapping is always under a {@link KeyringPort} site key, so `content.db` holds only ciphertext.
- *
- * `aad` (Additional Authenticated Data, AES-GCM's own mechanism — RFC 5116 §5.1) is OPTIONAL and
- * backward compatible: a caller that never passes it keeps sealing/opening exactly as before. A
- * caller that DOES pass `aad` at seal time MUST pass the byte-identical string at open time, or
- * `open()` throws (auth-tag verification fails) — this is what makes ciphertext non-transplantable
- * across whatever scope `aad` encodes (e.g. a `workspaceId + providerId + credentialSetId` binding —
- * see `features/deployments/publish-credentials/aad.ts`), without changing `SealedSecret`'s own
- * shape: AAD is authenticated but never encrypted or persisted by GCM, so a caller must always be
- * able to RE-DERIVE the same `aad` string from context at open time — it is not something to store
- * alongside the ciphertext.
- *
- * As of the 2026-09-02 AAD gap closure, five previously-unauthenticated credential-shaped tables now
- * seal with an aad: `site-credential-store.ts`, `execution-credential-store.ts`,
- * `media/provider-credential-store.ts`, and the two Composio stores (removed with their tables by
- * migration 0075, 2026-09-27) (this doc used to name three of these as sealing with
- * NO aad at all — that list was already stale by the time it named "three": it predated the last two
- * tables entirely, and none of the five unconditionally omit `aad` any more). Each of those five now
- * carries its own `aad_version` column (`db/schema.sqlite.ts`) so a row sealed BEFORE this change (no aad)
- * can still be opened correctly while a per-store backfill script re-seals it under the new aad — see
- * any of those five stores' own file header for the full migration story, and
- * `development/scripts/backfill-*-aad.ts` for the five backfill scripts themselves.
- *
- * This was NOT "every credential-shaped table in this codebase" at the time of the 2026-09-02 change
- * — that would have overstated what it did. Four more stores already sealed with an aad before that
- * change and were never in its scope: `vendor-credentials/store.ts`, `custom-credentials/store.ts`,
- * `source-control/store.ts`, and `deployments/publish-credentials/store.ts` (see each file's own
- * `sealConnection()`), which put the total at nine stores passing `aad` at seal time, not five. The
- * tenth, `assistant/external-mcp-store.ts` (the `external_mcp_servers` table), was fixed shortly after
- * (`e3cb674a`, same day): both its call sites — `deps.sealer.seal(...)` at
- * `external-mcp-store.ts:1346` (server env) and `:1571` (OAuth payload) — now pass `aad` too. As of
- * that fix, all ten credential-shaped tables in this codebase seal with an aad (verified live via
- * `npm run check:seal-aad`, `seal-aad-invariant.ts`'s AST scan of every `.seal()` call site). `aad`
- * stays optional at the port level regardless: a table with no natural row identity to bind is still
- * free to seal with none — this just records that none currently do.
- */
-export interface SecretSealerPort {
-  seal(input: { plaintext: string; key: SiteKeyHandle; aad?: string }): Promise<SealedSecret>;
-  open(input: { sealed: SealedSecret; aad?: string }): Promise<string>;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Repositories (workspace-scoped, ADR-007 §1; mirror OutboxPort shape)        */
-/* -------------------------------------------------------------------------- */
-
-/** Persistence for webhook subscriptions. Every method carries `workspaceId` (ADR-007 §1). */
-export interface WebhookSubscriptionRepoPort {
-  insert(record: WebhookSubscriptionRecord): Promise<void>;
-  save(record: WebhookSubscriptionRecord): Promise<void>;
-  findById(required: { workspaceId: UUID; id: IntegrationId }): Promise<WebhookSubscriptionRecord | null>;
-  listByWorkspace(required: { workspaceId: UUID }): Promise<WebhookSubscriptionRecord[]>;
-  /**
-   * Active subscriptions whose topic set matches a delivered event. Used by the outbox fan-out
-   * subscriber to decide which deliveries to enqueue (ADR-036 §4).
-   */
-  findMatching(required: { workspaceId: UUID; topic: WebhookTopic }): Promise<WebhookSubscriptionRecord[]>;
-}
-
-/**
- * Persistence for webhook deliveries — an outbox-shaped claim/mark contract (mirrors
- * {@link import("@jini-ai/cms/core").OutboxPort}) but a distinct table so per-endpoint retry state
- * stays off the core event outbox (ADR-036 §4).
- */
-export interface WebhookDeliveryRepoPort {
-  /**
-   * `envelope`, when present, may be durably co-persisted atomically with `record` (ADR-046
-   * fold-in item 5, GAP-05/GAP-12). Purely additive — existing single-argument callers are
-   * unaffected. A durable adapter that writes it inline makes the subsequent
-   * `DeliveryEnvelopeStore.save()` call (see `delivery.ts`'s `enqueueDelivery`) redundant but
-   * harmless for its own storage; an adapter that ignores this argument relies on that same
-   * `save()` call as its actual write path (true for the in-memory adapter today).
-   */
-  enqueue(record: WebhookDeliveryRecord, envelope?: WebhookEventEnvelope): Promise<void>;
-  /** Claim due, retry-eligible rows for a delivery worker pass. */
-  claimPending(required: { batchSize: number; nowIso: ISODateTime }): Promise<WebhookDeliveryRecord[]>;
-  markDelivered(required: {
-    workspaceId: UUID;
-    id: IntegrationId;
-    responseStatus: number;
-    deliveredAtIso: ISODateTime;
-  }): Promise<void>;
-  /** Record a failed attempt; sets the next backoff time, or transitions to `dead` when exhausted. */
-  markFailed(required: {
-    workspaceId: UUID;
-    id: IntegrationId;
-    error: string;
-    responseStatus: number | null;
-    nextStatus: Extract<WebhookDeliveryStatus, "failed" | "dead">;
-    nextAttemptAt: ISODateTime;
-    deadAtIso?: ISODateTime;
-  }): Promise<void>;
-  findById(required: { workspaceId: UUID; id: IntegrationId }): Promise<WebhookDeliveryRecord | null>;
-  /** Newest-first by createdAt, then id descending; ordering is applied before the limit. */
-  listBySubscription(required: {
-    workspaceId: UUID;
-    subscriptionId: IntegrationId;
-    limit: number;
-  }, optional?: Record<string, never>): Promise<WebhookDeliveryRecord[]>;
-}
-
-/** Persistence for sealed outbound-integration credentials (v1 = seam only, ADR-036 §8). */
-export interface IntegrationSecretRepoPort {
-  insert(record: IntegrationSecretRecord): Promise<void>;
-  findById(required: { workspaceId: UUID; id: IntegrationId }): Promise<IntegrationSecretRecord | null>;
-  listByWorkspace(required: { workspaceId: UUID }): Promise<IntegrationSecretRecord[]>;
-  delete(required: { workspaceId: UUID; id: IntegrationId }): Promise<void>;
-}

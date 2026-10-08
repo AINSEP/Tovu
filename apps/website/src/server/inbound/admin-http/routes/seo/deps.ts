@@ -16,10 +16,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Every one of the 10 registrars awaits `deps.seoReady` first and reads `deps.workspaceId`/
  * `deps.settingsRepo`. The admin routes additionally read `deps.authorize`. 5 of the 10
  * (`get-entry.ts`/`put-entry.ts`/`get-entry-analyze.ts`/`post-sitemap-regenerate.ts`/
- * `sitemap.ts`) pass `deps` itself as the `media: ResolveSeoImageRefDeps` argument to `seo/
- * media.ts`'s `resolveSeoImageRef` (structural typing — `ResolveSeoImageRefDeps` needs
- * `mediaRepo`/`assetRenditionRepo`/`transformDefinitionRepo`, all 3 included below) and also read
- * `deps.postRepo`. `put-settings.ts` additionally reads `deps.clock`/`deps.idGen`/
+ * `sitemap.ts`) previously passed this bag as the media dependency. They now use `seoDeps`'s
+ * bindings to those same post/media owners in Jini/packages/cms/src/seo. `sitemapService` keeps
+ * routes/tools/subscriptions on one app's cache. `put-settings.ts` reads `deps.clock`/`deps.idGen`/
  * `deps.principalRepo`. This is a genuine narrowing (mirrors `routes/admin/taxonomy/deps.ts`'s
  * identical rationale), not a `RouteDeps`-widening extension.
  */
@@ -30,6 +29,8 @@ export type SeoRouteDeps = Pick<
   | "clock"
   | "idGen"
   | "seoReady"
+  | "seoDeps"
+  | "sitemapService"
   | "postRepo"
   | "settingsRepo"
   | "principalRepo"
@@ -39,9 +40,8 @@ export type SeoRouteDeps = Pick<
   | "mediaContentTypeStore"
   | "assetRenditionRepo"
   | "transformDefinitionRepo"
-  // 2026-09-03 absolute-URL fix: `get-entry.ts`/`get-entry-analyze.ts`/`put-entry.ts` pass `deps`
-  // straight through as `GetEntryMetaDeps.originRegistry` (same "pass `deps` itself" shape this
-  // file's header already documents for the `media:` argument) so the admin SEO preview shows the
+  // 2026-09-03 absolute-URL fix: the host binds this same verified-origin registry into
+  // GetEntryMetaDeps via seoDeps, so the admin SEO preview shows the
   // same absolute canonical/og:url/og:image the live public render now emits.
   | "originRegistry"
   // RSS feed (`routes/site/feed.ts`): the channel title is the site title, read through

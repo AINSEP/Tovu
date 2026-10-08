@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
-import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { registerInstalledExtensionTools } from "../../server/runtime/composition/installed-extension-tools.js";
 import { attachAssistantToolExtensions, type AttachAssistantToolExtensionsDeps } from "../installed-extension-tools.js";
 

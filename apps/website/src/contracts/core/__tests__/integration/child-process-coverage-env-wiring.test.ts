@@ -79,7 +79,10 @@ function uncoveredSpawns(source: string): string[] {
   return spawns.filter((spawn) => {
     const options = spawn.arguments[2];
     if (!options || !ts.isObjectLiteralExpression(options)) return true;
-    const env = options.properties.find((property) => ts.isPropertyAssignment(property) && property.name.getText(parsed) === "env");
+    const env = options.properties.find((property) =>
+      (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) && property.name.getText(parsed) === "env");
+    // Shorthand { env } must trace the binding, just like an explicit { env: env }.
+    if (env && ts.isShorthandPropertyAssignment(env)) return !protectedEnv(env.name);
     return !env || !ts.isPropertyAssignment(env) || !protectedEnv(env.initializer);
   }).map((spawn) => spawn.getText(parsed));
 }
@@ -93,6 +96,15 @@ test("the wiring guard rejects commented or unused helper calls and checks every
     spawn(process.execPath, [], { env: process.env });`).length, 1);
   assert.deepEqual(uncoveredSpawns(`const childEnv = { ...childProcessCoverageEnv(dir), PORT: "4321" };
     spawn(process.execPath, [], { env: childEnv });`), []);
+  assert.deepEqual(uncoveredSpawns(`const env: NodeJS.ProcessEnv = { ...childProcessCoverageEnv(dir) };
+    delete env.TOVU_EXPORT_DIR;
+    spawnSync(process.execPath, [], { env });`), []);
+  assert.equal(uncoveredSpawns(`const unused = childProcessCoverageEnv(dir);
+    const env = process.env;
+    spawnSync(process.execPath, [], { env });`).length, 1);
+  assert.equal(uncoveredSpawns(`const env = childProcessCoverageEnv(dir);
+    spawnSync(process.execPath, [], { env });
+    spawnSync(process.execPath, [], { env: process.env });`).length, 1);
 });
 
 // Discover new CLI integration spawners automatically; retain the explicit non-CLI guards above.

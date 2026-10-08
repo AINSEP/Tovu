@@ -12,6 +12,9 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const STOCK_DIR = path.join(REPO_ROOT, "content/themes/static/tovu-theme");
 const REFERENCE_PATH = "sites/tovu-dev/themes/static/tovu-theme";
 const REFERENCE_DIR = path.join(REPO_ROOT, REFERENCE_PATH);
+// Tracking a site draft later does not promote it into release stock. Keep the draft named
+// by the parity contract below site-only; every other tracked reference file must still match.
+const SITE_ONLY_DRAFT = "render/pages/posts-2-sidebars.html";
 
 /**
  * Only this repository's TRACKED reference is a release parity contract. Real installations
@@ -28,8 +31,10 @@ test("release stock matches the tracked site reference, without promoting local 
   const referenceFiles = execFileSync("git", ["ls-files", "-z", "--", REFERENCE_PATH], {
     cwd: REPO_ROOT,
     encoding: "utf8",
-  }).split("\0").filter(Boolean).map((file) => file.slice(REFERENCE_PATH.length + 1)).sort();
+  }).split("\0").filter(Boolean).map((file) => file.slice(REFERENCE_PATH.length + 1))
+    .filter((file) => file !== SITE_ONLY_DRAFT).sort();
   assert.ok(referenceFiles.includes("theme.json"), "the tracked reference must exist; do not skip a missing site");
+  assert.ok(!fs.existsSync(path.join(STOCK_DIR, SITE_ONLY_DRAFT)), "the site-only draft must not be promoted into release stock");
   assert.deepEqual(relativeFilePaths(STOCK_DIR), referenceFiles,
     "stock/reference file sets drifted: reconcile added, deleted or renamed files before releasing");
 

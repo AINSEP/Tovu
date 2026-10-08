@@ -98,7 +98,7 @@ test("source-control-credentials: GET starts with an empty list", async (t) => {
   assert.deepEqual(body.credentials, []);
 });
 
-test("source-control-credentials: full CRUD round trip — create, list, update (omitted connection keeps the secret, blank is rejected), delete", async (t) => {
+test("source-control-credentials: full CRUD round trip — create, list, update (omitted or blank connection keeps the secret), delete", async (t) => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -143,8 +143,8 @@ test("source-control-credentials: full CRUD round trip — create, list, update 
     method: "PUT", headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({ connection: { providerId: "github", token: "" } }),
   });
-  assert.equal(blank.status, 400);
-  assert.equal((await blank.json()).error, "VALIDATION");
+  assert.equal(blank.status, 200);
+  assert.equal((await blank.json()).credential.connection, "saved");
   assert.deepEqual((await resolve())?.connection, { providerId: "github", token: "ghp_secret_token" });
 
 

@@ -48,7 +48,7 @@ test("tovu introspect: exits 0 and prints valid JSON describing init/serve/expor
     // `program.ts` — the two complementary ways a directory becomes servable.
     // "storage move" (`cli/commands/storage-move.ts`, R1g) is registered right after `init`;
     // "theme sync-originals" (`cli/commands/theme/sync-originals.ts`) after `theme generate-index`.
-    ["init", "agent-plugins token-sign-in", "storage move", "adopt", "serve", "export", "theme validate", "theme migrate", "theme generate-index", "theme sync-originals", "theme normalize-build", "deploy config"],
+    ["plugin install", "plugin integrity", "init", "agent-plugins token-sign-in", "storage move", "adopt", "serve", "export", "theme validate", "theme migrate", "theme generate-index", "theme sync-originals", "theme normalize-build", "deploy config"],
     "introspect must list the real registered commands (nested subcommands flattened to their full invocation path), and exclude itself/help"
   );
 
@@ -65,6 +65,8 @@ test("tovu introspect --format mcp: exits 0 and prints valid MCP tool definition
   assert.ok(Array.isArray(tools));
   const names = tools.map((t: { name: string }) => t.name);
   assert.deepEqual(names, [
+    "tovu_plugin_install",
+    "tovu_plugin_integrity",
     "tovu_init",
     "tovu_agent-plugins_token-sign-in",
     "tovu_storage_move",

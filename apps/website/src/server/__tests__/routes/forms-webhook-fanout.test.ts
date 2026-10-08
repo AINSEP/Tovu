@@ -8,10 +8,10 @@ import {
   InMemoryWebhookSubscriptionRepo,
 } from "#src/features/webhooks/index";
 import { enqueueDelivery } from "#src/features/webhooks/delivery";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
-import { submitForm } from "#src/features/forms/submit-service";
-import type { FormDefinitionRecord } from "#src/features/forms/index";
+import { submitForm } from "#src/features/forms/index";
+import type { HtmlFormDefinitionRecord as FormDefinitionRecord } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**

@@ -1,6 +1,6 @@
 /**
  * @file `requireHumanConfirm` — the one call a tool makes to ask the human "do this?" before a
- * privileged, outward, paid or irreversible action (2026-09-24 tool-design audit, F2/F3).
+ * privileged, outward, paid or irreversible action (F2/F3).
  *
  * Not a new confirmation mechanism: it is the held-open MCP-UI exchange every confirmed tool already
  * uses (`webhooks_delete_subscription`, `media_trash_asset`, ...), packaged so a new gate is a few
@@ -16,7 +16,7 @@
  * The generic prepare/ask/run handler and its ordering rationale live in Jini/core/src/registration-kit.ts;
  * Tovu keeps the surface exchange, allowlist, dialog wording and fail-closed confirmation policy here.
  */
-import { humanConfirmedHandler, type HumanConfirmer } from "@jini-ai/core";
+import { createApprovalHandler, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
@@ -26,7 +26,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type AssistantSurfaceDeps,
   type ConfirmationOutcome,
-} from "./tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
 
 export interface HumanConfirmSpec {
   /** The calling tool's own id — the click is routed back to it, so it must be allowlisted. */
@@ -89,7 +89,7 @@ export async function requireHumanConfirm(
   // Shorthand `{ toolId }` on purpose: the allowlist completeness scan resolves the `toolId` of
   // each `requireHumanConfirm` CALL instead, and skips this parameterised open.
   const { toolId } = spec;
-  const exchange = surfaces.surfaceExchanges.open({ toolId, principalId: ctx.principal.id }, emitSurface);
+  const exchange = surfaces.surfaceExchanges.open({ binding: { toolId, principalId: ctx.principal.id }, emit: emitSurface });
   const action = (decision: "confirm" | "cancel", choice?: string) => ({
     toolName: toolId,
     params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
@@ -114,11 +114,11 @@ export async function requireHumanConfirm(
     expiresAtMs: exchange.expiresAtMs(),
   });
 
-  const closeOnAbort = () => exchange.close();
+  const closeOnAbort = () => exchange.close({});
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
   try {
-    const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource } });
-    const outcome = classifyConfirmationAnswer(answer);
+    const answer = await askOnce({ exchange, emission: { channel: "mcp-ui", payload: { resource } } });
+    const outcome = classifyConfirmationAnswer({ answer });
     if (!outcome.confirmed || answer.status !== "received") return outcome;
     const choice = answer.params[HUMAN_CONFIRM_CHOICE_PARAM];
     const offered = alternatives.some((alternative) => alternative.choice === choice);
@@ -175,14 +175,42 @@ export function humanConfirmedToolHandler<TPrepared>(
     run: (ctx: ToolExecutionContext, prepared: TPrepared, confirmer: HumanConfirmer) => Promise<unknown>;
   },
 ): ToolHandler {
-  return humanConfirmedHandler({
+  return approvalToolHandler({ surfaces,
     prepare: ({ ctx }) => spec.prepare(ctx),
-    askHuman: async ({ ctx, prepared }, optional: ToolExecutionOptions = {}) => {
-      const outcome = await requireHumanConfirm({ ctx, surfaces, spec: spec.dialog(prepared) }, optional);
-      return outcome.confirmed ? { confirmed: true } : { confirmed: false, result: { [spec.flag]: false, ...notConfirmedResult(outcome) } };
-    },
+    describe: ({ prepared }) => spec.dialog(prepared),
     run: ({ ctx, prepared, confirmer }) => spec.run(ctx, prepared, confirmer),
-  });
+  }, { flag: spec.flag });
+}
+
+/** Bind domain descriptions to the one Jini approval lifecycle and authenticated browser transport.
+ * The host keeps wording and result flags; Jini freezes inputs, binds the actor and handles aborts.
+ * Existing gated-mutation handlers use the compatibility adapter above so their gateway ceremonies
+ * and actor-rule registration proof stay intact.
+ * @returns A branded handler; missing transport and storage failures remain fail-closed.
+ * @example approvalToolHandler({ surfaces, prepare, describe, run }, { flag: 'removed' });
+ */
+export function approvalToolHandler<TPrepared>(
+  { surfaces, prepare, describe, run }: {
+    surfaces: AssistantSurfaceDeps;
+    prepare: (required: { ctx: ToolExecutionContext }, optional: ToolExecutionOptions) => Promise<TPrepared>;
+    describe: (required: { ctx: ToolExecutionContext; prepared: TPrepared }) => HumanConfirmSpec | Promise<HumanConfirmSpec>;
+    run: (required: { ctx: ToolExecutionContext; prepared: TPrepared; confirmer: HumanConfirmer; choice?: string }, optional: ToolExecutionOptions) => Promise<unknown>;
+  },
+  { flag = 'executed', ask = () => true, rememberKey, remembered, declined }: {
+    flag?: string;
+    ask?: (required: { prepared: TPrepared }) => boolean;
+    rememberKey?: (required: { prepared: TPrepared }) => string | undefined;
+    remembered?: RememberedApprovalPort;
+    declined?: (required: { reason: 'declined' | 'expired' | 'abandoned'; prepared?: TPrepared }) => unknown;
+  } = {},
+): ToolHandler {
+  return createApprovalHandler({
+    prepare,
+    describe: async ({ ctx, prepared }) => ({ ask: ask({ prepared }), description: await describe({ ctx, prepared }), rememberKey: rememberKey?.({ prepared }) }),
+    askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
+    run,
+    notConfirmed: declined ?? (({ reason }) => ({ [flag]: false, ...notConfirmedResult({ confirmed: false, reason }) })),
+  }, { remembered });
 }
 
 /**

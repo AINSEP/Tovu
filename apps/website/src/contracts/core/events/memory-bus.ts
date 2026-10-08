@@ -105,7 +105,7 @@ export class InMemoryOutbox implements OutboxPort {
 
   /**
    * Claim up to `batchSize` rows due at `nowIso`: `"pending"` rows, and `"processing"` rows whose
-   * claim lease has expired (2026-09-14: their claimer died before recording an outcome). Each claimed
+   * claim lease has expired (their claimer may have died before recording an outcome). Each claimed
    * row is marked `processing`, its `attempts` incremented and its stored `nextAttemptAt` set to the
    * new lease expiry. The returned records are copies that keep the due time they were claimed at,
    * the same shape `SqliteOutboxAdapter.claimPending` returns.
@@ -132,9 +132,8 @@ export class InMemoryOutbox implements OutboxPort {
   }
 
   /**
-   * Mark a claimed row failed and persist whichever `nextStatus` the caller decided (2026-09-06:
-   * `OutboxPort.markFailed` gained this parameter so the retry-cap decision lives with the worker,
-   * not here — see `outbox-worker.ts`'s header doc). This method no longer reads `attempts` at all.
+   * Persist the worker's `nextStatus` decision for a failed row. Retry policy belongs to the worker,
+   * not storage; this adapter does not evaluate `attempts`.
    */
   async markFailed(
     { id, error, nextAttemptAt, nextStatus }: {

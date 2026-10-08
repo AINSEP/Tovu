@@ -1,7 +1,7 @@
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "#src/features/agent-plugins/bundled-digests";
-import { listInstalledPlugins } from "#src/features/agent-plugins/resolve-agent-plugin-refs";
-import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "#src/features/plugin-runtime/package-files";
+import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "../../../../../features/agent-plugins/lifecycle.js";
+import { listInstalledPlugins } from "../../../../../features/agent-plugins/lifecycle.js";
+import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteRegistrar } from "./deps.js";

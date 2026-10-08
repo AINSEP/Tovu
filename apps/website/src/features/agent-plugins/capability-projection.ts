@@ -1,64 +1,23 @@
 /**
- * @file The one surviving half of the Agent Plugins capability work: the `stdio` vs remote MCP trust
- * classifier and the disk readers that turn an installed package (`install.ts`'s
- * `InstalledAgentPlugin`) into readable Skill markdown and classified MCP transport config.
- *
- * ---------------------------------------------------------------------------
- * The candidate descriptor projection was removed 2026-09-15
- * ---------------------------------------------------------------------------
- * This module used to also export `projectInstalledAgentPluginCapabilities`, a CANDIDATE
- * `AgentPluginCapabilityDescriptor` projection of one installed plugin's Skills and MCP servers.
- * It had no production producer, endpoint, or consumer: it ran server-side (reading skill markdown
- * off disk) and nothing proxied its output to the admin session, so its descriptor graph — and the
- * `execute` union it carried — could only ever be exercised by its own tests. The 2026-08-26 owner
- * call that removed `capability_search`/`capability_get` (see
- * `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`) settled the direction — every
- * installed plugin now reaches the agent through its own real tool
- * (`features/agent-plugins/tool-registrations.ts`), so the speculative descriptor graph was
- * deleted rather than left to rot. What remains is the real, used half: the trust classifier below
- * and the readers this feature's production callers (`federate-mcp.ts`,
- * `resolve-agent-plugin-refs.ts`, `tool-registrations.ts`) actually call.
- *
- * ---------------------------------------------------------------------------
- * 2026-09-10: MCP servers are no longer unconditionally execute:unavailable (OWNER-OVERRULED)
- * ---------------------------------------------------------------------------
- * The FINAL debate's "MCP servers → previewable but structurally inert in v1" rule stood on one
- * premise: a plugin's own `mcp.json` "has no independent author... the operator is that author," so
- * with no operator-reviewed admission record, there was nothing to consult. The owner has explicitly
- * overruled that premise for the case that premise never actually covered: a REMOTE server
- * (`streamable-http`/`sse`) using `oauth` or no credential carries no secret and executes no local
- * code — there is nothing here for an operator to review that Tovu's own existing default-deny
- * federated-tool allowlist (`mcp-federation/trust.ts` R2) does not already gate independently, tool
- * by tool, at connect time. What the old premise DID correctly identify as needing an operator's own
- * say-so — a `stdio` server's `command`/`args`, i.e. arbitrary local code execution shipped inside a
- * downloaded marketplace package — is preserved, not discarded: see `classifyAgentPluginMcpServerTrust`
- * below, which is the one surviving piece of the old rule, now expressed as a real gate instead of a
- * blanket refusal. See `ADS-memory/reports/2026-09-10-higgsfield-mcp-research.md` for the verified
- * external facts (Higgsfield MCP: OAuth-only, no API key, a PUBLIC client per its own discovery
- * document — no secret is ever stored) that made this tractable.
- *
- * Architectural role:
- * The trust classifier (`classifyAgentPluginMcpServerTrust`) plus the disk readers
- * (`readInstalledSkillMarkdown`, `readInstalledMcpServerIds`, `readInstalledMcpServers`) that compose
- * `package-paths.ts`'s containment guarantee with a real file read — the same split `install.ts` and
- * `package-paths.ts` already keep between "pure logic" and "the one place bytes are actually read".
+ * @file MCP transport trust classification and contained reads of installed plugin skills/config.
+ * Disk readers compose the lifecycle owner's path-containment guarantee with real file reads.
+ * See classifyAgentPluginMcpServerTrust for the local-execution and remote-tool admission boundary.
  */
 import { readFile } from "node:fs/promises";
 
 import type { AgentPluginMcpConfig, McpServerConfig } from "./mcp-metadata.js";
 import { parseAgentPluginMcpConfig } from "./mcp-metadata.js";
-import { assertContainedOnDisk } from "./package-paths.js";
+import { assertContainedOnDisk } from "./lifecycle.js";
 
 /**
- * The one surviving piece of the FINAL debate's old blanket MCP refusal (see this module's header):
- * a plugin cannot make Tovu execute arbitrary local code on the operator's say-so alone.
+ * A plugin must not execute arbitrary local code without explicit operator confirmation.
  *
  * - `stdio` declares `command`/`args` — a downloaded marketplace package choosing what process to
  *   spawn on this machine. That is exactly the local-code-execution case an operator must explicitly
  *   confirm before it ever runs; there is no secret-based mitigation for it, because the risk is not
  *   a leaked credential, it is arbitrary execution.
  * - `streamable-http`/`sse` declare a URL Tovu calls over the network. There is no local execution,
- *   and (per `manifest.ts`'s header) the spec allows no embedded secret Tovu would need to protect —
+ *   and (per the Agent Plugins grammar) the spec allows no embedded secret Tovu would need to protect —
  *   an `oauth`-mode connection mints its own token through Tovu's own RFC 8414/7591 flow, and a
  *   `none`-mode connection carries no credential at all. Either way, `mcp-federation/trust.ts`'s R2
  *   default-deny allowlist still gates every individual remote TOOL independently at connect time —

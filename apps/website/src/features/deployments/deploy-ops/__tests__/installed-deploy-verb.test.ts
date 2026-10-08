@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../../agent-plugins/layout.js";
-import { seedBundledAgentPlugins } from "../../../agent-plugins/seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../../agent-plugins/lifecycle.js";
 import { loadDeployOpsRegistry } from "../registry.js";
 
 /**

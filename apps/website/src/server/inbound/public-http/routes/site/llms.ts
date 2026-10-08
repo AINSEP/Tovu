@@ -1,4 +1,4 @@
-import { computeIndexableEntries, type IndexableEntry } from "#src/features/seo/index";
+import { computeIndexableEntries, type IndexableEntry } from "@jini-ai/cms/seo";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
 /**
@@ -14,7 +14,7 @@ import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/se
  * 2026-09-04 rewrite: the checklist originally scoped this to a hand-curated `CURATED_DOCS` list
  * (Phase 2 note: "needs an explicit 'which pages count as docs' tag or convention — not built
  * yet"). That list drifted the moment a page was published, renamed, or unpublished outside it, so
- * this now derives the index from `computeIndexableEntries` (`features/seo/sitemap.ts`) — the same
+ * this now derives the index from `computeIndexableEntries` (`Jini/packages/cms/src/seo/sitemap.ts`) — the same
  * publish/visibility/`noindex` filter `sitemap.xml` is built from (INV-04/05) — instead of
  * maintaining a second, hand-authored notion of "which pages count." Every published, publicly
  * visible, non-`noindex` post/page is listed; a members/paid/tiers-gated or draft page can never
@@ -53,10 +53,10 @@ export const registerLlmsTxtRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/llms.txt", async (_req, res) => {
     try {
       await deps.seoReady;
-      const entries = await computeIndexableEntries(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
-        deps.workspaceId
-      );
+      const entries = await computeIndexableEntries({
+        deps: deps.seoDeps,
+        input: { workspaceId: deps.workspaceId },
+      }, {});
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/markdown").send(renderLlmsTxt(entries));
     } catch {
       res.status(500).type("text/plain").send("internal error");

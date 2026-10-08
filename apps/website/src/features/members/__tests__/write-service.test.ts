@@ -10,7 +10,7 @@ import type {
   OutboundEmail,
 } from "#src/platform/mail/index";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,

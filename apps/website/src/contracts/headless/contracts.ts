@@ -1,6 +1,6 @@
 /**
- * A theme id. Open string since SPEC-004: themes are discovered from disk, so
- * the valid set is dynamic (the built-in trio was the pre-SPEC-004 hardcode).
+ * A theme id. Open string under SPEC-004 because themes are discovered from disk, so
+ * the valid set is dynamic.
  * Clients read the current valid ids from `availableThemeIds`.
  *
  * One value is RESERVED and never names a theme: `"none"` (`features/theme`'s `NO_THEME_ID`) means
@@ -8,8 +8,7 @@
  * reading `activeThemeId` must treat it as "no theme", not as a theme id to look up — asking for a
  * theme by that id 404s. It deliberately never appears in `availableThemeIds`, which is a catalogue
  * of themes a client can PICK, not a list of values the API will accept. No type change: the
- * sentinel is already a legal `HeadlessThemeId` (this alias is an open string), so this is
- * documentation of an existing shape, not a wire-contract break.
+ * sentinel is a legal `HeadlessThemeId` because this alias is an open string.
  */
 export type HeadlessThemeId = string;
 
@@ -36,7 +35,7 @@ export type HeadlessBodyFormat = "doc" | "html";
 interface AdminPostFields {
   id: string;
   workspaceId: string;
-  /** SPEC-002 api.spec.md §5 — NEW field, additive (no existing field removed/renamed). */
+  /** SPEC-002 api.spec.md §5 — entry kind. */
   kind: HeadlessEntryKind;
   title: string;
   slug: string;
@@ -44,15 +43,14 @@ interface AdminPostFields {
   updatedAt: string;
   version: number;
   /**
-   * SPEC-005 REQ-11/AC-14 — NEW field, additive and OPTIONAL: the plugin extension-field bag,
+   * SPEC-005 REQ-11/AC-14 — optional plugin extension-field bag,
    * namespaced per plugin (`{ [pluginId]: { …declaredFields } }`). Present only when a plugin has
    * actually written to this entry; an entry with no contributing plugin carries no `ext` key at
-   * all, and every pre-feature field above is unchanged.
+   * all.
    */
   ext?: Record<string, Record<string, unknown>>;
   /**
-   * Post-template-picker feature (2026-08-10) — NEW field, additive and OPTIONAL, same migration-
-   * safety pattern as `ext` above: the `pages/*.html` filename (of the active static theme's
+   * Optional `pages/*.html` filename (of the active static theme's
    * `theme.json` `postTemplate` array) this post renders through. `toHeadlessPost` always populates
    * a real value (`post.templateChoice ?? null`) on every live response, so a consumer only ever
    * sees `undefined` in a hand-built test fixture that predates this field, never from the real API.
@@ -60,17 +58,16 @@ interface AdminPostFields {
    */
   templateChoice?: string | null;
   /**
-   * Slug-collision override (2026-08-10, tri-state 2026-08-15) — NEW field, additive and OPTIONAL,
-   * same pattern as `templateChoice` above: `null` means this post never had an explicit opinion set
+   * Optional slug-collision override: `null` means this post never had an explicit opinion set
    * (the resolver's current default policy applies), `true`/`false` is a permanent explicit author
    * choice. `toHeadlessPost` always populates a real value (`post.overridesThemePage ?? null`) on
    * every live response; `undefined` only appears in a pre-feature test fixture.
    */
   overridesThemePage?: boolean | null;
-  /** Scheduled publishing (2026-10-05) — ISO UTC go-live instant; absent when not scheduled. A
+  /** Scheduled publishing — ISO UTC go-live instant; absent when not scheduled. A
    *  `published` post whose `publishAt` is in the future is not yet visible on the public site. */
   publishAt?: string;
-  /** Featured image (2026-10-05) — media asset id; absent when the post has none. */
+  /** Featured image — media asset id; absent when the post has none. */
   featuredMediaId?: string;
 }
 
@@ -93,7 +90,7 @@ export interface AdminPostEnvelope {
 
 export interface ContentPost {
   id: string;
-  /** SPEC-002 api.spec.md §5 (`CONTENT_ENTRY_BY_SLUG`) — NEW field, additive. */
+  /** SPEC-002 api.spec.md §5 (`CONTENT_ENTRY_BY_SLUG`) — entry kind. */
   kind: HeadlessEntryKind;
   title: string;
   slug: string;
@@ -109,6 +106,8 @@ export interface ContentPost {
 export type HeadlessThemeTier = "declarative" | "templated" | "handlebars" | "static" | "code";
 
 export interface HeadlessThemeSummary {
+  /** Existing screenshot URL, or null when the theme has no preview image. */
+  previewImageUrl?: string | null;
   id: HeadlessThemeId;
   /** The theme's display name — `theme.json`'s `name`, or the id when the manifest has none
    *  (`ThemeManifest.name`'s own fallback, `theme.ts`). What the admin shows the owner; the id
@@ -116,10 +115,8 @@ export interface HeadlessThemeSummary {
   name: string;
   tier: HeadlessThemeTier;
   /**
-   * The theme's manifest `apiVersion` (`2`, or `undefined` for v1) — 2026-08-19 architecture audit
-   * finding 1: without this, the admin's "View Template" fetch had no way to know whether a theme's
-   * page templates live under `pages/` (v1) or `render/pages/` (v2, every built-in static theme
-   * today), so it 404ed unconditionally. Mirrors `ThemeManifest.apiVersion`'s own doc (`theme.ts`).
+   * The theme's manifest `apiVersion` (`2`, or `undefined` for v1) tells the admin whether page
+   * templates live under `pages/` (v1) or `render/pages/` (v2). Mirrors `ThemeManifest.apiVersion`.
    */
   apiVersion?: 2;
 }
@@ -132,25 +129,24 @@ export interface AdminPresentation {
   };
   availableThemeIds: HeadlessThemeId[];
   /**
-   * Themes admin screen (2026-08-10) — every available theme's id plus its ADR-020 capability
+   * Themes admin screen — every available theme's id plus its ADR-020 capability
    * tier, so the Themes screen can group cards by tier without a second round trip. Same id set
    * as `availableThemeIds` above (that field stays for callers that only need ids); this is the
    * superset callers that need tier read instead.
    */
   availableThemes: HeadlessThemeSummary[];
   /**
-   * Template-picker feature (2026-08-10, unified 2026-08-11) — the active theme's `theme.json`
+   * Template picker — the active theme's `theme.json`
    * `templates` array (e.g. `["blog-post.html", "page-shell.html"]`), or `[]` when the active theme
    * doesn't declare one. BOTH the Post editor's and the Pages editor's picker read this SAME field to
-   * populate their options — was two separate fields (`activeThemePostTemplates`/
-   * `activeThemePageTemplates`) until the unified `content` marker removed the reason they needed to
-   * differ (see `ThemeManifest.templates`'s own doc, `features/theme/theme.ts`, for the full
+   * populate their options. The unified `content` marker makes the template list common;
+   * see `ThemeManifest.templates` (`features/theme/theme.ts`) for the
    * reasoning and what it does NOT solve — template applicability). An empty array means a picker has
    * nothing to offer and stays hidden, not broken.
    */
   activeThemeTemplates: string[];
   /**
-   * Slug-collision override (2026-08-10) — every page id (`theme.pages` key) the active theme ships,
+   * Slug-collision override — every page id (`theme.pages` key) the active theme ships,
    * or `[]` for a non-`static`-tier theme. The Post editor uses this to warn an author when a post's
    * slug matches one of these — that slug's route currently belongs to the theme's own page, not the
    * post, unless the post's `overridesThemePage` is set.

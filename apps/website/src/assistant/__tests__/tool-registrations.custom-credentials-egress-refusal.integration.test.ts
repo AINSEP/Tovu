@@ -10,11 +10,14 @@ import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm
 import { InMemoryCustomCredentialSetRepo } from "../../features/custom-credentials/repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../../features/custom-credentials/store.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../../features/custom-credentials/tool-registrations.js";
-import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../platform/http/index.js";
 import { createHttpClient } from "../../platform/http/client.js";
 import type { HttpTransportAdapter } from "../../platform/http/ports.js";
 import { InMemoryCredentialedRequestAuditLog } from "../../features/custom-credentials/credentialed-request.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Regression test for the `custom_credential_make_request` half of the 2026-09-10
@@ -99,7 +102,7 @@ async function buildDelegatedToolDeps(clientError: Error) {
   };
 
   const registry = createToolRegistry({});
-  for (const registration of buildCustomCredentialsRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore() })) {
+  for (const registration of buildCustomCredentialsRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
@@ -227,7 +230,7 @@ async function executeThroughGuardedClient() {
   };
 
   const registry = createToolRegistry({});
-  for (const registration of buildCustomCredentialsRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore() })) {
+  for (const registration of buildCustomCredentialsRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });

@@ -1,3 +1,4 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -7,7 +8,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { outboxEvents } from "#src/platform/db/schema.sqlite";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
-import { createWidgetInstance, type WidgetWriteServiceDeps } from "#src/features/widgets/write-service";
+import { createWidgetInstance, type WidgetWriteServiceDeps } from "@jini-ai/cms/widgets";
 
 import {
   createEntry,
@@ -340,7 +341,7 @@ test("widgets chokepoint: createWidgetInstance binds the RAW SqliteOutboxAdapter
   let counter = 0;
 
   const workspaceId = "ws-widgets-1";
-  const deps: WidgetWriteServiceDeps = {
+  const deps: WidgetWriteServiceDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: new InMemoryEntryRepo(),
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
@@ -355,7 +356,7 @@ test("widgets chokepoint: createWidgetInstance binds the RAW SqliteOutboxAdapter
   };
 
   const { instance } = await createWidgetInstance({
-    deps,
+    deps: deps,
     input: {
       workspaceId,
       actor: { principalId: "user-1" },

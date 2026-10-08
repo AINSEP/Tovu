@@ -15,14 +15,14 @@ export async function withCustomCredentialSetup<T>(
   try { result = await invoke(); }
   catch (error) {
     if (!(error instanceof CustomCredentialNotFoundError)) throw error;
-    const prefill: Record<string, string> = { label };
+    const prefill: Record<string, string> = { kind: "api", label };
     if (url) {
       try { prefill.baseUrl = new URL(url).origin; } catch { /* The card collects a valid URL; an unknown label is resolved before request validation. */ }
     }
-    return { executed: false, credentialSetup: issueCredentialSetup({ setupToolId: "custom_credential_create", prefill }, {}) };
+    return { executed: false, credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill }, {}) };
   }
   const output = result as { status?: unknown; authDiagnostic?: { usernameStored?: boolean; schemeSent?: string } };
   const rotation = (verification && output.status === "invalid") ||
     (output.status === 401 && (output.authDiagnostic?.usernameStored === true || output.authDiagnostic?.schemeSent === "Basic"));
-  return rotation ? { credentialSetup: issueCredentialSetup({ setupToolId: "custom_credential_set_token", prefill: { label } }, {}), ...result } : result;
+  return rotation ? { credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "api", target: label } }, {}), ...result } : result;
 }

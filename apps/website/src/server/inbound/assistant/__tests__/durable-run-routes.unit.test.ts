@@ -107,7 +107,7 @@ test('daemon intake sanitizes both bound and headless starts before lifecycle pe
     const body = { runId, contextRef: JSON.stringify({ prompt: `Use ${secret} please`, principalId: 'owner' }) };
     h.routes.get('/api/runs')!({ body } as Request, out.res, (() => { forwarded = true; }) as NextFunction);
     assert.equal(forwarded, true); assert.deepEqual(out.sent, []);
-    assert.deepEqual(JSON.parse(body.contextRef), { prompt: 'Use [token removed] please', principalId: 'owner' });
+    assert.deepEqual(JSON.parse(body.contextRef), { prompt: 'Use [token removed] please', principalId: 'owner', secretRedacted: true });
     assert.equal(body.contextRef.includes(secret), false, 'raw credential reached lifecycle acceptance');
   }
 });

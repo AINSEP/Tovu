@@ -1,4 +1,3 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import type { Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/core/primitives";

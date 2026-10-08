@@ -11,8 +11,8 @@ import test from "node:test";
 
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { ACTIVATIONS_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
-import { recordBundledAgentPluginDigests } from "#src/features/agent-plugins/bundled-digests";
-import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
+import { recordBundledAgentPluginDigests } from "../../../agent-plugins/lifecycle.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../../agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
 import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "../registry.js";
@@ -272,7 +272,7 @@ test("an altered installation is refused even when the original bundled digest i
   await withWorkspace(async (workspaceRoot) => {
     const original = await installPackage("fixture-deploy", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-deploy", original);
-    await forceRemove(path.join(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).packages, original));
+    await forceRemove(path.join(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: "fixture-deploy" }), original));
     const changed = await installPackage("fixture-deploy", { ...FIXTURE_FILES, "targets/fixture.mjs": FIXTURE_MODULE + "\n// modified installation\n" });
     assert.notEqual(changed, original);
     const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });

@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -31,13 +32,12 @@ import {
 } from "../../features/media/index.js";
 import {
   assertRiskMetadataIsWirable,
-  buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeMediaTools } from "../../features/media/tool-registrations.js";
 
-import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { makeRemoveMediaDouble } from "#src/features/media/__tests__/remove-media-double";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -46,11 +46,7 @@ const contributions = {
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
 
-// Media moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, retried after `widgets`'s own conversion had merged — see
-// `media/tool-registrations.ts`'s own header), so `buildAssistantToolRegistrations` below no longer
-// wires it unless something explicitly installs it first, mirroring what the real composition roots
-// now do via `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeMediaTools() });
 
@@ -124,9 +120,9 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-function mediaRegistrations(deps: RegistryDepsWithoutLimiter, surfaces?: AssistantSurfaceDeps): Map<string, ToolRegistration> {
+function mediaRegistrations(deps: RegistryDepsWithoutLimiter, surfaces?: AssistantSurfaceDeps, includeContentReadCollapse = true): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), surfaces, { contributions })
+    buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), surfaces: surfaces, options: { contributions, includeContentReadCollapse } })
       .filter((r) => r.descriptor.id.startsWith("media_") || r.descriptor.id === "content_read.media_asset")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -192,7 +188,8 @@ test("no wired media tool is named or described for a hard purge/force-delete", 
 
 test("every wired Media registration publishes its catalog entry's inputSchema and description", () => {
   const { deps } = fakeRouteDeps();
-  for (const [id, registration] of mediaRegistrations(deps)) {
+  // Compare the source catalog before the host read-id projection; contracts.test.ts checks that projection.
+  for (const [id, registration] of mediaRegistrations(deps, undefined, false)) {
     // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
     // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL

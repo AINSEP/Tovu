@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
@@ -114,7 +115,7 @@ function buildSetActiveThemeHandlers(routeDeps: SetActiveThemeToolDeps): Record<
 }
 
 export function buildSetActiveThemeRegistrations(routeDeps: SetActiveThemeToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "theme-set-active",
     catalogModule: "features/theme/set-active-theme-tool.ts",
     catalog: CATALOG_BY_ID,

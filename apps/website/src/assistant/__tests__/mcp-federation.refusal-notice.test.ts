@@ -7,8 +7,7 @@ import { admitRemoteTools, type FederatedAdmissionReport, type FederationAdmissi
 import type { FederatedMcpConnectionConfig } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages as messages } from "../mcp-federation/presets.js";
 
-// The reducers moved to @jini-ai/mcp/federation; Tovu's settings copy is injected exactly as the
-// host binds it, so every assertion below still pins the wording a Tovu operator and model read.
+// Inject Tovu settings copy as the host does, so assertions pin operator/model wording.
 const buildFederatedRefusalPrefix = (snapshot: readonly FederationAdmissionSnapshotEntry[]) => shared.buildFederatedRefusalPrefix({ snapshot, messages });
 const summarizeFederatedRefusals = (snapshot: readonly FederationAdmissionSnapshotEntry[]) => shared.summarizeFederatedRefusals({ snapshot, messages });
 const explainFederatedToolRefusal = (reason: ToolRefusalReason) => shared.explainFederatedToolRefusal({ reason, messages });

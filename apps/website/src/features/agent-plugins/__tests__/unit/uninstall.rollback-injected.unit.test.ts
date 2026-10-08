@@ -3,44 +3,33 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test, { mock } from "node:test";
+import test from "node:test";
+import * as filesystem from "node:fs/promises";
+import { createTovuAgentPluginLifecycle } from "../../lifecycle.js";
 
-import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../../install.js";
+import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 
 /**
  * @file F0807 — `uninstallAgentPlugin()`'s rollback, proven with a deterministic activation-write
  * failure. `uninstall.unit.test.ts` forces the same failure with a 0o555 workspace root, which root
  * ignores, so that test skips as root (a CI container) and the rollback goes unchecked there. Here
- * the host activation binding's `deleteAgentPluginActivation` — the step that runs after every
- * package tree is staged aside — rejects on purpose; staging, restore and the disk stay real.
- *
- * Same `mock.module()` idiom as `activation-lock-busy.unit.test.ts`: the real binding is spread
- * through the mock, registered before `uninstall.js` is ever imported, which is imported once,
- * dynamically.
+ * the injected filesystem refuses the atomic activations.json publication — the step after every
+ * package tree is staged aside. Staging, restoration, permissions and all other disk I/O stay real.
+ * This preserves the any-uid proof without replacing a module or creating another lifecycle owner.
  */
 
-const real = await import("../../activation-effects.js");
 const injected = new Error("injected: activations.json could not be rewritten");
-let failDelete = true;
-
-mock.module("../../activation-effects.js", {
-  namedExports: {
-    ...real,
-    agentPluginActivations: {
-      ...real.agentPluginActivations,
-      deleteAgentPluginActivation: async (input: Parameters<typeof real.agentPluginActivations.deleteAgentPluginActivation>[0]) => {
-        if (failDelete) throw injected;
-        return real.agentPluginActivations.deleteAgentPluginActivation(input);
-      },
-    },
+let failActivationPublication = false;
+const lifecycle = createTovuAgentPluginLifecycle({}, { filesystem: {
+  ...filesystem,
+  async rename(source, destination) {
+    if (failActivationPublication && String(destination).endsWith("/activations.json")) throw injected;
+    return filesystem.rename(source, destination);
   },
-});
-
-const { uninstallAgentPlugin } = await import("../../uninstall.js");
-const { installAgentPlugin } = await import("../../install.js");
+} });
+const { uninstallAgentPlugin, installAgentPlugin, readAgentPluginActivations, setAgentPluginActivation } = lifecycle;
 const { resolveAgentPluginLayout } = await import("../../layout.js");
 const { forceRemove } = await import("../fixtures/force-remove.js");
-const { readAgentPluginActivations, setAgentPluginActivation } = real.agentPluginActivations;
 
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -86,7 +75,7 @@ test("an activation-write failure after staging restores every package tree, fro
     const second = await installTestPackage(layout, "multi-digest", "archive-rollback-b");
     await setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: "multi-digest", enabled: true, actor: "op-1" });
 
-    failDelete = true;
+    failActivationPublication = true;
     await assert.rejects(
       uninstallAgentPlugin({ layout, workspaceId: WORKSPACE_ID, pluginId: "multi-digest" }),
       (error: unknown) => error === injected,
@@ -106,13 +95,13 @@ test("an activation-write failure after staging restores every package tree, fro
     assert.equal(activations.plugins["multi-digest"]?.enabled, true);
 
     // The restored state is a real install: with the write working again, uninstall removes both.
-    failDelete = false;
+    failActivationPublication = false;
     const result = await uninstallAgentPlugin({ layout, workspaceId: WORKSPACE_ID, pluginId: "multi-digest" });
     assert.deepEqual([...result.removedDigests].sort(), [first.archiveDigest, second.archiveDigest].sort());
     await assert.rejects(stat(first.packageRoot), { code: "ENOENT" });
     await assert.rejects(stat(second.packageRoot), { code: "ENOENT" });
   } finally {
-    failDelete = true;
+    failActivationPublication = false;
     await forceRemove(cwd);
   }
 });

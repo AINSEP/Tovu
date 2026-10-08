@@ -51,7 +51,7 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
           // ADR-PIPE-015 GAP-06: the real core/origin egress oracle, replacing the dev-only
           // permitAllHttpsTargets stand-in. Fails closed on any parse failure or ambiguity.
           isAllowedTarget: (url: string) =>
-            deps.originRegistry.isAllowedEgressTarget({ workspaceId: deps.workspaceId }, url),
+            deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
         },
         input: {
           workspaceId: deps.workspaceId,

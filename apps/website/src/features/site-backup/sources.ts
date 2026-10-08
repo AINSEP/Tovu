@@ -3,7 +3,7 @@ import { lstat, open, readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
-import { describeErrorForLog } from "../../contracts/core/model-facing-tool-errors.js";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { AgentPluginLayout } from "../agent-plugins/layout.js";
 
 /**
@@ -339,12 +339,12 @@ export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId
   try {
     ({ artifactRef, watermarkAtCapture } = await input.dbOps.captureRestorePoint({ scopeId: input.scopeId }));
   } catch (err) {
-    return { ok: false, message: "the database snapshot failed; nothing was backed up", logDetail: describeErrorForLog(err) };
+    return { ok: false, message: "the database snapshot failed; nothing was backed up", logDetail: describeErrorForLog({ err }) };
   }
   try {
     return { ok: true, bytes: await readFile(artifactRef), watermarkAtCapture };
   } catch (err) {
-    return { ok: false, message: "the database snapshot could not be read back; nothing was backed up", logDetail: describeErrorForLog(err) };
+    return { ok: false, message: "the database snapshot could not be read back; nothing was backed up", logDetail: describeErrorForLog({ err }) };
   } finally {
     await unlink(artifactRef).catch(() => undefined);
   }

@@ -79,7 +79,7 @@ test("[unrun] recovery restore [sqlite]: plan → confirm → execute swaps cont
     400
   );
   assert.deepEqual(unacknowledged, {
-    error: "disclosureAcknowledged must be exactly true before a restore confirmation token may be minted (INV-02)",
+    error: "disclosureAcknowledged must be exactly true before a restore confirmation token may be minted",
     code: "VALIDATION_ERROR",
   });
 
@@ -115,8 +115,10 @@ test("[unrun] recovery restore [sqlite]: executing with a different restorePoint
     await send(site, "POST", "/api/admin/v1/recovery/restore/confirm", { planId: plan.planId, planHash: plan.planHash, disclosureAcknowledged: true }),
     200
   );
+  // A different EXISTING point reaches the token's plan binding; an absent id is refused earlier as 404.
+  const other = await expectJson<{ restorePoint: { id: string } }>(await send(site, "POST", "/api/admin/v1/database/restore-points", {}), 201);
   const stale = await expectJson<{ code: string }>(
-    await send(site, "POST", "/api/admin/v1/recovery/restore/execute", { confirmationToken, restorePointId: "unrun-other-point" }),
+    await send(site, "POST", "/api/admin/v1/recovery/restore/execute", { confirmationToken, restorePointId: other.restorePoint.id }),
     409
   );
   assert.equal(stale.code, "PLAN_STALE");
@@ -138,7 +140,7 @@ test("[unrun] recovery restore [pglite]: capturing a restore point is 409 RESTOR
     409
   );
   assert.deepEqual(plan, {
-    error: "restore point 'unrun-any' has no available restore mechanism for this site (ADR-041 §2, no attestation override)",
+    error: "restore point 'unrun-any' has no available restore mechanism for this site (no attestation override)",
     code: "COST_CLASS_UNAVAILABLE",
   });
 });

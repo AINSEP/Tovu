@@ -6,12 +6,15 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { postAgentToolCatalog } from "../agent-tools.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The AGENT-TOOL arm of the optimistic-concurrency guard `be45461e` added to `updatePost`
@@ -49,7 +52,7 @@ function fakeRouteDeps() {
 
 function registrationsFor(deps: PostToolDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).map((r) => [r.descriptor.id, r])
+    buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).map((r) => [r.descriptor.id, r])
   );
 }
 
@@ -206,7 +209,7 @@ async function delegatedHarness(overrides: Partial<PostToolDeps> = {}) {
   Object.assign(deps, overrides);
   await seedPost(postRepo);
   const registry = createToolRegistry({});
-  for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() })) {
+  for (const registration of buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });

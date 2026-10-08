@@ -1,3 +1,5 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
+import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
 import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
 import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
@@ -5,11 +7,11 @@ import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireNoInput, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
-import { ToolInputError, type SurfaceEmission, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
+import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
 import { IMAGE_MODELS, MEDIA_PROVIDERS, VIDEO_MODELS } from '@jini-ai/integrations/media-providers/catalog';
-import { buildFormSurface, buildOutcomeSurface, type UIResourceUri } from '@jini-ai/ui/mcp-ui/surfaces';
+import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
-import { askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceMessage } from '../../contracts/core/tool-surface-exchanges.js';
+import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from '#src/assistant/index';
 import { getMediaProviderCredentials, type MediaProviderCredentialRepoPort } from '../media/provider-credential-store.js';
 import type { KeyringPort, SecretSealerPort } from '../webhooks/index.js';
@@ -27,7 +29,7 @@ export interface MediaProviderToolDeps extends OperatorLocaleDeps {
   siteAssistantSecretKeyring: KeyringPort;
   clock: Clock;
 }
-const MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID = "media_propose_provider_credential";
+
 const imageIds = new Set(IMAGE_MODELS.map(model => model.provider));
 const videoIds = new Set(VIDEO_MODELS.map(model => model.provider));
 const PROVIDERS = MEDIA_PROVIDERS.flatMap(provider => {
@@ -44,21 +46,13 @@ export const mediaProvidersAgentToolCatalog: AgentToolDefinition[] = [
     sideEffects: 'none', authorization: { permission: 'media.read' },
     inputSchema: { type: 'object', additionalProperties: false, required: [], properties: {} },
   },
-  {
-    name: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID,
-    description: 'Opens a human form to save or rotate an image/video provider API key. Call when generation needs a missing provider credential; use media_list_providers for ids. Supply only provider and optional reason, never a key. The person types the key into a masked form and the server seals it; this call waits for submit/cancel and returns {saved,provider,configured,tokenHint,message}, including only the server-derived length and last four characters for keys of at least 12 characters. Never returns the full key. Preserves other providers and existing base URL/model settings. Invalid input, permission denial or absent interactive channel refuses the call; cancelled, expired or failed saves return saved:false. Does not verify a key with the vendor or enable an unimplemented adapter.',
-    sideEffects: 'mutates-durable-state', authorization: { permission: 'admin.integrations.manage' },
-    inputSchema: { type: 'object', additionalProperties: false, required: ['provider'], properties: {
-      provider: { type: 'string', enum: PROVIDERS.map(provider => provider.id) },
-      reason: { type: 'string', maxLength: 1000, description: 'Optional non-secret reason shown beside the form.' },
-    } },
-  },
+
 ];
 export const mediaProvidersDerivedRisk: DerivedRiskByToolId = new Map([
   // -> getMediaProviderCredentials: marker-only repo read, no decrypt or writes.
   ['media_list_providers', 'none'],
   // -> saveMediaProviderKey -> saveMediaProviderCredentials: seals and writes after human submit.
-  [MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, 'mutates-durable-state'],
+
 ]);
 const CATALOG = indexCatalogById({ catalog: mediaProvidersAgentToolCatalog });
 
@@ -70,48 +64,12 @@ async function listProviders(deps: MediaProviderToolDeps): Promise<{ providers: 
   return { providers: PROVIDERS.map(provider => ({ id: provider.id, label: provider.label, kinds: [...provider.kinds], integrated: provider.integrated, configured: stored[provider.id]?.apiKeyConfigured === true })) };
 }
 
-/** Fixed outcome text cannot echo a submitted key or a raw persistence error. @complexity Time/space O(1). */
-function outcome(exchangeId: string, saved: boolean, message?: string): SurfaceEmission {
-  return { channel: 'mcp-ui', payload: { resource: buildOutcomeSurface({
-    uri: `ui://tovu/media-provider-credential/${exchangeId}` as UIResourceUri,
-    title: saved ? 'Provider key saved' : 'Provider key not saved', state: saved ? 'success' : 'failure',
-    message: message ?? (saved ? 'The provider key was saved. The assistant never sees it.' : 'Nothing was saved. Check the key and the server credential store, then try again.'),
-  }) } };
-}
-
-/** Validates a human key, saves via the shared store and returns only fixed safe fields.
- * @complexity Time/space O(n) for the catalogue-bounded store patch; no provider network call.
- */
-async function handleSubmission(answer: SurfaceMessage, spec: { deps: MediaProviderToolDeps; provider: string; exchangeId: string; configured: boolean; locale: string }): Promise<{ result: ProposalResult; outcome?: SurfaceEmission }> {
-  const { deps, provider, exchangeId, configured, locale } = spec;
-  const declined: ProposalResult = { saved: false, provider, configured };
-  if (answer.status !== 'received' || answer.params[SURFACE_DISMISSED_PARAM] === true) return { result: declined };
-  const key = answer.params.apiKey;
-  if (typeof key !== 'string' || (key === '' ? !configured : key.trim() === '')) { const message = credentialText({ id: 'blank', locale }); return { result: { ...declined, message }, outcome: outcome(exchangeId, false, message) }; }
-  let saved: { configured: boolean; tokenHint: CredentialTokenHint | null };
-  try {
-    saved = await saveMediaProviderKey({
-      deps: { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
-      workspaceId: deps.workspaceId, provider, apiKey: key,
-    });
-  } catch (err) {
-    console.warn(JSON.stringify({ service: 'media-providers', operation: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, exchangeId, saved: false }));
-    const id = Object.entries(CREDENTIAL_MESSAGES).find(([, text]) => err instanceof Error && text === err.message)?.[0];
-    const message = id ? credentialText({ id: id as keyof typeof CREDENTIAL_MESSAGES, locale }) : undefined;
-    return { result: { ...declined, ...(message ? { message } : {}) }, outcome: outcome(exchangeId, false, message) };
-  }
-  const hint = formatCredentialHint({ hint: saved.tokenHint, locale });
-  const unavailable = PROVIDERS.find(candidate => candidate.id === provider)?.integrated === false
-    ? ` ${credentialText({ id: 'generationUnavailable', locale })}` : '';
-  const message = `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale })}${unavailable}`;
-  return { result: { saved: true, provider, configured: saved.configured, tokenHint: saved.tokenHint, connection: 'not_tested', message }, outcome: outcome(exchangeId, true, message) };
-}
-
 /** Strict non-secret model input; bound provider identity is never taken from the form submission.
  * @throws ToolInputError for unknown fields/providers or a missing interactive channel.
  * @complexity Time O(p + s) before a single store patch; space O(p + s).
  */
-async function proposeCredential(ctx: ToolExecutionContext, deps: MediaProviderToolDeps, surfaces: AssistantSurfaceDeps, optional: ToolExecutionOptions = {}): Promise<ProposalResult> {
+export async function saveMediaCredential(required: { ctx: ToolExecutionContext; deps: MediaProviderToolDeps; surfaces: AssistantSurfaceDeps }, optional: ToolExecutionOptions = {}): Promise<ProposalResult> {
+  const { ctx, deps, surfaces } = required;
   const raw = requireInputRecord({ input: ctx.input });
   if (Object.keys(raw).some(key => key !== 'provider' && key !== 'reason')) throw new ToolInputError({ message: 'media_propose_provider_credential accepts only provider and reason; enter the key in the human form.' });
   const providerId = requireString({ input: raw, key: 'provider' });
@@ -123,26 +81,67 @@ async function proposeCredential(ctx: ToolExecutionContext, deps: MediaProviderT
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'admin.integrations.manage' }, { entityType: 'media' });
   const { providers } = await listProviders(deps);
   const configured = providers.find(candidate => candidate.id === providerId)!.configured;
-  const declined: ProposalResult = { saved: false, provider: providerId, configured };
-  if (ctx.signal.aborted) return declined;
-  if (!optional.emitSurface) throw new ToolInputError({ message: 'media_propose_provider_credential requires an interactive form channel. Nothing was saved.' });
   const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
-  const exchange = surfaces.surfaceExchanges.open({ toolId: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, principalId: ctx.principal.id }, optional.emitSurface);
-  const closeOnAbort = () => exchange.close();
-  ctx.signal.addEventListener('abort', closeOnAbort, { once: true });
-  try {
-    const resource = buildFormSurface({
-      uri: `ui://tovu/media-provider-credential/${exchange.id}` as UIResourceUri, title: `Connect ${provider.label}`,
-      description: reason ?? 'Type the API key directly into this form. The assistant never sees it.',
-      submitLabel: 'Save provider key', toolName: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
-      fields: [{ kind: 'string', name: 'apiKey', label: 'API key', secret: true, required: !configured }],
-      cancel: { label: 'Cancel', toolName: MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true } },
-    });
-    return await askThenReport(exchange, { channel: 'mcp-ui', payload: { resource } }, answer => handleSubmission(answer, { deps, provider: providerId, configured, exchangeId: exchange.id, locale }));
-  } finally {
-    ctx.signal.removeEventListener('abort', closeOnAbort);
-    exchange.close();
-  }
+  const saveFailure = 'Nothing was saved. Check the key and the server credential store, then try again.';
+  // Strict non-secret validation and authorization retain their precedence over channel errors.
+  const card = defineSecretCardTool<{
+    provider: (typeof PROVIDERS)[number]; configured: boolean; reason: string | undefined; locale: string;
+  }, Awaited<ReturnType<typeof saveMediaProviderKey>>, ProposalResult>({
+    toolId: CREDENTIAL_SAVE_TOOL_ID,
+    prepare: async () => ({ provider, configured, reason, locale }),
+    form: ({ prep }) => ({
+      title: `Connect ${prep.provider.label}`,
+      description: prep.reason ?? 'Type the API key directly into this form. The assistant never sees it.',
+      submitLabel: 'Save provider key',
+      fields: [{ kind: 'string', name: 'apiKey', label: 'API key', secret: true, required: !prep.configured, allowBlank: prep.configured }],
+    }),
+    save: ({ values, prep, signal }) => {
+      const store = deps.mediaProviderCredentialRepo;
+      const repo: MediaProviderCredentialRepoPort = {
+        listByWorkspaceId: workspaceId => store.listByWorkspaceId(workspaceId),
+        upsert: record => store.upsert(record),
+        deleteByProviderIds: input => store.deleteByProviderIds(input),
+        // The planner runs inside the transaction, after sealing and any lock wait. Abort rolls it back.
+        replaceWorkspace: input => store.replaceWorkspace({ ...input, plan: current => {
+          signal.throwIfAborted();
+          return input.plan(current);
+        } }),
+      };
+      return saveMediaProviderKey({
+        deps: { repo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+        workspaceId: deps.workspaceId, provider: prep.provider.id, apiKey: values.apiKey as string,
+      });
+    },
+    result: ({ prep, run }): ProposalResult => {
+      const declined: ProposalResult = { saved: false, provider: prep.provider.id, configured: prep.configured };
+      if (run.status === 'blank') return { ...declined, message: credentialText({ id: 'blank', locale: prep.locale }) };
+      if (run.status === 'failed') return { ...declined, ...(run.safeMessage !== saveFailure ? { message: run.safeMessage } : {}) };
+      if (run.status !== 'saved') return declined;
+      const hint = formatCredentialHint({ hint: run.saved.tokenHint, locale: prep.locale });
+      const unavailable = prep.provider.integrated === false ? ` ${credentialText({ id: 'generationUnavailable', locale: prep.locale })}` : '';
+      const message = `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale: prep.locale })}${unavailable}`;
+      return { saved: true, provider: prep.provider.id, configured: run.saved.configured, tokenHint: run.saved.tokenHint, connection: 'not_tested', message };
+    },
+    // Fixed outcome text cannot echo a submitted key or a raw persistence error.
+    outcome: ({ prep, run }) => {
+      if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
+      const saved = run.status === 'saved';
+      const hint = saved ? formatCredentialHint({ hint: run.saved.tokenHint, locale: prep.locale }) : '';
+      const unavailable = prep.provider.integrated === false ? ` ${credentialText({ id: 'generationUnavailable', locale: prep.locale })}` : '';
+      const message = saved ? `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale: prep.locale })}${unavailable}`
+        : run.status === 'blank' ? credentialText({ id: 'blank', locale: prep.locale }) : run.status === 'failed' ? run.safeMessage : saveFailure;
+      return { title: saved ? 'Provider key saved' : 'Provider key not saved', state: saved ? 'success' : 'failure', message };
+    },
+  }, {
+    uriHost: 'tovu',
+    text: { noEmitter: 'media_propose_provider_credential requires an interactive form channel. Nothing was saved.', saveFailure },
+    safeError: err => {
+      const id = Object.entries(CREDENTIAL_MESSAGES).find(([, text]) => err instanceof Error && text === err.message)?.[0];
+      return id ? credentialText({ id: id as keyof typeof CREDENTIAL_MESSAGES, locale }) : undefined;
+    },
+    logFailure: metadata => console.warn(JSON.stringify(metadata)),
+  });
+  return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
 }
 
 /** Wires read-only listing and human credential saves under a distinct contributor domain.
@@ -150,14 +149,13 @@ async function proposeCredential(ctx: ToolExecutionContext, deps: MediaProviderT
  * @complexity Registration time/space O(1); handlers document their own I/O costs.
  */
 export function buildMediaProviderRegistrations(deps: MediaProviderToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: 'media-providers', catalogModule: 'features/media-generation/providers-tools.ts', catalog: CATALOG,
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: 'media-providers', catalogModule: 'features/media-generation/providers-tools.ts', catalog: CATALOG,
     derivedRisk: mediaProvidersDerivedRisk, handlers: {
       media_list_providers: async ctx => {
         requireNoInput({ input: ctx.input });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'media.read' }, { entityType: 'media' });
         return listProviders(deps);
       },
-      [MEDIA_PROPOSE_PROVIDER_CREDENTIAL_TOOL_ID]: (ctx, optional = {}) => proposeCredential(ctx, deps, surfaces, optional),
     } });
 }
 

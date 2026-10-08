@@ -5,8 +5,7 @@ import {
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
-} from "#src/features/seo/index";
-import { invalidateSitemapCache } from "#src/features/seo/index";
+} from "@jini-ai/cms/seo";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
@@ -63,11 +62,11 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
 
       await setEntrySeoOverrides({
         deps: {
-          postRepo: deps.postRepo,
+          postRepo: deps.seoDeps.postRepo,
           authorize: deps.authorize,
-          invalidateSitemapCache,
+          invalidateSitemapCache: deps.sitemapService.invalidateSitemapCache,
           clock: deps.clock,
-          media: deps,
+          media: deps.seoDeps.media,
         },
         input: {
           workspaceId: deps.workspaceId,
@@ -75,12 +74,12 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
           patch: req.body ?? {},
           callerPrincipalId: principal.id,
         },
-      });
+      }, {});
 
-      const meta = await getEntryMeta(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
-        { workspaceId: deps.workspaceId, entryId }
-      );
+      const meta = await getEntryMeta({
+        deps: deps.seoDeps,
+        input: { workspaceId: deps.workspaceId, entryId },
+      }, {});
       res.json({ data: meta });
     } catch (err) {
       const { status, body } = seoPutEntryErrorResponse(err);

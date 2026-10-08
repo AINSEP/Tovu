@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { buildBootModules } from "../bootstrap.js";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
-import type { PluginActivationRecord } from "#src/features/plugin-runtime/activation";
+import type { PluginActivationRecord } from "@jini-ai/plugins/host";
 
 /**
  * @file The serving (API) process must reconcile its hook registry against the durable activation

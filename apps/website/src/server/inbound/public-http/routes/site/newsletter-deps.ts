@@ -13,7 +13,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
 import type { MailerPort } from "#src/platform/mail/index";
-import type { OriginRegistryPort } from "#src/features/origin/index";
+import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
 import type {
   MembersConsentCapability,

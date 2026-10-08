@@ -1,5 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
-import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
+import { defineExecutablePluginContribution, loadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDeployOps } from "./types.js";
 
 /** Installed modules use the same activation, bundled digest and disk containment gates as deploy targets. */
@@ -41,6 +41,23 @@ function secretsShapeError(candidate: Record<string, unknown>): string | undefin
   return undefined;
 }
 
+/** Export shape and secrets capabilities remain this domain's contract. @complexity O(1). */
+function asOpsModule(candidate: unknown): DeployOpsModule | string {
+  if (!object(candidate) || typeof candidate.status !== "function" || typeof candidate.logs !== "function" || OPTIONAL_VERBS.some(verb => candidate[verb] !== undefined && typeof candidate[verb] !== "function")) return "module must export status() and logs()";
+  const reason = secretsShapeError(candidate);
+  return reason ?? (candidate as unknown as DeployOpsModule);
+}
+
+const opsContribution = defineExecutablePluginContribution<DeployOpsDescriptor, DeployOpsModule>({
+  filename: DEPLOY_OPS_FILENAME, contribution: "deploy ops",
+  parse: ({ raw }) => parseDeployOpsFile(raw), modulePath: ({ descriptor }) => descriptor.module,
+  validate: ({ exported }) => asOpsModule(exported),
+  refusal: ({ descriptor, reason }) => `deploy ops platform '${descriptor.id}' was not loaded: ${reason}`,
+}, {
+  onReadError: ({ plugin }) => [`deploy ops from '${plugin.pluginId}' were not loaded: ${DEPLOY_OPS_FILENAME} could not be read`],
+  importRefusalReason: "module could not be imported", importErrorReason: "module could not be read or imported",
+});
+
 /**
  * Import contained modules; isolate unreadable manifests, invalid exports and missing modules as refusals.
  * @param plugin - Trusted source directory. The caller owns activation/digest gates; this seam is for tests.
@@ -48,24 +65,9 @@ function secretsShapeError(candidate: Record<string, unknown>): string | undefin
  * @complexity Time and space: O(platforms), bounded to 32 entries.
  * @example await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: bundledRoot });
  */
-export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPackage): Promise<DeployOpsRegistry> {
-  const loaded: LoadedDeployOps[] = []; const refusals: string[] = [];
-  let raw: string;
-  try { raw = await readTrustedPluginFile(plugin, DEPLOY_OPS_FILENAME); }
-  catch { return buildRegistry([], [`deploy ops from '${plugin.pluginId}' were not loaded: ${DEPLOY_OPS_FILENAME} could not be read`]); }
-  const parsed = parseDeployOpsFile(raw);
-  if (!parsed.ok) return buildRegistry([], [`deploy ops from '${plugin.pluginId}' were not loaded: ${DEPLOY_OPS_FILENAME} is invalid: ${parsed.reason}`]);
-  for (const descriptor of parsed.descriptors) {
-    try {
-      const imported = await importContainedModule(plugin, descriptor.module);
-      const candidate = typeof imported === "string" ? undefined : imported.exported;
-      if (typeof imported === "string") refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module could not be imported`);
-      else if (!object(candidate) || typeof candidate.status !== "function" || typeof candidate.logs !== "function" || OPTIONAL_VERBS.some(verb => candidate[verb] !== undefined && typeof candidate[verb] !== "function")) refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module must export status() and logs()`);
-      else if (secretsShapeError(candidate)) refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: ${secretsShapeError(candidate)}`);
-      else loaded.push({ descriptor, pluginId: plugin.pluginId, module: candidate as unknown as DeployOpsModule });
-    } catch { refusals.push(`deploy ops platform '${descriptor.id}' was not loaded: module could not be read or imported`); }
-  }
-  return buildRegistry(loaded, refusals);
+export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPackage, _optional: Record<string, never> = {}): Promise<DeployOpsRegistry> {
+  const load = await loadPluginContributionsFromSource({ plugin, definition: opsContribution });
+  return buildRegistry(load.items, load.refusals);
 }
 
 /**
@@ -75,18 +77,13 @@ export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPacka
  * @complexity Time: O(installed packages + platforms). Space: O(platforms + refusals).
  * @example await loadDeployOpsRegistry({ workspaceId });
  */
-export async function loadDeployOpsRegistry(ctx: { workspaceId: string }): Promise<DeployOpsRegistry> {
-  const loaded: LoadedDeployOps[] = []; const refusals: string[] = [];
+export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, _optional: Record<string, never> = {}): Promise<DeployOpsRegistry> {
   try {
-    const verdicts = await findTrustedPluginPackages({ ...ctx, filename: DEPLOY_OPS_FILENAME, contribution: "deploy ops", requireActive: true });
-    for (const verdict of verdicts) {
-      if ("refusal" in verdict) { refusals.push(verdict.refusal); continue; }
-      if (verdict.trusted.pluginId !== "deploy") { refusals.push(`deploy ops from '${verdict.trusted.pluginId}' were not loaded: only the bundled deploy plugin may contribute`); continue; }
-      const result = await loadDeployOpsRegistryFromSource(verdict.trusted);
-      loaded.push(...result.list()); refusals.push(...result.refusals);
-    }
-  } catch { refusals.push("deploy ops were not loaded: installed plugin packages could not be read"); }
-  return buildRegistry(loaded, refusals);
+    const load = await loadPluginContributions({ ...ctx, definition: opsContribution }, {
+      packageRefusal: ({ plugin }) => plugin.pluginId === "deploy" ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only the bundled deploy plugin may contribute`,
+    });
+    return buildRegistry(load.items, load.refusals);
+  } catch { return buildRegistry([], ["deploy ops were not loaded: installed plugin packages could not be read"]); }
 }
 
 /** Refuse an absent id with the available ids and loader refusals, rather than guessing a platform. */

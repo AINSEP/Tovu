@@ -28,7 +28,7 @@ let dir: string;
 
 /** Open connections to the test database (pool closed = 0). */
 function connections(): number {
-  const result = psql("postgres", `SELECT count(*) FROM pg_stat_activity WHERE datname = '${DATABASE}';`);
+  const result = psql({ database: "postgres", sql: `SELECT count(*) FROM pg_stat_activity WHERE datname = '${DATABASE}';` });
   assert.ok(result.ok, result.stderr);
   return Number(result.stdout.trim());
 }
@@ -45,15 +45,15 @@ before(async () => {
   for (const name of ["content.db", "content.db-wal", "content.db-shm", "chat.db"]) fs.rmSync(path.join(dir, name), { force: true });
   const boot = await bootSiteDir({ dir });
   await closeSiteDirBoot(boot);
-  const seeded = psql(DATABASE, `INSERT INTO workspaces (id, name, slug, created_at) VALUES
+  const seeded = psql({ database: DATABASE, sql: `INSERT INTO workspaces (id, name, slug, created_at) VALUES
     ('ws-boot-oldest', 'Oldest', 'boot-oldest', '1900-01-01T00:00:00.000Z'),
-    ('ws-boot-selected', 'Selected', 'boot-selected', '2000-01-01T00:00:00.000Z');`);
+    ('ws-boot-selected', 'Selected', 'boot-selected', '2000-01-01T00:00:00.000Z');` });
   assert.ok(seeded.ok, seeded.stderr);
 });
 
 after(() => {
   delete process.env[URL_ENV];
-  psql("postgres", `DROP DATABASE IF EXISTS ${DATABASE} WITH (FORCE);`);
+  psql({ database: "postgres", sql: `DROP DATABASE IF EXISTS ${DATABASE} WITH (FORCE);` });
   fs.rmSync(parent, { recursive: true, force: true });
 });
 
@@ -66,9 +66,9 @@ test("bootSiteDir on a postgres site opens the store (migrated, workspace resolv
     assert.ok(boot.workspaceId.length > 0, "the workspace resolved on the postgres store");
     assert.equal(boot.workspaceId, "ws-boot-oldest");
     assert.equal(fs.existsSync(path.join(dir, "content.db")), false, "no content.db was created");
-    const ledger = psql(DATABASE, "SELECT count(*) FROM public.tovu_migrations;");
+    const ledger = psql({ database: DATABASE, sql: "SELECT count(*) FROM public.tovu_migrations;" });
     assert.ok(ledger.ok && Number(ledger.stdout.trim()) >= 2, "the content history ran to head");
-    const ids = psql(DATABASE, "SELECT id FROM public.tovu_migrations ORDER BY id;");
+    const ids = psql({ database: DATABASE, sql: "SELECT id FROM public.tovu_migrations ORDER BY id;" });
     assert.ok(ids.ok, ids.stderr);
     assert.deepEqual(ids.stdout.trim().split("\n"), CONTENT_MIGRATIONS.map((step) => step.id));
   } finally {

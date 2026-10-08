@@ -19,7 +19,7 @@ import { ADMIN_SCREEN_LINK_TOOL_ID, buildAdminScreenLinkRegistrations, buildAdmi
  *    tool has no import path to that module (see the implementation file's own header for why).
  *  - an absolute `url` is included ONLY when `TOVU_PUBLIC_URL` is configured, and is absent
  *    otherwise — this tool must never fabricate a local origin (the same INV-07 rule
- *    `features/seo/sitemap.ts`'s `buildRobots` also follows, though `buildRobots` gets there via a
+ *    `Jini/packages/cms/src/seo/sitemap.ts`'s `buildRobots` also follows, though `buildRobots` gets there via a
  *    verified `OriginRegistryPort` lookup this tool structurally has no access to — see the
  *    implementation file's own header for why).
  *  - malformed input (missing/blank path, a path that reduces to nothing once its leading slashes

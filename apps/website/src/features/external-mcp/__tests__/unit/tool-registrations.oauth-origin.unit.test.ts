@@ -11,13 +11,16 @@ import {
   InMemoryExternalMcpServerRepo,
   saveExternalMcpServer,
 } from "#src/assistant/index";
-import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "#src/platform/oauth/index";
+import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { buildExternalMcpRegistrations } from "../../tool-registrations.js";
 import type { ExternalMcpToolDeps } from "../../deps.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `external_mcp_oauth_connect`'s redirect-URI origin precedence — the 2026-09-10 fix for a
@@ -55,9 +58,9 @@ const PROVIDER: OAuthProviderDescriptor = {
   clientAuth: "none",
 };
 
-const NETWORK_TRIPWIRE: OAuthFetch = (async () => {
+const NETWORK_TRIPWIRE: typeof fetch = (async () => {
   throw new Error("network should not be reached by an authorization_code beginConnect");
-}) as OAuthFetch;
+}) as typeof fetch;
 
 function call(handler: ToolRegistration["handler"], input: unknown) {
   return handler({
@@ -125,7 +128,7 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
     ...(derivedPublicOrigin === undefined ? {} : { derivedPublicOrigin }),
   };
 
-  const registrations = buildExternalMcpRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore() });
+  const registrations = buildExternalMcpRegistrations(routeDeps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
   const registration = registrations.find((r) => r.descriptor.id === "external_mcp_oauth_connect");
   assert.ok(registration, "external_mcp_oauth_connect must be wired");
   return registration.handler;

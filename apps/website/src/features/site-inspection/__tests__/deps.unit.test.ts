@@ -76,3 +76,10 @@ test("capabilities keep an unwired tool reader absent and pass a wired live read
   assert.deepEqual(await p.listContentTypes(), [{ key: "recipe" }]);
   assert.deepEqual(h.calls, ["types"]);
 });
+
+test("composition boot does not recreate the obsolete active-theme ledger copy", async () => {
+  const { createRouteDeps } = await import("#src/server/runtime/composition/app");
+  const deps = createRouteDeps();
+  await deps.settingsReady;
+  assert.equal(await deps.settingsRepo.findActiveDefinition({ namespace: "core.presentation", key: "activeThemeId", workspaceId: null }), null);
+});

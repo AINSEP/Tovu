@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import Ajv from "ajv";
-import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig } from "#src/contracts/core/embeds/marker";
+import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig } from "@jini-ai/cms/widgets/markers";
 
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
@@ -89,7 +89,7 @@ test("pages_write_html and pages_write_region tell the model to write the JSON e
     assert.ok(escape, `${name} must supply an escape`);
     const example = description.match(/`(\{"type":"collection","id":"<content-type-key>"\})`/)?.[1];
     assert.ok(example, `${name} must supply the collection example`);
-    assert.deepEqual(parseEmbedMarkerConfig(example.replace("<content-type-key>", `reader${escape}s`)), { config: { type: "collection", id: "reader\'s" } });
+    assert.deepEqual(parseEmbedMarkerConfig({ raw: example.replace("<content-type-key>", `reader${escape}s`) }), { config: { type: "collection", id: "reader\'s" } });
     assert.match(description, /must be written as the JSON escape `\\u0027`/, `${name} must document the \\u0027 JSON escape`);
   }
 });

@@ -4,8 +4,11 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { deriveTrashItemRegistrations, type TrashItemToolDeps, type TrashUserPort } from "#src/features/trash/trash-item-tool";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `trash_item`'s `user` kind (2026-10-05, capability gap U-06): `identity_user_delete` needs the
@@ -28,7 +31,7 @@ function routeDeps(trashable: (entityType: TrashEntityType) => boolean = () => t
 
 function derive(deps: TrashItemToolDeps, trashUser?: TrashUserPort): ToolRegistration[] {
   return deriveTrashItemRegistrations(
-    { registrations: [], routeDeps: deps, surfaces: { surfaceExchanges: createSurfaceExchangeStore() } },
+    { registrations: [], routeDeps: deps, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } },
     trashUser ? { trashUser } : {}
   );
 }

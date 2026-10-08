@@ -7,7 +7,7 @@ import test from "node:test";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { createAssistantByokModule } from "../../runtime/composition/modules/assistant-byok.js";
-import { DESCRIBE_TOOL_TOOL_ID, SEARCH_TOOLS_TOOL_ID } from "#src/assistant/tool-catalog-audit";
+import { DESCRIBE_TOOL_TOOL_ID, SEARCH_TOOLS_TOOL_ID } from "#src/assistant/tool-audit-preset";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import type { ToolAttemptAuditSink, ToolAttemptEvent } from "#src/features/tool-audit/types";
 import { agentToolAttempts } from "#src/platform/db/schema.sqlite";

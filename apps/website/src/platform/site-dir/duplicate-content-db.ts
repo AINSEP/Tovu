@@ -43,7 +43,7 @@ import { InternalError } from "./errors.js";
  * - **The premise.** Measured read-only against `sites/tovu-com/content.db` on 2026-09-06: 104
  *   physical tables, 81 declared by `schema.sqlite.ts`, and the keep-list emptied FIFTEEN — the three chat
  *   tables and TWELVE plugin tables. `_plugin_identity` (3 rows), `_plugin_migration_journal` (3),
- *   `_plugin_migrations` (12), `p_comments__comments`, `p_comments__moderation_log`, five
+ *   `_plugin_migrations` (12), the comments plugin's comment and moderation-log tables, five
  *   `p_newsletter__*` (one holding a real list), `p_store__orders` and `p_store__products` (3 real
  *   products). None is declared in `schema.sqlite.ts` because none is created by a MIGRATION: they are
  *   raw SQL written at plugin-install time by `features/plugins/data-module.ts` (`p_{pluginId}__`

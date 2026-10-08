@@ -2,17 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
 import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const description = { host: "fixture", port: "5432", database: "fixture", user: "owner" };
 function harness(options: { allow?: boolean; ttl?: number; version?: string; canCreate?: string } = {}) {
   const destinations = new InMemoryDatabaseDestinationStore();
   let now = 0;
   const plans = new DatabaseTransferPlanStore({ now: () => now });
-  const surfaces = createSurfaceExchangeStore({ idleTtlMs: options.ttl ?? 100 });
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: options.ttl ?? 100 });
   let captures = 0;
   let targetCalls = 0;
   const deps: DatabaseTransferToolDeps = {

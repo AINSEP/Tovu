@@ -1,9 +1,8 @@
 /**
  * @file The per-section authorize-then-collect step both Site Inspection aggregators share:
  * `buildSiteProfile` (`site-profile.ts`) and `buildSiteCapabilities` (`site-capabilities.ts`).
- * Extracted from `site-profile.ts` when the second aggregator arrived, so "authorize each section on
- * its own permission, never let one section fail the call, never put an error message in the
- * response" has one implementation rather than two that can drift apart.
+ * Each section uses its own permission, isolates failures and excludes error messages from the
+ * response. One implementation prevents the two aggregators' security guarantees from drifting.
  *
  * `site-profile.ts`'s header explains why that shape is structural rather than a convention: an
  * aggregator gated on one permission would be a privilege-escalation shortcut around every domain

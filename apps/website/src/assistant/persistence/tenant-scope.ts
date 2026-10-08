@@ -1,8 +1,9 @@
+import { isDaemonRunId } from "#src/contracts/core/assistant-run-events";
 import { createHash } from "node:crypto";
 
 import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
-import { isDaemonRunId } from "#src/contracts/core/assistant-run-events";
+import { createRunGuardedChatStore } from "@jini-ai/chat/store/runtime";
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
 import { createChatHistoryStore } from "./chat-history-store.js";
@@ -74,8 +75,7 @@ export type ChatPrincipal = AdminChatPrincipal | GuestChatPrincipal;
  */
 export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
 
-/* Transport failure used to be detected by matching an exact saved restart notice. Server
- * acceptance now owns daemon rows, so presentation text cannot decide cancellation or recovery.
+/* Server acceptance owns daemon rows, so presentation text cannot decide cancellation or recovery.
  * A lost browser stream still must not release a live execution's conversation slot. */
 
 /**
@@ -96,48 +96,14 @@ export function createTenantScopedChatStore(
   principal: ChatPrincipal,
   ledger: ChatRunLedger = createChatRunLedger(db),
 ): ChatHistoryStore {
-  const store = createChatHistoryStore(chatKernel(db), {
-    scopeId: principal.workspaceId,
-    ownerKind: principal.kind,
-    ownerId:
-      principal.kind === "user" ? principal.userId : hashSessionKey(principal.sessionKey),
-  });
-  return {
-    ...store,
-    /*
-     * First terminal write wins, per run (`run-ledger.ts`'s file doc). The browser and the server
-     * finalizer can both save the same finished turn; whichever lands second must not replace the
-     * first — in particular, a browser that comes back after a restart and saves "run forgotten"
-     * with no events must not erase the answer the finalizer already saved. The stored row is
-     * returned instead, read through the scoped store, so a caller that does not own the
-     * conversation still gets `null` exactly as before.
-     *
-     * The check and `store.appendMessage`'s write run in one ledger transaction under the run's
-     * lock, so nothing can settle the row in between. The store and the ledger share the chat
-     * kernel, so the store's own transaction joins the ledger's on every dialect.
-     */
-    async appendMessage({ conversationId, message }) {
-      if (message.role !== "assistant" || !message.runId) return store.appendMessage({ conversationId, message });
-      const runId = message.runId;
-      const outcome = await ledger.unlessSettled(
-        { conversationId, messageId: message.id, runId },
-        async () => {
-          // Server acceptance and recovery own daemon rows. Browser snapshots can carry an old
-          // attempt id or a transport-only failure; returning the stored row fences both without
-          // matching presentation text. BYOK/AG-UI remain request-bound.
-          if (isDaemonRunId(runId)) {
-            const saved = (await store.messages({ conversationId })).find((m) => m.id === message.id);
-            if (saved) return saved;
-            if (message.runStatus !== "queued" && message.runStatus !== "running") return null;
-          }
-          return store.appendMessage({ conversationId, message });
-        }
-      );
-      if (outcome.written) return outcome.value;
-      const saved = await store.messages({ conversationId });
-      return saved.find((m) => m.id === message.id) ?? null;
-    },
-  };
+  return createRunGuardedChatStore({
+    isDaemonRunId: ({ runId }) => isDaemonRunId(runId),
+    store: createChatHistoryStore(chatKernel(db), {
+      scopeId: principal.workspaceId, ownerKind: principal.kind,
+      ownerId: principal.kind === "user" ? principal.userId : hashSessionKey(principal.sessionKey),
+    }),
+    ledger: { ...ledger, unlessSettled: ({ run, write }) => ledger.unlessSettled(run, write) },
+  }, {});
 }
 
 /**

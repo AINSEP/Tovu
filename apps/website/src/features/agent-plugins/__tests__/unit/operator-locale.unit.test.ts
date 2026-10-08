@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SettingsRepoPort } from "@jini-ai/cms/settings";
+import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
 import { resolveOperatorLocale, type GetEffectiveSetting } from "../../operator-locale.js";
 

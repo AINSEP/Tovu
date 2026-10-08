@@ -10,32 +10,18 @@ import type { TrashRegistry } from "./registry.js";
  * @file The Trash domain's agent-tool catalog (SPEC-016 REQ-22's naming/callability convention).
  * Design of record: `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`, step 5.
  *
- * Owner Q1 (2026-10-01) supersedes the original purge ban: permanent removal is exposed by the
- * separate `permanent-delete` contributor, through a human confirmation card. This catalog retains
- * listing/restoration. `tool-registrations.purge-ban.test.ts` now proves that purge calls cannot
- * reach the service without a Confirm click, and rejects model-supplied confirmation fields.
+ * Permanent removal belongs to the permanent-delete contributor and requires a human card.
+ * The purge-ban contract test ensures model-supplied confirmation cannot authorize that service.
  *
- * **`trash_item` is not in this catalog, on purpose.** Moving something to the Trash is agent-callable
- * once per domain, through the tool that domain owns: `content_post_delete`, `comments_trash_comment`,
- * `media_trash_asset`, `redirects_tombstone`. Each carries its own permission and its own human
- * confirmation dialog, and each writes the Trash index in the same transaction as its marker. This
- * catalog first declined a generic `trash_item(entityType, entityId)` because, built here, it would
- * have been a fifth path to those writes that skipped all four gates. The owner asked for it anyway
- * (2026-09-20), so it lives in `trash-item-tool.ts` as a post-processing pass that routes INTO those
- * four tools' own built handlers, and never writes anything itself. Read that file's header.
+ * trash_item lives at its own post-processing seam and delegates to each domain's built handler.
+ * A generic writer here would skip those domains' permission, confirmation and transactional index
+ * gates. Delegation preserves those owners; this catalog itself lists and restores.
  *
  * What this catalog owns is the half no domain owns: reading the Trash, and undoing a delete from it.
  *
- * **The catalog is built per call, from the kinds actually reachable, not a fixed enum (2026-09-24,
- * F6).** `TRASHABLE` (`registry.ts`) grew phase-2 kinds — `form`, `widget`, `menu`, `term`,
- * `taxonomy` — that `trash_list_items`/`trash_restore_item` could already resolve permissions and
- * restore outcomes for (`tool-registrations.ts`'s handlers read the kind off the input, not off a
- * hardcoded list), but whose published `entityType`/`entityTypes` schema still enumerated only the
- * four phase-1 kinds. A model reading the schema had no way to learn `entityType: "widget"` was
- * valid; it would only find out by trying it and reading a schema-decorated rejection back.
- * {@link buildTrashAgentToolCatalog} takes the reachable kinds as an argument instead of baking them
- * in, so `tool-registrations.ts` can build the catalog from the live registry on every call — the
- * same "resolved at call time" rule `registry.ts`'s own header states for `TRASHABLE` itself.
+ * The catalog is built from reachable kinds per call. A fixed enum would conceal live registry
+ * kinds from the model even when list/restore handlers support them. buildTrashAgentToolCatalog
+ * receives the same live kinds used by handler permission and restoration resolution.
  */
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
@@ -52,7 +38,6 @@ export interface AgentToolDefinition {
  *  a registry. The constant remains available to the existing schema tests. Nothing that can
  *  resolve a real {@link TrashRegistry} should read this constant directly — call
  *  {@link trashToolEntityTypes} instead.
- * getTrashAgentToolCatalog (features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export const TRASH_TOOL_ENTITY_TYPES = [
   POST_ENTITY_TYPE,
@@ -153,13 +138,6 @@ export function buildTrashAgentToolCatalog(kinds: readonly TrashEntityType[]): r
     },
   ];
 }
-
-/** Zero-arg wrapper over {@link TRASH_TOOL_ENTITY_TYPES}, kept so an importer that has no
- *  {@link TrashRegistry} in hand (a completeness/schema test that only cares about tool names, not
- *  the live kind set) keeps compiling. `tool-registrations.ts` does not call this — it calls
- *  {@link buildTrashAgentToolCatalog} with {@link trashToolEntityTypes}'s output instead.
- *  @complexity O(1). */
-// getTrashAgentToolCatalog (apps/website/src/features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /**
  * Every kind the Trash can currently list or restore: the bespoke phase-1 kinds

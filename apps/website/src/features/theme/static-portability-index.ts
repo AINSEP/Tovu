@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "#src/contracts/core/embeds/marker";
+import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { DEFAULT_THEME_SLOTS, loadTheme, type DiscoveredTheme } from "./theme.js";
 import { resolveThemeLayout } from "./theme-layout.js";
 
@@ -93,13 +93,6 @@ function rewriteRootRelativeAssetPaths(html: string, apiVersion: 2 | undefined):
   );
 }
 
-/** Escapes a string for literal use inside a `RegExp` — `resolveThemeLayout`'s two possible
- *  `stylesheetPath` values (`css/theme.css`, `css/styles.css`) both contain a `.`, which is
- *  otherwise a "match any character" wildcard rather than a literal dot. */
-function escapeForRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /** The same `:root`/`:root[data-theme="light"]` CSS custom-property block `static-render.ts`'s own
  * (private) `tokensToRootCss` emits at request time — duplicated rather than imported so this module
  * stays independent of that file's export surface; both are pure, four-line, and derived from the
@@ -133,7 +126,10 @@ function injectDefaultColorMode(html: string, defaultMode: string | undefined): 
  * `stylesheetPath`, the same source of truth the asset-path rewrite just used. */
 function injectTokenStyleBlock(html: string, theme: DiscoveredTheme): string {
   const { stylesheetPath } = resolveThemeLayout(theme.manifest.apiVersion);
-  const linkPattern = new RegExp(`<link rel="stylesheet" href="${escapeForRegExp(stylesheetPath)}" />`);
+  /** Escapes a string for literal use inside a `RegExp` — `resolveThemeLayout`'s two possible
+   *  `stylesheetPath` values (`css/theme.css`, `css/styles.css`) both contain a `.`, which is
+   *  otherwise a "match any character" wildcard rather than a literal dot. */
+  const linkPattern = new RegExp(`<link rel="stylesheet" href="${RegExp.escape(stylesheetPath)}" />`);
   if (!linkPattern.test(html)) return html;
   return html.replace(linkPattern, (match) => `<style>\n${tokensToRootCss(theme)}\n</style>\n${match}`);
 }
@@ -148,12 +144,12 @@ function injectTokenStyleBlock(html: string, theme: DiscoveredTheme): string {
  */
 function spliceRootPartials(html: string, theme: DiscoveredTheme): string {
   const slots = theme.manifest.slots ?? DEFAULT_THEME_SLOTS;
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== PARTIAL_MARKER_TYPE || marker.id === undefined) return undefined;
     const descriptor = slots[marker.id];
     if (descriptor === undefined) return undefined;
     return theme.partials[partialIdFromSource(descriptor.source)];
-  });
+  } });
 }
 
 /**
@@ -178,7 +174,7 @@ function spliceRootPartials(html: string, theme: DiscoveredTheme): string {
  * @complexity O(n) over `html`'s length for the marker scan.
  */
 function placeholderRemainingMarkers(html: string): string {
-  return substituteMarkers(html, (marker: EmbedMarker) => withInnerContentFinal(marker, LIVE_CONTENT_PLACEHOLDER));
+  return substituteMarkers({ html: html, resolve: (marker: EmbedMarker) => withInnerContentFinal({ marker: marker, inner: LIVE_CONTENT_PLACEHOLDER }) });
 }
 
 /**

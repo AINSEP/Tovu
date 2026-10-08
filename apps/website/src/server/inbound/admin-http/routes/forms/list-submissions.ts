@@ -1,4 +1,3 @@
-import { adaptFormSubmissionRepo } from "#src/features/forms/ports";
 import type { Request } from "express";
 
 import { toAdminFormSubmissionListResponse } from "#src/server/inbound/admin-http/http/forms";
@@ -84,7 +83,7 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
         return;
       }
 
-      const page = await adaptFormSubmissionRepo({ repo: deps.formSubmissionRepo }).listByDefinition({
+      const page = await deps.formSubmissionRepo.listByDefinition({
         workspaceId: deps.workspaceId,
         formDefinitionId: definition.id,
         limit: parsedQuery.limit,

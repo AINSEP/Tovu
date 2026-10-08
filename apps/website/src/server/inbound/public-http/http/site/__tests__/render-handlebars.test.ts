@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
-import type { ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
+import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { renderSite } from "../render.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 

@@ -49,7 +49,7 @@ function capText(body: string, maxBytes: number): string {
 
 /** O(body length + matches); counts the full available source, retains at most 20 bounded snippets. */
 function findMatches(body: string, find: string, maxBytes: number): ShapedPageBody {
-  const pattern = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "giu");
+  const pattern = new RegExp(RegExp.escape(find), "giu");
   const matches: Array<{ offset: number; snippet: string }> = [];
   let matchCount = 0;
   let bytesLeft = maxBytes;

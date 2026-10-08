@@ -42,8 +42,9 @@ function toRecord(row: Selectable<OutboxEventsTable>): OutboxRecord {
 /** Statuses `claimPending` may take: never claimed, or claimed under a lease that may have expired. */
 const CLAIMABLE_STATUSES = ["pending", "processing"];
 
-/** The `outbox_events` row for a freshly-produced `event` (snake_case).
- * outboxRowFor (platform/db/sqlite/outbox-repo.sqlite.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+/** The `outbox_events` row for a freshly-produced event (snake_case). Shared by enqueue
+ * and transactional callers so an audit event can be inserted atomically with its domain
+ * writes, using the identical row shape rather than a copy or an independent enqueue.
  */
 export function outboxEventValues(event: DomainEvent) {
   return {

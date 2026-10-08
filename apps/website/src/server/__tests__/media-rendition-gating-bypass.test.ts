@@ -20,7 +20,7 @@ import { InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo } from "../..
  * `media-original-video-route.test.ts` (video route), which between them already pin the gate's
  * behavior for a `bodyFormat: "doc"` post embedding a ref-based TipTap `image` node. This file
  * covers what those two do NOT: an `"html"`-format Page's `body_html` embed markers (the
- * `data-embed-config` vocabulary `core/embeds/marker.ts` owns), `kind: "page"` rows, video assets,
+ * `data-embed-config` vocabulary `Jini/packages/cms/src/widgets/markers/marker.ts` owns), `kind: "page"` rows, video assets,
  * and the status/cache-header interactions the audit found. Same real-`createApp()`, real-HTTP
  * style both siblings use.
  */
@@ -107,7 +107,7 @@ function mediaBody(assetId: string): PostRecord["bodyJson"] {
 }
 
 /** An `"html"`-format Page body embedding `assetId` through the `data-embed-config` marker
- *  vocabulary `core/embeds/marker.ts` parses and `widgets/resolver-service.ts`'s
+ *  vocabulary `Jini/packages/cms/src/widgets/markers/marker.ts` parses and `Jini/packages/cms/src/widgets/resolver-service.ts`'s
  *  `resolveMediaTypeEmbeds` resolves — the ONLY way an `"html"` Page can reference an asset, and
  *  (per `render.ts`'s `renderWidgetMediaImage` -> `renderVideoTag`) the only way ANY entry can
  *  reference a video. Single-quoted attribute so the JSON's own double quotes need no escaping,

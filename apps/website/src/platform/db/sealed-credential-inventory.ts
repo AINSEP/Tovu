@@ -334,7 +334,7 @@ async function takeSnapshot(deps: SealedCredentialInventoryDeps, maxEntries: num
 async function probeSealer(sealer: SealedCredentialInventoryDeps["sealer"], key: SiteKeyHandle): Promise<string | null> {
   try {
     const sealed = await sealer.seal({ plaintext: PROBE_PLAINTEXT, key, aad: PROBE_AAD });
-    const reopened = await sealer.open({ sealed, aad: PROBE_AAD });
+    const reopened = await sealer.open({ sealed }, { aad: PROBE_AAD });
     return reopened === PROBE_PLAINTEXT ? sealed.alg : null;
   } catch {
     return null;
@@ -362,7 +362,7 @@ async function openWithWorkingKey(input: {
 }): Promise<OpenVerdict> {
   if (input.sealed.alg !== input.probeAlg) return unknownVerdict("unsupported-alg");
   try {
-    await input.sealer.open({ sealed: input.sealed, aad: input.aad });
+    await input.sealer.open({ sealed: input.sealed }, { aad: input.aad });
     return { opens: true, reason: null };
   } catch {
     const stillWorks = (await probeSealer(input.sealer, input.key)) !== null;

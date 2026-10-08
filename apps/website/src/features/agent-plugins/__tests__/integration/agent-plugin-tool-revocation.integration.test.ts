@@ -19,11 +19,11 @@ import {
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
   type InstalledAgentPlugin,
-} from "../../install.js";
+} from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { setAgentPluginEnabled } from "../../set-enabled.js";
 import { registerInstalledAgentPluginTools } from "../../tool-registrations.js";
-import { uninstallAgentPlugin } from "../../uninstall.js";
+import { uninstallAgentPlugin } from "../../lifecycle.js";
 
 /**
  * @file REVOCATION: disabling an installed Agent Plugin must make its already-registered

@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/site-evidence.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
@@ -8,7 +9,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "../../features/origin/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "./agent-tools.js";
 import { SITE_EVIDENCE_LIMITS, type SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
 // Browser/privacy rationale: Jini/packages/diagnostics/src/web-evidence/browser-port.ts; serialized DOM rationale: page-structure-script.ts beside it.
@@ -225,7 +226,7 @@ export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps):
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "site-evidence",
     catalogModule: "features/site-evidence/agent-tools.ts",
     catalog: CATALOG_BY_ID,

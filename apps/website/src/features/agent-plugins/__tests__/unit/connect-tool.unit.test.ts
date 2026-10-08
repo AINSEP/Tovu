@@ -4,7 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { forceRemove } from "../fixtures/force-remove.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 
 import type { SurfaceEmission, ToolExecutionContext } from "@jini-ai/core";
@@ -15,13 +15,16 @@ import {
   type ExternalMcpOAuthService,
   type ExternalMcpServerRecord,
 } from "#src/assistant/index";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 import { runAgentPluginConnect as runConnectWithOptions, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `agent_plugin_connect`'s RED coverage for S-G1 (2026-09-27 Supabase-agent-plugin v2 plan,
@@ -101,7 +104,7 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
   const originalOAuth = fakeOAuth(store.repo, "https://mcp.example.com/authorize?state=abc123");
   const beginInputs: unknown[] = [];
   const oauth: ExternalMcpOAuthService = { ...originalOAuth, beginConnect: async input => { beginInputs.push(input); return originalOAuth.beginConnect(input); } };
-  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() };
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const emissions: SurfaceEmission[] = [];
   const ctx = fakeCtx(emissions);
 
@@ -142,7 +145,7 @@ test("agent_plugin_connect: a fake callback flipping the row to connected resolv
     began();
     return result;
   } };
-  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() };
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const emissions: SurfaceEmission[] = [];
   const ctx = fakeCtx(emissions);
 
@@ -172,7 +175,7 @@ test("agent_plugin_connect: a fake callback flipping the row to connected resolv
 
 test("agent_plugin_connect: a plugin with no OAuth server is refused", async () => {
   const store = makeStoreDeps();
-  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() };
+  const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const ctx = fakeCtx([]);
 
   const deps: AgentPluginConnectToolDeps = {
@@ -214,7 +217,7 @@ test("agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is
   });
 
   await assert.rejects(
-    runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore() }, fakeCtx(emissions), "widget-store"),
+    runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, fakeCtx(emissions), "widget-store"),
     /could not be set up/,
   );
   assert.equal(beginCalls, 0, "no sign-in is started for a connection that was never provisioned");
@@ -240,7 +243,7 @@ test("agent_plugin_connect: a device-code grant is refused rather than showing a
   const deps = baseDeps(store, { externalMcpOAuth: deviceOAuth, resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }) });
 
   await assert.rejects(
-    runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore() }, fakeCtx(emissions), "widget-store"),
+    runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, fakeCtx(emissions), "widget-store"),
     /device_code/,
   );
   assert.equal(emissions.length, 0, "no card with an unusable link");
@@ -263,7 +266,7 @@ test("agent_plugin_connect: a failed 'connected' card update never turns a real 
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
   });
 
-  const result = await runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore() }, ctx, "widget-store");
+  const result = await runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, ctx, "widget-store");
   assert.deepEqual(result, { status: "connected" });
 });
 
@@ -289,7 +292,7 @@ for (const guard of ["unknown-plugin", "two-servers", "no-oauth", "no-surface"] 
       "no-oauth": "agent_plugin_connect: no OAuth service is wired for this composition root — nothing can be connected here.",
       "no-surface": "agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.",
     }[guard];
-    await assert.rejects(runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore() }, ctx, "widget-store"), { message: expected });
+    await assert.rejects(runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, ctx, "widget-store"), { message: expected });
     assert.equal(beginCalls, 0);
     assert.deepEqual(emissions, []);
   });
@@ -298,7 +301,7 @@ for (const guard of ["unknown-plugin", "two-servers", "no-oauth", "no-surface"] 
 test("agent_plugin_connect: abort closes the exchange and returns waiting", async () => {
   const store = makeStoreDeps();
   const controller = new AbortController();
-  const exchanges = createSurfaceExchangeStore();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const emissions: SurfaceEmission[] = [];
   const ctx = {
     ...fakeCtx(emissions, controller.signal),
@@ -326,7 +329,7 @@ test("agent_plugin_connect: denied permission provisions no row and emits no car
     externalMcpOAuth: fakeOAuth(store.repo, "https://mcp.example.com/authorize"),
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
   });
-  await assert.rejects(runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore() }, fakeCtx(emissions), "widget-store"), /not authorized.*test denial/);
+  await assert.rejects(runAgentPluginConnect(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, fakeCtx(emissions), "widget-store"), /not authorized.*test denial/);
   assert.deepEqual(await store.repo.listByWorkspaceId(WORKSPACE_ID), []);
   assert.deepEqual(emissions, []);
 });
@@ -353,7 +356,7 @@ for (const credential of ["oauth", "static-token"] as const) {
     const result = await runAgentPluginConnect(baseDeps(store, {
       externalMcpOAuth: { ...oauth, beginConnect: async (input) => { beginCalls += 1; return oauth.beginConnect(input); } },
       resolveInstalledPlugin: async () => ({ servers: { widget: server } }),
-    }), { surfaceExchanges: createSurfaceExchangeStore() }, fakeCtx(emissions), "widget-store");
+    }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, fakeCtx(emissions), "widget-store");
     assert.deepEqual(result, { status: "connected" });
     assert.equal(beginCalls, 0);
     assert.deepEqual(emissions, []);
@@ -372,7 +375,7 @@ test("agent_plugin_connect resolves the installed package without an injected re
     const emissions: SurfaceEmission[] = [];
     const result = await runAgentPluginConnect(baseDeps(store, {
       externalMcpOAuth: fakeOAuth(store.repo, "https://mcp.supabase.com/authorize"),
-    }), { surfaceExchanges: createSurfaceExchangeStore() }, fakeCtx(emissions), "supabase");
+    }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, fakeCtx(emissions), "supabase");
     assert.deepEqual(result, { status: "waiting-for-sign-in" });
     const row = await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "supabase" });
     assert.ok(row);
@@ -389,7 +392,7 @@ test("agent_plugin_connect resolves the installed package without an injected re
 test("agent_plugin_connect aborts during the polling sleep and cleans up promptly", { timeout: 2_000 }, async () => {
   const store = makeStoreDeps();
   const controller = new AbortController();
-  const exchanges = createSurfaceExchangeStore();
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   let polled!: () => void;
   const polling = new Promise<void>(resolve => { polled = resolve; });
   const find = store.repo.findByServerId.bind(store.repo);

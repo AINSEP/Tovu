@@ -5,6 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
+import { createSettingsPrincipalLookup, ensureSettingDefinitions, SCOPE_BIT } from "#src/features/settings/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSettingsClearRoute } from "../../inbound/admin-http/routes/settings/clear.js";
@@ -42,6 +43,27 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAdminSettingsClearRoute(app, deps);
   registerAdminSettingsResetRoute(app, deps);
   return { app, deps };
+}
+
+/** Seed a platform definition through Jini's registrar: presentation owns the active theme,
+ * so permission tests must not depend on the retired presentation-to-ledger boot mirror.
+ * @complexity O(1), one definition registration after the host's boot writes settle.
+ */
+async function registerPlatformPermissionFixture({ deps }: { deps: RouteDeps }): Promise<void> {
+  await deps.siteTitleReady;
+  await ensureSettingDefinitions(
+    {
+      settingsRepo: deps.settingsRepo,
+      clock: deps.clock,
+      ids: deps.idGen,
+      principals: createSettingsPrincipalLookup({ repo: deps.principalRepo }),
+    },
+    {
+      namespace: "core.authprobe",
+      systemPrincipalId: "settings-auth-fixture",
+      definitions: [{ key: "greeting", schema: { type: "string" }, defaultValue: "hello", scopes: SCOPE_BIT.global }],
+    }
+  );
 }
 
 /** A principal with a login but zero role/policy grants — `authorize()` returns `no_grant` for anything. */
@@ -138,12 +160,13 @@ test("SETTINGS_GET_EFFECTIVE: denied 403 FORBIDDEN without settings.read; owner 
 test("SETTINGS_SET: denied 403 FORBIDDEN without the scope-derived write permission; owner succeeds", async (t) => {
   const { app, deps } = buildTestApp();
   await deps.settingsReady;
+  await registerPlatformPermissionFixture({ deps });
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
 
   const body = {
-    namespace: "core.presentation",
-    key: "activeThemeId",
+    namespace: "core.authprobe",
+    key: "greeting",
     scope: "global",
     valueJson: "paper",
   };
@@ -174,10 +197,11 @@ test("SETTINGS_SET: denied 403 FORBIDDEN without the scope-derived write permiss
 test("SETTINGS_CLEAR: denied 403 FORBIDDEN without the scope-derived write permission; owner succeeds", async (t) => {
   const { app, deps } = buildTestApp();
   await deps.settingsReady;
+  await registerPlatformPermissionFixture({ deps });
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
 
-  const body = { namespace: "core.presentation", key: "activeThemeId", scope: "global" };
+  const body = { namespace: "core.authprobe", key: "greeting", scope: "global" };
 
   const seeded = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
     method: "PUT", headers: { "content-type": "application/json", cookie: ownerCookie },
@@ -191,7 +215,9 @@ test("SETTINGS_CLEAR: denied 403 FORBIDDEN without the scope-derived write permi
     body: JSON.stringify(body),
   });
   assert.equal(denied.status, 403);
-  assert.equal(((await denied.json()) as { code: string }).code, "FORBIDDEN");
+  const deniedBody = (await denied.json()) as { code: string; details: { permission: string } };
+  assert.equal(deniedBody.code, "FORBIDDEN");
+  assert.equal(deniedBody.details.permission, "settings.global.write");
 
   assert.equal(await deps.settingsRepo.maxRevisionSeq(), beforeDenied, "denied writes must append no revision");
 
@@ -331,6 +357,7 @@ test("SETTINGS_GET_RAW: 400 VALIDATION_ERROR when namespace/key are missing; 404
 test("SETTINGS_LIST_DEFINITIONS: denied 403 FORBIDDEN without settings.read.definitions; owner sees platform + site definitions", async (t) => {
   const { app, deps } = buildTestApp();
   await deps.settingsReady;
+  await registerPlatformPermissionFixture({ deps });
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
 
@@ -376,10 +403,13 @@ test("SETTINGS_LIST_DEFINITIONS: denied 403 FORBIDDEN without settings.read.defi
   assert.equal(siteDef?.status, "active");
   assert.equal(siteDef?.version, 1);
 
-  // The platform partition merges in too — the pre-existing core.presentation migration definition.
-  const coreDef = allowedBody.data.find((d) => d.namespace === "core.presentation" && d.key === "activeThemeId");
-  assert.ok(coreDef, "the platform core.presentation.activeThemeId definition is listed alongside site defs");
+  // The platform partition merges in too — use the explicit fixture instead of the retired migration mirror.
+  const coreDef = allowedBody.data.find((d) => d.namespace === "core.authprobe" && d.key === "greeting");
+  assert.ok(coreDef, "the platform core.authprobe.greeting definition is listed alongside site defs");
   assert.equal(coreDef?.ownerKind, "core");
+  assert.equal(coreDef?.scopes, SCOPE_BIT.global);
+  assert.equal(coreDef?.status, "active");
+  assert.equal(coreDef?.version, 1);
 });
 
 test("SETTINGS_RESET: clears exactly its namespace overrides, restores defaults, and preserves another namespace", async (t) => {

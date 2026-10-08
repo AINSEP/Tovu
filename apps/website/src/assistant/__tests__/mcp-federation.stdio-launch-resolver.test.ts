@@ -12,8 +12,7 @@ import { tovuStdioLaunchResolverFromEnv as stdioLaunchResolverFromEnv } from "..
 import type { McpStdioLaunchSpec } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "../mcp-federation/presets.js";
 
-// The resolver moved to @jini-ai/mcp/federation/stdio. Tovu's launch copy is injected exactly as the
-// host binds it, so the three §2 messages below still pin what a Tovu desktop user reads.
+// Inject the host launch copy to pin the messages a Tovu desktop user reads.
 function createBundledNodeLaunchResolver({ toolchainDir, npmRoot, isExecutable, ...options }: {
   toolchainDir: string; npmRoot: string; execPath?: string; platform?: NodeJS.Platform;
   parentEnv?: NodeJS.ProcessEnv; isExecutable?: (candidatePath: string) => boolean;

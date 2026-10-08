@@ -1,5 +1,6 @@
-import { getWidgetInstance } from "#src/features/widgets/read-service";
-import { mapWidgetErrorToResponse, toWhereUsedResponse } from "#src/server/inbound/admin-http/http/widgets";
+import { toWhereUsedResponse } from "@jini-ai/cms/widgets";
+import { getWidgetInstance } from "@jini-ai/cms/widgets";
+import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 
@@ -22,7 +23,7 @@ export const registerAdminWidgetGetRoute: RouteRegistrar = (app, deps) => {
         input: { workspaceId: deps.workspaceId, actor: { principalId: principal.id }, widgetInstanceId: String(req.params.id) },
       });
       const refs = await deps.entryRefsRepo.findByTarget({ workspaceId: deps.workspaceId, targetKind: "entry", targetId: instance.id });
-      res.status(200).json({ widget: instance, revisions, whereUsed: toWhereUsedResponse(refs) });
+      res.status(200).json({ widget: instance, revisions, whereUsed: toWhereUsedResponse({ refs }, {}) });
     } catch (err) {
       mapWidgetErrorToResponse(err, res);
     }

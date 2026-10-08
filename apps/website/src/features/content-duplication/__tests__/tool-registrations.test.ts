@@ -5,8 +5,11 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildContentDuplicationRegistrations, contributeContentDuplicationTools } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Certifies `content_duplicate` — the CROSS-RESOURCE half of the tool, independent of any one
@@ -114,7 +117,7 @@ test("the tool contributor resolves resources registered after contribution when
   const posts = fakeResource("post", "content.write");
   registered.push(posts.contributor);
   const { deps, authorizeCalls } = fakeRouteDeps(["content.write"]);
-  const tool = contributor.build(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(registration => registration.descriptor.id === "content_duplicate");
+  const tool = contributor.build(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find(registration => registration.descriptor.id === "content_duplicate");
   assert.ok(tool);
   assert.deepEqual(await call(tool, { resource: "post", id: "late-post", overrides: { title: "Late copy" } }), { copiedResource: "post", copiedFrom: "late-post" });
   assert.deepEqual(posts.calls, [{ principalId: PRINCIPAL_ID, id: "late-post", overrides: { title: "Late copy" } }]);

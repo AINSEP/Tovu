@@ -436,7 +436,7 @@ export async function resolvePeerCredential(
   });
   let apiKey: string;
   try {
-    apiKey = await deps.sealer.open({ sealed: record.sealed, aad });
+    apiKey = await deps.sealer.open({ sealed: record.sealed }, { aad });
   } catch (err) {
     throw new PublishContentPeerSecretStoreUnconfiguredError(
       `peer '${record.label}' credential could not be opened: ${err instanceof Error ? err.message : String(err)}`

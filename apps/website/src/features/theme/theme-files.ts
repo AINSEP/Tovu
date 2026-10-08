@@ -424,9 +424,9 @@ export function listThemeFiles(
  * occur at runtime.
  * @complexity O(1) time and space, with one filesystem stat.
  */
-function statOrThemePathError(target: string, relativePath: string): Stats | undefined {
+function statOrThemePathError(target: string, relativePath: string, stat: typeof statSync = statSync): Stats | undefined {
   try {
-    return statSync(target, { throwIfNoEntry: false });
+    return stat(target, { throwIfNoEntry: false });
   } catch (err) {
     if ((err as NodeJS.ErrnoException | null)?.code !== "ELOOP") throw err;
     throw new ThemePathError(`path '${relativePath}' could not be read: ${err instanceof Error ? err.message : String(err)}`);
@@ -588,7 +588,7 @@ export function themeFileDiffersFromOriginal(
  * so a failed write leaves no artifact behind in the theme folder.
  * @complexity O(s) in the size of what `fillTemp` writes.
  */
-function writeFileAtomically(target: string, relativePathForError: string, fillTemp: (tempPath: string) => void): void {
+function writeFileAtomically(target: string, relativePathForError: string, fillTemp: (tempPath: string) => void, stat: typeof statSync = statSync): void {
   // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape the other
   // post-resolve stat calls in this file were fixed for (see that wrapper's own doc). In practice
   // both callers (`writeThemeFile`, `resetThemeFileToOriginal`) already run an identical stat on the
@@ -597,7 +597,7 @@ function writeFileAtomically(target: string, relativePathForError: string, fillT
   // process replacing `target` with a symlink cycle between the two calls) and any future caller
   // that skips that earlier check. Still follows a symlink pointing at a real file inside the theme,
   // matching `renameSync` below, which replaces that symlink's own directory entry.
-  const existing = statOrThemePathError(target, relativePathForError);
+  const existing = statOrThemePathError(target, relativePathForError, stat);
   if (existing) {
     accessSync(target, fsConstants.W_OK);
   }
@@ -640,6 +640,7 @@ function assertOverwritableTarget(existing: Stats | undefined, relativePath: str
  *
  * @param optional.overwriteOversized - Must be `true` to replace an existing file past the
  * {@link MAX_THEME_FILE_BYTES} read limit. The admin editor never sets it.
+ * @param optional.stat - Filesystem stat dependency, shared by the pre-check and atomic write.
  * @returns The absolute path written.
  * @throws {ThemePathError} On any containment failure, an oversized body, a
  * target that exists and is not a regular file, or an existing target past the
@@ -649,7 +650,7 @@ function assertOverwritableTarget(existing: Stats | undefined, relativePath: str
  */
 export function writeThemeFile(
   required: { themeDir: string; themesRoot: string; relativePath: string; content: string },
-  optional: { overwriteOversized?: boolean } = {}
+  optional: { overwriteOversized?: boolean; stat?: typeof statSync } = {}
 ): string {
   const target = resolveThemeFilePath(required);
   if (Buffer.byteLength(required.content, "utf8") > MAX_THEME_FILE_BYTES) {
@@ -661,10 +662,10 @@ export function writeThemeFile(
   // observe the cycle. Following the link (rather than `lstat`ing it) is deliberate here too: a
   // symlink pointing to a real file inside the theme is meant to be overwritten through, exactly like
   // any other existing target.
-  const existing = statOrThemePathError(target, required.relativePath);
+  const existing = statOrThemePathError(target, required.relativePath, optional.stat);
   assertOverwritableTarget(existing, required.relativePath, optional.overwriteOversized === true);
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"));
+  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat);
   return target;
 }
 

@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "#src/assistant/daemon-auth";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "#src/assistant/daemon-access";
 import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 import { FEDERATION_ADMISSIONS_PATH, registerFederationAdmissionsRoute } from "../federation-admissions-route.js";
 
@@ -36,7 +36,7 @@ function buildApp(
   const app = express();
   // Same ordering as `agent-daemon-server.ts`: the gate mounts first, before any route — including
   // this one, which is deliberately never added to `exemptPaths`.
-  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
+  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }, {}));
   // `reports` is now a live getter (federation hot-reload, 2026-09-11) — wrapped here so this test's
   // own fixture keeps passing a plain array, matching every call site's ergonomics unchanged.
   // `configFailures` stays undefined for every pre-existing test below, on purpose — it proves the
@@ -120,7 +120,7 @@ test("re-reads reports and config failures after a reload replaces both arrays",
   let reports = [{ connectionId: "before", report: SAMPLE_REPORT, isPreset: false }];
   let configFailures = [{ connectionId: "broken", reason: "credentials unavailable" }];
   const app = express();
-  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
+  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }, {}));
   registerFederationAdmissionsRoute(app, { reports: () => reports, configFailures: () => configFailures });
   const baseUrl = await startTestServer(app, t);
   const first = await getAdmissions(baseUrl, { authorization: `Bearer ${TOKEN}` });

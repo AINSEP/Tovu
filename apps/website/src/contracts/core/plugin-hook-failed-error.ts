@@ -1,6 +1,5 @@
 /**
- * @file `PluginHookFailedError` and its model-facing refusal (moved here from
- * `features/plugin-runtime/hook-registry.ts`, 2026-10-05).
+ * @file Shared plugin hook error identity and Tovu's model-facing refusal.
  *
  * Why it lives in `contracts/core`: `features/post` must recognize a plugin save-hook refusal to
  * tell the model about it, but it cannot import `features/plugin-runtime` — plugin-runtime already
@@ -9,22 +8,9 @@
  */
 import { ToolInputError, type ToolHandler } from "@jini-ai/core";
 
-/** Thrown (and caught by the caller, mapped to 500 `PLUGIN_HOOK_FAILED`) when a filter throws,
- * triggers `CapabilityDeniedError`, or returns an invalid `ext` write (BR-07/EC-10). */
-export class PluginHookFailedError extends Error {
-  readonly pluginId: string;
-  /** The item a multi-item apply was writing when the hook refused (e.g. `post:<id>`), set only by
-   * an apply that is NOT all-or-nothing (`publish-content/apply-loop.ts`), so items applied before
-   * it stay saved. `null` for a single save, where the refusal means nothing was saved. */
-  readonly refusedItemRef: string | null;
-
-  constructor(pluginId: string, message: string, options?: { cause?: unknown; refusedItemRef?: string }) {
-    super(message, options);
-    this.name = "PluginHookFailedError";
-    this.pluginId = pluginId;
-    this.refusedItemRef = options?.refusedItemRef ?? null;
-  }
-}
+// One class identity across Jini runtime, post and product refusal adapters.
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
+export { PluginHookFailedError };
 
 /**
  * The public text for a save-hook refusal — what an agent tool and every HTTP route return instead

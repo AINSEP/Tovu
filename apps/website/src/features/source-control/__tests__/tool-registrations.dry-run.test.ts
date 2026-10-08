@@ -7,12 +7,15 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ExportReport } from "#src/features/site-export/index";
 
 import type { ExportSiteBoundFn, SourceControlCommitAdapter } from "../commit-site.js";
 import { createSourceControlCredential } from "../store.js";
 import { buildSourceControlRegistrations, type SourceControlToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file S8 (`dryRun` preview for `source_control_execute_commit`) proof. A fake `exportSiteBound`
@@ -75,7 +78,7 @@ async function seedGithubCredential(deps: SourceControlToolDeps, token = "ghp_fa
 }
 
 function buildExecuteCommitTool(deps: SourceControlToolDeps): ToolRegistration {
-  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registrations = buildSourceControlRegistrations(deps, { surfaceExchanges });
   const found = registrations.find((r) => r.descriptor.id === "source_control_execute_commit");
   assert.ok(found, "source_control_execute_commit must be wired");

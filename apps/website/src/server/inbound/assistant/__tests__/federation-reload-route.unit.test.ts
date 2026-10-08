@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "#src/assistant/daemon-auth";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "#src/assistant/daemon-access";
 import { FEDERATION_RELOAD_PATH, registerFederationReloadRoute } from "../federation-reload-route.js";
 
 /**
@@ -21,7 +21,7 @@ const TOKEN = "test-daemon-token";
 
 function buildApp(reload: () => Promise<{ newlyAdmittedConnectionIds: readonly string[] }>): express.Express {
   const app = express();
-  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }));
+  app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }, {}));
   registerFederationReloadRoute(app, { reload });
   return app;
 }

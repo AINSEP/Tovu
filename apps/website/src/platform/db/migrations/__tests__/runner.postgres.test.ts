@@ -4,12 +4,19 @@ import { after, before, test } from "node:test";
 import { sql } from "kysely";
 
 import { freshPostgresDatabase } from "../../__tests__/postgres-database.js";
-import { dropDatabase } from "../../migration/pg-fixture.js";
+import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";
+
 import { openPostgresKernel } from "../../kernel/drivers/postgres.js";
 import type { StorageKernel } from "../../kernel/port.js";
 import { migrateChatDatabase, migrateContentDatabase } from "../index.js";
 import { runMigrations } from "../runner.js";
 import type { MigrationStep } from "../step.js";
+
+const { dropDatabase } = createPgFixture({
+  host: process.env.PGHOST ?? "/tmp",
+  user: process.env.PGUSER ?? "la",
+  port: process.env.PGPORT,
+});
 
 /**
  * @file The runner on REAL Postgres (two independent connections), which PGlite's single
@@ -33,8 +40,8 @@ after(async () => {
   await first?.close();
   await second?.close();
   await baseline?.close();
-  dropDatabase("tovu_migrations_pg_fixture");
-  dropDatabase("tovu_migrations_pg_baseline");
+  dropDatabase({ database: "tovu_migrations_pg_fixture" });
+  dropDatabase({ database: "tovu_migrations_pg_baseline" });
 });
 
 test("two connections migrating at once apply a step exactly once", async () => {
@@ -54,13 +61,17 @@ test("two connections migrating at once apply a step exactly once", async () => 
   assert.deepEqual([...a.alreadyApplied, ...b.alreadyApplied], ["0001_slow"]);
 });
 
-test("the content history (frozen baseline + 0001_post_search + 0002 + 0003 + 0004) applies on real Postgres", async () => {
+test("the content history (frozen baseline + 0001 through 0008) applies on real Postgres", async () => {
   const report = await migrateContentDatabase(baseline);
-  assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
+  assert.deepEqual(report.applied, [
+    "0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables",
+    "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables", "0005_media_createdby",
+    "0006_submission_ip_retention", "0007_publish_backstop", "0008_posts_publish_at_featured_media",
+  ]);
   const [{ n }] = await baseline.query<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'`
   );
-  assert.equal(n, 89, "87 content tables after dropping 5 unused deployment tables + post_search_document + tovu_migrations");
+  assert.equal(n, 90, "87 content tables after dropping 5 unused deployment tables + post_search_document + tovu_migrations + publish_backstop_log");
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
   assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");
@@ -68,10 +79,10 @@ test("the content history (frozen baseline + 0001_post_search + 0002 + 0003 + 00
 
 test("the chat history lands in ai_chat with its own ledger there; public gets no chat table", async () => {
   const report = await migrateChatDatabase(baseline);
-  assert.deepEqual(report.applied, ["0000_chat_baseline", "0001_sqlite_chat_tables"]);
+  assert.deepEqual(report.applied, ["0000_chat_baseline", "0001_sqlite_chat_tables", "0002_durable_run_attempts"]);
   const rows = await baseline.query<{ schema: string; name: string }>(
     sql`SELECT table_schema AS schema, table_name AS name FROM information_schema.tables
-        WHERE table_name IN ('ai_chats', 'ai_chat_messages', 'assistant_agent_sessions', 'assistant_conversation_tool_approvals', 'tovu_chat_migrations')
+        WHERE table_name IN ('ai_chats', 'ai_chat_messages', 'assistant_agent_sessions', 'assistant_conversation_tool_approvals', 'assistant_run_attempts', 'tovu_chat_migrations')
         ORDER BY table_name`
   );
   assert.deepEqual(rows, [
@@ -79,9 +90,10 @@ test("the chat history lands in ai_chat with its own ledger there; public gets n
     { schema: "ai_chat", name: "ai_chats" },
     { schema: "ai_chat", name: "assistant_agent_sessions" },
     { schema: "ai_chat", name: "assistant_conversation_tool_approvals" },
+    { schema: "ai_chat", name: "assistant_run_attempts" },
     { schema: "ai_chat", name: "tovu_chat_migrations" },
   ]);
   const [{ n }] = await baseline.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM tovu_migrations`);
-  assert.equal(n, 5, "the content ledger holds only content steps (0000-0004)");
+  assert.equal(n, 9, "the content ledger holds only content steps (0000-0008)");
   assert.deepEqual((await migrateChatDatabase(baseline)).applied, [], "a rerun applies nothing");
 });

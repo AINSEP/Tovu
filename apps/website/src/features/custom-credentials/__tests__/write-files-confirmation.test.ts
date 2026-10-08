@@ -3,33 +3,25 @@ import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
-import { buildCustomCredentialsRegistrations, buildWriteFilesConfirmationFileSpecs, type CustomCredentialsToolDeps } from "../tool-registrations.js";
-import { buildWriteFilesConfirmationResource } from "../write-files-confirmation-ui.js";
+import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
- * @file Certification of `custom_credential_write_files`'s confirmation gate
- * (`tool-registrations.ts`, 2026-09-09) — mirrors `make-request-delete-confirmation.test.ts`'s own
- * mechanism (a real `SurfaceExchangeStore` plus `surfaceExchanges.deliver(...)` to simulate the
- * human's click, never a hand-rolled fake), adapted to this tool's own property: EVERY call is
- * gated, there is no un-confirmed verb the way GET/POST/PUT/PATCH are for
- * `custom_credential_make_request`.
- *
- * The property this file is responsible for: **a declined, expired, or abandoned write must never
- * reach the provider's `commitFiles` — no blob, tree, commit, or ref call is ever made.** The read-only
- * reconnaissance (the provider's `planFileWrite` branch/tree/existence lookups) DOES run before the dialog —
- * see this domain's own `tool-registrations.ts` header for why that is a deliberate, documented
- * choice, unlike DELETE's non-decrypting pre-check — so `TrackingSecretSealer` here asserts decrypt
- * COUNT (exactly once per call, for the plan phase), not decrypt AVOIDANCE.
+ * @file Direct named-file writes: provider commit, validation, permission and abort contracts.
+ * Shared-policy approval tests belong to that policy's owner. Provider planning needs the saved
+ * credential for read-only branch/tree/existence queries, unlike DELETE's non-decrypting pre-check,
+ * so TrackingSecretSealer verifies exactly one decrypt for the plan rather than zero decrypts.
  */
 
 const WORKSPACE_ID = "ws-cred-write-files";
@@ -45,9 +37,9 @@ class TrackingSecretSealer implements SecretSealerPort {
     this.sealCalls += 1;
     return this.inner.seal(input);
   }
-  open(input: Parameters<SecretSealerPort["open"]>[0]): ReturnType<SecretSealerPort["open"]> {
+  open(input: Parameters<SecretSealerPort["open"]>[0], optional: Parameters<SecretSealerPort["open"]>[1] = {}): ReturnType<SecretSealerPort["open"]> {
     this.openCalls += 1;
-    return this.inner.open(input);
+    return this.inner.open(input, optional);
   }
 }
 
@@ -164,101 +156,18 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
   return registration.handler(ctx);
 }
 
-function exchangeIdFromSurface(surface: unknown): string {
-  const html = (surface as { payload: { resource: UIResource } }).payload.resource.resource.text;
-  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
-  assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
-  return match[1]!;
-}
-
-function actionFromDialog(ui: UIResource, action: "confirm" | "cancel") {
-  const match = ui.resource.text.match(/var PLAN = (.+);/);
-  assert.ok(match, "the rendered dialog must include its button actions");
-  const plan = JSON.parse(match[1]!);
-  assert.equal(plan[action].toolName, TOOL_ID);
-  return plan[action].params as Record<string, unknown>;
-}
 async function beginCall(writeTool: ToolRegistration, input: Record<string, unknown> = VALID_INPUT) {
   return {pending: call(writeTool, {input})};
 }
 
 // ---------------------------------------------------------------------------
-// 1b. The excerpt — what the human is told each file CONTAINS
-//
-// The dialog's own warning tells the human to "review its contents carefully", so the contents have
-// to be in it. These pin the three ways that can go wrong: showing nothing, showing the whole file
-// (an unbounded payload), and showing content the frame would execute rather than display.
-// ---------------------------------------------------------------------------
-
-/** Mirrors `tool-registrations.ts`'s own `WRITE_FILES_EXCERPT_MAX_CHARS`. Restated rather than
- *  imported: a test that reads the cap off the module under test would pass at any cap, including a
- *  silently-raised one that puts a whole file in the dialog payload. */
-const EXCERPT_MAX_CHARS = 200;
-
-/** Retained renderer compatibility: the ordinary write handler no longer emits this surface. */
-async function dialogHtmlForContent(content: string): Promise<string> {
-  const files = buildWriteFilesConfirmationFileSpecs({
-    fileStates: [{ path: "fly.toml", exists: false }],
-    files: [{ path: "fly.toml", content }],
-  });
-  return buildWriteFilesConfirmationResource({
-    label: "github", owner: "octo", repo: "demo", branch: "main", files, exchangeId: "fixture",
-  }).resource.text;
-}
-
-test(`content of exactly ${EXCERPT_MAX_CHARS} characters is shown whole, with no ellipsis`, async () => {
-  const html = await dialogHtmlForContent("x".repeat(EXCERPT_MAX_CHARS));
-
-  assert.match(html, new RegExp(`x{${EXCERPT_MAX_CHARS}}`));
-  assert.doesNotMatch(html, /x…/, "an off-by-one cap would claim a complete file was truncated");
-});
-
-test(`content over ${EXCERPT_MAX_CHARS} characters is cut to the cap plus an ellipsis, and the tail never travels in the dialog`, async () => {
-  const html = await dialogHtmlForContent(`${"x".repeat(EXCERPT_MAX_CHARS)}TAIL_BEYOND_THE_CAP`);
-
-  assert.match(html, new RegExp(`x{${EXCERPT_MAX_CHARS}}…`));
-  assert.doesNotMatch(html, new RegExp(`x{${EXCERPT_MAX_CHARS + 1}}`), "the cap is a cap, not a hint");
-  assert.doesNotMatch(html, /TAIL_BEYOND_THE_CAP/, "an uncapped excerpt would put whole megabyte files into the emitted surface");
-});
-
-test("a planned path with no validated content throws — the dialog never calls a file about to be written '(empty file)'", () => {
-  assert.throws(
-    () =>
-      buildWriteFilesConfirmationFileSpecs({
-        fileStates: [{ path: "fly.toml", exists: false }],
-        files: [{ path: "somewhere/else.toml", content: 'app = "demo"' }],
-      }),
-    /the write plan names 'fly\.toml'/
-  );
-});
-
-test("each planned path is paired with its OWN content, matched by path rather than by position", () => {
-  const specs = buildWriteFilesConfirmationFileSpecs({
-    fileStates: [
-      { path: "a.txt", exists: false },
-      { path: ".github/workflows/deploy.yml", exists: true },
-    ],
-    files: [
-      { path: ".github/workflows/deploy.yml", content: "name: deploy" },
-      { path: "a.txt", content: "hello" },
-    ],
-    workflowPaths: [".github/workflows"],
-  });
-
-  assert.deepEqual(specs, [
-    { path: "a.txt", exists: false, isWorkflow: false, contentExcerpt: "hello", sizeBytes: 5 },
-    { path: ".github/workflows/deploy.yml", exists: true, isWorkflow: true, contentExcerpt: "name: deploy", sizeBytes: 12 },
-  ]);
-});
-
-// ---------------------------------------------------------------------------
-// 2. The model's own schema cannot complete the write on its own
+// 2. The model-facing schema cannot forge an approval answer
 // ---------------------------------------------------------------------------
 
 test("the model's own schema publishes only label/owner/repo/branch/commitMessage/files — no decision or exchange-id field", async () => {
   const { deps, writeDeps } = fakeRouteDeps();
   await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const schema = writeTool.descriptor.inputSchema as { properties: object; additionalProperties?: boolean };
@@ -267,10 +176,10 @@ test("the model's own schema publishes only label/owner/repo/branch/commitMessag
 });
 
 // ---------------------------------------------------------------------------
-// 3. Confirm, cancel, and the two no-answer outcomes
+// 3. Repository write contract
 // ---------------------------------------------------------------------------
 
-test("confirm: the human's click performs the real write (blob, tree, commit, ref) and the SAME call reports it", async () => {
+test("the direct call performs the real write (blob, tree, commit, ref) and reports it", async () => {
   const { deps, httpClient, writeDeps } = fakeRouteDeps({
     httpSteps: [
       ...planSteps(),
@@ -282,7 +191,7 @@ test("confirm: the human's click performs the real write (blob, tree, commit, re
     ],
   });
   await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const { pending } = await beginCall(writeTool);
@@ -307,17 +216,17 @@ test("confirm: the human's click performs the real write (blob, tree, commit, re
 });
 
 // ---------------------------------------------------------------------------
-// 4. Pre-dialog refusals — never reach the confirmation, never decrypt
+// 4. Validation and permission refusals
 // ---------------------------------------------------------------------------
 
 test("an invalid input (bad owner) is refused before any decrypt or network call, and no dialog is raised", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
   await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   // The host's (github plugin's) own text, checked once the credential's base URL names the host.
-  // A confirmation channel is present: without one the no-channel refusal comes first (12f9c2b0c).
+  // Validation must reject this input even when a surface emitter is available.
   await assert.rejects(
     () => call(writeTool, { input: { ...VALID_INPUT, owner: "-bad" }, emitSurface: async () => undefined }),
     /invalid GitHub owner '-bad'/
@@ -330,7 +239,7 @@ test("an invalid input (bad owner) is refused before any decrypt or network call
 test("a caller-fixable validation refusal arrives as a ToolInputError carrying this tool's schema, not as a bare Error the daemon redacts to INTERNAL_ERROR", async () => {
   const { deps, writeDeps } = fakeRouteDeps();
   await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   await assert.rejects(
@@ -352,7 +261,7 @@ test("a caller-fixable validation refusal arrives as a ToolInputError carrying t
 test("a branch that does not exist is refused before any dialog", async () => {
   const { deps, writeDeps, httpClient } = fakeRouteDeps({ httpSteps: [{ match: /\/git\/ref\/heads\/main$/, status: 404, json: {} }] });
   await seedGithub(writeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   const emitted: unknown[] = [];
@@ -367,7 +276,7 @@ test("insufficient permission is refused before any decrypt or network call", as
   const { deps, sealer, httpClient, writeDeps, setAllow } = fakeRouteDeps();
   await seedGithub(writeDeps);
   setAllow(false);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const writeTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
   await assert.rejects(() => call(writeTool));
@@ -383,7 +292,7 @@ test("insufficient permission is refused before any decrypt or network call", as
     {match: /\/git\/refs\/heads\/main$/, status: 200, json: {}},
   ]});
   await seedGithub(writeDeps);
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, store), TOOL_ID), {input: VALID_INPUT}) as {executed: boolean};
   assert.equal(result.executed, true);
   assert.deepEqual(httpClient.calls.filter(c => c.method !== "GET").map(c => c.method), ["POST", "POST", "POST", "PATCH"]);

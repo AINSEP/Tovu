@@ -784,13 +784,13 @@ function adaptRequestDeps(deps: CredentialedRequestDeps): JiniRequestDeps {
 }
 
 /** Preserve the registered remedy pointer and in-process issuance identity for the recovery loop. */
-// The remedy id is a pointer, never a callback: issuance stays in Tovu so the recovery loop's
+// The remedy id is a pointer, never a callback: issuance uses the shared Jini owner so the recovery loop's
 // one-cycle guard recognizes diagnostics it created rather than trusting provider response text.
 function mapDiagnostic({ diagnostic }: { diagnostic: AuthFailureDiagnostic }): AuthFailureDiagnostic {
-  return diagnostic.hint === undefined ? diagnostic : issueToolFailureDiagnostic({
+  return diagnostic.hint === undefined ? diagnostic : issueToolFailureDiagnostic({ diagnostic: {
     ...diagnostic,
     remedyToolId: "custom_credential_set_username",
-  });
+  } }, {});
 }
 
 // An egress refusal is a caller-fixable target rejection, not a DNS/timeout crash. Preserve its

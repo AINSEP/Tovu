@@ -12,17 +12,20 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type InstalledAgentPlugin } from "../../features/agent-plugins/install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type InstalledAgentPlugin } from "../../features/agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
-import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Route-level allowlist proof for `plugins_uninstall`'s Agent Plugin branch's confirmation
@@ -137,7 +140,7 @@ const DECISIONS = [
 for (const { decision, expectUninstalled } of DECISIONS) {
   test(`real round trip: a browser '${decision}' click for plugins_uninstall (family: agent-plugin) is admitted by the allowlist (202, not 403) and resolves the parked call`, async (t) => {
     await withInstalledPlugin(async (installed) => {
-      const surfaceExchanges = createSurfaceExchangeStore();
+      const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
       const toolExecutor = buildToolExecutor(surfaceExchanges);
 
       let resolveEmission: (emission: SurfaceEmission) => void = () => undefined;

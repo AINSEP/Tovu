@@ -43,8 +43,8 @@ describe("H1 wiring — a failed resume must clear its dead stored session id", 
   test("imports shouldClearSessionOnFailedResume from the pure decision module", () => {
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*shouldClearSessionOnFailedResume[^}]*\}\s*from\s*["'][^"']*agent-session-resume(\.js)?["']/,
-      "onStarted must import the H1 decision function from agent-session-resume.ts, not reimplement the check inline",
+      /import\s*\{[^}]*shouldClearSessionOnFailedResume[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
+      "onStarted must import the H1 decision function from agent-session-preset.ts, not reimplement the check inline",
     );
   });
 
@@ -75,12 +75,12 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
   test("imports createLiveRunTracker and constructs exactly one module-level instance", () => {
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*createLiveRunTracker[^}]*\}\s*from\s*["'][^"']*agent-run-concurrency(\.js)?["']/,
-      "agent-daemon-server.ts must import createLiveRunTracker from agent-run-concurrency.ts",
+      /import\s*\{[^}]*createLiveRunTracker[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
+      "agent-daemon-server.ts must import createLiveRunTracker from agent-session-preset.ts",
     );
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /const\s+liveRunTracker\s*=\s*createLiveRunTracker\(\)\s*;/,
+      /const\s+liveRunTracker\s*=\s*createLiveRunTracker\(\{\},\s*\{\}\)\s*;/,
       "there must be exactly one liveRunTracker instance for this process's whole lifetime, not a fresh one per run",
     );
   });
@@ -114,17 +114,17 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
           ...fixture.bindings,
           liveRunTracker: {
             ...fixture.liveRunTracker,
-            unregister: (chatId: string, runId: string) => {
+            unregister: ({ conversationId: chatId, runId }: { conversationId: string; runId: string }) => {
               calls.push({ unregister: { conversationId: chatId, runId } });
-              fixture.liveRunTracker.unregister(chatId, runId);
+              fixture.liveRunTracker.unregister({ conversationId: chatId, runId: runId }, {});
             },
           },
           attachmentStore: { cleanupRun: async (input: { runId: string }) => { calls.push({ cleanup: input }); cleaned(); } },
         },
       });
-      assert.equal(fixture.liveRunTracker.conversationIdForRun("daemon-test-run"), conversationId);
+      assert.equal(fixture.liveRunTracker.conversationIdForRun({ runId: "daemon-test-run" }, {}), conversationId);
       assert.deepEqual(calls, [], "a live run must retain its tracker and attachments");
-      fixture.liveRunTracker.register(conversationId, "other-live-run");
+      fixture.liveRunTracker.register({ conversationId: conversationId, runId: "other-live-run" }, {});
       const finished = await fixture.lifecycle.finish({ runId: "daemon-test-run", status, code: status === "succeeded" ? 0 : 1, signal: null, resumable: false });
       assert.equal(finished.state, status, "the lifecycle must reach the requested terminal state");
       await cleanup;
@@ -136,10 +136,10 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
         { unregister: { conversationId, runId: "daemon-test-run" } },
         { cleanup: { runId: "daemon-test-run" } },
       ]);
-      assert.equal(fixture.liveRunTracker.conversationIdForRun("daemon-test-run"), undefined);
-      assert.equal(fixture.liveRunTracker.conversationIdForRun("other-live-run"), conversationId);
-      fixture.liveRunTracker.unregister(conversationId, "other-live-run");
-      assert.equal(fixture.liveRunTracker.hasConcurrentLiveRun(conversationId, "next-run"), false);
+      assert.equal(fixture.liveRunTracker.conversationIdForRun({ runId: "daemon-test-run" }, {}), undefined);
+      assert.equal(fixture.liveRunTracker.conversationIdForRun({ runId: "other-live-run" }, {}), conversationId);
+      fixture.liveRunTracker.unregister({ conversationId: conversationId, runId: "other-live-run" }, {});
+      assert.equal(fixture.liveRunTracker.hasConcurrentLiveRun({ conversationId: conversationId, runId: "next-run" }, {}), false);
     }
   });
 
@@ -173,13 +173,13 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
   test("imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module", () => {
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*agentCarriesOwnMemory[^}]*\}\s*from\s*["'][^"']*agent-session-resume(\.js)?["']/,
-      "onStarted must import agentCarriesOwnMemory from agent-session-resume.ts, not reimplement the def lookup inline",
+      /import\s*\{[^}]*agentCarriesOwnMemory[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
+      "onStarted must import agentCarriesOwnMemory from agent-session-preset.ts, not reimplement the def lookup inline",
     );
     assert.match(
       DAEMON_ENTRY_SOURCE,
-      /import\s*\{[^}]*wouldForcedColdStartLoseConversationContext[^}]*\}\s*from\s*["'][^"']*agent-session-resume(\.js)?["']/,
-      "onStarted must import wouldForcedColdStartLoseConversationContext from agent-session-resume.ts",
+      /import\s*\{[^}]*wouldForcedColdStartLoseConversationContext[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
+      "onStarted must import wouldForcedColdStartLoseConversationContext from agent-session-preset.ts",
     );
   });
 
@@ -204,8 +204,8 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
     const decisionCallIndex = onStartedSource.indexOf("wouldForcedColdStartLoseConversationContext({");
     assert.ok(decisionCallIndex > -1, "onStarted must call wouldForcedColdStartLoseConversationContext — without this, H2 silently drops conversation history for a carriesOwnMemory agent");
 
-    const carriesOwnMemoryCallIndex = onStartedSource.indexOf("agentCarriesOwnMemory(agentId)");
-    assert.ok(carriesOwnMemoryCallIndex > -1, "onStarted must pass agentCarriesOwnMemory(agentId) into the decision — without it every run would look non-resume-capable and the check would never fire");
+    const carriesOwnMemoryCallIndex = onStartedSource.indexOf("agentCarriesOwnMemory({ agentId: agentId }, {})");
+    assert.ok(carriesOwnMemoryCallIndex > -1, "onStarted must pass agentCarriesOwnMemory({ agentId: agentId }, {}) into the decision — without it every run would look non-resume-capable and the check would never fire");
 
     const runCallIndex = onStartedSource.indexOf("await agentExecutor.run({");
     assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
@@ -219,14 +219,15 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
     // run as failed and return, exactly like the malformed-contextRef and attachment-claim-failure
     // guards earlier in this same handler — never let agentExecutor.run be reached in this branch.
     const refusalBlock = onStartedSource.slice(decisionCallIndex, runCallIndex);
-    // `failRunBeforeStart` (agent-run-concurrency.ts) finishes the run failed, after putting the plain
+    // `failRunBeforeStart` (agent-session-preset.ts) finishes the run failed, after putting the plain
     // reason on its stream (2026-09-27). Its own unit test pins that it always finishes.
     assert.match(
       refusalBlock,
-      /failRunBeforeStart\(runLifecycle,\s*run\.id,/,
+      /await\s+failRunBeforeStart\(\{\s*lifecycle:\s*runLifecycle,\s*runId:\s*run\.id,\s*message:\s*CONCURRENT_RUN_REFUSAL_MESSAGE\s*\},\s*\{\}\)/,
       "the refusal branch must finish the run as failed, through failRunBeforeStart so the user also sees why",
     );
-    assert.match(refusalBlock, /\breturn\s*;/, "the refusal branch must return before falling through to agentExecutor.run");
+    assert.match(refusalBlock, /\breturn\s+null\s*;/, "the refusal branch must return before falling through to agentExecutor.run");
+    assert.match(refusalBlock, /if\s*\(sessionBinding\s*===\s*null\)\s*return\s*;/, "a refused binding must stop dispatch before agentExecutor.run");
   });
 
   test("effectiveResumeSessionId (not the raw storedSessionId) is what attemptedResumeSessionId and resolveResumeSessionField consume", () => {
@@ -242,7 +243,7 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
     );
     assert.match(
       onStartedSource,
-      /resolveResumeSessionField\(effectiveResumeSessionId\)/,
+      /resolveResumeSessionField\(\{\s*storedSessionId:\s*effectiveResumeSessionId\s*\},\s*\{\}\)/,
       "agentExecutor.run must be handed the gated effectiveResumeSessionId, not the raw storedSessionId, or H2's own concurrency guard would be defeated",
     );
   });
@@ -259,7 +260,7 @@ describe("Send right after Stop — wait for the stopped run, and say why when r
 
   test("the concurrent-run refusal puts its plain reason on the run's stream", () => {
     assert.ok(
-      onStartedSource.includes("await failRunBeforeStart(runLifecycle, run.id, CONCURRENT_RUN_REFUSAL_MESSAGE);"),
+      onStartedSource.includes("await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: CONCURRENT_RUN_REFUSAL_MESSAGE }, {});"),
       "the refusal must go through failRunBeforeStart so the user sees why, not a bare runLifecycle.finish",
     );
   });
@@ -269,13 +270,13 @@ describe("Send right after Stop — wait for the stopped run, and say why when r
 async function sessionFixture() {
   const { createInMemoryEventLog, createRunLifecycle } = await import("@jini-ai/daemon");
   const { createInMemoryAgentSessionStore } = await import("@jini-ai/daemon/store/agent-sessions");
-  const { createLiveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS, failRunBeforeStart, CONCURRENT_RUN_REFUSAL_MESSAGE } = await import("../agent-run-concurrency.js");
-  const { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } = await import("../agent-session-resume.js");
+  const { createLiveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS, failRunBeforeStart, CONCURRENT_RUN_REFUSAL_MESSAGE } = await import("../../../../assistant/agent-session-preset.js");
+  const { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } = await import("../../../../assistant/agent-session-preset.js");
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   await lifecycle.rehydrate({});
   await lifecycle.start({ contextRef: "session-regression" }, { runId: "daemon-test-run" });
   const agentSessions = createInMemoryAgentSessionStore({});
-  const liveRunTracker = createLiveRunTracker();
+  const liveRunTracker = createLiveRunTracker({}, {});
   const bindings = {
     routeDeps: { workspaceId: "ws-session-regression", agentSessions }, liveRunTracker,
     extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume,
@@ -302,7 +303,7 @@ for (const terminal of ["failed-unconfirmed", "succeeded-reconfirmed"] as const)
     assert.equal(await fixture.agentSessions.getSessionId(key), terminal === "failed-unconfirmed" ? null : "reconfirmed-cli-id");
     assert.equal(await fixture.agentSessions.getSessionId({ conversationId: "conversation-other", agentId: "claude" }), "other-conversation-id");
     assert.equal(await fixture.agentSessions.getSessionId({ conversationId: key.conversationId, agentId: "codex" }), "other-agent-id");
-    assert.equal(fixture.liveRunTracker.conversationIdForRun("daemon-test-run"), undefined);
+    assert.equal(fixture.liveRunTracker.conversationIdForRun({ runId: "daemon-test-run" }, {}), undefined);
     if (terminal === "failed-unconfirmed") {
       const next = await sessionFixture();
       const nextInput = await captureDaemonRun({ prompt: "Retry after recovery", conversationId: key.conversationId }, {
@@ -322,7 +323,7 @@ test("onStarted refuses a concurrent memory-carrying run and never dispatches a 
   const fixture = await sessionFixture();
   const key = { conversationId: "conversation-contended", agentId: "claude" };
   await fixture.agentSessions.setSessionId({ ...key, sessionId: "existing-history-id" });
-  fixture.liveRunTracker.register(key.conversationId, "already-answering-run");
+  fixture.liveRunTracker.register({ conversationId: key.conversationId, runId: "already-answering-run" }, {});
   const dispatched: unknown[] = [];
   const events: { kind: string; payload: unknown }[] = [];
   await fixture.lifecycle.stream({ runId: "daemon-test-run", onEvent: (event) => { events.push(event); } });
@@ -351,7 +352,7 @@ test("onStarted registers the conversation synchronously while instruction refre
     bindings: { ...fixture.bindings, customInstructionsCache: { refresh: () => refresh } },
   }).then((input) => { dispatched = true; return input; });
   try {
-    assert.equal(fixture.liveRunTracker.conversationIdForRun("daemon-test-run"), key.conversationId);
+    assert.equal(fixture.liveRunTracker.conversationIdForRun({ runId: "daemon-test-run" }, {}), key.conversationId);
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.equal(dispatched, false, "no executor dispatch until refresh settles");
   } finally {

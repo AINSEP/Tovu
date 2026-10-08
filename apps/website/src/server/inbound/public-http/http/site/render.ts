@@ -1,4 +1,4 @@
-import { renderHtmlForm } from "#src/features/forms/html-render";
+import { renderHtmlForm } from "@jini-ai/cms/forms";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/post";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
@@ -13,16 +13,17 @@ import {
   type EntryListFieldValue,
   type EntryListRenderOptions,
 } from "#src/features/theme/entry-list-render";
-import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
+import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
+import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "#src/features/entries/public-list";
-import { isPageEmbedType } from "#src/features/widgets/page-embed-types";
+import { isPageEmbedType } from "@jini-ai/cms/widgets";
 import { renderHtmlTaxonomy } from "#src/features/taxonomy/html-render";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
-import type { WidgetRenderIR } from "#src/features/widgets/types";
-import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "#src/features/widgets/html-embeds";
-import type { MarkerAttribute } from "#src/contracts/core/embeds/marker";
-import { parseEmbedHtmlAttributes } from "#src/contracts/core/embeds/html-attributes";
-import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
+import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
+import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "@jini-ai/cms/widgets/html";
+import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
+import { parseEmbedHtmlAttributes } from "@jini-ai/cms/widgets/markers";
+import { ATTRIBUTE_NAME_PATTERN } from "@jini-ai/cms/forms";
 import { mediaPublicPath, mediaUrlKey } from "#src/features/media/public-path";
 import { safeAspectRatio, safeTextAlign } from "#src/platform/html/style-values";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
@@ -655,7 +656,7 @@ function isPlausibleMediaRefId(value: string): boolean {
  */
 /**
  * Re-validates `raw` free-text HTML attributes against the shared render-time allowlist
- * ({@link parseEmbedHtmlAttributes}, `#src/contracts/core/embeds/html-attributes` — S1, 2026-09-23
+ * ({@link parseEmbedHtmlAttributes}, `Jini/packages/cms/src/widgets/markers/html-attributes.ts` — S1, 2026-09-23
  * widget-attrs plan) and returns only the accepted attribute map — the render-path half of the
  * allowlist's defense-in-depth (owner requirement: enforced at the write path AND the render path,
  * since a client-only check is not a control). `updateMediaMetadata` (`@jini-ai/cms/media`) already
@@ -679,7 +680,7 @@ function isPlausibleMediaRefId(value: string): boolean {
  */
 function resolveEmbedHtmlAttributes(raw: string | null): Record<string, string> {
   if (!raw) return {};
-  return parseEmbedHtmlAttributes(raw).attributes;
+  return parseEmbedHtmlAttributes({ text: raw }).attributes;
 }
 
 /** A shallow copy of `attributes` with `key` removed — used when a call site already emits its own
@@ -1672,7 +1673,7 @@ export function renderDocNode(
 // A theme can arrange these by id; it cannot define new ones. This table has no schema,
 // capability tier, or isolation boundary (each `Component` runs synchronously, in-render, with
 // no timeout), so it stays closed to plugins. A future plugin-contributed component goes through
-// the widget-type registry instead (`WidgetTypeKey`/`CORE_RESOLVERS`, `src/widgets/registry.ts`),
+// the widget-type registry instead (`WidgetTypeKey`/`CORE_RESOLVERS`, `Jini/packages/cms/src/widgets/registry.ts`),
 // which already has schema validation, tier gating, and a try/catch+timeout isolation boundary —
 // see the Widget IR rendering block below for that seam's own dispatch (ADR-047; ratified by
 // `ADS-memory/reports/architecture/2026-08-20-component-catalog-split-proposal.md`).
@@ -1795,8 +1796,8 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  * `post.bodyHtml`).
  */
 export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
-  return substituteHtmlEmbeds(html, (ref, occurrence) => {
-    if (!isPageEmbedType(ref.type)) return undefined;
+  return substituteHtmlEmbeds({ html: html, resolve: (ref, occurrence) => {
+    if (!isPageEmbedType({ type: ref.type })) return undefined;
     // D4 guard (2026-09-23): a "content"/"post" marker naming neither an id nor a slug has no
     // current entity to resolve against at all — e.g. the static theme's own `index.html`, whose
     // `{"type":"content","header":false}` marker names no id because D2's `finishStaticTierDocument`
@@ -1813,7 +1814,7 @@ export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbeds
     const formIr = ir.componentId === "contact-form" && ref.mode === "html"
       ? { ...ir, props: { ...ir.props, mode: "html" } } : ir;
     return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(formIr, ref), ref, occurrence));
-  });
+  } });
 }
 
 /**
@@ -2152,7 +2153,7 @@ export const COMPONENTS: Record<string, Component> = {
 // nodes and have no concept of an IR's `children` array; widget IR is core-produced,
 // closed-vocabulary data (exactly the five v1 `componentId`s the widget-type
 // registry can ever emit, plus the `widget-placeholder` failure IR — see
-// `src/widgets/registry.ts`/`resolver-service.ts`). Both render tiers reach this
+// `Jini/packages/cms/src/widgets/registry.ts`/`resolver-service.ts`). Both render tiers reach this
 // same function — the declarative tier via `renderBlock`'s new `region` node kind,
 // the Liquid tier via `liquid-worker.ts`'s extended `render_block` tag — so ADR-047
 // §2a's "no new Liquid capability required, both placement paths resolve to
@@ -2201,7 +2202,7 @@ function renderWidgetEntrySummary(props: JsonObject): string {
 const RECENT_ENTRIES_EMPTY_HTML = '<ul class="widget widget-recent-entries"><li class="widget-empty">No entries yet.</li></ul>';
 
 /** Converts one `recent-entries` IR child's resolved raw JSON props (built by
- *  `features/widgets/resolvers/recent-entries.ts`'s `RecentEntryItemProps`, deliberately the same
+ *  `Jini/packages/cms/src/widgets/resolvers/recent-entries.ts`'s `RecentEntryItemProps`, deliberately the same
  *  shape as `entry-list-render.ts`'s `EntryListItem`) back into that typed shape. Read defensively
  *  (`str`/`arr`/`obj`) — this crosses a resolver/renderer JSON boundary, not a compiler-enforced
  *  contract. @complexity O(f) over the item's field count. */
@@ -2435,7 +2436,8 @@ function renderWidgetContactForm(props: JsonObject): string {
   // `tovu-form` hook let the active theme's form rules apply, and author CSS still wins over both.
   if (props.mode === "html") return FORM_BASELINE_STYLE + renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
-    fields: arr(props.fields) as unknown as import("@jini-ai/cms-forms").FieldDescriptor[],
+    hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
+    fields: arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[],
   }, {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
@@ -3475,7 +3477,7 @@ async function renderTemplatedTierBody(
   const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
   try {
     return source
-      ? await renderLiquidInSandbox({ source, ctx, skipLiquidAllowlist: theme.manifest.skipLiquidAllowlist })
+      ? await renderLiquidInSandbox({ source, ctx })
       : fallbackSiteBody(ctx, route);
   } catch (err) {
     return `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackSiteBody(ctx, route)}`;

@@ -16,11 +16,8 @@ import type { UUID } from "@jini-ai/core/primitives";
  * cleanly, since the underlying AES key is shared app-wide (`secret-sealer.aesgcm.ts`'s own
  * header).
  *
- * This table's rows predate AAD entirely (2026-09-02 gap closure, `SecretSealerPort`'s own header
- * used to name this table by number among the callers with no AAD at all) — see
- * `site_assistant_credentials.aad_version`'s own doc in `db/schema.sqlite.ts` and
- * `development/scripts/backfill-site-assistant-credential-aad.ts` for how existing rows are
- * migrated without becoming unreadable.
+ * Legacy no-AAD rows remain readable via `site_assistant_credentials.aad_version`; see its schema contract
+ * and the owning backfill script. Opening must use the version the row was sealed under.
  */
 const AAD_VERSION = "v1";
 

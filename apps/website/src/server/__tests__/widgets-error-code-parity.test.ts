@@ -8,18 +8,9 @@ import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memo
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { InMemoryPostRepo } from "../../features/post/index.js";
-import { PRE_AUTHORIZED } from "../../features/widgets/authorize-helper.js";
-import {
-  WidgetAreaConflictError,
-  WidgetAreaNotFoundError,
-  WidgetEmbedHostNotFoundError,
-  WidgetEmbedHostUnsupportedError,
-  WidgetEmbedPlacementNotFoundError,
-  WidgetForbiddenError,
-  WidgetInstanceNotFoundError,
-  WidgetVersionConflictError,
-} from "../../features/widgets/errors.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { WidgetAreaConflictError, WidgetAreaNotFoundError, WidgetEmbedHostNotFoundError, WidgetEmbedHostUnsupportedError, WidgetEmbedPlacementNotFoundError, WidgetForbiddenError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../features/widgets/tool-registrations.js";
 import { widgetErrorToResponse } from "../inbound/admin-http/http/widgets.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -91,27 +82,27 @@ async function throwThroughRealRegistration(toThrow: Error): Promise<unknown> {
 }
 
 const CASES: ReadonlyArray<{ name: string; make: () => Error }> = [
-  { name: "WidgetInstanceNotFoundError", make: () => new WidgetInstanceNotFoundError("widget instance 'x' was not found") },
-  { name: "WidgetAreaNotFoundError", make: () => new WidgetAreaNotFoundError("region 'x' is not bound") },
+  { name: "WidgetInstanceNotFoundError", make: () => new WidgetInstanceNotFoundError({ message: "widget instance 'x' was not found" }) },
+  { name: "WidgetAreaNotFoundError", make: () => new WidgetAreaNotFoundError({ message: "region 'x' is not bound" }) },
   {
     name: "WidgetEmbedHostNotFoundError",
-    make: () => new WidgetEmbedHostNotFoundError(`host entry 'x' was not found in workspace '${WORKSPACE_ID}' (it must be the id of an existing, non-trashed post, page, or content entry)`),
+    make: () => new WidgetEmbedHostNotFoundError({ message: `host entry 'x' was not found in workspace '${WORKSPACE_ID}' (it must be the id of an existing, non-trashed post, page, or content entry)` }),
   },
   {
     name: "WidgetEmbedHostUnsupportedError",
-    make: () => new WidgetEmbedHostUnsupportedError("host 'x' is an HTML-format page, which has no rich-text body for widgetEmbed nodes", "html-page"),
+    make: () => new WidgetEmbedHostUnsupportedError({ message: "host 'x' is an HTML-format page, which has no rich-text body for widgetEmbed nodes", reason: "html-page" }),
   },
   {
     name: "WidgetEmbedPlacementNotFoundError",
-    make: () => new WidgetEmbedPlacementNotFoundError("no widget embed with placementId 'x' was found in host 'y'"),
+    make: () => new WidgetEmbedPlacementNotFoundError({ message: "no widget embed with placementId 'x' was found in host 'y'" }),
   },
-  { name: "WidgetVersionConflictError", make: () => new WidgetVersionConflictError("post 'x' was modified by another save (expected version 1, current version 2)", 2) },
-  { name: "WidgetAreaConflictError", make: () => new WidgetAreaConflictError("widget_area 'x' was modified by another save (expected version 1, current version 2)", 2) },
+  { name: "WidgetVersionConflictError", make: () => new WidgetVersionConflictError({ message: "post 'x' was modified by another save (expected version 1, current version 2)", currentVersion: 2 }) },
+  { name: "WidgetAreaConflictError", make: () => new WidgetAreaConflictError({ message: "widget_area 'x' was modified by another save (expected version 1, current version 2)", currentVersion: 2 }) },
   {
     name: "WidgetForbiddenError",
     // Real message shape from `authorize-helper.ts`'s `requireWidgetPermission`, which is what
     // `widgetForbiddenToResponse` (`widgets.ts`) parses for its `details.permission`/`details.reason`.
-    make: () => new WidgetForbiddenError("principal 'x' lacks permission 'widgets.read' (not granted)"),
+    make: () => new WidgetForbiddenError({ message: "principal 'x' lacks permission 'widgets.read' (not granted)" }),
   },
 ];
 

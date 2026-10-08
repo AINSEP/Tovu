@@ -1,3 +1,4 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
@@ -7,8 +8,7 @@ import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
  * typed-media path (daemon `tool_result.media` -> chat-core `AgentEvent` -> `ToolCard`'s inline
  * `<img>`) can be exercised through the real chat pane rather than only in unit tests — the same
  * shape of justification `demo-choices-tool.ts` and `demo-a2ui-tool.ts` already give for their own
- * transports, applied to this one (ADS-memory swarm-consensus 2026-08-22 capability-bucket debate:
- * "tool results must carry typed media rather than flattened text").
+ * transports: tool results must carry typed media rather than flattened text.
  *
  * ## Why a hand-rolled PNG rather than a real image-generation call
  *
@@ -20,11 +20,9 @@ import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
  * zero new dependencies and zero network calls, which is what makes this the cheapest HONEST proof
  * available — not a stub that merely LOOKS like an image block.
  *
- * ## It ships enabled (2026-08-26)
+ * ## Always enabled
  *
- * This tool used to register only when `TOVU_ENABLE_DEMO_TOOLS` was set. That gate is gone — see
- * `demo-choices-tool.ts`'s own header for the decision, which covered all four in-chat UI tools at
- * once. The prompt-context cost of an always-on demo tool is real and was accepted knowingly.
+ * Registration policy: see demo-choices-tool.ts.
  *
  * ## It writes nothing, and needs no `emitSurface`
  *
@@ -71,7 +69,7 @@ export const demoImageDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 const CATALOG_BY_ID = new Map(demoImageAgentToolCatalog.map((entry) => [entry.name, entry]));
 
 /**
- * Builds this tool's registration. Unconditional since 2026-08-26 — see this module's header.
+ * Builds this tool's registration unconditionally; see the module header.
  *
  * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature (`tool-registrations.ts`'s `DomainSlice.build`).
@@ -90,7 +88,7 @@ export function buildDemoImageRegistrations(_routeDeps?: unknown): ToolRegistrat
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "demo-image",
     catalogModule: "assistant/demo-image-tool.ts",
     catalog: CATALOG_BY_ID,

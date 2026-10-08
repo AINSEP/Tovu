@@ -1,39 +1,28 @@
+import { createPluginModuleImporter, type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
-import { assertPluginInstallIdle, installSitePlugin, previewSitePluginInstall, type PluginInstallerPort } from "#src/features/plugin-runtime/install";
+import { assertPluginInstallIdle, installSitePlugin, previewSitePluginInstall, type PluginInstallerPort } from "@jini-ai/plugins/host/node";
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
-import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
-import type { DeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-content-types";
-import { enableDeclaredPlugin } from "#src/features/plugin-runtime/declarative-enable";
-import type { BuiltInPluginSource, PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
-import { discoverPlugins as discoverPluginRuntimePlugins, siteEntryPath } from "#src/features/plugin-runtime/discovery";
-import { createHookRegistry, type AttachmentSource, type HookRegistry } from "#src/features/plugin-runtime/hook-registry";
-import type { PluginManifest } from "#src/features/plugin-runtime/manifest";
-import { quarantinePlugin } from "#src/features/plugin-runtime/quarantine";
-import type { ExtensionClaim } from "#src/features/plugin-runtime/claim-conflicts";
-import {
-  describeBootConflictQuarantine,
-  PluginConflictError,
-  resolvePluginConflicts,
-  type PluginConflict,
-} from "#src/features/plugin-runtime/plugin-claims";
-import {
-  PluginPackagePathError,
-  readPluginPackageFiles as readPluginPackageDirectory,
-  type PluginPackageFiles,
-} from "#src/features/plugin-runtime/package-files";
-import {
-  attachLoadedPlugin,
-  loadPlugin,
-  PluginLoadError,
-} from "#src/features/plugin-runtime/loader";
-import { createPluginInvocationCoreDeps } from "#src/features/plugin-runtime/invocation-core-deps";
-import { createTier2ImportSeam } from "#src/features/plugin-runtime/tier2/import-seam";
-import type { Tier2CallRunner } from "#src/features/plugin-runtime/tier2/protocol";
+import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { DeclaredContentTypePorts } from "@jini-ai/plugins/host";
+import { enableDeclaredPlugin } from "@jini-ai/plugins/host";
+import type { BuiltInPluginSource, PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import { discoverPlugins as discoverPluginRuntimePlugins, siteEntryPath } from "@jini-ai/plugins/host/node";
+import { createHookRegistry, type AttachmentSource, type HookRegistry } from "@jini-ai/plugins/host";
+import type { PluginManifest } from "@jini-ai/plugins/host";
+import { quarantinePlugin } from "@jini-ai/plugins/host";
+import type { ExtensionClaim } from "@jini-ai/plugins/host";
+import { describeBootConflictQuarantine, PluginConflictError, resolvePluginConflicts, type PluginConflict } from "@jini-ai/plugins/host";
+import { PluginPackagePathError, readPluginPackageFiles as readPluginPackageDirectory, type PluginPackageFiles } from "@jini-ai/plugins/host/node";
+import { attachLoadedPlugin } from "@jini-ai/plugins/host";
+import { loadPlugin, PluginLoadError } from "@jini-ai/plugins/host/node";
+import { createTier2ImportSeam } from "@jini-ai/plugins/host/worker";
+import type { Tier2CallRunner } from "@jini-ai/plugins/host/worker";
 import { createTier2WorkerRunner } from "#src/server/runtime/plugin-tier2/run-in-worker";
-import { HOOK_CONTENT_ENTRY_BEFORE_SAVE, type BeforeSaveFilter } from "@tovu/sdk";
+import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
+import type { BeforeSaveHookPort } from "#src/features/post/index";
 
 /** Executable metadata for one compiled-in plugin. Discovery consumes only `manifest`; the enable
  * callback consumes the import seam after integrity/sdkRange checks. Site-artifact sources can use
@@ -49,8 +38,8 @@ export interface PluginRuntimeSource extends BuiltInPluginSource {
 
 /** What `loadPlugin()` and `attachLoadedPlugin()` need for one enable attempt, resolved by
  * {@link resolveLoadTarget}. `importModule` is omitted (not `undefined`-valued) for a site target
- * so `loadPlugin()`'s own default — real `import()` — is what actually runs; only a built-in
- * target ever carries an explicit override (its test/production seam, unchanged by this type). */
+ * so the host binding supplies the contained snapshot importer; only a built-in target carries
+ * an explicit scalar override (its test/production seam, unchanged by this type). */
 interface PluginLoadTarget {
   readonly manifest: PluginManifest;
   readonly entryPath: string;
@@ -98,7 +87,7 @@ function resolveLoadTarget(params: {
   if (record.source === "site" && installDir !== undefined && record.manifest !== undefined) {
     return {
       manifest: record.manifest,
-      entryPath: siteEntryPath(installDir, record.id, record.version),
+      entryPath: siteEntryPath({ installDir, id: record.id, version: record.version }),
       attachmentSource: record.source,
     };
   }
@@ -204,13 +193,13 @@ export interface PluginRuntimeBindings {
   }>;
   /** Lists one discovered plugin's own files, read-only and bounded, for the admin Plugins
    * screen's package-files viewer — see {@link resolvePackageLocation} and
-   * `features/plugin-runtime/package-files.ts`. Rejects with `PluginPackagePathError` for an
+   * `Jini/packages/plugins/src/host/node/package-files.ts`. Rejects with `PluginPackagePathError` for an
    * unsafe id/version or a directory that resolves outside its container. */
   readonly readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
-  readonly beforeSaveHook: HookRegistry["runBeforeSave"];
+  readonly beforeSaveHook: BeforeSaveHookPort;
   /** Admin preview (AW-7): one attached plugin's beforeSave patch for a draft, nothing saved or
    * counted toward quarantine. `null` ⇒ not attached. See `HookRegistry.previewBeforeSave`. */
-  readonly previewPluginBeforeSave: HookRegistry["previewBeforeSave"];
+  readonly previewPluginBeforeSave: PluginBeforeSavePreview;
   /**
    * P0a fix (2026-09-23): re-runs `onPluginEnabled` for every plugin `activationRepo` durably
    * marks `enabled` for THIS composition's `workspaceId`. Before this existed, nothing replayed
@@ -224,7 +213,7 @@ export interface PluginRuntimeBindings {
   readonly attachEnabledPluginsAtBoot: () => Promise<void>;
   /** Every discovered plugin that has a name conflict right now — an enabled loser, or a plugin that
    * is off and WOULD be refused if turned on — for the admin screen and `plugins_list`. See
-   * `features/plugin-runtime/plugin-claims.ts`'s `resolvePluginConflicts`. */
+   * `Jini/packages/plugins/src/host/plugin-claims.ts`'s `resolvePluginConflicts`. */
   readonly listPluginConflicts: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
 }
 
@@ -234,10 +223,10 @@ export interface PluginRuntimeBindings {
  * ownership/setup to `loadPlugin()`, and performs the one shared attach operation only after setup
  * has completed successfully.
  */
-export function composePluginRuntime(required: ComposePluginRuntimeRequired): PluginRuntimeBindings {
+export function composePluginRuntime(required: ComposePluginRuntimeRequired, _optional: Record<string, never> = {}): PluginRuntimeBindings {
   const { activationRepo, clock, sources, installDir } = required;
   const tier2CallRunner = required.tier2CallRunner ?? createTier2WorkerRunner({});
-  const hookRegistry = createHookRegistry({
+  const hookRegistry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding }, {
     ...(required.failureThreshold === undefined ? {} : { failureThreshold: required.failureThreshold }),
     onQuarantine: async (input) => {
       await quarantinePlugin({ deps: { clock, repo: activationRepo }, input });
@@ -247,7 +236,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
   // never scanned no matter how the composition root itself was configured — see this function's
   // required-params doc).
   const discoverPlugins = () =>
-    discoverPluginRuntimePlugins({ builtIns: sources, ...(installDir === undefined ? {} : { installDir }) });
+    discoverPluginRuntimePlugins({ ...pluginHostBinding, builtIns: sources, ...(installDir === undefined ? {} : { installDir }) });
 
   const coreClaims = required.coreClaims ?? [];
 
@@ -256,7 +245,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     optional: { candidateId?: string } = {},
   ): Promise<ReadonlyMap<string, readonly PluginConflict[]>> {
     const [records, activations] = await Promise.all([discovery ?? discoverPlugins(), activationRepo.listAll()]);
-    return resolvePluginConflicts({ workspaceId: required.workspaceId, discovery: records, activations, coreClaims }, optional);
+    return resolvePluginConflicts({ ...pluginHostBinding, workspaceId: required.workspaceId, discovery: records, activations, coreClaims }, optional);
   }
 
   /** Install preview (2026-10-04): what the staged package would clash with if turned on in THIS
@@ -292,7 +281,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     // Declared contributions (AW-7 Tier 1) are applied only now, after the conflict gate; a tier-1
     // plugin's `loadCode` is never called.
     await enableDeclaredPlugin(
-      { pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record), unloadCode: () => hookRegistry.detach(pluginId) },
+      { ...pluginHostBinding, pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record), unloadCode: () => hookRegistry.detach({ pluginId }) },
       required.declaredContentTypes ? { contentTypes: required.declaredContentTypes } : {},
     );
   }
@@ -309,33 +298,37 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     const { manifest, entryPath, attachmentSource } = target;
     // Tier 2 (ADR-024 §3/§4): the plugin's code must never be imported into this process. Its
     // import seam probes it in a fresh worker and hands `loadPlugin()` a proxy whose filter is an
-    // RPC; injected through `loadPlugin()`'s own `importModule` option, so integrity + sdkRange
+    // RPC; supplied as `loadPlugin()`'s required `importModule` port, so integrity + sdkRange
     // still run first (CIC U-001). Only a built-in reaches here as tier-2: discovery marks a site
     // tier-2 package invalid (the worker is no sandbox yet). Were site tier-2 ever allowed, its worker
     // would need the seam's `resolveWorkerEntry` pointed at the integrity-checked module snapshot,
-    // since `loadPlugin()` skips its own snapshot once a seam is injected.
-    const importModule =
-      manifest.tier === "tier-2" ? createTier2ImportSeam({ manifest, runCall: tier2CallRunner }) : target.importModule;
+    // since an injected worker seam bypasses the host's default snapshot importer.
+    const workerImporter = manifest.tier === "tier-2"
+      ? createTier2ImportSeam({ ...pluginHostBinding, manifest, runCall: tier2CallRunner })
+      : undefined;
+    const importModule = target.importModule;
 
     // The SDK backing (content.read/extend bound to the running filter, single declared beforeSave
     // filter) is shared with the Tier-2 worker — see `invocation-core-deps.ts`.
-    const invocation = createPluginInvocationCoreDeps({ pluginId, declaredHooks: manifest.hooks });
+    const invocation = pluginHostBinding.createInvocationCoreDeps({ pluginId, declaredHooks: manifest.hooks });
     const coreDeps = invocation.coreDeps;
 
-    // CIC U-001: `importModule` is omitted here (not passed as `undefined`) for a site target, so
-    // `loadPlugin()`'s OWN default parameter (real `import()`) is what's used — this call site
-    // never constructs or holds an import function capable of running before `loadPlugin()`'s
-    // integrity/sdkRange steps; it only ever forwards a built-in's pre-existing test/production
-    // seam, unchanged from before this slice.
+    // CIC U-001: Jini invokes this required port only AFTER integrity/sdkRange checks. A site
+    // target takes the contained immutable snapshot; built-in seams retain their original path.
+    const moduleImporter = manifest.tier === "tier-2"
+      ? workerImporter!
+      : createPluginModuleImporter({ manifest, source: record.source }, {
+          ...(importModule === undefined ? {} : { importModule }),
+        });
     const result = await loadPlugin(
-      { record, manifest, entryPath, coreDeps },
-      { ...(importModule === undefined ? {} : { importModule }) }
+      { ...pluginHostBinding, record, manifest, entryPath, coreDeps, importModule: moduleImporter },
+      {},
     );
     if (!result.loaded) {
       throw new PluginLoadError(pluginId, result.reason);
     }
 
-    const filter: BeforeSaveFilter | null = invocation.capturedFilter();
+    const filter = invocation.capturedFilter();
     if (manifest.hooks.includes(HOOK_CONTENT_ENTRY_BEFORE_SAVE) && filter === null) {
       throw new PluginLoadError(pluginId, "PLUGIN_HOOK_NOT_ATTACHED");
     }
@@ -350,13 +343,13 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
         declaredFields: manifest.fields,
       });
     } catch (error) {
-      hookRegistry.detach(pluginId);
+      hookRegistry.detach({ pluginId });
       throw new PluginLoadError(pluginId, "PLUGIN_HOOK_ATTACH_FAILED", { cause: error });
     }
   }
 
   function onPluginDisabled(pluginId: string): void {
-    hookRegistry.detach(pluginId);
+    hookRegistry.detach({ pluginId });
   }
 
   /** Boot-time conflict pass (2026-10-04): the newer plugin of every conflicting pair is turned off
@@ -369,7 +362,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     const quarantined = new Set<string>();
     for (const [pluginId, pluginConflicts] of conflicts) {
       if (!enabledIds.has(pluginId)) continue;
-      const reason = describeBootConflictQuarantine(pluginConflicts);
+      const reason = describeBootConflictQuarantine({ conflicts: pluginConflicts });
       await quarantinePlugin({ deps: { clock, repo: activationRepo }, input: { pluginId, workspaceId: required.workspaceId, consecutiveFailures: 0, reason } });
       // eslint-disable-next-line no-console
       console.warn(`[plugin-runtime] '${pluginId}' quarantined at boot: ${reason}`);
@@ -459,8 +452,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
 
   return {
     ...(installDir === undefined ? {} : { pluginInstaller: {
-      preview: (input) => previewSitePluginInstall({ ...input, deps: { installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo, conflicts: installPreviewConflicts } }),
-      install: (input) => installSitePlugin({ ...input, deps: { installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo, conflicts: installPreviewConflicts } }),
+      preview: (input) => previewSitePluginInstall({ ...input, deps: { ...pluginHostBinding, installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo, conflicts: installPreviewConflicts } }),
+      install: (input) => installSitePlugin({ ...input, deps: { ...pluginHostBinding, installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo, conflicts: installPreviewConflicts } }),
     } satisfies PluginInstallerPort }),
     hookRegistry,
     discoverPlugins,
@@ -468,8 +461,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired): Pl
     onPluginDisabled,
     locatePluginPackageDirs,
     readPluginPackageFiles,
-    beforeSaveHook: (entry) => hookRegistry.runBeforeSave(entry),
-    previewPluginBeforeSave: (pluginId, entry) => hookRegistry.previewBeforeSave(pluginId, entry),
+    beforeSaveHook: (entry) => hookRegistry.runBeforeSave({ entry }),
+    previewPluginBeforeSave: (pluginId, entry) => hookRegistry.previewBeforeSave({ pluginId, entry }),
     attachEnabledPluginsAtBoot,
     listPluginConflicts: () => listPluginConflicts(),
   };

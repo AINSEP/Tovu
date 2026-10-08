@@ -167,7 +167,6 @@ describe("CloudflarePagesDeployTarget.publish — responseHeaders", () => {
   });
 });
 
-// ---- Ported from @jini-ai/devops 28f67f9a src/deploy/__tests__/cloudflare-pages.test.ts ----
 
 
 /**

@@ -63,7 +63,7 @@ before(async () => {
   targetUrl = freshPostgresDatabase(TARGET);
   busyUrl = freshPostgresDatabase(BUSY);
   lateUrl = freshPostgresDatabase(LATE);
-  const created = psql(BUSY, "CREATE TABLE someone_elses (id text); INSERT INTO someone_elses VALUES ('x');");
+  const created = psql({ database: BUSY, sql: "CREATE TABLE someone_elses (id text); INSERT INTO someone_elses VALUES ('x');" });
   assert.ok(created.ok, created.stderr);
   siteDir = (await initSite({ dir: path.join(parent, "site"), name: "Move Me", storage: { kind: "pglite" } })).dir;
   const store = await openOwner(siteDir);
@@ -94,9 +94,9 @@ before(async () => {
 });
 
 after(() => {
-  dropDatabase(TARGET);
-  dropDatabase(BUSY);
-  dropDatabase(LATE);
+  dropDatabase({ database: TARGET });
+  dropDatabase({ database: BUSY });
+  dropDatabase({ database: LATE });
   fs.rmSync(parent, { recursive: true, force: true });
 });
 

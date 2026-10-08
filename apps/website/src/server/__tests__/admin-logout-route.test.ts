@@ -68,5 +68,5 @@ test("logout: without a cookie it clears the cookie and answers ok", async (t) =
 
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
-  assert.match(res.headers.get("set-cookie") ?? "", /^tovu_session=; .*Max-Age=0/);
+  assert.equal(res.headers.get("set-cookie"), "tovu_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict");
 });

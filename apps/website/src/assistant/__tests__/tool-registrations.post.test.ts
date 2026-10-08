@@ -9,7 +9,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { InMemoryEventBus, InMemoryOutbox } from "../../contracts/core/events/index.js";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
@@ -18,6 +18,9 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributePostTools } from "../../features/post/tool-registrations.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -25,12 +28,7 @@ const contributions = {
 };
 
 
-// Post moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, the last of this rollout's 25 domains — see
-// `features/post/tool-registrations.ts`'s own trailing comment for the full trace), so
-// `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs it
-// first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`
-// — same fix `tool-registrations.entries.test.ts`/`tool-registrations.themes.test.ts` already apply.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributePostTools() });
 
@@ -94,7 +92,7 @@ function catalogEntry(toolId: string): PostAgentToolDefinition {
   return entry;
 }
 
-function postRegistrations(deps: RegistryDepsWithoutLimiter, surfaceExchanges = createSurfaceExchangeStore()): Map<string, ToolRegistration> {
+function postRegistrations(deps: RegistryDepsWithoutLimiter, surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): Map<string, ToolRegistration> {
   // `content_read.content_post` (2026-09-08) is the collapsed replacement for content_post_get/
   // content_post_list — see assistant/content-read-tool.ts. Captured here alongside every other
   // "content_post_"-prefixed id so `wired(...)` keeps working for callers that ask for either the
@@ -115,7 +113,7 @@ function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistrati
 /** Publication fixtures must answer the real card: owner policy (2026-10-07) gates status
  * changes, while patches without status run directly. Check persistence before approving. */
 async function confirmedCall(deps: RegistryDepsWithoutLimiter, toolId: string, input: Record<string, unknown>) {
-  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registration = postRegistrations(deps, surfaceExchanges).get(toolId);
   assert.ok(registration, `expected '${toolId}' to be wired`);
   const before = structuredClone(await deps.postRepo.list({ workspaceId: WORKSPACE_ID }));
@@ -128,7 +126,7 @@ async function confirmedCall(deps: RegistryDepsWithoutLimiter, toolId: string, i
       const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
       assert.ok(exchangeId, "the approval card must name its exchange");
       assert.deepEqual(await deps.postRepo.list({ workspaceId: WORKSPACE_ID }), before, "publication must wait for approval");
-      assert.deepEqual(surfaceExchanges.deliver({ exchangeId, toolId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }), { ok: true });
+      assert.deepEqual(surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId }), { ok: true });
     },
   });
   assert.equal(emitted, 1, "publication must ask exactly once");
@@ -261,15 +259,8 @@ test("requiresConfirmation is unset on every wired Posts/Pages tool", () => {
 });
 
 /**
- * Was a FAKE GATE until 2026-09-11. Its name has always claimed it checks the published schema
- * against "every renderDocNode node type", but its assertion was a hand-copied list of eight
- * literals that never read `DOC_NODE_HANDLERS` at all. `renderDocNode` handled `image`, `youtube`,
- * `mention`, the table family, `taskList`/`taskItem` and `hardBreak` the whole time; this test sat
- * green beside that gap and is part of why it survived long enough for the assistant to tell an
- * owner an image "cannot" go in a post body.
- *
- * It now derives the expectation instead of restating it, so the only way to break it is to add a
- * renderer node without publishing it — which is the thing it was always supposed to catch.
+ * Derive the published node vocabulary from DOC_NODE_HANDLERS, so adding a renderer node without
+ * publishing it fails instead of leaving a hand-copied expectation silently stale.
  * `title` is `renderDocNode`'s one deliberate omission (it always renders empty in the generic
  * walk, so naming it would teach the model a no-op); that exclusion is restated here rather than
  * imported because this suite asserts the CATALOG's published copy, which is a different object

@@ -1,6 +1,6 @@
 import type { Express, Response } from "express";
 
-import type { CommentWriteService, CommentStatus, ModerationAction } from "#src/features/comments/index";
+import type { CommentWriteService, CommentStatus, ModerationAction } from "@jini-ai/cms/comments";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 

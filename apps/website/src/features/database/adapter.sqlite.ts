@@ -6,14 +6,8 @@ import type { DriftStatus, SchemaSnapshot } from "../../platform/db/drift.js";
  * (`tool-registrations.ts`) compose against, and `repo.memory.ts`'s
  * `InMemoryDatabaseIntrospectionAdapter` also implements.
  *
- * NAME KEPT DESPITE NO LONGER HOLDING AN ADAPTER (2026-08-17, architecture SCC cut): the concrete
- * `SqliteDatabaseIntrospectionAdapter` moved to `db/sqlite/database-introspection-adapter.sqlite.ts`
- * — it was the only thing in this file that needed a real `ContentDb`, and that import was the
- * entire `features/database → db` edge in the module graph. This file is left at its original path,
- * holding only the port + types, so `tool-registrations.ts` and `repo.memory.ts` (both outside this
- * dispatch's file ownership) keep resolving `from "./adapter.sqlite.js"` unchanged. A future rename to
- * `ports.ts` is safe but out of scope here — see the relocated adapter's own file header for the
- * split rationale.
+ * This path holds only ports and types so tool consumers do not depend on the concrete SQLite
+ * adapter (`db/sqlite/database-introspection-adapter.sqlite.ts`) or the shared database module.
  */
 
 export interface DatabaseHealthSummary {
@@ -42,7 +36,7 @@ export interface PendingMigration {
  * `RestorePointListPort`/`RestorePointSavePort` and `timeline.ts`'s `LedgerReadPort`: a small,
  * domain-declared interface a real adapter and an in-memory double both satisfy.
  *
- * DELIBERATELY NOT IMPLEMENTED FOR AN EXTERNAL SUPABASE-HOSTED POSTGRES (2026-07-30), recorded here
+ * DELIBERATELY NOT IMPLEMENTED FOR AN EXTERNAL SUPABASE-HOSTED POSTGRES, recorded here
  * rather than in a dispatch note because this interface is where a future engineer would start.
  * The idea was a second, typed adapter alongside `SqliteDatabaseIntrospectionAdapter` giving the
  * Database agent-tool domain read-only visibility into a site owner's external Supabase project,

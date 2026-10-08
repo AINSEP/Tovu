@@ -1,6 +1,7 @@
+import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
 
-import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
+import { scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 import { guardMediaRenditionRepo } from "#src/features/media/guard-rendition-repo";
 import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { isTrashed, type PostRecord } from "#src/features/post/index";
@@ -167,7 +168,7 @@ function isGatedEntry(entry: PostRecord): boolean {
  * `data-embed-config='{"type":"media","id":"…"}'` marker. So before this function existed, every
  * embed on an `"html"` Page and every video anywhere was invisible to the gate.
  *
- * Uses `core/embeds/marker.ts`'s `scanEmbedMarkers` directly rather than `widgets/`'s
+ * Uses `Jini/packages/cms/src/widgets/markers/marker.ts`'s `scanEmbedMarkers` directly rather than `widgets/`'s
  * `scanHtmlEmbeds` wrapper, for two reasons: `scanHtmlEmbeds` truncates at
  * `MAX_HTML_EMBEDS_PER_PAGE` (a render-time resource bound — a gate that stopped scanning at
  * marker 50 would hand marker 51 straight to an anonymous caller), and it discards `rejected`,
@@ -188,7 +189,7 @@ function isGatedEntry(entry: PostRecord): boolean {
  * @complexity O(n) over `bodyHtml`'s length (one shared regex scan), plus O(k) over the markers found.
  */
 function addHtmlEmbedAssetIds(bodyHtml: string, out: Set<string>): void {
-  for (const marker of scanEmbedMarkers(bodyHtml).markers) {
+  for (const marker of scanEmbedMarkers({ html: bodyHtml }).markers) {
     if (marker.type !== "media") continue;
     // Same `id ?? slug` precedence `resolver-service.ts`'s `parseMediaEmbedRef` resolves with (2026-09-16):
     // a marker that renders via its `"slug"` key must count as a referrer here too, or a members-only
@@ -360,20 +361,10 @@ async function resolveAssetAliases(
   return { aliases, media };
 }
 
-/** Route-local duplicate of `pages.ts`'s own (file-private) `readRawCookie` — no `cookie-parser`
- *  mounted anywhere in this app, same reasoning `9bf661e9`'s content-API fix already gives for its
- *  own copy. `req.headers` is optional-chained for the same direct-invocation-test reason that
- *  file's copy documents. */
-function readRawCookie(req: Request, name: string): string | undefined {
-  const header = req.headers?.cookie;
-  if (!header) return undefined;
-  for (const part of header.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
-  }
-  return undefined;
-}
+
+
+/** No cookie-parser middleware is mounted. The shared request-cookie reader replaces the
+ * route-local copy and handles direct tests whose requests carry no headers bag. */
 
 /** Route-local duplicate of `pages.ts`'s own `createMemberAccessResolver` — built per request from
  *  `deps`, never a module-level singleton, same "tests inject their own in-memory repos per
@@ -423,7 +414,7 @@ function createMemberAccessResolver(
  *
  * Deliberately NOT a blanket "deny whenever nothing references this asset": that would be safe only
  * if entry bodies were the sole legitimate producer of a `/m/` URL, and they are not. Measured
- * counter-examples on this route: `seo/seo.ts`'s `resolveShareImages` turns `settings.defaultOgImage`
+ * counter-examples on this route: `Jini/packages/cms/src/seo/seo.ts`'s `resolveShareImages` turns `settings.defaultOgImage`
  * and an entry's own `seoExtJson.ogImage`/`twitterImage` into `/m/{assetId}/…` URLs fetched by
  * anonymous social crawlers, and `resolver-service.ts`'s media resolver resolves a `"media"` marker
  * authored in a THEME template (documented in the theme-authoring guide; zero occurrences across
@@ -454,7 +445,7 @@ async function resolveMediaAccessDecision(
   const resolver = createMemberAccessResolver(deps);
   const context = await resolver.resolveContext({
     workspaceId: deps.workspaceId,
-    sessionToken: readRawCookie(req, MEMBER_SESSION_COOKIE),
+    sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }),
     nowIso: new Date().toISOString(),
   });
   const allowed = gating.some(

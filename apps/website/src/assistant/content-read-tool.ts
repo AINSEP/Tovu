@@ -1,114 +1,29 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/content-read.js';
 import { buildDomainRegistrations, isRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js";
 
 /**
- * @file `content_read` — Option A from the measured design
- * (`ADS-memory/reports/2026-09-08-parent-tool-read-eval.md`, Addendum, arm D1): **29 thin,
- * resource-keyed catalog entries** (`content_read.<resource>`), one per Tier-1 "collapses
- * unconditionally" read tool group, **all dispatching through {@link dispatchByIdPresence} — the
- * one shared handler factory** — rather than 29 hand-written handlers. No schema change to
- * `@jini-ai/sqlite-chat` or `tool-catalog-query.ts`: the id itself carries the resource, exactly as D1
- * measured — it matched the pre-collapse baseline case-for-case at top-10, on both the whole set and
- * the affected subset. The numbers themselves are deliberately NOT restated here: they move whenever
- * the catalog changes (the shipped top-20 already moved the baseline's own figure), and a bare
- * percentage in a comment is exactly the rot that produced the fabricated tool-search accuracy claim
- * `37a78494` had to strip out of two shipping files. Read them from the eval, which recomputes them:
- * `development/evals/tool-search-parent-tool-read.eval.ts`, and the Addendum's Results tables.
+ * @file Resource-keyed content_read cards share one dispatch factory over existing read handlers.
+ * Tool ids carry the resource without a catalog-schema change. Discovery evaluation lives in
+ * development/evals/tool-search-parent-tool-read.eval.ts; catalog-dependent scores belong there.
  *
- * ## Why this lives in `assistant/`, not `features/content-read/`
+ * This is an assistant composition pass, not a new content domain. The resource is fixed at
+ * registration time by CONTENT_READ_CARDS, unlike content_duplicate's caller-selected resource.
+ * Every source handler is already built by its domain contributor, so deriving cards from the flat
+ * registration list avoids a second per-resource registry, repeated builds and feature imports.
+ * The pass must run after contributors because it consumes their registrations and replaces member ids.
  *
- * `content_duplicate` (`features/content-duplication/`) is the shipped precedent for "one generic
- * tool over many resources", and the dispatch that requested this file pointed at it as the shape
- * to follow. It was read in full before writing this. Two things about it do NOT transfer:
+ * Permission enforcement remains in the original handler/domain. registration-kit deliberately
+ * leaves policy.authorize as pass-through to avoid a second evaluator. Calling those closures
+ * unchanged preserves each resource's enforcement exactly once. Card permission/orPermission
+ * declarations provide accurate catalog visibility; resources fixed per id make them statically
+ * knowable, rather than a misleading generic permission over caller-selected resources.
  *
- * 1. **Its resource is caller-supplied at call time** (`{resource: "post", ...}`), so it genuinely
- *    needs `duplicate-resource-registry.ts` — a BOOT-TIME registry of deferred `build(routeDeps)`
- *    contributors, resolved once per composition, because a feature (`features/post`) must be able
- *    to contribute its OWN "how do I copy myself" capability without `features/post` importing
- *    `assistant/**` by value (the exact edge `.dependency-cruiser.mjs`'s
- *    `domain-no-direct-assistant-tool-registration` rule bans). `content_read`'s resource is the
- *    OPPOSITE: it is baked into the tool id at REGISTRATION time from a FIXED, mechanically-derived
- *    36-tool set (this file's own {@link CONTENT_READ_CARDS} table) — nothing about it grows at
- *    runtime the way `content_duplicate`'s resource set does, so there is nothing for a caller-side
- *    registry to defer.
- * 2. **Every member tool this file reuses already ships**, fully wired, inside another domain's own
- *    `contribute<Domain>Tools()`. Reusing it needs no NEW per-resource contribution seam at all: this
- *    file operates on the ALREADY-BUILT flat `ToolRegistration[]` `buildAssistantToolRegistrations`
- *    (`tool-registrations.ts`) produces from every domain's own build call, as one POST-PROCESSING
- *    pass — see {@link deriveContentReadRegistrations}. That is strictly simpler than a second
- *    boot-time registry, and it is why this file needs no `features/**` import at all (a real
- *    `features/content-read` package would have had to import EVERY source domain by value merely to
- *    call its own `build<Domain>Registrations` a SECOND time, duplicating work the aggregate already
- *    does once).
- *
- * Structurally this is closer to `admin-screen-link-tool.ts`/`component-catalog-tool.ts` — a single
- * cross-cutting tool file living directly in `assistant/` because it has no domain of its own to
- * live beside — except those two ARE ordinary `ToolContributor`s (`build(routeDeps, surfaces) =>
- * ToolRegistration[]`), built independently inside the SAME loop that builds every other domain.
- * This file's {@link deriveContentReadRegistrations} cannot be: it needs to see what THAT loop
- * already produced (to extract handlers/descriptors from it and to retire the 36 originals), so it
- * runs once, AFTER the loop, as `buildAssistantToolRegistrations`'s own final step — not registered
- * via `registerToolContributor`/`DOMAIN_SLICES` at all. See that function's own call site.
- *
- * ## Why reusing the original handler unchanged is enough for per-resource permission
- *
- * The dispatch that requested this file specifically flagged permission: "the read set spans a
- * dozen-plus declared permissions, so a flat single-permission parent tool is WRONG." That concern
- * is real for a tool whose resource is CALLER-supplied (`content_duplicate`'s shape) — a single
- * static `authorization.permission` on the catalog entry would be actively misleading there, which
- * is exactly why that tool resolves permission per call, at the handler.
- *
- * It does not apply the same way here, for a structural reason worth stating precisely:
- * `@jini-ai/cms/core`'s `registration-kit.ts` (`buildDomainRegistrations`'s own header) documents
- * that `policy.authorize` is ALWAYS a pass-through `'allow'` for every tool in this codebase — a
- * catalog entry's declared `authorization.permission` is NEVER itself the runtime gate. The REAL
- * gate is "inside the domain function for the self-enforcing domains, or the handler's own
- * `requireToolPermission` call for the domains whose gate lives in the route" — evaluated EXACTLY
- * ONCE, by design ("A check here would be a SECOND evaluator of the same rule"). Every one of this
- * file's 29 handlers below is one of the 36 ORIGINAL, already-shipped handler closures, extracted
- * from the built registration and invoked completely unchanged — so whichever of those two
- * enforcement paths that original handler already uses keeps running, unmodified, under the new id.
- * No new permission-checking code is needed for correctness, and none is added.
- *
- * What `CONTENT_READ_CARDS.permission` (and `.orPermission`) IS for: the catalog-level VISIBILITY
- * `duplicate-resource-registry.ts` also cares about — a security reviewer grepping `agent-tools.ts`
- * files for `authorization.permission` should find content_read's real, resource-specific permission
- * too, not a placeholder. Because the resource is fixed per id (point 1 above), that real permission
- * IS statically knowable here, copied verbatim from each source domain's own catalog entry — see the
- * per-card comments below for exactly which line each came from. This is strictly BETTER visibility
- * than `content_duplicate`'s own `"resolved-per-resource"` declaration-only placeholder, which its
- * shape requires and this one does not.
- *
- * ## Card derivation — must match the measured arm exactly
- *
- * `CONTENT_READ_CARDS` is a literal transcription of `development/evals/tool-search-parent-tool-read.eval.ts`'s
- * own `TIER1_CLEAN` (the 36 ids) grouped by its `resourceKeyOf` (strip `list`/`get`/`by`/`id`,
- * singularize, dedupe) — reproduced as a literal table, not recomputed from that eval file at
- * runtime, so this list is pinned to the SAME 36 ids the addendum's D1 arm measured rather than
- * silently drifting if that eval file changes later. Verified by running `resourceKeyOf` over
- * `TIER1_CLEAN` directly (not hand-derived): 29 cards, 7 of them merging a `_get`/`_list` pair over
- * one resource (`content_post`, `member`, `menu`, `newsletter_campaign`, `redirect`,
- * `widget_instance`, `widget_region`).
- *
- * 2026-10-03: `deployment_list` and its `deployment` card are retired with the deleted deployment
- * tables (migration 0004), so the shipped table is 35 member ids in 28 cards; the measured arm
- * above still counts 36 and 29.
- *
- * **Ruling on the disclosed misfire** (`newsletter_list_lists`): running the eval's own
- * `resourceKeyOf("newsletter_list_lists")` step by step — `["newsletter","list","lists"]`, drop the
- * exact-match verb token `"list"`, singularize `"lists"` -> `"list"` — actually yields the key
- * `"newsletter_list"`, not the `"newsletter"` the addendum's own prose describes for this misfire.
- * (The addendum's own inline comment appears to describe the effect informally rather than the
- * literal function output; the CODE, not that prose, is what the measured numbers are attributable
- * to, and `"newsletter_list"` is what actually ran.) At `"newsletter_list"` there is no collision
- * with `content_read.newsletter_campaign` — the concern the prose seems to be gesturing at never
- * materializes for the id this eval actually produced. Shipping is a different standard than the
- * blind arm (per the dispatch: "you are shipping, not running a blind arm"), so this was decided
- * deliberately rather than carried through by default: `"newsletter_list"` reads correctly by
- * coincidence (`newsletter_list_lists` lists NEWSLETTER's mailing LISTS, so "newsletter list" is an
- * accurate noun phrase for that resource, not just a leftover verb token) and needs no hand-fix.
- * Left as `content_read.newsletter_list` unchanged from what the eval measured.
+ * The literal card table pins resource grouping independently of evaluation changes. Paired get/list
+ * tools share a card; idProperty comes from each source schema and is not universally "id".
+ * newsletter_list is intentional: newsletter_list_lists lists mailing lists, so "newsletter list"
+ * is the resource noun and does not collide with newsletter_campaign.
  */
 
 /** One card's real, statically-known permission plus which of its (at most two) member tools it
@@ -242,7 +157,7 @@ function rewriteSchemaDescriptions(value: unknown, rewriteText: (text: string) =
  *
  * Package-owned catalogs (menus, media, identity, ...) still say "the menu's id, as returned by
  * menus_list_menus" — true in a host that does not collapse reads, but in this one those ids no
- * longer exist and a model told to call them finds nothing (capability inventory 2026-10-05). The
+ * longer exist and a model told to call them finds nothing. The
  * collapse is THIS host's decision, so the rewrite lives here rather than in each package. Only the
  * plain text before {@link KEYWORD_MARKER} is rewritten: the indexed tail is keyed vocabulary, not
  * prose, and must stay exactly what the retrieval measurements scored.
@@ -488,7 +403,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
     derivedRisk.set(id, "none");
   }
 
-  const collapsed = buildDomainRegistrations({
+  const collapsed = buildDomainRegistrations({ metadata: toolMetadata,
     domain: "content-read",
     catalogModule: "assistant/content-read-tool.ts",
     catalog,

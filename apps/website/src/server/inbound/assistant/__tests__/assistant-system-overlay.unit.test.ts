@@ -192,3 +192,11 @@ test("published content guidance prioritizes the live URL and requires explicit 
   assert.match(overlay, /adminUrl is only a secondary edit link/);
   assert.match(overlay, /overwrite:true only when the user explicitly asked/);
 });
+
+test("default prompt describes the enforced host tool grant", () => {
+  assert.equal(ASSISTANT_DISALLOWED_TOOLS.includes("Bash"), true);
+  const overlay = buildBaseSystemOverlay(false);
+  assert.equal(overlay.includes("Bash is unavailable because it is disabled for this assistant."), true);
+  assert.equal(overlay.includes("Bash and file access remain available"), false);
+  assert.equal(overlay.includes("Read remains available only for reading Tovu's own source"), true);
+});

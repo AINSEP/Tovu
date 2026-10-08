@@ -4,7 +4,6 @@ import test from "node:test";
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
 import type { DomainEvent } from "@jini-ai/cms/core";
-import { buildSitemap, invalidateSitemapCache } from "#src/features/seo/sitemap";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 
 /**
@@ -139,17 +138,15 @@ for (const name of ["entry.published", "entry.updated", "entry.unpublished"]) {
     await deps.seoReady;
     createApp(deps);
     deps.createSiteApp();
-    invalidateSitemapCache({ workspaceId: deps.workspaceId });
-    t.after(() => invalidateSitemapCache({ workspaceId: deps.workspaceId }));
-    const sitemapDeps = { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, originRegistry: deps.originRegistry,
-      media: { mediaRepo: deps.mediaRepo, assetRenditionRepo: deps.assetRenditionRepo, transformDefinitionRepo: deps.transformDefinitionRepo } };
-    const before = await buildSitemap(sitemapDeps, { workspaceId: deps.workspaceId });
+    deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId }, {});
+    t.after(() => deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId }, {}));
+    const before = await deps.sitemapService.buildSitemap({ workspaceId: deps.workspaceId }, {});
     const existing = (await deps.postRepo.list({ workspaceId: deps.workspaceId })).find((post) => post.status === "published");
     assert.ok(existing, "precondition: a published source post exists");
     await deps.postRepo.save({ ...existing, id: "sitemap-new-post", slug: "sitemap-new-post", title: "New independently inserted post" });
-    assert.deepEqual(await buildSitemap(sitemapDeps, { workspaceId: deps.workspaceId }), before, "precondition: the stale cache conceals the new post");
+    assert.deepEqual(await deps.sitemapService.buildSitemap({ workspaceId: deps.workspaceId }, {}), before, "precondition: the stale cache conceals the new post");
     await deps.bus.publish(makeEvent(name, deps.workspaceId, new Date(deps.clock.nowMs()).toISOString()));
-    const after = await buildSitemap(sitemapDeps, { workspaceId: deps.workspaceId });
+    const after = await deps.sitemapService.buildSitemap({ workspaceId: deps.workspaceId }, {});
     assert.equal(after.length, before.length + 1);
     assert.ok(after.some((entry) => entry.loc.endsWith("/sitemap-new-post")));
   });

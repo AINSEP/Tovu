@@ -3,7 +3,10 @@ import test, { type TestContext } from 'node:test';
 import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
 
 import { requireHumanConfirm, type HumanConfirmSpec } from '../human-confirm.js';
-import { createSurfaceExchangeStore } from '../tool-surface-exchanges.js';
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 // Author Checklist (F2.3/F3.4/F3.5/F6.2/F7.1/F7.6/F7.7): run the real helper,
 // exchange store and AbortSignal; pin deadlines and IDs; settle owned work in cleanup.
@@ -16,7 +19,7 @@ function harness(t: TestContext, aborted = false) {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: new Date('2026-10-04T00:00:00.000Z') });
   const controller = new AbortController();
   if (aborted) controller.abort();
-  const store = createSurfaceExchangeStore({ idleTtlMs: 100, maxLifetimeMs: 1_000, newExchangeId: () => 'confirmation-42' });
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'confirmation-42' }, defaultChannel: "mcp-ui" }, { idleTtlMs: 100, maxLifetimeMs: 1_000 });
   const emitted: SurfaceEmission[] = [];
   const ctx: ToolExecutionContext = {
     executionId: 'execution-42', principal: { id: 'operator-9' }, run: { id: 'run-42' },
@@ -32,9 +35,7 @@ function harness(t: TestContext, aborted = false) {
     t.mock.timers.tick(1_000);
     await turn();
   });
-  const answer = (params: Record<string, unknown>) => store.deliver({
-    exchangeId: 'confirmation-42', toolId: 'fixture_confirm_action', principalId: 'operator-9', params,
-  });
+  const answer = (params: Record<string, unknown>) => store.deliver({ exchangeId: 'confirmation-42', principalId: 'operator-9', params }, { toolId: 'fixture_confirm_action' });
   return { controller, store, ctx, spec, emitted, answer,
     emitSurface: async (surface: SurfaceEmission) => { emitted.push(surface); },
   };

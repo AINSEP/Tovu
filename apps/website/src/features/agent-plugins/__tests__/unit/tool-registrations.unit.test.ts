@@ -12,18 +12,18 @@ import test from "node:test";
 import { createToolRegistry, ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import { defaultResolveInstalledAgentPlugin } from "../../connect-tool.js";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { uninstallAgentPlugin } from "../../uninstall.js";
+import { uninstallAgentPlugin } from "../../lifecycle.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import {
   buildAgentPluginToolRegistrations,
   buildAgentPluginConnectRegistrations,
@@ -31,6 +31,9 @@ import {
   loadInstalledAgentPluginToolSources,
   registerInstalledAgentPluginTools,
 } from "../../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The tool-registration path for Agent Plugins — registers each installed PLUGIN as one real
@@ -495,7 +498,7 @@ test("the registered connect handler resolves a real installed plugin and recogn
       authorize: async () => ({ allowed: true, reason: "test" }),
       customCredentialsHttpClient: { send: async () => assert.fail("an MCP plugin connect never probes a token") },
       externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), completeAuthorizationCallback: async () => assert.fail("no callback"), pollDeviceAuthorization: async () => assert.fail("no device flow"), disconnect: async () => assert.fail("no disconnect"), reportAuthFailure: async () => assert.fail("no auth failure"), tokenResolver: { resolveAccessToken: async () => assert.fail("no token resolve") } },
-    }, { surfaceExchanges: createSurfaceExchangeStore() });
+    }, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");
     assert.ok(connect);
     assert.deepEqual(await invokeFixtureHandler(connect, fakeCtx({ pluginId: "supabase" })), { status: "connected" });

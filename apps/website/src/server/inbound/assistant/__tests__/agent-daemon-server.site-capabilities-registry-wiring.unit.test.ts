@@ -8,8 +8,13 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
+import { createLiveRunTracker } from "#src/assistant/agent-session-preset";
+
 
 /**
  * @file Wiring proof that the agent daemon hands `site_describe_capabilities` a reader over its OWN
@@ -66,8 +71,9 @@ test("the daemon's actual catalog reader exposes a tool registered after composi
   const registry = createToolRegistry({});
   const registrations = evaluateDaemonExpression<ReturnType<typeof buildAssistantToolRegistrations>>(
     daemonInitializer("assistantRegistrations"),
-    { routeDeps, registry, contributions, listToolCatalogEntries, buildAssistantToolRegistrations,
-      magicLinkPerEmailLimiter: {}, surfaceExchanges: createSurfaceExchangeStore() },
+    { routeDeps, registry, contributions, listToolCatalogEntries, buildAssistantToolRegistrations, createNativeApprovalMemory,
+      liveRunTracker: createLiveRunTracker({}, {}),
+      magicLinkPerEmailLimiter: {}, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   );
   for (const registration of registrations) registry.register(registration);
   registry.register({

@@ -95,7 +95,7 @@ export function registerThemeStaticAssets(
         let relativePath: string;
         try { relativePath = decodeURIComponent(req.url.split("?", 1)[0] ?? "").replace(/^\/+/, ""); }
         catch { next(); return; }
-        const cssPath = resolvePathWithin(themeDir, relativePath);
+        const cssPath = resolvePathWithin({ root: themeDir, segment: relativePath }, {});
         if (cssPath && relativePath.toLowerCase().endsWith(".css") && !relativePath.split(/[\\/]/).some((segment) => segment.startsWith("."))) {
           try {
             const css = readFileSync(cssPath, "utf8");
@@ -148,7 +148,7 @@ export function registerThemeStaticAssets(
 function resolveThemeDir(roots: readonly string[], themeId: string): string | null {
   if (themeId === "" || themeId.startsWith("__") || themeId.startsWith(".")) return null;
   for (const root of roots) {
-    const candidate = resolvePathWithin(root, themeId);
+    const candidate = resolvePathWithin({ root: root, segment: themeId }, {});
     if (candidate === null) continue;
     if (existsSync(candidate)) return candidate;
   }

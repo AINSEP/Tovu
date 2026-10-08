@@ -9,7 +9,7 @@ import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type To
 
 import type { UIResource } from "#src/assistant/index";
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../../custom-credentials/store.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
@@ -25,6 +25,9 @@ import { InMemorySourceControlCredentialSetRepo } from "../../source-control/rep
 import { createSourceControlCredential } from "../../source-control/store.js";
 import { FakeGitHub } from "./fixtures/fake-github.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `site_backup_plan` / `site_backup_push`'s proof, driven through the real registrations: a
@@ -170,7 +173,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
   let allow = options.allow ?? (() => true);
   const authorized: string[] = [];
   const logLines: string[] = [];
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const planStore = new SiteBackupPlanStore(options.planNowMs ? { now: options.planNowMs } : {});
   /** Every retry wait the GitHub client asked for; none is slept. */
   const sleeps: number[] = [];
@@ -274,7 +277,7 @@ async function beginCall(h: ReturnType<typeof harness>, planId: string, principa
 }
 
 function answer(h: ReturnType<typeof harness>, exchangeId: string, decision: "confirm" | "cancel", principalId = OWNER_PRINCIPAL): void {
-  h.surfaceExchanges.deliver({ exchangeId, toolId: "site_backup_push", principalId, params: { decision } });
+  h.surfaceExchanges.deliver({ exchangeId, principalId, params: { decision } }, { toolId: "site_backup_push" });
 }
 
 async function plannedId(h: ReturnType<typeof harness>): Promise<string> {
@@ -792,7 +795,7 @@ test("a credential that becomes unreadable between plan and confirm is CREDENTIA
   const h = harness(t, {
     openSealer: (sealedWith) => ({
       seal: (input) => sealedWith.seal(input),
-      open: (input) => (broken ? Promise.reject(new Error("LEAK-SENTINEL")) : sealedWith.open(input)),
+      open: (input, optional) => (broken ? Promise.reject(new Error("LEAK-SENTINEL")) : sealedWith.open(input, optional)),
     }),
   });
   await h.seed();

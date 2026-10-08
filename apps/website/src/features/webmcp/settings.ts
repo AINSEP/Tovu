@@ -5,7 +5,7 @@ import {
   type EnsureSettingsUiTabDefinitionsInput,
   type getEffective,
   type SettingsRepoPort,
-} from '@jini-ai/cms/settings';
+} from '@jini-ai/core/settings';
 
 /** Public-site policy is distinct from the admin's origin-local browser opt-out. */
 export const PUBLISHED_WEBMCP_NAMESPACE = 'core.privacy';

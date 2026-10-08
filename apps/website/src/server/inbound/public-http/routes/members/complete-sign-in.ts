@@ -20,11 +20,8 @@ import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./d
 export const MEMBER_SESSION_COOKIE = "tovu_member_session";
 
 function setMemberSessionCookie(res: Response, rawToken: string, expiresAtIso: string): void {
-  const maxAgeSeconds = Math.max(0, Math.floor((new Date(expiresAtIso).getTime() - Date.now()) / 1000));
-  res.setHeader(
-    "Set-Cookie",
-    `${MEMBER_SESSION_COOKIE}=${encodeURIComponent(rawToken)}; HttpOnly; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax; Secure`
-  );
+  const maxAge = Math.max(0, new Date(expiresAtIso).getTime() - Date.now());
+  res.cookie(MEMBER_SESSION_COOKIE, rawToken, { httpOnly: true, path: "/", maxAge, sameSite: "lax", secure: true });
 }
 
 /** Enforces `MAGIC_LINK_COMPLETE_ATTEMPT` on this public route. Writes the 429 itself and returns

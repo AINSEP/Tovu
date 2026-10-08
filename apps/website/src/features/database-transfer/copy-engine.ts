@@ -12,7 +12,6 @@ export const DEFAULT_TRANSFER_SCHEMA = "tovu";
 export const TRANSFER_MARKER_TABLE = "_tovu_transfer";
 export const TRANSFER_NAMING: TransferNaming = { defaultSchema: DEFAULT_TRANSFER_SCHEMA, markerTable: TRANSFER_MARKER_TABLE, unvalidatedTable: "pg_temp._tovu_unvalidated", schemaPrefix: "tovu_", sqlTag: "tovu" };
 export function siteSchemaName(site: string): string { return engine.siteSchemaName({ site, naming: TRANSFER_NAMING }); }
-// excludedTableNames (apps/website/src/features/database-transfer/copy-engine.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 export function countSourceRows(source: TransferSource, tables: readonly TransferTable[]): TableCount[] { return engine.countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }); }
 /**
  * Rows left behind in tables that are otherwise copied (secret settings), per table, with the reason.

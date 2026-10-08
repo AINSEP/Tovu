@@ -9,7 +9,7 @@ import { toBool } from "../kernel/dialect.js";
 /**
  * @file THE `VendorCredentialSetRepoPort` adapter: one Kysely query body for every
  * dialect (storage plan §4, ADR-066) — the ADR-006 rule-of-two "second adapter" half;
- * `features/vendor-credentials/repo.memory.ts`'s `InMemoryVendorCredentialSetRepo` is
+ * `@jini-ai/platform/secrets/credential-sets`'s `InMemoryVendorCredentialSetRepo` is
  * the first. Composite `(workspace_id, id)` primary key. `sqlite/vendor-credential-repo.sqlite.ts`
  * is the thin subclass built from the content db handle.
  *

@@ -682,7 +682,7 @@ test("a claimed row with no recorded envelope fails (envelope-store gap)", async
 
   // Enqueue the delivery row directly, bypassing enqueueDelivery, so no envelope is ever saved —
   // exercises the "no envelope recorded" defensive branch in attemptOneDelivery.
-  await rig.deliveryRepo.enqueue({
+  await rig.deliveryRepo.enqueue({ record: {
     id: "delivery-no-envelope",
     workspaceId: "workspace-1",
     subscriptionId: subscription.id,
@@ -697,7 +697,7 @@ test("a claimed row with no recorded envelope fails (envelope-store gap)", async
     createdAt: "2026-07-10T00:00:00.000Z",
     deliveredAt: null,
     deadAt: null,
-  });
+  } });
 
   const httpClient = new RecordingHttpClient();
 

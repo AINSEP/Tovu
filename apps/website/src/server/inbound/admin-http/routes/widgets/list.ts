@@ -1,4 +1,4 @@
-import { listWidgetInstances } from "#src/features/widgets/read-service";
+import { listWidgetInstances } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";

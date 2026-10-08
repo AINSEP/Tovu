@@ -9,7 +9,7 @@ const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { UIResource } from "#src/assistant/index";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 
 import { type IdentityRepos } from "@jini-ai/user-management";
 import { identityAgentToolCatalog, type IdentityAgentToolDefinition as AgentToolDefinition, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
@@ -21,6 +21,9 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeIdentityTools } from "../../features/identity/tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -28,10 +31,7 @@ const contributions = {
 };
 
 
-// Identity moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
-// so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
-// it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeIdentityTools() });
 
@@ -121,9 +121,9 @@ const COLLAPSED_IDENTITY_CONTENT_READ_IDS: ReadonlySet<string> = new Set([
   "content_read.identity_policy",
 ]);
 
-function identityRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
+function identityRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions, includeContentReadCollapse })
       .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id) || COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(registration.descriptor.id))
       .map((registration) => [registration.descriptor.id, registration]),
   );
@@ -144,7 +144,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 /** Every call in this file acts as the seeded owner unless a test is specifically about a weaker caller. */
 
 /** One store for every registration built here, so {@link autoAnswer} can answer its dialogs. */
-const SURFACE_EXCHANGES = createSurfaceExchangeStore();
+const SURFACE_EXCHANGES = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
 /**
  * Answers every dialog a call raises the way a human saying yes would — Confirm, or, for
@@ -174,7 +174,8 @@ test("every wired registration publishes the inputSchema and description from it
 
   // The 3 collapsed content_read.identity_* ids excluded — see COLLAPSED_IDENTITY_CONTENT_READ_IDS's
   // own comment for why identityAgentToolCatalog has nothing to cross-check them against.
-  for (const [id, registration] of identityRegistrations(deps)) {
+  // Compare the source catalog before the host read-id projection; contracts.test.ts checks that projection.
+  for (const [id, registration] of identityRegistrations(deps, false)) {
     if (COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(id)) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     // identity_user_create is the one deliberate exception: Tovu drops `password` from the model's
@@ -183,7 +184,7 @@ test("every wired registration publishes the inputSchema and description from it
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
-  const create = identityRegistrations(deps).get("identity_user_create")!.descriptor;
+  const create = identityRegistrations(deps, false).get("identity_user_create")!.descriptor;
   const catalogSchema = catalogEntry("identity_user_create").inputSchema as { properties: Record<string, unknown> };
   const { password: _password, ...withoutPassword } = catalogSchema.properties;
   assert.deepEqual(create.inputSchema, { ...catalogSchema, required: ["username"], properties: withoutPassword });

@@ -71,15 +71,11 @@ type AnalyticsSettingKey =
 
 /** Narrows the shared spec's open `key: string` to this namespace's own key
  *  union, so a typo here is a compile error rather than a definition
- *  registered under a key nothing reads. */
-interface AnalyticsDefinitionSpec extends SettingDefinitionSpec {
-  key: AnalyticsSettingKey;
-}
-
-/** The 6 registered `core.analytics.*` definitions. No `sink` key — see this
+ *  registered under a key nothing reads.
+ * The 6 registered `core.analytics.*` definitions. No `sink` key — see this
  *  file's header. Defaults match the values the former `server/app.ts` inline
  *  stub hardcoded, so upgrading to this adapter changes no behavior. */
-const ANALYTICS_DEFINITIONS: readonly AnalyticsDefinitionSpec[] = [
+const ANALYTICS_DEFINITIONS: readonly SettingDefinitionSpec<AnalyticsSettingKey>[] = [
   { key: "enabled", schema: { type: "boolean" }, defaultValue: true },
   { key: "honorDoNotTrack", schema: { type: "boolean" }, defaultValue: true },
   { key: "honorGlobalPrivacyControl", schema: { type: "boolean" }, defaultValue: true },
@@ -105,7 +101,6 @@ export interface EnsureAnalyticsSettingDefinitionsInput {
  *
  * @complexity O(1) — 6 definitions, each a skip-if-registered check plus at
  * most one `registerDefinitions` call.
- * @overallScore 100
  */
 export async function ensureAnalyticsSettingDefinitions(
   deps: EnsureAnalyticsSettingDefinitionsDeps,

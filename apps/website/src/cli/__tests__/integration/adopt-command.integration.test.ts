@@ -191,7 +191,8 @@ test("the whole point: a marker-less but working site directory is REFUSED by se
     const res = await fetch(`http://127.0.0.1:${port}/`);
     assert.equal(res.status, 200, "the adopted directory must actually serve its public site, not merely pass validation");
   } finally {
-    if (child) {
+    // A failed boot can exit before teardown starts; waiting for its past exit never resolves.
+    if (child && child.exitCode === null && child.signalCode === null) {
       const running = child;
       await new Promise<void>((resolve) => {
         running.on("exit", () => resolve());

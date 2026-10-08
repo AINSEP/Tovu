@@ -5,13 +5,14 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { forceRemove } from "../fixtures/force-remove.js";
-import { installAgentPlugin } from "../../install.js";
+import { installAgentPlugin } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { recordBundledAgentPluginDigests } from "../../bundled-digests.js";
+import { recordBundledAgentPluginDigests } from "../../lifecycle.js";
 
 import { InMemoryExternalMcpServerRepo, listExternalMcpServerViews, saveExternalMcpServer, type ExternalMcpServerRepoPort, type ExternalMcpStoreDeps } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
 
 import { deriveAgentPluginConnectionId, planAgentPluginMcpFederation, provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
@@ -339,14 +340,14 @@ test("provisionAgentPluginMcpServers: an operator's pre-existing row with a live
   const deps = makeDeps();
 
   // Seed the row the way an operator's own Settings -> External MCP save would: a real allowlist, a
-  // write grant, a pasted credential, and (structurally) an oauth configuration — everything rule 1
+  // write grant, a pasted credential, and an oauth configuration — everything rule 1
   // exists to protect, and everything a careless upsert would wipe.
   await saveExternalMcpServer(deps, {
     workspaceId: "ws-1",
     serverId: "remote",
     label: "My Own Remote Connection",
     transport: "streamable_http",
-    authMode: "static_env",
+    authMode: "oauth",
     enabled: true,
     command: "",
     url: "https://operator-configured.example.com/mcp",
@@ -354,7 +355,28 @@ test("provisionAgentPluginMcpServers: an operator's pre-existing row with a live
     allowedToolNames: "search,fetch",
     writeAllowedToolNames: "search",
     env: "API_KEY=super-secret-value",
+    oauth: { grant: "authorization_code", clientId: "operator-client" },
     principalId: "operator-1",
+  });
+  const seeded = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" });
+  assert.ok(seeded);
+  // Seed completed sign-in state through the same sealer OAuth persistence uses, so adoption must
+  // preserve usable access/refresh tokens and their AAD lineage, not just empty OAuth columns.
+  const payload = {
+    clientSecret: "fixture-client-secret",
+    tokens: {
+      accessToken: "fixture-oauth-access-token",
+      refreshToken: "fixture-oauth-refresh-token",
+      tokenType: "Bearer",
+      scopes: ["search", "fetch"],
+      expiresAt: "2026-10-08T00:00:00.000Z",
+    },
+  };
+  await deps.repo.upsert({
+    ...seeded,
+    ...await sealExternalMcpOAuthPayload(deps, seeded, payload),
+    oauthStatus: "connected",
+    oauthExpiresAt: payload.tokens.expiresAt,
   });
   const before = await deps.repo.findByServerId({ workspaceId: "ws-1", serverId: "remote" });
   assert.ok(before, "seed row must exist before adoption");
@@ -379,6 +401,7 @@ test("provisionAgentPluginMcpServers: an operator's pre-existing row with a live
   // value proves every other column (url, transport, authMode, enabled, allowlist, write grants,
   // sealed env, timestamps, aad versions) is untouched.
   assert.deepEqual({ ...after, provisionedByPluginId: before.provisionedByPluginId }, before);
+  assert.deepEqual(await openExternalMcpOAuthPayload(deps.sealer, after), payload);
   // Named explicitly, since these are exactly what a careless upsert would wipe.
   assert.deepEqual(JSON.parse(after.allowedToolNames ?? "[]"), ["search", "fetch"]);
   assert.deepEqual(JSON.parse(after.writeAllowedToolNames ?? "[]"), ["search"]);

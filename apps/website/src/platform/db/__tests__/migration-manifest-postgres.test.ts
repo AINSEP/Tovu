@@ -6,7 +6,7 @@
  * diff cannot see (see manifest.ts's own module doc). A test that asserts "int8 accepts values int4
  * rejects" without ever executing an INSERT against a real int4/int8 column would be trusting the
  * same assumption the manifest exists to stop trusting. Every test below executes real DDL/DML
- * against a throwaway Postgres database via `psql` (see `../migration/pg-fixture.ts` for why a shell-
+ * against a throwaway Postgres database via `psql` (see `@jini-ai/db/testing/pg-fixture` for why a shell-
  * out rather than a driver) and checks the server's actual response — an exit code, a returned row, a
  * value computed by the server itself — never a value this test file computed independently and
  * merely hopes agrees.
@@ -23,7 +23,13 @@ import test from "node:test";
 
 import { classifyAllCoreColumns, collectCoreTables, computeCoreTableCopyOrder, DERIVED_OBJECTS, IDENTITY_COLUMN_INSERT_OVERRIDE, reseedSequenceSql } from "../migration/manifest.js";
 import { collectTransferTables } from "#src/features/database-transfer/table-catalog";
-import { dropDatabase, psql, recreateDatabase } from "../migration/pg-fixture.js";
+import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";
+
+const { dropDatabase, psql, recreateDatabase } = createPgFixture({
+  host: process.env.PGHOST ?? "/tmp",
+  user: process.env.PGUSER ?? "la",
+  port: process.env.PGPORT,
+});
 
 /** Same admin-connection target `pg-fixture.ts` uses internally for `DROP`/`CREATE DATABASE` — not
  * exported from there (deliberately hardcoded, per that file's own doc, so no env var can redirect
@@ -85,7 +91,7 @@ function quotePgIdentifier(identifier: string): string {
 /** Quoted-identifier counterpart to `pg-fixture.ts`'s `dropDatabase` — see `quotePgIdentifier`'s own
  * doc for exactly which callers below need this instead of the shared unquoted helper. */
 function dropDatabaseQuoted(database: string): void {
-  const result = psql(ADMIN_DATABASE_NAME, `DROP DATABASE IF EXISTS ${quotePgIdentifier(database)};`);
+  const result = psql({ database: ADMIN_DATABASE_NAME, sql: `DROP DATABASE IF EXISTS ${quotePgIdentifier(database)};` });
   if (!result.ok) throw new Error(`failed to drop database "${database}": ${result.stderr}`);
 }
 
@@ -95,7 +101,7 @@ function dropDatabaseQuoted(database: string): void {
  * shared `recreateDatabase` could not create them at all, quoting concerns aside. */
 function recreateDatabaseQuoted(database: string): void {
   dropDatabaseQuoted(database);
-  const create = psql(ADMIN_DATABASE_NAME, `CREATE DATABASE ${quotePgIdentifier(database)};`);
+  const create = psql({ database: ADMIN_DATABASE_NAME, sql: `CREATE DATABASE ${quotePgIdentifier(database)};` });
   if (!create.ok) throw new Error(`failed to create database "${database}": ${create.stderr}`);
 }
 
@@ -138,7 +144,7 @@ async function waitUntilProcessDead(pid: number, timeoutMs = 2000): Promise<void
  * including ones running alongside several others right now.
  */
 function sweepStaleFixtureDatabases(): void {
-  const list = psql(ADMIN_DATABASE_NAME, `SELECT datname FROM pg_database;`);
+  const list = psql({ database: ADMIN_DATABASE_NAME, sql: `SELECT datname FROM pg_database;` });
   if (!list.ok) throw new Error(`failed to list databases for the stale fixture-database sweep: ${list.stderr}`);
   const allDatabaseNames = list.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
   for (const name of allDatabaseNames) {
@@ -159,18 +165,18 @@ function sweepStaleFixtureDatabases(): void {
 /** Reads the server's own catalog to answer "does this database exist right now" — never inferred
  * from a `psql` exit code alone, so the sweep tests below are checking Postgres's actual state. */
 function databaseExists(name: string): boolean {
-  const result = psql(ADMIN_DATABASE_NAME, `SELECT 1 FROM pg_database WHERE datname = '${name}';`);
+  const result = psql({ database: ADMIN_DATABASE_NAME, sql: `SELECT 1 FROM pg_database WHERE datname = '${name}';` });
   assert.equal(result.ok, true, result.stderr);
   return result.stdout.trim() === "1";
 }
 
 test.before(() => {
   sweepStaleFixtureDatabases();
-  recreateDatabase(FIXTURE_DB);
+  recreateDatabase({ database: FIXTURE_DB });
 });
 
 test.after(() => {
-  dropDatabase(FIXTURE_DB);
+  dropDatabase({ database: FIXTURE_DB });
 });
 
 // --- fixture database name race (BLOCKER — reproduced live, see FIXTURE_DB's own doc) -------------
@@ -201,8 +207,8 @@ test("sweepStaleFixtureDatabases: reclaims a fixture database whose owning pid h
   });
   const alivePidName = `${FIXTURE_DB_PREFIX}_${childPid}`;
 
-  recreateDatabase(deadPidName);
-  recreateDatabase(alivePidName);
+  recreateDatabase({ database: deadPidName });
+  recreateDatabase({ database: alivePidName });
   try {
     assert.ok(databaseExists(deadPidName), "setup: the dead-pid fixture database must exist before sweeping");
     assert.ok(databaseExists(alivePidName), "setup: the alive-pid fixture database must exist before sweeping");
@@ -218,8 +224,8 @@ test("sweepStaleFixtureDatabases: reclaims a fixture database whose owning pid h
   } finally {
     child.kill("SIGKILL");
     await waitUntilProcessDead(childPid);
-    dropDatabase(deadPidName); // idempotent (DROP IF EXISTS) even if the sweep already reclaimed it
-    dropDatabase(alivePidName); // sweepStaleFixtureDatabases only runs at the top of test.before, so this test must clean up its own alive-case database itself
+    dropDatabase({ database: deadPidName }); // idempotent (DROP IF EXISTS) even if the sweep already reclaimed it
+    dropDatabase({ database: alivePidName }); // sweepStaleFixtureDatabases only runs at the top of test.before, so this test must clean up its own alive-case database itself
   }
 });
 
@@ -279,45 +285,45 @@ test("CANONICAL_PID_SUFFIX: matches only a bare decimal pid shape; rejects every
 test("int4 rejects 2147483648 on a live server; int8 accepts the identical value", () => {
   const OVER_INT32_MAX = "2147483648"; // 2^31, one past int4's max (2^31 - 1)
 
-  const int4 = psql(FIXTURE_DB, `CREATE TABLE fx_int4_capacity (v int4); INSERT INTO fx_int4_capacity VALUES (${OVER_INT32_MAX});`);
+  const int4 = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_int4_capacity (v int4); INSERT INTO fx_int4_capacity VALUES (${OVER_INT32_MAX});` });
   assert.equal(int4.ok, false, "expected the INSERT into an int4 column to fail");
   assert.match(int4.stderr, /out of range/i);
 
-  const int8 = psql(FIXTURE_DB, `CREATE TABLE fx_int8_capacity (v int8); INSERT INTO fx_int8_capacity VALUES (${OVER_INT32_MAX});`);
+  const int8 = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_int8_capacity (v int8); INSERT INTO fx_int8_capacity VALUES (${OVER_INT32_MAX});` });
   assert.equal(int8.ok, true, `expected the INSERT into an int8 column to succeed: ${int8.stderr}`);
 
-  const readBack = psql(FIXTURE_DB, `SELECT v FROM fx_int8_capacity;`);
+  const readBack = psql({ database: FIXTURE_DB, sql: `SELECT v FROM fx_int8_capacity;` });
   assert.equal(readBack.stdout.trim(), OVER_INT32_MAX, "the exact value must round-trip, not just insert without erroring");
 });
 
 // --- 4. Identity/sequence reseeding: manifest's reseedSequenceSql actually prevents a collision --
 
 test("reseedSequenceSql, executed after a copy that preserved original ids, makes the next plain insert land at max+1 with no collision", () => {
-  const create = psql(FIXTURE_DB, `CREATE TABLE fx_posts (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);`);
+  const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_posts (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);` });
   assert.equal(create.ok, true, create.stderr);
 
   // Simulates a bulk copy from SQLite that preserved the source's original (non-contiguous) ids —
   // exactly what a real migration copier does, and exactly the case that leaves the identity
   // sequence at its untouched starting position (next value 1) unless reseeded.
-  const bulkCopy = psql(FIXTURE_DB, `INSERT INTO fx_posts (id, title) OVERRIDING SYSTEM VALUE VALUES (1, 'a'), (2, 'b'), (5, 'e');`);
+  const bulkCopy = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_posts (id, title) OVERRIDING SYSTEM VALUE VALUES (1, 'a'), (2, 'b'), (5, 'e');` });
   assert.equal(bulkCopy.ok, true, bulkCopy.stderr);
 
-  const reseed = psql(FIXTURE_DB, reseedSequenceSql("fx_posts", "id"));
+  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql("fx_posts", "id") });
   assert.equal(reseed.ok, true, reseed.stderr);
 
-  const insert = psql(FIXTURE_DB, `INSERT INTO fx_posts (title) VALUES ('next') RETURNING id;`);
+  const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_posts (title) VALUES ('next') RETURNING id;` });
   assert.equal(insert.ok, true, `plain insert after reseed must not collide with a copied id: ${insert.stderr}`);
   assert.equal(insert.stdout.trim(), "6", "expected the next identity value to be max(id)+1 = 6, not a collision or an arbitrary restart");
 });
 
 test("reseedSequenceSql handles the empty-table edge case: reseeding an empty table still starts identity at 1", () => {
-  const create = psql(FIXTURE_DB, `CREATE TABLE fx_empty (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);`);
+  const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_empty (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);` });
   assert.equal(create.ok, true, create.stderr);
 
-  const reseed = psql(FIXTURE_DB, reseedSequenceSql("fx_empty", "id"));
+  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql("fx_empty", "id") });
   assert.equal(reseed.ok, true, reseed.stderr);
 
-  const insert = psql(FIXTURE_DB, `INSERT INTO fx_empty (title) VALUES ('first') RETURNING id;`);
+  const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_empty (title) VALUES ('first') RETURNING id;` });
   assert.equal(insert.ok, true, insert.stderr);
   assert.equal(insert.stdout.trim(), "1", "an empty table reseeded via the 3-arg setval(...,is_called=false) form must start at 1, not 2");
 });
@@ -333,36 +339,36 @@ test("reseedSequenceSql handles the empty-table edge case: reseeding an empty ta
 // copy's rows had already landed, so the failure mode was "rows copy, then migration aborts."
 
 test("reseedSequenceSql: a table containing ONLY non-positive copied ids (0 and -1) reseeds to 1, not a collision and not a jump to 2", () => {
-  const create = psql(FIXTURE_DB, `CREATE TABLE fx_nonpositive (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);`);
+  const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_nonpositive (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);` });
   assert.equal(create.ok, true, create.stderr);
 
-  const bulkCopy = psql(FIXTURE_DB, `INSERT INTO fx_nonpositive (id, title) OVERRIDING SYSTEM VALUE VALUES (-1, 'a'), (0, 'b');`);
+  const bulkCopy = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_nonpositive (id, title) OVERRIDING SYSTEM VALUE VALUES (-1, 'a'), (0, 'b');` });
   assert.equal(bulkCopy.ok, true, `the OLD reseedSequenceSql would still let this bulk copy through — the bug is in the reseed step, not the copy: ${bulkCopy.stderr}`);
 
-  const reseed = psql(FIXTURE_DB, reseedSequenceSql("fx_nonpositive", "id"));
+  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql("fx_nonpositive", "id") });
   assert.equal(reseed.ok, true, `reseed must succeed — the OLD formula failed here with "value 0 is out of bounds": ${reseed.stderr}`);
 
-  const insert = psql(FIXTURE_DB, `INSERT INTO fx_nonpositive (title) VALUES ('next') RETURNING id;`);
+  const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_nonpositive (title) VALUES ('next') RETURNING id;` });
   assert.equal(insert.ok, true, insert.stderr);
   assert.equal(insert.stdout.trim(), "1", "next id must be 1 — not a collision with 0/-1, and NOT 2 (a too-broad fix would over-advance past 1 even though nothing occupies it)");
 
   // Copied rows must keep their original non-positive ids untouched — only the sequence's future
   // allocation position may change, never a stored value.
-  const rows = psql(FIXTURE_DB, `SELECT id, title FROM fx_nonpositive ORDER BY id;`);
+  const rows = psql({ database: FIXTURE_DB, sql: `SELECT id, title FROM fx_nonpositive ORDER BY id;` });
   assert.equal(rows.stdout.trim(), "-1|a\n0|b\n1|next", "the copied -1/0 rows must survive unmodified, with the new row landing at 1");
 });
 
 test("reseedSequenceSql: a mixed-sign table (some non-positive, some positive ids) still reseeds to max+1 — the non-positive-id fix does not regress the ordinary case", () => {
-  const create = psql(FIXTURE_DB, `CREATE TABLE fx_mixed_sign (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);`);
+  const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_mixed_sign (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);` });
   assert.equal(create.ok, true, create.stderr);
 
-  const bulkCopy = psql(FIXTURE_DB, `INSERT INTO fx_mixed_sign (id, title) OVERRIDING SYSTEM VALUE VALUES (-1, 'a'), (0, 'b'), (3, 'c');`);
+  const bulkCopy = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_mixed_sign (id, title) OVERRIDING SYSTEM VALUE VALUES (-1, 'a'), (0, 'b'), (3, 'c');` });
   assert.equal(bulkCopy.ok, true, bulkCopy.stderr);
 
-  const reseed = psql(FIXTURE_DB, reseedSequenceSql("fx_mixed_sign", "id"));
+  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql("fx_mixed_sign", "id") });
   assert.equal(reseed.ok, true, reseed.stderr);
 
-  const insert = psql(FIXTURE_DB, `INSERT INTO fx_mixed_sign (title) VALUES ('next') RETURNING id;`);
+  const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_mixed_sign (title) VALUES ('next') RETURNING id;` });
   assert.equal(insert.ok, true, insert.stderr);
   assert.equal(insert.stdout.trim(), "4", "expected max(id)+1 = 4, the same ordinary-case behavior as the all-positive test above");
 });
@@ -370,19 +376,19 @@ test("reseedSequenceSql: a mixed-sign table (some non-positive, some positive id
 // --- HIGH #5: OVERRIDING SYSTEM VALUE is required for INSERT, forbidden/unnecessary for COPY -------
 
 test("a plain INSERT naming an explicit identity-column value fails WITHOUT OVERRIDING SYSTEM VALUE, and succeeds WITH it", () => {
-  const create = psql(FIXTURE_DB, `CREATE TABLE fx_identity_insert (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, v text);`);
+  const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_identity_insert (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, v text);` });
   assert.equal(create.ok, true, create.stderr);
 
-  const withoutOverride = psql(FIXTURE_DB, `INSERT INTO fx_identity_insert (id, v) VALUES (5, 'x');`);
+  const withoutOverride = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_identity_insert (id, v) VALUES (5, 'x');` });
   assert.equal(withoutOverride.ok, false, "expected the bare INSERT to be rejected");
   assert.match(withoutOverride.stderr, /identity column/i);
 
-  const withOverride = psql(FIXTURE_DB, `INSERT INTO fx_identity_insert (id, v) ${IDENTITY_COLUMN_INSERT_OVERRIDE} VALUES (5, 'x');`);
+  const withOverride = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_identity_insert (id, v) ${IDENTITY_COLUMN_INSERT_OVERRIDE} VALUES (5, 'x');` });
   assert.equal(withOverride.ok, true, `expected the INSERT to succeed once IDENTITY_COLUMN_INSERT_OVERRIDE is applied: ${withOverride.stderr}`);
 });
 
 test("COPY accepts an explicit identity-column value with NO override syntax at all — the override clause this manifest exports must never be prepended to a COPY statement", () => {
-  const create = psql(FIXTURE_DB, `CREATE TABLE fx_identity_copy (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, v text);`);
+  const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_identity_copy (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, v text);` });
   assert.equal(create.ok, true, create.stderr);
 
   // `pg-fixture.ts`'s psql() runs one `-c` string per call with no client-side stdin channel (by
@@ -391,10 +397,10 @@ test("COPY accepts an explicit identity-column value with NO override syntax at 
   // identical server-side "no override needed" code path — the same COPY statement grammar, the same
   // identity-column acceptance — entirely within one SQL string, by having the server itself run a
   // trivial program that emits the row.
-  const copy = psql(FIXTURE_DB, `COPY fx_identity_copy (id, v) FROM PROGRAM 'printf "6\\ty\\n"';`);
+  const copy = psql({ database: FIXTURE_DB, sql: `COPY fx_identity_copy (id, v) FROM PROGRAM 'printf "6\\ty\\n"';` });
   assert.equal(copy.ok, true, `COPY must accept an explicit identity value with no override clause at all: ${copy.stderr}`);
 
-  const rows = psql(FIXTURE_DB, `SELECT id, v FROM fx_identity_copy;`);
+  const rows = psql({ database: FIXTURE_DB, sql: `SELECT id, v FROM fx_identity_copy;` });
   assert.equal(rows.stdout.trim(), "6|y");
 });
 
@@ -404,17 +410,17 @@ test("a naive-local timestamp string casts to a DIFFERENT instant depending on t
   const CANONICAL = "2026-08-12T10:00:00-04:00"; // this manifest's utc-timestamp-text contract: explicit offset
   const NAIVE_LOCAL = "2026-08-12T10:00:00"; // no offset — exactly what a WordPress import produces
 
-  const underEst = psql(
-    FIXTURE_DB,
-    `SET timezone = 'America/New_York'; SELECT extract(epoch from '${CANONICAL}'::timestamptz)::bigint, extract(epoch from '${NAIVE_LOCAL}'::timestamptz)::bigint;`
-  );
+  const underEst = psql({
+    database: FIXTURE_DB,
+    sql: `SET timezone = 'America/New_York'; SELECT extract(epoch from '${CANONICAL}'::timestamptz)::bigint, extract(epoch from '${NAIVE_LOCAL}'::timestamptz)::bigint;`
+  });
   assert.equal(underEst.ok, true, underEst.stderr);
   const [canonicalUnderEst, naiveUnderEst] = underEst.stdout.trim().split("|");
 
-  const underJst = psql(
-    FIXTURE_DB,
-    `SET timezone = 'Asia/Tokyo'; SELECT extract(epoch from '${CANONICAL}'::timestamptz)::bigint, extract(epoch from '${NAIVE_LOCAL}'::timestamptz)::bigint;`
-  );
+  const underJst = psql({
+    database: FIXTURE_DB,
+    sql: `SET timezone = 'Asia/Tokyo'; SELECT extract(epoch from '${CANONICAL}'::timestamptz)::bigint, extract(epoch from '${NAIVE_LOCAL}'::timestamptz)::bigint;`
+  });
   assert.equal(underJst.ok, true, underJst.stderr);
   const [canonicalUnderJst, naiveUnderJst] = underJst.stdout.trim().split("|");
 
@@ -430,20 +436,20 @@ test("a naive-local timestamp string casts to a DIFFERENT instant depending on t
 // other under plain string collation — a SEPARATE hazard from the naive-local ambiguity above -------
 
 test("string-collation ORDER BY on a text timestamp column disagrees with chronological ORDER BY when Z and offset forms mix — the concrete mechanism TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents", () => {
-  const create = psql(FIXTURE_DB, `CREATE TABLE fx_ts_collation (id integer PRIMARY KEY, at text);`);
+  const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_ts_collation (id integer PRIMARY KEY, at text);` });
   assert.equal(create.ok, true, create.stderr);
 
   const EARLIER_Z = "2026-08-12T12:00:00Z"; // 12:00 UTC — chronologically EARLIER
   const LATER_OFFSET = "2026-08-12T10:00:00-05:00"; // 15:00 UTC — chronologically LATER, but string-sorts first
 
-  const insert = psql(FIXTURE_DB, `INSERT INTO fx_ts_collation (id, at) VALUES (1, '${EARLIER_Z}'), (2, '${LATER_OFFSET}');`);
+  const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_ts_collation (id, at) VALUES (1, '${EARLIER_Z}'), (2, '${LATER_OFFSET}');` });
   assert.equal(insert.ok, true, insert.stderr);
 
-  const byCollation = psql(FIXTURE_DB, `SELECT id FROM fx_ts_collation ORDER BY at;`);
+  const byCollation = psql({ database: FIXTURE_DB, sql: `SELECT id FROM fx_ts_collation ORDER BY at;` });
   assert.equal(byCollation.ok, true, byCollation.stderr);
   const collationOrder = byCollation.stdout.trim().split("\n");
 
-  const byInstant = psql(FIXTURE_DB, `SELECT id FROM fx_ts_collation ORDER BY at::timestamptz;`);
+  const byInstant = psql({ database: FIXTURE_DB, sql: `SELECT id FROM fx_ts_collation ORDER BY at::timestamptz;` });
   assert.equal(byInstant.ok, true, byInstant.stderr);
   const instantOrder = byInstant.stdout.trim().split("\n");
 
@@ -460,23 +466,23 @@ test("string-collation ORDER BY on a text timestamp column disagrees with chrono
 // the deleted migration/verify.ts used to enforce (matching Date.parse's own bound instead of Postgres's) ---
 
 test("Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16:00 and beyond, in both directions — the bound a UTC-offset check must enforce, not the ±23:59 Date.parse allows", () => {
-  const acceptedPositive = psql(FIXTURE_DB, `SELECT '2026-08-12T10:00:00+15:59'::timestamptz;`);
+  const acceptedPositive = psql({ database: FIXTURE_DB, sql: `SELECT '2026-08-12T10:00:00+15:59'::timestamptz;` });
   assert.equal(acceptedPositive.ok, true, `+15:59 must be accepted by a live server: ${acceptedPositive.stderr}`);
 
-  const rejectedPositive = psql(FIXTURE_DB, `SELECT '2026-08-12T10:00:00+16:00'::timestamptz;`);
+  const rejectedPositive = psql({ database: FIXTURE_DB, sql: `SELECT '2026-08-12T10:00:00+16:00'::timestamptz;` });
   assert.equal(rejectedPositive.ok, false, "expected +16:00 to be rejected as out of range");
   assert.match(rejectedPositive.stderr, /time zone displacement out of range/i);
 
-  const acceptedNegative = psql(FIXTURE_DB, `SELECT '2026-08-12T10:00:00-15:59'::timestamptz;`);
+  const acceptedNegative = psql({ database: FIXTURE_DB, sql: `SELECT '2026-08-12T10:00:00-15:59'::timestamptz;` });
   assert.equal(acceptedNegative.ok, true, `-15:59 must be accepted by a live server: ${acceptedNegative.stderr}`);
 
-  const rejectedNegative = psql(FIXTURE_DB, `SELECT '2026-08-12T10:00:00-16:00'::timestamptz;`);
+  const rejectedNegative = psql({ database: FIXTURE_DB, sql: `SELECT '2026-08-12T10:00:00-16:00'::timestamptz;` });
   assert.equal(rejectedNegative.ok, false, "expected -16:00 to be rejected as out of range");
   assert.match(rejectedNegative.stderr, /time zone displacement out of range/i);
 
   // A value the OLD ±23:59 bound wrongly accepted (it matched Date.parse's bound, not Postgres's) —
   // proves the OLD bound really did let through values this exact server rejects, not a hypothetical.
-  const oldBoundWronglyAccepted = psql(FIXTURE_DB, `SELECT '2026-08-12T10:00:00+20:00'::timestamptz;`);
+  const oldBoundWronglyAccepted = psql({ database: FIXTURE_DB, sql: `SELECT '2026-08-12T10:00:00+20:00'::timestamptz;` });
   assert.equal(oldBoundWronglyAccepted.ok, false, "expected +20:00 to be rejected — the old ±23:59 bound in the (since deleted) migration/verify.ts let this straight through");
   assert.match(oldBoundWronglyAccepted.stderr, /time zone displacement out of range/i);
 });
@@ -484,14 +490,14 @@ test("Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16
 // --- 3. JSON vs text: a plain text column enforces nothing, on Postgres exactly as on SQLite -----
 
 test("a plain Postgres text column silently accepts malformed JSON — proving a json-text column needs a semantic check beyond either dialect's type system", () => {
-  const create = psql(FIXTURE_DB, `CREATE TABLE fx_json_gap (id integer PRIMARY KEY, payload text);`);
+  const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_json_gap (id integer PRIMARY KEY, payload text);` });
   assert.equal(create.ok, true, create.stderr);
 
   const MALFORMED = "{not valid json";
-  const insert = psql(FIXTURE_DB, `INSERT INTO fx_json_gap VALUES (1, '${MALFORMED}');`);
+  const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_json_gap VALUES (1, '${MALFORMED}');` });
   assert.equal(insert.ok, true, "Postgres's plain text column must accept this — it carries no JSON validity constraint, same as SQLite's TEXT");
 
-  const readBack = psql(FIXTURE_DB, `SELECT payload FROM fx_json_gap WHERE id = 1;`);
+  const readBack = psql({ database: FIXTURE_DB, sql: `SELECT payload FROM fx_json_gap WHERE id = 1;` });
   assert.equal(readBack.stdout.trim(), MALFORMED, "the malformed payload round-trips byte-for-byte, exactly the silent-corruption shape this manifest's classifier exists to catch downstream");
 });
 

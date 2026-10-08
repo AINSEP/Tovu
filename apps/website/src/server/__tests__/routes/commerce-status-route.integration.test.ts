@@ -1,162 +1,42 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import type { RouteDeps } from "../../routes/types.js";
-
-/**
- * @file ADR-001 authenticated Commerce operational-status route.
- *
- * This route is a read boundary only: it reports the optional payment runtime's provider catalog
- * and explicitly leaves every unimplemented Commerce capability unavailable.
- */
-
-const statusUrl = (baseUrl: string, workspaceId: string): string =>
-  `${baseUrl}/api/admin/v1/workspaces/${workspaceId}/commerce/status`;
-
-async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
-  await deps.identityReady;
-  const principalId = "bare-principal-commerce-status";
-  await deps.principalRepo.save({
-    id: principalId,
-    workspaceId: deps.workspaceId,
-    kind: "user",
-    displayName: "No Commerce Grants",
-    status: "active",
-    createdAt: deps.clock.nowIso(),
-  });
-  await deps.userRepo.save({
-    principalId,
-    workspaceId: deps.workspaceId,
-    username: "bare-commerce-status",
-    passwordHash: await deps.passwordHasher.hash({ password: "bare-pw" }),
-  });
-
-  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: "bare-commerce-status", password: "bare-pw" }),
-  });
-  assert.equal(login.status, 200);
-  return login.headers.get("set-cookie")?.split(";")[0] ?? "";
-}
-
-test("commerce status: requires an authenticated admin session", async (t) => {
-  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
-  const { baseUrl } = await bootAuthenticated(createApp(deps), t);
-
-  const response = await fetch(statusUrl(baseUrl, deps.workspaceId));
-
-  assert.equal(response.status, 401);
-});
-
-test("commerce status: rejects a workspace outside the composed tenant", async (t) => {
-  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
-  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
-
-  const response = await fetch(statusUrl(baseUrl, "other-workspace"), { headers: { cookie } });
-
-  assert.equal(response.status, 404);
-});
-
-test("commerce status: requires the existing integration-management permission", async (t) => {
-  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
-  const { baseUrl } = await bootAuthenticated(createApp(deps), t);
-  const cookie = await loginAsBarePrincipal(deps, baseUrl);
-
-  const response = await fetch(statusUrl(baseUrl, deps.workspaceId), { headers: { cookie } });
-
-  assert.equal(response.status, 403);
-  assert.deepEqual(await response.json(), {
-    error: `principal 'bare-principal-commerce-status' is not authorized for 'admin.integrations.manage' (no_grant)`,
-    code: "FORBIDDEN",
-    details: { permission: "admin.integrations.manage", reason: "no_grant" },
-  });
-});
-
-test("commerce status: returns an unavailable snapshot when no payment runtime is composed", async (t) => {
-  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
-  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
-
-  const response = await fetch(statusUrl(baseUrl, deps.workspaceId), { headers: { cookie } });
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), {
-    contractVersion: 1,
-    workspaceId: deps.workspaceId,
-    paymentRuntime: {
-      status: "unavailable",
-      reason: "No payment runtime is composed for this workspace.",
-    },
-    providers: [],
-    configuration: {
-      status: "unavailable",
-      schema: null,
-      reason: "The payment runtime does not expose a provider configuration contract.",
-    },
-    capabilities: {
-      providerDiscovery: "unavailable",
-      checkout: "unavailable",
-      subscriptions: "unavailable",
-      webhookReconciliation: "unavailable",
-      revenue: "unavailable",
-    },
-  });
-});
-
-test("commerce status: returns registered providers without claiming downstream capabilities", async (t) => {
-  const deps: ReturnType<typeof createRouteDeps> = {
-    ...createRouteDeps(),
-    lipay: {
-      listProviders: () => [
-        {
-          id: "regional-pay",
-          displayName: "Regional Pay",
-          capabilities: {
-            refunds: "full",
-            tokenization: false,
-            recurring: false,
-            confirmation: ["redirect"],
-            currencies: "any",
-            webhooks: true,
-          },
-        },
-      ],
-      charge: async () => {
-        throw new Error("status reads must not move money");
-      },
-      refund: async () => {
-        throw new Error("status reads must not move money");
-      },
-      handleWebhook: async () => {
-        throw new Error("status reads must not process webhooks");
-      },
-      getPayment: () => {
-        throw new Error("status reads must not invent payment metrics");
-      },
-      listPayments: () => {
-        throw new Error("status reads must not invent payment metrics");
-      },
-    },
+import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { createContributionRegistry } from "@jini-ai/core";
+import type { ToolContributor, DerivedToolContributor } from "#src/assistant/tool-contribution-registry";
+import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
+import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
+/** Phase 12: off means no registered HTTP or agent-tool entry, even for an authenticated owner. */
+test("commerce off: no store, products, webhook or status route is registered", async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const paths: string[] = [];
+  type Layer = { route?: { path: string }; handle?: { stack?: Layer[] } };
+  const walk = (stack: Layer[]): void => {
+    for (const layer of stack) {
+      if (layer.route) paths.push(layer.route.path);
+      if (layer.handle?.stack) walk(layer.handle.stack);
+    }
   };
-  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+  walk(app._router.stack);
+  for (const path of ["/store", "/store/buy", "/products", "/products/:id", "/payments/webhook/:providerId", "/api/admin/v1/workspaces/:workspaceId/commerce/status"]) {
+    assert.equal(paths.includes(path), false, `off runtime must not register ${path}`);
+  }
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const status = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/commerce/status`, { headers: { cookie } });
+  assert.equal(status.status, 404);
+  const webhook = await fetch(`${baseUrl}/payments/webhook/lipay`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  assert.equal(webhook.status, 404);
+});
 
-  const response = await fetch(statusUrl(baseUrl, deps.workspaceId), { headers: { cookie } });
-  const body = (await response.json()) as {
-    paymentRuntime: { status: string };
-    providers: unknown[];
-    capabilities: Record<string, string>;
+test("commerce off: first-party and legacy catalogs expose no commerce tools", () => {
+  const contributions = {
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
-
-  assert.equal(response.status, 200);
-  assert.equal(body.paymentRuntime.status, "available");
-  assert.equal(body.providers.length, 1);
-  assert.deepEqual(body.capabilities, {
-    providerDiscovery: "available",
-    checkout: "unavailable",
-    subscriptions: "unavailable",
-    webhookReconciliation: "unavailable",
-    revenue: "unavailable",
-  });
+  installFirstPartyToolContributors({ contributions });
+  assert.equal(contributions.contributors.list({}).some(entry => entry.domain === "commerce-get-status"), false);
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  assert.deepEqual(registrations.filter(entry => /^(commerce_|payments_|lipay_|store_)/.test(entry.descriptor.id)).map(entry => entry.descriptor.id), []);
 });

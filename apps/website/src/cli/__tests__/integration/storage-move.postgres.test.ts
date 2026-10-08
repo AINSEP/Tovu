@@ -42,7 +42,7 @@ before(() => {
   url = freshPostgresDatabase(DB);
 });
 after(() => {
-  dropDatabase(DB);
+  dropDatabase({ database: DB });
   fs.rmSync(parent, { recursive: true, force: true });
 });
 

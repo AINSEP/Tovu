@@ -121,7 +121,6 @@ export const deploymentsAgentToolCatalog: AgentToolDefinition[] = [
     authorization: { permission: "system.read" },
     inputSchema: NO_INPUT_SCHEMA,
   },
-  // deployment_list retired with the never-written deployment tables (2026-10-03).
   {
     name: "deployment_get_dockerfile",
     description:

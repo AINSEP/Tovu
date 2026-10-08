@@ -1,13 +1,8 @@
 import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
 
 /**
- * @file The boot-installed registry a resource-owning feature (`post`, `pages`, and — later —
- * `media`, `forms`, `redirects`, `widgets`, `collections/entries`, `taxonomy`, `menus`, per the
- * coverage audit's own "no single-row duplicate exists anywhere" finding) contributes ITS OWN
- * "how do I copy myself" implementation into, so `content_duplicate` (`features/content-duplication/`)
- * can stay one generic tool over a growing set of resources instead of one bespoke `*_duplicate` tool
- * per resource — the owner's explicit correction to the original per-domain design
- * (`ADS-memory/reports/2026-09-07-page-duplicate-tool.md`'s own follow-up).
+ * @file Resource-owned duplication handlers for content_duplicate. A generic tool dispatches
+ * to each resource's own copy implementation instead of requiring a bespoke duplicate tool per resource.
  *
  * Modeled directly on `tool-contribution-registry.ts` — same module-level ordered list, same
  * `register*`/`list*`/`reset*ForTests` trio, same "last registration wins, replacing by key rather
@@ -27,10 +22,9 @@ import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
  * `import type` for {@link DuplicateResourceHandlerContributor} (zero runtime edge — see
  * `features/post/tool-registrations.ts`'s own `contributePostDuplicateHandlers`) and returns plain
  * data; it never imports `registerDuplicateResourceHandler` itself. **That split is load-bearing, not
- * style**: `features/post/tool-registrations.ts`'s own trailing history records that a real
- * `features/post -> assistant` VALUE edge previously closed a `[assistant, features/post]` module
- * cycle and had to be removed by injecting the dependency instead — the exact edge a naive
- * "each resource calls the register function itself" design would reopen. The actual
+ * style**: feature-to-assistant value imports would close a module cycle. Resource features
+ * contribute plain data through type-only contracts; only the composition root registers it.
+ * The actual
  * `registerDuplicateResourceHandler(...)` calls therefore live at the composition root
  * (`server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors`),
  * gluing each resource's own data-returning contributor function to this registry — the identical

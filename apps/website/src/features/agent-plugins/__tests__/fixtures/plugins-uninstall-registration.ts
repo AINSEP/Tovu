@@ -4,9 +4,9 @@ import type { ToolRegistration } from "@jini-ai/core";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import type { AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/external-mcp-store.memory";
-import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "#src/features/plugin-runtime/tool-registrations";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -15,9 +15,8 @@ import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
 /**
  * @file The `plugins_uninstall` registration these integration tests call with `family: "agent-plugin"`.
  *
- * S4 (2026-09-24) deleted the standalone `agent_plugins_uninstall` tool; its handler moved to
- * `uninstall-tool.ts`'s `runAgentPluginUninstall`, reached only through `plugins_uninstall`. That
- * branch reads just `authorize`, `workspaceId` and (for its copy) `settingsRepo`; every other `PluginsToolDeps` field here belongs to
+ * plugins_uninstall delegates this family to runAgentPluginUninstall. The branch reads only
+ * authorize/workspaceId and settingsRepo for copy; every other PluginsToolDeps field here belongs to
  * the site-runtime branch and must never be called on this path.
  */
 export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration {
@@ -28,6 +27,7 @@ export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallTool
   const pluginsDeps: PluginsToolDeps = {
     authorize: deps.authorize,
     workspaceId: deps.workspaceId,
+    ...(deps.uninstallAgentPlugin ? { uninstallAgentPlugin: deps.uninstallAgentPlugin } : {}),
     // The operator's admin language for the dialog copy (`operator-locale.ts`), when the test supplies a ledger.
     ...(deps.settingsRepo ? { settingsRepo: deps.settingsRepo } : {}),
     clock: createFakeClock({ startIso: new Date().toISOString() }),

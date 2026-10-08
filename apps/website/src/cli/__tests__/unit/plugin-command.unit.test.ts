@@ -1,3 +1,4 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /** Owner-approved folder-install plan: command shape, explicit consent and byte-only authoring. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -7,9 +8,9 @@ import path from "node:path";
 import { runPluginInstallCommand } from "../../commands/plugin/install.js";
 import { runPluginIntegrityCommand } from "../../commands/plugin/integrity.js";
 import { createProgram } from "../../program.js";
-import { InMemoryPluginActivationRepo } from "../../../features/plugin-runtime/repo.memory.js";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { mapErrorToCliOutcome } from "../../errors.js";
-import { PluginInstallError } from "../../../features/plugin-runtime/install.js";
+import { PluginInstallError } from "@jini-ai/plugins/host/node";
 
 test("plugin group declares install folder, site, yes, replace and integrity write", () => {
   const group = createProgram().commands.find((c) => c.name() === "plugin");
@@ -35,7 +36,7 @@ for (const kind of ["cancel", "yes", "changed"] as const) {
     let closed = 0; let asked = 0; const messages: string[] = [];
     const repo = new InMemoryPluginActivationRepo();
     const task = runPluginInstallCommand({ dir: sourceDir, yes: kind === "yes" }, {
-      open: async () => ({ deps: { installDir, builtInIds: [], repo, conflicts: async () => [] }, close: async () => { closed++; } }),
+      open: async () => ({ deps: { ...pluginHostBinding, installDir, builtInIds: [], repo, conflicts: async () => [] }, close: async () => { closed++; } }),
       write: (message) => { messages.push(message); },
       confirm: async () => {
         asked++;

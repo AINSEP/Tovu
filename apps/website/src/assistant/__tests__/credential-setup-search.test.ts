@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /** t10: setup tools must be reachable through the real production FTS catalog. */
@@ -17,11 +18,9 @@ const contributions = {
 };
 
 const cases: Record<string, string[]> = {
-  custom_credential_create: ["connect my Stripe account", "save my Mailchimp API key", "use my Fly.io token"],
+  credential_save: JSON.parse(readFileSync(new URL("./fixtures/credential-setup-search.json", import.meta.url), "utf8")).map((c: { query: string }) => c.query),
   deployment_ops_set_secret: ["set STRIPE_KEY on my app"],
   media_list_providers: ['which image generation providers are configured', 'list video generation providers', 'which AI image provider can I use', 'is my Replicate image provider configured'],
-  media_propose_provider_credential: ['add an image generation API key', 'connect OpenAI for images', 'set up my video provider key', 'open a form to save an image provider credential'],
-  source_control_propose_credential: ['connect GitHub token for commits', 'save a GitLab source control credential', 'set up repository backup credentials', 'open a form to connect source control'],
 };
 for (const [id, queries] of Object.entries(cases)) test(`t10 ${id} ranks top 3 for credential setup requests`, async () => {
   contributions.contributors.clear({}); installFirstPartyToolContributors({ contributions });

@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { SurfaceEmitter } from "@jini-ai/core";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
 import { fingerprintSiteKeyHex } from "../../../webhooks/keyring.env.js";
 import { SITE_KEY_MANAGE_PERMISSION } from "../../../identity/site-key-permission.js";
@@ -12,6 +12,9 @@ import { loadDeployOpsRegistryFromSource } from "../registry.js";
 import { runListSecrets, runSetSecret, runUnsetSecret, secretFingerprint, type SecretConfirmRequest } from "../secrets.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import { fixture, execution } from "./ops-fixture.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * The generic secrets verbs against the real bundled Fly adapter, with a scripted HTTP fake in place of
@@ -167,7 +170,7 @@ test("tools: the site-key source needs the site-key permission; a value can neve
 
 test("tools: unset holds the call on a card for the named human and re-checks permission before deleting", async () => {
   const h = await harness({ [`GET ${API}`]: listed("OLD_KEY"), [`DELETE ${API}/OLD_KEY`]: { status: 200, body: {} } });
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const checks: string[] = [];
   const counted = { ...h.deps, authorize: async ({ permission }: { permission: string }) => { checks.push(permission); return { allowed: true, reason: "matched" }; } };
   const unset = buildDeployOpsRegistrations(counted as typeof h.deps, { surfaceExchanges: store }).find(r => r.descriptor.id === "deployment_ops_unset_secret")!;
@@ -178,7 +181,7 @@ test("tools: unset holds the call on a card for the named human and re-checks pe
     assert.deepEqual(h.calls.map(c => c.method), ["GET"], "the DELETE must wait for the click");
     assert.match(JSON.stringify(emission.payload), /Remove secret OLD_KEY from shop\?/);
     const exchangeId = store.findTypedAnswerTarget({ principalId: "principal", toolId: "deployment_ops_unset_secret" })!;
-    assert.deepEqual(store.deliver({ exchangeId, toolId: "deployment_ops_unset_secret", principalId: "principal", params: { decision: "confirm" } }), { ok: true });
+    assert.deepEqual(store.deliver({ exchangeId, principalId: "principal", params: { decision: "confirm" } }, { toolId: "deployment_ops_unset_secret" }), { ok: true });
   };
   const result = await unset.handler(execution({ platform: "fly", target: "shop", name: "OLD_KEY" }), { emitSurface }) as Record<string, unknown>;
   assert.equal(emitted, 1); assert.equal(result.removed, true);
@@ -230,7 +233,7 @@ test("the default site-key reader resolves this site's sources; no bound site me
 
 test('typed secret enters only the masked card and reaches the platform with exact bytes', async () => {
   const h = await harness({ [`GET ${API}`]: listed(), [`GET ${API}/STRIPE_KEY?show_secrets=true`]: { status: 404, body: {} }, [`POST ${API}/STRIPE_KEY`]: { status: 201, body: { version: 1 } } });
-  const store = createSurfaceExchangeStore(); const emitted: unknown[] = [];
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const emitted: unknown[] = [];
   const registration = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store }).find(r => r.descriptor.id === 'deployment_ops_set_secret')!;
   const pending = registration.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } }), { emitSurface: async surface => { emitted.push(surface); } });
   await new Promise(resolve => setImmediate(resolve));
@@ -240,7 +243,7 @@ test('typed secret enters only the masked card and reaches the platform with exa
   assert.equal(html.includes('data-mcpui-secret'), true);
   const match = html.match(/__exchangeId"\s*:\s*"([^"]+)"/); assert.ok(match);
   const secret = '  opaque-key\r\nsecond-line  ';
-  assert.deepEqual(store.deliver({ exchangeId: match[1]!, toolId: 'deployment_ops_set_secret', principalId: 'principal', params: { value: secret } }), { ok: true });
+  assert.deepEqual(store.deliver({ exchangeId: match[1]!, principalId: 'principal', params: { value: secret } }, { toolId: 'deployment_ops_set_secret' }), { ok: true });
   const result = await pending;
   assert.equal((result as { changed: boolean }).changed, true);
   const post = h.calls.find(call => call.method === 'POST')!;
@@ -257,3 +260,30 @@ test('typed secret refuses model-supplied values and headless execution', async 
   await assert.rejects(set.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } })), { message: 'A typed deployment secret requires an interactive secure card. Nothing was changed.' });
   assert.deepEqual(h.calls, []);
 });
+
+for (const mode of ["dismiss", "blank", "buffered-abort", "preaborted"] as const) {
+  test(`typed deployment secret: ${mode} never calls the vendor`, async () => {
+    const h = await harness({});
+    const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const registration = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store }).find(r => r.descriptor.id === "deployment_ops_set_secret")!;
+    const controller = new AbortController();
+    if (mode === "preaborted") controller.abort();
+    let emissions = 0;
+    const result = await registration.handler({ ...execution({ platform: "fly", target: "shop", name: "STRIPE_KEY", source: { kind: "typed" } }), signal: controller.signal }, { emitSurface: async surface => {
+      emissions++;
+      if (emissions > 1) return;
+      const resource = (surface.payload as { resource: { resource: { uri: string; text: string } } }).resource.resource;
+      const exchangeId = resource.text.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1]!;
+      assert.equal(resource.uri, `ui://tovu/secret-card/deployment_ops_set_secret/${exchangeId}`);
+      assert.match(resource.text, /<textarea[^>]*name="value"[^>]*><\/textarea>/);
+      const params = mode === "dismiss" ? { __dismissed: true } : { value: mode === "blank" ? "   " : "buffered-deployment-canary" };
+      assert.deepEqual(store.deliver({ exchangeId, principalId: "principal", params }, { toolId: "deployment_ops_set_secret" }), { ok: true });
+      if (mode === "buffered-abort") controller.abort();
+    } });
+    if (mode === "blank") assert.equal((result as { changed: boolean }).changed, false);
+    else assert.deepEqual(result, { changed: false, cancelled: true });
+    assert.deepEqual(h.calls, []);
+    assert.equal(store.size(), 0);
+    assert.equal(emissions, mode === "preaborted" ? 0 : mode === "blank" ? 2 : 1);
+  });
+}

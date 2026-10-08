@@ -1,4 +1,5 @@
-import { PluginInstallError, sitePluginLocalInstallEnabled } from "#src/features/plugin-runtime/install";
+import { PluginInstallError } from "@jini-ai/plugins/host/node";
+import { sitePluginLocalInstallEnabled } from "#src/features/plugin-runtime/install";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
 import { raw } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";

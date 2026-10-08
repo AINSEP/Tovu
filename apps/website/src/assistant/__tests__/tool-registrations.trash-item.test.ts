@@ -1,3 +1,5 @@
+import { applyToolApprovalPolicy } from "../tool-approval-policy.js";
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -6,12 +8,11 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 
-import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import {
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "#src/contracts/core/tool-surface-exchanges";
+} from "@jini-ai/daemon/surface-exchanges";
 import { commentsAgentToolCatalog } from "#src/features/comments/agent-tools";
 import { postAgentToolCatalog } from "#src/features/post/agent-tools";
 import { getRedirectsAgentToolCatalog } from "#src/features/redirects/agent-tools";
@@ -27,7 +28,10 @@ import { createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
 import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 
 import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
-import { createRedirect } from "#src/features/redirects/redirects";
+import { createRedirect } from "@jini-ai/cms/redirects";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -65,8 +69,8 @@ function harness(grants: Grants) {
         : { allowed: false, reason: "insufficient_permission" };
     },
   } as RegistryDepsWithoutLimiter;
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaceExchanges }, { contributions });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registrations = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps }), surfaces: { surfaceExchanges }, options: { contributions } });
   return { routeDeps, surfaceExchanges, registrations, authorizeCalls };
 }
 
@@ -156,7 +160,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
 
   return {
     routeDeps,
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
     authorizeCalls,
     formIsLive: (id) =>
       (db.$client.prepare(`SELECT deleted_at FROM form_definitions WHERE id = ?`).get(id) as { deleted_at: string | null } | undefined)
@@ -180,7 +184,7 @@ function call(registration: ToolRegistration, input: unknown, emitSurface?: Surf
     signal: new AbortController().signal,
     ...(emitSurface ? { emitSurface } : {}),
   } as ToolExecutionContext;
-  return registration.handler(ctx);
+  return registration.handler(ctx, emitSurface ? { emitSurface } : {});
 }
 
 async function seedPost(routeDeps: RegistryDepsWithoutLimiter, overrides: Record<string, unknown> = {}) {
@@ -261,7 +265,7 @@ async function seedComment(routeDeps: RegistryDepsWithoutLimiter, overrides: Rec
     version: 3,
     ...overrides,
   };
-  await routeDeps.commentRepo.create(row as never);
+  await routeDeps.commentRepo.create({ record: row as never }, {});
   return row;
 }
 
@@ -305,9 +309,9 @@ test("a post trashed through trash_item uses content_post_delete's permission ch
     entityType: "post",
     entityId: "post-1",
   });
-  // Nothing is written while the human is still looking at the dialog.
+  // No delegate write happens before policy approval (certified in tool-approval-policy.test.ts).
 
-  // The dialog's buttons answer the DELEGATE's exchange: the human is confirming content_post_delete.
+  // The shared fixture answers trash_item's policy card; its original content_post_delete delegate then runs.
   const result = (await pending) as { entityType: string; entityId: string; via: string; outcome: { deleted: boolean } };
 
   assert.equal(result.entityType, "post");
@@ -412,8 +416,8 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   await seedPost(routeDeps);
   let postAdapterRegistered = true;
   const probed = { ...routeDeps, isTrashableEntityType: (entityType: string) => entityType !== "post" || postAdapterRegistered };
-  const surfaceExchanges = createSurfaceExchangeStore();
-  const trashItem = tool(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: probed as RegistryDepsWithoutLimiter }), { surfaceExchanges }, { contributions }), TRASH_ITEM_TOOL_ID);
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const trashItem = tool(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: probed as RegistryDepsWithoutLimiter }), surfaces: { surfaceExchanges }, options: { contributions } }), TRASH_ITEM_TOOL_ID);
   void registrations;
 
   postAdapterRegistered = false;
@@ -447,10 +451,10 @@ test("ESCALATION: a principal holding only comments.delete cannot trash a post b
     { message: "trash_item: comment 'post-1' was not found. Nothing was changed." }
   );
 
-  assert.deepEqual(emitted, [], "no dialog may be raised for an entity the named kind does not own");
+  assert.equal(emitted.length, 1, "policy approval precedes the delegate ownership check; it cannot authorize another kind");
 });
 
-test("ESCALATION: the same principal naming the post honestly is refused on content.write, before any read or dialog", async () => {
+test("ESCALATION: the same principal naming the post honestly is refused on content.write after policy approval", async () => {
   const { routeDeps, registrations, authorizeCalls } = harness(new Set(["comments.delete"]));
   await seedPost(routeDeps);
   const emitted: unknown[] = [];
@@ -460,7 +464,7 @@ test("ESCALATION: the same principal naming the post honestly is refused on cont
     { message: "principal 'principal-under-test' is not authorized for 'content.write' (insufficient_permission)" }
   );
   assert.deepEqual(authorizeCalls, ["content.write"]);
-  assert.deepEqual(emitted, []);
+  assert.equal(emitted.length, 1, "approval never replaces the domain permission check");
   assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
 });
 
@@ -502,7 +506,7 @@ test("SINK AUDIT: in the production catalog, trash_item accepts every delegate A
   const [trashItem] = deriveTrashItemRegistrations({
     registrations,
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   });
   const schema = trashItem.descriptor.inputSchema as {
     properties: { entityType: { enum: string[] } };
@@ -519,7 +523,7 @@ test("a kind whose delete tool is not registered is not accepted, with an exact 
   const [trashItem] = deriveTrashItemRegistrations({
     registrations: withoutComments,
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   });
   assert.ok(trashItem);
 
@@ -533,7 +537,7 @@ test("a kind whose delete tool is not registered is not accepted, with an exact 
 test("with no delegate tool registered and an empty registry, trash_item is not registered", () => {
   const { routeDeps } = harness(EVERYTHING);
   const emptyRegistry = { ...routeDeps, registry: new Map() };
-  assert.deepEqual(deriveTrashItemRegistrations({ registrations: [], routeDeps: emptyRegistry, surfaces: { surfaceExchanges: createSurfaceExchangeStore() } }), []);
+  assert.deepEqual(deriveTrashItemRegistrations({ registrations: [], routeDeps: emptyRegistry, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } }), []);
 });
 
 test("with no delegate tool registered but a non-empty registry, trash_item is still registered for the GENERIC kinds", () => {
@@ -541,7 +545,7 @@ test("with no delegate tool registered but a non-empty registry, trash_item is s
   const [trashItem] = deriveTrashItemRegistrations({
     registrations: [],
     routeDeps: withRealTrashRegistry(routeDeps),
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore() },
+    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   });
   assert.ok(trashItem, "generic registry kinds have no delegate, so trash_item must still be built from the registry alone");
   const schema = trashItem.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
@@ -556,7 +560,7 @@ test("with no delegate tool registered but a non-empty registry, trash_item is s
 test("trash_item never reaches TrashPort.purgeSelected, on any input shape a model is likely to send", async () => {
   const { routeDeps } = harness(EVERYTHING);
   const before = await seedPost(routeDeps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   let purgeCalls = 0;
   class PurgeWasReachedError extends Error {}
   const guarded = {
@@ -569,7 +573,7 @@ test("trash_item never reaches TrashPort.purgeSelected, on any input shape a mod
       },
     },
   } as RegistryDepsWithoutLimiter;
-  const trashItem = tool(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: guarded }), { surfaceExchanges }, { contributions }), TRASH_ITEM_TOOL_ID);
+  const trashItem = tool(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: guarded }), surfaces: { surfaceExchanges }, options: { contributions } }), TRASH_ITEM_TOOL_ID);
 
   for (const input of [{}, { entityType: "post", entityId: "missing-post" }, { entityType: "comment", entityId: "c" }, { ids: ["row-1"] }]) {
     try {
@@ -684,9 +688,13 @@ test("a widget with a corrupt payload can still be trashed, through widgets_tras
   assert.ok(byId.get(id2)?.actorPluginId, "the trash_item-routed call must record a non-null actorPluginId");
 });
 
-test("n06: generic trash runs headlessly and records the AI actor", async () => {
+test("n06: generic trash records the AI actor, while host policy refuses headless calls", async () => {
   const h = sqliteFormHarness();
   const [registration] = deriveTrashItemRegistrations({registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces});
+  const hostRegistration = applyToolApprovalPolicy({ registration: registration!, surfaces: h.surfaces });
+  await assert.rejects(() => call(hostRegistration, { entityType: "form", entityId: "f1" }), { name: "ToolInputError", message: "TOOL_APPROVAL_NO_CONFIRMATION_CHANNEL: trash_item: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
+  assert.equal(h.formIsLive("f1"), true);
+  // The raw domain handler remains independently testable; production calls receive the host policy above.
   const result = await call(registration!, {entityType: "form", entityId: "f1"}) as {outcome: {trashed: boolean}};
   assert.equal(result.outcome.trashed, true);
   assert.equal(h.formIsLive("f1"), false);

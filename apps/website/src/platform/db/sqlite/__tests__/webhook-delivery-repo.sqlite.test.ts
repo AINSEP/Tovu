@@ -60,16 +60,16 @@ function runContractSuite(
 ) {
   test(`[${adapterName}] enqueue + findById round-trips`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
+    await repo.enqueue({ record: makeDelivery() });
     const found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
     assert.deepEqual(found, makeDelivery());
   });
 
   test(`[${adapterName}] enqueue is idempotent on (workspace_id, subscription_id, event_id)`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
+    await repo.enqueue({ record: makeDelivery() });
     // A second enqueue for the same (workspace, subscription, event) must not throw or duplicate.
-    await repo.enqueue(makeDelivery({ id: "delivery-duplicate" }));
+    await repo.enqueue({ record: makeDelivery({ id: "delivery-duplicate" }) });
 
     const rows = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });
     assert.equal(rows.length, 1);
@@ -79,13 +79,13 @@ function runContractSuite(
 
   test(`[${adapterName}] claimPending claims due rows, sets delivering, and increments attempts`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
+    await repo.enqueue({ record: makeDelivery() });
     const future = makeDelivery({ id: "delivery-future", eventId: "event-future", nextAttemptAt: "2099-01-01T00:00:00.000Z" });
-    await repo.enqueue(future);
+    await repo.enqueue({ record: future });
     assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: future.id }), future);
     assert.ok(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }));
     for (const status of ["delivering", "delivered", "dead"] as const) {
-      await repo.enqueue(makeDelivery({ id: `delivery-${status}`, eventId: `event-${status}`, status }));
+      await repo.enqueue({ record: makeDelivery({ id: `delivery-${status}`, eventId: `event-${status}`, status }) });
     }
 
     const claimed = await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:01.000Z" });
@@ -103,25 +103,25 @@ function runContractSuite(
   test(`[${adapterName}] claimPending orders multiple due rows oldest-nextAttemptAt-first`, async () => {
     const repo = makeRepo();
     await repo.enqueue(
-      makeDelivery({
+      { record: makeDelivery({
         id: "delivery-newer",
         eventId: "event-newer",
         nextAttemptAt: "2026-07-10T00:00:03.000Z",
-      })
+      }) }
     );
     await repo.enqueue(
-      makeDelivery({
+      { record: makeDelivery({
         id: "delivery-oldest",
         eventId: "event-oldest",
         nextAttemptAt: "2026-07-10T00:00:01.000Z",
-      })
+      }) }
     );
     await repo.enqueue(
-      makeDelivery({
+      { record: makeDelivery({
         id: "delivery-middle",
         eventId: "event-middle",
         nextAttemptAt: "2026-07-10T00:00:02.000Z",
-      })
+      }) }
     );
 
     const claimed = await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:05.000Z" });
@@ -135,8 +135,8 @@ function runContractSuite(
 
   test(`[${adapterName}] claimPending respects batchSize and leaves the rest claimable`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
-    await repo.enqueue(makeDelivery({ id: "delivery-2", eventId: "event-2", nextAttemptAt: "2026-07-10T00:00:01.000Z" }));
+    await repo.enqueue({ record: makeDelivery() });
+    await repo.enqueue({ record: makeDelivery({ id: "delivery-2", eventId: "event-2", nextAttemptAt: "2026-07-10T00:00:01.000Z" }) });
     const input = { batchSize: 1, nowIso: "2026-07-10T00:00:02.000Z" };
     assert.deepEqual((await repo.claimPending(input)).map((row) => row.id), ["delivery-1"]);
     assert.deepEqual((await repo.claimPending(input)).map((row) => row.id), ["delivery-2"]);
@@ -145,16 +145,16 @@ function runContractSuite(
 
   test(`[${adapterName}] markDelivered and markFailed refuse another workspace's row`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
+    await repo.enqueue({ record: makeDelivery() });
     await repo.markDelivered({ workspaceId: "workspace-2", id: "delivery-1", responseStatus: 200, deliveredAtIso: "2026-07-10T00:05:00.000Z" });
     assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery());
-    await repo.markFailed({ workspaceId: "workspace-2", id: "delivery-1", error: "wrong workspace", responseStatus: 500, nextStatus: "dead", nextAttemptAt: "2026-07-10T00:10:00.000Z", deadAtIso: "2026-07-10T00:11:00.000Z" });
+    await repo.markFailed({ workspaceId: "workspace-2", id: "delivery-1", error: "wrong workspace", responseStatus: 500, nextStatus: "dead", nextAttemptAt: "2026-07-10T00:10:00.000Z" }, { deadAtIso: "2026-07-10T00:11:00.000Z" });
     assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery());
   });
 
   test(`[${adapterName}] markDelivered clears lastError and stamps deliveredAt`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery({ lastError: "prior failure" }));
+    await repo.enqueue({ record: makeDelivery({ lastError: "prior failure" }) });
     await repo.markDelivered({
       workspaceId: "workspace-1",
       id: "delivery-1",
@@ -171,7 +171,7 @@ function runContractSuite(
 
   test(`[${adapterName}] markFailed re-enters pending, or dead when nextStatus is dead`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
+    await repo.enqueue({ record: makeDelivery() });
 
     await repo.markFailed({
       workspaceId: "workspace-1",
@@ -189,15 +189,7 @@ function runContractSuite(
     assert.deepEqual(await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:09:59.999Z" }), []);
     assert.deepEqual((await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:10:00.000Z" })).map((row) => row.id), ["delivery-1"]);
 
-    await repo.markFailed({
-      workspaceId: "workspace-1",
-      id: "delivery-1",
-      error: "exhausted",
-      responseStatus: 500,
-      nextStatus: "dead",
-      nextAttemptAt: "2026-07-10T00:10:00.000Z",
-      deadAtIso: "2026-07-10T00:11:00.000Z",
-    });
+    await repo.markFailed({ workspaceId: "workspace-1", id: "delivery-1", error: "exhausted", responseStatus: 500, nextStatus: "dead", nextAttemptAt: "2026-07-10T00:10:00.000Z" }, { deadAtIso: "2026-07-10T00:11:00.000Z" });
     found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
     assert.equal(found?.status, "dead");
     assert.equal(found?.deadAt, "2026-07-10T00:11:00.000Z");
@@ -223,18 +215,10 @@ function runContractSuite(
 
   test(`[${adapterName}] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
+    await repo.enqueue({ record: makeDelivery() });
 
     // First: mark dead WITH deadAtIso, so the row has a real deadAt to test the fallback against.
-    await repo.markFailed({
-      workspaceId: "workspace-1",
-      id: "delivery-1",
-      error: "first failure",
-      responseStatus: 500,
-      nextStatus: "dead",
-      nextAttemptAt: "2026-07-10T00:10:00.000Z",
-      deadAtIso: "2026-07-10T00:11:00.000Z",
-    });
+    await repo.markFailed({ workspaceId: "workspace-1", id: "delivery-1", error: "first failure", responseStatus: 500, nextStatus: "dead", nextAttemptAt: "2026-07-10T00:10:00.000Z" }, { deadAtIso: "2026-07-10T00:11:00.000Z" });
 
     // Second: mark dead again, this time WITHOUT deadAtIso -- must fall back to the existing deadAt,
     // not overwrite it with undefined/null.
@@ -255,10 +239,10 @@ function runContractSuite(
 
   test(`[${adapterName}] listBySubscription scopes by workspace + subscription and respects limit`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery({ id: "d-1" }));
-    await repo.enqueue(makeDelivery({ id: "d-2", eventId: "event-other" }));
-    await repo.enqueue(makeDelivery({ id: "d-3", subscriptionId: "sub-2", eventId: "event-2" }));
-    await repo.enqueue(makeDelivery({ id: "d-4", workspaceId: "workspace-2", eventId: "event-3" }));
+    await repo.enqueue({ record: makeDelivery({ id: "d-1" }) });
+    await repo.enqueue({ record: makeDelivery({ id: "d-2", eventId: "event-other" }) });
+    await repo.enqueue({ record: makeDelivery({ id: "d-3", subscriptionId: "sub-2", eventId: "event-2" }) });
+    await repo.enqueue({ record: makeDelivery({ id: "d-4", workspaceId: "workspace-2", eventId: "event-3" }) });
 
     const all = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });
     assert.deepEqual(all.map((row) => row.id).sort(), ["d-1", "d-2"]);
@@ -280,7 +264,7 @@ function runContractSuite(
       makeDelivery({ id: "d-other-workspace", workspaceId: "workspace-2", createdAt: "2026-07-10T03:00:00.000Z" }),
       makeDelivery({ id: "d-other-subscription", subscriptionId: "sub-2", createdAt: "2026-07-10T03:00:00.000Z" }),
       tiedB, middle]) {
-      await repo.enqueue(row);
+      await repo.enqueue({ record: row });
     }
     const required = { workspaceId: "workspace-1", subscriptionId: "sub-1" };
     assert.deepEqual(await repo.listBySubscription({ ...required, limit: 1 }), [tiedB]);
@@ -290,7 +274,7 @@ function runContractSuite(
 
   test(`[${adapterName}] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
+    await repo.enqueue({ record: makeDelivery() });
     await repo.save({ deliveryId: "delivery-1", envelope: makeEnvelope() });
 
     await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:01.000Z" });
@@ -301,7 +285,7 @@ function runContractSuite(
 
   test(`[${adapterName}] find returns null when no envelope was ever saved`, async () => {
     const repo = makeRepo();
-    await repo.enqueue(makeDelivery());
+    await repo.enqueue({ record: makeDelivery() });
     assert.equal(await repo.find({ deliveryId: "delivery-1" }), null);
   });
 }
@@ -324,7 +308,7 @@ test("ADR-046 fold-in item 5 (GAP-05/GAP-12): SqliteWebhookDeliveryRepo.enqueue(
   // The envelope rides into enqueue() itself — save() is never called in this test at all. If
   // this were the old two-step design (enqueue() always leaves payload_json NULL, only save()
   // fills it in), find() would return null here.
-  await repo.enqueue(makeDelivery(), makeEnvelope());
+  await repo.enqueue({ record: makeDelivery() }, { envelope: makeEnvelope() });
 
   const envelope = await repo.find({ deliveryId: "delivery-1" });
   assert.deepEqual(envelope, makeEnvelope(), "the envelope must be durably present immediately after enqueue(), with no separate write required");
@@ -337,7 +321,7 @@ test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlyi
     const writer = openContentDb(dbPath);
     try {
       const first = new SqliteWebhookDeliveryRepo(writer);
-      await first.enqueue(makeDelivery());
+      await first.enqueue({ record: makeDelivery() });
       await first.save({ deliveryId: "delivery-1", envelope: makeEnvelope() });
     } finally { writer.$client.close(); }
     const reader = openContentDb(dbPath);
@@ -357,11 +341,11 @@ test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlyi
 test("SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the unique index) is also a silent no-op", async () => {
   const db = openContentDb(":memory:");
   const repo = new SqliteWebhookDeliveryRepo(db);
-  await repo.enqueue(makeDelivery());
+  await repo.enqueue({ record: makeDelivery() });
 
   // Same id as the row above, but a different (workspaceId, subscriptionId, eventId) — this trips
   // the PRIMARY KEY index, not the compound UNIQUE index the contract-suite idempotency test uses.
-  await repo.enqueue(makeDelivery({ subscriptionId: "sub-2", eventId: "event-2" }));
+  await repo.enqueue({ record: makeDelivery({ subscriptionId: "sub-2", eventId: "event-2" }) });
 
   const found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
   assert.deepEqual(found, makeDelivery(), "the original row must be untouched -- the colliding insert must not have partially applied");
@@ -378,7 +362,7 @@ test("SqliteWebhookDeliveryRepo.enqueue: a non-uniqueness constraint violation (
   const malformed = { ...makeDelivery(), topic: null } as unknown as WebhookDeliveryRecord;
 
   await assert.rejects(
-    () => repo.enqueue(malformed),
+    () => repo.enqueue({ record: malformed }),
     { message: "NOT NULL constraint failed: webhook_deliveries.topic" }
   );
 });

@@ -23,7 +23,7 @@
  */
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { MailerPort } from "../../platform/mail/index.js";
-import type { OriginRegistryPort } from "../../features/origin/index.js";
+import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type {
   ConsentPurpose,

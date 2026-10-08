@@ -142,7 +142,7 @@ test("a ciphertext sealed for one peer cannot be opened as another peer's — th
   assert.ok(first?.sealed);
   // Present peer-1's ciphertext under peer-2's AAD: AEAD auth-tag verification must fail.
   await assert.rejects(
-    () => deps.sealer.open({ sealed: first.sealed!, aad: buildPublishContentPeerAad({ workspaceId: WORKSPACE, id: "peer-2" }) }),
+    () => deps.sealer.open({ sealed: first.sealed! }, { aad: buildPublishContentPeerAad({ workspaceId: WORKSPACE, id: "peer-2" }) }),
     (err: unknown) => err instanceof Error
   );
   const second = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-2" });

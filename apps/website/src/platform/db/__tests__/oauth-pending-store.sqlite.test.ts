@@ -10,7 +10,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
-import { createPendingAuthorizationStore, isOAuthError, type OAuthClock } from "#src/platform/oauth/index";
+import { createPendingAuthorizationStore, OAuthError } from "#src/platform/oauth/index";
 import { oauthDeviceAuthorizations, oauthPendingAuthorizations, workspaces } from "../schema.sqlite.js";
 import { openContentDb, type ContentDb } from "../sqlite/content-db.js";
 import { createSqliteDeviceAuthorizationStore, createSqlitePendingAuthorizationStore } from "../sqlite/oauth-pending-store.sqlite.js";
@@ -46,7 +46,7 @@ function tmpDbPath(): string {
 /** A clock the test moves by hand — same shape as `platform/oauth/__tests__/helpers.ts`'s, restated
  *  here rather than imported so this file has no test-only dependency on a sibling module's test
  *  helpers. */
-function createTestClock(startIso = "2026-09-10T12:00:00.000Z"): OAuthClock & Clock & { advance(ms: number): void } {
+function createTestClock(startIso = "2026-09-10T12:00:00.000Z"): Clock & { nowIso(): string; advance(ms: number): void } {
   let nowMs = Date.parse(startIso);
   return {
     nowMs: () => nowMs,
@@ -109,7 +109,7 @@ test("REGRESSION GUARD — two independently-constructed IN-MEMORY stores do NOT
   } catch (error) {
     caught = error;
   }
-  assert.ok(isOAuthError(caught) && caught.code === "OAUTH_INVALID_STATE", "expected the second in-memory instance to have no record of the first's entry");
+  assert.ok(caught instanceof OAuthError && caught.code === "OAUTH_INVALID_STATE", "expected the second in-memory instance to have no record of the first's entry");
 });
 
 test("a put survives another caller's rollback (its own transaction, not theirs)", async () => {
@@ -129,7 +129,7 @@ test("an expired pending state is refused, even though the row briefly existed",
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   const clock = createTestClock();
-  const store = createSqlitePendingAuthorizationStore({ db, clock, sealer, keyring, ttlMs: 60_000 });
+  const store = createSqlitePendingAuthorizationStore({ db, clock, sealer, keyring }, { ttlMs: 60_000 });
 
   const minted = await store.put(samplePendingInput());
   clock.advance(60_001);
@@ -140,7 +140,7 @@ test("an expired pending state is refused, even though the row briefly existed",
   } catch (error) {
     caught = error;
   }
-  assert.ok(isOAuthError(caught) && caught.code === "OAUTH_INVALID_STATE");
+  assert.ok(caught instanceof OAuthError && caught.code === "OAUTH_INVALID_STATE");
 });
 
 test("a state cannot be consumed twice, even across two store instances racing for the same row", async () => {
@@ -167,7 +167,7 @@ test("a state cannot be consumed twice, even across two store instances racing f
     } catch (error) {
       caught = error;
     }
-    assert.ok(isOAuthError(caught) && caught.code === "OAUTH_INVALID_STATE");
+    assert.ok(caught instanceof OAuthError && caught.code === "OAUTH_INVALID_STATE");
   }
 });
 
@@ -180,9 +180,9 @@ test("a failed owner check still consumes the row, matching the in-memory adapte
 
   const minted = await store.put(samplePendingInput({ ownerKey: "ws-1:server-a" }));
 
-  await assert.rejects(() => store.take({ state: minted.state, ownerKey: "ws-1:server-b" }), (error: unknown) => isOAuthError(error) && error.code === "OAUTH_INVALID_STATE");
+  await assert.rejects(() => store.take({ state: minted.state, ownerKey: "ws-1:server-b" }), (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE");
   // The CORRECT owner must now also fail: the row is gone.
-  await assert.rejects(() => store.take({ state: minted.state, ownerKey: "ws-1:server-a" }), (error: unknown) => isOAuthError(error) && error.code === "OAUTH_INVALID_STATE");
+  await assert.rejects(() => store.take({ state: minted.state, ownerKey: "ws-1:server-a" }), (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE");
 });
 
 test("the store is bounded — at the cap the oldest row is evicted, never the newest refused", async () => {
@@ -191,7 +191,7 @@ test("the store is bounded — at the cap the oldest row is evicted, never the n
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   const clock = createTestClock();
-  const store = createSqlitePendingAuthorizationStore({ db, clock, sealer, keyring, maxEntries: 3 });
+  const store = createSqlitePendingAuthorizationStore({ db, clock, sealer, keyring }, { maxEntries: 3 });
 
   const minted: Array<Awaited<ReturnType<typeof store.put>>> = [];
   for (let index = 0; index < 4; index += 1) {
@@ -199,7 +199,7 @@ test("the store is bounded — at the cap the oldest row is evicted, never the n
     clock.advance(1_000);
   }
 
-  assert.equal(await store.size(), 3);
+  assert.equal(await store.size({}), 3);
   const [oldest, , , newest] = minted;
   assert.ok(oldest && newest);
   await assert.rejects(() => store.take({ state: oldest.state, ownerKey: "ws-1:server-0" }));
@@ -207,7 +207,7 @@ test("the store is bounded — at the cap the oldest row is evicted, never the n
   for (const index of [1, 2]) {
     assert.equal((await store.take({ state: minted[index]!.state, ownerKey: `ws-1:server-${index}` })).ownerKey, `ws-1:server-${index}`);
   }
-  assert.equal(await store.size(), 0);
+  assert.equal(await store.size({}), 0);
 });
 
 test("the cap holds when two store instances sharing one content.db put concurrently, so eviction is atomic with the insert rather than a read-then-insert race", async () => {
@@ -218,8 +218,8 @@ test("the cap holds when two store instances sharing one content.db put concurre
   const sealer = new AesGcmSecretSealer(keyring);
   const clock = createTestClock();
 
-  const storeInProcessA = createSqlitePendingAuthorizationStore({ db: dbProcessA, clock, sealer, keyring, maxEntries: 3 });
-  const storeInProcessB = createSqlitePendingAuthorizationStore({ db: dbProcessB, clock, sealer, keyring, maxEntries: 3 });
+  const storeInProcessA = createSqlitePendingAuthorizationStore({ db: dbProcessA, clock, sealer, keyring }, { maxEntries: 3 });
+  const storeInProcessB = createSqlitePendingAuthorizationStore({ db: dbProcessB, clock, sealer, keyring }, { maxEntries: 3 });
 
   // One row below the cap: BOTH concurrent puts would observe spare capacity if the cap test ran
   // before an await, so each would skip eviction and insert — leaving four rows for a cap of three.
@@ -234,7 +234,7 @@ test("the cap holds when two store instances sharing one content.db put concurre
     storeInProcessB.put(samplePendingInput({ ownerKey: "ws-1:concurrent-b" })),
   ]);
 
-  assert.equal(await storeInProcessA.size(), 3);
+  assert.equal(await storeInProcessA.size({}), 3);
 });
 
 test("codeVerifier is sealed at rest — the raw row never carries the plaintext verifier", async () => {

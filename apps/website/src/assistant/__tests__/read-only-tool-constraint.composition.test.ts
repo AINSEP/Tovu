@@ -1,3 +1,4 @@
+import { credentialSaveFixtureRegistrations } from "../../__tests__/support/credential-save.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -6,24 +7,27 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { isReadOnlyTool } from "@jini-ai/core";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/repo.memory";
 import { loadBundledAuthSchemes } from "#src/features/custom-credentials/__tests__/bundled-auth-schemes.fixture";
-import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
-import { createCustomCredential, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/store";
+import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
+import { createCustomCredential, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/store";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
-import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-failure-recovery.js";
+import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-recovery-preset.js";
 import {
   READ_ONLY_UNCHECKABLE_MESSAGE,
   constrainPrincipalToReadOnlyTools,
   withReadOnlyToolConstraint,
 } from "../read-only-tool-constraint.js";
-import { createAssistantToolExecutor } from "../tool-executor-stack.js";
+import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The test the previous read-only-gateway work did not have: it drives the REAL decorator
@@ -38,6 +42,9 @@ import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-di
  * `withToolFailureRecovery` would then dispatch THAT id, which durably writes a Tovu-side column. A
  * status assertion passes while that happens; only reading the repo back catches it.
  *
+ * Verification recovery now prioritizes the masked token card; the original username diagnostic
+ * still survives in the provider result. Assertions below cover both durable fields.
+ *
  * Every fixture here is the production article: real registry, real registrations, real risk
  * classification, real sealer/keyring/repo. The only fakes are the outbound HTTP client (so `verify`
  * can fail 401 deterministically) and the human on the other end of the recovery surface.
@@ -50,6 +57,7 @@ const READ_ONLY = constrainPrincipalToReadOnlyTools(UNCONSTRAINED);
 const LABEL = "name.com";
 const VERIFY_TOOL_ID = "custom_credential_verify";
 const SET_USERNAME_TOOL_ID = "custom_credential_set_username";
+const SET_TOKEN_TOOL_ID = "credential_save";
 const NOW = "2026-09-02T00:00:00.000Z";
 
 /** Answers every outbound call with 401, which is what makes `custom_credential_verify` emit the
@@ -69,6 +77,7 @@ interface Harness {
   readonly surfaceExchanges: SurfaceExchangeStore;
   readonly executor: ToolExecutor;
   readonly credentialId: string;
+  readonly resolveCredential: () => ReturnType<typeof resolveCustomCredentialByLabel>;
 }
 
 /**
@@ -93,7 +102,7 @@ async function buildHarness(): Promise<Harness> {
     connection: { token: "namecom-secret-token" },
   });
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolDeps: CustomCredentialsToolDeps = {
     workspaceId: WORKSPACE_ID,
     clock,
@@ -107,7 +116,7 @@ async function buildHarness(): Promise<Harness> {
   };
 
   const registry = createToolRegistry({});
-  for (const registration of buildCustomCredentialsRegistrations(toolDeps, { surfaceExchanges })) {
+  for (const registration of credentialSaveFixtureRegistrations({ registrations: buildCustomCredentialsRegistrations(toolDeps, { surfaceExchanges }), adapters: { apiCreate: buildApiCredentialSaveHandlers({ routeDeps: toolDeps, surfaces: { surfaceExchanges } }).create, apiRotate: buildApiCredentialSaveHandlers({ routeDeps: toolDeps, surfaces: { surfaceExchanges } }).rotate } })) {
     registry.register(registration);
   }
 
@@ -115,9 +124,11 @@ async function buildHarness(): Promise<Harness> {
     registry,
     surfaceExchanges,
     toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: WORKSPACE_ID },
-  });
+  }, {});
 
-  return { registry, repo, surfaceExchanges, executor, credentialId: created.id };
+  return { registry, repo, surfaceExchanges, executor, credentialId: created.id,
+    resolveCredential: () => resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: LABEL }),
+  };
 }
 
 /** The saved username as the DURABLE STORE holds it — the only assertion that can distinguish "the
@@ -145,14 +156,9 @@ function errorText(result: ToolExecutionResult): string {
 
 /** Delivers an answer to a recovery surface only if the loop actually raised one, so a test can
  *  assert on the DURABLE OUTCOME either way instead of timing out when the gate declines to ask. */
-function answerAnyRecoverySurface(harness: Harness, emitted: readonly unknown[], principal: Principal, username: string): void {
+function answerAnyRecoverySurface(harness: Harness, emitted: readonly unknown[], principal: Principal): void {
   if (emitted.length === 0) return;
-  harness.surfaceExchanges.deliver({
-    exchangeId: exchangeIdFromSurface(emitted[0]),
-    toolId: TOOL_FAILURE_RECOVERY_TOOL_ID,
-    principalId: principal.id,
-    params: { username },
-  });
+  harness.surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]), principalId: principal.id, params: { token: "smuggled-test-token" } }, { toolId: SET_TOKEN_TOOL_ID });
 }
 
 /** Starts a `custom_credential_verify` call and waits until the loop either raises a recovery surface
@@ -178,6 +184,7 @@ test("PREMISE: custom_credential_verify is registered read-only and custom_crede
   const byId = new Map(harness.registry.list({}).map((d) => [d.id, d]));
 
   assert.equal(isReadOnlyTool({ descriptor: byId.get(VERIFY_TOOL_ID) }), true, "the read-only gateway admits this tool — that is what makes the remedy reachable");
+  assert.equal(isReadOnlyTool({ descriptor: byId.get(SET_TOKEN_TOOL_ID) }), false, "the masked recovery card durably writes and must be refused by a read-only execution");
   assert.equal(isReadOnlyTool({ descriptor: byId.get(SET_USERNAME_TOOL_ID) }), false, "the remedy durably writes; it must never be admitted by a read-only execution");
 });
 
@@ -193,10 +200,11 @@ test("READ-ONLY: a verify call whose remedy writes performs NO durable write —
   // Answer the recovery surface IF one was raised. A gate that merely declines to ask still has to be
   // proven not to write, and an unanswered surface would park this call forever — reporting a hang
   // where the ungated code's actual behaviour is a completed, successful, durable write.
-  answerAnyRecoverySurface(harness, emitted, READ_ONLY, "smuggled@example.com");
+  answerAnyRecoverySurface(harness, emitted, READ_ONLY);
   const result = await pending;
 
   assert.equal(await storedUsername(harness), undefined, "a read-only execution must never reach custom_credential_set_username's durable write");
+  assert.equal((await harness.resolveCredential())?.connection.token, "namecom-secret-token", "read-only recovery must leave the sealed token unchanged");
   assert.equal(emitted.length, 0, "no human should be asked to fill in a form whose answer would then be refused");
   assert.equal(harness.surfaceExchanges.size(), 0, "no recovery exchange should have been opened");
   assert.equal(result.status, "completed", "the original read still completed — it is the REMEDY that is refused, not the read");
@@ -206,18 +214,19 @@ test("READ-ONLY: the refusal is reported, not swallowed — the caller gets the 
   const harness = await buildHarness();
 
   const { pending, emitted } = await startVerify(harness, READ_ONLY);
-  answerAnyRecoverySurface(harness, emitted, READ_ONLY, "smuggled@example.com");
+  answerAnyRecoverySurface(harness, emitted, READ_ONLY);
   const result = await pending;
 
   // The original failure survives in full: the loop's standing contract.
-  const output = result.output as { status?: string; authDiagnostic?: { remedyToolId?: string } };
+  const output = result.output as { status?: string; authDiagnostic?: { remedyToolId?: string }; credentialSetup?: { setupToolId?: string } };
   assert.equal(output.status, "invalid", "the verify result itself must come back untouched");
   assert.equal(output.authDiagnostic?.remedyToolId, SET_USERNAME_TOOL_ID);
+  assert.equal(output.credentialSetup?.setupToolId, SET_TOKEN_TOOL_ID);
 
   // ...and the caller is told the recovery was declined, and what to do instead.
   const refusal = errorText(result);
   assert.match(refusal, /automatic recovery was NOT attempted/);
-  assert.match(refusal, new RegExp(`"${SET_USERNAME_TOOL_ID}" is not registered as read-only`));
+  assert.match(refusal, new RegExp(`"${SET_TOKEN_TOOL_ID}" is not registered as read-only`));
   assert.match(refusal, /execute_delegated_tool/);
 });
 
@@ -238,19 +247,16 @@ test("READ-ONLY: the same constraint refuses a write tool the caller names DIREC
 test("UNCONSTRAINED: the identical call still asks a human, applies the remedy, and DOES perform the durable write", async () => {
   const harness = await buildHarness();
 
+  assert.equal((await harness.resolveCredential())?.connection.token, "namecom-secret-token");
   const { pending, emitted } = await startVerify(harness, UNCONSTRAINED);
   assert.equal(emitted.length, 1, "an unconstrained execution still raises the recovery surface");
 
-  const delivered = harness.surfaceExchanges.deliver({
-    exchangeId: exchangeIdFromSurface(emitted[0]),
-    toolId: TOOL_FAILURE_RECOVERY_TOOL_ID,
-    principalId: UNCONSTRAINED.id,
-    params: { username: "leona@example.com" },
-  });
+  const delivered = harness.surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]), principalId: UNCONSTRAINED.id, params: { token: "replacement-test-token" } }, { toolId: SET_TOKEN_TOOL_ID });
   assert.deepEqual(delivered, { ok: true });
   await pending;
 
-  assert.equal(await storedUsername(harness), "leona@example.com", "the recovery loop's write must still work for a caller that did not ask for read-only");
+  assert.equal((await harness.resolveCredential())?.connection.token, "replacement-test-token", "the human card must durably rotate the sealed token");
+  assert.equal(await storedUsername(harness), undefined, "rotation must preserve the existing username state");
 });
 
 // ---------------------------------------------------------------------------
@@ -273,7 +279,7 @@ test("READ-ONLY: a remedy that is itself registered read-only still runs, and th
       calls.push({ toolId: "probe_read", input: ctx.input });
       originalCalls += 1;
       return originalCalls === 1
-        ? issueToolFailureDiagnostic({ ok: false, hint: "a region is needed to read this", remedyToolId: "probe_pick_region" })
+        ? issueToolFailureDiagnostic({ diagnostic: { ok: false, hint: "a region is needed to read this", remedyToolId: "probe_pick_region" } }, {})
         : { ok: true };
     },
   });
@@ -290,24 +296,19 @@ test("READ-ONLY: a remedy that is itself registered read-only still runs, and th
     },
   });
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const executor = createAssistantToolExecutor({
     registry,
     surfaceExchanges,
     toolAttemptAudit: { sink: createInMemoryToolAttemptAuditSink(), workspaceId: WORKSPACE_ID },
-  });
+  }, {});
 
   const emitted: unknown[] = [];
   const pending = executor.execute({ principal: READ_ONLY, run: RUN, toolId: "probe_read", input: { label: LABEL } }, { emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "a read-only remedy must still be able to ask its one question");
 
-  surfaceExchanges.deliver({
-    exchangeId: exchangeIdFromSurface(emitted[0]),
-    toolId: TOOL_FAILURE_RECOVERY_TOOL_ID,
-    principalId: READ_ONLY.id,
-    params: { region: "eu-west" },
-  });
+  surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(emitted[0]), principalId: READ_ONLY.id, params: { region: "eu-west" } }, { toolId: TOOL_FAILURE_RECOVERY_TOOL_ID });
   const result = await pending;
 
   assert.deepEqual(

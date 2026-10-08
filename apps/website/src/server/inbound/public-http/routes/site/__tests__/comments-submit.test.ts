@@ -4,8 +4,8 @@ import test from "node:test";
 import express from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { CommentSubmission } from "#src/features/comments/index";
-import type { CommentIngressPolicy, CommentIngressResult } from "#src/features/comments/ports";
+import type { CommentSubmission } from "@jini-ai/cms/comments";
+import type { CommentIngressPolicy, CommentIngressResult } from "@jini-ai/cms/comments";
 import { registerCommentsSubmitRoute } from "../comments-submit.js";
 
 /**
@@ -38,7 +38,11 @@ function buildApp(
   };
   const app = express();
   app.use(express.json());
-  registerCommentsSubmitRoute(app, { ingressPolicy, workspaceId: WORKSPACE_ID });
+  registerCommentsSubmitRoute(app, {
+    ingressPolicy, workspaceId: WORKSPACE_ID,
+    // Normalization tests isolate ingress behavior from the separately owned HTTP budget.
+    rateLimiter: { check: async () => ({ allowed: true }) },
+  });
   return { app, calls };
 }
 

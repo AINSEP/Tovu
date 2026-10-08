@@ -14,7 +14,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { forceRemove } from "../fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { buildAgentPluginSearchRegistrations } from "../../tool-registrations.js";
 
 /**

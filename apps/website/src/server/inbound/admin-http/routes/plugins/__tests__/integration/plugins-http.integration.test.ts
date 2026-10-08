@@ -6,11 +6,11 @@ import express from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
-import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { registerPluginsListRoute } from "../../list.js";
 import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
 import type { PluginsRouteDeps } from "../../deps.js";
-import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 /**
  * @file C-016 `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` HTTP surface — SPEC-005 REQ-10, AC-11,

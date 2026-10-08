@@ -1,4 +1,4 @@
-import { createFfmpegVideoFrameExtractor } from "@jini-ai/cms/media";
+import { createFfmpegVideoFrameExtractor } from "@jini-ai/cms/media/node";
 import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
 import type { MediaVideoToolPorts } from "#src/features/media/view-video-tool";
 import { resolveChatAttachmentUploadDirectory } from "../../inbound/assistant/chat-attachment-directory.js";

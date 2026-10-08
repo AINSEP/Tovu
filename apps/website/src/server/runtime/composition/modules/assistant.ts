@@ -348,7 +348,7 @@ function tryLocalMcpUiDelivery(
   if (typeof exchangeId !== "string" || exchangeId.length === 0) return false;
 
   const principalId = getAuthedPrincipal(res).id;
-  const delivered = byokSurfaceExchanges.deliver({ exchangeId, params, toolId: toolName, principalId });
+  const delivered = byokSurfaceExchanges.deliver({ exchangeId, params, principalId }, { toolId: toolName });
   if (delivered.ok) {
     // Deliberately not the tool's result — same reasoning as the daemon-side route's identical
     // 202: the agent's own held-open call is what returns that, to the model, where it belongs.
@@ -562,12 +562,8 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // (`mcp-ui-tool-calls.ts`) — a completely separate trust decision this route does not make or
       // widen.
       //
-      // createToolCatalogComposerCapabilitySource (apps/admin/src/features/plugins/tool-catalog-composer-source.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
-      // Degrades the same way every other proxied route already does, with no extra code needed
-      // here: `forwardToAgentDaemon` answers 503 immediately (known-failed boot, no daemon `fetch`
-      // attempted) or 502 (genuinely unreachable) rather than hanging or throwing — a non-2xx JSON
-      // error the former browser-side catalog source treated as "nothing to add", falling back
-      // to the bundled composer catalog rather than breaking it.
+      // Proxy failure remains bounded: known-failed daemon boots return 503 without a fetch,
+      // and unreachable daemons return 502. Enumeration cannot hang on an unavailable daemon.
       app.use("/api/tools", requireAdminSession(routeDeps));
       app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
       app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));

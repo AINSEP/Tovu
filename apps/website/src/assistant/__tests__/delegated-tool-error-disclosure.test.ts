@@ -5,14 +5,17 @@ import { createToolRegistry, type Principal, type ToolRegistry } from "@jini-ai/
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute, type DelegatedToolsHttpDeps } from "@jini-ai/daemon/http";
 
-import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
-import { createAssistantToolExecutor } from "../tool-executor-stack.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import {
   delegatedToolErrorDisclosure,
   describeDelegatedInternalError,
   type DelegatedInternalErrorContext,
   type ToolFailureRecord,
-} from "../tool-failure-redaction.js";
+} from "../tool-recovery-preset.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The agent daemon's `/api/delegated-tool-calls` error disclosure — every failure http-kit
@@ -37,7 +40,7 @@ interface Harness {
 async function harness(registry: ToolRegistry = createToolRegistry({})): Promise<Harness> {
   const records: ToolFailureRecord[] = [];
   const toolFailures = { mintErrorId: () => FIXED_ID, onFailure: (record: ToolFailureRecord) => records.push(record) };
-  const toolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges: createSurfaceExchangeStore(), toolFailures });
+  const toolExecutor = createAssistantToolExecutor({ registry, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }), toolFailures }, {});
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-disclosure" });
   return {
@@ -48,7 +51,7 @@ async function harness(registry: ToolRegistry = createToolRegistry({})): Promise
           toolExecutor,
           resolvePrincipal: () => PRINCIPAL,
           onInternalError: () => undefined,
-          ...delegatedToolErrorDisclosure(toolFailures),
+          ...delegatedToolErrorDisclosure({}, toolFailures),
           ...overrides,
         } }, { signal: signal }
       ),
@@ -152,18 +155,15 @@ test("describeDelegatedInternalError: a non-Error, empty-message, or missing err
   const base: DelegatedInternalErrorContext = { source: "delegated-tool-execute", runId: "r", toolId: "t", correlationId: "c", error: undefined };
   const deps = { mintErrorId: () => FIXED_ID, onFailure: () => undefined };
 
-  assert.equal(describeDelegatedInternalError(base, deps), `Error ${FIXED_ID}: tool "t" failed`);
-  assert.equal(describeDelegatedInternalError({ ...base, error: new Error("") }, deps), `Error ${FIXED_ID}: tool "t" failed`);
-  assert.equal(describeDelegatedInternalError({ ...base, error: "" }, deps), `Error ${FIXED_ID}: tool "t" failed`);
-  assert.equal(describeDelegatedInternalError({ ...base, error: "plain text" }, deps), `Error ${FIXED_ID}: plain text`);
+  assert.equal(describeDelegatedInternalError({ context: base }, deps), `Error ${FIXED_ID}: tool "t" failed`);
+  assert.equal(describeDelegatedInternalError({ context: { ...base, error: new Error("") } }, deps), `Error ${FIXED_ID}: tool "t" failed`);
+  assert.equal(describeDelegatedInternalError({ context: { ...base, error: "" } }, deps), `Error ${FIXED_ID}: tool "t" failed`);
+  assert.equal(describeDelegatedInternalError({ context: { ...base, error: "plain text" } }, deps), `Error ${FIXED_ID}: plain text`);
 });
 
 test("describeDelegatedInternalError: the server-side record correlates to http-kit's own log line", () => {
   const records: ToolFailureRecord[] = [];
-  describeDelegatedInternalError(
-    { source: "resolve-principal", runId: "run-9", toolId: "t", correlationId: "corr-1", error: new Error("boom") },
-    { mintErrorId: () => FIXED_ID, onFailure: (record) => records.push(record) },
-  );
+  describeDelegatedInternalError({ context: { source: "resolve-principal", runId: "run-9", toolId: "t", correlationId: "corr-1", error: new Error("boom") } }, { mintErrorId: () => FIXED_ID, onFailure: (record) => records.push(record) });
 
   assert.deepEqual(records, [
     { errorId: FIXED_ID, toolId: "t", runId: "run-9", principalId: "(unresolved)", executionId: "(none) correlationId=corr-1", redactions: 0, message: "boom" },

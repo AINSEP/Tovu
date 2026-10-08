@@ -1,8 +1,8 @@
-import type { FormAuthoring } from "#src/features/forms/html-authoring";
+import type { FormAuthoring } from "@jini-ai/cms/forms/html";
 import { DuplicateCommandError } from "@jini-ai/cms/core";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
-import { createFormDefinition } from "#src/features/forms/write-service";
-import type { FieldDescriptor, NotifyConfig } from "#src/features/forms/index";
+import { createFormDefinition } from "#src/features/forms/index";
+import type { FieldDescriptor, NotifyConfig } from "@jini-ai/cms/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 

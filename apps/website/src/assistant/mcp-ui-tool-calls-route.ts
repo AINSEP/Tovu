@@ -5,13 +5,13 @@ import type { Express, Request, Response } from "express";
 import type { Principal } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
-import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { isMcpUiToolCallPermitted } from "./mcp-ui-tool-calls.js";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   SURFACE_TYPED_ANSWER_PARAM,
   type SurfaceExchangeStore,
-} from "../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer
@@ -25,11 +25,11 @@ import {
  *    {@link SurfaceExchangeStore} exchange, and therefore an agent tool call still held open and
  *    waiting. Nothing is executed: the message reaches that call, and the agent — still alive —
  *    returns the answer as its own result. This is the path a form takes, the path
- *    `content_post_delete` takes since Decision 2 (superseding ADR-053 Decision 3's token
- *    redemption below), and the path a multi-turn conversation takes for every one of its turns.
+ *    `content_post_delete` takes under ADR-055 Decision 2, and the path a multi-turn conversation
+ *    takes for every one of its turns.
  * 2. **A legacy redemption** (ADR-053 Decision 3) — no exchange id, so the answer is a second,
  *    ordinary tool call carrying a confirmation token only the rendered dialog held. No wired tool
- *    takes this path today — `content_post_delete` was the only one, and it moved to shape 1 above.
+ *    takes this path.
  *    Left in place as generic infrastructure for a future tool that genuinely needs a second,
  *    independently-authorized call rather than a held-open one; such a tool would need its own
  *    token store alongside this branch.
@@ -83,7 +83,6 @@ import {
  * decision being confirmed. A fresh, single-use synthetic `RunRef` (`{id}` is `@jini-ai/core`'s
  * whole structural contract for one — see `tool-registry.ts`) satisfies `ToolExecutor.execute`'s
  * signature without asserting a real run exists.
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** Mounted at the same path Tovu's proxy exposes to the browser, so `forwardToAgentDaemon`'s
@@ -131,7 +130,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  *
  * @complexity O(1).
  * @overallScore 100
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 function respondToExecutionResult(res: Response, toolName: string, principalId: string, result: ToolExecutionResult): void {
   switch (result.status) {
@@ -168,7 +166,6 @@ function respondToExecutionResult(res: Response, toolName: string, principalId: 
  * a different store instance.
  * @complexity O(1) request handling plus the invoked tool handler's own cost.
  * @overallScore 100
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 interface ParsedMcpUiToolCallRequest {
   readonly toolName: string;
@@ -180,7 +177,7 @@ interface ParsedMcpUiToolCallRequest {
 
 /**
  * Validates and shapes `req`'s body, writing the 400/403 response and returning `null` on the
- * first invalid field — a direct extraction of {@link registerMcpUiToolCallsRoute}'s original
+ * first invalid field — preserving {@link registerMcpUiToolCallsRoute}'s
  * inline validation, split out purely to keep that function's complexity under the shop ceiling.
  */
 function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiToolCallRequest | null {
@@ -221,7 +218,7 @@ function deliverMcpUiExchange(
   deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">,
   input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string },
 ): void {
-  const delivered = deps.surfaceExchanges.deliver(input);
+  const delivered = deps.surfaceExchanges.deliver(input, { toolId: input.toolId });
   if (!delivered.ok) {
     // 409, not 404: from the browser's side both reasons mean "this dialog is no longer the
     // one waiting on you" — a second click, a reload of stale scrollback, or an expired form.

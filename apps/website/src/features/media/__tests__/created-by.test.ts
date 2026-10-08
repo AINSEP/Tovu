@@ -9,8 +9,11 @@ import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditi
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import { duplicateMediaAsset } from "../duplicate-asset.js";
 import { buildMediaRegistrationsForTovu } from "../tool-registrations.js";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { uploadMedia as packageUploadMedia } from "@jini-ai/cms/media";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 test("the host uses Jini's canonical upload service without a release adapter", () => {
   assert.equal(uploadMedia, packageUploadMedia);
@@ -81,7 +84,7 @@ test("one registered upload handler isolates attribution between concurrent acto
     blobStore: new InMemoryBlobStore(), authorize: async () => ({ allowed: true, reason: "matched" }),
     removeMedia: async () => { assert.fail("unexpected removal"); },
   };
-  const upload = buildMediaRegistrationsForTovu(deps, { surfaceExchanges: createSurfaceExchangeStore() })
+  const upload = buildMediaRegistrationsForTovu(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) })
     .find(tool => tool.descriptor.id === "media_upload_asset");
   assert.ok(upload);
   await Promise.all(["owner", "plugin-agent"].map(async actor => {

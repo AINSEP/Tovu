@@ -12,9 +12,8 @@ import type { EntryRefRow } from "../types.js";
  * `repo.sqlite.ts` — mirrors `src/identity/__tests__/repo.contract.test.ts`'s shape (that file's
  * own header cites the convention this file follows).
  *
- * Fable adversarial-review fix (2026-07-21, Finding C/P10a): this port previously had zero SQLite
- * execution anywhere in the test suite — only the in-memory adapter was ever exercised, so a real
- * schema mismatch or a broken delete-then-insert in `SqliteEntryRefsRepo` could ship undetected.
+ * Both adapters need real execution coverage: schema mismatches or broken delete-then-insert
+ * behavior in SQLite cannot be detected by exercising only the memory adapter.
  * `entry_refs` backs widgets' reference-count delete guards and where-used diagnostics (REQ-29..34,
  * REQ-42), so a silent SQLite-adapter bug here would surface as a false "safe to delete" or a
  * false "still referenced" on the real running server.

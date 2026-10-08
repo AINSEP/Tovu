@@ -1,7 +1,7 @@
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { toEnqueueOnlyOutbox } from "#src/contracts/core/events/index";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
+import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import { createRouteDeps } from "./app.js";
 import { createSiteRouteDepsForWorkspace } from "./deps.js";
 

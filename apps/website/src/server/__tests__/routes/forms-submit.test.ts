@@ -7,9 +7,9 @@ import test from "node:test";
 import express from "express";
 
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
-import type { FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "#src/features/forms/index";
+import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { decodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
@@ -38,7 +38,7 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
   };
 }
 
-async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo } = {}) {
+async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo; upstreamCookie?: boolean } = {}) {
   const definitionRepo = overrides.definitionRepo ?? new InMemoryFormDefinitionRepo();
   const submissionRepo = overrides.submissionRepo ?? new InMemoryFormSubmissionRepo();
   const clock = { nowMs: () => Date.parse(NOW), nowIso: () => NOW };
@@ -49,6 +49,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   const bus = new InMemoryEventBus();
   const app = express();
   app.use(express.json());
+  if (overrides.upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
   registerFormsSubmitRoute(app, {
     workspaceId: WORKSPACE_ID,
     submitForm: {
@@ -879,4 +880,26 @@ test("POST /forms/:slug/submit: `boundBody`'s `(body ?? {})` fallback, forced vi
   // a real, iterable object rather than throwing on `Object.entries(undefined)`.
   assert.equal(statusCode, 400);
   assert.equal((jsonBody as { code: string }).code, "FORMS_SUBMISSION_VALIDATION_ERROR");
+});
+
+test("validation flash cookies preserve upstream cookies and expire in 120 seconds", async t => {
+  const { server, baseUrl, definitionRepo } = await startTestApp({ upstreamCookie: true });
+  t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition({ fields: [
+    { id: "name", label: "Name", type: "text", required: true },
+    { id: "email", label: "Email", type: "email", required: false },
+  ] }));
+  const response = await fetch(`${baseUrl}/forms/contact/submit`, { method: "POST", redirect: "manual",
+    headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html" }, body: "name=&email=ada%40example.com" });
+  assert.equal(response.status, 303);
+  const cookies = response.headers.getSetCookie();
+  assert.equal(cookies.length, 2);
+  assert.equal(cookies[0], "upstream=kept; Path=/");
+  assert.ok(cookies[1].startsWith("tovu_form_flash="));
+  assert.ok(cookies[1].includes("Max-Age=120;"));
+  const flash = parseFlashCookieHeader(cookies[1]);
+  assert.ok(flash);
+  assert.deepEqual(decodeFormFlashCookieValue(flash.raw), {
+    slug: "contact", values: { email: "ada@example.com" },
+  });
 });

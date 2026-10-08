@@ -12,15 +12,18 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../contracts/core/tool-surface-exchanges.js";
-import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+} from "@jini-ai/daemon/surface-exchanges";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
-import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { buildPluginsRegistrations, contributePluginsTools, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -28,11 +31,7 @@ const contributions = {
 };
 
 
-// Plugins moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributePluginsTools() });
 
@@ -284,7 +283,7 @@ async function enableWithDecision(
   input: Record<string, unknown>,
   decision: "confirm" | "cancel",
 ): Promise<unknown> {
-  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registration = buildPluginsRegistrations(deps as unknown as PluginsToolDeps, { surfaceExchanges }).find(
     (r) => r.descriptor.id === "plugins_set_enabled",
   );
@@ -300,7 +299,8 @@ async function enableWithDecision(
     signal: new AbortController().signal,
   } as ToolExecutionContext, { emitSurface });
 
-  await new Promise((resolve) => setImmediate(resolve));
+  // Observe preparation failures immediately, before yielding to the card emission turn.
+  await Promise.race([pending, new Promise((resolve) => setImmediate(resolve))]);
   if (emitted.length === 0) return pending; // refused before the dialog — let the caller assert on it
 
   const resource = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource;
@@ -309,7 +309,7 @@ async function enableWithDecision(
   const html = resource.text ?? "";
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the dialog must carry its exchange id");
-  surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision }, principalId: PRINCIPAL_ID, toolId: "plugins_set_enabled" });
+  surfaceExchanges.deliver({ exchangeId: match[1] ?? "", params: { decision }, principalId: PRINCIPAL_ID }, { toolId: "plugins_set_enabled" });
   return pending;
 }
 
@@ -336,7 +336,7 @@ test("plugins_set_enabled: refuses to enable an unknown plugin id", async () => 
   const { deps } = fakeRouteDeps();
   await assert.rejects(
     () => enableWithDecision(deps, { pluginId: "does-not-exist", enabled: true, family: "site-runtime" }, "confirm"),
-    /was not found/,
+    { name: "ToolInputError", message: "plugin 'does-not-exist' was not found in the current discovery snapshot" },
   );
 });
 

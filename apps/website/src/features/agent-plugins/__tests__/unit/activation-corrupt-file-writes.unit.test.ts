@@ -12,11 +12,11 @@ import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
 import { AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
-import { previewAgentPluginUninstall, uninstallAgentPlugin } from "../../uninstall.js";
+import { listInstalledPlugins } from "../../lifecycle.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
+import { previewAgentPluginUninstall, uninstallAgentPlugin } from "../../lifecycle.js";
 
 /**
  * @file t91 F1.1 — the committed form of the security re-check's

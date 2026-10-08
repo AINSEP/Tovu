@@ -1,6 +1,5 @@
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
 
-import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The confirmation dialog `tool-registrations.ts` raises before running a DELETE through a
@@ -19,47 +18,23 @@ import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exc
 
 export const MAKE_CREDENTIALED_REQUEST_TOOL_ID = "custom_credential_make_request";
 
-export function deleteRequestConfirmationUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/custom-credential-make-request-delete/${exchangeId}` as UIResourceUri;
-}
-
 /**
- * Renders the dialog naming exactly what is about to be sent — label, resolved host, method, and
+ * Describes the dialog naming exactly what is about to be sent — label, resolved host, method, and
  * path — per the owner's own requirement ("showing the operator the label, the resolved host, the
  * method and the full path so they can see exactly what is about to be destroyed").
  *
- * `spec.expiresAtMs` is the exchange's deadline (`SurfaceExchange.expiresAtMs()`), so the chat counts
- * the card down and closes it — as `requireHumanConfirm` does.
+ * The shared transport owns the exchange deadline (`SurfaceExchange.expiresAtMs()`), so the chat
+ * counts the card down and closes it when the parked call stops waiting.
  *
  * @complexity O(1) — a handful of fixed-size field reads.
  */
-export function buildDeleteRequestConfirmationResource(spec: { label: string; host: string; path: string; exchangeId: string; expiresAtMs: number }): UIResource {
-  const { label, host, path, exchangeId, expiresAtMs } = spec;
-
-  return buildConfirmationSurface({
-    uri: deleteRequestConfirmationUri(exchangeId),
+export function describeDeleteRequestApproval({ label, host, path }: { label: string; host: string; path: string }, _optional = {}): HumanConfirmSpec {
+  return {
+    toolId: MAKE_CREDENTIALED_REQUEST_TOOL_ID, errorCode: "CUSTOM_CREDENTIALS",
     title: `Send a DELETE through '${label}'?`,
     description: "This calls the third-party API's own DELETE endpoint using this saved credential — Tovu has no way to undo whatever the provider does with it.",
-    details: [
-      { label: "Credential", value: label },
-      { label: "Host", value: host },
-      { label: "Method", value: "DELETE" },
-      { label: "Path", value: path },
-    ],
+    details: [{ label: "Credential", value: label }, { label: "Host", value: host }, { label: "Method", value: "DELETE" }, { label: "Path", value: path }],
     warning: "This is irreversible if the provider actually deletes something. Double-check the path above before confirming.",
-    danger: true,
-    confirm: {
-      label: "Send DELETE",
-      toolName: MAKE_CREDENTIALED_REQUEST_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    cancel: {
-      label: "Cancel",
-      toolName: MAKE_CREDENTIALED_REQUEST_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-custom-credential-make-request-delete", appVersion: "1" },
-    preferredFrameSize: ["100%", "360px"],
-    expiresAtMs,
-  });
+    danger: true, confirmLabel: "Send DELETE",
+  };
 }

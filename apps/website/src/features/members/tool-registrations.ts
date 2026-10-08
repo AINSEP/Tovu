@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/members.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
@@ -16,7 +17,8 @@ import { ToolInputError } from "@jini-ai/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "../../platform/mail/index.js";
-import { forbiddenRule } from "#src/contracts/core/model-facing-tool-errors";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { membersAgentToolCatalog } from "./agent-tools.js";
 import type {
@@ -162,7 +164,7 @@ function toMemberToolView(member: MemberRecord) {
  * not this list's by default.
  */
 const MEMBERS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("MEMBERS"),
+  forbiddenRule({ domainPrefix: "MEMBERS", error: ForbiddenError }),
   { error: MemberNotFoundError, code: "MEMBERS_NOT_FOUND" },
   { error: MemberValidationError, code: "MEMBERS_VALIDATION_FAILED" },
   { error: MemberConflictError, code: "MEMBERS_CONFLICT" },
@@ -251,7 +253,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
   };
 
   // No `unwiredToolIds`: Members wires its ENTIRE catalog, same tripwire discipline as Forms.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "members",
     catalogModule: "members/agent-tools.ts",
     catalog: CATALOG_BY_ID,

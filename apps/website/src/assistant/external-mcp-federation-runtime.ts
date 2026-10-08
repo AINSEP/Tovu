@@ -1,4 +1,3 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import { tovuFederationMessages } from "./mcp-federation/presets.js";
 import type { ToolRegistry } from "@jini-ai/core";
 
@@ -11,21 +10,9 @@ import type { FederationReloadResult } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";
 
 /**
- * @file One federation runtime, instantiated once per process (the daemon and BYOK each build their
- * own) from the SAME code — see `ADS-memory/.local-artifacts/design-byok-external-mcp-2026-09-24.md`
- * §2.1 item 2. Before this file, the boot pass, the reload coordinator, the merged admission
- * accounting, and the cached refusal prefix were four separate pieces of state hand-wired inline
- * inside `agent-daemon-server.ts`'s `start()` (`:1231-1420` there) — code a second process could not
- * reuse without copying it by hand and risking exactly the kind of drift
- * `process-root-parity.test.ts` exists to catch. This module is that wiring, extracted so BOTH
- * processes call through one implementation.
- *
- * Boot and reload are two ends of the SAME accounting: `start()` seeds it, `reload()` extends it, and
- * `reports()`/`refusalPrefix()` read whatever has accumulated across both, live. Splitting boot and
- * reload into two objects that each held half of this state was rejected — the daemon's own
- * `federationAdmissionReports`/`federationRefusalPrefix` pair already show what happens when they can
- * drift apart (`:1355-1356` reassigns both together, by hand, on every reload — the exact discipline
- * this file now owns so a caller cannot forget half of it).
+ * @file One federation runtime per process, shared by daemon and BYOK composition.
+ * Boot and reload own one accounting state: `start()` seeds it, `reload()` extends it, and
+ * `reports()`/`refusalPrefix()` read it live. Separate state for these views would allow drift.
  *
  * Architectural role:
  * Composition. No I/O of its own — every I/O call (`attach`, `resolveConnections`) is a parameter, so
@@ -68,12 +55,9 @@ export interface CreateFederationRuntimeParams {
 export interface FederationRuntime {
   /** The boot pass: presets plus the roster `resolveConnections` returns. Single-flight and
    *  idempotent — calling it any number of times performs the boot pass exactly once and every call
-   *  shares that one result. Never rejects (2026-09-25): `attachFederatedMcpTools` already never does
-   *  (bootstrap.ts's FAIL-OPEN contract), and `params.after`/`params.resolveConnections` — the two
-   *  params THIS runtime awaits before calling it — are now caught here too, so a caller can always
-   *  `await start()` unconditionally. Before this, a rejection from either one left `startPromise`
-   *  permanently rejected and {@link FederationRuntime.started} permanently `false` — see this file's
-   *  own header and `ADS-memory/.local-artifacts/handoffs/2026-09-25-mcp-followups.md`. */
+   *  shares that one result. Never rejects: attach absorbs per-connection failures, and this
+   *  runtime catches failures from `after` and `resolveConnections` so callers can await boot
+   *  unconditionally and `started` reaches its terminal state. */
   start(): Promise<void>;
   /** Re-admits every roster connection not yet admitted. Resolves `{newlyAdmittedConnectionIds: [],
    *  reports: []}` with no roster read at all if `start()` was never called — there is nothing yet to
@@ -82,7 +66,7 @@ export interface FederationRuntime {
   reload(): Promise<FederationReloadResult>;
   /** A live read of the merged boot-plus-every-reload admission accounting. */
   reports(): AttachFederatedToolsResultReports;
-  /** A live read of the merged boot-plus-every-reload CONNECT failures (2026-09-24) — one entry per
+  /** A live read of the merged boot-plus-every-reload CONNECT failures — one entry per
    *  connection that never reached admission at all (bad spawn, timed-out handshake, malformed
    *  listing), so it has no entry in `reports()` either. Same shape and same merge discipline as
    *  `reports()`. */
@@ -90,11 +74,11 @@ export interface FederationRuntime {
   /** The refusal-prefix text for `reports()`, cached and recomputed only when `reports()` changes —
    *  `""` when there is nothing to report. */
   refusalPrefix(): string;
-  /** Whether the boot pass has completed — successfully or not (2026-09-25); see `start()`'s own doc.
+  /** Whether the boot pass has completed — successfully or not; see `start()`'s own doc.
    */
   readonly started: boolean;
   /**
-   * The boot roster's connection ids (2026-09-25) — `undefined` until `resolveConnections()` resolves
+   * The boot roster's connection ids — `undefined` until `resolveConnections()` resolves
    * (the roster itself is not known yet), then fixed for the rest of boot. Lets a caller building
    * `FederationBootStatus` (`federated-refusal-diagnosis.ts`) tell "a real, pending roster connection"
    * apart from "never configured at all" while `!started`, without waiting for the whole boot pass —
@@ -138,16 +122,9 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
   }
 
   async function runStart(): Promise<void> {
-    // Whole-block try/catch (2026-09-25): `attach` (`attachFederatedMcpTools`) already never rejects
-    // — every per-connection failure is absorbed inside it (bootstrap.ts's FAIL-OPEN contract) — so
-    // the only two things that CAN reject here are `params.after` and `params.resolveConnections`.
-    // Before this catch existed, either one rejecting left `startPromise` permanently rejected and
-    // `startedFlag` permanently `false`: every `mcp__`-prefixed tool call was diagnosed "still
-    // connecting" forever, even long after the underlying failure (a bad roster read, a failed
-    // extension registration) was fixed, because nothing ever moved `started` off `false` to let
-    // `federated-refusal-diagnosis.ts` re-evaluate. Catching here restores the behavior `start()`'s
-    // own doc already claimed and this whole module's FAIL-OPEN posture requires: a vendor- or
-    // config-side failure must never be on the critical path of booting, federation included.
+    // Catch prerequisites as well as attachment: a failed roster read must complete boot's
+    // lifecycle so later calls are diagnosed as failed rather than "still connecting" forever.
+    // Optional federation failures cannot disable the native assistant.
     try {
       await (params.after ?? Promise.resolve());
       const connections = await params.resolveConnections();

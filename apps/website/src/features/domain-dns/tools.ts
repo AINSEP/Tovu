@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/domain-dns.js';
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
@@ -150,7 +151,7 @@ async function toolInputBoundary<T>({ check }: { check: () => Promise<T> }): Pro
  * @example buildDomainDnsRegistrations(deps);
  */
 export function buildDomainDnsRegistrations(deps: DomainDnsToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "domain-dns", catalogModule: "features/domain-dns/tools.ts", catalog: indexCatalogById({ catalog: domainDnsAgentToolCatalog }), derivedRisk: domainDnsDerivedRisk, handlers: {
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "domain-dns", catalogModule: "features/domain-dns/tools.ts", catalog: indexCatalogById({ catalog: domainDnsAgentToolCatalog }), derivedRisk: domainDnsDerivedRisk, handlers: {
     domain_lookup_dns: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       const checks = checksForPrincipal({ deps, principalId: ctx.principal.id });

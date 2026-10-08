@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FormDefinitionRecord } from "#src/features/forms/index";
+import type { HtmlFormDefinitionRecord as FormDefinitionRecord } from "@jini-ai/cms/forms";
 import { resolveFormDefinitionByIdOrSlug } from "../resolve-definition.js";
 
 /**

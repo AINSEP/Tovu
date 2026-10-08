@@ -1,3 +1,4 @@
+import { WIDGET_REGION_BINDINGS_TABLE } from "../widgets/repo.sqlite.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { kernelStampWatermark } from "../../platform/db/watermark-kernel.js";
 import { DECLARED_CONTENT_TYPE_OWNERS } from "../content-types/declared-owners.js";
@@ -94,7 +95,7 @@ export function ownerEntryRemovalFor(required: { kernel: ContentKernel; type: st
     purgeFirst: [
       { table: "entry_refs", parentIdColumn: "source_entry_id" },
       { table: "entry_revisions", parentIdColumn: "entry_id" },
-      { table: "widget_region_bindings", parentIdColumn: "area_entry_id" },
+      { table: WIDGET_REGION_BINDINGS_TABLE, parentIdColumn: "area_entry_id" },
     ],
   };
   return { adapter: createTableTrashAdapter({ entry, db: kernel }), via: registered ? "trash-purge" : "hard-delete" };

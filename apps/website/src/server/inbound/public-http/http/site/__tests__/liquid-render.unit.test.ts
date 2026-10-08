@@ -35,11 +35,10 @@ test("the defensive re-lint refuses a disallowed tag before the engine sees it",
   assert.match((result as { error: string }).error, /^disallowed Liquid usage: .*include/);
 });
 
-test("with the theme's allowlist opt-out, an include still fails closed on the no-access filesystem", () => {
+test("a publisher-authored bypass flag cannot disable worker lint", () => {
   const result = runLiquidRender({ workerData: { source: "{% include 'secrets' %}", ctx, skipLiquidAllowlist: true } });
   assert.equal(result.ok, false);
-  assert.match((result as { error: string }).error, /secrets/);
-  assert.doesNotMatch((result as { error: string }).error, /^disallowed Liquid usage/);
+  assert.match((result as { error: string }).error, /^disallowed Liquid usage: .*include/);
 });
 
 test("an engine error becomes a controlled error reply instead of a throw", () => {
@@ -57,7 +56,7 @@ test("render_block resolves a registered component through the site context", ()
 
 test("render_block refuses to render when the template has shadowed the site context", () => {
   const result = runLiquidRender({
-    workerData: { source: '{% assign __siteCtx = false %}{% render_block component: "tovu/site-header" %}', ctx, skipLiquidAllowlist: true },
+    workerData: { source: '{% assign __siteCtx = false %}{% render_block component: "tovu/site-header" %}', ctx },
   });
   assert.deepEqual(result, { ok: true, html: "<!-- render_block: no site context -->" });
 });

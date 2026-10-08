@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Wiring proof for S3 of `ADS-memory/.local-artifacts/design-byok-external-mcp-2026-09-24.md`
@@ -103,14 +106,13 @@ test("onStarted reads the federation refusal prefix afresh for each run", async 
 test("the daemon's composed executor diagnoses a refusal introduced after construction", async () => {
   const { daemonInitializer, evaluateDaemonExpression } = await import("./helpers/daemon-source.js");
   const { createToolRegistry } = await import("@jini-ai/core");
-  const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-surface-exchanges");
-  const { createAssistantToolExecutor } = await import("#src/assistant/tool-executor-stack");
-  const { withFederatedRefusalDiagnosis } = await import("#src/assistant/federated-refusal-diagnosis");
+  const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
+  const { createAssistantToolExecutor, withFederatedRefusalDiagnosis } = await import("#src/assistant/tool-recovery-preset");
   const { createInMemoryToolAttemptAuditSink } = await import("#src/features/tool-audit/repo.memory");
   let reports: import("@jini-ai/mcp/federation").FederationAdmissionSnapshotEntry[] = [];
   const executor = evaluateDaemonExpression<import("@jini-ai/daemon").ToolExecutor>(daemonInitializer("toolExecutor"), {
     createAssistantToolExecutor, withFederatedRefusalDiagnosis,
-    registry: createToolRegistry({}), surfaceExchanges: createSurfaceExchangeStore(),
+    registry: createToolRegistry({}), surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     auditSink: createInMemoryToolAttemptAuditSink(), routeDeps: { workspaceId: "ws-live-refusal" },
     toolExtensions: { federation: { reports: () => reports } },
   });

@@ -8,7 +8,7 @@ import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import {
   EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID,
@@ -22,7 +22,10 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Regression coverage for the re-auth surface (`external-mcp-reauth-tool.ts`) — the class of
@@ -111,7 +114,7 @@ function exchangeIdFromEmission(emission: SurfaceEmission): string {
 
 test("an expired-token connection raises the re-auth surface, naming the server", async () => {
   const repo = await makeOAuthServerFixture("needs_reauth");
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
   const emitted: SurfaceEmission[] = [];
@@ -130,7 +133,7 @@ test("an expired-token connection raises the re-auth surface, naming the server"
 
   // Deliver the acknowledgement so the parked call resolves and the test does not leak a timer.
   const exchangeId = exchangeIdFromEmission(emitted[0]!);
-  const delivered = surfaceExchanges.deliver({ exchangeId, params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
+  const delivered = surfaceExchanges.deliver({ exchangeId, params: {}, principalId: PRINCIPAL }, { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID });
   assert.equal(delivered.ok, true);
   const executed = await pending;
   assert.equal(executed.status, "completed");
@@ -149,7 +152,7 @@ test("an expired-token connection raises the re-auth surface, naming the server"
 
 test("real round trip: an mcp-ui acknowledgement of external_mcp_reauth_prompt's dialog is redeemed, not refused as unallowlisted", async (t) => {
   const repo = await makeOAuthServerFixture("needs_reauth");
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
   const emitted: SurfaceEmission[] = [];
@@ -211,7 +214,7 @@ test("degrades to the existing terminal error when the connection is not OAuth-a
     },
   );
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
   const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: "static-server" } });
 
@@ -222,7 +225,7 @@ test("degrades to the existing terminal error when the connection is not OAuth-a
 
 test("degrades to the existing terminal error when the connection does not exist", async () => {
   const repo = new InMemoryExternalMcpServerRepo();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
   const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: { id: "no-such-server" } });
 
@@ -233,7 +236,7 @@ test("degrades to the existing terminal error when the connection does not exist
 
 test("idempotent under two concurrent failures for the SAME connection: only one exchange opens", async () => {
   const repo = await makeOAuthServerFixture("needs_reauth");
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
   const emittedA: SurfaceEmission[] = [];
@@ -267,7 +270,7 @@ test("idempotent under two concurrent failures for the SAME connection: only one
 
   // Clean up A's still-open exchange so the process has nothing left pending.
   const exchangeId = exchangeIdFromEmission(emittedA[0]!);
-  surfaceExchanges.deliver({ exchangeId, params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
+  surfaceExchanges.deliver({ exchangeId, params: {}, principalId: PRINCIPAL }, { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID });
   await callA;
 });
 
@@ -275,7 +278,7 @@ test("idempotent under two concurrent failures for the SAME connection: only one
 // dialog instead of "already showing" for one only admin A can see.
 test("a second admin's run for the same connection raises its own notice, not 'already showing'", async () => {
   const repo = await makeOAuthServerFixture("needs_reauth");
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
   const emittedA: SurfaceEmission[] = [];
@@ -292,8 +295,8 @@ test("a second admin's run for the same connection raises its own notice, not 'a
   assert.equal(emittedB.length, 1, "the other admin must see a notice of their own");
   assert.equal(surfaceExchanges.size(), 2);
 
-  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedA[0]!), params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
-  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedB[0]!), params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: "principal-other-admin" });
+  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedA[0]!), params: {}, principalId: PRINCIPAL }, { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID });
+  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedB[0]!), params: {}, principalId: "principal-other-admin" }, { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID });
   await Promise.all([callA, callB]);
 });
 
@@ -301,7 +304,7 @@ test("a second admin's run for the same connection raises its own notice, not 'a
 // the guard stayed set, silently suppressing every re-auth prompt for that server meanwhile.
 test("cancelling the run closes the notice and clears the guard, so the next failure raises a fresh one", async () => {
   const repo = await makeOAuthServerFixture("needs_reauth");
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
   const controller = new AbortController();
@@ -316,7 +319,7 @@ test("cancelling the run closes the notice and clears the guard, so the next fai
   controller.abort();
   await callA;
   assert.equal(surfaceExchanges.size(), 0, "the aborted run's notice must be closed, not left for its TTL");
-  const late = surfaceExchanges.deliver({ exchangeId: staleExchangeId, params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
+  const late = surfaceExchanges.deliver({ exchangeId: staleExchangeId, params: {}, principalId: PRINCIPAL }, { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID });
   assert.deepEqual(late, { ok: false, reason: "unknown-or-closed" });
 
   const emittedB: SurfaceEmission[] = [];
@@ -325,7 +328,7 @@ test("cancelling the run closes the notice and clears the guard, so the next fai
   } });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emittedB.length, 1, "the guard must be clear once the cancelled run's notice closed");
-  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedB[0]!), params: {}, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, principalId: PRINCIPAL });
+  surfaceExchanges.deliver({ exchangeId: exchangeIdFromEmission(emittedB[0]!), params: {}, principalId: PRINCIPAL }, { toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID });
   await callB;
 });
 
@@ -341,7 +344,7 @@ test("cancelling the run closes the notice and clears the guard, so the next fai
 
 test("external_mcp_reauth_prompt called with no 'id' fails with errorKind 'validation' (400), not a redacted 'internal' (500)", async () => {
   const repo = await makeOAuthServerFixture("needs_reauth");
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealReauthToolExecutor(repo, surfaceExchanges);
 
   const executed = await toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID, input: {} }, { emitSurface: async () => {} });

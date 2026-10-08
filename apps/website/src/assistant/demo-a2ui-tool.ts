@@ -1,3 +1,4 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import {
   createLabCatalog,
   parseAgentToRendererMessage,
@@ -7,7 +8,7 @@ import {
 
 import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
-import type { AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
 /**
  * @file A development-only agent tool exercising the A2UI (a2ui-project/a2ui v1.0) inbound
@@ -21,9 +22,7 @@ import type { AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchan
  * one-shot case, `askOnce`). A2UI needs its own demonstration because its whole point is the
  * multi-turn shape `askOnce` deliberately does not cover — `surface-exchanges.ts`'s own module doc
  * calls out A2UI's `createSurface -> updateComponents -> action -> ...` loop by name as the reason
- * the store buffers inbound messages at all. Before this tool, nothing in Tovu ever drove that loop
- * against a real exchange; only `examples/reference-web`'s `runA2uiDemo` (a different codebase, a
- * hand-rolled polling relay, no `SurfaceExchangeStore`) had ever exercised it.
+ * the store buffers inbound messages at all.
  *
  * ## Why the catalog matters here
  *
@@ -139,9 +138,7 @@ function noAnswerResult(reason: "expired" | "abandoned"): Record<string, unknown
 }
 
 /**
- * Builds this tool's registration. Unconditional since 2026-08-26 — see `demo-choices-tool.ts`'s
- * header for the decision that removed the `TOVU_ENABLE_DEMO_TOOLS` gate from all four in-chat UI
- * tools.
+ * Builds this tool's registration unconditionally; the owner policy is in `demo-choices-tool.ts`.
  *
  * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature.
@@ -171,8 +168,8 @@ export function buildDemoA2uiRegistrations(
       // The exchange is opened BEFORE any message is sent, exactly like `demo-choices-tool.ts` —
       // opening requires the emitter, so waiting on an unsent message is unrepresentable.
       const exchange = surfaces.surfaceExchanges.open(
-        { toolId: DEMO_A2UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" },
-        emitSurface,
+        { binding: { toolId: DEMO_A2UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" },
+        emit: emitSurface },
       );
       // A2UI correlates by its own `surfaceId`, not by a route-specific callback param the way
       // MCP-UI's `__exchangeId` does — so the exchange id IS the surface id, directly, with nothing
@@ -191,7 +188,7 @@ export function buildDemoA2uiRegistrations(
         await emitSurface({ channel: "a2ui", payload: { message: validated.message } });
       };
 
-      const closeOnAbort = () => exchange.close();
+      const closeOnAbort = () => exchange.close({});
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
         await emitA2ui({
@@ -222,7 +219,7 @@ export function buildDemoA2uiRegistrations(
           },
         });
 
-        const first = await exchange.receive();
+        const first = await exchange.receive({});
         if (first.status !== "received") return noAnswerResult(first.status);
         const firstAction = readActionPayload(first.params);
         const firstStep: RoundTripStep = firstAction
@@ -257,7 +254,7 @@ export function buildDemoA2uiRegistrations(
           },
         });
 
-        const second = await exchange.receive();
+        const second = await exchange.receive({});
         if (second.status !== "received") return noAnswerResult(second.status);
         const secondAction = readActionPayload(second.params);
         const secondStep: RoundTripStep = secondAction
@@ -270,12 +267,12 @@ export function buildDemoA2uiRegistrations(
         // Idempotent — a normal completion has already driven the exchange to its natural end via
         // two received actions, so this is a no-op there and the real cleanup only on an early
         // return (no-answer) or an abort.
-        exchange.close();
+        exchange.close({});
       }
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "demo-a2ui",
     catalogModule: "assistant/demo-a2ui-tool.ts",
     catalog: CATALOG_BY_ID,

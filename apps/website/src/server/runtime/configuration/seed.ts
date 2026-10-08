@@ -1,11 +1,6 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PostRecord } from "#src/features/post/index";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
-import {
-  migrateLegacyPresentationSettings,
-  type MigrateLegacyPresentationSettingsDeps,
-  type MigrateLegacyPresentationSettingsResult,
-} from "#src/features/settings/migration";
 import { DEFAULT_THEME_ID } from "#src/features/theme/index";
 import type { WorkspaceRecord } from "#src/features/workspace/index";
 
@@ -19,21 +14,14 @@ import type { WorkspaceRecord } from "#src/features/workspace/index";
  * - The in-memory route deps seed these into their constructors (dev/tests).
  * - The SQLite content.db seeds these once, only when the store is empty
  *   (`db/sqlite/content-db.ts` → `seedContentDb`).
- * - `seedSettingsFromPresentation` (below) is this module's boot-time entry
- *   point for the SPEC-007 REQ-08 legacy-presentation → settings-ledger
- *   migration (ADR-PIPE-007 Migration Safety): both composition roots
- *   (`server/app.ts`, `server/deps.ts`) call it right after constructing
- *   their `presentationRepo`/`settingsRepo` pair, mirroring how this file is
- *   already "the one source of truth" for workspace/post/presentation seed
- *   data — it is now also the one call site for kicking off that migration.
+ * - Presentation settings are the single source of theme identity. A boot-time ledger
+ *   copy would become stale after theme switches.
  *
  * Architectural role:
  * Keeps seed data out of both the composition root and the storage adapters so
  * the two persistence paths stay identical.
  *
- * NOTE (usability probe, 2026-07-07): there is no content-create API yet
- * (SPEC-002 authoring unbuilt) and no `kind` field, so these explainer "pages"
- * are seeded here as ordinary published posts. They render at `/:slug` through
+ * These explainer pages are seeded as ordinary published posts and render at `/:slug` through
  * the active theme's `entry` template, so switching themes restyles them. The
  * body vocabulary is what `render.ts` supports: block nodes plus bold/italic/
  * code and (C7) an inline `link` mark, so prose can now cross-link between pages
@@ -329,24 +317,10 @@ export const seededPresentation: PresentationSettingsRecord = {
 };
 
 /**
- * The trusted boot-time actor `seedSettingsFromPresentation`'s writes are
+ * The trusted boot-time actor settings-definition writes are
  * attributed to (mirrors `identity/seed.ts`'s well-known `system` principal
  * convention — kept here rather than importing from `identity` so `settings`
  * doesn't need a real, resolved identity principal row to run this migration
  * before `identity`'s own async seed completes).
  */
 export const SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID = "system-settings-migration";
-
-/**
- * SPEC-007 REQ-08 boot entry point (ADR-PIPE-007 Migration Safety): a thin
- * pass-through to `migrateLegacyPresentationSettings`, kept here (rather than
- * called directly by each composition root) so this module stays the single
- * place both composition roots' seed-time behavior is defined. Idempotent —
- * safe to call on every boot (W-003); fire-and-forget from the caller (see
- * `RouteDeps.settingsReady`).
- */
-export function seedSettingsFromPresentation(
-  deps: MigrateLegacyPresentationSettingsDeps
-): Promise<MigrateLegacyPresentationSettingsResult> {
-  return migrateLegacyPresentationSettings(deps);
-}

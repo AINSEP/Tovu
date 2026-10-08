@@ -4,7 +4,7 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { KeyringPort } from "#src/features/webhooks/index";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
+import { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";
 import {
   createPublishCredential,
   deletePublishCredential,
@@ -62,7 +62,7 @@ function makeDeps(overrides: Partial<PublishCredentialWriteDeps> = {}): PublishC
   const keyring = new InMemoryKeyring();
   let counter = 0;
   return {
-    repo: new InMemoryVendorCredentialSetRepo(),
+    repo: new InMemoryVendorCredentialSetRepo({}),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock: createFakeClock({ startIso: NOW }),
@@ -247,7 +247,7 @@ test("createPublishCredential maps a Postgres UNIQUE violation (SQLSTATE 23505) 
       throw Object.assign(new Error('duplicate key value violates unique constraint "publish_credential_sets_label_idx"'), { code: "23505" });
     }
   }
-  const deps = makeDeps({ repo: new PgDuplicateRepo() });
+  const deps = makeDeps({ repo: new PgDuplicateRepo({}) });
   await assert.rejects(
     () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Main repo", connection: { providerId: "vercel", token: "token-a" } }),
     PublishCredentialDuplicateLabelError
@@ -774,7 +774,7 @@ test("a saved connection lands in its host's vendor group, sealed as {vendorId, 
   assert.equal(summary.tokenTail, "9876");
   const row = await deps.repo.findById({ workspaceId: WORKSPACE, id: summary.id });
   assert.equal(row?.vendorId, "github");
-  const plaintext = await deps.sealer.open({ sealed: row!.sealed, aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: summary.id }) });
+  const plaintext = await deps.sealer.open({ sealed: row!.sealed }, { aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: summary.id }) });
   assert.deepEqual(JSON.parse(plaintext), { vendorId: "github", token: "ghp_abcd9876" });
 });
 

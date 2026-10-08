@@ -14,7 +14,7 @@ import type { DiscoveredTheme } from "../theme.js";
  * file's fixtures were written against an intermediate point of the 2026-08-10 marker-spine
  * unification, where a marker carried separate `data-embed-type`/`data-embed-id` attributes plus an
  * optional `data-embed-config` for extras. The design was collapsed further, before this session, to
- * ONE `data-embed-config='{"type":...,"id":...}'` attribute (`src/contracts/core/embeds/marker.ts`'s
+ * ONE `data-embed-config='{"type":...,"id":...}'` attribute (`src/Jini/packages/cms/src/widgets/markers/marker.ts`'s
  * `MARKER_PATTERN`, confirmed against the real `content/themes/static/basic/nav.html` on disk) without
  * static-render.test.ts being updated to match — every fixture in that file used an attribute shape
  * `scanEmbedMarkers` no longer recognizes at all, so its assertions were failing (or, per two
@@ -408,7 +408,7 @@ test("tree path (menuItemBody): every legitimate href passes through unchanged",
 });
 
 test("a marker with syntactically invalid data-embed-config degrades to its authored fallback, never throws", () => {
-  // parseMarkerConfig (src/contracts/core/embeds/marker.ts) reports invalid JSON as a REJECTED marker rather
+  // parseMarkerConfig (src/Jini/packages/cms/src/widgets/markers/marker.ts) reports invalid JSON as a REJECTED marker rather
   // than a match; substituteMarkers only ever touches matched markers, so a rejected one is left
   // exactly as authored — the render-time half of the "never fail the render" contract whose
   // write-time half is `theme.ts`'s lint-before-publish refusing to save markup like this at all.

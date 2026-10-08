@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { WorkerFactory, WorkerScheduler, WorkerSubscription } from "@jini-ai/sandbox/node-worker";
 
-import type { Tier2Request } from "#src/features/plugin-runtime/tier2/protocol";
+import type { Tier2Request } from "@jini-ai/plugins/host/worker";
 import { createTier2WorkerRunner, resolveTier2TimeoutMs, tier2WorkerEnv } from "../run-in-worker.js";
 
 /**

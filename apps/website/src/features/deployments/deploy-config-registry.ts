@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "#src/features/agent-plugins/trusted-plugin-files";
+import { defineExecutablePluginContribution, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import type { DeployConfigGeneratorModule } from "./deploy-config.js";
 
@@ -51,6 +51,13 @@ export interface DeployConfigGeneratorRegistry {
   readonly refusals: readonly string[];
 }
 
+const configContribution = defineExecutablePluginContribution<DeployConfigGeneratorDescriptor, DeployConfigGeneratorModule>({
+  filename: DEPLOY_CONFIGS_FILENAME, contribution: "deploy configs",
+  parse: ({ raw }) => parseDeployConfigsFile(raw), modulePath: ({ descriptor }) => descriptor.module,
+  validate: ({ exported }) => asGeneratorModule(exported),
+  refusal: ({ plugin, descriptor, reason }) => `deploy config '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
+}, { onReadError: ({ error }) => (error as NodeJS.ErrnoException).code === "ENOENT" ? [] : undefined });
+
 /**
  * The generators a plugin's SOURCE directory declares, with no install, activation or digest gate.
  * Only for this product's own `content/agent-plugins/<id>/` (the CLI, tests): never point it at
@@ -58,26 +65,9 @@ export interface DeployConfigGeneratorRegistry {
  *
  * @complexity O(g) generators, one import each.
  */
-export async function loadDeployConfigGeneratorsFromSource(plugin: TrustedPluginPackage): Promise<DeployConfigGeneratorRegistry> {
-  let raw: string;
-  try {
-    raw = await readTrustedPluginFile(plugin, DEPLOY_CONFIGS_FILENAME);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return buildRegistry([], []);
-    throw error;
-  }
-  const parsed = parseDeployConfigsFile(raw);
-  if (!parsed.ok) return buildRegistry([], [`deploy configs from '${plugin.pluginId}' were not loaded: ${DEPLOY_CONFIGS_FILENAME} is invalid: ${parsed.reason}`]);
-
-  const loaded: LoadedDeployConfigGenerator[] = [];
-  const refusals: string[] = [];
-  for (const descriptor of parsed.descriptors) {
-    const imported = await importContainedModule(plugin, descriptor.module);
-    const module = typeof imported === "string" ? imported : asGeneratorModule(imported.exported);
-    if (typeof module === "string") refusals.push(`deploy config '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${module}`);
-    else loaded.push({ descriptor, pluginId: plugin.pluginId, module });
-  }
-  return buildRegistry(loaded, refusals);
+export async function loadDeployConfigGeneratorsFromSource(plugin: TrustedPluginPackage, _optional: Record<string, never> = {}): Promise<DeployConfigGeneratorRegistry> {
+  const load = await loadPluginContributionsFromSource({ plugin, definition: configContribution });
+  return buildRegistry(load.items, load.refusals);
 }
 
 /**

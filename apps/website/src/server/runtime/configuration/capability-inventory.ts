@@ -15,6 +15,8 @@
  * the former LocalBufferSink durability claim, now corrected to false).
  */
 
+import { COMMENTS_PLUGIN_ID } from "@jini-ai/cms/comments";
+
 export type CapabilityClassification = "production" | "local-only" | "experimental";
 export type StartupCriticality = "critical" | "optional";
 
@@ -336,7 +338,7 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     // disableable"), authored to the Tier-2 SDK contract — a real, supported v1 backend
     // (SPEC-033), not an experimental spike.
     classification: "production",
-    sourceOfTruth: "sqlite (content.db, via the ADR-023 dataModule engine's p_comments__* tables — SqliteCommentRepo, SPEC-033, 2026-07-16)",
+    sourceOfTruth: `sqlite (content.db, via the ADR-023 dataModule engine's p_${COMMENTS_PLUGIN_ID}__* tables — SqliteCommentRepo, SPEC-033, 2026-07-16)`,
     readinessDependencies: ["the ADR-023 dataModule engine's boot-time crash recovery (SPEC-032)"],
     startupCriticality: "optional",
     securityDependencies: ["identity authorize() gate (comments.* permissions)", "CommentIngressPolicy (rate-limit + honeypot + spam-classify) on the public submission route"],
@@ -344,20 +346,7 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     hasDurableAdapter: true,
     sourceHints: ["SqliteCommentRepo", "commentRepo", "createCommentsModule"],
   },
-  {
-    name: "store",
-    ownerModule: "features/plugins/store",
-    // SPIKE sample Tier-3 plugin (app.ts: "SPIKE: sample Tier-3 store page") — never intended as
-    // a production capability; contained in production mode until (if ever) promoted.
-    classification: "experimental",
-    sourceOfTruth: "sqlite (content.db, via its own never-brick dataModule seam) — durable, but the capability itself is a spike, not a supported production surface",
-    readinessDependencies: ["product decision to promote this spike to a supported feature"],
-    startupCriticality: "optional",
-    securityDependencies: [],
-    restartTestOwner: "features/plugins/store test suite",
-    hasDurableAdapter: false,
-    sourceHints: ["routes/site/store", "registerStoreRoutes", "bootstrapStore"],
-  },
+
 ] as const;
 
 const INVENTORY_BY_NAME = new Map(CAPABILITY_INVENTORY.map((entry) => [entry.name, entry]));

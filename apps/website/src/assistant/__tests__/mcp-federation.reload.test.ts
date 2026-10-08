@@ -9,9 +9,7 @@ import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from 
 import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec } from "@jini-ai/mcp/federation";
 import { createFederationReloadCoordinator as createTovuReloadCoordinator, type FederationReloadCoordinatorDeps } from "../mcp-federation/reload-adapter.js";
 
-// The coordinator moved to @jini-ai/mcp/federation; Tovu's reload-adapter binds its registrations
-// and attach ports to it. These wrappers keep the original positional call shape so every
-// assertion below is unchanged and still runs through the host binding the daemon uses.
+// Exercise the daemon's reload-adapter binding with Tovu registration/attach ports.
 const selectUnadmittedConnections = (allConnections: readonly ResolvedFederatedConnection[], admittedConnectionIds: ReadonlySet<string>) =>
   shared.selectUnadmittedConnections({ allConnections, admittedConnectionIds });
 const createFederationReloadCoordinator = (coordDeps: FederationReloadCoordinatorDeps, initiallyAdmitted: Iterable<string>) =>

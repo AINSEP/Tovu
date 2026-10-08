@@ -8,7 +8,7 @@ import path from 'node:path';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 import { registerAuthRoutes, requireAdminSession } from '#src/server/inbound/admin-http/dev-auth';
 import { bootAuthenticated } from '#src/server/__tests__/helpers/http-test-server';
-import { installAgentPlugin } from '#src/features/agent-plugins/install';
+import { installAgentPlugin } from '../../../../../../../features/agent-plugins/lifecycle.js';
 import { resolveAgentPluginLayout } from '#src/features/agent-plugins/layout';
 import { forceRemove } from '#src/features/agent-plugins/__tests__/fixtures/force-remove';
 import { registerAgentPluginMemoryRoutes } from '../../memory.js';

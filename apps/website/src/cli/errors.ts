@@ -1,5 +1,5 @@
 import { CommanderError } from "commander";
-import { PluginInstallError } from "../features/plugin-runtime/install.js";
+import { PluginInstallError } from "@jini-ai/plugins/host/node";
 
 import {
   InitDirNotEmptyError,
@@ -51,17 +51,10 @@ export class ExportIncompleteError extends Error {
 }
 
 /**
- * `EXPORT_BLOCKED_PENDING_RECOVERY` (exit 7) — 2026-09-06 composition-root fix. `tovu export` ran
- * `createSiteRouteDeps()` and booted the real `createApp()`-equivalent (`exportSite()`'s own
- * internal crawl listener) without ever running `runBootLifecycle`/`buildBootModules` first, unlike
- * `tovu serve` — so the `database-migration-reconciliation` scan (`reconcile-interrupted-migration.ts`,
- * the one that detects a crash-interrupted migration and flips `siteStatusRepo` to
- * `BLOCKED_PENDING_RECOVERY`) never ran before an export, and a site left mid-migration by a crash
- * could be exported from possibly-inconsistent data with no warning at all. `cli/commands/export.ts`
- * now runs that same scan directly and refuses outright when it detects one, rather than either
- * silently exporting or letting the crawl surface it indirectly as N confusing per-route failures.
- * A genuinely distinct outcome from `EXPORT_INCOMPLETE` (that means "ran, but some routes failed to
- * render"; this means "refused to run at all").
+ * `EXPORT_BLOCKED_PENDING_RECOVERY` (exit 7) — interrupted-migration reconciliation
+ * refused export before its crawl could read potentially inconsistent data. See
+ * `cli/commands/export.ts` for the scan ordering. Distinct from `EXPORT_INCOMPLETE`,
+ * where the crawl ran but some routes failed to render.
  */
 export class ExportBlockedPendingRecoveryError extends Error {
   constructor(message: string) {

@@ -18,7 +18,11 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * unique-violation errors), and compare-and-set versioning under `expectedVersion`.
  */
 
-const TYPE = { key: "unrun_recipe", label: "Unrun Recipe", fields: [] };
+const TYPE = { key: "unrun_recipe", label: "Unrun Recipe", fields: [
+  { name: "servings", kind: "integer", required: false, queryable: true },
+  { name: "tags", kind: "json", required: false, queryable: false },
+  { name: "nested", kind: "json", required: false, queryable: false },
+] };
 
 interface EntryDto {
   id: string;

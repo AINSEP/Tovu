@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
 /**
  * @file The chat-attachment -> media-library bridge: `media_promote_chat_attachment`, closing the
  * capability gap `2026-09-06-handoff-to-tovu-73.md` diagnosed — `media_upload_asset`
@@ -192,6 +193,7 @@ export function buildPromoteChatAttachmentTool(deps: {
   return {
     descriptor: {
       id: MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID,
+      metadata: toolMetadata[MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID],
       description:
         "Promotes a file the user already attached in this chat into the permanent media library, without " +
         "needing its bytes re-sent as base64. Use this instead of media_upload_asset when the file in " +

@@ -7,20 +7,21 @@ import test, { type TestContext } from "node:test";
 
 import { DEFAULT_PLUGIN_MEMORY_LIMITS } from "@jini-ai/agent-plugins/persistent-state";
 import type { SurfaceEmitter, ToolExecutionContext } from "@jini-ai/core";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import { installAgentPlugin, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { installAgentPlugin, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { pluginMemory } from "../../memory.js";
-import { uninstallAgentPlugin } from "../../uninstall.js";
-import { pluginNoteHandler, WRITE_PLUGIN_NOTE } from "../../write-note-tool.js";
+import { pluginNoteHandler } from "../../write-note-tool.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `agent_plugin_write_note`'s handler against a real temp-dir plugin install, the real
- * held-open confirmation exchange and a hand-written authorize fake: input refusals, the installed
- * check on both sides of the dialog, cancel and confirm, and the dialog copy in the operator's
- * admin language.
+ * shared exchange store and a hand-written authorize fake: direct writes, input refusals,
+ * installed-plugin authorization and aborts. Notes are context, never a permission grant.
  */
 
 const WORKSPACE = "ws-notes";
@@ -39,7 +40,7 @@ async function setup(t: TestContext, options: { allow?: boolean; locale?: string
     for (const [entryPath, text] of Object.entries(files)) yield { kind: "file", entryPath, async *openReadStream() { yield Buffer.from(text); } };
   } };
   await installAgentPlugin({ layout, workspaceId: WORKSPACE, archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   let settingsRepo: unknown;
   if (options.locale) {
     const ledger = await operatorLocaleLedger(WORKSPACE);
@@ -64,63 +65,26 @@ function ctxFor(input: unknown, signal = new AbortController().signal): ToolExec
   return { executionId: "exec-1", principal: { id: PRINCIPAL }, run: { id: "run-1" }, input, signal } as ToolExecutionContext;
 }
 
-/** Runs the handler, answers the dialog it raises with `decision`, and returns the result and dialog html. */
-async function answer(h: Awaited<ReturnType<typeof setup>>, input: unknown, decision: "confirm" | "cancel", beforeAnswer: () => Promise<void> = async () => {}) {
-  let resolveSurface: (surface: unknown) => void = () => {};
-  const raised = new Promise<unknown>(resolve => { resolveSurface = resolve; });
-  const emitSurface: SurfaceEmitter = async (surface) => { resolveSurface(surface); };
-  const pending = h.handler(ctxFor(input), { emitSurface });
-  pending.catch(() => {});
-  const surface = await Promise.race([raised, pending.then(() => assert.fail("no dialog was raised"))]);
-  const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
-  const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))?.[1];
-  assert.ok(exchangeId);
-  await beforeAnswer();
-  assert.equal(h.surfaceExchanges.deliver({ exchangeId, params: { decision }, principalId: PRINCIPAL, toolId: WRITE_PLUGIN_NOTE }).ok, true);
-  return { result: pending, html };
-}
-
 const NOTE = { pluginId: "example", entryPath: "brand.md", text: "Use the teal logo." };
 
-test("confirming saves the note into the plugin's notes and reports it", async t => {
+test("ordinary note save runs directly, preserves bytes and opens no exchange", async t => {
   const h = await setup(t);
-  const { result, html } = await answer(h, NOTE, "confirm");
-  assert.deepEqual(await result, { saved: true, relativePath: "brand.md", bytes: Buffer.byteLength("Use the teal logo.") });
-  assert.equal(await pluginMemory({ workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), "Use the teal logo.");
-  assert.match(html, /Save plugin note\?/);
-  assert.match(html, />Save note</);
-  assert.match(html, /<dt>File<\/dt><dd>brand\.md<\/dd>/);
-  assert.match(html, /<dt>Note<\/dt><dd>Use the teal logo\.<\/dd>/);
+  assert.deepEqual(await h.handler(ctxFor(NOTE), { emitSurface: async () => assert.fail("ordinary notes never ask") }), { saved: true, relativePath: "brand.md", bytes: Buffer.byteLength(NOTE.text) });
+  assert.equal(await pluginMemory({ workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), NOTE.text);
+  assert.equal(h.surfaceExchanges.size(), 0);
 });
 
 test("without a layout option the handler uses this instance's Agent Plugins layout", async t => {
   const h = await setup(t, { instanceLayout: true });
-  const { result } = await answer(h, NOTE, "confirm");
-  assert.equal((await result as { saved: boolean }).saved, true);
-  assert.equal(await pluginMemory({ workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), "Use the teal logo.");
+  assert.equal((await h.handler(ctxFor(NOTE)) as { saved: boolean }).saved, true);
+  assert.equal(await pluginMemory({ workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), NOTE.text);
 });
 
-test("cancelling saves nothing and says why", async t => {
+test("an aborted note saves nothing", async t => {
   const h = await setup(t);
-  const { result } = await answer(h, NOTE, "cancel");
-  assert.deepEqual(await result, { saved: false, reason: "declined" });
+  const controller = new AbortController(); controller.abort();
+  assert.deepEqual(await h.handler(ctxFor(NOTE, controller.signal)), { saved: false, reason: "abandoned" });
   assert.deepEqual(await pluginMemory({ workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).list({ kind: "notes" }), []);
-});
-
-test("a plugin uninstalled while the dialog was open is refused instead of saved", async t => {
-  const h = await setup(t);
-  const { result } = await answer(h, NOTE, "confirm", () => uninstallAgentPlugin({ layout: h.layout, workspaceId: WORKSPACE, pluginId: "example" }).then(() => {}));
-  await assert.rejects(result, { message: "Plugin was uninstalled while the note was being confirmed" });
-});
-
-test("the dialog copy follows the operator's saved admin language", async t => {
-  const h = await setup(t, { locale: "es" });
-  const { result, html } = await answer(h, NOTE, "cancel");
-  await result;
-  assert.match(html, /¿Guardar nota del plugin\?/);
-  assert.match(html, />Guardar nota</);
-  assert.match(html, /<dt>Archivo<\/dt><dd>brand\.md<\/dd>/);
-  assert.match(html, /<dt>Nota<\/dt>/);
 });
 
 test("input refusals happen before any dialog", async t => {

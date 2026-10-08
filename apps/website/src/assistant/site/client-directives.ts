@@ -6,7 +6,7 @@ import { postPublicPath } from "../../platform/routing/index.js";
  * Redeclared locally rather than shared from `tools.ts` — this repo redeclares small structural
  * types per-file rather than sharing them across the module-cycle boundary (same precedent as
  * `dual-read.ts`'s own two types). Importing the FUNCTION as a value here is exactly the edge that
- * used to close the `[assistant, features/post]` module cycle `check:architecture` flags; see
+ * would close the `[assistant, features/post]` module cycle `check:architecture` flags; see
  * `resolvePublicTarget`'s `deps.listPublishedPosts` param doc for how the real function still reaches
  * this file despite the type living here instead of being imported.
  */

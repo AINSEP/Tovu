@@ -15,6 +15,7 @@ import { hashSessionKey } from "#src/assistant/persistence/tenant-scope";
 import { createChatHistoryStore as beforeAdoption } from "./chat-pre-adoption.fixture.js";
 import { SQLITE_CHAT_STATEMENTS } from "./chat-pre-adoption-schema.fixture.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
+import { CHAT_MIGRATIONS } from "../index.js";
 
 const T0 = 1_790_000_000_000;
 const USER = { scopeId: "ws", ownerKind: "user", ownerId: "alice" } as const;
@@ -47,15 +48,18 @@ function seed(file: string, withLedger: boolean) {
   return db;
 }
 
-function snapshot(db: Database.Database) {
-  const schema = db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all();
-  const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as { name: string }[]).map(r => r.name);
+function snapshot(db: Database.Database, options: { tables?: string[]; migrationIds?: string[] } = {}) {
+  const schema = (db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all() as { tbl_name: string }[])
+    .filter(row => !options.tables || options.tables.includes(row.tbl_name));
+  const tables = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as { name: string }[]).map(r => r.name)
+    .filter(name => !options.tables || options.tables.includes(name));
   return {
     schema,
     columns: Object.fromEntries(tables.map(name => [name, db.prepare(`PRAGMA table_info('${name}')`).all()])),
     foreignKeys: Object.fromEntries(tables.map(name => [name, db.prepare(`PRAGMA foreign_key_list('${name}')`).all()])),
     indexes: Object.fromEntries(tables.map(name => [name, db.prepare(`PRAGMA index_list('${name}')`).all()])),
-    values: Object.fromEntries(tables.map(name => [name, db.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()])),
+    values: Object.fromEntries(tables.map(name => [name, db.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()
+      .filter(row => name !== "tovu_chat_migrations" || !options.migrationIds || options.migrationIds.includes((row as { id: string }).id))])),
   };
 }
 
@@ -88,6 +92,7 @@ test("normal bootstrap, adopted and rollback readers preserve existing schema, a
     const contentBytes = readFileSync(contentFile);
     db = seed(chatFile, true);
     const initial = snapshot(db);
+    let upgraded: ReturnType<typeof snapshot> | undefined;
     db.close(); db = undefined;
     for (let i = 0; i < 2; i++) {
       db = await openSiteChatDb(chatFile);
@@ -96,8 +101,14 @@ test("normal bootstrap, adopted and rollback readers preserve existing schema, a
       assert.equal(db.pragma("journal_mode", { simple: true }), "wal");
       assert.equal(db.pragma("busy_timeout", { simple: true }), 5000);
       await readBoth(db);
-      assert.deepEqual(snapshot(db), initial);
-      assert.deepEqual(db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all(), LEDGER);
+      // Bootstrap adds later migrations; adoption must still preserve every historical byte/value.
+      assert.deepEqual(snapshot(db, { tables: Object.keys(initial.values), migrationIds: LEDGER.map(row => row.id) }), initial);
+      const ledger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all() as typeof LEDGER;
+      assert.deepEqual(ledger.slice(0, LEDGER.length), LEDGER);
+      assert.deepEqual(ledger.map(({ id, checksum }) => ({ id, checksum })), CHAT_MIGRATIONS.map(({ id, checksum }) => ({ id, checksum })));
+      assert.deepEqual(db.prepare("SELECT * FROM assistant_run_attempts").all(), []);
+      if (upgraded) assert.deepEqual(snapshot(db), upgraded, "reopening must perform no further schema/data/ledger writes");
+      else upgraded = snapshot(db);
       assert.deepEqual(readFileSync(contentFile), contentBytes);
       db.close(); db = undefined;
     }
@@ -130,9 +141,10 @@ test("a pre-ledger fixture retains every chat value while adopting only its firs
     db = await openSiteChatDb(file);
     const adopted = snapshot(db);
     for (const name of Object.keys(initial.values)) assert.deepEqual(adopted.values[name], initial.values[name]);
-    assert.deepEqual(adopted.schema.filter((row: any) => row.tbl_name !== "tovu_chat_migrations"), initial.schema);
+    assert.deepEqual(snapshot(db, { tables: Object.keys(initial.values) }), initial);
+    assert.deepEqual(db.prepare("SELECT * FROM assistant_run_attempts").all(), []);
     const ledger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all() as typeof LEDGER;
-    assert.deepEqual(ledger.map(({ id, checksum }) => ({ id, checksum })), LEDGER.map(({ id, checksum }) => ({ id, checksum })));
+    assert.deepEqual(ledger.map(({ id, checksum }) => ({ id, checksum })), CHAT_MIGRATIONS.map(({ id, checksum }) => ({ id, checksum })));
     for (const row of ledger) assert.match(row.applied_at, /^\d{4}-\d{2}-\d{2}T/);
     await readBoth(db);
     db.close(); db = await openSiteChatDb(file);
@@ -159,7 +171,8 @@ test("C3 changes zero bytes in historical SQL, metadata, chat steps or checksum 
     ...readdirSync(resolve(root, `${drizzle}/meta`)).map(n => `${drizzle}/meta/${n}`),
     ...readdirSync(resolve(root, "apps/website/src/platform/db/migrations/chat")).filter(n => n.endsWith(".ts")).map(n => `apps/website/src/platform/db/migrations/chat/${n}`),
   ];
-  assert.deepEqual(actualFiles.sort(), Object.keys(expected).sort());
+  // Later migrations are additive; freeze the C3 inventory and its hashes, not future filenames.
+  assert.deepEqual(actualFiles.filter(file => Object.hasOwn(expected, file)).sort(), Object.keys(expected).sort());
   for (const [file, hash] of Object.entries(expected)) {
     assert.equal(createHash("sha256").update(readFileSync(resolve(root, file))).digest("hex"), hash, `${file}: historical bytes changed after the C3 handoff`);
   }

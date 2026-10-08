@@ -14,15 +14,9 @@
  * `bin/serve.js` as a plain filesystem path sidesteps the exports map entirely — this is a path
  * string handed to `spawn`, never itself passed back through `require`/`import`.
  *
- * `credential` was missing until now — confirmed live (2026-07-30) that its absence silently
- * broke the entire delegated-tool surface: with no `JINI_DAEMON_TOKEN` env var, the spawned
- * `jini-mcp` child's every callback to `/api/tools/search`, `/api/tools/:id`, and
- * `/api/delegated-tool-calls` hit `daemon-auth.ts`'s `requireAgentDaemonToken` gate with no
- * `Authorization` header and failed — so neither Forms nor Identity tools were ever reachable by
- * a spawned Claude Code or Codex CLI, despite being correctly registered and tested. That fix
- * reused `TOVU_AGENT_DAEMON_TOKEN`, the proxy's boot-wide token; since 2026-10-01 the bridge gets
- * the per-run credential `run-scoped-credential.ts` mints instead, which resolves to its own run's
- * principal and reaches only the bridge's own routes (`daemon-auth.ts`'s `isRunScopedRoute`).
+ * The bridge requires a per-run credential bound to its run's principal and bridge routes.
+ * The proxy's boot-wide token trusts a caller-supplied principal header and must never be handed
+ * to a model-driven bridge. Missing credentials would leave every delegated callback unauthenticated.
  */
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -45,7 +39,7 @@ const currentRuntime = (): BridgeRuntime => ({
 });
 
 /**
- * @param mintRunCredential - Mints the bridge's per-run credential (`run-scoped-credential.ts`).
+ * @param mintRunCredential - Mints the bridge's per-run credential.
  *   Required, with no fallback to the proxy's boot-wide token: that token makes a caller's principal
  *   header trusted, which a model-driven bridge must never be.
  */
@@ -58,7 +52,7 @@ export function resolveMcpJsonInjection(
   const script = join(dirname(entryPoint), "bin", "serve.js");
   // Inside the desktop app `execPath` is the Tovu Electron binary, which boots as a GUI app unless
   // ELECTRON_RUN_AS_NODE is set: the bridge then never speaks MCP, Claude times it out, and the run
-  // has zero Tovu tools (2026-10-01). Jini's agent env allowlist strips this process's own copy
+  // has zero Tovu tools. Jini's agent env allowlist strips this process's own copy
   // before the CLI spawns the bridge, so it has to travel on the bridge entry itself.
   const underElectron = runtime.electronVersion !== undefined || runtime.env.ELECTRON_RUN_AS_NODE !== undefined;
   return {

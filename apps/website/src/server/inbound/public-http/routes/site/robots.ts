@@ -1,4 +1,4 @@
-import { buildRobots } from "#src/features/seo/index";
+import { buildRobots } from "@jini-ai/cms/seo";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
 /** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
@@ -14,10 +14,10 @@ export const registerSeoRobotsRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/robots.txt", async (_req, res) => {
     try {
       await deps.seoReady;
-      const policy = await buildRobots(
-        { settingsRepo: deps.settingsRepo, originRegistry: deps.originRegistry },
-        { workspaceId: deps.workspaceId }
-      );
+      const policy = await buildRobots({
+        deps: deps.seoDeps,
+        input: { workspaceId: deps.workspaceId },
+      }, {});
       const lines: string[] = [];
       for (const rule of policy.rules) {
         lines.push(`User-agent: ${rule.userAgent}`);

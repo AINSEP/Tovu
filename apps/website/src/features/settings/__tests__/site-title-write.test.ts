@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, SCOPE_BIT, type AuthorizeFn } from "@jini-ai/cms/settings";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, SCOPE_BIT, type AuthorizeFn } from "@jini-ai/core/settings";
 
 import { set, ValueValidationFailedError } from "../index.js";
 import { ensureSiteTitleSettingDefinition, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../site-title.js";

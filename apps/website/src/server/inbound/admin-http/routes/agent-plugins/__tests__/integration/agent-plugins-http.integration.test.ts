@@ -20,7 +20,7 @@ import {
   installAgentPlugin,
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
-} from "#src/features/agent-plugins/install";
+} from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { registerAgentPluginsListRoute } from "../../list.js";
 import type { AgentPluginsRouteDeps } from "../../deps.js";

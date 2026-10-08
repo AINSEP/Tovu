@@ -115,7 +115,7 @@ export function persistActiveSite(required: PersistActiveSiteRequired, optional:
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     existing = "";
   }
-  writeFileAtomic(envFilePath, upsertEnvLine(existing, "TOVU_SITE", required.name));
+  writeFileAtomic({ filePath: envFilePath, content: upsertEnvLine(existing, "TOVU_SITE", required.name) }, {});
 }
 
 /**

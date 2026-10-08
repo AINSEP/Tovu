@@ -54,7 +54,7 @@ for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} builds its app with createServingApp, never a bare createApp`, () => {
     const lines = readCodeLines(bootPath);
     assert.ok(
-      lines.some((line) => /\bcreateServingApp\(deps\)/.test(line)),
+      lines.some((line) => /(?:\bcreateServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps\)/.test(line)),
       `${bootPath} must call createServingApp(deps) so the outbox drainer starts after createApp's subscribers`,
     );
     assert.deepEqual(
@@ -70,7 +70,7 @@ test("cli/commands/serve.ts stops the outbox drainer on shutdown", () => {
 });
 
 test("createServingApp is called only by the two site-serving boot paths", () => {
-  assert.deepEqual(filesCalling(/(?<!function )\bcreateServingApp\(/), ["cli/commands/serve.ts", "index.ts"]);
+  assert.deepEqual(filesCalling(/(?<!function )(?:\bcreateServingApp\(|\(optional\.createServingApp \?\? createServingApp\)\()/), ["cli/commands/serve.ts", "index.ts"]);
 });
 
 test("startOutboxDrainer is called only by createServingApp", () => {

@@ -1,21 +1,6 @@
-import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
-
-import { createToolRegistry } from "@jini-ai/core";
-
-import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { createRouteDeps } from "../../server/runtime/composition/app.js";
-import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-
-import { buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { buildToolCatalogQuery } from "../tool-catalog-query.js";
-
-const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
-};
+import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
 /**
  * @file Search-ranking evidence for `fs_list_files`/`fs_read_file` (SPEC-053). The owner dropped
@@ -45,23 +30,8 @@ const CASES: readonly RankingCase[] = [
 const SEARCH_LIMIT = 10;
 const TOP_N = 3;
 
-async function buildCatalog() {
-  contributions.contributors.clear({});
-  installFirstPartyToolContributors({ contributions });
-  const routeDeps = createRouteDeps();
-  await routeDeps.identityReady;
-  // Both boot paths build the limiter themselves and add it to `routeDeps`; `AssistantToolRegistryDeps`
-  // requires it, so passing bare `routeDeps` does not type-check.
-  const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) {
-    registry.register(registration);
-  }
-  return buildToolCatalogQuery(registry);
-}
-
 test("an operator asking about a dropped or local folder finds the fs-files tools in the top 3", async () => {
-  const catalog = await buildCatalog();
+  const { catalog } = await realToolCatalog();
   const misses = CASES.flatMap((c) => {
     const hits = catalog.search({ query: c.query }, { limit: SEARCH_LIMIT });
     const index = hits.findIndex((hit) => hit.id === c.expect);

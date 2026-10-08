@@ -1,4 +1,3 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 /**
  * @file The `chat.db` half of G3 remembered approvals: "Allow for this chat", stored with the
  * conversation (`assistant_conversation_tool_approvals`, created by `platform/db/sqlite/chat-db.ts`)
@@ -18,7 +17,8 @@ import type { ConversationToolApprovalStore } from "../external-mcp-tool-approva
  * that and lets only the one call it was asked about run.
  *
  * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`) whose kernel to use.
- * @complexity O(1) per call (primary-key lookups).
+ * @complexity Exact chat lookups/writes use the primary key; identity lookups scan the existing
+ * grant rows without adding a schema/index migration.
  */
 export function createSqliteConversationToolApprovalStore(
   store: ChatKernel | SqliteConnectionSource
@@ -37,6 +37,15 @@ export function createSqliteConversationToolApprovalStore(
           .executeTakeFirst()
       );
       return row?.fingerprint === key.fingerprint;
+    },
+    // Reuse the existing remembered-approval rows, never synthesize a conversation/server parent.
+    // The native connection id includes the workspace, preventing a cross-site grant lookup.
+    async hasIdentity(key) {
+      const row = await kernel.run((db) => db.selectFrom("assistant_conversation_tool_approvals")
+        .select("fingerprint").where("principal_id", "=", key.principalId)
+        .where("connection_id", "=", key.connectionId).where("tool_name", "=", key.toolName)
+        .where("fingerprint", "=", key.fingerprint).limit(1).executeTakeFirst());
+      return row !== undefined;
     },
     async grant(key, grantedAt) {
       await kernel.run((db) =>

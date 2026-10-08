@@ -63,7 +63,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
           },
           gateway: {
             plan: (input) =>
-              toRecoveryResult(() =>
+              toRecoveryResult({ run: () =>
                 plan({
                   deps: deps.gatedMutations.gatewayDeps,
                   principalId: input.principalId,
@@ -80,7 +80,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
                     migrationRunsRepo: deps.migrationRunsRepo,
                     siteStatus: deps.siteStatusRepo,
                   }) as never,
-                })
+                }) }, {}
               ),
           },
         },
@@ -110,7 +110,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
         deps: {
           gateway: {
             confirm: (input) =>
-              toRecoveryResult(async () => {
+              toRecoveryResult({ run: async () => {
                 const hooks = buildConfirmOnlyHooks({
                   domain: "backup.restore",
                   readPermission: "backup.read",
@@ -127,7 +127,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
                   planHash: input.planHash,
                 });
                 return { confirmationToken: record.confirmationToken };
-              }),
+              } }, {}),
           },
         },
         input: { principalId: principal.id, principalKind: "user", planId, planHash, disclosureAcknowledged: disclosureAcknowledged === true },
@@ -206,7 +206,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
         deps: {
           gateway: {
             execute: (input) =>
-              toRecoveryResult(async () => {
+              toRecoveryResult({ run: async () => {
                 return execute({
                   deps: deps.gatedMutations.gatewayDeps,
                   principalId: principal.id,
@@ -214,7 +214,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
                   hooks: hooks as never,
                   confirmationToken: input.confirmationToken,
                 });
-              }),
+              } }, {}),
           },
           operationLock: { acquireOperationLock, releaseOperationLock },
           clock: deps.clock,

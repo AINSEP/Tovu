@@ -14,14 +14,14 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type Ru
 import { delegatedToolExecuteRoute, registerRunRoutes, runCancelRoute, runStatusRoute, type RunStartHandler } from "@jini-ai/daemon/http";
 import { type AdapterContext } from "@jini-ai/http-kit";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-auth.js";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-access.js";
 import {
   createOwnedRunListHandler,
   createRunOwnerRegistry,
   requireRunOwnership,
   RUN_PRINCIPAL_HEADER,
-} from "../run-ownership.js";
-import { createRunScopedCredentials, type RunScopedCredentials } from "../run-scoped-credential.js";
+} from "../daemon-access.js";
+import { createRunScopedCredentials, type RunScopedCredentials } from "../daemon-access.js";
 
 /**
  * @file The run-scoped credential a spawned `jini-mcp` bridge presents to the agent daemon
@@ -56,15 +56,15 @@ interface Harness {
 
 async function bootDaemon(): Promise<Harness> {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
-  const owners = createRunOwnerRegistry();
+  const owners = createRunOwnerRegistry({}, {});
   /** Twin of `agent-daemon-server.ts`'s `principalByRunId`: live runs only. */
   const livePrincipals = new Map<string, string>();
-  const credentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => livePrincipals.get(runId) });
+  const credentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => livePrincipals.get(runId) }, {});
 
   const recordOwnerOnStart: RunStartHandler = ({ request, run }) => {
     const { principalId } = JSON.parse(request.contextRef) as { principalId: string };
     livePrincipals.set(run.id, principalId);
-    owners.record(run.id, principalId);
+    owners.record({ runId: run.id, principalId: principalId }, {});
   };
 
   const app = express();
@@ -73,11 +73,11 @@ async function bootDaemon(): Promise<Harness> {
       env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: PROXY_TOKEN },
       exemptPaths: [DELEGATED_TOOL_CALLS_PATH],
       runScopedCallers: credentials,
-    }),
+    }, {}),
   );
   app.use(express.json());
-  app.use("/api/runs/:runId", requireRunOwnership(owners, lifecycle));
-  app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: owners }));
+  app.use("/api/runs/:runId", requireRunOwnership({ registry: owners, lifecycle: lifecycle }, {}));
+  app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: owners }, {}));
   app.post("/api/federation/reload", (_req, res) => void res.json({ reloaded: true }));
   const adapter: AdapterContext = { resolvedPortRef: { current: 0 }, env: {},
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
@@ -123,7 +123,7 @@ test("get_run: a run's own bridge reads its own run", async (t) => {
   const harness = await bootDaemon();
   t.after(harness.close);
   const runId = await startRunAsProxy(harness, ALICE);
-  const token = harness.credentials.mint(runId);
+  const token = harness.credentials.mint({ runId: runId }, {});
 
   const res = await fetch(`${harness.baseUrl}/api/runs/${runId}`, { headers: asBridge(token) });
 
@@ -135,7 +135,7 @@ test("cancel_run: a run's own bridge cancels its own run, and only that run", as
   const harness = await bootDaemon();
   t.after(harness.close);
   const runId = await startRunAsProxy(harness, ALICE);
-  const token = harness.credentials.mint(runId);
+  const token = harness.credentials.mint({ runId: runId }, {});
   const cancelled: string[] = [];
   t.after(harness.lifecycle.onCancelRequested({ runId, listener: () => cancelled.push(runId) }));
 
@@ -154,7 +154,7 @@ test("another principal's run is denied with the unknown-run body, for both read
   t.after(harness.close);
   const aliceRun = await startRunAsProxy(harness, ALICE);
   const bobRun = await startRunAsProxy(harness, BOB);
-  const aliceToken = harness.credentials.mint(aliceRun);
+  const aliceToken = harness.credentials.mint({ runId: aliceRun }, {});
   const cancelled: unknown[] = [];
   t.after(harness.lifecycle.onCancelRequested({ runId: bobRun, listener: (request) => cancelled.push(request) }));
 
@@ -192,7 +192,7 @@ test("a forged principal header on a run credential is overwritten, never truste
   t.after(harness.close);
   const aliceRun = await startRunAsProxy(harness, ALICE);
   const bobRun = await startRunAsProxy(harness, BOB);
-  const aliceToken = harness.credentials.mint(aliceRun);
+  const aliceToken = harness.credentials.mint({ runId: aliceRun }, {});
 
   const forgedRead = await fetch(`${harness.baseUrl}/api/runs/${bobRun}`, {
     headers: asBridge(aliceToken, { [RUN_PRINCIPAL_HEADER]: BOB }),
@@ -218,7 +218,7 @@ test("start_run: a run credential cannot start runs, so it cannot start one as a
   const harness = await bootDaemon();
   t.after(harness.close);
   const aliceRun = await startRunAsProxy(harness, ALICE);
-  const aliceToken = harness.credentials.mint(aliceRun);
+  const aliceToken = harness.credentials.mint({ runId: aliceRun }, {});
   const before = (await harness.lifecycle.list({})).length;
 
   const res = await fetch(`${harness.baseUrl}/api/runs`, {
@@ -239,7 +239,7 @@ test("a run credential reaches only the bridge's own routes, never proxy-only on
   const harness = await bootDaemon();
   t.after(harness.close);
   const runId = await startRunAsProxy(harness, ALICE);
-  const token = harness.credentials.mint(runId);
+  const token = harness.credentials.mint({ runId: runId }, {});
 
   const reload = await fetch(`${harness.baseUrl}/api/federation/reload`, { method: "POST", headers: asBridge(token) });
   const events = await fetch(`${harness.baseUrl}/api/runs/${runId}/events`, { headers: asBridge(token) });
@@ -259,7 +259,7 @@ test("a run credential stops working once its run is no longer live", async (t) 
   const harness = await bootDaemon();
   t.after(harness.close);
   const runId = await startRunAsProxy(harness, ALICE);
-  const token = harness.credentials.mint(runId);
+  const token = harness.credentials.mint({ runId: runId }, {});
   harness.endLive(runId);
 
   const res = await fetch(`${harness.baseUrl}/api/runs/${runId}`, { headers: asBridge(token) });
@@ -271,8 +271,8 @@ test("a revoked run credential is a 401", async (t) => {
   const harness = await bootDaemon();
   t.after(harness.close);
   const runId = await startRunAsProxy(harness, ALICE);
-  const token = harness.credentials.mint(runId);
-  harness.credentials.revoke(runId);
+  const token = harness.credentials.mint({ runId: runId }, {});
+  harness.credentials.revoke({ runId: runId }, {});
 
   const res = await fetch(`${harness.baseUrl}/api/runs/${runId}`, { headers: asBridge(token) });
 
@@ -292,22 +292,22 @@ test("the proxy token still trusts the proxy's principal header", async (t) => {
 });
 
 test("mint refuses a run that is not live, rather than issuing an orphan credential", () => {
-  const credentials = createRunScopedCredentials({ principalOfLiveRun: () => undefined });
+  const credentials = createRunScopedCredentials({ principalOfLiveRun: () => undefined }, {});
 
-  assert.throws(() => credentials.mint("run-gone"), { message: 'cannot mint a credential for run "run-gone": it is not live' });
+  assert.throws(() => credentials.mint({ runId: "run-gone" }, {}), { message: 'cannot mint a credential for run "run-gone": it is not live' });
 });
 
 test("each run gets its own 256-bit token, and minting twice for one run returns the same token", () => {
-  const credentials = createRunScopedCredentials({ principalOfLiveRun: () => ALICE });
+  const credentials = createRunScopedCredentials({ principalOfLiveRun: () => ALICE }, {});
 
-  const first = credentials.mint("run-1");
-  const second = credentials.mint("run-2");
+  const first = credentials.mint({ runId: "run-1" }, {});
+  const second = credentials.mint({ runId: "run-2" }, {});
 
   assert.match(first, /^[0-9a-f]{64}$/);
   assert.notEqual(first, second);
-  assert.equal(credentials.mint("run-1"), first);
-  assert.equal(credentials.resolvePrincipal(first), ALICE);
-  assert.equal(credentials.resolvePrincipal("f".repeat(64)), undefined);
+  assert.equal(credentials.mint({ runId: "run-1" }, {}), first);
+  assert.equal(credentials.resolvePrincipal({ token: first }, {}), ALICE);
+  assert.equal(credentials.resolvePrincipal({ token: "f".repeat(64) }, {}), undefined);
 });
 
 /**
@@ -317,19 +317,19 @@ test("each run gets its own 256-bit token, and minting twice for one run returns
  */
 async function scopeHarness({ exempt = false } = {}) {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
-  const owners = createRunOwnerRegistry();
+  const owners = createRunOwnerRegistry({}, {});
   const live = new Map<string, string>();
-  const credentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => live.get(runId) });
+  const credentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => live.get(runId) }, {});
   async function start(principalId: string) {
     const { run } = await lifecycle.start({ contextRef: contextRefFor(principalId, "scope-test") });
     live.set(run.id, principalId);
-    owners.record(run.id, principalId);
+    owners.record({ runId: run.id, principalId: principalId }, {});
     return run.id;
   }
   const own = await start(ALICE);
   const sibling = await start(ALICE);
   const other = await start(BOB);
-  const token = credentials.mint(own);
+  const token = credentials.mint({ runId: own }, {});
   const cancellations: string[] = [];
   const unsubscribe = [own, sibling, other].map((id) => lifecycle.onCancelRequested({ runId: id, listener: () => cancellations.push(id) }));
   const executions: { runId: string; principalId: string }[] = [];
@@ -349,9 +349,9 @@ async function scopeHarness({ exempt = false } = {}) {
     runScopedCallers: credentials,
     ...(exempt ? { exemptPaths: [DELEGATED_TOOL_CALLS_PATH] } : {}),
   };
-  const authenticate = requireAgentDaemonToken(gateOptions);
+  const authenticate = requireAgentDaemonToken(gateOptions, {});
   // Mounted after express.json in production; authentication itself remains before parsing.
-  const bindDelegatedRun = requireAgentDaemonToken({ ...gateOptions, validateDelegatedRunId: true });
+  const bindDelegatedRun = requireAgentDaemonToken({ ...gateOptions, validateDelegatedRunId: true }, {});
 
   async function request(method: string, path: string, options: { body?: unknown; headers?: Record<string, string> } = {}) {
     const headers = { ...asBridge(token), ...options.headers };
@@ -400,7 +400,7 @@ async function scopeHarness({ exempt = false } = {}) {
       answer.body = result.ok ? result.value : undefined;
       return answer;
     }
-    if (!await passes(requireRunOwnership(owners, lifecycle))) return answer;
+    if (!await passes(requireRunOwnership({ registry: owners, lifecycle: lifecycle }, {}))) return answer;
     const runId = String(req.params.runId);
     const result = method === "POST"
       ? await runCancelRoute.handle({ input: { runId }, deps: { lifecycle } })
@@ -541,7 +541,7 @@ test("SCOPE: delegated calls require a credential, including forged, expired and
   h.live.delete(h.own);
   assert.equal((await h.request("POST", DELEGATED_TOOL_CALLS_PATH, { body })).status, 401);
   h.live.set(h.own, ALICE);
-  h.credentials.revoke(h.own);
+  h.credentials.revoke({ runId: h.own }, {});
   assert.equal((await h.request("POST", DELEGATED_TOOL_CALLS_PATH, { body })).status, 401);
   assert.deepEqual(h.executions, []);
 });
@@ -578,9 +578,9 @@ test("SCOPE: production closes the exemption and binds delegated runId after par
   const parsed = ts.createSourceFile("agent-daemon-server.ts", source, ts.ScriptTarget.Latest, true);
   const printer = ts.createPrinter({ removeComments: true });
   const statements = parsed.statements.map((node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim());
-  const auth = statements.indexOf("app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));");
+  const auth = statements.indexOf("app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }, {}));");
   const json = statements.indexOf('app.use(express.json({ limit: "6mb" }));');
-  const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }));");
+  const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));");
   const route = statements.indexOf("registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });");
   assert.notEqual(auth, -1, "production must authenticate delegated callers without exemptPaths");
   assert.equal(auth < json && json < binding && binding < route, true,

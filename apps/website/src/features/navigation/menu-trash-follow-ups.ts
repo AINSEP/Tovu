@@ -73,7 +73,7 @@ export function buildMenuTrashFollowUpHooks(deps: MenuTrashFollowUpDeps): MenuTr
   // `OutboxPort.enqueue`'s `DomainEvent` parameter defaults its payload generic to
   // `Record<string, unknown>`; a named `interface` payload (`NavMenuChangedPayload`, as opposed to a
   // type alias/object literal) isn't automatically assignable to that without an explicit index
-  // signature — same TS quirk documented at `features/redirects/redirects.ts`'s own
+  // signature — same TS quirk documented at Jini `packages/cms/src/redirects/redirects.ts`'s own
   // `outbox.enqueue(event as unknown as DomainEvent)` call, which names this exact payload type as
   // the example. `NavMenuChangedPayload` stays unchanged (owned by Jini), so the widening is a
   // call-site cast, not a payload-type change.

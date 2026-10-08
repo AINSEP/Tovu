@@ -18,7 +18,7 @@ import {
   requireRunOwnership,
   RUN_PRINCIPAL_HEADER,
   type RunOwnerRegistry,
-} from "../run-ownership.js";
+} from "../daemon-access.js";
 
 /**
  * @file Cross-principal authorization coverage for the agent daemon's `/api/runs` surface
@@ -54,7 +54,7 @@ interface Harness {
 
 async function bootDaemonRoutes(): Promise<Harness> {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
-  const registry = createRunOwnerRegistry();
+  const registry = createRunOwnerRegistry({}, {});
 
   /** Mirrors `agent-daemon-server.ts`'s `onStarted`: decode the proxy's `contextRef`, record the owner. */
   const recordOwnerOnStart: RunStartHandler = ({ request, run }) => {
@@ -65,13 +65,13 @@ async function bootDaemonRoutes(): Promise<Harness> {
     } catch {
       return;
     }
-    registry.record(run.id, principalId);
+    registry.record({ runId: run.id, principalId: principalId }, {});
   };
 
   const app = express();
   app.use(express.json());
-  app.use("/api/runs/:runId", requireRunOwnership(registry, lifecycle));
-  app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry }));
+  app.use("/api/runs/:runId", requireRunOwnership({ registry: registry, lifecycle: lifecycle }, {}));
+  app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry }, {}));
   const adapter: AdapterContext = { resolvedPortRef: { current: 0 }, env: {},
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
@@ -195,7 +195,7 @@ test("a run with no recorded owner is unreadable and uncancellable by every admi
   });
   assert.equal(res.status, 201);
   const runId = ((await res.json()) as { run: { id: string } }).run.id;
-  assert.equal(harness.registry.ownerOf(runId), undefined);
+  assert.equal(harness.registry.ownerOf({ runId: runId }, {}), undefined);
 
   const cancellations: unknown[] = [];
   t.after(harness.lifecycle.onCancelRequested({ runId, listener: (request) => cancellations.push(request) }));
@@ -210,10 +210,10 @@ test("a run with no recorded owner is unreadable and uncancellable by every admi
 });
 
 test("forget() drops a run's owner, so the registry does not grow for the daemon's lifetime", () => {
-  const registry = createRunOwnerRegistry();
-  registry.record("run-1", ALICE);
-  registry.forget("run-1");
-  assert.equal(registry.ownerOf("run-1"), undefined);
+  const registry = createRunOwnerRegistry({}, {});
+  registry.record({ runId: "run-1", principalId: ALICE }, {});
+  registry.forget({ runId: "run-1" }, {});
+  assert.equal(registry.ownerOf({ runId: "run-1" }, {}), undefined);
 });
 
 test("the owner can cancel their own run", async (t) => {
@@ -290,7 +290,7 @@ test("the ?contextRef= filter still applies, and stays owner-scoped underneath i
   const second = await startRun(harness, ALICE, "second");
   // Byte-identical contextRef, different principal — the filter alone would return both.
   const { run: bobRun } = await harness.lifecycle.start({ contextRef: contextRefFor(ALICE, "second") });
-  harness.registry.record(bobRun.id, BOB);
+  harness.registry.record({ runId: bobRun.id, principalId: BOB }, {});
   const sameContext = await harness.lifecycle.list({}, { contextRef: contextRefFor(ALICE, "second") });
   assert.deepEqual(sameContext.map((run) => run.id).sort(), [second, bobRun.id].sort());
 
@@ -314,9 +314,9 @@ test("the production daemon mounts ownership before run routes and records the d
   const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim();
   // Only unconditional top-level statements count: dead branches and comments cannot satisfy this.
   const statements = parsed.statements.map(text);
-  const gate = statements.indexOf('app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }));');
-  const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership(runOwners, lifecycle));');
-  const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));');
+  const gate = statements.indexOf('app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }, {}));');
+  const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));');
+  const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));');
   const routes = statements.indexOf('registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter });');
   assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
     "both owner gates must execute after authentication and before the unscoped http-kit routes");
@@ -326,7 +326,7 @@ test("the production daemon mounts ownership before run routes and records the d
   assert.ok(declaration?.initializer && ts.isArrowFunction(declaration.initializer));
   const body = declaration.initializer.body;
   assert.ok(ts.isBlock(body));
-  const record = body.statements.findIndex((node) => text(node) === "runOwners.record(run.id, principal.id);");
+  const record = body.statements.findIndex((node) => text(node) === "runOwners.record({ runId: run.id, principalId: principal.id }, {});");
   assert.ok(record >= 0, "the decoded principal must be recorded unconditionally before starting work");
   const decode = body.statements.findIndex((node) => ts.isTryStatement(node)
     && node.tryBlock.statements.some((statement) => text(statement) === "const decoded = parseRunStartContextRef(request.contextRef);")

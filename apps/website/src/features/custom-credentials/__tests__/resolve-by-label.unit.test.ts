@@ -114,7 +114,7 @@ test("resolveCustomCredentialByLabel throws CustomCredentialSecretStoreUnconfigu
       assert.ok(err instanceof CustomCredentialSecretStoreUnconfiguredError);
       assert.equal(
         (err as Error).message,
-        "custom credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): no Site key"
+        "The credential could not be saved or unlocked. Check the site credential store."
       );
       return true;
     }

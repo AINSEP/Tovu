@@ -1,4 +1,4 @@
-import { embedMarkerTarget, scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
+import { embedMarkerTarget, scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 
 /**
  * @file Which media a packed post/page state points at — owner decision 2026-09-25, "images go along
@@ -9,7 +9,7 @@ import { embedMarkerTarget, scanEmbedMarkers } from "#src/contracts/core/embeds/
  * `PostRecord`, because the scope layer only ever holds packed entities. Every reference shape the
  * content DB actually holds is covered:
  * - a ref-based TipTap `image`/`media` node's `attrs.assetId` (ADR-027 §4) — the same walk
- *   `widgets/resolver-service.ts` and `routes/site/media-rendition.ts` each carry a private copy of;
+ *   `Jini/packages/cms/src/widgets/resolver-service.ts` and `routes/site/media-rendition.ts` each carry a private copy of;
  *   neither is importable from here (both sit above `features/publish-content/` in the layering);
  * - a legacy `image` node's `attrs.src` — an admin `/media/{id}/…` URL or a public `/m/{key}/…` URL;
  * - any mark's string attrs holding such a URL — a `link` mark whose `href` is a media file's copied
@@ -18,7 +18,7 @@ import { embedMarkerTarget, scanEmbedMarkers } from "#src/contracts/core/embeds/
  *   same case-insensitive type match and precedence the embed resolver uses), and any `/m/{key}/` URL
  *   in it;
  * - `seoExtJson.ogImage`/`twitterImage`, a `"{assetId}:{transformName}"` ref or an absolute URL
- *   (`seo/types.ts`).
+ *   (`Jini/packages/cms/src/seo/types.ts`).
  *
  * Not covered: an old slug kept alive only by `media_slug_history` (matched against the CURRENT slug
  * only). Media an embedded widget holds is not read here: the widget itself is carried
@@ -86,9 +86,9 @@ function addDocKeys(node: unknown, out: Set<string>): void {
 
 /** @complexity O(n) over `html`'s length (one shared marker scan plus one URL scan). */
 function addHtmlKeys(html: string, out: Set<string>): void {
-  for (const marker of scanEmbedMarkers(html).markers) {
+  for (const marker of scanEmbedMarkers({ html: html }).markers) {
     if (marker.type.toLowerCase() !== "media") continue;
-    const target = embedMarkerTarget(marker.type, marker.config);
+    const target = embedMarkerTarget({ type: marker.type, config: marker.config });
     if (target !== undefined && target.key !== "none") out.add(target.value);
   }
   addUrlKeys(html, out);

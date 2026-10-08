@@ -1,10 +1,5 @@
-import { PluginNotFoundError } from "#src/features/plugin-runtime/activation";
-import {
-  PluginAlreadyInTrashError,
-  PluginEnabledError,
-  PluginNotUninstallableError,
-  uninstallPlugin,
-} from "#src/features/plugin-runtime/uninstall";
+import { PluginNotFoundError } from "@jini-ai/plugins/host";
+import { PluginAlreadyInTrashError, PluginEnabledError, PluginNotUninstallableError, uninstallPlugin } from "@jini-ai/plugins/host";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

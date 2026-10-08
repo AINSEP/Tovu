@@ -192,8 +192,7 @@ test("REQ-19: getCapabilities() is a pure, side-effect-free static check — cal
 });
 
 /**
- * @file 2026-07-16 addition — `restoreFromArtifact()`, closing the "ledger-only" gap
- * `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` previously disclosed. Verifies
+ * @file restoreFromArtifact must change persisted state, beyond recording a ledger entry. Verifies
  * the actual restore effect (not just that the call resolves), the atomicity/crash-safety
  * property (no partial state possible), and the `:memory:` no-op path.
  */

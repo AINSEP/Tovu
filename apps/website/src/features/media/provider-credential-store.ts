@@ -170,7 +170,7 @@ async function toView(record: MediaProviderCredentialRecord, sealer?: SecretSeal
     if (sealer) {
       try {
         const aad = record.aadVersion === 1 ? buildMediaProviderCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId }) : undefined;
-        view.apiKeyHint = credentialTokenHint({ token: await sealer.open({ sealed: record.sealed, aad }) });
+        view.apiKeyHint = credentialTokenHint({ token: await sealer.open({ sealed: record.sealed }, { aad }) });
         if (view.apiKeyHint.last4 !== null) view.apiKeyTail = view.apiKeyHint.last4;
       } catch { /* A missing site key must not hide the non-secret provider configuration. */ }
     }
@@ -467,7 +467,7 @@ export async function resolveMediaProviderCredential(
     // NO aad and must be opened the same way, or auth-tag verification fails closed. See this
     // file's own header.
     const aad = record.aadVersion === 1 ? buildMediaProviderCredentialAad({ workspaceId: input.workspaceId, providerId: input.providerId }) : undefined;
-    apiKey = await deps.sealer.open({ sealed: record.sealed, aad });
+    apiKey = await deps.sealer.open({ sealed: record.sealed }, { aad });
   } catch (err) {
     throw new MediaProviderCredentialSecretStoreUnconfiguredError(
       CREDENTIAL_MESSAGES.storage

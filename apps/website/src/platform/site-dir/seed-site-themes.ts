@@ -6,16 +6,10 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  * @file `seedSiteThemes()` — the one-time copy that gets a site's themes OUT of the Tovu package.
  *
  * A plain filesystem copy with no theme-domain logic, so it lives in `platform/site-dir` beside its
- * caller `init-site.ts` (moved 2026-09-26 from `features/theme/`: `platform` importing
- * `features/theme` closed a module cycle).
+ * caller `init-site.ts`; importing `features/theme` from `platform` would close a module cycle.
  *
- * ---------------------------------------------------------------------------
- * The bug this exists to fix
- * ---------------------------------------------------------------------------
- * Themes used to live at `src/themes/`, INSIDE the product, and the admin Theme Studio wrote the
- * owner's edits straight into that tree — alongside `__original-themes__/`, which holds each
- * theme's own "reset to original" pristine copy. Upgrading Tovu replaces `src/`, so an upgrade
- * destroyed both the edits and the backups that could have restored them.
+ * Site-owned theme edits and pristine reset copies must survive product upgrades,
+ * which replace the package's stock tree.
  *
  * A site now owns `<site>/themes/`. The package keeps a read-only STOCK tree
  * (`server/deps.ts`'s `builtInThemesDir()`), and this function copies it into the site the first

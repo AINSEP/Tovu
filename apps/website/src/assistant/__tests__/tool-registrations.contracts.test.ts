@@ -1,3 +1,7 @@
+import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
+import { catalog as mediaVideoCatalog } from "../../features/media/view-video-tool.js";
+import { catalog as agentPluginsInstallCatalog } from "../../features/agent-plugins/install-tool.js";
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import { postPreviewAgentToolCatalog } from "../../features/post/preview-tool.js";
@@ -5,7 +9,6 @@ import { catalog as identityPolicyPermissionsCatalog } from "../../features/iden
 import { catalog as sitesListCatalog } from "../../features/sites/list-tool.js";
 import { catalog as publishDisconnectCatalog } from "../../features/publish-content/disconnect-tool.js";
 import { catalog as themePagePublishedCatalog } from "../../features/theme/page-publish-tool.js";
-import { catalog as commerceStatusCatalog } from "../../features/commerce/status-tool.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -37,6 +40,7 @@ import {
   type ContentTypesAgentToolDefinition as AgentToolDefinition,
 } from "../../features/content-types/index.js";
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
+import { credentialSaveCatalog } from "../../features/custom-credentials/credential-save-tool.js";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
 import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
@@ -85,7 +89,6 @@ import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import {
   assertRiskMetadataIsWirable,
-  buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -97,15 +100,7 @@ const contributions = {
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
 
-// `comments`/`newsletter` moved off `assistant/tool-registrations.ts`'s static
-// `DOMAIN_SLICES` array onto the tool-contribution registry (2026-08-17 — see
-// `tool-contribution-registry.ts`'s header). This file builds the FULL catalog and asserts against
-// every wired domain, so — like the real composition roots (`agent-daemon-server.ts`,
-// `assistant-byok.ts`) — it must install first-party contributors before calling
-// `buildAssistantToolRegistrations`, or those 2 domains' tools would simply be missing from
-// `registrationsById()` below rather than exercised. (`post` was also tried and reverted the same
-// night — see `features/post/tool-registrations.ts`'s trailing comment — so it stays on the static
-// seam and needs no install call.)
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 installFirstPartyToolContributors({ contributions });
 
@@ -145,6 +140,8 @@ function fakeRouteDeps(existing?: ContentTypeRecord) {
       tearDownAllIndexesForContentType: async () => {},
     },
     outbox: { enqueue: async () => {} },
+    // Catalog construction binds the SEO host port; these cases never execute SEO.
+    seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
   };
   return deps as unknown as RegistryDepsWithoutLimiter;
 }
@@ -154,7 +151,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 }
 
 function registrationsById(existing?: ContentTypeRecord): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps(existing) }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: fakeRouteDeps(existing) }), options: { contributions } }).map((r) => [r.descriptor.id, r]));
 }
 
 /** The one registration under test, asserted present so no call site needs a non-null assertion. */
@@ -165,39 +162,12 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
 }
 
 /**
- * Every wired domain's own catalog, keyed by the exact `domain` string that domain registers
- * under — either `tool-contribution-registry.ts`'s `listToolContributors()` (every
- * `contribute<Domain>Tools()` call `installFirstPartyToolContributors()` makes; see that file's
- * own header) or `tool-registrations.ts`'s private, not-yet-converted `DOMAIN_SLICES` array (today:
- * the four in-chat UI domains plus `component-catalog`/`ask-choice` — see that file's own header
- * for why both seams still coexist).
- *
- * This is the declared side of every cross-check below, independent of what
- * `buildAssistantToolRegistrations` actually builds — so keying it by domain and checking it
- * against the REAL registered-domain list (the completeness test right after this) is what makes a
- * newly wired domain's missing catalog entry fail LOUDLY, by domain name, instead of silently
- * reproducing the exact drift `media_generate_asset` hit here (registered via
- * `contributeMediaGenerationTools()` on 2026-09-02; this map never got its `media-generation` entry
- * added) — and `pages` hit before it (`DOMAIN_SLICES`'s own `buildPagesRegistrations` entry, added
- * without its catalog import; confirmed via `git show HEAD:<this file>` before this dispatch touched
- * anything). Both are entries below now.
- *
- * The completeness test can only walk `listToolContributors()` for the 29 registry-based domains —
- * `DOMAIN_SLICES` itself is a private, unexported const in `assistant/tool-registrations.ts`
- * (confirmed: no exported getter for its domain names exists there as of this dispatch), and adding
- * one is a production-file change outside this dispatch's scope (`assistant/tool-registrations.ts`
- * is exactly the file a concurrently-running sibling agent may also be editing to add DOMAIN_SLICES'
- * next entry, per this dispatch's own brief — editing it here risks a live collision, not just a
- * scope violation). So the 6 DOMAIN_SLICES-only domains below (`demo-choices`/`demo-a2ui`/
- * `demo-image`/`render-ui`/`component-catalog`/`ask-choice`) stay a disclosed, hand-maintained
- * fallback for exactly that reason — everything else derives.
- *
- * The `as unknown as` casts cover the catalogs whose own `AgentToolDefinition` is a structural
- * sibling rather than the content-types one this map is typed as (identity requires `inputSchema`,
- * database/recovery/plugins/workspace/settings/taxonomy/seo/redirects/integrations/post/themes/
- * static-publish/media-generation each declare their own copy — taxonomy's and static-publish's
- * additionally carry `actorClassRule`) — the shared structural supertype lives in
- * `assistant/tool-registration-kit.ts`.
+ * Every wired domain's declared catalog, keyed independently of the assembled registrations.
+ * Cross-checking registered domain keys catches a missing catalog entry before per-tool assertions
+ * silently omit it. Contributors are enumerable; private DOMAIN_SLICES-only domains and derived
+ * post-processing tools require a hand-maintained fallback.
+ * Catalog-local AgentToolDefinition types have differing required fields (for example inputSchema
+ * and actorClassRule), so structural casts adapt them to this map's common catalog type.
  */
 const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "content-stats": contentStatsAgentToolCatalog as unknown as AgentToolDefinition[],
@@ -208,7 +178,6 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "sites-list": sitesListCatalog as unknown as AgentToolDefinition[],
   "publish-content-disconnect": publishDisconnectCatalog as unknown as AgentToolDefinition[],
   "theme-set-page-published": themePagePublishedCatalog as unknown as AgentToolDefinition[],
-  "commerce-get-status": commerceStatusCatalog as unknown as AgentToolDefinition[],
 
   "permanent-delete": permanentDeleteAgentToolCatalog,
   "domain-dns": domainDnsAgentToolCatalog,
@@ -237,11 +206,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   integrations: getWebhooksAgentToolCatalog() as unknown as AgentToolDefinition[],
   post: postAgentToolCatalog as unknown as AgentToolDefinition[],
   themes: getThemesAgentToolCatalog() as unknown as AgentToolDefinition[],
-  // `theme-set-active` (F7a, S5, 2026-09-24): `theme_set_active`, wired via its own
-  // `contributeSetActiveThemeTools()` (own domain key). See `features/theme/set-active-theme-tool.ts`.
   "theme-set-active": setActiveThemeAgentToolCatalog as unknown as AgentToolDefinition[],
-  // `change-sets` (F7b option A, S6, 2026-09-24): `change_sets_list`/`change_sets_revert`, wired via
-  // `contributeChangeSetsTools()`. See `features/change-sets/tool-registrations.ts`'s own header.
   "change-sets": getChangeSetsAgentToolCatalog() as unknown as AgentToolDefinition[],
   "deploy-ops": deployOpsAgentToolCatalog as unknown as AgentToolDefinition[],
   deployments: deploymentsAgentToolCatalog as unknown as AgentToolDefinition[],
@@ -250,20 +215,16 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "source-control": sourceControlAgentToolCatalog as unknown as AgentToolDefinition[],
   "site-evidence": siteEvidenceAgentToolCatalog as unknown as AgentToolDefinition[],
   "site-inspection": siteInspectionAgentToolCatalog as unknown as AgentToolDefinition[],
-  // 2026-09-05: `sites` — `sites_duplicate_site`, wiring `platform/site-dir/duplicate-site.ts`'s
-  // `duplicateSite` to the assistant. See `server/tool-catalog-manifest.ts`'s own header.
   sites: sitesAgentToolCatalog as unknown as AgentToolDefinition[],
   "site-backup": siteBackupAgentToolCatalog as unknown as AgentToolDefinition[],
   "custom-credentials": customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[],
-  // `media-generation` (2026-09-02): `media_generate_asset`, wired via
-  // `contributeMediaGenerationTools()` — see `features/media-generation/tool-registrations.ts`'s own
-  // header. The entry this dispatch was sent to add; see this const's own doc above.
+  "credential-save": credentialSaveCatalog as unknown as AgentToolDefinition[],
   "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
   "media-providers": mediaProvidersAgentToolCatalog as unknown as AgentToolDefinition[],
-  // `media-import` (2026-09-06): `media_import_from_url`, wired via `contributeMediaImportTools()` —
-  // see `features/media-import/tool-registrations.ts`'s own header. Added at the same time the
-  // contributor was, rather than after the completeness test above caught it.
   "media-import": mediaImportAgentToolCatalog as unknown as AgentToolDefinition[],
+  "system-server-logs": serverLogsAgentToolCatalog as unknown as AgentToolDefinition[],
+  "media-video-view": mediaVideoCatalog as unknown as AgentToolDefinition[],
+  "agent-plugins-install": agentPluginsInstallCatalog as unknown as AgentToolDefinition[],
   "media-view": mediaViewImageAgentToolCatalog as unknown as AgentToolDefinition[],
   // The 8 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
   // doc above for why they cannot derive the same way.
@@ -274,61 +235,24 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "component-catalog": componentCatalogAgentToolCatalog as unknown as AgentToolDefinition[],
   "ask-choice": askChoiceAgentToolCatalog as unknown as AgentToolDefinition[],
   "external-mcp-reauth": externalMcpReauthAgentToolCatalog as unknown as AgentToolDefinition[],
-  // 2026-09-03: `admin-screen-link` — the general "take the human to the right admin screen"
-  // fallback. See `admin-screen-link-tool.ts`'s own header for why it is read-only and returns a
-  // path rather than driving `page.navigate` itself.
+  // Read-only screen-link policy: see admin-screen-link-tool.ts.
   "admin-screen-link": adminScreenLinkAgentToolCatalog as unknown as AgentToolDefinition[],
-  // 2026-09-09: `agent-plugin-search` — `search_agent_plugin_local`, wired via
-  // `contributeAgentPluginSearchTools()`. See `features/agent-plugins/tool-registrations.ts`'s own
-  // "search_agent_plugin_local" section header for why this is a SEPARATE, static tool from the
-  // dynamic `agent_plugin_<pluginId>` tools that same file also registers (those are NOT wired
-  // through the tool-contribution registry at all, so they never appear in this map either).
+  // Static search is a separate catalog contribution from dynamically installed plugin tools.
   "agent-plugin-search": agentPluginSearchAgentToolCatalog as unknown as AgentToolDefinition[],
-  // 2026-09-27: `agent-plugin-connect` — `agent_plugin_connect` (S-G1), wired via
-  // `contributeAgentPluginConnectTools()`, same static seam as `agent-plugin-search` above. Since
-  // 2026-09-29 also `agent_plugin_set_access_token`, moved out of the deleted `supabase-connect`.
   "agent-plugin-connect": agentPluginConnectDomainCatalog as unknown as AgentToolDefinition[],
-  // 2026-09-29: `database-transfer` was wired with no entry here, which stopped this loop before it
-  // reached any later domain. Added while moving the Supabase token tool.
   "database-transfer": databaseTransferAgentToolCatalog as unknown as AgentToolDefinition[],
-  // Pre-existing gap, unrelated to `agent-plugin-search` — found and fixed opportunistically while
-  // adding the entry above. `content-duplication` (`content_duplicate`, 2026-09-07 per
-  // `tool-catalog-manifest.ts`'s own header) was already wired in production with no entry here,
-  // the exact "domain wired, catalog entry forgotten" drift this whole file exists to catch.
   "content-duplication": contentDuplicationAgentToolCatalog as unknown as AgentToolDefinition[],
-  // Same pre-existing class as `content-duplication` above: `external-mcp` (`external_mcp_list`/
-  // `external_mcp_save`/etc., 2026-09-07) was wired via `contributeExternalMcpTools()` with no
-  // catalog entry here — distinct from the already-present `external-mcp-reauth` above, a different
-  // domain that only wires the single re-auth notice tool.
+  // external-mcp differs from the single re-auth notice in external-mcp-reauth.
   "external-mcp": externalMcpAgentToolCatalog as unknown as AgentToolDefinition[],
   "external-mcp-operations": externalMcpOperationsToolCatalog as unknown as AgentToolDefinition[],
-  // Same class again: `fs-files` (`fs_list_files`/`fs_read_file`, 2026-09-10) was wired via
-  // `contributeFsFilesTools()` with no entry here, so the completeness test above and every per-tool
-  // lookup that reached `fs_list_files` went red.
   "fs-files": getFsFilesAgentToolCatalog() as unknown as AgentToolDefinition[],
-  // Same class again: `publish-content` was wired via `contributePublishContentTools()` with no
-  // entry here, so the completeness test above and every per-tool lookup that reached
-  // `publish_content_status` went red. Found already failing at HEAD while adding `trash` below.
   "publish-content": publishContentAgentToolCatalog as unknown as AgentToolDefinition[],
-  // 2026-09-20: `trash` — `trash_list_items` and `trash_restore_item`, wired via
-  // `contributeTrashTools()`. Added with the contributor rather than after this test caught it.
-  // Confirmed permanent deletes live in the separate permanent-delete contributor; see
-  // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`'s confirmed-call contract.
-  //
-  // 2026-09-24 (F6): the published entityType enum is now built from the kinds reachable through
-  // `fakeRouteDeps()` at registration time, not a fixed catalog — `buildTrashRegistrations` builds
-  // its own catalog the same way, from `trashToolEntityTypes(routeDeps.registry)`, and
-  // `fakeRouteDeps()` below sets no `registry`, so `trashToolEntityTypes(undefined)` (the bespoke
-  // six kinds, no phase-2 registry kinds) is what actually gets registered. Comparing against the
-  // former static four-kind catalog would fail the generic
-  // getTrashAgentToolCatalog (features/trash/agent-tools.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
-  // published-schema loop below on a real, expected difference rather than drift.
+  // Permanent deletes have their own confirmed-call contributor; trash owns list/restore.
+  // The catalog enum must match the fixture's reachable kinds: fakeRouteDeps has no registry,
+  // so trashToolEntityTypes(undefined) supplies the bespoke kinds instead of registry kinds.
   trash: buildTrashAgentToolCatalog(trashToolEntityTypes(undefined)) as unknown as AgentToolDefinition[],
-  // 2026-09-20: `trash-item` — `trash_item`, built by a post-processing pass in
-  // `buildAssistantToolRegistrations` (it reuses the four delete tools' built handlers), so it is in
-  // neither `listToolContributors()` nor `DOMAIN_SLICES` and the completeness test above cannot
-  // derive it. Hand-maintained like the `DOMAIN_SLICES`-only entries. Kept apart from `trash` on
-  // purpose: this contributor continues to own listing/restoration, rather than permanent deletion.
+  // This derived tool reuses built handlers, so contributor/DOMAIN_SLICES enumeration cannot
+  // discover it. Keep this fallback separate from trash's list/restore catalog.
   "trash-item": getTrashItemAgentToolCatalog() as unknown as AgentToolDefinition[],
 };
 
@@ -386,7 +310,7 @@ const DERIVED_CONTENT_READ_IDS: ReadonlySet<string> = new Set(RETIRED_READ_TOOL_
 
 /**
  * `identity_user_create` is the one wired tool whose published schema/description are NOT its
- * catalog entry's, on purpose (2026-09-24, commit 431f8c831): Jini's catalog still describes a model-
+ * catalog entry's, on purpose: Jini's catalog still describes a model-
  * suppliable `password`, but Tovu's human-confirm gate (`features/identity/tool-registrations.ts`'s
  * `buildGatedIdentityRegistrations`) strips it from what the model sees and appends
  * `USER_CREATE_DESCRIPTION_SUFFIX` — the human types the password into a dialog instead, so it never
@@ -420,7 +344,7 @@ test("every wired registration publishes the inputSchema from its catalog entry 
 
 test("every content_read card preserves all member tools' published input properties", () => {
   const cards = registrationsById();
-  const members = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { ...( { includeContentReadCollapse: false }), contributions })
+  const members = new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), options: { includeContentReadCollapse: false, contributions } })
     .map((registration) => [registration.descriptor.id, registration]));
   for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {
     const member = members.get(memberId);
@@ -566,7 +490,7 @@ test("the returned fields array is a copy — a tool caller cannot mutate domain
 // 3. Risk metadata is cross-checked, not trusted (finding 3a)
 // ---------------------------------------------------------------------------
 
-/** The gated-mutation execute tools wired through `humanConfirmedToolHandler` (2026-09-24). */
+/** The gated-mutation execute tools wired through `humanConfirmedToolHandler` . */
 const HUMAN_CONFIRMED_TOOL_IDS: readonly string[] = ["backup_execute_restore", "database_execute_migrate_forward", "taxonomy_execute_merge_term", "publish_content_execute_pull"];
 
 test("the real catalog and this layer's independent classification agree for every wired tool", () => {
@@ -600,7 +524,7 @@ test("the mismatch check is symmetric — an over-declared risk fails too, so th
 });
 
 // ---------------------------------------------------------------------------
-// 4. Human-confirmer guard (finding 3c; relaxed 2026-09-24 for humanConfirmedHandler)
+// 4. Human-confirmer guard (humanConfirmedHandler contract)
 // ---------------------------------------------------------------------------
 
 test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler", () => {
@@ -658,7 +582,7 @@ async function buildRealAssembledSurface() {
   const routeDeps = createRouteDeps();
   await routeDeps.identityReady;
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) {
+  for (const registration of buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps }), options: { contributions } })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });
@@ -706,10 +630,6 @@ test("deployment_get_static_publish_capabilities actually executes through the R
 
   assert.equal(result.status, "completed", `expected a real completed execution, got: ${JSON.stringify(result)}`);
   const output = result.output as { executionMode: string; providers: Array<{ providerId: string }> };
-  // Stale expectation fixed 2026-08-16 (pre-existing, unrelated to source-control's own dispatch):
-  // this asserted 4 providers/no 's3-compatible' after that 5th static-publish target had already
-  // shipped in `publish-agent-tools.ts`'s own `PROVIDER_IDS` — the assertion had drifted behind the
-  // real catalog, not the other way around.
   assert.equal(output.providers.length, 5, "all five static-publish providers must be reported");
   assert.deepEqual(
     output.providers.map((p) => p.providerId).sort(),
@@ -718,7 +638,7 @@ test("deployment_get_static_publish_capabilities actually executes through the R
 });
 
 // ---------------------------------------------------------------------------
-// 6. component-catalog reachability — BYOK's ONLY path to search_components/describe_component (2026-08-30)
+// 6. component-catalog reachability — BYOK's ONLY path to search_components/describe_component
 // ---------------------------------------------------------------------------
 
 /**

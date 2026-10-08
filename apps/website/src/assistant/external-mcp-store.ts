@@ -1,5 +1,4 @@
 import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint, type CredentialTokenHint } from '../contracts/core/credential-token.js';
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import { createHash } from "node:crypto";
 
 import { nowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
@@ -71,7 +70,7 @@ export type ExternalMcpTransport = (typeof SUPPORTED_EXTERNAL_MCP_TRANSPORTS)[nu
 
 /** `EXTERNAL_MCP_AUTH_MODES`/`ExternalMcpAuthMode` (how a server's credentials are obtained) and
  *  their two readers live in the external-MCP domain module `features/external-mcp/auth-mode.ts`
- *  (moved 2026-10-03, owner decision C — see that file's header). Re-exported here so every
+ *  (owner decision C — see that file's header). Re-exported here so every
  *  `#src/assistant/index` importer keeps working unchanged. */
 export {
   EXTERNAL_MCP_AUTH_MODES,
@@ -684,11 +683,9 @@ export function resolveExternalMcpOAuthStatus(record: Pick<ExternalMcpServerReco
 /**
  * Whether this row holds an access TOKEN — answered from PLAINTEXT columns alone, never by unsealing.
  *
- * `record.sealedOAuth !== null` used to answer this, and stopped being true the moment clearing a
- * token became a read-modify-write that PRESERVES the client secret sharing the blob (see
- * `external-mcp-oauth.ts`'s `setOAuthStatus`). A disconnected connection still carries a non-null
- * blob — a secret and no tokens — so blob presence began reporting a stored token for a row that
- * has none.
+ * Token clearing preserves the client secret sharing the sealed blob (setOAuthStatus). A
+ * disconnected row can therefore have a non-null blob containing a secret but no access token;
+ * blob presence alone cannot answer this question.
  *
  * Not repaired by unsealing, deliberately. This is read by a plain list route that must answer
  * without a keyring round trip, and must keep answering TRUTHFULLY for a row whose blob will not
@@ -809,10 +806,9 @@ async function openExternalMcpEnv(
   try {
     // Branching read: a row still at aad_version 0 was sealed before this table had AAD and must
     // keep opening through the legacy no-aad path until the backfill re-seals it.
-    const opened = await sealer.open({
-      sealed: record.sealedEnv,
-      ...(record.aadVersion >= EXTERNAL_MCP_AAD_VERSION ? { aad: buildExternalMcpEnvAad(record) } : {}),
-    });
+    const opened = await sealer.open({ sealed: record.sealedEnv },
+      record.aadVersion >= EXTERNAL_MCP_AAD_VERSION ? { aad: buildExternalMcpEnvAad(record) } : {},
+    );
     const parsed: unknown = JSON.parse(opened);
     const env = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
     return { ok: true, env };
@@ -1616,7 +1612,7 @@ async function resolveExternalMcpSealedEnv(
   rawEnv: string | undefined,
   existing: ExternalMcpServerRecord | null,
 ): Promise<{ readonly sealedEnv: SealedSecret | null; readonly envNames: string[]; readonly aadVersion: number }> {
-  // Owner 2026-10-07: an exact blank update keeps credentials; whitespace cannot clear them.
+  // Owner policy: an exact blank update keeps credentials; whitespace cannot clear them.
   if (rawEnv !== undefined && rawEnv !== '' && rawEnv.trim() === '') throw new ExternalMcpValidationError(CREDENTIAL_MESSAGES.blank, 'env');
   return rawEnv === undefined || rawEnv === ''
     ? carryForwardExternalMcpSealedEnv(existing)
@@ -1783,10 +1779,9 @@ export async function openExternalMcpOAuthPayload(
     // Branching read, same rule as the env blob — and the aad is derived from THIS row's identity,
     // so another row's ciphertext sitting in this column fails its auth tag instead of opening.
     parsed = JSON.parse(
-      await sealer.open({
-        sealed: record.sealedOAuth,
-        ...(record.oauthAadVersion >= EXTERNAL_MCP_AAD_VERSION ? { aad: buildExternalMcpOAuthAad(record) } : {}),
-      }),
+      await sealer.open({ sealed: record.sealedOAuth },
+        record.oauthAadVersion >= EXTERNAL_MCP_AAD_VERSION ? { aad: buildExternalMcpOAuthAad(record) } : {},
+      ),
     );
   } catch (err) {
     throw new ExternalMcpSecretStoreUnconfiguredError(

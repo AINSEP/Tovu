@@ -1,3 +1,4 @@
+import { isNonArrayRecord } from "@jini-ai/core";
 /**
  * @file Shared "public HTML form" primitives — baseline chrome, success/error slot markup, the
  * Post/Redirect/Get result round trip, and the validation-flash cookie payload — usable by ANY
@@ -24,7 +25,7 @@
 
 import { escapeHtml } from "#src/platform/html/escape";
 import { formValidationMessages, formDocumentLocale } from "./form-validation-message.js";
-import { FORM_ATTEMPT_FIELD } from "#src/features/forms/submission-attempts";
+import { FORM_ATTEMPT_FIELD } from "@jini-ai/cms/forms";
 
 const FORM_CLASS = "tovu-form";
 const FORM_SUCCESS_CLASS = "tovu-form-success";
@@ -172,22 +173,13 @@ export function renderFormErrorSlot(options: FormSlotOptions): string {
 }
 
 // ---------------------------------------------------------------------------
-// object-shape helper — deliberately duplicated, not imported, from render.ts
+// object-shape validation — shared core owner, independent of render.ts
 //
 // `render.ts` imports FROM this module (`FORM_BASELINE_STYLE`, `injectFormSubmissionResultIntoHtml`,
 // ...); importing an object-shape guard back FROM render.ts would make the two modules circularly
-// dependent on each other. It is a tiny, stable primitive — duplicating it here is a smaller, more
-// legible cost than a circular import between the two form-rendering modules. (`escapeHtml` comes
-// from the import-free leaf `platform/html/escape.ts`, which has no such problem.)
+// dependent on each other. The core owner avoids that circular import between the two rendering
+// modules. (`escapeHtml` likewise comes from the import-free leaf `platform/html/escape.ts`.)
 // ---------------------------------------------------------------------------
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function escapeForRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 // ---------------------------------------------------------------------------
 // contact-form Post/Redirect/Get result (2026-08-31 fix, generalized 2026-08-31)
@@ -289,7 +281,8 @@ function queryStringValue(value: unknown): string {
  *  follows.
  * @complexity O(1). */
 function parseFieldErrorEntry(entry: unknown): { field: string; reason: string } | null {
-  const o = isPlainObject(entry) ? entry : undefined;
+  const candidate = { value: entry };
+  const o = isNonArrayRecord(candidate) ? candidate.value : undefined;
   const field = o ? queryStringValue(o.field) : "";
   if (!field) return null;
   const reason = o ? queryStringValue(o.reason) : "";
@@ -378,7 +371,7 @@ function showFormErrorSummary(formHtml: string, slugPattern: string, message: st
  *  2026-08-31 generalization beyond moving the function. */
 function showFieldErrors(formHtml: string, fieldErrors: ReadonlyArray<{ field: string; message: string }>): string {
   return fieldErrors.reduce((updated, { field, message }) => {
-    const fieldPattern = escapeForRegExp(escapeHtml(field));
+    const fieldPattern = RegExp.escape(escapeHtml(field));
     const fieldErrorRegex = new RegExp(`(<div class="widget-form-field-error" data-field="${fieldPattern}"[^>]*) hidden></div>`, "i");
     return updated.replace(fieldErrorRegex, (_match, openTag: string) => `${openTag}>${escapeHtml(message)}</div>`);
   }, formHtml);
@@ -446,7 +439,7 @@ function setInputValueAttr(tag: string, escapedValue: string): string {
  *  {@link showFormSuccessMessage}. @complexity O(html.length) per call — two regex passes, the
  *  second only executed when the first did not match. */
 function showOneFieldValue(html: string, field: string, value: string): string {
-  const fieldPattern = escapeForRegExp(escapeHtml(field));
+  const fieldPattern = RegExp.escape(escapeHtml(field));
   const escapedValue = escapeHtml(value);
   const textareaRegex = new RegExp(`(<textarea\\b[^>]*\\bname="${fieldPattern}"[^>]*>)[\\s\\S]*?(<\\/textarea>)`, "i");
   const withTextarea = html.replace(textareaRegex, (_match, openTag: string, closeTag: string) => `${openTag}${escapedValue}${closeTag}`);
@@ -486,7 +479,7 @@ function showFieldValues(formHtml: string, values: Readonly<Record<string, strin
  */
 export function injectFormSubmissionResultIntoHtml(html: string, result: FormSubmissionRedirectResult | undefined): string {
   if (!result) return html;
-  const slugPattern = escapeForRegExp(escapeHtml(result.slug));
+  const slugPattern = RegExp.escape(escapeHtml(result.slug));
   const formRegex = new RegExp(`<form\\b[^>]*${FORM_SLUG_ATTR}="${slugPattern}"[^>]*>[\\s\\S]*?<\\/form>`, "i");
   const formMatch = formRegex.exec(html);
   if (!formMatch) return html;
@@ -619,9 +612,10 @@ export function encodeFormFlashCookieValue(payload: FormFlashPayload): string | 
  *  function's own cyclomatic complexity low (this repo's documented ≤9 ceiling); no behavior change
  *  from inlining it. */
 function isFlashPayloadShape(parsed: unknown): parsed is { slug: string; values: Record<string, unknown> } {
-  if (!isPlainObject(parsed)) return false;
-  if (typeof parsed.slug !== "string" || !parsed.slug) return false;
-  return isPlainObject(parsed.values);
+  const candidate = { value: parsed };
+  if (!isNonArrayRecord(candidate)) return false;
+  if (typeof candidate.value.slug !== "string" || !candidate.value.slug) return false;
+  return isNonArrayRecord({ value: candidate.value.values });
 }
 
 /** The per-field half of {@link decodeFormFlashCookieValue} — split out for the same complexity

@@ -1,4 +1,4 @@
-import { maskNonRenderableRegions } from "../../contracts/core/embeds/marker.js";
+import { maskNonRenderableRegions } from "@jini-ai/cms/widgets/markers";
 import { toSlug } from "#src/platform/html/slug";
 
 /**
@@ -6,7 +6,7 @@ import { toSlug } from "#src/platform/html/slug";
  *
  * ## Why this is a stack walk and not another regex
  *
- * `core/embeds/marker.ts` matches a marker's element with a backreferenced close tag
+ * `Jini/packages/cms/src/widgets/markers/marker.ts` matches a marker's element with a backreferenced close tag
  * (`<([a-z]+)...>([\s\S]*?)<\/\1>`) and documents the assumption that makes it safe: no marker has a
  * same-named descendant. That assumption is true for embed markers and FALSE for regions. A region
  * is a top-level `<section>` holding a page's whole hero or body, and a hero that contains a nested
@@ -26,7 +26,7 @@ import { toSlug } from "#src/platform/html/slug";
  * ## Why comments and `<style>` are masked
  *
  * Through {@link maskNonRenderableRegions}, the same offset-preserving mask
- * `core/embeds/marker.ts` runs its own scan against, imported rather than re-implemented. A page's
+ * `Jini/packages/cms/src/widgets/markers/marker.ts` runs its own scan against, imported rather than re-implemented. A page's
  * `<style>` block routinely contains `>` and quote characters that would otherwise be read as
  * markup, and a `data-agent-element` written inside an authoring comment is not an addressable
  * region. Masking preserves every offset, so an offset found in the masked copy indexes the
@@ -224,7 +224,7 @@ function skipBogusComment(masked: string, lt: number): number {
  * @complexity O(n) in `html`'s length — one masking pass plus one single-pass scan.
  */
 export function scanPageMarkup(html: string): PageMarkupScan {
-  const masked = maskNonRenderableRegions(html);
+  const masked = maskNonRenderableRegions({ html: html });
   const stack: OpenElement[] = [];
   const regions: PageRegion[] = [];
   const topLevel: TopLevelElement[] = [];
@@ -359,7 +359,7 @@ export function locateRegion(html: string, handle: string): RegionLookup {
  * unreachable: the tag, the handle, the `class`, and any `aria-*` the theme styles against all
  * survive a region write by construction, not by the model remembering to reproduce them.
  *
- * `core/embeds/marker.ts` is the cautionary precedent. Its `substituteMarkers` replaces the WHOLE
+ * `Jini/packages/cms/src/widgets/markers/marker.ts` is the cautionary precedent. Its `substituteMarkers` replaces the WHOLE
  * element and every inner-content consumer has to remember to wrap its output in `withInnerContent`
  * — the two behaviors are one call apart and look identical at the call site. That ambiguity is
  * affordable there (two consumers, both in this repo, both tested). It is not affordable in a tool

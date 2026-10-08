@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/pages.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -7,7 +8,8 @@ import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { EXPECTED_VERSION_REJECTION, isTrashed, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
-import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { type AgentToolDefinition as PagesAgentToolDefinition } from "@jini-ai/core";
 import { pagesAgentToolCatalog } from "./agent-tools.js";
@@ -562,7 +564,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "pages",
     catalogModule: "features/pages/agent-tools.ts",
     catalog: CATALOG_BY_ID as ReadonlyMap<string, PagesAgentToolDefinition>,
@@ -575,7 +577,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     // stays a separate, inline reclassification at its own two call sites (unchanged) — it targets
     // `PageConcurrentEditError` specifically, with a narrower message than a generic allowlist rule
     // would produce.
-    handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule("PAGES"), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }] }),
+    handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }] }),
     derivedRisk: pagesDerivedRisk,
   });
 }

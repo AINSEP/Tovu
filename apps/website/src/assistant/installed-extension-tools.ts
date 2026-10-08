@@ -22,7 +22,7 @@ import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
 import { toolApprovalPolicyFor } from "../contracts/headless/assistant-tool-approval-policy.js";
 
 import type { PluginCapabilityToolDeps } from "../features/plugin-runtime/capability-tool-registrations.js";
-import type { PluginDiscoveryRecord } from "../features/plugin-runtime/discovery.js";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { createFederationRuntime, type FederationRuntime } from "./external-mcp-federation-runtime.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
@@ -76,13 +76,8 @@ export interface AssistantToolExtensions {
 
 /**
  * THE ONE REGISTRAR both processes call: installed-extension tools, then (once that settles) the
- * federation runtime, in that fixed order. Before this function, `agent-daemon-server.ts` attached
- * federation BEFORE installed extensions (`:1295` ran ahead of `:1392`); this reverses that order on
- * purpose, everywhere — see
- * `ADS-memory/.local-artifacts/design-byok-external-mcp-2026-09-24.md` §2.1 item 3 for why the new
- * order is the safer direction (a federated/extension id collision now drops only the federated
- * connection, not the whole extension family) and why it is safe to disclose as behavior-preserving
- * in practice (federated ids are always `mcp__`-prefixed, so no id collides today).
+ * federation runtime, in that fixed order. A federated/extension id collision must drop only
+ * the federated connection instead of preventing the installed extension family from registering.
  *
  * `federation` is built, not started: {@link createFederationRuntime} performs no I/O until its
  * `start()`/`reload()` is called, so returning it un-started here costs nothing and lets each caller

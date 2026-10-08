@@ -1,17 +1,10 @@
 /**
  * @file Public surface (barrel) for `media` — re-exported from `@jini-ai/cms/media`.
  *
- * The domain moved into the package on 2026-08-03 so a second host can use the same media
- * assets/blob-GC/transform-registry model. What is left in this directory is only what is
- * genuinely this host's:
- *
- * - `__tests__/repo.contract.test.ts` — a contract suite parameterized over BOTH the package's
- *   in-memory repos and this host's own SQLite adapters (`db/sqlite/media-repo.sqlite.ts`), so it
- *   stays here rather than moving with the domain (mirrors `identity`'s identical precedent).
- *
- * Everything else here is a re-export, and the shape of what is *not* re-exported is the point:
- * there is no SQLite adapter export on this barrel, so nothing outside the composition root can
- * accidentally depend on this host's persistence choice.
+ * Jini owns media assets, blob GC and transforms; the exports below also expose Tovu's adapters.
+ * `__tests__/repo.contract.test.ts` stays host-owned because it exercises both package memory
+ * repos and site SQLite adapters. This barrel omits SQLite so consumers cannot accidentally
+ * depend on the host's persistence choice.
  */
 export type {
   MediaStatus,
@@ -63,7 +56,8 @@ export {
   runMonthlyOrphanSweepStub,
 } from "@jini-ai/cms/media";
 
-export { InMemoryBlobStore, LocalFsBlobStore, type LocalFsBlobStoreDeps } from "@jini-ai/cms/media";
+export { InMemoryBlobStore } from "@jini-ai/cms/media";
+export { LocalFsBlobStore, type LocalFsBlobStoreDeps } from "@jini-ai/cms/media/node";
 
 export {
   DEFAULT_MAX_UPLOAD_BYTES,
@@ -111,7 +105,7 @@ export {
 export type { ImageTransformerPort, TransformImageInput, TransformImageOutput } from "@jini-ai/cms/media";
 export { InMemoryImageTransformer } from "@jini-ai/cms/media";
 
-export { SharpImageTransformer, ImageTransformUnavailableError, ImageSourceCorruptError } from "@jini-ai/cms/media";
+export { SharpImageTransformer, ImageTransformUnavailableError, ImageSourceCorruptError } from "@jini-ai/cms/media/node";
 
 export { sniffContentType, type SniffedContentType } from "@jini-ai/cms/media";
 

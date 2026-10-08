@@ -1,7 +1,9 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/server-logs.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { forbiddenRule, withModelFacingErrors } from "#src/contracts/core/model-facing-tool-errors";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { serverLogsAgentToolCatalog } from "./agent-tools.js";
 import { processServerLogSource } from "./process-source.js";
@@ -27,7 +29,7 @@ export const serverLogsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
  * @complexity O(n) over buffered lines.
  */
 export function buildServerLogsRegistrations(deps: ServerLogsToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "system-server-logs", catalogModule: "features/server-logs/agent-tools.ts", catalog: indexCatalogById({ catalog: serverLogsAgentToolCatalog }), derivedRisk: serverLogsDerivedRisk, handlers: withModelFacingErrors({
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-server-logs", catalogModule: "features/server-logs/agent-tools.ts", catalog: indexCatalogById({ catalog: serverLogsAgentToolCatalog }), derivedRisk: serverLogsDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     system_read_server_logs: async ctx => {
       const raw = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "system.read" }, { entityType: "server-logs" });
@@ -40,7 +42,7 @@ export function buildServerLogsRegistrations(deps: ServerLogsToolDeps): ToolRegi
       }
       return readServerLogs({ logs: deps.serverLogs ?? processServerLogSource }, filters);
     },
-  }, [forbiddenRule("SERVER_LOGS")]) });
+  }, rules: [forbiddenRule({ domainPrefix: "SERVER_LOGS", error: ForbiddenError })] }) });
 }
 
 /** Keeps the diagnostic under its own contributor domain. */

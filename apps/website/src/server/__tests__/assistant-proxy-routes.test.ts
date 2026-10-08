@@ -13,6 +13,9 @@ import type { RouteDeps } from "../routes/types.js";
 import type { ObservabilityPort } from "../../platform/observability/index.js";
 import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Route-level tests for `server/modules/assistant.ts`, the session-gated reverse proxy in
@@ -157,7 +160,7 @@ function harness() {
     const { createRouteDeps } = await import("../runtime/composition/app.js");
     const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
     const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
-    const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
+    const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 
     return {
       daemon: server,
@@ -171,7 +174,7 @@ function harness() {
         // delivery branch never triggers and every request still reaches the stand-in daemon exactly
         // as before — see `modules/assistant.ts`'s own doc for why the real store must be shared with
         // `assistant-byok.ts` in production, which this proxy-only harness has no need to compose.
-        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes?.(app);
+        createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
         return app;
       },
     };

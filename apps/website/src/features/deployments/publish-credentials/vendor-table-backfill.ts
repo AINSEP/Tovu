@@ -68,7 +68,7 @@ async function toVendorRecord(deps: VendorTableBackfillDeps, row: PublishCredent
   let fields: Record<string, string>;
   try {
     const legacyAad = buildPublishCredentialAad({ workspaceId: row.workspaceId, providerId: row.providerId, id: row.id });
-    const { providerId: _providerId, ...rest } = JSON.parse(await deps.sealer.open({ sealed: row.sealed, aad: legacyAad })) as Record<string, string>;
+    const { providerId: _providerId, ...rest } = JSON.parse(await deps.sealer.open({ sealed: row.sealed }, { aad: legacyAad })) as Record<string, string>;
     fields = rest;
   } catch (err) {
     return `the saved credential could not be opened: ${err instanceof Error ? err.message : String(err)}`;
@@ -79,7 +79,7 @@ async function toVendorRecord(deps: VendorTableBackfillDeps, row: PublishCredent
   let sealed: VendorCredentialSetRecord["sealed"];
   try {
     sealed = await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey(), aad });
-    if ((await deps.sealer.open({ sealed, aad })) !== plaintext) return "the re-sealed credential did not open to the same value";
+    if ((await deps.sealer.open({ sealed }, { aad })) !== plaintext) return "the re-sealed credential did not open to the same value";
   } catch (err) {
     return `the credential could not be re-sealed: ${err instanceof Error ? err.message : String(err)}`;
   }

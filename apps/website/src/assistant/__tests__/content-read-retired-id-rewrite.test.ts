@@ -8,9 +8,12 @@ import { buildAssistantToolRegistrations } from "#src/assistant/tool-registratio
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "#src/assistant/content-read-tool";
 import { KEYWORD_MARKER } from "#src/assistant/tool-search-keywords";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The content_read collapse retires read tools like `menus_list_menus`, but package catalogs
@@ -64,7 +67,7 @@ test("SINK AUDIT: in the real assistant catalog no published description or inpu
   };
   installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps() as unknown as RegistryDepsWithoutLimiter;
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaceExchanges: createSurfaceExchangeStore() }, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, { contributions });
   const published = new Set(registrations.map((entry) => entry.descriptor.id));
   const retired = [...RETIRED_READ_TOOL_TO_CARD.keys()].filter((id) => !published.has(id));
   assert.ok(retired.includes("menus_list_menus"), "the menu card must be collapsed in this composition for the audit to mean anything");

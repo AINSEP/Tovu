@@ -1,4 +1,3 @@
-import { regenerateSitemapCache } from "#src/features/seo/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 
@@ -28,10 +27,7 @@ export const registerAdminSeoPostSitemapRegenerateRoute: SeoRouteRegistrar = (ap
         return;
       }
 
-      await regenerateSitemapCache(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
-        { workspaceId: deps.workspaceId }
-      );
+      await deps.sitemapService.regenerateSitemapCache({ workspaceId: deps.workspaceId }, {});
       res.status(202).json({ data: { accepted: true } });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

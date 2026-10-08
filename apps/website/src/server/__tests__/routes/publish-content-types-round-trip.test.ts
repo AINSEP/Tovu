@@ -8,7 +8,7 @@ import type { NavMenuEntry } from "@jini-ai/cms/navigation";
 import type { PostRecord } from "#src/features/post/post";
 import type { PublishContentReport } from "#src/features/publish-content/planner";
 import { createPublishContentSeedHash } from "#src/features/publish-content/seed-hash";
-import { createRedirect } from "#src/features/redirects/index";
+import { createRedirect } from "@jini-ai/cms/redirects";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { toPublishContentDeps } from "#src/server/inbound/admin-http/routes/publish-content/deps";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

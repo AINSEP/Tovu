@@ -1,4 +1,4 @@
-import { askThenReport } from '../../contracts/core/tool-surface-exchanges.js';
+import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
 import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
 import type { DatabaseDestinationStorePort } from './destination-store.js';
 import { buildDestinationOutcome } from './destination-ui.js';
@@ -8,7 +8,7 @@ export function createDestinationExchangeReporter(
   { store, workspaceId }: { store: DatabaseDestinationStorePort; workspaceId: string },
   { localeForExchange = async () => 'en' }: { localeForExchange?: (required: { exchangeId: string }) => Promise<string> } = {},
 ): typeof askThenReport {
-  return (exchange, emission, handle) => askThenReport(exchange, emission, async answer => {
+  return ({ exchange, confirmationEmission: emission, handle }) => askThenReport({ exchange, confirmationEmission: emission, handle: async answer => {
     const settled = await handle(answer);
     const resource = (emission.payload as { resource?: { resource?: { uri?: string } } }).resource?.resource;
     if (!resource?.uri?.startsWith('ui://tovu/database-transfer-destination/')) return settled;
@@ -28,5 +28,5 @@ export function createDestinationExchangeReporter(
       result: { ...settled.result, tokenHint, connection: 'connected' },
       outcome: { channel: 'mcp-ui' as const, payload: { resource: buildDestinationOutcome({ exchangeId: exchange.id, state: 'success', message }) } },
     };
-  });
+  } });
 }

@@ -1,11 +1,11 @@
-import type { ExtensionClaim } from "#src/features/plugin-runtime/claim-conflicts";
-import { LIPAY_MANIFEST } from "#src/features/plugins/lipay/lipay-plugin";
-import { STORE_MANIFEST } from "#src/features/plugins/store/store-plugin";
+import type { ExtensionClaim } from "@jini-ai/plugins/host";
+import { LIPAY_MANIFEST } from "#src/features/plugins/lipay/manifest";
+import { STORE_MANIFEST } from "#src/features/plugins/store/manifest";
 
 /**
  * @file The names Tovu core itself holds, as conflict-detection claims (2026-10-04) — what a
  * plugin's `contributes` block may NOT take. Passed to `composePluginRuntime({ coreClaims })` by
- * both composition roots; see `features/plugin-runtime/plugin-claims.ts` for the rules and
+ * both composition roots; see `Jini/packages/plugins/src/host/plugin-claims.ts` for the rules and
  * `ADS-memory/specs/005-plugin-system/conflicts.spec.md` for the spec note.
  *
  * Namespaces, not inventories: core's own route table, permission set and tool catalog are each

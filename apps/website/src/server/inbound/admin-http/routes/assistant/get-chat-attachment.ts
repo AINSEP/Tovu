@@ -68,13 +68,21 @@ import {
  *  to confirm about it. */
 const ATTACHMENT_NOT_FOUND_BODY = { error: "attachment was not found", code: "NOT_FOUND" } as const;
 
+/** Registers the authenticated attachment read shell; the optional owner-scoped reader defaults
+ * to the filesystem adapter. Unexpected failures return a private 500 envelope.
+ * @complexity O(n) time/space in the attachment bytes read and served.
+ */
 export function registerAdminChatAttachmentReadRoute(
   app: Express,
-  deps: { readonly uploadDirectory: string }
+  deps: {
+    readonly uploadDirectory: string;
+    /** Owner-scoped reader boundary; defaults to the real filesystem implementation. */
+    readonly readChatAttachmentForOwner?: typeof readChatAttachmentForOwner;
+  }
 ): void {
   app.get("/api/attachments/:ref", async (req, res) => {
     try {
-      const result = await readChatAttachmentForOwner(deps, {
+      const result = await (deps.readChatAttachmentForOwner ?? readChatAttachmentForOwner)({ uploadDirectory: deps.uploadDirectory }, {
         ref: String(req.params.ref),
         ownerId: getAuthedPrincipal(res).id,
       });

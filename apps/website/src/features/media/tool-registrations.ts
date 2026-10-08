@@ -1,8 +1,10 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
+import { withToolMetadata } from '@jini-ai/core';
 import { nowIso } from "@jini-ai/core/primitives";
 
 import type { ToolContributor } from "#src/assistant/index";
 import { buildMediaRegistrations, mediaDerivedRisk, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
-import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { requireInputRecord, requireString, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
@@ -13,7 +15,7 @@ import { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
 
 /** Cosmetic only (ADR-027 §4 — never participates in the rendition lookup itself) — duplicated from
- *  `features/seo/media.ts`'s identical local copy rather than shared, per this codebase's own
+ *  `Jini/packages/cms/src/seo/media.ts`'s identical local copy rather than shared, per this codebase's own
  *  "duplicate the tiny thing, don't reach across files for it" convention (see e.g.
  *  `custom-credentials/agent-tools.ts`'s header for the same reasoning applied elsewhere). */
 const EXT_BY_TRANSFORM_FORMAT: Record<string, string> = { jpeg: "jpg", png: "png", webp: "webp", gif: "gif" };
@@ -246,7 +248,7 @@ export function buildMediaRegistrationsForTovu(
     maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
   });
 
-  return registrations.map((registration) => {
+  return withToolMetadata({ registrations, metadata: toolMetadata }).map((registration) => {
     if (registration.descriptor.id === MEDIA_TRASH_TOOL_ID) {
       return { ...registration, handler: buildMediaTrashHandler(routeDeps, registration.handler) };
     }

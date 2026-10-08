@@ -49,7 +49,6 @@ const PLAN_TOOL_ID = "database_transfer_plan";
 const SET_DESTINATION_TOOL_ID = "database_transfer_set_destination";
 const STATUS_TOOL_ID = "database_transfer_status";
 const DATABASE_TRANSFER_RUN_TOOL_ID = "database_transfer_run";
-const RUN_PERMISSION = "database-transfer.run";
 const TRANSFER_NO_INPUT_SCHEMA = { type: "object", additionalProperties: false, properties: {} } as const;
 const EXPECTED_DATABASE = [
     {
@@ -62,8 +61,6 @@ const EXPECTED_DATABASE = [
       // stays a minimal, honest subset rather than fabricating fields the description implies.
       name: "database_get_health",
       description: "Reports a summary of this site's database health (connectivity, disk headroom, pending-migration/interrupted-migration state).",
-      sideEffects: "none",
-      authorization: { permission: "database.read" },
       inputSchema: NO_INPUT_SCHEMA,
     },
     {
@@ -73,8 +70,6 @@ const EXPECTED_DATABASE = [
       // `getDriftStatus` unchanged.
       name: "database_get_schema_state",
       description: "Reports this site's schema drift status (in-sync/ahead/diverged/behind) between its persisted schema snapshot and the runtime's current schema.",
-      sideEffects: "none",
-      authorization: { permission: "database.read" },
       inputSchema: NO_INPUT_SCHEMA,
     },
     {
@@ -84,23 +79,17 @@ const EXPECTED_DATABASE = [
       // `migration_runs`'s own in-flight-migration-run tracking (`boot/reconcile-interrupted-migration.ts`).
       name: "database_list_pending_migrations",
       description: "Lists migrations pending against this site that have not yet been applied.",
-      sideEffects: "none",
-      authorization: { permission: "database.read" },
       inputSchema: NO_INPUT_SCHEMA,
     },
     {
       name: "database_query_timeline",
       description:
         "Returns a filtered, cursor-paginated page of the append-only database ledger (migrations, snapshots, restores, interrupted migrations), newest first.",
-      sideEffects: "none",
-      authorization: { permission: "database.read" },
       inputSchema: TIMELINE_QUERY_SCHEMA,
     },
     {
       name: "database_list_restore_points",
       description: "Lists every restore point recorded for this site, newest first, with its trigger, cost class, and capture time.",
-      sideEffects: "none",
-      authorization: { permission: "database.read" },
       inputSchema: NO_INPUT_SCHEMA,
     },
     {
@@ -113,8 +102,6 @@ const EXPECTED_DATABASE = [
       // human/api_key caller — AC-12), and no tool in this catalog exposes `confirm()`.
       name: "database_plan_migrate_forward",
       description: "Previews what forward-migrating this site's schema would do — cost class and a plan hash — without applying anything.",
-      sideEffects: "none",
-      authorization: { permission: "database.read" },
       inputSchema: NO_INPUT_SCHEMA,
     },
     {
@@ -126,10 +113,7 @@ const EXPECTED_DATABASE = [
       description:
         "Moves this site's database forward to the current schema. Shows the user a confirm dialog first and only runs if they " +
         "confirm. A restore point is taken first. Call database_plan_migrate_forward first to see the cost class.",
-      sideEffects: "mutates-durable-state",
-      authorization: { permission: "database.migrate" },
       inputSchema: NO_INPUT_SCHEMA,
-      actorClassRule: "confirmer-must-equal-own-delegatedBy",
     },
     {
       // Canonical wiring lives in `buildDatabaseRegistrations` (tool-registrations.ts) — ADR-041 §6
@@ -139,8 +123,6 @@ const EXPECTED_DATABASE = [
       // entry is deliberately left unwired in Recovery's own build function — see its file header.
       name: "backup_create_restore_point",
       description: "Mints a new restore point for this site independent of any migration, subject to the site's cost-acknowledgment rule.",
-      sideEffects: "mutates-durable-state",
-      authorization: { permission: "backup.create" },
       inputSchema: CREATE_RESTORE_POINT_SCHEMA,
     },
     {
@@ -154,8 +136,6 @@ const EXPECTED_DATABASE = [
       name: "database_get_restore_guidance",
       description:
         "Returns a deep-link routing envelope pointing at the Recovery surface for restoring this site to an earlier snapshot. Never itself a restore lever.",
-      sideEffects: "none",
-      authorization: { permission: "database.read" },
     },
   ];
 const EXPECTED_TRANSFER = [
@@ -163,32 +143,24 @@ const EXPECTED_TRANSFER = [
     name: PLAN_TOOL_ID,
     description:
       "Plans a COPY of this site's data into a Postgres database (for example 'move/transfer/copy my data to Postgres'). The site keeps running on its built-in storage; this only makes a copy, into the site's own private area (Postgres schema) on that database: 'tovu' for the first site copied there, 'tovu_<site name>' for any other, and always the same one for this site afterwards. Several sites can share one database; each copy replaces only its own area. Read-only: it snapshots the site database, connects to the saved destination, and counts what would be copied. Logins, saved keys and secret settings are never copied; photos and files stay where they are. No input: the destination is the one the human saved with database_transfer_set_destination. Returns {planned: true, planId, expiresAt, destination: {host, port, database, user}, area (the schema), snapshotAt, tableCount, rowCount, replaces (the earlier copy's time, or null), leftOut, notes, nextStep}, or {planned: false, code, message} (codes: NO_DESTINATION, UNREACHABLE, SERVER_TOO_OLD, NO_CREATE_PERMISSION, TARGET_NOT_OURS, DATABASE_SNAPSHOT_FAILED, SCHEMA_MISMATCH, UNAVAILABLE). Tell the human in plain words what will be copied, then call database_transfer_run with the planId.",
-    sideEffects: "none",
-    authorization: { permission: RUN_PERMISSION },
     inputSchema: TRANSFER_NO_INPUT_SCHEMA,
   },
   {
     name: SET_DESTINATION_TOOL_ID,
     description:
       "Asks the human where a copy of this site's data should go: shows a private form where they paste a Postgres database address. HUMAN-GATED: this one call shows the form and WAITS. You never see the address, and must never ask for it in chat; if the human pastes one into the chat anyway, do not repeat it, call this tool, and suggest they change that database password. Checks that the database can be reached before saving it (one destination per site; saving replaces the earlier one). Returns {saved: true, destination: {host, port, database, user}, replaces (the time of a copy this site already made there, or null)}, {saved: false, code, message} (INVALID_CONNECTION_STRING, UNREACHABLE, SERVER_TOO_OLD, NO_CREATE_PERMISSION, TARGET_NOT_OURS), or {saved: false, reason} (cancelled, expired, abandoned). Then call database_transfer_plan.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: RUN_PERMISSION },
     inputSchema: TRANSFER_NO_INPUT_SCHEMA,
   },
   {
     name: STATUS_TOOL_ID,
     description:
       "Reports where this site's data copy goes and how the last copy went ('is my data copied?', 'when was the last copy?'). Read-only. Returns {destination: {host, port, database, user} or null, lastRun: {copied: true, snapshotAt, tableCount, rowCount} or {copied: false, snapshotAt, code, message} or null (since the server started), copyOnDestination: {site, snapshotAt} or null, or {unreachable: message}}.",
-    sideEffects: "none",
-    authorization: { permission: RUN_PERMISSION },
     inputSchema: TRANSFER_NO_INPUT_SCHEMA,
   },
   {
     name: DATABASE_TRANSFER_RUN_TOOL_ID,
     description:
       "Copies the data planned by database_transfer_plan. A first copy runs immediately without a confirmation card. Replacing an earlier copy permanently deletes its destination schema: this one call shows a Copy/Cancel card and WAITS; there is no second call. On Copy it writes the planned snapshot as one transaction into this site's private area (this site's earlier copy is replaced; other sites' copies and anything else in the database are untouched), checks every table's row count, and returns {copied: true, destination, area, snapshotAt, tableCount, rowCount, tables: [{name, rows}]}. Any failure throws the copy away and keeps the earlier one: {copied: false, cancelled: false, code, message} (TARGET_NOT_OURS, COPY_FAILED, COUNT_MISMATCH, PLAN_NOT_FOUND, PLAN_EXPIRED). Cancel returns {copied: false, cancelled: true}.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: RUN_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,

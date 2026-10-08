@@ -1,8 +1,8 @@
 import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/post";
 import type { AssetBlobRepoPort, BlobStorePort, MediaContentTypeStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "#src/features/navigation/index";
-import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
-import type { FormDefinitionRepoPort } from "#src/features/forms/index";
+import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "#src/features/content-types/index";
 import type {
   ContentLookupPort,
@@ -20,7 +20,7 @@ import type {
 import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "#src/features/taxonomy/repo.sqlite";
 import type { EntryListPort, EntryRepoPort } from "#src/features/entries/index";
 import type { EntryRefsRepoPort } from "#src/contracts/core/entry-refs/ports";
-import type { WidgetRegionBindingRepoPort } from "#src/features/widgets/ports";
+import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
 import type { EntryListExcludingTypesPort } from "#src/features/entries/public-list";
 import type { EntryPublishReadPort } from "#src/features/entries/repo.sqlite";
 import type { FileBlobIndexPort } from "./file-blob-index.js";
@@ -28,7 +28,7 @@ import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
-import type { SettingsRepoPort } from "@jini-ai/cms/settings";
+import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import type { BackstopPorts } from "./backstop-ports.js";
 import type { BackstopMetadata } from "./backstop-audit.js";

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OAuthError, type OAuthErrorCode } from "../errors.js";
-import type { OAuthClient, OAuthClock, OAuthFetch, OAuthProviderDescriptor } from "../ports.js";
+import type { OAuthClient, OAuthProviderDescriptor } from "../ports.js";
 
 /**
  * @file Shared doubles for the `src/platform/oauth/` tests.
@@ -86,7 +86,7 @@ export interface ScriptedResponse {
 }
 
 export interface FetchDouble {
-  readonly fetchFn: OAuthFetch;
+  readonly fetchFn: typeof fetch;
   readonly requests: RecordedRequest[];
   /** How many times `fetchFn` was called. The retry assertions read this. */
   callCount(): number;
@@ -111,13 +111,13 @@ export function createFetchDouble(script: readonly ScriptedResponse[]): FetchDou
     if (step.throws) throw step.throws;
     const body = step.text ?? JSON.stringify(step.json ?? {});
     return new Response(body, { status: step.status ?? 200, headers: { "content-type": "application/json" } });
-  }) as OAuthFetch;
+  }) as typeof fetch;
 
   return { fetchFn, requests, callCount: () => calls };
 }
 
 /** A clock the test moves by hand. */
-export function createTestClock(startIso = "2026-08-25T12:00:00.000Z"): OAuthClock & Clock & { advance(ms: number): void; setIso(iso: string): void } {
+export function createTestClock(startIso = "2026-08-25T12:00:00.000Z"): Clock & { nowIso(): string } & { advance(ms: number): void; setIso(iso: string): void } {
   let nowMs = Date.parse(startIso);
   return {
     nowMs: () => nowMs,
@@ -371,7 +371,7 @@ export async function startDiscoveryFixture(options: DiscoveryFixtureOptions = {
 
 /** Bind the native HTTP test seam to Jini without permitting remote plaintext or private hosts.
  * Loopback HTTP is explicit because the real discovery fixtures use ephemeral local servers. */
-export function createTestOAuthPorts(required: { readonly fetchFn?: OAuthFetch }): OAuthHttpPorts {
+export function createTestOAuthPorts(required: { readonly fetchFn?: typeof fetch }): OAuthHttpPorts {
   return {
     guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
     fetchFn: ({ url }, init) => (required.fetchFn ?? globalThis.fetch)(url, init),

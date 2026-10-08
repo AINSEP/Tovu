@@ -1,10 +1,11 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { createHash } from "node:crypto";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 import type { PluginsToolDeps } from "../plugin-runtime/tool-registrations.js";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "../plugin-runtime/install-source.js";
-import { AgentPluginInstallError, maxAgentPluginInstallArchiveBytes } from "./install.js";
+import { AgentPluginInstallError, maxAgentPluginInstallArchiveBytes } from "./lifecycle.js";
 import { AgentPluginUploadError, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { resolveAgentPluginLayout } from "./layout.js";
@@ -34,7 +35,7 @@ export const catalog: AgentToolDefinition[] = [{
 export const derivedRisk: DerivedRiskByToolId = new Map([[AGENT_PLUGINS_INSTALL_TOOL_ID, "mutates-durable-state"]]);
 
 export function buildRegistrations(deps: AgentPluginsInstallToolDeps, _optional: Record<string, never> = {}): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "agent-plugins-install", catalogModule: "features/agent-plugins/install-tool.ts", catalog: indexCatalogById({ catalog }), derivedRisk,
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "agent-plugins-install", catalogModule: "features/agent-plugins/install-tool.ts", catalog: indexCatalogById({ catalog }), derivedRisk,
     handlers: { [AGENT_PLUGINS_INSTALL_TOOL_ID]: async ctx => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin" });
       const request = readPluginInstallRequest({ input: ctx.input });

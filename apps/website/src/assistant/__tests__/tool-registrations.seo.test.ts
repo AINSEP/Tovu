@@ -31,7 +31,8 @@ import {
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/settings.js";
-import { buildSitemap, invalidateSitemapCache, SITEMAP_INVALIDATED_EVENT } from "../../features/seo/sitemap.js";
+import { createSitemapService, SITEMAP_INVALIDATED_EVENT } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "../../features/seo/index.js";
 import { contributeSeoTools } from "../../features/seo/tool-registrations.js";
 
 import {
@@ -48,12 +49,8 @@ const contributions = {
 };
 
 
-// SEO moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`. Reset first so this file's own registration is the only one
-// this process's registry holds while these tests run.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
+// Reset first to isolate this file's registrations in the process registry.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeSeoTools() });
 
@@ -94,6 +91,8 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
   const principalRepo = new InMemoryPrincipalRepo({}, { initialRows: [] });
   const originRegistry = {
     canonicalOrigin: async () => ({ scheme: "https" as const, host: "example.test", verifiedAt: NOW, source: "workspace-setting" as const }),
+    isAllowedRedirectTarget: async () => false,
+    isAllowedEgressTarget: async () => false,
   };
 
   await ensureSeoSettingDefinitions(
@@ -129,7 +128,9 @@ async function fakeRouteDeps(options: { allow?: boolean; posts?: PostRecord[] } 
     originRegistry,
   };
 
-  return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, postRepo, settingsRepo, bus };
+  const seoDeps = createSeoDeps({ deps }, {});
+  const sitemapService = createSitemapService({ deps: seoDeps }, {});
+  return { deps: { ...deps, seoDeps, sitemapService } as unknown as RegistryDepsWithoutLimiter, authorizeCalls, postRepo, settingsRepo, bus };
 }
 
 function executionContext(input: Record<string, unknown> | undefined): ToolExecutionContext {
@@ -402,20 +403,19 @@ test("workflow: set site-wide settings, get settings to confirm the patch landed
 
 test("seo_regenerate_sitemap rebuilds the active cache rather than only acknowledging", async () => {
   const { deps, postRepo, bus } = await fakeRouteDeps();
-  const sitemapDeps = { postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry };
   const invalidated: unknown[] = [];
   await bus.subscribe({ eventName: SITEMAP_INVALIDATED_EVENT, handler: async (event) => { invalidated.push(event.workspaceId); } });
-  invalidateSitemapCache({ workspaceId: WORKSPACE_ID });
+  deps.sitemapService.invalidateSitemapCache({ workspaceId: WORKSPACE_ID }, {});
   try {
-    assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/hello-world"]);
+    assert.deepEqual((await deps.sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {})).map(({ loc }) => loc), ["https://example.test/hello-world"]);
     await postRepo.save(seedPost({ slug: "updated-slug", version: 2 }));
-    assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/hello-world"]);
+    assert.deepEqual((await deps.sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {})).map(({ loc }) => loc), ["https://example.test/hello-world"]);
     assert.deepEqual(await wired(deps, "seo_regenerate_sitemap").handler(executionContext({})), { accepted: true });
-    assert.deepEqual((await buildSitemap(sitemapDeps, { workspaceId: WORKSPACE_ID })).map(({ loc }) => loc), ["https://example.test/updated-slug"]);
+    assert.deepEqual((await deps.sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {})).map(({ loc }) => loc), ["https://example.test/updated-slug"]);
     // The serving process caches its own sitemap; only this event reaches it.
     assert.deepEqual(invalidated, [WORKSPACE_ID]);
   } finally {
-    invalidateSitemapCache({ workspaceId: WORKSPACE_ID });
+    deps.sitemapService.invalidateSitemapCache({ workspaceId: WORKSPACE_ID }, {});
   }
 });
 

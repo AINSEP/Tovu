@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderHtmlForm } from "#src/features/forms/html-render";
+import { renderHtmlForm } from "@jini-ai/cms/forms";
 import { injectFormAttemptTokens, injectFormSubmissionResultIntoHtml } from "../form-render.js";
 import { renderWidgetIr } from "../render.js";
 
@@ -19,7 +19,7 @@ function counter() {
 const builderForm = () => renderWidgetIr({ componentId: "contact-form", props: {
   slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }],
 } });
-const htmlModeForm = () => renderHtmlForm({ slug: "signup", action: "/forms/signup/submit", fields: [{ id: "email", label: "Email", type: "email", required: true }] });
+const htmlModeForm = () => renderHtmlForm({ slug: "signup", action: "/forms/signup/submit", fields: [{ id: "email", label: "Email", type: "email", required: true }] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } });
 
 test("injectFormAttemptTokens: a Builder form and an HTML-mode form each get their own hidden token as their first child", () => {
   const html = injectFormAttemptTokens(`<main>${builderForm()}${htmlModeForm()}</main>`, { newToken: counter() });

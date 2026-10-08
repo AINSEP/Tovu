@@ -27,25 +27,16 @@
  * so importing it pulls in exactly one file. A runtime `import` added here would be inherited by
  * every consumer that chose this module precisely to avoid one.
  */
-import type { ExportReport } from "./site-exporter.js";
-
 /**
  * Named-field summary of the FIRST failure across BOTH `report.routes.failed` and
  * `report.assets.failed`, in that order. `identifier` normalizes the two collections' disagreeing
  * field name (`FailedRoute.path` vs `FailedAsset.url`) to one name callers can interpolate without
  * a branch. See {@link firstExportFailure}'s own doc for why a caller must check both collections.
  */
-export interface ExportFailureSummary {
-  /** Which collection the first failure came from. */
-  kind: "route" | "asset";
-  /** `FailedRoute.path` for a route, `FailedAsset.url` for an asset. */
-  identifier: string;
-  reason: string;
-  /** Total failures in `kind`'s own collection — NOT combined with the other collection's count —
+/** Which collection the first failure came from. */
+/** `FailedRoute.path` for a route, `FailedAsset.url` for an asset. */
+/** Total failures in `kind`'s own collection — NOT combined with the other collection's count —
    *  enough for a caller's "N failed" message without re-deriving it from the report. */
-  count: number;
-}
-
 /**
  * Returns the first failure in `report` (routes checked before assets), or `undefined` when
  * neither collection has one. The one shared "does this export block publishing" check, so every
@@ -58,14 +49,8 @@ export interface ExportFailureSummary {
  *
  * @complexity O(1) — reads only `.length` and the first array element of each collection.
  */
-export function firstExportFailure(report: ExportReport): ExportFailureSummary | undefined {
-  if (report.routes.failed.length > 0) {
-    const first = report.routes.failed[0]!;
-    return { kind: "route", identifier: first.path, reason: first.reason, count: report.routes.failed.length };
-  }
-  if (report.assets.failed.length > 0) {
-    const first = report.assets.failed[0]!;
-    return { kind: "asset", identifier: first.url, reason: first.reason, count: report.assets.failed.length };
-  }
-  return undefined;
-}
+import { firstExportFailure as firstFailure } from "@jini-ai/devops/static-export/failure-summary";
+import type { ExportReport } from "@jini-ai/devops/static-export";
+export type { ExportFailureSummary } from "@jini-ai/devops/static-export/failure-summary";
+/** Keep this import a runtime leaf; publishing must not load the exporter just to check failure. */
+export function firstExportFailure(report: ExportReport) { return firstFailure({ report }, {}); }

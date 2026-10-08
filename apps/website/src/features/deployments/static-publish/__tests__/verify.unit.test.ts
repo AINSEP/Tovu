@@ -5,7 +5,7 @@ import { createHash, createHmac } from "node:crypto";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
+import { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";
 import type { PublishCredentialSource } from "../types.js";
 import {
   canYieldAccountLabel,
@@ -34,7 +34,7 @@ function makeWriteDeps(): PublishCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let counter = 0;
   return {
-    repo: new InMemoryVendorCredentialSetRepo(),
+    repo: new InMemoryVendorCredentialSetRepo({}),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock,
@@ -249,7 +249,7 @@ test("verifyPublishCredential: GitHub rejects (401) — status:'invalid', distin
 
   assert.ok(result);
   assert.equal(result!.status, "invalid");
-  assert.match(result!.message, /GitHub rejected this credential \(HTTP 401\)/);
+  assert.equal(result!.message, "The server rejected this token.");
   assert.equal(JSON.stringify(result).includes("ghp_should_never_leak"), false);
   assert.equal(JSON.stringify(result).includes("Bad credentials"), false, "the provider's own response body must never be echoed");
 });
@@ -332,7 +332,7 @@ test("verifyPublishCredential: GitHub rejects with 403 (not just 401) — status
 
   assert.ok(result);
   assert.equal(result!.status, "invalid");
-  assert.match(result!.message, /GitHub rejected this credential \(HTTP 403\)/);
+  assert.equal(result!.message, "The server rejected this token.");
 });
 
 test("verifyPublishCredential: an HTTP-level provider failure (5xx, not a network throw) is status:'unreachable' WITH the status code in the message", async () => {

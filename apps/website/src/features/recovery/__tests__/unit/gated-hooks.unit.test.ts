@@ -15,11 +15,11 @@ for (const [error, expected] of [
   ["untyped failure", { code: "INTERNAL_ERROR", message: "internal error" }],
 ] as const) {
   test(`recovery result maps ${expected.code}: ${expected.message}`, async () => {
-    assert.deepEqual(await toRecoveryResult(async () => { throw error; }), { ok: false, error: expected });
+    assert.deepEqual(await toRecoveryResult({ run: async () => { throw error; } }, {}), { ok: false, error: expected });
   });
 }
 test("recovery result returns the successful value intact", async () => {
-  assert.deepEqual(await toRecoveryResult(async () => ({ state: "RESTORED", restartRequired: true })),
+  assert.deepEqual(await toRecoveryResult({ run: async () => ({ state: "RESTORED", restartRequired: true }) }, {}),
     { ok: true, value: { state: "RESTORED", restartRequired: true } });
 });
 

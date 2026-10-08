@@ -506,7 +506,7 @@ test("publish-credentials: POST .../:id/verify re-checks an existing connection 
   assert.equal(verified.status, 200);
   const { verification } = await verified.json();
   assert.equal(verification.status, "invalid");
-  assert.match(verification.message, /GitHub rejected this credential.*HTTP 401/);
+  assert.equal(verification.message, "The server rejected this token.");
   assert.equal(typeof verification.checkedAt, "string");
   assert.equal(JSON.stringify(verification).includes("github-secret-token"), false);
 });

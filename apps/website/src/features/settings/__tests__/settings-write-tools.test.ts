@@ -3,11 +3,17 @@ import test from "node:test";
 import type { Express, Request, Response } from "express";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import type { ToolExecutor } from "@jini-ai/daemon";
-import { InMemorySettingsRepo, type SettingDefinitionRecord, type SettingsToolDeps } from "@jini-ai/cms/settings";
+import { InMemorySettingsRepo, type SettingDefinitionRecord } from "@jini-ai/core/settings";
+import { createNativeApprovalMemory } from "../../../contracts/core/native-approval-memory.js";
+import { createInMemoryConversationToolApprovalStore } from "../../../assistant/external-mcp-tool-approval-adapters.js";
+import type { SettingsToolDeps } from "../tool-registrations.js";
 import { contributeSettingsTools } from "../tool-registrations.js";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
-import { RUN_PRINCIPAL_HEADER } from "#src/assistant/run-ownership";
+import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
+import { createSystemClock } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 function fixture(namespace: string, key: string, schema: SettingDefinitionRecord["schema"] = { type: "string" }) {
   const definition: SettingDefinitionRecord = {
@@ -18,12 +24,13 @@ function fixture(namespace: string, key: string, schema: SettingDefinitionRecord
     createdAt: "2026-10-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z",
   };
   const settingsRepo = new InMemorySettingsRepo({ definitions: [definition] });
+  let allowed = true;
   const deps = {
     workspaceId: "ws-1", settingsRepo, settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(),
     clock: { nowMs: () => Date.parse(definition.createdAt) }, idGen: { newId: () => "unused" },
-    principalRepo: { findById: async () => null }, authorize: async () => ({ allowed: true, reason: "matched" }),
+    principalRepo: { findById: async () => null }, authorize: async () => ({ allowed, reason: allowed ? "matched" : "insufficient_permission" }),
   } as unknown as SettingsToolDeps;
-  const surfaceExchanges = createSurfaceExchangeStore({ newExchangeId: () => "exchange-1" });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => "exchange-1" }, defaultChannel: "mcp-ui" });
   const registrations = contributeSettingsTools().build(deps as never, { surfaceExchanges });
   const call = (toolId: string, input: Record<string, unknown>, extras: Partial<ToolExecutionContext> & ToolExecutionOptions = {}) => {
     const registration = registrations.find((r) => r.descriptor.id === toolId);
@@ -31,7 +38,7 @@ function fixture(namespace: string, key: string, schema: SettingDefinitionRecord
     const { emitSurface, ...contextExtras } = extras;
     return registration.handler({ executionId: "exec-1", principal: { id: "caller" }, run: { id: "run-1" }, signal: new AbortController().signal, input, ...contextExtras }, { emitSurface });
   };
-  return { settingsRepo, registrations, surfaceExchanges, call, deps };
+  return { settingsRepo, registrations, surfaceExchanges, call, deps, deny: () => { allowed = false; } };
 }
 
 test("normal setting runs directly and both writes are durable, not readOnly", async () => {
@@ -41,7 +48,7 @@ test("normal setting runs directly and both writes are durable, not readOnly", a
   for (const toolId of ["settings_set_value", "settings_clear_value"]) assert.equal(f.registrations.find((r) => r.descriptor.id === toolId)!.descriptor.readOnly, false);
 });
 
-for (const [namespace, key] of [["core.privacy", "telemetry.metrics"], ["core.instructions", "custom"], ["core.execution", "localCli.permissionLevel"], ["core.execution", "mode"], ["core.execution", "byok.protocol"], ["core.execution", "byok.providerId"], ["core.execution", "byok.baseUrl"], ["core.execution", "localCli.agentId"]]) {
+for (const [namespace, key] of [["core.execution", "localCli.permissionLevel"], ["core.execution", "mode"], ["core.execution", "byok.protocol"], ["core.execution", "byok.providerId"], ["core.execution", "byok.baseUrl"], ["core.execution", "localCli.agentId"]]) {
   for (const toolId of ["settings_set_value", "settings_clear_value"]) {
     test(`${toolId} ${namespace}.${key} refuses headless writes and model consent`, async () => {
       const f = fixture(namespace!, key!);
@@ -54,18 +61,18 @@ for (const [namespace, key] of [["core.privacy", "telemetry.metrics"], ["core.in
 }
 
 for (const decision of ["confirm", "cancel", "typed"] as const) {
-  test(`real card ${decision} reaches the held call; only confirm mutates privacy`, async () => {
-    const f = fixture("core.privacy", "telemetry.metrics", { type: "boolean" });
+  test(`real card ${decision} reaches the held call; only confirm mutates execution settings`, async () => {
+    const f = fixture("core.execution", "mode", { type: "boolean" });
     const emitSurface: NonNullable<ToolExecutionOptions["emitSurface"]> = async (emission) => {
       assert.equal(emission.channel, "mcp-ui");
       assert.equal((await f.settingsRepo.listRevisions({ settingId: "setting-1" })).length, 0);
-      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", toolId: "settings_clear_value", principalId: "caller", params: { decision: "confirm" } }), { ok: false, reason: "binding-mismatch" });
-      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", toolId: "settings_set_value", principalId: "other", params: { decision: "confirm" } }), { ok: false, reason: "binding-mismatch" });
-      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", toolId: "settings_set_value", principalId: "caller", params: decision === "typed" ? { __typedAnswer: "yes" } : { decision } }), { ok: true });
+      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_clear_value" }), { ok: false, reason: "binding-mismatch" });
+      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "other", params: { decision: "confirm" } }, { toolId: "settings_set_value" }), { ok: false, reason: "binding-mismatch" });
+      assert.deepEqual(f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: decision === "typed" ? { __typedAnswer: "yes" } : { decision } }, { toolId: "settings_set_value" }), { ok: true });
     };
-    const operation = () => f.call("settings_set_value", { namespace: "core.privacy", key: "telemetry.metrics", value: true }, { emitSurface });
+    const operation = () => f.call("settings_set_value", { namespace: "core.execution", key: "mode", value: true }, { emitSurface });
     if (decision === "confirm") {
-      assert.deepEqual(await operation(), { key: "core.privacy.telemetry.metrics", scope: "workspace", previous: null, value: true, revisionSeq: 1 });
+      assert.deepEqual(await operation(), { key: "core.execution.mode", scope: "workspace", previous: null, value: true, revisionSeq: 1 });
       assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, true);
     } else {
       await assert.rejects(operation, { name: "ToolInputError", message: "settings_set_value: the human did not confirm the change. Nothing was changed." });
@@ -77,9 +84,9 @@ for (const decision of ["confirm", "cancel", "typed"] as const) {
 
 test("clear runtime override waits for a human and falls back to default", async () => {
   const f = fixture("core.execution", "mode");
-  const emitSurface = async () => { f.surfaceExchanges.deliver({ exchangeId: "exchange-1", toolId: "settings_set_value", principalId: "caller", params: { decision: "confirm" } }); };
+  const emitSurface = async () => { f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" }); };
   await f.call("settings_set_value", { namespace: "core.execution", key: "mode", value: "local-cli" }, { emitSurface });
-  const clearSurface = async () => { f.surfaceExchanges.deliver({ exchangeId: "exchange-1", toolId: "settings_clear_value", principalId: "caller", params: { decision: "confirm" } }); };
+  const clearSurface = async () => { f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_clear_value" }); };
   assert.deepEqual(await f.call("settings_clear_value", { namespace: "core.execution", key: "mode" }, { emitSurface: clearSurface }), { key: "core.execution.mode", scope: "workspace", previous: "local-cli", effective: "default" });
 });
 
@@ -89,10 +96,10 @@ test("host site-title validation is honored by generic writes", async () => {
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
 });
 
-for (const [namespace, key] of [["core.instructions", "custom"], ["core.execution", "localCli.permissionLevel"]] as const) {
+for (const [namespace, key] of [["core.execution", "byok.protocol"], ["core.execution", "localCli.permissionLevel"]] as const) {
   test(`${namespace}.${key} is writable after a human click`, async () => {
     const f = fixture(namespace, key);
-    const emitSurface = async () => { f.surfaceExchanges.deliver({ exchangeId: "exchange-1", toolId: "settings_set_value", principalId: "caller", params: { decision: "confirm" } }); };
+    const emitSurface = async () => { f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" }); };
     assert.deepEqual(await f.call("settings_set_value", { namespace, key, value: "new" }, { emitSurface }), { key: `${namespace}.${key}`, scope: "workspace", previous: null, value: "new", revisionSeq: 1 });
     assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, "new");
   });
@@ -110,9 +117,9 @@ test("visitor-facing assistant availability is an ordinary site setting and runs
 });
 
 test("aborting a held card closes it without a write", async () => {
-  const f = fixture("core.instructions", "custom");
+  const f = fixture("core.execution", "byok.protocol");
   const controller = new AbortController();
-  await assert.rejects(() => f.call("settings_set_value", { namespace: "core.instructions", key: "custom", value: "new" }, { signal: controller.signal, emitSurface: async () => { controller.abort(); } }), { name: "ToolInputError", message: "settings_set_value: the human did not confirm the change. Nothing was changed." });
+  await assert.rejects(() => f.call("settings_set_value", { namespace: "core.execution", key: "byok.protocol", value: "new" }, { signal: controller.signal, emitSurface: async () => { controller.abort(); } }), { name: "ToolInputError", message: "settings_set_value: the human did not confirm the change. Nothing was changed." });
   assert.equal(f.surfaceExchanges.size(), 0);
   assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
 });
@@ -120,7 +127,7 @@ test("aborting a held card closes it without a write", async () => {
 for (const toolId of ["settings_set_value", "settings_clear_value"] as const) {
   for (const decision of ["confirm", "cancel", "typed"] as const) {
     test(`${toolId}: real callback route delivers ${decision} to the held card without executing again`, async () => {
-      const f = fixture("core.instructions", "custom");
+      const f = fixture("core.execution", "byok.protocol");
       let callback!: (req: Request, res: Response) => Promise<void>;
       let executions = 0;
       // Only the HTTP transport is replaced. The route's allowlist, identity parsing,
@@ -145,12 +152,12 @@ for (const toolId of ["settings_set_value", "settings_clear_value"] as const) {
         assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
         assert.deepEqual(await reply(toolId, "caller", decision === "typed" ? { __typedAnswer: "yes" } : { decision }), { status: 202, body: { delivered: true } });
       };
-      const input = { namespace: "core.instructions", key: "custom", ...(toolId === "settings_set_value" ? { value: "new" } : {}) };
+      const input = { namespace: "core.execution", key: "byok.protocol", ...(toolId === "settings_set_value" ? { value: "new" } : {}) };
       const operation = () => f.call(toolId, input, { emitSurface });
       if (decision === "confirm") {
         assert.deepEqual(await operation(), toolId === "settings_set_value"
-          ? { key: "core.instructions.custom", scope: "workspace", previous: null, value: "new", revisionSeq: 1 }
-          : { key: "core.instructions.custom", scope: "workspace", previous: null, effective: "default" });
+          ? { key: "core.execution.byok.protocol", scope: "workspace", previous: null, value: "new", revisionSeq: 1 }
+          : { key: "core.execution.byok.protocol", scope: "workspace", previous: null, effective: "default" });
         assert.equal((await f.settingsRepo.listRevisions({ settingId: "setting-1" })).length, 1);
       } else {
         await assert.rejects(operation, { name: "ToolInputError", message: `${toolId}: the human did not confirm the change. Nothing was changed.` });
@@ -174,3 +181,53 @@ for (const [key, value] of [["byok.model", "model-a"], ["byok.maxTokens", 512], 
     assert.equal((await f.settingsRepo.listRevisions({ settingId: "setting-1" })).length, 2);
   });
 }
+
+for (const [namespace, key] of [["core.privacy", "telemetry.metrics"], ["core.instructions", "custom"]]) {
+  test(`${namespace}.${key} is an ordinary edit without a card`, async () => {
+    const f = fixture(namespace!, key!);
+    await f.call("settings_set_value", { namespace, key, value: "new" }, { emitSurface: async () => assert.fail("ordinary edit asked") });
+    assert.equal((await f.settingsRepo.listRevisions({ settingId: "setting-1" })).length, 1);
+    assert.equal(f.surfaceExchanges.size(), 0);
+  });
+}
+
+test("execution escalation asks once per plugin digest and saved grants do not bypass current authorization", async () => {
+  const f = fixture("core.execution", "mode");
+  let identity = "plugin@1/digest1", cards = 0;
+  f.deps.approvalIdentityForRun = async () => ({ key: identity, label: "Example Plugin", version: identity });
+  f.deps.nativeApprovalMemory = createNativeApprovalMemory({ store: createInMemoryConversationToolApprovalStore(), workspaceId: "ws-1", clock: { nowMs: () => 0 }, conversationIdForRun: () => "chat-1" });
+  const write = (value: string) => f.call("settings_set_value", { namespace: "core.execution", key: "mode", value }, { emitSurface: async () => {
+    cards++; f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" });
+  } });
+  await write("first"); await write("second"); assert.equal(cards, 1);
+  identity = "plugin@2/digest2"; await write("third"); assert.equal(cards, 2);
+  f.deny();
+  await assert.rejects(write("fourth"), {
+    name: "ToolInputError",
+    message: "settings_set_value: permission 'settings.workspace.write' is required. Ask the owner to grant it before retrying.",
+  });
+  assert.equal(cards, 2);
+  assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, "third");
+});
+
+test("a plugin identity changed during the human wait cannot change execution settings", async () => {
+  const f = fixture("core.execution", "mode");
+  let identity = "plugin@1/digest1";
+  f.deps.approvalIdentityForRun = async () => ({ key: identity, label: "Example Plugin", version: identity });
+  await assert.rejects(f.call("settings_set_value", { namespace: "core.execution", key: "mode", value: "new" }, { emitSurface: async () => {
+    identity = "plugin@2/digest2";
+    f.surfaceExchanges.deliver({ exchangeId: "exchange-1", principalId: "caller", params: { decision: "confirm" } }, { toolId: "settings_set_value" });
+  } }), { message: "settings_set_value: the human did not confirm the change. Nothing was changed." });
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+});
+
+test("the invoking plugin's saved enable grant also covers execution settings without another ask", async () => {
+  const f = fixture("core.execution", "mode");
+  const memory = createNativeApprovalMemory({ store: createInMemoryConversationToolApprovalStore(), workspaceId: "ws-1", clock: { nowMs: () => 0 }, conversationIdForRun: () => "chat-1" });
+  f.deps.nativeApprovalMemory = memory;
+  f.deps.approvalIdentityForRun = async () => ({ key: "canonical-plugin-enable-key", label: "Example", version: "1" });
+  await memory.grant({ ctx: { executionId: "exec", principal: { id: "caller" }, run: { id: "run-1" }, input: {}, signal: new AbortController().signal }, key: "canonical-plugin-enable-key", confirmer: { id: "caller", kind: "user" } });
+  await f.call("settings_set_value", { namespace: "core.execution", key: "mode", value: "new" }, { emitSurface: async () => assert.fail("the same identity asked twice") });
+  assert.equal(f.surfaceExchanges.size(), 0);
+  assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, "new");
+});

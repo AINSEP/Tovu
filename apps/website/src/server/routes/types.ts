@@ -1,4 +1,8 @@
 import type { Express } from "express";
+import type { RememberedApprovalPort } from "@jini-ai/core";
+import type { SettingsToolDeps } from "#src/features/settings/tool-registrations";
+import type { createSitemapService } from "@jini-ai/cms/seo";
+import type { SeoHostBindings } from "#src/features/seo/index";
 import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
@@ -26,7 +30,6 @@ import type {
   UserRepoPort,
 } from "@jini-ai/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
-import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
@@ -45,7 +48,6 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
 } from "../../features/members/index.js";
-import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce/index.js";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
 import type { RemoveMenuFn } from "../../features/navigation/trash-menu.js";
@@ -67,7 +69,7 @@ import type { MediaProviderCredentialRepoPort } from "../../features/media/index
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
 import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../../assistant/external-mcp-tool-approval-ports.js";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
-import type { PendingAuthorizationStore } from "#src/platform/oauth/index";
+import type { PendingAuthorizationStore } from "@jini-ai/oauth";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -83,10 +85,10 @@ import type {
 // this host's wider public media surface.
 import type { HydrateBlobStoreFromSeedResult } from "../../features/media/hydrate-blob-store-from-seed.js";
 import type { RemoveMediaFn } from "../../features/media/tool-registrations.js";
-import type { OriginRegistryPort } from "../../features/origin/index.js";
-import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "../../features/forms/index.js";
-import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../features/comments/index.js";
+import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
+import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "@jini-ai/cms/comments";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline.js";
 import type {
@@ -135,14 +137,14 @@ import type {
   TermTrashReadPort,
   TaxonomyTrashReadPort,
 } from "../../features/taxonomy/trash-term.js";
-import type { WidgetRegionBindingRepoPort, RemoveWidgetFn } from "../../features/widgets/ports.js";
+import type { WidgetRegionBindingRepoPort, RemoveWidgetFn } from "@jini-ai/cms/widgets";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
-import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
-import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
-import type { HookRegistry } from "../../features/plugin-runtime/hook-registry.js";
-import type { PluginConflict } from "../../features/plugin-runtime/plugin-claims.js";
-import type { PluginPackageFiles } from "../../features/plugin-runtime/package-files.js";
-import type { RemovePluginFn } from "../../features/plugin-runtime/uninstall.js";
+import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
+import type { PluginConflict } from "@jini-ai/plugins/host";
+import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
+import type { RemovePluginFn } from "@jini-ai/plugins/host";
 import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
 import type { PublishContentBundleRepoPort } from "../../features/publish-content/bundle-staging.js";
@@ -153,10 +155,7 @@ import type { PublishContentPeerRepoPort } from "../../features/publish-content/
 import type { FileBlobIndexPort } from "../../features/publish-content/file-blob-index.js";
 
 /**
- * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the process-wide clock + id-gen
- * seam. Split out first because it is the smallest, most stable pair in the bag (used by nearly every
- * write chokepoint, but never grows past these two members) and has zero coupling to any other
- * domain group here.
+ * Process-wide clock and id generation, independent of every domain group.
  */
 export interface ClockDeps {
   clock: { nowMs(): number; nowIso(): string };
@@ -164,19 +163,13 @@ export interface ClockDeps {
 }
 
 /**
- * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the identity/auth-repo fields
- * `requireAdminSession`/`registerAuthRoutes` (`inbound/admin-http/dev-auth.ts`) actually consume, extracted
- * verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps` below.
- *
- * `identity` library repo ports (ADR-021 / SPEC-006) — principal-centric
- * auth. In-memory only this pass (see `identity/INFO.md`); real login,
- * sessions, and the RBAC seed run against these.
+ * Principal-centric auth ports (ADR-021 / SPEC-006) used by admin authentication.
  */
 export interface IdentityDeps {
   /** The same transaction/session token ports the identity root binds; callers cannot omit them. */
   transactions: import("@jini-ai/user-management").IdentityRepos["transactions"];
   tokens: import("@jini-ai/user-management").SessionTokenPort;
-  principalRepo: PrincipalRepoPort & import("@jini-ai/cms/settings").SettingsPrincipalLookupPort;
+  principalRepo: PrincipalRepoPort & import("@jini-ai/core/settings").SettingsPrincipalLookupPort;
   userRepo: UserRepoPort;
   sessionRepo: SessionRepoPort;
   roleRepo: RoleRepoPort;
@@ -229,30 +222,15 @@ export interface IdentityDeps {
 }
 
 /**
- * Slice 2 of the `RouteDeps` god-object decomposition (2026-08-18) — the `media` library's
- * asset/blob/transform ports (ADR-027), extracted verbatim (fields + doc comments unchanged) from
- * where they lived inline in `RouteDeps` below.
- *
- * Unlike `ClockDeps`/`IdentityDeps` above, this group already had a real narrow consumer BEFORE
- * this extraction: every media route (`routes/admin/media/*.ts`'s 5 admin routes + the public
- * `routes/site/media-rendition.ts`) is typed against `routes/admin/media/deps.ts`'s
- * `MediaRouteDeps`, which hand-picked these same 6 keys off `RouteDeps` via `Pick`. That file now
- * composes `MediaDeps` directly instead of re-listing the keys a second time — see its own doc.
- * The two mixed-domain slices that also touch a couple of these fields
- * (`routes/admin/content/deps.ts`'s `ContentRouteDeps`, `routes/admin/seo/deps.ts`'s
- * `SeoRouteDeps`) are deliberately left alone: each needs only 2-3 of the 6 fields alongside a
- * larger, unrelated set (posts/pages/change-sets for the former, SEO settings for the latter), so
- * pulling in the whole `MediaDeps` group there would widen rather than narrow their real surface.
+ * Media asset/blob/transform ports (ADR-027). Mixed-domain consumers pick only the
+ * fields they need rather than inheriting the entire group.
  */
 export interface MediaDeps {
   /**
-   * `media` library ports (ADR-027 walking skeleton — see `src/media/INFO.md`
-   * for the disclosed scope: bespoke `MediaRecord` table instead of the
-   * not-yet-implemented generic entries model, no journaled GC, no transform
-   * pipeline, no origin-isolated serving). `mediaRepo` is the bespoke table's
-   * repo (not a frozen ADR port, same status as `menuRepo`); `assetBlobRepo`/
-   * `assetRenditionRepo` are the two core-owned sidecars ADR-027 §2 specifies;
-   * `blobStore` is the one real ADR-027 §1 `BlobStorePort`.
+   * Media persistence (ADR-027): the bespoke `MediaRecord` repo is not a frozen ADR
+   * port. `assetBlobRepo`/`assetRenditionRepo` are core-owned sidecars (ADR-027 §2);
+   * `blobStore` implements the ADR-027 §1 blob-store contract. The media module's
+   * INFO.md owns scope disclosures for GC and origin isolation.
    */
   mediaRepo: VersionedMediaRepoPort;
   assetBlobRepo: AssetBlobRepoPort;
@@ -310,22 +288,9 @@ export interface MediaDeps {
 }
 
 /**
- * Slice 3 of the `RouteDeps` god-object decomposition (2026-08-18) — the site/admin credential-set
- * repos and their two shared ADR-058 sealing capabilities, extracted verbatim (fields + doc comments
- * unchanged) from where they lived inline in `RouteDeps` below.
- *
- * All ten fields are secret-adjacent (a sealed connection, a token, or the shared capability that
- * seals/opens one), but no single consumer reads more than a handful at once: every credential-CRUD
- * route (`routes/admin/system/{custom,source-control,vendor,publish}-credentials.ts`) reads its OWN
- * repo plus the two shared sealer/keyring fields, never another route's repo. Narrowed call sites so
- * far: the four `routes/admin/system/*-credentials.ts` files (each was a bare `RouteDeps` alias
- * before this slice, now a `Pick<RouteDeps, ...>` naming its own repo + the two shared fields — see
- * each file's own doc). `routes/admin/media/deps.ts`'s `MediaProviderRouteDeps` and `routes/admin/
- * external-mcp/deps.ts`'s `ExternalMcpRouteDeps` are left alone: both already `Pick` this same
- * shape (their own repo + the two shared fields) straight off `RouteDeps`, and composing this whole
- * ten-field group into either would add the other 8 credential fields neither one reads — the exact
- * "would widen, not narrow" case Slice 2's own doc already established for `ContentRouteDeps`/
- * `SeoRouteDeps`.
+ * ADR-058 credential repositories and shared sealing capabilities. Credential-CRUD
+ * routes receive their own repo plus the shared sealer/keyring, never the other credential
+ * repositories; inheriting the whole group would widen their secret-adjacent surface.
  */
 export interface CredentialsDeps {
   /**
@@ -404,6 +369,9 @@ export interface CredentialsDeps {
    * restart. Optional: a composition without it never offers "Allow for this chat".
    */
   conversationToolApprovals?: ConversationToolApprovalStore;
+  /** Native escalation grants use the same conversation-owned store and trusted plugin identity. */
+  nativeApprovalMemory?: RememberedApprovalPort;
+  approvalIdentityForRun?: SettingsToolDeps["approvalIdentityForRun"];
   /**
    * The OAuth subsystem for `authMode: "oauth"` external MCP connections
    * (`assistant/external-mcp-oauth.ts`), or absent.
@@ -559,58 +527,37 @@ export interface CredentialsDeps {
 }
 
 /**
- * Slice 3 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-022/ADR-043/ADR-044
- * content-model repos (`content-types`/`entries`/`taxonomy`/`entry_refs`), extracted verbatim (fields
- * + doc comments unchanged) from where they lived inline in `RouteDeps` below.
- *
- * The original "Admin-UI backend-gap closure" design-spec comment covering this cluster ALSO covers
- * `stampWatermark`/`restorePointsRepo`/`dbOps`/`databaseIntrospection`/`siteStatusRepo`/
- * `disclosureWatermarkSource`/`deepLinkRestorePointLookup` below — none of those are part of this
- * group, so that comment stays put, still attached to `stampWatermark` (the first field of that
- * original cluster still declared directly on `RouteDeps`).
- *
- * `entryRefsRepo` is included here even though it physically lived elsewhere in `RouteDeps` (next to
- * `widgetBindingRepo`, ADR-022 §5/SPEC-043) — schema-owned by `core`, but its own repo port
- * (`EntryRefsRepoPort`) is exactly this group's shape of thing (a content-model persistence seam), so
- * it groups here per this slice's own field list rather than with `widgets`.
- *
- * No consumer narrowed to this group this slice: `routes/admin/content-types/deps.ts`'s
- * `ContentTypesRouteDeps` and `routes/admin/taxonomy/deps.ts`'s `TaxonomyRouteDeps` each already
- * `Pick` only 3-4 of these 8 fields alongside other, non-group fields (`outbox`/`postRepo`/
- * `stampWatermark`) — composing the whole group into either would widen rather than narrow, the same
- * "leave alone" case Slice 2 already established for `ContentRouteDeps`/`SeoRouteDeps`.
- * `widgets/deps.ts`'s `WidgetsRouteDeps` (reads `entryRepo`/`contentTypeRepo`/`entryRefsRepo`, 3 of
- * these 8) is declared fully structurally on purpose — its own header says it is "free of a back-edge
- * into the composition root" — so it is left alone for a different, stronger reason: importing this
- * named type would reopen exactly the edge it was written to avoid.
+ * Content-model persistence ports (ADR-022/ADR-043/ADR-044). The core-owned
+ * `entryRefsRepo` belongs here as a content-model persistence seam, not with widgets.
+ * Mixed-domain routes pick only the fields they need. Structural widget dependencies
+ * avoid a back-edge into the composition root; importing this group would reopen it.
  */
 export interface ContentTaxonomyDeps {
-  /** ADR-022/ADR-043 — the `content_types` registry's write chokepoint repo, widened with this
-   * dispatch's new `ContentTypeListPort` (`features/content-types/list.ts`). */
+  /**
+   * ADR-022/ADR-043 content-type registry write repo plus its listing capability
+   * (`features/content-types/list.ts`).
+   */
   contentTypeRepo: ContentTypeRepoPort & ContentTypeListPort;
-  /** No-op this pass (`features/content-types/repo.memory.ts`'s `NoopContentTypeIndexProvisioner`)
-   * — real DDL index provisioning targets `content.db` tables this domain has no SQLite adapter
-   * for yet, same disclosed gap as `contentTypeRepo`. */
+  /**
+   * Both roots use `NoopContentTypeIndexProvisioner`: row persistence does not
+   * implement ADR-022 §3 expression-index DDL provisioning.
+   */
   contentTypeIndexProvisioner: IndexProvisionerPort & TeardownIndexProvisionerPort;
-  /** ADR-022/ADR-043 — the `entries` write chokepoint repo, widened with this dispatch's new
-   * `EntryListPort` (`features/entries/list.ts`). Also satisfies entries' `ContentTypeLookupPort`
-   * structurally when `contentTypeRepo` is passed as its `contentTypeRepo` dep (a `ContentTypeRecord`
-   * is a structural superset of `OwningContentType`). Widened again by collections plan C2 with
-   * `EntryDisplayListPort` (`features/entries/public-list.ts`) — the `{"type":"collection"}`
-   * marker's bounded published-entry read. No composition-root edit: `deps.ts`'s `SqliteEntryRepo`
-   * and `app.ts`'s `TrashAwareInMemoryEntryRepo` both implement it directly. Widened for
-   * publish-content (`collection-entry`) with the excluding-types list and the trash-inclusive read. */
+  /**
+   * ADR-022/ADR-043 entries write repo with admin listing, bounded published-entry
+   * display reads, excluding-types lists and trash-inclusive publish reads. Entry writes
+   * accept `contentTypeRepo` structurally because `ContentTypeRecord` is a superset of
+   * `OwningContentType`. Both roots implement the read capabilities directly.
+   */
   entryRepo: EntryRepoPort & EntryListPort & EntryDisplayListPort & EntryListExcludingTypesPort & EntryPublishReadPort;
-  /** ADR-044 — the `taxonomies`/`terms`/`entry_terms`/`taxonomy_revisions` write chokepoint repos,
-   * `taxonomyRepo`/`termRepo` widened with this dispatch's new `TaxonomyListPort`/`TermListPort`
-   * (`features/taxonomy/list.ts`). `mergeTerm`'s plan/confirm/execute ceremony is NOT wired this
-   * pass (needs `core/gated-mutations`'s gateway, not composed into any composition root yet). */
+  /** ADR-044 taxonomy/term/assignment/revision write repos with listing capabilities.
+   * Gated merge uses `gatedMutations.gatewayDeps` from `DatabaseOpsDeps`.
+   */
   /** Widened again for the `deleteTaxonomy`/`deleteTerm` guarded-delete routes with
    * `DeletableTaxonomyRepoPort`/`DeletableTermRepoPort` (`@jini-ai/cms/taxonomy`'s additive
    * delete capability — see that package's `write-service.ts` for why these are additive
    * interfaces rather than folded into the certified `TaxonomyRepoPort`/`TermRepoPort`).
-   * `taxonomyRepo` widened once more with `TransactionalRepoPort` (coordinator review, hazards
-   * #1/#2): the same guard-and-cascade atomicity `deleteTerm`/`deleteTaxonomy` need, sourced from
+   * `TransactionalRepoPort` supplies the guard-and-cascade atomicity `deleteTerm`/`deleteTaxonomy` need, sourced from
    * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
    * one both delete flows always have, so it is the canonical source. */
   /** Widened once more with `TaxonomyTrashReadPort` (`findForTrash`, a host-only addition — see
@@ -629,28 +576,17 @@ export interface ContentTaxonomyDeps {
    *  this file. */
   removeTerm: RemoveTermFn;
   removeTaxonomy: RemoveTaxonomyFn;
-  /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
-   * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). Widened again
-   * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard, and again
-   * with `UnassignableEntryTermRepoPort` for `taxonomy_unassign_terms` (A2, taxonomy plan) — both
-   * `SqliteEntryTermRepo` (real) and `InMemoryEntryTermRepo` (`@jini-ai/cms/taxonomy`, hermetic)
-   * already implement it, so this widening breaks neither composition's typecheck. Widened with
-   * `EntryTermReadPort` for publishing's post/page/entry `termIds` (`taxonomy/publish-term-ids.ts`):
-   * both composition roots now wire `SqliteEntryTermRepo`, which implements it. */
+  /**
+   * Assignment persistence with by-term enumeration for gated merge, counts for
+   * guarded taxonomy/term deletion, unassignment, and publish-content term-id reads.
+   * Both roots wire `SqliteEntryTermRepo`, which implements these capabilities.
+   */
   entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort & UnassignableEntryTermRepoPort & EntryTermReadPort;
   /**
-   * Public-render read path (2026-09-02 taxonomy render-surface gap fix, `repo.sqlite.ts`'s
-   * `EntryTermReadPort`) — resolves the terms assigned to a page/post for `pages.ts`'s
-   * `renderViaTemplate` to render. Optional, unlike every other field in this group: the certified
-   * `@jini-ai/cms/taxonomy` package's `InMemoryEntryTermRepo` (wired as `entryTermRepo` above in
-   * `server/runtime/composition/app.ts`'s hermetic composition) has no by-content read method to
-   * satisfy this with, so widening `entryTermRepo`'s own type instead — the precedent
-   * `MergeableEntryTermRepoPort`/`AssignmentCountEntryTermRepoPort` set immediately above — would
-   * break that composition's typecheck. `server/runtime/composition/deps.ts`'s real composition
-   * sets this to the SAME `SqliteEntryTermRepo` instance it already constructs for `entryTermRepo`
-   * (one concrete class satisfying two differently-shaped dependency slots); the hermetic
-   * composition leaves it `undefined`, and every consumer degrades to "no terms" for that case,
-   * never a throw — see `resolveAssignedTermsForRender`'s own doc.
+   * Optional public-render read port for terms assigned to a post/page. The real
+   * root shares its `SqliteEntryTermRepo` instance with `entryTermRepo`; the hermetic
+   * composition leaves this slot unset. Consumers degrade to no terms rather than
+   * throwing; see `resolveAssignedTermsForRender`.
    */
   entryTermReadRepo?: EntryTermReadPort;
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
@@ -664,30 +600,18 @@ export interface ContentTaxonomyDeps {
 }
 
 /**
- * Slice 3 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-031/ADR-023 (SPEC-033)
- * Comments bundled plugin's composed backend, extracted verbatim (fields + doc comments unchanged)
- * from where they lived inline in `RouteDeps` below.
- *
- * No consumer narrowed to this group this slice: `routes/admin/comments/deps.ts`'s
- * `CommentsModerationRouteDeps` already `Pick`s 3 of these 5 fields (`commentRepo`/
- * `commentWriteService`/`commentsSettingsReady`) alongside non-group fields (`settingsRepo`/
- * `principalRepo`) — composing the whole group would add `commentIngressPolicy`/`commentsReady`,
- * which that file's own 4 registrars never read, the same "would widen" case Slice 2 already
- * established for `ContentRouteDeps`/`SeoRouteDeps`. `comments/tool-registrations.ts`'s
- * `CommentsToolDeps` (reads 4 of the 5: everything but `commentIngressPolicy`) and `server/routes/
- * site/comments-submit.ts`'s `CommentsSubmitDeps` (reads only `commentIngressPolicy`) are both
- * declared structurally, deliberately never importing `RouteDeps`, to keep those modules free of a
- * back-edge into the composition root — importing this named type would reopen exactly the edge they
- * were written to avoid.
+ * Comments plugin backend (ADR-031/ADR-023, SPEC-033). Admin moderation picks its
+ * required fields; public submission and tool contracts remain structural to avoid
+ * a back-edge into the composition root.
  */
 export interface CommentsDeps {
   /** ADR-031/ADR-023 (SPEC-033) — the Comments bundled plugin's composed backend
-   * (`comments/index.ts#createCommentsModule`). */
+   * (`Jini/packages/cms/src/comments/module.ts#createCommentsModule`). */
   commentRepo: CommentRepoPort;
   commentIngressPolicy: CommentIngressPolicy;
   commentWriteService: CommentWriteService;
   /** Fire-and-forget at boot (mirrors `newsletterReady`) — await (or, for the real server, go
-   * through the ADR-046 Phase 2 boot lifecycle) before relying on the `p_comments__*` tables
+   * through the ADR-046 Phase 2 boot lifecycle) before relying on the comments plugin tables
    * existing. `server/app.ts`'s hermetic composition resolves this immediately (no dataModule
    * declare needed against an in-memory repo). */
   commentsReady: Promise<void>;
@@ -702,26 +626,9 @@ export interface CommentsDeps {
 }
 
 /**
- * Slice 3 of the `RouteDeps` god-object decomposition (2026-08-18) — the `members` library's ports
- * (ADR-030), extracted verbatim (fields + doc comments unchanged) from where they lived inline in
- * `RouteDeps` below.
- *
- * Unlike the other three Slice-3 groups, this one had a real, exact, WHOLE-group consumer already:
- * `routes/admin/members/deps.ts`'s `MembersRouteDeps` re-declared these same 6 fields (plus its own
- * `magicLinkPerEmailLimiter`) via `extends RouteDeps` — a WIDENING pattern (the same historical shape
- * `routes/admin/integrations/deps.ts`'s pre-SPEC-034 `IntegrationsRouteDeps` used to have) from back
- * when these fields hadn't landed on `RouteDeps` directly yet. Its own header still claims "`src/
- * server/routes/types.ts` does not yet declare the `members` library's repo ports" — stale, since
- * ADR-030 wiring landed them directly on `RouteDeps` some time ago. That file now `extends RouteDeps,
- * MembersDeps` instead of re-typing the 6 fields a second time, and its header is corrected — see its
- * own doc.
- *
- * `routes/members/deps.ts`'s `MemberPublicRouteDeps` (the public sign-in route family) also reads all
- * 6 fields, but is deliberately left alone: it is declared fully structurally on purpose (no
- * `authorize`/session field at all, by ADR-030 §3 design — see its own header) and has never imported
- * anything from `routes/types.ts`; doing so now would tie a route family whose entire point is
- * staying decoupled from the admin composition root to this file, for a savings of six duplicated
- * field types.
+ * Member ports (ADR-030). The public sign-in contract remains structural, without
+ * admin authorization/session fields (ADR-030 §3), to keep it decoupled from the
+ * admin composition root.
  */
 export interface MembersDeps {
   /** `members` library ports (ADR-030) — Members admin screen. */
@@ -737,58 +644,32 @@ export interface MembersDeps {
 }
 
 /**
- * Slice 4 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-041/ADR-045 database
- * recovery read surface: the Database Timeline's read port, the restore-points list/save side, the
- * dialect-neutral db-ops capability, this site's serving status, and Recovery's two lookup ports,
- * extracted verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps`
- * below.
- *
- * A real, exact, WHOLE-group consumer already existed before this extraction:
- * `routes/admin/database-recovery/deps.ts`'s `DatabaseRecoveryRouteDeps` already `Pick`ed these same
- * 6 keys off `RouteDeps` (plus `workspaceId`/`authorize`/`clock`) for the 7 plain database/recovery
- * registrars. That file now composes `DatabaseRecoveryDeps` directly instead of re-listing the keys
- * a second time — see its own doc.
- *
- * `migrationRunsRepo`/`stampWatermark`/`databaseIntrospection`/`gatedMutations` are deliberately NOT
- * part of this group even though the original "Admin-UI backend-gap closure" header comment (still
- * attached to `stampWatermark` below) covers them too — `database-recovery/deps.ts`'s real consumer
- * never reads any of the four (its own header explicitly excludes the 2 gated-mutation ceremonies
- * that need `gatedMutations`), so pulling them in here would widen rather than narrow the one real
- * consumer this slice has. They remain candidates for a later, separate group.
+ * Database recovery read/capture ports (ADR-041/ADR-045). Gated-mutation gateway
+ * and boot/introspection operations have separate ownership in `DatabaseOpsDeps`;
+ * consumers pick any additional operation ports they need.
  */
 export interface DatabaseRecoveryDeps {
-  /**
-   * ADR-041 §1/§2 — the Database Timeline's read port, backed by the sidecar
-   * `ops/database-journal.db` (`db/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
-   * in `server/deps.ts`'s real composition; `features/database/repo.memory.ts`'s
-   * `InMemoryDatabaseLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
-   * wired into `RouteDeps` this pass — see `routes/admin/database/timeline.ts`'s file header for
-   * what remains unwired.
+  /** ADR-041 §1/§2 timeline read, gated-operation append and boot interrupted-row ports.
+   * Real persistence is the `ops/database-journal.db` sidecar; the hermetic root uses
+   * `InMemoryDatabaseLedgerRepo`. Migration/recovery hooks append audit rows through
+   * the same instance and boot reconciliation records interrupted operations.
    */
-  /** Widened this dispatch with `LedgerAppendPort` — both `SqliteDatabaseLedgerRepo` and
-   * `InMemoryDatabaseLedgerRepo` already implement `.append()`; only the type declaration here was
-   * narrower than the concrete instances (see `features/database/gated-hooks.ts`'s
-   * `buildMigrateForwardHooks` and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`, which
-   * need to append real ledger rows).
-   * Widened again (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) with
-   * `BootLedgerPort` — both concrete adapters already implement `appendInterruptedRow` too; only
-   * this declaration was narrower. */
   databaseLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
-  /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
-   * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
-   * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`.
-   * Widened with `RestorePointIdempotencyLookupPort` (AC-11 idempotency-key fix) — both concrete
-   * repos already implement `findByIdempotencyKey`; only this declaration was narrower. */
+  /**
+   * ADR-041 §2/§4 restore-point list/save and AC-11 idempotency-key lookup. The real
+   * root uses the SQLite repo; the hermetic root supplies its in-memory counterpart.
+   */
   restorePointsRepo: RestorePointListPort & RestorePointSavePort & RestorePointIdempotencyLookupPort;
-  /** SPEC-016 C-007 — the dialect-neutral restore-point capability/capture surface. Real
-   * `SqliteDbOpsAdapter` in `server/deps.ts` (already built, previously unwired); a deterministic
-   * in-memory double in `server/app.ts` (`features/database/repo.memory.ts`'s
-   * `InMemoryDbOpsAdapter`). */
+  /**
+   * SPEC-016 C-007 dialect-neutral restore-point capture capability. The real root
+   * supplies the SQLite adapter; the hermetic root a deterministic in-memory adapter.
+   */
   dbOps: DbOpsPort;
-  /** ADR-041 §3/§10 — this site's `SERVING`/`PENDING_MIGRATION`/`BLOCKED_PENDING_RECOVERY` status.
-   * In-memory in both compositions, defaulted to `SERVING` — no composition root invokes
-   * `features/database/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
-   * handoff), so this only ever changes if a future caller calls `.set()`. */
+  /**
+   * ADR-041 §3/§10 serving status (`SERVING`, `PENDING_MIGRATION`,
+   * `BLOCKED_PENDING_RECOVERY`), initially `SERVING` in both compositions. Boot
+   * reconciliation updates it before the serving/export gates rely on it.
+   */
   siteStatusRepo: SiteStatusPort;
   /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
    * as unavailable (`features/recovery/repo.memory.ts`'s `AlwaysUnavailableWatermarkSource`) — the
@@ -802,59 +683,9 @@ export interface DatabaseRecoveryDeps {
 }
 
 /**
- * The full app-wide dependency bag every route handler and module-registration function historically
- * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
- * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2),
- * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3),
- * `DatabaseRecoveryDeps` (Slice 4), `WebhooksDeps` (Slice 6),
- * `FormsDeps` (Slice 7), and `PostDeps`/`PresentationDeps`/`SettingsDeps`/`ChangeSetDeps`/
- * `EventBusDeps`/`AnalyticsDeps`/`NavigationDeps`/`DatabaseOpsDeps`/`RedirectsDeps`/
- * `CommerceCatalogDeps`/`WidgetsDeps`/`PluginRuntimeDeps` (Slice 8) above are an incremental
- * decomposition: pulled out as their own named, cohesive interfaces and folded back in here via
- * intersection so this type stays 100% identical to every existing consumer. Narrowed call sites so
- * far: `inbound/admin-http/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
- * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s
- * `MediaRouteDeps` (Slice 2, to `MediaDeps`); the four `routes/admin/system/*-credentials.ts` files
- * (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s
- * `MembersRouteDeps` (Slice 3, to `MembersDeps` directly); `routes/admin/database-recovery/deps.ts`'s
- * `DatabaseRecoveryRouteDeps` (Slice 4, to `DatabaseRecoveryDeps` directly);
- * `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps`
- * (Slice 6, to `WebhooksDeps` directly); and `routes/admin/forms/deps.ts`'s `FormsRouteDeps`
- * (Slice 7, to `FormsDeps` directly) — see those files' own docs.
- *
- * Slice 8 (2026-08-18) is the LAST slice: it groups every field that was still flat in the trailing
- * intersection object below, closing out this decomposition. No Slice-8 group has a single real
- * whole-group `Pick`/`extends` consumer yet — each group's own doc explains the domain-cohesion
- * rationale used instead (the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already
- * established in Slice 3). A handful of fields deliberately stayed flat rather than join a group:
- * `workspaceRepo`/`chatHistory`/`webhookSigner`/`formsRateLimiter`/`siteAssistantRateLimiter` are
- * true singletons with no cohesive sibling (each already has a real narrow consumer via
- * `Pick<RouteDeps, ...>`, so leaving them flat costs nothing). `runExportSite`/`createSiteApp`/
- * `resolveStorefrontProducts` stay flat because their own types reference `RouteDeps` itself —
- * moving any of them into a named sub-interface closes a real circular-type reference TypeScript
- * rejects (a concrete `tsc` contravariance failure, confirmed before this slice started).
- * `exportOutputRootDir`/`publishHistoryStore`/`publishExecutionMode`/
- * `publishOutputRootDir`/`publishCredentialVerificationCache`/`sourceControlExportRootDir` stay
- * flat too — out of scope for this slice alongside `features/deployments/`/`features/
- * source-control/`, which carry 7 already-diagnosed, unrelated violations this slice does not
- * touch.
- */
-/**
- * Slice 6 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-036 webhook
- * subscription/delivery persistence pair, extracted verbatim (fields + doc comments unchanged)
- * from where they lived inline in `RouteDeps` below.
- *
- * `webhookSigner` deliberately stays OUT of this group and flat on `RouteDeps` — its own doc
- * comment already discloses "Not consumed by any route yet", and `routes/admin/integrations/
- * deps.ts`'s real consumer (below) confirms it: `IntegrationsRouteDeps` never picks it.
- *
- * A real narrow consumer already existed before this extraction: `routes/admin/integrations/
- * deps.ts`'s `IntegrationsRouteDeps` already `Pick`ed these same 2 keys off `RouteDeps` (plus
- * `workspaceId`/`authorize`/`clock`/`idGen`/`originRegistry`) for the 5 admin integrations routes.
- * That file now composes `WebhooksDeps` directly instead of re-listing the 2 keys a second time —
- * see its own doc. `originRegistry` stays a separate `Pick<RouteDeps, "originRegistry">` there
- * rather than joining this group: it is redirects/origin-domain infrastructure reused here, not a
- * webhooks-owned field (see a later slice's `RedirectsDeps` for its home group).
+ * Webhook subscription/delivery persistence (ADR-036). `originRegistry` belongs to
+ * redirects/origin infrastructure and is picked separately by integrations routes.
+ * `webhookSigner` stays separate because the admin CRUD routes do not consume it.
  */
 export interface WebhooksDeps {
   /** ADR-036 `webhook_subscriptions` persistence. */
@@ -864,22 +695,9 @@ export interface WebhooksDeps {
 }
 
 /**
- * Slice 7 of the `RouteDeps` god-object decomposition (2026-08-18) — the `forms` library's write
- * chokepoint repo pair (SPEC-010, ADR-PIPE-010), extracted verbatim (fields + doc comments unchanged)
- * from where they lived inline in `RouteDeps` below.
- *
- * `formsRateLimiter` deliberately stays OUT of this group and flat on `RouteDeps` — the original
- * header comment (still attached to it below) introduced all three together, but
- * `routes/admin/forms/deps.ts`'s real consumer (below) never reads it: the 7 admin forms routes this
- * type serves are session-gated, not the public rate-limited submission endpoint that field backs
- * (`routes/site/forms-submit.ts`, declared structurally, deliberately never importing `RouteDeps` —
- * the same back-edge-avoidance pattern `CommentsDeps`'s own doc already establishes for
- * `comments-submit.ts`).
- *
- * A real narrow consumer already existed before this extraction: `routes/admin/forms/deps.ts`'s
- * `FormsRouteDeps` already `Pick`ed these same 2 keys off `RouteDeps` (plus `workspaceId`/
- * `authorize`/`clock`/`idGen`/`changeSets`/`outbox`) for the 7 forms admin routes. That file now
- * composes `FormsDeps` directly instead of re-listing the 2 keys a second time — see its own doc.
+ * Forms write ports (SPEC-010/ADR-PIPE-010). The public submission rate limiter
+ * stays separate from session-gated admin CRUD. Public submission dependencies remain
+ * structural to avoid a back-edge into the composition root.
  */
 export interface FormsDeps {
   executeCommand: typeof import("@jini-ai/cms/core").executeCommand;
@@ -890,15 +708,8 @@ export interface FormsDeps {
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the `postRepo` write
- * chokepoint and its two siblings, extracted verbatim (fields + doc comments unchanged) from
- * where they lived inline in `RouteDeps` below.
- *
- * No single whole-group consumer: `routes/admin/content/deps.ts`'s `ContentRouteDeps` picks
- * `postRepo`/`pagesHtmlStore` (not `postSearch`) alongside many non-group fields; the
- * `content_post_search` agent tool (`features/post/tool-registrations.ts`) reads `postSearch`
- * alone. Grouped here on the doc comments' own "sibling of `postRepo`" cohesion rather than a
- * shared narrow consumer — the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already used.
+ * Post write chokepoint and its HTML/search side ports. Consumers select the subset
+ * they need; shared ownership follows the post domain rather than a whole-group caller.
  */
 export interface PostDeps {
   postRepo: PostRepoPort;
@@ -933,15 +744,7 @@ export interface PostDeps {
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the presentation-settings
- * repo and the boot-discovered theme roster, extracted verbatim (fields + doc comments unchanged)
- * from where they lived inline in `RouteDeps` below.
- *
- * No single whole-group consumer, but real shared usage: `routes/admin/content/deps.ts`'s
- * `ContentRouteDeps` reads all three (`presentationRepo`/`themes` for `presentation/get.ts` and
- * `presentation/patch-active-theme.ts`; `themesDir` for `presentation/rescan-themes.ts`) alongside
- * many non-group fields — grouped here on that file's own field-by-field rationale rather than a
- * narrow Pick match.
+ * Presentation settings and the discovered theme roster/root, shared by content routes.
  */
 export interface PresentationDeps {
   presentationRepo: PresentationSettingsRepoPort;
@@ -978,26 +781,13 @@ export interface PresentationDeps {
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the settings ledger's repo
- * plus the `features/settings` function/constant bindings and the boot-registration `*Ready`
- * promise chain, extracted verbatim (fields + doc comments unchanged) from where they lived inline
- * in `RouteDeps` below.
- *
- * No single whole-group consumer — `routes/admin/settings/deps.ts`'s `SettingsRouteDeps` picks
- * `settingsReady`/`settingsRepo` (not the rest); `routes/admin/seo/deps.ts`'s `SeoRouteDeps` picks
- * `seoReady`/`settingsRepo`; `routes/admin/assistant/deps.ts`'s `AssistantSettingsRouteDeps` picks
- * `settingsRepo`/`getEffective`/`set`/`assistantSettingsReady` — each a different narrow subset.
- * Grouped here on domain cohesion instead (one ledger, one boot-registration chain — every `*Ready`
- * field's own doc comment says it is chained after the previous one on the same SQLite connection),
- * the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already used for a shared-domain, no-single-
- * consumer group.
+ * Settings ledger and its boot-registration chain. Registrations share one SQLite
+ * connection and run sequentially; consumers pick their own ledger/readiness subset.
  */
 export interface SettingsDeps {
   /**
-   * SPEC-007 — the settings ledger's repo port. `core.commands.appliers`
-   * (via `revert.ts`) reads through this now instead of
-   * `PresentationSettingsRepoPort` (ADR-PIPE-007 Migration Safety); the
-   * admin `settings.*` routes (Phase 5, not yet wired) will consume it too.
+   * SPEC-007 settings ledger repo. Command reverters read it through `revert.ts`
+   * (ADR-PIPE-007 Migration Safety), and admin settings routes use the same ledger.
    */
   settingsRepo: SettingsRepoPort;
   /**
@@ -1020,11 +810,9 @@ export interface SettingsDeps {
    *  `ResolveCustomInstructionsDeps` can receive it by injection instead of a static import. */
   instructionsNamespace: string;
   /**
-   * Resolves once the one-time `migrateLegacyPresentationSettings()` boot
-   * migration (SPEC-007 REQ-08) completes. Mirrors `identityReady`'s
-   * fire-and-forget pattern (`identity/wiring.ts`): the composition roots
-   * stay synchronous, and any settings-reading route/consumer should await
-   * this before treating `settingsRepo` reads as post-migration-complete.
+   * Settings readiness barrier, preserving `identityReady`'s fire-and-forget shape so
+   * composition roots stay synchronous and consumers can await readiness.
+   * Roots resolve this immediately.
    */
   settingsReady: Promise<void>;
   /**
@@ -1035,6 +823,10 @@ export interface SettingsDeps {
    * await this first, same as `settings/get-effective.ts` awaits `settingsReady`.
    */
   seoReady: Promise<void>;
+  /** Host policy/ports for the sole Jini SEO evaluator; shared by routes, tools and head. */
+  seoDeps: SeoHostBindings;
+  /** Per composed app, workspace-keyed cache/hooks/expiry; all invalidators use this instance. */
+  sitemapService: ReturnType<typeof createSitemapService>;
   /**
    * Resolves once the one-time `ensurePublicAssistantSettingDefinitions()` boot call registers the
    * `site.assistant.public_enabled` definition. Same shape and same convention as `seoReady` above,
@@ -1067,17 +859,8 @@ export interface SettingsDeps {
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the command-gateway change-set
- * store and its inverse-applier registry, extracted verbatim (fields + doc comments unchanged)
- * from where they lived inline in `RouteDeps` below.
- *
- * No single whole-group consumer: `routes/admin/content/deps.ts`'s `ContentRouteDeps` reads both
- * (`changeSets` for posts/pages create/update, `revertRegistry` for `change-sets/revert.ts`)
- * alongside many non-group fields. `routes/admin/plugins/deps.ts`'s `PluginsRouteDeps` also reads
- * `changeSets` alone (as a hand-typed shape, not a `Pick<RouteDeps>`). Grouped here on the fields'
- * own doc comments — `revertRegistry`'s says it is "closed over the SAME `postRepo`/`clock`/
- * `outbox` instances the rest of this bag already carries" alongside `changeSets` — the same
- * domain-cohesion rationale used where no narrow consumer exists.
+ * Command-gateway change-set store and inverse-applier registry. Reverters are
+ * bound by the composition root to the same repo/clock/outbox instances as the gateway.
  */
 export interface ChangeSetDeps {
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
@@ -1095,15 +878,7 @@ export interface ChangeSetDeps {
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the outbox/event-bus pair,
- * extracted verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps`
- * below.
- *
- * No single whole-group consumer, but a real shared call site: `routes/admin/content/deps.ts`'s
- * `ContentRouteDeps` reads both together (`posts/update.ts`'s `processOutbox({ outbox, bus, clock
- * })` drain call, per that file's own doc), alongside `routes/admin/workspace/deps.ts`'s
- * `WorkspaceRouteDeps` (`Pick<RouteDeps, ... | "outbox" | "bus">`) — the same outbox-drain pairing
- * repeats verbatim in a second, unrelated domain, which is the cohesion this group is built on.
+ * Outbox and event bus consumed together by content and workspace outbox drains.
  */
 export interface EventBusDeps {
   outbox: OutboxPort;
@@ -1111,14 +886,9 @@ export interface EventBusDeps {
 }
 
 /**
- * This task's own addition (2026-08-28) — the Constitution Article VIII observability seam. One
- * field, mirroring `EventBusDeps`'s own one-concern shape immediately above: every route/module
- * reads `RouteDeps.observability` through the `ObservabilityPort` interface only, never a concrete
- * adapter type (`platform/observability/ports.ts`'s file header explains why that boundary is the
- * whole point of the port). `server/runtime/composition/app.ts`'s hermetic `createRouteDeps()`
- * builds this with `createNoopObservabilityPort()`; `server/runtime/composition/deps.ts`'s
- * `createSiteRouteDeps()` builds it with the env-driven `createObservabilityPort()` — the same
- * rule-of-two split every other adapter pair in this file already follows.
+ * Constitution Article VIII observability seam. Routes and modules receive only
+ * `ObservabilityPort`, never a concrete adapter; see `platform/observability/ports.ts`.
+ * The hermetic root supplies the no-op adapter and the real root the env-driven adapter.
  */
 export interface ObservabilityDeps {
   observability: ObservabilityPort;
@@ -1131,39 +901,26 @@ export interface ObservabilityDeps {
    * root and reads this same field off the `RouteDeps` it already builds, so there is exactly one
    * construction per root rather than a hand-written copy per consumer.
    *
-   * A PORT, replacing the `contentDbPath: string` this field superseded on 2026-09-06 (added hours
-   * earlier by `b359e613`). Threading a path made every consumer call `openContentDb` itself, and
-   * that function runs `migrate()` UNCONDITIONALLY (verified: `content-db.ts`'s `openContentDb`
-   * calls `migrate` on every open) — so a module merely being CONSTRUCTED could migrate a database.
-   * It also forced `server/app.ts`'s hermetic root, which owns no `content.db` file at all, to
-   * publish a global default path it never opens; a root that has to fake a field is the tell that
-   * the field is the wrong abstraction. Injecting the sink removes the `process.env` read, the
-   * second handle, the deferral wrapper that existed only to postpone that handle, and the path
-   * field, and leaves the consumer testable with a plain fake.
+   * A sink port rather than a database path: opening a handle calls `migrate()`, so a
+   * consumer must not open a second database merely to construct itself. The hermetic
+   * root has no content database path; injection also permits a plain fake without
+   * environment reads or a deferral wrapper.
    */
   toolAttemptAuditSink: ToolAttemptAuditSink;
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the public analytics ingest
- * buffer, its beacon config seam, and the matching boot-registration promise, extracted verbatim
- * (fields + doc comments unchanged) from where they lived inline in `RouteDeps` below.
- *
- * No route module in this codebase yet declares its own narrow analytics deps type — the admin
- * `analytics/recent-hits.ts` registrar and the public ingest route both take full `RouteDeps`
- * today. Grouped here on domain cohesion (ADR-035 ingest stage, ADR-046 boot registration) ahead
- * of a future narrow consumer, the same "candidate for a later group" precedent
- * `DatabaseRecoveryDeps`'s own doc already used for `stampWatermark`/`databaseIntrospection`.
+ * Public analytics ingest buffer, beacon configuration, and boot-registration barriers
+ * (ADR-035/ADR-046), grouped by domain ownership.
  */
 export interface AnalyticsDeps {
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
-   * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (Jini LocalBufferSink via the host adapter; local fork deleted, DELETED-CODE.md). */
+   * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (Jini LocalBufferSink via the host adapter). */
   analyticsSink: AnalyticsSinkPort;
   /**
-   * The public analytics beacon's config seam (`analytics/config.settings.ts`'s
-   * `createSettingsAnalyticsConfig`), backed by the `core.analytics.*` ledger definitions in both
-   * composition roots. Replaces the former hardcoded stub `server/app.ts`'s `registerAnalyticsIngestRoute`
-   * call used to build inline.
+   * Public beacon configuration (`analytics/config.settings.ts`'s
+   * `createSettingsAnalyticsConfig`), backed by the `core.analytics.*` ledger definitions
+   * in both composition roots.
    */
   analyticsConfig: AnalyticsConfigPort;
   /**
@@ -1194,14 +951,8 @@ export interface AnalyticsDeps {
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the navigation-owned menu
- * repo and its one real ADR-029 derived-index port, extracted verbatim (fields + doc comments
- * unchanged) from where they lived inline in `RouteDeps` below.
- *
- * No `routes/admin/menus/*.ts` file has its own narrow deps type today (all 6 registrars take full
- * `RouteDeps`); `routes/admin/content/deps.ts`'s `ContentRouteDeps` reads `menuRepo` alone (not
- * `navLocationBindingRepo`) for `template-preview.ts`'s theme-nav lookup. Grouped on the fields'
- * own ADR-029 pairing ahead of a future narrow menus consumer.
+ * Navigation-owned menu persistence and its ADR-029 derived binding index.
+ * Consumers that only need menus pick `menuRepo` separately.
  */
 export interface NavigationDeps {
   /** Local, navigation-owned menu repo (ADR-029; not a frozen ADR port). */
@@ -1214,37 +965,15 @@ export interface NavigationDeps {
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the database/gated-mutations
- * leftovers `DatabaseRecoveryDeps` (Slice 4) explicitly named as "candidates for a later group with
- * no single real narrow consumer yet", extracted verbatim (fields + doc comments unchanged) from
- * where they lived inline in `RouteDeps` below. This IS that later group.
- *
- * Admin-UI backend-gap closure (design-spec.md §0.4/§1.9/§2.8/§3.8/§4.8) — the read-side +
- * route-layer wiring the Web Design pass found missing across `content-types`, `entries`,
- * `taxonomy`, and (partially) `database`/`recovery`. Every field below is backed by an in-memory
- * adapter in BOTH `server/app.ts` and `server/deps.ts` (no SQLite adapter exists yet for
- * `content-types`/`entries`/`taxonomy` — the same disclosed "no adapter yet" precedent
- * `mediaRepo`/`transformDefinitionRepo`/`memberRepo` already establish), EXCEPT
- * `restorePointsRepo`/`dbOps` (moved to `DatabaseRecoveryDeps`, Slice 4), which get real
- * `db/sqlite/database-journal-repo.ts`/`db-ops.ts` adapters in `server/deps.ts`.
- *
- * (2026-08-18, Slice 3: the `content-types`/`entries`/`taxonomy` REPO fields this comment
- * originally introduced moved to `ContentTaxonomyDeps`. Slice 4: `restorePointsRepo`/`dbOps`/
- * `siteStatusRepo`/`disclosureWatermarkSource`/`deepLinkRestorePointLookup` moved to
- * `DatabaseRecoveryDeps`. Slice 8 (this pass): `migrationRunsRepo`/`stampWatermark`/
- * `databaseIntrospection`/`gatedMutations` — the 4 fields Slice 4 explicitly left behind — move
- * here. No single whole-group consumer exists yet: `routes/admin/taxonomy/deps.ts`'s
- * `TaxonomyRouteDeps` picks `stampWatermark` alone; the `taxonomy/terms/:id/merge`,
- * `database/migrate-forward`, and `recovery/restore` gated-mutation routes each read
- * `gatedMutations` directly against full `RouteDeps` (no narrow deps file); `migrationRunsRepo`/
- * `databaseIntrospection` back `features/database/boot/reconcile-interrupted-migration.ts` and
- * `features/database/adapter.sqlite.ts` respectively, neither with a route-level narrow consumer
- * today. Grouped on shared "database operations, no adapter/narrow-consumer yet" domain cohesion.)
+ * Database operation ports shared by taxonomy gated mutations, migration/recovery
+ * ceremonies, boot reconciliation, and introspection. Recovery read/capture ports
+ * belong to `DatabaseRecoveryDeps`; consumers select their required subset.
  */
 export interface DatabaseOpsDeps {
-  /** ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
-   * the `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs; previously
-   * constructed nowhere (real SQLite adapter existed, unused; no in-memory double existed). */
+  /**
+   * ADR-041/043/044/045 — the `migration_runs` read side required by
+   * `reconcileInterruptedMigrationOnBoot`.
+   */
   migrationRunsRepo: MigrationRunsRepoPort;
   /** R1b — the site's content kernel (the one open content database), for boot modules that
    * declare plugin tables on it (`store-plugin` in `runtime/boot/bootstrap.ts`) instead of opening
@@ -1256,35 +985,23 @@ export interface DatabaseOpsDeps {
    * (`platform/db/watermark-kernel.ts`), which Jini cms awaits; `noopStampWatermark` in `server/app.ts`'s in-memory composition,
    * which has no watermark table to advance. */
   stampWatermark: () => Promise<void> | void;
-  /** ADR-041 §3 — the `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
-   * agent tools' backing read port (`features/database/adapter.sqlite.ts`, closing the gap that
-   * file's own catalog header previously disclosed as "no backing adapter composed into RouteDeps
-   * yet"). Real `SqliteDatabaseIntrospectionAdapter` in `server/deps.ts` (reuses the same open
-   * `ContentDb` handle `restorePointsRepo`/`dbOps` already share); `InMemoryDatabaseIntrospectionAdapter`
-   * in `server/app.ts`'s hermetic composition. */
+  /**
+   * ADR-041 §3 read port for `database_get_health`, `database_get_schema_state`, and
+   * `database_list_pending_migrations`. The real adapter reuses the same open content
+   * database as recovery; the hermetic root supplies the in-memory adapter.
+   */
   databaseIntrospection: DatabaseIntrospectionPort;
   /**
-   * SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
-   * root for the first time this dispatch. One process-lifetime `GatewayDeps` (in-process
-   * `InMemoryTokenStore`, see `core/gated-mutations/composition.ts`'s file header for the disclosed
-   * `TokenStorePort` decision) shared by every gated-mutation route this dispatch wires
-   * (`taxonomy/terms/:id/merge`, `database/migrate-forward`, `recovery/restore`).
+   * SPEC-016/ADR-041 §5 gated-mutation gateway. One process-lifetime `GatewayDeps`
+   * with an in-process `InMemoryTokenStore` is shared by taxonomy merge, migrate-forward,
+   * and recovery restore. See `core/gated-mutations/composition.ts` for the token-store decision.
    */
   gatedMutations: { gatewayDeps: GatewayDeps };
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the `redirects` + `origin`
- * composition-root wiring (SPEC-009/ADR-PIPE-009), extracted verbatim (fields + doc comments
- * unchanged) from where they lived inline in `RouteDeps` below.
- *
- * No `routes/admin/redirects/*.ts` file has its own narrow deps type today (all 7 registrars take
- * full `RouteDeps`). `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps` picks
- * `originRegistry` alone (deliberately kept a separate `Pick<RouteDeps, "originRegistry">` there —
- * see `WebhooksDeps`'s own Slice 6 doc — rather than joining `WebhooksDeps`, since it is
- * redirects/origin-domain infrastructure reused by that module, not webhooks-owned). Grouped here
- * on the fields' own single doc comment, which already introduces all 4 together as one feature's
- * composition-root wiring.
+ * Redirects/origin wiring (SPEC-009/ADR-PIPE-009). Integrations reuse
+ * `originRegistry` through a separate pick; it remains owned by this domain.
  */
 export interface RedirectsDeps {
   /**
@@ -1307,70 +1024,16 @@ export interface RedirectsDeps {
   redirectsWriteDeps: RedirectsWriteDeps;
 }
 
-/**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the optional,
- * storefront-adjacent seams (the sample Tier-3 store plugin, the real commerce catalog read ports,
- * and the lipay payments plugin), extracted verbatim (fields + doc comments unchanged) from where
- * they lived inline in `RouteDeps` below.
- *
- * No route module has its own narrow deps type for any of these today (`routes/site/products.ts`/
- * `routes/site/payments-webhook.ts` both take full `RouteDeps`). Grouped here on the fields' own
- * cross-referencing doc comments — `commerceProductRepo`'s says "Optional, matching `store?:`
- * above's precedent" and `lipay`'s says "wired only by a composition root that has a real SQLite
- * handle, exactly like `store` above" — all four are optional, composition-root-gated,
- * storefront-facing seams that fall back gracefully when unset.
- */
-export interface CommerceCatalogDeps {
-  /** SPIKE: seam for the sample Tier-3 store plugin (data lives in plugin-owned `p_store__*`
-   * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
-  store?: {
-    /** `slug` (readable-slugs S7): the product-detail link key — the plugin's `Product.slug`. */
-    listProducts(): Promise<{ id: string; slug: string; title: string; price: number; stock: number; version: number }[]>;
-    checkout(
-      productId: string,
-      qty: number
-    ): Promise<
-      | { ok: true; orderId: string; remainingStock: number; retries: number }
-      | { ok: false; reason: "not-found" | "out-of-stock" | "conflict" | "invalid-quantity"; retries: number }
-    >;
-  };
-  /**
-   * Commerce catalog read ports (2026-08-12: wiring products into template render data).
-   * Optional, matching `store?:` above's precedent — the real running server's composition root
-   * (`server/deps.ts`) wires both against the SAME `content.db` every other repo already uses (no
-   * `declareDataModule()`/plugin bootstrap needed, unlike `store`/`lipay`); the hermetic
-   * `server/app.ts` test composition leaves them unset, and `routes/site/products.ts` falls back
-   * to `store?.listProducts()` when absent — never a hard dependency a test has to fake.
-   */
-  commerceProductRepo?: CommerceProductRepoPort;
-  commercePriceRepo?: CommercePriceRepoPort;
-  /**
-   * The lipay payments framework plugin's composed API (`features/plugins/lipay`). Optional and
-   * wired only by a composition root that has a real SQLite handle, exactly like `store` above —
-   * lipay's tables come from `declareDataModule()`, which the in-memory composition has no
-   * counterpart for. `routes/site/payments-webhook.ts` reads this lazily per request, so its route
-   * can be registered ahead of the blanket body parser while activation still happens later.
-   */
-  lipay?: LipayApi;
-}
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the widgets domain's derived
- * projection repo, extracted verbatim (fields + doc comment unchanged) from where it lived inline
- * in `RouteDeps` below.
- *
- * Deliberately its own single-field group, not folded into `ContentTaxonomyDeps`: that interface's
- * own Slice 3 doc explicitly considered and rejected pulling `widgetBindingRepo` in alongside its
- * sibling `entryRefsRepo` — "`entryRefsRepo`... groups here per this slice's own field list rather
- * than with widgets" — leaving this exact field as the named candidate for its own group. No
- * `routes/admin/widgets/*.ts` file has a narrow deps type today (all 14 registrars take full
- * `RouteDeps`); the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`) does
- * too.
+ * Widget-derived projection persistence (SPEC-043/ADR-047), separate from the
+ * content-model `entryRefsRepo` in `ContentTaxonomyDeps`. Admin region CRUD and
+ * public rendering share this projection.
  */
 export interface WidgetsDeps {
   /**
    * SPEC-043/ADR-047 (widgets) — the `widget_region_bindings` derived-projection repo
-   * (`widgets/ports.ts`'s `WidgetRegionBindingRepoPort`, mirroring `NavLocationBindingRepoPort`
+   * (`Jini/packages/cms/src/widgets/ports.ts`'s `WidgetRegionBindingRepoPort`, mirroring `NavLocationBindingRepoPort`
    * exactly). Consumed by both the admin `widgets` routes (region CRUD) and the public site-render
    * path (`routes/site/pages.ts` → `resolvePageWidgets`, W-004).
    */
@@ -1378,23 +1041,12 @@ export interface WidgetsDeps {
 }
 
 /**
- * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the SPEC-005 plugin-runtime
- * activation port, its pre-bound discovery/enable/disable closures, and the same process-lifetime
- * hook registry's content-facing port, extracted verbatim (fields + doc comments unchanged) from
- * where they lived inline in `RouteDeps` below.
- *
- * A real, near-exact consumer already exists: `routes/admin/plugins/deps.ts`'s `PluginsRouteDeps`
- * (a hand-typed shape, not a `Pick<RouteDeps>`, since that file predates this decomposition) already
- * declares `pluginActivationRepo`/`discoverPlugins`/`onPluginEnabled`/`onPluginDisabled` verbatim
- * alongside its own `workspaceId`/`authorize`/`clock`/`idGen`/`changeSets`/`outbox?`. Its own doc
- * comment says `discoverPlugins`/`onEnabled`/`onDisabled` are "pre-bound closures... the composition
- * root... builds these closures once and threads them through" — the same process-lifetime hook
- * registry `pluginBeforeSaveHook`'s doc calls "the same... hook registry's content-facing port",
- * which is why it joins this group rather than `ContentTaxonomyDeps`/`CommentsDeps` (it is a plugin
- * lifecycle hook, not a content-model repo).
+ * Plugin activation and pre-bound lifecycle callbacks share one process-lifetime
+ * hook registry. `pluginBeforeSaveHook` belongs here because it is a lifecycle hook,
+ * not a content-model repo.
  */
 export interface PluginRuntimeDeps {
-  pluginInstaller?: import("#src/features/plugin-runtime/install").PluginInstallerPort;
+  pluginInstaller?: import("@jini-ai/plugins/host/node").PluginInstallerPort;
   /**
    * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
    * `PresentationSettingsRepoPort` exactly, rule-of-two). Consumed by the `plugins` admin routes
@@ -1413,20 +1065,20 @@ export interface PluginRuntimeDeps {
    * and agent-tool enable paths. Failures reject the enable operation. */
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
-  /** 2026-10-04 — every discovered plugin with a name conflict (see `features/plugin-runtime/
+  /** 2026-10-04 — every discovered plugin with a name conflict (see `Jini/packages/plugins/src/host/
    * plugin-claims.ts`), for `PLUGINS_LIST`/`plugins_list`. Optional so hand-built test deps need not
    * supply it; absent ⇒ every plugin is listed with `conflicts: []`. */
   listPluginConflicts?: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
   removePlugin: RemovePluginFn;
   /** 2026-09-13 — pre-bound, read-only, bounded listing of one discovered plugin's own files
    * (`PLUGIN_FILES`). Path safety lives in the binding (`plugin-runtime.ts`) and
-   * `features/plugin-runtime/package-files.ts`; the route only authorizes and resolves the record. */
+   * `Jini/packages/plugins/src/host/node/package-files.ts`; the route only authorizes and resolves the record. */
   readPluginPackageFiles: (record: PluginDiscoveryRecord) => Promise<PluginPackageFiles>;
   /** AW-7 Tier 2 (2026-10-04) — the same process-lifetime hook registry's preview: ONE attached
    * plugin's beforeSave patch for a draft, nothing saved or counted toward quarantine; `null` ⇒ not
    * attached in this process. Read by `PLUGIN_PREVIEW` (`routes/plugins/preview.ts`) and, in the
    * agent daemon, by tier-2 capability tools for a fresh result (`capability-tool-registrations.ts`). */
-  previewPluginBeforeSave: HookRegistry["previewBeforeSave"];
+  previewPluginBeforeSave: PluginBeforeSavePreview;
   /** The same process-lifetime hook registry's content-facing port. */
   pluginBeforeSaveHook: BeforeSaveHookPort;
   /** Fire-and-forget at boot (mirrors `commentsReady`) — resolves once every plugin durably marked
@@ -1471,7 +1123,7 @@ export interface TrashDeps {
   removeMedia: RemoveMediaFn;
   removeRedirect: RemoveEntity;
   // `RemoveWidgetFn`, not the broad `RemoveEntity` — same reasoning as `removePost` above:
-  // `trashWidgetInstance` (`features/widgets/ports.ts`) declares its own narrower structural type
+  // `trashWidgetInstance` (`Jini/packages/cms/src/widgets/ports.ts`) declares its own narrower structural type
   // with no `"blocked"` branch (widget has no `TrashBlockerSpec`, T1).
   removeWidget: RemoveWidgetFn;
   /**
@@ -1521,7 +1173,13 @@ export interface TrashDeps {
   db: TrashDb;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
+/**
+ * App-wide composition dependency bag. Domain groups preserve cohesive ownership;
+ * routes narrow their dependencies rather than taking unrelated ports. Singleton
+ * capabilities stay flat. Fields whose types reference `RouteDeps` also stay flat:
+ * putting them in a sub-interface creates a circular type TypeScript rejects.
+ */
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
@@ -1558,14 +1216,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   webhookSigner: WebhookSigner;
   /**
-   * `forms` library ports (SPEC-010, ADR-PIPE-010 — mirrors the existing
-   * `webhookSubscriptionRepo`/`webhookDeliveryRepo` field-addition precedent). `formsRateLimiter`
-   * is a single, process-lifetime `createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock })`
-   * instance (not constructed per-request) so its fixed-window counters persist across requests.
-   *
-   * (2026-08-18, Slice 7: `formDefinitionRepo`/`formSubmissionRepo` moved to the new `FormsDeps`
-   * interface above, matching `routes/admin/forms/deps.ts`'s real narrow consumer; this field stays
-   * here since that consumer never reads it — see `FormsDeps`'s own doc.)
+   * Public forms submission limiter (SPEC-010/ADR-PIPE-010), a single process-lifetime
+   * `createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock })` instance so fixed-window
+   * counters persist across requests. Admin form ports belong to `FormsDeps`.
    */
   formsRateLimiter: RateLimiter;
   /**
@@ -1575,7 +1228,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `modules/site-assistant.ts`.
    */
   siteAssistantRateLimiter: RateLimiter;
-  // Deployment read port retired with the never-written tables (2026-10-03).
   /**
    * Task 6 of the publish-content (Publish Content) feature (`ADS-memory/reports/
    * 2026-09-18-publish-feature-implementation-plan.md` §2/§4 task 6) — staged-bundle storage for
@@ -1646,31 +1298,11 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   publishContentPeerHttpClient: HttpClientPort;
   /**
-   * The static-site export engine (`src/features/site-export/site-exporter.ts`'s `exportSite`), injected here
-   * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`
-   * (shared by that route AND the `deployment_trigger_export` agent tool). The indirection began as
-   * a REQUIRED fix for THOSE two consumers, not a style choice: an eager import of `exportSite`
-   * inside `features/deployments/export-run.ts` used to close a real cycle back into the
-   * still-loading `assistant/tool-registrations.ts` and crash with `ReferenceError: Cannot access
-   * 'DOMAIN_SLICES' before initialization`. Both halves of that cycle are gone as of 2026-09-16, and
-   * the injection now stays for a different reason — it keeps `features/deployments` off the export
-   * engine's whole graph at all (see `export-run.ts`'s file header, which owns the full trace).
-   * Always the real `exportSite` in both `server/app.ts`'s `createRouteDeps()` and
-   * `server/deps.ts`'s `createSiteRouteDeps()` — the two places safe to import
-   * `#src/features/site-export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
-   * Typed structurally via `ExportEngine`, imported `type`-only (erased, zero runtime edge) so this
-   * field costs this file nothing even though `export-run.ts` sits under `features/`.
-   *
-   * 2026-09-05 (fix-cycle) — the "site-exporter.ts imports createApp from THIS file" claim this doc
-   * used to open with stopped being true on 2026-08-16 (generalized 2026-08-20): `site-exporter.ts`
-   * boots the app via the injected `createSiteApp` field below instead, so it no longer imports
-   * `server/app.ts` at all. `server/app.ts`'s own `createRouteDeps()` now builds its `runExportSite` /
-   * `exportSiteBound` from a plain static `import { exportSite } from "#src/features/site-export/index"`
-   * (see that file's `runExportSite` const doc for the full verification) rather than the lazy
-   * `require()` this doc previously described — "safe to import directly" is no longer just a
-   * standing option, `server/app.ts` now does it. `server/deps.ts`'s SQLite composition root followed
-   * on 2026-09-16 (t91 F4.1-A): its call-time `require()` built the export engine and site app from a
-   * SECOND tsx module graph, so that root binds both from static imports now too.
+   * The static-site export engine, injected into the HTTP route and deployments runner
+   * so `features/deployments` does not depend on the export engine's entire graph.
+   * See `features/deployments/export-run.ts` for that boundary. Both composition roots
+   * bind the real `exportSite` from a static import, preserving the live module registries.
+   * `ExportEngine` is imported type-only, so this declaration adds no runtime edge.
    */
   runExportSite: ExportEngine<RouteDeps>;
   /**
@@ -1685,25 +1317,12 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   exportOutputRootDir: string;
   /**
-   * What THIS process is actually serving, read ONCE at boot by `server/app.ts`'s
-   * `createRouteDeps()`/`server/deps.ts`'s `createSiteRouteDeps()` — same "read once at the root,
-   * thread the value down" discipline `exportOutputRootDir`/`themesDir` above establish for their
-   * own env-derived values.
-   *
-   * Before this field existed, `routes/system/sites.ts` and `sites_duplicate_site`
-   * (`features/sites/tool-registrations.ts`) each called `platform/site-dir`'s
-   * `describeSiteBinding()`/read `process.cwd()` fresh, independently, at REQUEST time rather than
-   * receiving the value the composition root already resolved at BOOT time. The two agree for every
-   * boot path that resolves the served site from `{cwd, env}` (the default boot, and desktop's
-   * `TOVU_SITE_DIR`) — `describeSiteBinding()` is a pure, cheap re-derivation of the identical
-   * inputs, so calling it twice was harmless there. They silently DISAGREE for `tovu serve <dir>`:
-   * `cli/commands/serve.ts` resolves the served site directly from the CLI's `<dir>` argument
-   * (`bootSiteDir`), never touching `TOVU_SITE_DIR`/`TOVU_SITE`, so a bare `describeSiteBinding()`
-   * call re-derives an unrelated `<process.cwd()>/sites/tovu-dev` instead — reporting the wrong site
-   * as "currently serving" and, for the Sites-switcher's write operations, targeting the wrong
-   * `sites/` tree entirely (2026-09-06 composition-root fix). `cli/commands/serve.ts` supplies this
-   * field explicitly (`switcherCompatible: false` — see that flag's own doc); every other boot path
-   * falls back to `describeSiteBinding()`, an unchanged default.
+   * What this process actually serves, resolved once at boot and injected into the Sites
+   * routes/tools. Re-deriving it from cwd/env at request time would target the wrong site
+   * for `tovu serve <dir>`, whose CLI argument does not set `TOVU_SITE_DIR`/`TOVU_SITE`.
+   * The CLI supplies the binding explicitly with `switcherCompatible: false`; other boot
+   * paths default to `describeSiteBinding()`. This keeps both serving status and switcher
+   * writes tied to the same site tree.
    */
   siteBinding: SiteBinding;
   /**
@@ -1734,53 +1353,24 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   adminAssistantEnabled: boolean;
   /**
-   * Boots a real `Express` app — the SAME factory `server/app.ts` exports as `createApp`, injected
-   * here rather than imported directly by `src/features/site-export/site-exporter.ts` (`exportSite` needs to boot
-   * an in-process copy of the app to crawl it over real HTTP — see that file's own header). A direct
-   * `require("../server/app")` there was the one runtime edge closing `export -> server` (2026-08-16
-   * architecture audit: dependency-cruiser flagged module cycle, propagation cost measured at 29.05%
-   * with the edge present vs 9.43% with only this one edge removed). Mirrors `runExportSite`'s
-   * injection precedent immediately above — always the real `createApp` in both `server/app.ts`'s
-   * `createRouteDeps()` (direct same-file reference) and `server/deps.ts`'s `createSiteRouteDeps()`
-   * (a static import since 2026-09-16, t91 F4.1-A; the call-time `require()` it replaced built the
-   * site app from a second tsx module graph that saw none of the live registries — the resulting
-   * `deps.ts` <-> `app.ts` cycle is recorded in `.dependency-cruiser.mjs`'s `no-circular` header).
-   * Both composition roots bind this field statically now — see `server/app.ts`'s own matching
-   * `createSiteApp` field for the identical closure-ordering reasoning.
+   * Boots the real Express app for the export engine's in-process HTTP crawl. Injection
+   * avoids an export-to-server runtime dependency. Both composition roots bind the same
+   * `createApp` factory statically, preserving the live module registries.
    *
-   * NULLARY (`() => Express`), not `(routeDeps: RouteDeps) => Express` — 2026-08-20 RouteDeps-
-   * narrowing fix, same shape and same day as `exportSiteBound` below. Before this change,
-   * `export/site-exporter.ts`'s own `ExportSiteOptions.routeDeps` field had to be typed `RouteDeps`
-   * just to have something to pass into this field's call (`routeDeps.createSiteApp(routeDeps)`),
-   * which was a real, genuine "god type" back-edge (`check:architecture`'s `backEdgesIntoServer`
-   * metric, not a location-only one like `ClockDeps`'s — verified by grep: `createSiteApp` field had
-   * exactly ONE reader, `site-exporter.ts:657`, and no per-call argument this file's `routeDeps` isn't
-   * already the right one for). Bound as `() => createApp(routeDeps)` in both composition roots,
-   * closed over the SAME `const routeDeps` binding `exportSiteBound` already closes over — see the
-   * TEST GOTCHA note on `exportSiteBound` below, now generalized to cover this field too.
+   * Nullary and closed over this composition's `routeDeps`: a per-call `RouteDeps`
+   * argument would force the full composition type into the export engine's contract.
+   * See `exportSiteBound` for the shared closure-identity rule when overriding test deps.
    */
   createSiteApp: () => Express;
   /**
-   * The SAME `resolveStorefrontProducts` (`server/routes/site/products.ts`) `/products` and
-   * `/products/:id` render with, injected here for `export/route-manifest.ts` to reuse (2026-08-16,
-   * export<->server decoupling edge 2 — see `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`).
-   * NOT moved down into `features/commerce` the way `resolveActiveTheme`/`resolveActiveThemeId` were:
-   * its return type, `SiteProduct` (`server/http/site/render.ts`), is DELIBERATELY off-limits to
-   * `features/commerce` — see `features/commerce/storefront.ts`'s own file header ("`features/commerce`
-   * does not import `SiteProduct` or anything from `server/http/site`... `server/routes/site/
-   * products.ts` is what bridges the two"). Moving this function would violate that existing,
-   * documented boundary, so injection (mirroring `createSiteApp` immediately above) is the correct
-   * shape here, not a fallback taken for lack of trying — measured, not assumed.
+   * The same storefront product resolver used by the live `/products` routes, injected
+   * for the export route manifest. Its `SiteProduct` return type belongs to the server
+   * rendering boundary and must not enter `features/commerce`; see its storefront module.
    *
-   * NULLARY (`() => Promise<SiteProduct[]>`), not `(routeDeps: RouteDeps) => ...` — same 2026-08-20
-   * fix and same reasoning as `createSiteApp` immediately above: this field had exactly ONE reader
-   * (`route-manifest.ts:183`), which always called it with its own already-current `deps`, never a
-   * different one — so a per-call `routeDeps` argument bought nothing except forcing `RouteDeps` into
-   * every caller's own type. `export/route-manifest.ts`'s own `RouteManifestDeps` declares this field
-   * against a minimal local `{id, title}` product shape rather than importing `SiteProduct` itself —
-   * return-type covariance means the real, wider `SiteProduct[]` still satisfies it with no cast; see
-   * that file's own doc for why importing `SiteProduct` there would just relocate this back-edge
-   * rather than remove it.
+   * Nullary and closed over this composition's deps to avoid propagating `RouteDeps`.
+   * The manifest uses a minimal local `{id, title}` result shape, satisfied by covariance,
+   * rather than importing the server's `SiteProduct` type and recreating a back-edge.
+   * See `exportSiteBound` for the shared closure-identity rule when overriding test deps.
    */
   resolveStorefrontProducts: () => Promise<SiteProduct[]>;
   /**
@@ -1883,64 +1473,20 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   sourceControlExportRootDir: string;
   /**
-   * A pre-bound `exportSite` call — the SAME real export engine `runExportSite` above wraps, closed
-   * over this exact `RouteDeps` object at construction time (`server/app.ts`'s `createRouteDeps()`/
-   * `server/deps.ts`'s `createSiteRouteDeps()`), so a caller supplies only `{outputDir; clean?;
-   * basePath?}` — never a `routeDeps` argument.
+   * The real export engine pre-bound to this exact `RouteDeps` object, so source-control
+   * and static-publish callers provide only `{outputDir; clean?; basePath?}`. Their local
+   * structural function contracts keep the composition-root type out of feature modules.
    *
-   * 2026-08-20 RouteDeps-narrowing fix, added specifically for `features/source-control/commit-site.ts`'s
-   * `commitSiteToSourceControl` and `features/deployments/static-publish/adapter.ts`'s
-   * `publishStaticSite`: both used to take `routeDeps: RouteDeps` directly (needing the full
-   * composition-root bag to run a real `exportSite` pass immediately before committing/publishing),
-   * which forced every caller up their own chain — `SourceControlToolDeps`, `StaticPublishToolDeps` —
-   * to name `RouteDeps` too, the exact "god type" back-edge
-   * `development/scripts/check-architecture.ts`'s `feature-no-express-or-admin-imports` rule exists to
-   * catch. This field lets those two callers take a small, locally-typed function instead (each
-   * declares its own structural copy — see `commit-site.ts`'s `ExportSiteBoundFn` — never importing
-   * `RouteDeps` to describe it).
+   * This differs from `runExportSite`, which takes `routeDeps` per call for the generic
+   * HTTP export runner. Mixing the call shapes can silently ignore or omit dependencies.
+   * Both roots bind `(opts) => exportSite({ ...opts, routeDeps })`, with `routeDeps` LAST
+   * so a forwarded options object cannot overwrite the captured composition.
    *
-   * DELIBERATELY NOT the same field as `runExportSite` above, and not merely renamed — the two have
-   * genuinely different call shapes and mixing them up is a real, `tsc`-invisible bug (a `routeDeps`
-   * field silently ignored, or a required one silently missing), not a style choice. `runExportSite`
-   * stays `ExportEngine<RouteDeps>` (takes `routeDeps` per call) because `export-site.ts`'s POST route
-   * and `features/deployments/export-run.ts`'s `startExportRun` are already generic over it and have
-   * no reason to change; this field exists for the two callers that need the OPPOSITE shape — no
-   * `routeDeps` parameter at all, because it is already closed over here.
-   *
-   * Bound as `(opts) => exportSite({ ...opts, routeDeps })` in both composition roots — `routeDeps`
-   * spread LAST, deliberately, so a caller who forwards an unrelated `routeDeps` field through `opts`
-   * (e.g. by naively passing an `ExportEngine`-shaped options object straight through, which DOES carry
-   * one) can never overwrite the real, closed-over `RouteDeps` this binding exists to guarantee. See
-   * `features/deployments/tool-registrations.ts`'s own `deployment_trigger_export` handler and its
-   * regression test for the exact failure this ordering (and that handler's own explicit destructuring)
-   * closes.
-   *
-   * TEST GOTCHA (live-found, `source-control/__tests__/commit-site.unit.test.ts`): this closure is
-   * bound to ONE object identity, at construction time, inside `createRouteDeps()`/
-   * `createSiteRouteDeps()`. A test that overrides another field the real `exportSite` reads
-   * internally (e.g. `createSiteApp`, to force one route/asset to fail) by SPREADING a copy —
-   * `{ ...createRouteDeps(), createSiteApp: fake }` — produces a logically-overridden but DIFFERENT
-   * object; this closure still points at the ORIGINAL, so the override silently never applies. The
-   * fix is to MUTATE the same object in place — `const deps = createRouteDeps(); deps.createSiteApp =
-   * fake;` — since a closure's field reads happen at CALL time against whatever object identity it
-   * captured, not a snapshot of that object's properties at capture time. `sourceControlExportRootDir`/
-   * `idGen`/every other field `SourceControlToolDeps`/`StaticPublishToolDeps` read directly (not
-   * through this closure) has no such gotcha — only fields the real `exportSite` reads INSIDE this
-   * closure's own call are affected.
-   *
-   * GENERALIZED (2026-08-20, RouteDeps-narrowing pass 2): `createSiteApp` and
-   * `resolveStorefrontProducts` immediately above were converted to this SAME closure-bound-at-
-   * construction-time shape (nullary, no `routeDeps` parameter) the same day, for the same "one
-   * reader, no per-call argument it needs" reason this field was. They carry the IDENTICAL gotcha —
-   * both are bound as `() => realFn(routeDeps)` inside `createRouteDeps()`/`createSiteRouteDeps()`,
-   * closed over that one object identity, so a spread-copy override of either is exactly as silently
-   * inert as a spread-copy override of `createSiteApp` used to be for THIS field's own call. The
-   * general rule, stated once here rather than re-derived per field: **any `RouteDeps` field whose
-   * value is a function bound by closure at construction time — as opposed to a field the closure's
-   * own body reads fresh off `routeDeps` at call time — must be overridden by mutating the object
-   * `createRouteDeps()`/`createSiteRouteDeps()` returned, never by spreading it into a copy.** As of
-   * this pass that set is `exportSiteBound`, `createSiteApp`, and `resolveStorefrontProducts`; check
-   * this doc first before assuming a new closure-shaped field is safe to spread-override.
+   * Closure-bound functions capture one object identity, not a snapshot of its properties.
+   * Tests overriding a dependency read inside `exportSiteBound`, `createSiteApp`, or
+   * `resolveStorefrontProducts` must mutate the returned deps object in place. Spreading
+   * `{ ...deps, createSiteApp: fake }` creates a different object while the original closure
+   * still reads the original deps. Direct field reads outside the closure are unaffected.
    */
   exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
 };

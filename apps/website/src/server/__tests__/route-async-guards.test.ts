@@ -7,9 +7,11 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.j
 import type { RouteDeps } from "../routes/types.js";
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types.js";
-import type { CommentIngressPolicy, CommentWriteService } from "#src/features/comments/index";
-import { registerPaymentsWebhookRoute } from "../inbound/public-http/routes/site/payments-webhook.js";
+import type { CommentIngressPolicy, CommentWriteService } from "@jini-ai/cms/comments";
+import { registerPaymentsWebhookRoute } from "@jini-ai/commerce/http";
 import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
+import { requireAdminSession } from "../inbound/admin-http/dev-auth.js";
+import { registerAdminCommerceStatusRoute } from "../inbound/admin-http/routes/commerce/status.js";
 
 /**
  * F3437: a 500 must be opaque. Every failure this file injects carries the word "simulated" (and the
@@ -359,7 +361,7 @@ test("payments-webhook: POST responds 500 (not a hang) when lipay.handleWebhook 
   } as unknown as LipayApi;
 
   const app = express();
-  registerPaymentsWebhookRoute(app, { resolveLipay: () => brokenLipay });
+  registerPaymentsWebhookRoute({ app, deps: { resolveLipay: () => brokenLipay } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/payments/webhook/lipay`, {
@@ -405,9 +407,33 @@ test("comments/moderation-queue: GET responds 500 (not a hang) when deps.authori
   await assertOpaqueInternalError(res);
 });
 
-test("commerce/status: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+test("commerce off: status GET responds 404 without calling a failing authorization backend", async (t) => {
   const deps = withThrowingAuthorize(createRouteDeps());
+  const failingAuthorize = deps.authorize;
+  let authorizeCalls = 0;
+  deps.authorize = async (input) => {
+    authorizeCalls += 1;
+    return failingAuthorize(input);
+  };
   const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Phase 12 unwired commerce; an authenticated request must never reach its authorization backend.
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/commerce/status`, {
+    headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 404);
+  assert.equal(authorizeCalls, 0);
+});
+
+test("commerce/status explicitly mounted: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  // Preserve async-error coverage through the retained Jini-backed adapter while production stays off.
+  const app = express();
+  app.use("/api/admin/v1/workspaces", requireAdminSession(deps));
+  registerAdminCommerceStatusRoute(app, deps);
+  app.use(createApp(deps));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/commerce/status`, {

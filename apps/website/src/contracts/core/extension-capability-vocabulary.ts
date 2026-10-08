@@ -2,7 +2,7 @@
  * @file The three capability strings common to Tovu's two extension mechanisms —
  * `plugin-runtime` and `site-glue` — declared exactly once.
  *
- * Both mechanisms' own manifest validators (`features/plugin-runtime/manifest.ts`,
+ * Both mechanisms' own manifest validators (`Jini/packages/plugins/src/host/manifest.ts`,
  * `features/site-glue/manifest.ts`) independently need `content.read` / `content.extend` /
  * `hooks.attach`: `plugin-runtime`'s is its entire v1 capability vocabulary; `site-glue`'s is the
  * first three members of its own eight-member superset (the remaining five —
@@ -11,10 +11,8 @@
  *
  * This module exists so that overlap is a single declaration, imported by both, rather than two
  * independent by-value literals that happen to agree today and can silently drift tomorrow
- * (2026-08-20 swarm-consensus synthesis, `ADS-memory/reports/swarm-consensus/runs/
- * 2026-08-20-tovu-extension-surface/SYNTHESIS.md`, Result 1: "Shared vocabulary should live
- * *below* both features rather than one sibling importing the other"). Neither feature imports
- * the other — both import here instead, preserving the deliberate boundary each feature's own
+ * below both features. Neither feature imports the other; both import this neutral module,
+ * preserving the deliberate boundary each feature's own
  * manifest.ts documents in its own header (no plugin-runtime dependency inside site-glue, and
  * vice versa).
  *

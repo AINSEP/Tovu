@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ResolveHtmlPageEmbedsResult } from "#src/features/widgets/resolver-service";
-import type { WidgetRenderIR } from "#src/features/widgets/types";
+import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
+import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { renderHtmlPageBody } from "../render.js";
 
 // ---------------------------------------------------------------------------

@@ -14,22 +14,10 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
  * **CIC U-005 (Binding — the SM2 transition specifically ESCALATE_SECURITY): revert must never
  * re-fire the hook.** This is the dedicated, direct coverage the TDD dispatch requires for U-005.
  *
- * **Load-bearing TDD finding (see tasks.md T023 and this feature's test-certification.md):** the
- * post `update` reverter — originally shipped in `src/contracts/core/commands/appliers.ts`, moved to
- * `src/features/post/reverters.ts` by the 2026-08-13 features-post-deep-import-trace.md Job 2
- * inversion, behavior unchanged by that move — calls `updatePost(...)` directly to restore the
- * pre-image, at the time this test was written. That is EXACTLY the illegal transition CIC U-005
- * names — once `post.ts` gains an optional `beforeSaveHook` (tasks.md T020), routing revert
- * through `updatePost` would re-fire `content.entry.beforeSave` during what must be a pure data
- * restore. This is provable TODAY, without any hook wiring at all, via an observable side effect
- * `updatePost` performs that a raw `PostRepoPort.save()` call never would: `updatePost` calls
- * `repo.findBySlug()` to check slug uniqueness before persisting. A correct revert (raw `save()`)
- * must NEVER call `findBySlug` — an incorrect one (routing through `updatePost`) always will. This
- * decouples "is revert calling the wrong function" from "is the hook wired yet," which is why this
- * test was meaningful (and RED against the pre-T023 reverter) before Phase 3 (T020/T023) landed.
- *
- * TDD-certified against `core/commands/revert.ts` + the post reverter — these assertions describe
- * the fix T023 applied and continue to guard against a regression back to the illegal transition.
+ * Revert is a pure pre-image restore through PostRepoPort.save, not updatePost: the write service
+ * would re-fire content.entry.beforeSave, violating CIC U-005. Its findBySlug uniqueness lookup is
+ * an observable distinction raw save does not have, so asserting no lookup detects the wrong path
+ * independently of hook wiring. See tasks.md T023 and test-certification.md for the owner constraint.
  */
 
 const WORKSPACE = "ws-1";

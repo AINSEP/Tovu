@@ -24,7 +24,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { MembersConsentCapability } from "./ports.js";
-import type { OriginRegistryPort } from "../../features/origin/index.js";
+import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 
 export type LaunchGatePrecondition =
   | "sending_enabled_false"

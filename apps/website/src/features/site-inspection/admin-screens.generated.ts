@@ -36,7 +36,6 @@ export const ADMIN_SCREENS: readonly { readonly id: string; readonly label: stri
   { id: "skills", label: "Skills", path: "/skills" },
   { id: "providers", label: "Integrations", path: "/providers" },
   { id: "integrations", label: "Integrations", path: "/integrations" },
-  { id: "payments", label: "Payments", path: "/payments" },
   { id: "orders", label: "Orders", path: "/orders" },
   { id: "products", label: "Products", path: "/products" },
   { id: "subscriptions", label: "Subscriptions", path: "/subscriptions" },

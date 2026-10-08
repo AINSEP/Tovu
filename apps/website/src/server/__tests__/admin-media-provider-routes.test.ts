@@ -139,13 +139,13 @@ test("a key PUT over HTTP round-trips through GET as markers, and never appears 
   assert.equal(putRes.status, 200, await putRes.clone().text());
   assert.ok(!(await putRes.clone().text()).includes(secret), "PUT response must not echo the key");
   assert.deepEqual(await putRes.json(), {
-    openai: { baseUrl: "https://api.openai.com/v1", model: "dall-e-3", apiKeyConfigured: true, apiKeyTail: "4242" },
+    openai: { baseUrl: "https://api.openai.com/v1", model: "dall-e-3", apiKeyConfigured: true, apiKeyTail: "4242", apiKeyHint: { length: secret.length, last4: "4242" } },
   });
 
   const getRes = await get(baseUrl, PROVIDERS_PATH, cookie);
   assert.ok(!(await getRes.clone().text()).includes(secret), "GET response must not echo the key");
   assert.deepEqual(await getRes.json(), {
-    openai: { baseUrl: "https://api.openai.com/v1", model: "dall-e-3", apiKeyConfigured: true, apiKeyTail: "4242" },
+    openai: { baseUrl: "https://api.openai.com/v1", model: "dall-e-3", apiKeyConfigured: true, apiKeyTail: "4242", apiKeyHint: { length: secret.length, last4: "4242" } },
   });
 });
 

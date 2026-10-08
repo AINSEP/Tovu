@@ -446,17 +446,17 @@ test("integrations routes: list's lastDelivery picks the newest row by createdAt
 
   // Insert out of chronological order — a repo/adapter is free to return rows in any order, so
   // the route (not insertion order) must be what decides "most recent" (adversarial ordering case).
-  await deps.webhookDeliveryRepo.enqueue(
-    makeDelivery({
+  await deps.webhookDeliveryRepo.enqueue({
+    record: makeDelivery({
       id: "delivery-mid",
       eventId: "event-mid",
       subscriptionId: subscription.id,
       createdAt: "2026-07-10T01:00:00.000Z",
       status: "delivered",
     })
-  );
-  await deps.webhookDeliveryRepo.enqueue(
-    makeDelivery({
+  });
+  await deps.webhookDeliveryRepo.enqueue({
+    record: makeDelivery({
       id: "delivery-newest",
       eventId: "event-newest",
       subscriptionId: subscription.id,
@@ -464,16 +464,16 @@ test("integrations routes: list's lastDelivery picks the newest row by createdAt
       status: "failed",
       lastResponseStatus: 500,
     })
-  );
-  await deps.webhookDeliveryRepo.enqueue(
-    makeDelivery({
+  });
+  await deps.webhookDeliveryRepo.enqueue({
+    record: makeDelivery({
       id: "delivery-oldest",
       eventId: "event-oldest",
       subscriptionId: subscription.id,
       createdAt: "2026-07-10T00:00:00.000Z",
       status: "delivered",
     })
-  );
+  });
 
   const list = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`, {
     headers: { cookie },
@@ -505,12 +505,12 @@ test("integrations routes: deliveries endpoint returns the log newest-first and 
   assert.equal(otherCreated.status, 201);
   const other = (await otherCreated.json()) as { subscription: { id: string } };
 
-  await deps.webhookDeliveryRepo.enqueue(
-    makeDelivery({ id: "d-1", eventId: "event-d-1", subscriptionId: subscription.id, createdAt: "2026-07-10T00:00:00.000Z" })
-  );
-  await deps.webhookDeliveryRepo.enqueue(makeDelivery({ id: "other-mid", eventId: "event-other-mid", subscriptionId: other.subscription.id, createdAt: "2026-07-10T01:00:00.000Z" }));
-  await deps.webhookDeliveryRepo.enqueue(
-    makeDelivery({
+  await deps.webhookDeliveryRepo.enqueue({
+    record: makeDelivery({ id: "d-1", eventId: "event-d-1", subscriptionId: subscription.id, createdAt: "2026-07-10T00:00:00.000Z" })
+  });
+  await deps.webhookDeliveryRepo.enqueue({ record: makeDelivery({ id: "other-mid", eventId: "event-other-mid", subscriptionId: other.subscription.id, createdAt: "2026-07-10T01:00:00.000Z" }) });
+  await deps.webhookDeliveryRepo.enqueue({
+    record: makeDelivery({
       id: "d-2",
       eventId: "event-d-2",
       subscriptionId: subscription.id,
@@ -519,8 +519,8 @@ test("integrations routes: deliveries endpoint returns the log newest-first and 
       lastResponseStatus: 502,
       lastError: "bad gateway",
     })
-  );
-  await deps.webhookDeliveryRepo.enqueue(makeDelivery({ id: "other-newest", eventId: "event-other-newest", subscriptionId: other.subscription.id, createdAt: "2026-07-10T03:00:00.000Z" }));
+  });
+  await deps.webhookDeliveryRepo.enqueue({ record: makeDelivery({ id: "other-newest", eventId: "event-other-newest", subscriptionId: other.subscription.id, createdAt: "2026-07-10T03:00:00.000Z" }) });
 
   const res = await fetch(
     `${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/${subscription.id}/deliveries`,

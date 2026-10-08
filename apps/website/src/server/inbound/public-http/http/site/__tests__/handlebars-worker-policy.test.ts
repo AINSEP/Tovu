@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import test, { mock } from "node:test";
+import test from "node:test";
+import { createRequire } from "node:module";
+import { createNodeWorkerFactory } from "@jini-ai/sandbox/node-worker";
 import * as threads from "node:worker_threads";
 import type { ResourceLimits, WorkerOptions } from "node:worker_threads";
 
@@ -38,8 +40,10 @@ class ObservedWorker extends threads.Worker {
   }
 }
 
-const threadMock = mock.module("node:worker_threads", { namedExports: { ...threads, Worker: ObservedWorker } });
-test.after(() => threadMock.restore());
+const workerFactory = createNodeWorkerFactory({ env: { ...process.env } }, {
+  typescriptBootstrap: { registerModulePath: createRequire(import.meta.url).resolve("tsx/cjs/api") },
+  createWorker: ({ entry, options }) => new ObservedWorker(entry, options),
+});
 const { renderHandlebarsInSandbox } = await import("../handlebars-sandbox.js");
 
 const ctx: SiteRenderContext = {
@@ -51,7 +55,7 @@ const ctx: SiteRenderContext = {
 test("Handlebars forwards explicit resource limits to the real worker, including an effective stack limit", async () => {
   const before = spawned.length;
   const resourceLimits = { maxOldGenerationSizeMb: 48, maxYoungGenerationSizeMb: 8, codeRangeSizeMb: 12, stackSizeMb: 5 };
-  const html = await renderHandlebarsInSandbox({ source: "<h1>{{site.title}}</h1>", ctx }, { resourceLimits, timeoutMs: 15_000 });
+  const html = await renderHandlebarsInSandbox({ source: "<h1>{{site.title}}</h1>", ctx }, { resourceLimits, timeoutMs: 15_000, workerFactory });
   assert.equal(html, "<h1>Policy fixture</h1>");
   assert.equal(spawned.length, before + 1);
   assert.deepEqual(spawned[before].requested, resourceLimits);
@@ -65,7 +69,7 @@ test("knownHelpersOnly prevents invocation of a real registered helper outside t
   const probe = new Int32Array(buffer);
   helperProbe = buffer;
   try {
-    const html = await renderHandlebarsInSandbox({ source: "[{{someUnknownName}}]", ctx }, { timeoutMs: 15_000 });
+    const html = await renderHandlebarsInSandbox({ source: "[{{someUnknownName}}]", ctx }, { timeoutMs: 15_000, workerFactory });
     assert.equal(Atomics.load(probe, 0), 1, "the worker's environment must really contain the injected helper");
     assert.equal(html, "[]");
     assert.equal(Atomics.load(probe, 1), 0, "the compiler must treat the unknown name as data, not a helper");

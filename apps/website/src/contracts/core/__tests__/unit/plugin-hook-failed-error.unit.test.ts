@@ -1,5 +1,5 @@
 /**
- * @file Unit tests for `contracts/core/plugin-hook-failed-error.ts`: the moved class keeps its
+ * @file Unit tests for `contracts/core/plugin-hook-failed-error.ts`: the class must preserve its
  * shape and identity (so `hook-registry.ts`'s throws are what `features/post` recognizes), and the
  * handler-map wrap is transparent except for a plugin refusal.
  */
@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { ToolInputError, type ToolHandler } from "@jini-ai/core";
 
-import { PluginHookFailedError as RegistryPluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
+import { PluginHookFailedError as RegistryPluginHookFailedError } from "@jini-ai/plugins/host";
 import {
   PluginHookFailedError,
   toModelFacingPluginHookError,

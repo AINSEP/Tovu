@@ -93,7 +93,7 @@ export function readOnlyToolRefusalMessage(toolId: string): string {
 export const READ_ONLY_UNCHECKABLE_MESSAGE =
   "this execution was started through a read-only gateway but the read-only constraint cannot be checked — withReadOnlyToolConstraint was wired without a ToolRegistry, so the call is refused";
 
-const messages: ReadOnlyToolMessages = {
+export const tovuReadOnlyToolMessages: ReadOnlyToolMessages = {
   unverifiableMessage: READ_ONLY_UNCHECKABLE_MESSAGE,
   toolRefusalMessage: ({ toolId }) => readOnlyToolRefusalMessage(toolId),
 };
@@ -117,7 +117,7 @@ export function refuseNonReadOnlyDispatch(required: {
   readonly toolId: string;
   readonly registry: Pick<ToolRegistry, "list"> | undefined;
 }, optional: Record<string, never> = {}): string | null {
-  return refuseDaemonNonReadOnlyDispatch({ ...required, messages }, optional);
+  return refuseDaemonNonReadOnlyDispatch({ ...required, messages: tovuReadOnlyToolMessages }, optional);
 }
 
 /**
@@ -169,6 +169,6 @@ export function withReadOnlyToolConstraint(inner: ToolExecutor, deps: ReadOnlyTo
     inner,
     registry: deps.registry,
     idGenerator: { newId: () => randomUUID() },
-    messages,
+    messages: tovuReadOnlyToolMessages,
   });
 }

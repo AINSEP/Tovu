@@ -81,26 +81,20 @@ test("hide rolls back the first directory when moving the second directory fails
   }
   const failure = new Error("second rename failed");
   let failedSecond = false;
-  t.mock.module("node:fs/promises", {
-    namedExports: {
-      ...fsPromises,
-      rename: async (from: string, to: string) => {
-        if (from === join(liveParent, "second") && !failedSecond) {
-          failedSecond = true;
-          assert.equal(await readFile(join(parkedDir, "first", "plugin.json"), "utf8"), "first");
-          throw failure;
-        }
-        return fsPromises.rename(from, to);
-      },
-    },
-  });
-  // The query string loads a fresh `directory.js` that sees the mocked `node:fs/promises`; a computed
-  // specifier keeps TS from resolving it as a file, and the annotation types it as the real module.
-  const freshDirectoryAdapter: string = "../adapters/directory.js?second-move-failure";
-  const { createDirectoryTrashAdapter: createAdapter }: typeof import("../adapters/directory.js") = await import(freshDirectoryAdapter);
-  const adapter = createAdapter({
+  // Inject rename directly so the actual adapter stages and restores real directories while only
+  // the second forward move fails; module replacement would bypass the production binding seam.
+  const adapter = createDirectoryTrashAdapter({
     entityType: ENTITY,
     locate: () => ({ liveParent, liveNames: ["first", "second"], parkedDir }),
+  }, {
+    rename: async (from, to) => {
+      if (from === join(liveParent, "second") && !failedSecond) {
+        failedSecond = true;
+        assert.equal(await readFile(join(parkedDir, "first", "plugin.json"), "utf8"), "first");
+        throw failure;
+      }
+      return fsPromises.rename(from, to);
+    },
   });
   await assert.rejects(adapter.hide(markerArgs()), (error) => error === failure);
   assert.equal(failedSecond, true);

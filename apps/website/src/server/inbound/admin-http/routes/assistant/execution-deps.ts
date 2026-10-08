@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import type { detectAgents, listProviderModels, testProviderConnection } from "@jini-ai/agent-runtime";
 
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -48,6 +49,13 @@ export type AssistantExecutionRouteDeps = Pick<
   | "siteAssistantCredentialRepo"
   | "siteAssistantSecretSealer"
   | "adminExecutionCredentialRepo"
->;
+> & {
+  /** Host detection boundary; defaults to Jini's PATH/process probe. */
+  readonly detectAgents?: typeof detectAgents;
+  /** Forward Jini's existing DNS seam so the real SSRF guard can be exercised without DNS I/O. */
+  readonly probeDnsLookup?: NonNullable<Parameters<typeof listProviderModels>[1]>["dnsLookup"];
+  /** Native fetch dispatcher seam; redirects remain forbidden by the probe adapter. */
+  readonly probeRequestInit?: NonNullable<Parameters<typeof testProviderConnection>[1]>["requestInit"];
+};
 
 export type AssistantExecutionRouteRegistrar = (app: Express, deps: AssistantExecutionRouteDeps) => void;

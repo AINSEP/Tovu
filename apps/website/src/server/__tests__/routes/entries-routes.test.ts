@@ -1,3 +1,4 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -13,7 +14,7 @@ import { registerAdminEntryCreateRoute } from "../../inbound/admin-http/routes/e
 import { registerAdminEntryUpdateRoute } from "../../inbound/admin-http/routes/entries/update.js";
 import { registerAdminEntryLifecycleRoute } from "../../inbound/admin-http/routes/entries/lifecycle.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { ensureWidgetContentTypesRegistered } from "../../../features/widgets/entry-payload.js";
+import { ensureWidgetContentTypesRegistered } from "@jini-ai/cms/widgets";
 
 /**
  * @file design-spec.md §1.9 backend-gap closure — route-level tests for the Collections entries
@@ -478,7 +479,7 @@ test("entries routes: updating with an un-enveloped fieldsJson is rejected 400 V
 /** Seeds the `widget`/`widget_area` content types exactly the way the widgets feature does on its first write. */
 async function seedWidgetTypes(deps: RouteDeps): Promise<void> {
   await ensureWidgetContentTypesRegistered({
-    deps: { contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, outbox: deps.outbox },
+    deps: { host: buildWidgetHostPorts({}, {}), contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, outbox: deps.outbox },
     workspaceId: deps.workspaceId,
   });
 }

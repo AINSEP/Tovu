@@ -1,4 +1,4 @@
-import type { FormDefinitionRecord } from "#src/features/forms/index";
+import type { HtmlFormDefinitionRecord as FormDefinitionRecord } from "@jini-ai/cms/forms";
 import type { FormsRouteDeps } from "./deps.js";
 
 /**

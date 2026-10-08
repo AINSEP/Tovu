@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps, SCOPE_BIT } from "@jini-ai/cms/settings";
+import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps, SCOPE_BIT } from "@jini-ai/core/settings";
 
 /**
  * @file `core.interface`: the admin's per-operator UI preferences, shown on Settings → User Interface.
@@ -11,7 +11,7 @@ import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps, SCOPE_BIT 
  * `wrapTabs` (owner, 2026-10-07): on phones, whether the admin's tab strips wrap onto more rows
  * instead of scrolling sideways. Default `false` keeps the one-row swipeable strip.
  *
- * Per operator, same mask as `@jini-ai/cms/settings`' Appearance and Language definitions: how one
+ * Per operator, same mask as `@jini-ai/core/settings`' Appearance and Language definitions: how one
  * admin wants the chrome to behave is not a property of the workspace. The `workspace` bit stays in
  * the mask so an operator with no user row still inherits a workspace default.
  *

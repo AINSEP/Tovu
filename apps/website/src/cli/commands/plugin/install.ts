@@ -1,11 +1,12 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { installSitePlugin, previewSitePluginInstall, PluginInstallError, type PluginInstallDeps } from "#src/features/plugin-runtime/install";
+import { installSitePlugin, previewSitePluginInstall, PluginInstallError, type PluginInstallDeps } from "@jini-ai/plugins/host/node";
 import { pluginInstallConsent } from "#src/features/plugin-runtime/install-consent";
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { resolveSiteRoot } from "#src/platform/site-dir/site-root";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { SqlPluginActivationRepo } from "#src/features/plugin-runtime/repo";
+import { SqlPluginActivationRepo } from "@jini-ai/plugins/host/sql";
 
 /** The CLI names no workspace, and conflicts are per workspace: it reports none here, and turning
  *  the plugin on in a workspace still refuses a clash (the enable-time conflict gate). */
@@ -16,8 +17,8 @@ async function openInstaller(required: { site: string }, _optional = {}) {
   const target = path.resolve(required.site);
   const boot = await bootSiteDir({ dir: target });
   try {
-    const repo = new SqlPluginActivationRepo(boot.store?.content ?? contentKernel(boot.db!));
-    return { deps: { installDir: process.env.TOVU_PLUGINS_DIR !== undefined ? path.resolve(process.env.TOVU_PLUGINS_DIR) : path.join(target, "plugins"), builtInIds: ["word-count"], repo, conflicts: noWorkspaceConflicts }, close: () => closeSiteDirBoot(boot) };
+    const repo = new SqlPluginActivationRepo({ kernel: (boot.store?.content ?? contentKernel(boot.db!)) as unknown as import("@jini-ai/plugins/host/sql").PluginActivationSqlRequired["kernel"], tables: { activations: "plugin_activations" } });
+    return { deps: { ...pluginHostBinding, installDir: process.env.TOVU_PLUGINS_DIR !== undefined ? path.resolve(process.env.TOVU_PLUGINS_DIR) : path.join(target, "plugins"), builtInIds: ["word-count"], repo, conflicts: noWorkspaceConflicts }, close: () => closeSiteDirBoot(boot) };
   } catch (e) { await closeSiteDirBoot(boot); throw e; }
 }
 
@@ -34,7 +35,7 @@ export async function runPluginInstallCommand(
   const session = await (optional.open ?? openInstaller)({ site: required.site ?? resolveSiteRoot() });
   const write = optional.write ?? ((message: string) => process.stdout.write(message));
   try {
-    const input = { sourceDir: required.dir, replace: required.replace, deps: session.deps };
+    const input = { sourceDir: required.dir, replace: required.replace, deps: { ...pluginHostBinding, ...session.deps } };
     const preview = await previewSitePluginInstall(input);
     write(pluginInstallConsent({ preview }));
     const confirm = optional.confirm ?? (async () => {

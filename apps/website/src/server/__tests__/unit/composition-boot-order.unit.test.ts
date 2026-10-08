@@ -69,6 +69,9 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
   const opened = new Error("store opened past a refusing guard");
   const boot = runInNewContext(`${compiled}\nmain()`, {
     useMemory: false,
+    installServerLogCapture: () => {},
+    serverLogFilePaths: () => ({ server: "/isolated/server.log", daemon: "/isolated/daemon.log" }),
+    attachServerLogFile: () => {},
     installUnhandledRejectionGuard: () => {},
     ensureAgentDaemonToken: () => {},
     registerPluginSdkResolver: () => {},
@@ -98,7 +101,7 @@ test("createSiteRouteDeps: storage choice, then hydration, then the store open (
   const storage = indexOfAnchor(prelude, "const storage = resolveSiteStorage(");
   const hydrate = indexOfAnchor(prelude, "hydrateContentDbIfNeeded(dbPath, storage, overrides)");
   const open = indexOfAnchor(prelude, "await openSiteStore(");
-  const sweep = indexOfAnchor(prelude, "startOwnerChatExpirySweep(role, opened.chat)");
+  const sweep = indexOfAnchor(prelude, "startOwnerChatExpirySweep(role, opened.chat, overrides?.chatExpirySweep)");
   assert.ok(storage < hydrate, "the storage choice decides whether a SQLite seed is hydrated");
   assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
   assert.ok(open < sweep, "the sweep runs on the chat kernel the store opened");
@@ -120,7 +123,7 @@ test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny 
   const deps = readCode("server/runtime/composition/deps.ts");
   const root = functionBody(deps, "export async function createSiteRouteDeps(");
   const openStore = indexOfAnchor(root, "await openCompositionStore(dbPath, overrides)");
-  const compose = indexOfAnchor(root, "await composeSiteRouteDeps(dbPath, opened.store, overrides)");
+  const compose = indexOfAnchor(root, "await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose }, overrides)");
   const release = indexOfAnchor(root, "await opened.release()");
   assert.ok(openStore < compose && compose < release, "the store opens first; a failed composition releases it");
   const body = functionBody(deps, "async function composeSiteRouteDeps(");

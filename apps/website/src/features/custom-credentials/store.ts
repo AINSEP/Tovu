@@ -80,7 +80,7 @@ async function toSummary(record: CustomCredentialSetRecord, sealer?: SecretSeale
     additionalHosts: record.additionalHosts,
     ...(record.username !== undefined ? { username: record.username } : {}),
     configured: true,
-    tokenHint,
+    ...(sealer ? { tokenHint } : {}),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -376,7 +376,8 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
     }
     throw err;
   }
-  return toSummary(record, deps.sealer);
+  // The normalized token is already in memory; deriving its hint never needs a sealed-store read.
+  return { ...await toSummary(record), tokenHint: credentialTokenHint({ token: connection.token }) };
 }
 
 export interface UpdateCustomCredentialInput {
@@ -494,14 +495,16 @@ async function resolveSealedAndUsername(
   deps: CustomCredentialWriteDeps,
   input: UpdateCustomCredentialInput,
   existing: CustomCredentialSetRecord
-): Promise<{ sealed: CustomCredentialSetRecord["sealed"]; username: string | undefined }> {
+): Promise<{ sealed: CustomCredentialSetRecord["sealed"]; username: string | undefined; tokenHint?: CredentialTokenHint | null }> {
   let sealed = existing.sealed;
   let username = existing.username;
+  let tokenHint: CredentialTokenHint | null | undefined;
 
   if (input.connection !== undefined && !isEmptyTokenPatch(input.connection)) {
     const connection = validateConnection(input.connection);
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection });
     username = connection.username;
+    tokenHint = credentialTokenHint({ token: connection.token });
   }
 
   if (input.username !== undefined) {
@@ -512,7 +515,7 @@ async function resolveSealedAndUsername(
     }
   }
 
-  return { sealed, username };
+  return { sealed, username, ...(tokenHint !== undefined ? { tokenHint } : {}) };
 }
 
 export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
@@ -523,7 +526,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
 
   const scalarFields = resolveUpdatedScalarFields(existing, input);
   const now: ISODateTime = clockNowIso({ clock: deps.clock });
-  const { sealed, username } = await resolveSealedAndUsername(deps, input, existing);
+  const { sealed, username, tokenHint } = await resolveSealedAndUsername(deps, input, existing);
 
   const record: CustomCredentialSetRecord = {
     workspaceId: input.workspaceId,
@@ -543,7 +546,8 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
     }
     throw err;
   }
-  return toSummary(record, deps.sealer);
+  // Metadata writes must not open ciphertext merely to decorate their non-secret readback.
+  return { ...await toSummary(record), ...(tokenHint !== undefined ? { tokenHint } : {}) };
 }
 
 /**
@@ -564,7 +568,7 @@ export async function deleteCustomCredential(deps: CustomCredentialReadDeps, inp
 async function decryptRecord(sealer: SecretSealerPort, record: CustomCredentialSetRecord): Promise<CustomProviderConnectionInput> {
   const aad = buildCustomCredentialAad({ workspaceId: record.workspaceId, id: record.id });
   try {
-    const plaintext = await sealer.open({ sealed: record.sealed, aad });
+    const plaintext = await sealer.open({ sealed: record.sealed }, { aad });
     return JSON.parse(plaintext) as CustomProviderConnectionInput;
   } catch (err) {
     throw new CustomCredentialSecretStoreUnconfiguredError(

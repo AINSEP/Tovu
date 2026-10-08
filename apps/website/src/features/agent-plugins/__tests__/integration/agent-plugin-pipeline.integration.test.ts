@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
 import { readInstalledSkillMarkdown } from "../../capability-projection.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 

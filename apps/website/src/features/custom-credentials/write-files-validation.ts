@@ -1,3 +1,4 @@
+import { isNonArrayRecord } from "@jini-ai/core";
 import type { RepositoryTargetValidator } from "../source-control/provider-module.js";
 import { repositoryTargetError } from "../source-control/repository-target.js";
 
@@ -166,15 +167,12 @@ export function normalizeWriteFilePath(rawPath: string): string {
   return normalized;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function requireStringFileEntry(raw: unknown): { readonly path: string; readonly content: string } {
-  if (!isPlainObject(raw) || typeof raw.path !== "string" || typeof raw.content !== "string") {
+  const entry = { value: raw };
+  if (!isNonArrayRecord(entry) || typeof entry.value.path !== "string" || typeof entry.value.content !== "string") {
     throw new CustomCredentialValidationError("each entry in 'files' must be an object with a string 'path' and a string 'content'");
   }
-  return { path: raw.path, content: raw.content };
+  return { path: entry.value.path, content: entry.value.content };
 }
 
 function addFileBytesWithinLimits(normalized: string, content: string, totalBytes: number): number {

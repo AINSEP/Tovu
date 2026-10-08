@@ -2,33 +2,34 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
+import type { DetectedAgent } from "@jini-ai/agent-runtime";
 
 import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
 
 /**
- * @file Proves `--experimental-test-module-mocks` actually unlocks `mock.module()` in this repo,
- * end to end through the real route -- not just that the API exists.
+ * @file Exercises the real route with an injected detector, without a host-dependent CLI probe
+ * or experimental module-mocking flags.
  *
- * `test-agent.ts` calls `detectAgents()` from `@jini-ai/agent-runtime` as a direct static import
- * (no injectable dep), which is why `admin-assistant-execution-routes.test.ts` and
- * `resolve-test-agent-outcome.ts` both document the installed/authenticated/model-mismatch/success
+ * `test-agent.ts` previously called `detectAgents()` from `@jini-ai/agent-runtime` as a direct static
+ * import with no injectable dep, which is why `admin-assistant-execution-routes.test.ts` and
+ * `resolve-test-agent-outcome.ts` documented the installed/authenticated/model-mismatch/success
  * branches as reachable only via a real, host-dependent CLI probe, or via `mock.module()`.
  *
  * This file deliberately does NOT build its Express app through `createRouteDeps()`
- * (`../../../../app.js`), unlike every other route test in this repo. `app.ts` statically imports
+ * (`../../../../app.js`), keeping its dependencies narrow. `app.ts` statically imports
  * `createAssistantExecutionModule`, which statically imports `test-agent.ts`, which statically
  * imports `@jini-ai/agent-runtime` -- so importing anything from `app.js` (even just for its
- * `createRouteDeps` export) loads the REAL `detectAgents` and binds `test-agent.ts`'s copy to it
+ * `createRouteDeps` export) loaded the REAL `detectAgents` and bound `test-agent.ts`'s copy to it
  * before a test body ever runs. `mock.module()` cannot retroactively change a binding a module
  * already resolved at its first load, so registering the mock inside the test and then re-importing
  * `test-agent.js` still returns the same already-loaded module with the real dependency baked in --
  * this was confirmed by hand while building this test (a mock through the `app.js`/`createRouteDeps`
  * path silently no-ops: no error, but the route still calls the real `detectAgents`).
  *
- * So this test builds the two dependencies `test-agent.ts` actually needs by hand -- a
- * `res.locals.principal` and a two-field `AssistantExecutionRouteDeps` -- instead of the full
- * `RouteDeps` bag, so `@jini-ai/agent-runtime` is not imported by anything until the mock is already
- * registered.
+ * So this test builds the dependencies `test-agent.ts` needs by hand -- a session principal,
+ * authorization and detector -- instead of the full `RouteDeps` bag. The route now accepts the
+ * detector as a dependency, so module load order no longer affects the seam. The hand-built deps
+ * still isolate this route from unrelated composition.
  */
 
 const WORKSPACE_ID = "workspace-local";
@@ -42,11 +43,11 @@ function post(baseUrl: string, path: string, body: unknown): Promise<Response> {
   });
 }
 
-test("test-agent: an authenticated CLI offering the requested model reports ok:true, via a mocked detectAgents() -- no real CLI on PATH required", async (t) => {
+test("test-agent: an authenticated CLI offering the requested model reports ok:true, via an injected detectAgents() -- no real CLI on PATH required", async (t) => {
   let available = true;
   let detectionFails = false;
   let allowed = true;
-  const detectAgents = t.mock.fn(async () => {
+  const detectAgents = t.mock.fn(async (): Promise<DetectedAgent[]> => {
     if (detectionFails) throw new Error("probe failed");
     return [
       {
@@ -63,17 +64,13 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
       },
     ];
   });
-  // `namedExports` REPLACES the module's whole export set, not just the key(s) given -- so a bare
-  // `{ detectAgents }` here breaks every OTHER consumer this process still needs
+  // The old module mock's `namedExports` REPLACED the whole export set, not just the key(s) given -- so a bare
+  // `{ detectAgents }` there broke every OTHER consumer this process still needs
   // `@jini-ai/agent-runtime` for (`test-agent.ts`'s own import chain, through `#src/assistant/index`,
   // reaches `byok-provider-turn.ts`, which needs the package's real `runAnthropicToolTurn`). Loading
-  // the real module first and spreading it keeps everything else real and overrides only the one
-  // function this test cares about. This import is also what makes the mock registration below the
-  // module's first-ever load in this process -- see this file's header on why that ordering matters.
-  const real = await import("@jini-ai/agent-runtime");
-  t.mock.module("@jini-ai/agent-runtime", {
-    namedExports: { ...real, detectAgents },
-  });
+  // the real module first and spreading it kept everything else real and overrode only the one
+  // function this test cares about. DI now preserves those real exports without replacing a module
+  // or depending on its first-load ordering -- see this file's header for the original failure.
 
   const { registerAdminAssistantTestAgentRoute } = await import("../test-agent.js");
 
@@ -94,6 +91,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
     throw new Error(`test-agent.ts is not expected to call ${member}`);
   };
   const deps: AssistantExecutionRouteDeps = {
+    detectAgents,
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed, reason: "test-only permission" }),
     siteAssistantCredentialRepo: {
@@ -124,7 +122,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   const body = (await res.json()) as { ok: boolean; message: string };
   assert.equal(body.ok, true);
   assert.equal(body.message, "Mocked CLI 3.1.4 is installed and authenticated, and offers 'model-a'.");
-  // Proves the route reached the mock rather than a real PATH scan: exactly one call, with no
+  // Proves the route reached the injected detector rather than a real PATH scan: exactly one call, with no
   // configuration -- Jini's `(required, optional)` shape makes that an empty required object and no
   // options argument (no configured env, no AMR profile resolver).
   assert.equal(detectAgents.mock.callCount(), 1);

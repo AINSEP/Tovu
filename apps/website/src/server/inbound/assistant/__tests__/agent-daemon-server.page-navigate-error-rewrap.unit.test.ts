@@ -64,7 +64,7 @@ describe("the toolRegistrations registration loop", () => {
   });
 
   test("every registration is still handed to registry.register — the rewrap must not replace registration itself", () => {
-    assert.match(registrationLoopSource, /registry\.register\(lostFrontendBindings\.wrap\(registration\)\)/);
+    assert.match(registrationLoopSource, /registry\.register\(applyToolApprovalPolicy\(\{\s*registration:\s*lostFrontendBindings\.wrap\(registration\),\s*surfaces:\s*\{\s*surfaceExchanges\s*\}/);
   });
 
   test("a run whose bind token was unknown gets the reload message: bind errors are recorded and every tool is wrapped", () => {
@@ -82,6 +82,11 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
   const { withPageNavigateErrorRewrap } = await import("#src/assistant/rewrap-page-navigate-error");
   const { withReadOnlyFrontendCapabilities } = await import("#src/assistant/frontend-control-capabilities");
   const { createLostFrontendBindings } = await import("#src/assistant/lost-frontend-binding");
+  const { applyToolApprovalPolicy } = await import("#src/assistant/tool-approval-policy");
+  const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
+  const { createTimeoutScheduler } = await import("@jini-ai/daemon/scheduler");
+  const { createSystemClock, createRandomUuidGenerator } = await import("@jini-ai/core/primitives");
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const loop = daemonSource.statements.find((statement) => ts.isForOfStatement(statement) && statement.expression.getText(daemonSource).includes("frontendControl.toolRegistrations"));
   assert.ok(loop, "the module-level frontend registration loop must exist");
   const registry = createToolRegistry({});
@@ -96,7 +101,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
     { descriptor: { id: "chat.send_message" }, policy: { authorize: () => "allow" }, handler: async () => ({ sent: true }) },
     { descriptor: { id: "admin.capture_screenshot" }, policy: { authorize: () => "allow" }, handler: async (ctx) => { throw new Error(`no frontend is bound to run "${ctx.run.id}"`); } },
   ];
-  await evaluateDaemonStatements([loop], { registry, lostFrontendBindings, withPageNavigateErrorRewrap, withReadOnlyFrontendCapabilities, frontendControl: { toolRegistrations: registrations } });
+  await evaluateDaemonStatements([loop], { registry, lostFrontendBindings, withPageNavigateErrorRewrap, withReadOnlyFrontendCapabilities, applyToolApprovalPolicy, surfaceExchanges, frontendControl: { toolRegistrations: registrations } });
   assert.deepEqual(registry.list({}).map(({ id }) => id).sort(), ["admin.capture_screenshot", "chat.send_message", "page.navigate"]);
   const executor = createToolExecutor({ registry });
   const request = { principal: { id: "principal" }, run: { id: "bound-run" }, toolId: "page.navigate", input: { page: "posts" } };

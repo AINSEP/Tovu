@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createFederatedCallConfirmer } from "../external-mcp-call-confirmation.js";
 import * as shared from "@jini-ai/mcp/federation";
 import { WRITE_SHAPED_INPUT_WORDS, admitRemoteTools, type FederatedToolIdentity } from "@jini-ai/mcp/federation";
@@ -14,10 +14,11 @@ import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-// The trust tier and approval fingerprint moved to @jini-ai/mcp/federation. These wrappers keep the
-// original call shapes and bind Tovu's fingerprint domain exactly as the host confirmer does, so
-// every assertion below is unchanged.
+
+// These wrappers bind Jini approval policy to Tovu's fingerprint domain and call contract.
 const federatedToolApprovalFingerprint = (identity: FederatedToolIdentity) =>
   shared.federatedToolApprovalFingerprint({ identity, fingerprintDomain: TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN });
 const describeFederatedTool = ({ remoteDescription, ...required }: { label: string; remoteName: string; remoteDescription?: string | undefined }) =>
@@ -73,7 +74,7 @@ function memoryStores(): Stores {
 }
 
 function harness(stores: Stores, tools: RemoteToolDescriptor[] = TOOLS): Harness {
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const sent: { name: string; args: Record<string, unknown> }[] = [];
   const session = new InMemoryMcpSession({
     tools }, {
@@ -135,7 +136,7 @@ function call(h: Harness, name: string, input: unknown, conversation = "chat-a")
 }
 
 function answer(h: Harness, card: Card, name: string, params: Record<string, unknown>) {
-  return h.store.deliver({ exchangeId: card.exchangeId, params, principalId: PRINCIPAL_ID, toolId: `mcp__acme__${name}` });
+  return h.store.deliver({ exchangeId: card.exchangeId, params, principalId: PRINCIPAL_ID }, { toolId: `mcp__acme__${name}` });
 }
 
 /** Calls `name` with `input`; if a card appears, cancels it. Returns the card, or `null` when the call ran without one. */

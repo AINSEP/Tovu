@@ -1,3 +1,5 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
+import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
@@ -45,27 +47,16 @@ import {
   type EntryListItem,
   type EntryListFieldValue,
 } from "#src/features/theme/index";
-import {
-  markersOfType,
-  substituteMarkers,
-  withInnerContentFinal,
-  MENU_MARKER_TYPE,
-  COLLECTION_MARKER_TYPE,
-  type EmbedMarker,
-} from "#src/contracts/core/embeds/marker";
+import { markersOfType, substituteMarkers, withInnerContentFinal, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "#src/features/entries/public-list";
-import {
-  resolveHtmlPageEmbeds,
-  resolvePageWidgets,
-  type ResolveHtmlPageEmbedsResult,
-  type ResolvePageWidgetsResult,
-} from "#src/features/widgets/resolver-service";
+import { resolveHtmlPageEmbeds, type ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
+import { resolvePageWidgets, type ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
 import type { RouteTarget } from "#src/platform/routing/index";
-import { resolveWorkspaceOrigin, toAbsoluteUrl } from "#src/features/seo/index";
+import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { resolveMenuDoc } from "#src/features/navigation/index";
 import type { NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
 import { getLatestTransformDefinition } from "#src/features/media/index";
@@ -133,13 +124,13 @@ async function buildExtraHead(
   const canonical = post
     ? (await urlFor({ deps: { postRepo: deps.postRepo }, target: { kind: "entryRef", entryId: post.id, contentType: post.kind }, ctx: { workspaceId: deps.workspaceId } }))?.canonicalUrl
     : undefined;
-  const origin = await resolveWorkspaceOrigin(deps.originRegistry, deps.workspaceId);
+  const origin = await resolveWorkspaceOrigin({ originRegistry: deps.originRegistry, workspaceId: deps.workspaceId, runtimeMode: deps.seoDeps.runtimeMode }, {});
 
   const ctx: PageHeadContext = {
     workspaceId: deps.workspaceId,
     route,
     siteTitle,
-    canonicalUrl: toAbsoluteUrl(origin, canonical ?? (post ? postPublicPath(post.slug) : canonicalFallbackPath)),
+    canonicalUrl: toAbsoluteUrl({ origin, path: canonical ?? (post ? postPublicPath(post.slug) : canonicalFallbackPath) }, {}),
     entry: post
       ? {
           id: post.id,
@@ -405,7 +396,7 @@ export async function resolveWidgetsForRender(
 export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDeps, post: PostRecord | undefined): Promise<ResolveHtmlPageEmbedsResult | undefined> {
   if (!post || post.bodyFormat !== "html") return undefined;
   return resolveHtmlPageEmbeds({
-    deps: {
+    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,
       mediaRepo: deps.mediaRepo,
       transformRepo: deps.transformDefinitionRepo,
@@ -458,7 +449,7 @@ function navTargetToRouteTarget(target: NavTarget): RouteTarget {
  * own `urlFor` backs, for exactly the same reason `resolveForLocation` needed it.
  *
  * Non-static themes never call this (checked by the caller); declarative/templated/handlebars themes
- * have their own, separate `menu` WIDGET type (`widgets/resolvers/menu.ts`, `resolveMenuDoc` over an
+ * have their own, separate `menu` WIDGET type (`Jini/packages/cms/src/widgets/resolvers/menu.ts`, `resolveMenuDoc` over an
  * explicit per-instance `menuRef`) that already renders real menu content today — a different,
  * narrower mechanism (one specific menu placed by an author, not a theme marker naming a shared
  * site-wide menu), left untouched by this change.
@@ -781,7 +772,7 @@ export async function finishStaticTierDocument(
 
   const expanded = expandPartials(html, theme);
   const resolved = await resolveHtmlPageEmbeds({
-    deps: {
+    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,
       postRepo: deps.postRepo,
       mediaRepo: deps.mediaRepo,
@@ -798,7 +789,7 @@ export async function finishStaticTierDocument(
   const knownMenuIds = new Set(Object.keys(staticMenus ?? {}));
   const missingMenuIds = Array.from(
     new Set(
-      markersOfType(assembled, MENU_MARKER_TYPE)
+      markersOfType({ html: assembled, type: MENU_MARKER_TYPE })
         .map((marker) => marker.id)
         .filter((id): id is string => id !== undefined && !knownMenuIds.has(id))
     )
@@ -959,7 +950,7 @@ async function resolveCollectionListsForRender(
   deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo">,
   html: string
 ): Promise<ReadonlyMap<string, string | undefined>> {
-  const markers = markersOfType(html, COLLECTION_MARKER_TYPE);
+  const markers = markersOfType({ html: html, type: COLLECTION_MARKER_TYPE });
   if (markers.length === 0) return new Map();
 
   const distinctByKey = new Map<string, EmbedMarker>();
@@ -1043,7 +1034,7 @@ function buildMissingTemplateHtml(apiVersion: 2 | undefined): string {
  * the whole recursive resolution, so a self-referencing body (A embeds A) or a mutually-referencing
  * one (A embeds B embeds A) TERMINATES instead of hanging, and a wide, adversarially-branching chain
  * cannot fan out into an unbounded number of DB round trips either. `MAX_HTML_EMBEDS_PER_PAGE` (the
- * existing precedent, `widgets/html-embeds.ts`) is a per-page COUNT and does not, by itself, bound a
+ * existing precedent, `Jini/packages/cms/src/widgets/html/html-embeds.ts`) is a per-page COUNT and does not, by itself, bound a
  * CYCLE — a page can legally contain the same single marker that, once resolved, contains another
  * one referencing back, which no per-page count alone stops. Depth AND a total-fetch budget together
  * do: depth alone is sufficient for a SIMPLE cycle (bounded steps regardless of shape), and the
@@ -1149,7 +1140,7 @@ function toContentMarkerRef(marker: EmbedMarker): ContentMarkerRef | undefined {
  * fetch-count tests pin. */
 function distinctContentMarkerRefs(html: string): ContentMarkerRef[] {
   const seen = new Map<string, ContentMarkerRef>();
-  for (const marker of markersOfType(html, "content")) {
+  for (const marker of markersOfType({ html: html, type: "content" })) {
     const ref = toContentMarkerRef(marker);
     if (ref !== undefined && !seen.has(ref.key)) seen.set(ref.key, ref);
   }
@@ -1193,7 +1184,7 @@ async function fetchHtmlFormatBody(
  * only `render.ts` has in scope (this module must stay free of that dependency, same as every other
  * I/O-orchestration function in this file).
  *
- * Lives here, not in `widgets/resolver-service.ts` or `features/theme/static-render.ts`, because it
+ * Lives here, not in `Jini/packages/cms/src/widgets/resolver-service.ts` or `features/theme/static-render.ts`, because it
  * is the one place in the codebase that legitimately needs BOTH `resolveHtmlPageEmbeds` (resolves
  * IDs to data) AND `renderHtmlPageBody` (splices IR into HTML) for the SAME nested string — those two
  * modules must not depend on each other (`render.ts` already depends on `resolver-service.ts`; the
@@ -1255,7 +1246,7 @@ export async function resolveHtmlFormatContentMarkers(
       // why the override must never follow into a nested entity's own embeds.
       const nestedHtml = await resolveHtmlFormatContentMarkers(deps, ownBody, depth + 1, budget);
       const nestedResolved = await resolveHtmlPageEmbeds({
-        deps: {
+        deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
           entryRepo: deps.entryRepo,
           postRepo: deps.postRepo,
           mediaRepo: deps.mediaRepo,
@@ -1271,12 +1262,12 @@ export async function resolveHtmlFormatContentMarkers(
   );
   if (replacements.size === 0) return html;
 
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== "content") return undefined;
     const key = contentMarkerKey(marker);
     const replacement = key === undefined ? undefined : replacements.get(key);
-    return replacement === undefined ? undefined : withInnerContentFinal(marker, replacement);
-  });
+    return replacement === undefined ? undefined : withInnerContentFinal({ marker: marker, inner: replacement });
+  } });
 }
 
 /**
@@ -1426,7 +1417,7 @@ export async function renderViaTemplate(
     pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined
   );
   const resolved = await resolveHtmlPageEmbeds({
-    deps: {
+    deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,
       postRepo: deps.postRepo,
       mediaRepo: deps.mediaRepo,
@@ -2068,19 +2059,10 @@ async function handlePostNotFoundInSlugCatch(input: {
   }
 }
 
-/** Manual `req.headers.cookie` parse — no `cookie-parser` middleware mounted anywhere in this app;
- *  mirrors `dev-auth.ts`'s `readSessionToken`, the established convention for every cookie this
- *  codebase reads. */
-function readRawCookie(req: Request, name: string): string | undefined {
-  const header = req.headers.cookie;
-  if (!header) return undefined;
-  for (const part of header.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
-  }
-  return undefined;
-}
+
+
+/** No cookie-parser middleware is mounted. All request cookies use the shared reader,
+ * matching dev-auth without an unguarded decodeURIComponent copy. */
 
 /**
  * This route family's `MemberAccessResolver` (ADR-030 §4), built per request from the three member
@@ -2115,7 +2097,7 @@ async function resolveMemberContextForRequest(
 ): Promise<MemberContext> {
   return resolver.resolveContext({
     workspaceId: deps.workspaceId,
-    sessionToken: readRawCookie(req, MEMBER_SESSION_COOKIE),
+    sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }),
     nowIso: new Date().toISOString(),
   });
 }
@@ -2220,8 +2202,7 @@ async function resolvePostPreviewsForRender(
  *  required for the browser to recognize this as the same cookie (only name+Path are), but keeps the
  *  set/clear pair symmetric, same as `dev-auth.ts`'s own `setSessionCookie`/`clearSessionCookie`. */
 function clearFormFlashCookie(req: Request, res: Response): void {
-  const secureAttr = isHttpsRequest(req) ? "; Secure" : "";
-  res.setHeader("Set-Cookie", `${FORM_FLASH_COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secureAttr}`);
+  res.clearCookie(FORM_FLASH_COOKIE_NAME, { httpOnly: true, path: "/", sameSite: "lax", secure: isHttpsRequest(req) });
 }
 
 /** {@link resolvePerVisitorResponse}'s two outputs: the form result to splice into the HTML (if
@@ -2260,7 +2241,7 @@ interface PerVisitorResponse {
  */
 function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorResponse {
   const queryResult = decodeFormSubmissionResultFromQuery(req.query);
-  const flash = decodeFormFlashCookieValue(readRawCookie(req, FORM_FLASH_COOKIE_NAME));
+  const flash = decodeFormFlashCookieValue(readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }));
   if (flash) clearFormFlashCookie(req, res);
   const result = mergeFormFlashIntoResult(queryResult, flash);
   // Both arms matter, and neither implies the other. `result` covers a PRG landing whose body gets
@@ -2276,7 +2257,7 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
   // something." Ordering between the two private arms is cosmetic (both resolve to the same
   // never-store literal); what matters is that `public` is reachable ONLY when NEITHER trigger
   // fired, so a request carrying both cookies can never fall back to it through either path.
-  if (readRawCookie(req, MEMBER_SESSION_COOKIE) !== undefined) {
+  if (readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }) !== undefined) {
     return { result, cacheControl: CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE };
   }
   // The static-export marker changes the body (no visitor-chat widget), so it is a per-visitor

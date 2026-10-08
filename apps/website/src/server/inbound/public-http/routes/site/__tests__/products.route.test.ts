@@ -1,3 +1,5 @@
+import { createCommerceSiteTestApp as createApp } from "./commerce-site-app.js";
+import { resolveStorefrontProducts, type CommerceSiteAdapterDeps } from "../products.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -9,9 +11,9 @@ import type {
   CommerceProductRepoPort,
   CommercePriceRecord,
   CommerceProductRecord,
-} from "#src/features/commerce/index";
+} from "@jini-ai/commerce";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
  * @file Route-level coverage for `registerProductRoutes`'s 2026-08-12 commerce wiring — real HTTP
@@ -50,7 +52,7 @@ function fakePriceRepo(pricesByProduct: Record<string, CommercePriceRecord[]>): 
   };
 }
 
-async function startServer(overrides: Partial<ReturnType<typeof createRouteDeps>>) {
+async function startServer(overrides: Partial<CommerceSiteAdapterDeps>) {
   const deps = { ...createRouteDeps(), ...overrides };
   const server = createServer(createApp(deps));
   server.listen(0);
@@ -477,36 +479,36 @@ test("GET /products/:id survives a workspace with no presentation_settings row",
 });
 
 
-test("the product handler renders the Commerce sale card and the unwired empty state", async () => {
-  const theme = createRouteDeps().themes.find((theme) => theme.manifest.id === "fashion-modern");
+test("the product adapter preserves Commerce sale prices and the handler renders the unwired empty state", async () => {
+  const baseDeps = createRouteDeps();
+  // The real HTTP test above owns the shipped sale-card markup and both formatted prices.
+  // Assert adapter data here without repeating a worker render against the fixed 5s budget.
+  const products = await resolveStorefrontProducts({
+    ...baseDeps, store: undefined,
+    commerceProductRepo: fakeProductRepo([activeProduct("sale", "Sale Tee", "sale-tee")]),
+    commercePriceRepo: fakePriceRepo({ sale: [{ ...activePrice("sale"), compareAtAmountCents: 4500 }] }),
+  });
   // A message on every assert.ok here: without one, Node regenerates the failing expression by
   // acorn-parsing this file's tsx output (one very long line), which takes minutes and looks like a hang.
-  assert.ok(theme, "the sale-card fixture must use the shipped storefront template");
-  for (const populated of [true, false]) {
-    const deps = {
-      ...createRouteDeps(), ...(populated ? { themes: [theme] } : {}), store: undefined,
-      commerceProductRepo: populated ? fakeProductRepo([activeProduct("sale", "Sale Tee", "sale-tee")]) : undefined,
-      commercePriceRepo: populated ? fakePriceRepo({ sale: [{ ...activePrice("sale"), compareAtAmountCents: 4500 }] }) : undefined,
-    };
-    let html = "";
-    let status = 200;
-    const res = {
-      status(code: number) { status = code; return res; },
-      set() { return res; }, type() { return res; },
-      send(body: string) { html = body; return res; },
-    };
-    await extractHandler(createApp(deps), "/products")({ header: () => undefined, hostname: "localhost" }, res);
-    assert.equal(status, 200);
-    if (populated) {
-      const card = /<li class="product-card">([\s\S]*?)<\/li>/.exec(html);
-      assert.ok(card, "the Commerce product must render a storefront card");
-      assert.match(card[1], /Sale Tee/);
-      assert.match(card[1], /class="product-card__price-current">\$35\.00<\/span>/);
-      assert.match(card[1], /class="product-card__price-compare">\$45\.00<\/span>/);
-    } else {
-      assert.match(html, /No products available yet\./);
-      assert.match(html, /class="entry-list entry-list--products"/);
-      assert.doesNotMatch(html, /class="product-card"|href="\/products\/[^" ]+"/);
-    }
-  }
+  assert.ok(products[0], "the Commerce adapter must return the sale product");
+  assert.equal(products.length, 1);
+  assert.equal(products[0].title, "Sale Tee");
+  assert.equal(products[0].slug, "sale-tee");
+  assert.equal(products[0].price, 3500);
+  assert.equal(products[0].compareAtPrice, 4500);
+  const deps = {
+    ...baseDeps, store: undefined, commerceProductRepo: undefined, commercePriceRepo: undefined,
+  };
+  let html = "";
+  let status = 200;
+  const res = {
+    status(code: number) { status = code; return res; },
+    set() { return res; }, type() { return res; },
+    send(body: string) { html = body; return res; },
+  };
+  await extractHandler(createApp(deps), "/products")({ header: () => undefined, hostname: "localhost" }, res);
+  assert.equal(status, 200);
+  assert.match(html, /No products available yet\./);
+  assert.match(html, /class="entry-list entry-list--products"/);
+  assert.doesNotMatch(html, /class="product-card"|href="\/products\/[^" ]+"/);
 });

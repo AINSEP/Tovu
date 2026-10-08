@@ -151,8 +151,8 @@ export function runHandlebarsRender(
 
   // Defensive re-check (belt-and-suspenders): `loadTheme()` already linted this
   // source at discovery time; re-lint here in case the file changed on disk
-  // since. Deliberately unconditional — unlike the Liquid tier, this one has no
-  // `skipLiquidAllowlist`-style opt-out to honor (see `ThemeManifest`).
+  // since. Unconditional in both template tiers: publisher flags must never
+  // re-open the XSS/compiler-object seams this lint rejects.
   const violations = lint(source);
   if (violations.length > 0) {
     return { ok: false, error: `disallowed Handlebars usage: ${violations.join("; ")}` };

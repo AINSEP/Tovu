@@ -1,4 +1,4 @@
-import { importRedirects } from "#src/features/redirects/index";
+import { importRedirects } from "@jini-ai/cms/redirects";
 import { toAdminRedirectImportResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 

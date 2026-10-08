@@ -9,7 +9,8 @@ import { SqlitePresentationSettingsRepo } from "#src/features/presentation/repo.
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
-import { SqliteRedirectRepo, type RedirectsWriteDeps } from "#src/features/redirects/index";
+import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
+import { type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
@@ -76,7 +77,7 @@ export function createSqlitePublishContentSeedHash(input: CreateSqlitePublishCon
       const copyPath = join(mkdtempSync(join(tmpdir(), "tovu-publish-seed-")), "content.seed.db");
       copyFileSync(input.seedDbPath, copyPath);
       const seedDb = openContentDb(copyPath);
-      const redirectRepo = new SqliteRedirectRepo(seedDb);
+      const redirectRepo = SqliteRedirectRepo({ store: seedDb }, {});
       const seedPostRepo = new SqlitePostRepo(seedDb);
       const { workspaceId } = input;
       return {

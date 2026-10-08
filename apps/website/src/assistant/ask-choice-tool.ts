@@ -1,3 +1,4 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { randomUUID } from "node:crypto";
 
 import { buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
@@ -5,7 +6,7 @@ import { ToolInputError, buildDomainRegistrations, decorateWithSchema, type Agen
 import { ASK_CHOICE_INPUT_SCHEMA, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
 import { buildUIToolResult, type UIResource } from "./mcp-ui.js";
-import { type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
+import { askOnce, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
 /**
  * @file A production tool that lets the assistant ask the administrator a real question — a single
@@ -14,12 +15,8 @@ import { type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchan
  *
  * ## Why this exists
  *
- * Before this tool, the assistant's only way to offer the administrator a decision was prose: "Say
- * the word and I'll do it." An operator watching the chat pane has no reliable way to notice that a
- * question was asked inside a paragraph, so the reply never came and the assistant looked broken.
- * `agent-daemon-server.ts`'s system overlay now instructs the assistant to call this tool BY NAME
- * whenever it needs a decision, a confirmation, or a choice from the administrator — see that
- * file's `baseOverlay` for the exact wording.
+ * A question embedded in prose is easy for an administrator to miss. The daemon's system overlay
+ * names this tool as the way to request an observable decision, confirmation, or choice.
  *
  * ## Why this is a NEW tool rather than widening `assistant_demo_choices`
  *
@@ -32,16 +29,8 @@ import { type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchan
  * additive; `assistant_demo_choices` is untouched and keeps its role as the fixed-content proof that
  * the round trip itself works.
  *
- * ## What it reuses from `demo-choices-tool.ts`
- *
- * The held-open exchange mechanism (ADR-055 Decision 1: one call, not two) is preserved — send,
- * then receive (the same order as `askOnce`),
- * the emit-then-park order, the no-emit-seam fallback, and the abort-closes-the-exchange behavior.
- * The generic handler and ticket implementation now live in `@jini-ai/mcp/tools/ask-choice`;
- * this adapter supplies Tovu policy and presentation, and retains the incident rationale below.
- * None of that plumbing is domain-specific, so it comes from the package through the host exchange
- * bridge; only
- * the FIELD CONTENT is model-supplied here instead of hardcoded.
+ * Generic parsing, answer validation and ticket lifecycle are owned by
+ * `@jini-ai/mcp/tools/ask-choice`; this adapter supplies Tovu policy and presentation.
  *
  * ## It writes nothing, deliberately
  *
@@ -57,23 +46,18 @@ import { type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchan
  * call this tool again before the real answer arrives. The no-`emitSurface` fallback breaks that
  * premise — that call RETURNS immediately with "nothing has been answered yet," and the model is
  * free to call `assistant_ask_choice` again right away with whatever `choice`/`selections` it
- * likes. `isFallbackAskChoiceAnswer` used to treat every such call as the administrator's real
- * answer, with no check that a form had ever been shown, let alone answered — a live incident (a
- * paid `media_generate_asset` credential spend that nobody chose) is the best remaining explanation
- * once a pre-checked radio was empirically ruled out.
+ * likes. An answer-shaped second call alone is not evidence the administrator answered a form.
  *
  * So the fallback path mints its own single-use, principal-bound, TTL-limited ticket
  * (`ASK_CHOICE_ANSWER_TICKET_PARAM`) the moment it renders a form with no exchange to open — the
- * shape the former destructive-confirmation token store used for the identical problem ("a second tool call the
- * model could otherwise make itself"), narrowed to what this tool needs (no entity/version to bind
- * to). The ticket rides home in the form's `baseParams`, which `@jini-ai/ui`'s `buildFormSurface`
+ * second-call guard the model cannot mint for itself. The ticket rides home in the form's
+ * `baseParams`, which `@jini-ai/ui`'s `buildFormSurface`
  * renders into the surface's HTML and merges into whatever the form posts back — never into this
  * call's own `modelText`, so the model never reads it from its own result (the daemon's
  * `splitToolResultSurfaces` withholds the UI resource from model context regardless). A "second
  * call" is now only accepted when it carries a ticket that matches an outstanding, unconsumed one
  * minted for the same principal; anything else — no ticket, an unknown one, an expired one, a
  * replayed one — is refused with a `ToolInputError`, not reported as `submitted: true`.
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 
 /** The tool id, shared by the catalog, the handler, and the surface's own callback target. */
@@ -92,7 +76,7 @@ export const ASK_CHOICE_TOOL_ID = "assistant_ask_choice";
  */
 export const ASK_CHOICE_ANSWER_TICKET_PARAM = "__askChoiceAnswerTicket";
 
-/** How long a fallback-path ticket may sit unredeemed. Mirrors `tool-surface-exchanges.ts`'s own
+/** How long a fallback-path ticket may sit unredeemed. Mirrors `@jini-ai/daemon/surface-exchanges`'s own
  *  `DEFAULT_SURFACE_IDLE_TTL_MS` — long enough for a human to read a dialog and decide, short
  *  enough that a ticket from an abandoned form cannot be redeemed later out of scrollback. */
 const ASK_CHOICE_TICKET_TTL_MS = 5 * 60 * 1000;
@@ -272,132 +256,18 @@ const askChoiceMessages: AskChoiceMessages = {
  * Builds this tool's registration, binding Tovu's policy/presentation to the package handler.
  * The generic parser, answer validation and ticket lifecycle live at `@jini-ai/mcp/tools/ask-choice`.
  *
- * The retained extraction rationale below describes the pre-extraction units and their historical
- * names. Their replacements are the package's parseQuestion/readSelect/matchesOptions,
- * describeAnswer/waitForAnswer and pending factory. Surfaces must use the same store
- * mounted by registerMcpUiToolCallsRoute or a submitted form reaches nothing.
+ * The same exchange store must be mounted by `registerMcpUiToolCallsRoute`, or submitted forms
+ * reach nothing. One fallback ticket store spans calls for this registration; daemon restart
+ * discards pending tickets and requires a fresh form, the fail-closed direction.
+ * Ticket consumption precedes binding checks so a probed or replayed ticket is indistinguishable
+ * from one that never existed. Tickets bind answers to the displayed options and principal.
+ * Typed prose returns as `freeText`, never as a fabricated selection; an explicit empty checklist
+ * is a real answer. Cancel must post back so the held-open call is not stranded until expiry.
  *
- * A single-use, principal-bound ticket store guarding the fallback (no-`emitSurface`) path's
- * second call — see this file's own header ("The fallback answer IS something to confirm").
- *
- * In-process and created fresh per {@link buildAskChoiceRegistrations} call, exactly like
- * the former destructive-confirmation token store: `buildAskChoiceRegistrations` runs once per daemon boot, so
- * one instance spans every call the daemon serves, and a ticket that does not survive a daemon
- * restart is one the administrator will simply be shown a fresh form for — the fail-closed
- * direction. Not shared with the real `SurfaceExchangeStore`: that store's `open()` requires a
- * live `SurfaceEmitter` to send through, which is exactly what this branch does not have.
- *
- * @complexity O(1) amortized per operation; expired entries are swept lazily on mint.
- * Single-use — removed before any binding check, so a replayed or probed ticket cannot be
- * told apart from one that never existed (matching the former token store's redemption behavior).
- * Raised when the model's call is missing content a different call would fix — the shape
- *  rejection {@link withSchemaOnRejection} decorates with this tool's own published schema, the
- *  same convention `forms/tool-registrations.ts`'s `FormFieldValidationError` uses.
- * Narrows one option-array entry to `{ value, label }`, or throws. Split out of
- *  {@link readSelectSpec} purely to keep it under the shop complexity ceiling — and to make this
- *  one option's narrowing directly invocable by a test, independent of the array it came from.
- * Narrows the raw `singleSelect`/`multiSelect` value to a plain object, or `undefined` when the
- *  model omitted the field entirely. Split out of {@link readSelectSpec} purely to keep it under
- *  the shop complexity ceiling; behavior (including the exact rejection message) is unchanged.
- * Narrows `label` + `options` out of an already-shape-checked select spec, requiring a non-empty
- *  label and at least one option. Split out of {@link readSelectSpec} purely to keep it under the
- *  shop complexity ceiling; behavior (including the exact rejection message) is unchanged.
- * Reads one of the two optional select groups out of the raw input, or returns undefined if the
- *  model omitted it entirely. Split out purely to keep `parseAskChoiceInput` under the shop
- *  complexity ceiling; behavior is unchanged.
- * A fallback ticket binds the answer to the options in the form that minted it.
- * Reads and requires the model's `title` — the one field with no fallback, since a malformed
- *  value means the call cannot proceed at all. Split out of {@link parseAskChoiceInput} purely to
- *  keep it under the shop complexity ceiling; behavior (including the exact rejection message) is
- *  unchanged.
- * Reads both select groups and requires at least one — the pair-level defaulting decision. Split
- *  out of {@link parseAskChoiceInput} purely to keep it under the shop complexity ceiling;
- *  behavior (including the exact rejection message) is unchanged.
- * Reads the two plain optional string fields. Split out of {@link parseAskChoiceInput} purely to
- *  keep it under the shop complexity ceiling; behavior is unchanged.
- * Validates the model's call shape before any surface is built — a domain boundary parser in the
- *  same style `content-types` uses, so a rejection here never reaches a `try` around a live call.
- * True when `input` is the administrator's form submission arriving as a fresh call (the no-emit-
- * seam fallback), rather than the model's original request.
- *
- * `title` is the discriminator, not `choice`/`selections` directly: a genuine first call always
- * names its own question, and neither field the form posts back is ever named `title`. Checking for
- * `choice`/`selections` on top rules out an unrelated empty call reaching this branch by accident.
- * Mirrors `demo-choices-tool.ts`'s own note on why `plan` (not `extras`) is its discriminator: an
- * empty checklist is a real answer, not a missing one, so presence — not truthiness — is what counts
- * for `selections`.
- * Shapes the administrator's selections into the tool's return value. Shared by both the parked
- *  path and the legacy second-call fallback so the agent sees an identical result either way.
- * Shapes a TYPED answer — free text the administrator wrote into the chat composer instead of
- * clicking the rendered form — into the tool's return value, or `undefined` when the delivery
- * carried no usable one.
- *
- * ## Why this is not just another key in {@link describeAskChoiceAnswer}
- *
- * `choice` and `selections` report the option VALUES the model itself supplied. Prose is not one of
- * them. Reporting `{"choice": "take15-cut-v3 should be the video"}` would tell the model the
- * administrator picked an option that was never offered — a fabricated selection, arriving through
- * an entirely legitimate channel. So typed text comes back under its own field, with both option
- * fields absent, and the note says in as many words that nothing was selected.
- *
- * ## Fail-quiet, not fail-closed, on a malformed value
- *
- * A non-string or blank value returns `undefined` and the caller falls through to the ordinary
- * form-answer branch. If that carries neither a choice nor selections, it reports `submitted: false`
- * so the model is not told an answer arrived. An explicit empty selections array remains a real
- * answer. This avoids either alternative:
- * `String(value)` would hand the model `"[object Object]"` as the human's words, and throwing would
- * turn a malformed client into a failed agent call the administrator cannot recover from without
- * the whole run dying.
- *
- * @param params - The delivered exchange params, straight off `SurfaceExchangeStore.deliver`.
- * @returns The tool result for a typed answer, or `undefined` when there is no usable typed answer.
- * @complexity O(1).
- * The two {@link SurfaceMessage} statuses that mean "the administrator never answered" — mirrors
- *  `demo-choices-tool.ts#describeUnansweredForm`.
- * Builds the ask-choice MCP-UI form resource. Split out purely to keep the handler under the
- *  complexity ceiling; mirrors `demo-choices-tool.ts#buildDemoChoicesFormSurface`'s structure.
- *
- *  @param input.answerTicket - Present only when there is no `exchange` (the no-emit-seam
- *  fallback) — the single-use ticket minted for this render, embedded in `baseParams` the same way
- *  `exchange.id` is, so the form's own submission carries it back automatically. The two are
- *  mutually exclusive: a call either opens a real exchange or mints a ticket, never both.
- * Cancel posts back rather than just closing the dialog, exactly like `demo-choices-tool.ts` —
- * a silent close would strand the agent's blocked call until the TTL expires.
- * Waits for the administrator's answer to a parked ask-choice form and maps it onto the tool's
- * result. Mirrors `demo-choices-tool.ts#awaitDemoChoicesSubmission`; behavior (the abort-triggered
- * close, and the exact "not received" -> "dismissed" -> submitted check order) is the same.
- * Checked before the form-answer branch, not after: a typed answer carries no `choice`/
- * `selections` at all, so falling through would report no answer with the administrator's
- * actual words silently dropped.
- * Builds this tool's registration.
- *
- * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
- * builder shares one signature.
- * @param surfaces - Supplies the exchange store. Must be the same instance
- * `registerMcpUiToolCallsRoute` was mounted with, or a submitted form reaches nothing.
+ * @param _routeDeps - Unused; present because domain builders share one signature.
+ * @param surfaces - The exchange store shared with the callback route.
  * @returns A single registration.
- * One store per registration build, matching `buildAskChoiceRegistrations`'s own boot-once
- * lifetime (see `createAskChoiceAnswerTicketStore`'s doc). Guards ONLY the no-emit-seam
- * fallback below — the held-open path never reaches `isFallbackAskChoiceAnswer` at all.
- * ---- Fallback second call: no `emitSurface` was available on the original call, so the form
- * went out the old way and the administrator's answer arrived as a fresh call. See
- * `isFallbackAskChoiceAnswer`'s own doc for why `title` is the discriminator.
- *
- * Matching that shape is necessary but NOT sufficient: it is exactly the shape the model
- * itself could fabricate by calling this tool a second time with an invented `choice`. What
- * makes this branch safe is the ticket check below — fail closed on anything that does not
- * redeem a real, outstanding, unconsumed ticket for THIS principal. ----
- * The exchange is opened BEFORE the surface is built, because the surface has to carry
- * its id. `open` takes the emitter, so this is unreachable without one.
- * No exchange means the fallback below is about to hand this call's answer to whatever
- * arrives as a second call — mint the ticket that second call must carry.
- * ---- Fallback: no emit seam, so this call cannot wait for anybody. Return the surface
- * the old way; the administrator's submission arrives as a second call and lands in the
- * branch at the top of this handler. ----
- * ---- The real path: send it, then wait for the answer. ----
- * @complexity O(1) wiring; rendering/validation scales with the offered options and schema size.
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
+ * @complexity O(1) wiring; rendering/validation scales with offered options and schema size.
  */
 export function buildAskChoiceRegistrations(
   _routeDeps: unknown,
@@ -411,14 +281,17 @@ export function buildAskChoiceRegistrations(
   });
   const surfaceExchanges: AskChoiceExchangeStore = {
     open: ({ toolId, principalId, emit }) => {
-      const exchange = surfaces.surfaceExchanges.open({ toolId, principalId }, (emission) => emit({
+      const exchange = surfaces.surfaceExchanges.open({ binding: { toolId, principalId }, emit: (emission) => emit({
         emission: { channel: "mcp-ui", payload: { resource: emission.payload["resource"] } },
-      }));
+      }) });
+      // Adapt the one-shot port through Jini's expiry-aware helper. Rendering may outlast the TTL;
+      // askOnce returns the terminal answer in that race while transport failures still propagate.
+      let answer: Awaited<ReturnType<typeof askOnce>>;
       return {
         id: exchange.id,
-        send: ({ emission }) => exchange.send(emission),
-        receive: () => exchange.receive(),
-        close: () => exchange.close(),
+        send: async ({ emission }) => { answer = await askOnce({ exchange, emission }); },
+        receive: async () => answer,
+        close: () => exchange.close({}),
       };
     },
   };
@@ -453,7 +326,7 @@ export function buildAskChoiceRegistrations(
       ...(emitSurface ? { emitSurface: ({ emission }) => emitSurface(emission) } : {}),
     } }),
   };
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "ask-choice",
     catalogModule: "assistant/ask-choice-tool.ts",
     catalog: CATALOG_BY_ID,

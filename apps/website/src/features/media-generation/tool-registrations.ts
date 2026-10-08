@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
 import { type ToolFailureDiagnostic, issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
@@ -283,7 +284,7 @@ function buildNoCredentialError(providerId: string): Error {
   const envNote = envCandidates.length > 0 ? ` (also checked ${envCandidates.join(", ")} in this process's environment — none were set)` : "";
   return new Error(
     `media_generate_asset: no ${label} media-provider credential is configured for this workspace${envNote}. ` +
-      "Call media_propose_provider_credential to open a human key form, or an operator can add one in the admin under Media -> \"Media providers\" (Access Tokens' " +
+      "Call credential_save with kind media-provider to open a human key form, or an operator can add one in the admin under Media -> \"Media providers\" (Access Tokens' " +
       "counterpart for generation vendors) then retry this tool once with the same model. " +
       "this will not resolve without that credential being added."
   );
@@ -334,7 +335,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           const credential = await resolveCredentialForProvider(routeDeps, providerId);
           if (!credential && !allowStubFallback) {
             return { generated: false, message: buildNoCredentialError(providerId).message,
-              credentialSetup: issueCredentialSetup({ setupToolId: "media_propose_provider_credential", prefill: { provider: providerId } }, {}) };
+              credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "media-provider", target: providerId } }, {}) };
           }
 
           const generate = routeDeps.generateMedia ?? defaultGenerateMedia;
@@ -393,7 +394,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: DOMAIN,
     catalogModule: "features/media-generation/agent-tools.ts",
     catalog: CATALOG_BY_ID,

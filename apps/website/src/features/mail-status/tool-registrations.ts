@@ -1,7 +1,9 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/mail-status.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { forbiddenRule, withModelFacingErrors } from "#src/contracts/core/model-facing-tool-errors";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, type MailerPort } from "../../platform/mail/index.js";
 import { mailStatusAgentToolCatalog } from "./agent-tools.js";
@@ -20,14 +22,14 @@ export const mailStatusDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
  * @complexity O(1); no message is sent.
  */
 export function buildMailStatusRegistrations(deps: MailStatusToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "system-mail", catalogModule: "features/mail-status/agent-tools.ts", catalog: indexCatalogById({ catalog: mailStatusAgentToolCatalog }), derivedRisk: mailStatusDerivedRisk, handlers: withModelFacingErrors({
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail", catalogModule: "features/mail-status/agent-tools.ts", catalog: indexCatalogById({ catalog: mailStatusAgentToolCatalog }), derivedRisk: mailStatusDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     system_get_mail_status: async ctx => {
       requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.forms.manage" }, { entityType: "mail" });
       const mailDeliveryAvailable = isMailDeliveryAvailable(deps.mailer);
       return { mailDeliveryAvailable, driver: deps.mailer.capabilities().driver, note: mailDeliveryAvailable ? "Email sending is configured." : MAIL_DELIVERY_UNAVAILABLE_NOTE };
     },
-  }, [forbiddenRule("MAIL_STATUS")]) });
+  }, rules: [forbiddenRule({ domainPrefix: "MAIL_STATUS", error: ForbiddenError })] }) });
 }
 
 /** Keeps the diagnostic under a unique contributor domain. */

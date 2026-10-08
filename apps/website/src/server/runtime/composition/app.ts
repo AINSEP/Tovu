@@ -1,3 +1,6 @@
+import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
+import { resolveMenuDoc } from "@jini-ai/cms/navigation";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { registerThemePreviewRefresh } from "../../inbound/public-http/middleware/theme-preview-refresh.js";
 import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
@@ -13,11 +16,13 @@ import { randomUUID } from "node:crypto";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { SITEMAP_INVALIDATED_EVENT, createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "#src/features/seo/index";
+import { SITEMAP_INVALIDATED_EVENT, createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps, ensureSeoSettingDefinitions } from "#src/features/seo/index";
+import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
 import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
-import type { RedirectRecord } from "#src/features/redirects/index";
+import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import {
   buildTrashRegistry,
   COMMENT_ENTITY_TYPE,
@@ -66,7 +71,7 @@ import {
   parsePublishContentDevHosts,
 } from "#src/platform/http/egress-policies";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/index";
+import { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
@@ -98,10 +103,7 @@ import {
   ensureSettingsUiTabDefinitions,
   getEffective,
   set,
-  resolveDefinitionRaw,
-  registerDefinitions,
   ensureSettingDefinitions,
-  SCOPE_BIT,
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
@@ -115,7 +117,6 @@ import {
   seededPosts,
   seededPresentation,
   seededWorkspace,
-  seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
 import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
@@ -167,19 +168,11 @@ import {
   InMemoryFormDefinitionRepo,
   InMemoryFormSubmissionRepo,
   type StoredFormSubmission,
-} from "#src/features/forms/repo.memory";
+} from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
-import {
-  InMemoryRedirectRepo,
-  RedirectHitSinkImpl,
-  RedirectPhaseHandlerResolver,
-  redirectMatcher,
-  RedirectSlugChangeCapture,
-  registerRedirectHitOutboxHandler,
-  registerRedirectsPhaseHandlers,
-  type RedirectsWriteDeps,
-} from "#src/features/redirects/index";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import { InMemoryRedirectRepo, RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/index";
 import {
   InMemoryDbOpsAdapter,
@@ -191,23 +184,25 @@ import {
 } from "#src/features/database/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
 import { TrashAwareInMemoryEntryRepo, type TrashableEntryRecord } from "#src/features/entries/trash-aware-memory-repo";
-import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memory";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
-import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
-import { createDeclaredContentTypePorts, deferDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
-import { forgetPluginActivations, type RemovePluginFn } from "#src/features/plugin-runtime/uninstall";
+import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
+import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
+import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { createAgentPluginsModule } from "./modules/agent-plugins.js";
 import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
-import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
+import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createCommentsModule, ensureCommentsSettingDefinitions, HeuristicSpamCheck } from "#src/features/comments/index";
+import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
+import { COMMENTS_SUBMIT_PROFILE, createCommentsHostPorts, ensureCommentsSettingDefinitions } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
 import {
   ensureSiteTitleSettingDefinition,
@@ -215,8 +210,8 @@ import {
   preserveLegacySiteTitles,
 } from "#src/features/settings/site-title";
 import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
-import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
-import type { CommentRecord } from "#src/features/comments/index";
+import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+import type { CommentRecord } from "@jini-ai/cms/comments";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
 import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import {
@@ -248,9 +243,7 @@ import { registerThemePreviewStatic } from "../../inbound/public-http/middleware
 import { registerThemeStaticAssets } from "../../inbound/public-http/middleware/theme-static-assets.js";
 import { registerThemePagePreview } from "../../inbound/public-http/middleware/theme-page-preview.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
-import { registerStoreRoutes } from "../../inbound/public-http/routes/site/store.js";
-import { registerPaymentsWebhookRoute } from "../../inbound/public-http/routes/site/payments-webhook.js";
-import { registerProductRoutes, resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
+import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
 import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
 import { createCommentsModerationModule } from "./modules/comments-moderation.js";
@@ -285,7 +278,6 @@ import {
   SITE_ASSISTANT_PER_IP,
 } from "#src/contracts/core/rate-limit/rate-limit";
 import { createAnalyticsModule } from "./modules/analytics.js";
-import { createCommerceModule } from "./modules/commerce.js";
 import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/system/module-status.js";
 import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
 import { registerAdminServerLogsRoute } from "../../inbound/admin-http/routes/system/server-logs.js";
@@ -346,6 +338,8 @@ import type { ServerModuleHandle } from "./modules/types.js";
  */
 
 export interface CreateRouteDepsOptions {
+  readonly nativeApprovalMemory?: RouteDeps["nativeApprovalMemory"];
+  readonly approvalIdentityForRun?: RouteDeps["approvalIdentityForRun"];
   readonly pluginFailureThreshold?: number;
   /** Site-installed plugin scan root, threaded to `composePluginRuntime`'s `discoverPlugins()`
    * call (REQ-02). Omitted by default — this composition root is documented "hermetic, no
@@ -413,15 +407,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   };
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
   // composition root stays synchronous; consumers await `settingsReady` before relying on the
-  // migrated value being present.
-  const settingsReady = seedSettingsFromPresentation({
-    presentationRepo,
-    settingsRepo,
-    clock,
-    ids: idGen,
-    principals: settingsPrincipals,
-    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-  }).then(() => undefined);
+  // settings boot sequence being ready.
+  // Presentation remains the live owner; boot must not write a second active-theme value.
+  const settingsReady = Promise.resolve();
 
   // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
   // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
@@ -457,9 +445,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         clock,
         ids: idGen,
         principals: settingsPrincipals,
-        resolveDefinitionRaw,
-        registerDefinitions,
-        scopeBit: SCOPE_BIT,
+        ensureSettingDefinitions,
       },
       { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
@@ -526,7 +512,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // real consumer before this feature). Seeds a `dev-capability` verified origin for the single
   // seeded workspace, mirroring every other dev-mode fixture in this file (e.g. `seededWorkspace`).
   const originRegistry = new OriginRegistry({
-    repo: new InMemoryOriginSettingRepo([
+    repo: new InMemoryOriginSettingRepo({ seeds: [
       {
         workspaceId: seededWorkspace.id,
         origin: createVerifiedOrigin({
@@ -541,7 +527,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         // `example.com` target every integrations fixture/test in this repo already uses.
         egressAllowlist: ["example.com"],
       },
-    ]),
+    ] }),
   });
   const redirectRepo = new InMemoryRedirectRepo();
   const redirectHitSink = new RedirectHitSinkImpl();
@@ -591,7 +577,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const pluginTrashAdapter = createDirectoryTrashAdapter({
     entityType: PLUGIN_ENTITY_TYPE,
     locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
-    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId }, { repo: pluginActivationRepo }),
+    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId, deps: { repo: pluginActivationRepo } }),
   });
   const trashAdapters = new Map<string, TrashAdapter>([
     [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
@@ -840,6 +826,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         actor: required.actor      }),
     db: redirectRepo,
     transaction: async (fn) => fn(),
+    reservedSegments: RESERVED_SEGMENTS,
     matcher: redirectMatcher,
     originRegistry,
     clock,
@@ -847,13 +834,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     outbox,
   };
   registerRedirectsPhaseHandlers({
-    resolver: new RedirectPhaseHandlerResolver({
-      repo: redirectRepo,
-      matcher: redirectMatcher,
-      originRegistry,
-      hits: { outbox, clock, idGen },
-    }),
-  });
+    repo: redirectRepo,
+    matcher: redirectMatcher,
+    originRegistry,
+    reservedSegments: RESERVED_SEGMENTS,
+  }, { hits: { outbox, clock, idGen } });
   registerSlugChangeCapture(
     new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen })
   );
@@ -878,20 +863,28 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
   wireCoreResolvers({
+    menus: { resolveMenuDoc },
+    collectionList: {
+      parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout,
+      systemContentTypes: SYSTEM_CONTENT_TYPES,
+    },
     resolveMenuTargetHref: createMenuPageTargetResolver({ postRepo }),
     entryList: entryRepo,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
-    formDefinitionRepo,
+    formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
     contentTypes: contentTypeRepo,
   });
   const commentsModule = createCommentsModule({
     commentRepo,
-    entryRepo,
+    entryLookup: async ({ workspaceId, entryId }) => {
+      const entry = await entryRepo.findById({ workspaceId, id: entryId });
+      return entry ? { status: entry.status, publishedAt: entry.publishedAt } : null;
+    },
     outbox,
     clock,
     idGen,
     spamCheck: new HeuristicSpamCheck(),
-    settingsRepo,
+    ...createCommentsHostPorts({ clock, settingsRepo }, {}),
     remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: COMMENT_ENTITY_TYPE
@@ -900,7 +893,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
     // Nothing in this composition opens a database transaction; see `createTrashService` above.
     runInTransaction: (fn) => fn(),
-  });
+  }, {});
 
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads
   // the SAME member rows the returned `memberRepo` field exposes (mirrors `entryRepo`/
@@ -1047,6 +1040,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
         maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
     });
   const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient });
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
+  const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
+  const sitemapService = createSitemapService({ deps: seoDeps }, {});
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     workspaceId: seededWorkspace.id,
     trash,
@@ -1137,6 +1133,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // at all) is the whole double — see `agent-session-store.ts`'s own doc.
     agentSessions: createInMemoryAgentSessionStore(),
     conversationToolApprovals: createInMemoryConversationToolApprovalStore(),
+    ...(options.nativeApprovalMemory ? { nativeApprovalMemory: options.nativeApprovalMemory } : {}),
+    ...(options.approvalIdentityForRun ? { approvalIdentityForRun: options.approvalIdentityForRun } : {}),
     presentationRepo,
     settingsRepo,
     getEffective,
@@ -1144,6 +1142,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     instructionsNamespace: INSTRUCTIONS_NAMESPACE,
     settingsReady,
     seoReady,
+    seoDeps,
+    sitemapService,
     assistantSettingsReady,
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer,
@@ -1263,7 +1263,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // deterministic `InMemoryImageTransformer` test double here so hermetic tests never depend on
     // `sharp` being installed — see `src/media/image-transformer.sharp.ts`'s file header for the
     // disclosed blocker on the real adapter, which `server/deps.ts` wires instead.
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
+    transformDefinitionRepo,
     imageTransformer: new InMemoryImageTransformer(),
     // SPEC-011 (Newsletter): in-memory adapters — no `declareDataModule()` boot step needed (that
     // mechanism is SQLite-only), so `newsletterReady` resolves immediately, unlike `server/deps.ts`'s
@@ -1364,7 +1364,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // In-memory activationRepo starts empty every test run, so there is nothing to re-attach —
     // mirrors `commentsReady`'s identical hermetic-vs-real split.
     pluginRuntimeReady: Promise.resolve(),
-    // Deployment read model retired with its unused tables (2026-10-03).
     // Task 6 of the publish-content (Publish Content) feature — hermetic double for
     // `server/runtime/composition/deps.ts`'s real `SqlitePublishContentBundleRepo`. Hoisted above
     // (not constructed inline) so Task 8's `publishContentApplyPort` reads the SAME store. See
@@ -1468,7 +1467,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     sourceControlExportRootDir: resolveSourceControlExportRootDir({ siteDir: describeSiteBinding().dir }),
     // 2026-08-16 (Phase 3) — hermetic double for `server/deps.ts`'s real
     // `SqliteVendorCredentialSetRepo`; see `routes/types.ts`'s `vendorCredentialSetRepo` doc.
-    vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo(),
+    vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo({}),
     // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
     // `routes/types.ts`'s `customCredentialSetRepo` doc.
     customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
@@ -1601,7 +1600,7 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   // delivery (idempotent per ADR-009 — a duplicate delivery is a no-op, `invalidateSitemapCache`
   // is itself idempotent). Delivered by the serving process's background outbox drainer
   // (`serving-app.ts`) or by a route's own inline `processOutbox` call.
-  const seoEventSubscriptions = createSeoEventSubscriptions();
+  const seoEventSubscriptions = routeDeps.sitemapService.createSeoEventSubscriptions({}, {});
   void routeDeps.bus.subscribe({ eventName: SITEMAP_INVALIDATED_EVENT, handler: seoEventSubscriptions.onSitemapInvalidated });
   void routeDeps.bus.subscribe({ eventName: "entry.published", handler: seoEventSubscriptions.onEntryPublished });
   void routeDeps.bus.subscribe({ eventName: "entry.updated", handler: seoEventSubscriptions.onEntryUpdated });
@@ -1674,10 +1673,6 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // whichever `createApp()` call runs most recently, so a stale seeded hook can never keep folding
   // into a live request's `<head>` alongside the real one. See `resetPageHeadRegistry`'s own doc for
   // the full trace.
-  //
-  // This file used to end with an eager `export const app = createApp();`, removed 2026-09-16 (t91
-  // F4.1): loading this module then replaced whatever redirects composition was already live (see
-  // `routing.ts`'s `registerResolvePhase` doc and `redirects/phase-handler.ts`'s file header).
   resetPageHeadRegistry();
   const app = express();
   // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
@@ -1690,8 +1685,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `createApp()` function; see `ADS-memory/.local-artifacts/metrics/
   // 2026-08-28-observability-groundwork.md` §1-2 for why that distinction matters here).
   applyRequestTracking(app, { observability: routeDeps.observability });
-  // ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, round-2, codex
-  // finding R2-F2-BLOCK-NOT-ENFORCED) — must run before every other route/middleware so a
+  // ADR-041/043/044/045 — must precede the normal traffic handlers so a
   // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have
   // handled it. See site-serving-gate.ts's own header for the allowlist rationale.
   applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
@@ -1699,14 +1693,6 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // public route runs. See `public-page-security-headers.ts`.
   applyPublicPageSecurityHeaders(app);
   applyPublishedWebMcp({ app, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }) });
-
-  // MUST stay ahead of the blanket `express.json()` immediately below. Payment webhooks are
-  // HMAC-signed over the exact received bytes, and the blanket parser destroys them — so this one
-  // route registers its own `express.raw()` first and terminates the response before the JSON
-  // parser layer is ever reached. See `routes/site/payments-webhook.ts`'s file header for why
-  // registration order is the fix and why the API is resolved per request rather than captured
-  // here. This is the only route in the app that inverts the parser/route registration order.
-  registerPaymentsWebhookRoute(app, { resolveLipay: () => routeDeps.lipay ?? null });
 
   // Public routes parse JSON at a small limit here; session-gated paths are left unparsed and
   // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
@@ -1720,11 +1706,10 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // at boot into the core-owned `page-head.ts` registry (never imported directly by `render.ts`).
   registerPageHeadContributor(
     createSeoPageHeadHook({
-      postRepo: routeDeps.postRepo,
-      settingsRepo: routeDeps.settingsRepo,
-      media: routeDeps,
-      originRegistry: routeDeps.originRegistry,
-    })
+      deps: routeDeps.seoDeps,
+      rootSlug: routeDeps.seoDeps.rootSlug,
+      siteTitle: routeDeps.seoDeps.siteTitle,
+    }, {})
   );
 
   // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then
@@ -1809,9 +1794,6 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
   mountRoutes(app, createAnalyticsModule(routeDeps));
-  // ADR-001 bounded operational read: provider discovery reflects only the optional composed
-  // payment runtime; configuration and downstream Commerce capabilities remain explicitly absent.
-  mountRoutes(app, createCommerceModule(routeDeps));
   // ADR-054: the PUBLIC visitor assistant. Deliberately NOT behind `requireAdminSession` — it is
   // the one assistant surface anonymous traffic may reach, which is why it runs on its own
   // in-process provider relay with a read-only published-content tool surface rather than the
@@ -1877,7 +1859,6 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
   // same permission that gates those two tools themselves — see that route file's own header.
   registerAdminFsFilesCustomRootRoutes(app, routeDeps);
-  // GET deployments retired with its never-written tables (2026-10-03).
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
@@ -2143,15 +2124,17 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline
   // unauthenticated `POST /workspaces` route that lived here has been removed (see the file header).
 
-  // SPIKE: sample Tier-3 store page — must precede the site `/:slug` catch-all.
-  registerStoreRoutes(app, routeDeps);
-  // `/products`/`/products/:id` — theme-rendered product grid/detail over the same store data.
-  // Must also precede the site `/:slug` catch-all.
-  registerProductRoutes(app, routeDeps);
+  // Commerce remains off: no store, product or payment routes are mounted. Stored rows and
+  // namespace claims remain intact; retirement requires a separate migration decision.
 
   // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
   // `/:slug` catch-all, same reasoning as the store/analytics routes above.
-  registerCommentsSubmitRoute(app, { ingressPolicy: routeDeps.commentIngressPolicy, workspaceId: routeDeps.workspaceId });
+  registerCommentsSubmitRoute(app, {
+    ingressPolicy: routeDeps.commentIngressPolicy,
+    workspaceId: routeDeps.workspaceId,
+    // HTTP requests and accepted submissions consume separate budgets, never the same counter twice.
+    rateLimiter: createRateLimiter({ profile: COMMENTS_SUBMIT_PROFILE, clock: routeDeps.clock }),
+  });
 
   // Public analytics beacon (ADR-035 §5) — unauthenticated by design; must precede the site
   // `/:slug` catch-all. `config` is now the real ADR-028-backed adapter

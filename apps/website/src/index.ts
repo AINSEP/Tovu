@@ -283,7 +283,7 @@ async function main(): Promise<void> {
   // step with no dependency on anything at all. It is a single synchronous env assignment (no
   // import, no await, no I/O), so it does not weaken `registerPluginSdkResolver`'s ordering
   // guarantee documented immediately below — there is still no `await` point ahead of it.
-  ensureAgentDaemonToken();
+  ensureAgentDaemonToken({}, {});
 
   // SPEC-005 (ADR-005-ARCH, CIC U-002, ESCALATE_SECURITY): must run synchronously, before any
   // other boot step, and unconditionally before `createApp(deps)` wires any route or before any

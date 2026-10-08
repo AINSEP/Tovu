@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AgentEvent } from "@jini-ai/chat/core";
 import { createDurableRecovery, EXHAUSTED_NOTICE, SAVED_WORK_NOTICE } from "../recover.js";
-import { CONCURRENT_RUN_REFUSAL_MESSAGE } from "../../../server/inbound/assistant/agent-run-concurrency.js";
+import { CONCURRENT_RUN_REFUSAL_MESSAGE } from "../../agent-session-preset.js";
 import { createRunAcceptance } from "../accept.js";
 import { hasUnknownToolCall, UNKNOWN_MUTATION_ERROR } from "../continuation.js";
 import type { DurableRun, DurableRunStore, RecoveryPorts, RunProbe } from "../ports.js";
@@ -325,5 +325,5 @@ test("run acceptance removes pasted credentials before the durable store sees it
     request: { agentId: "codex", contextRef: JSON.stringify({ prompt: `Save ${secret} please`, conversationId: "chat" }) },
   }, {}), null);
   assert.equal(captured.includes(secret), false);
-  assert.deepEqual(JSON.parse(captured), { prompt: "Save [token removed] please", conversationId: "chat" });
+  assert.deepEqual(JSON.parse(captured), { prompt: "Save [token removed] please", conversationId: "chat", secretRedacted: true });
 });

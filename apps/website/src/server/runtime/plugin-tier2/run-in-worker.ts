@@ -25,7 +25,7 @@ import {
   type WorkerScheduler,
 } from "@jini-ai/sandbox/node-worker";
 
-import { decodeTier2Reply, type Tier2CallRunner } from "../../../features/plugin-runtime/tier2/protocol.js";
+import { decodeTier2Reply, type Tier2CallRunner } from "@jini-ai/plugins/host/worker";
 
 /** A content analyzer is milliseconds of pure computation; 5s leaves room for worker + module
  * startup on a busy host without letting a runaway plugin hold a save open. Same budget and same
@@ -121,7 +121,7 @@ export function createTier2WorkerRunner(
       defaultResourceLimits: optional.resourceLimits ?? DEFAULT_RESOURCE_LIMITS,
       workerFactory,
       scheduler: optional.scheduler ?? createNodeWorkerScheduler({}),
-      decodeResult: ({ message }) => decodeTier2Reply(message, request.kind),
+      decodeResult: ({ message }) => decodeTier2Reply({ message: message, expectedKind: request.kind }),
     });
   };
 }

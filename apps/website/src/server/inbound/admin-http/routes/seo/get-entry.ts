@@ -1,4 +1,4 @@
-import { getEntryMeta, SeoEntryNotFoundError } from "#src/features/seo/index";
+import { getEntryMeta, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 
@@ -32,10 +32,10 @@ export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = (app, deps) => {
         return;
       }
 
-      const meta = await getEntryMeta(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
-        { workspaceId: deps.workspaceId, entryId: String(req.params.entryId ?? "") }
-      );
+      const meta = await getEntryMeta({
+        deps: deps.seoDeps,
+        input: { workspaceId: deps.workspaceId, entryId: String(req.params.entryId ?? "") },
+      }, {});
       res.json({ data: meta });
     } catch (err) {
       if (err instanceof SeoEntryNotFoundError) {

@@ -2,7 +2,7 @@
  * @file Plain text out of an `"html"`-format Page's `bodyHtml` (SPEC-047/ADR-056 Decision 3) — the
  * `bodyFormat === "html"` twin of `extractPostPlainText` (`search.ts`) for consumers that must not read
  * the empty `bodyJson` placeholder (`repo.rows.ts`'s `toRecord`). Lives in `post` so both SEO
- * (`features/seo/seo.ts`) and the post tools can use it without an import cycle.
+ * (`Jini/packages/cms/src/seo/seo.ts`) and the post tools can use it without an import cycle.
  */
 
 /** Named entities actually observed in stored `bodyHtml` (numeric entities are handled separately

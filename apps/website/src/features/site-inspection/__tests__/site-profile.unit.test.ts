@@ -375,21 +375,19 @@ test("site profile: settings reports exactly the inventory-safe allowlist, in al
   const rows = profile.sections.settings?.data ?? [];
 
   assert.deepEqual(rows.map((row) => `${row.namespace}.${row.key}`), [
-    "core.presentation.activeThemeId", "site.seo.title_template", "site.seo.default_description",
+    "site.seo.title_template", "site.seo.default_description",
     "site.seo.default_og_image", "site.seo.twitter_site", "site.seo.default_robots_noindex",
     "site.seo.default_robots_nofollow", "site.seo.sitemap_enabled", "site.seo.robots_rules",
   ]);
   const valuedDeps = { ...makeDeps(), readSetting: async ({ namespace, key }: { namespace: string; key: string }) => `${namespace}:${key}` };
   const valued = await buildSiteProfile(valuedDeps, { principalId: PRINCIPAL_ID }, { sections: ["settings"] });
   assert.deepEqual(valued.sections.settings?.data, [
-    { namespace: "core.presentation", key: "activeThemeId", configured: true, value: "core.presentation:activeThemeId" },
     ...["title_template", "default_description", "default_og_image", "twitter_site", "default_robots_noindex", "default_robots_nofollow", "sitemap_enabled", "robots_rules"]
       .map((key) => ({ namespace: "site.seo", key, configured: true, value: `site.seo:${key}` })),
   ]);
-  assert.deepEqual(rows[0], { namespace: "core.presentation", key: "activeThemeId", configured: true, value: "basic" });
   // An unresolved definition is reported as unconfigured rather than omitted.
-  assert.equal(rows[1]?.configured, false);
-  assert.equal(rows[1]?.value, null);
+  assert.equal(rows[0]?.configured, false);
+  assert.equal(rows[0]?.value, null);
 });
 
 test("site profile: an oversized setting value is dropped and flagged, never inlined", async () => {
@@ -497,4 +495,16 @@ test("site profile: an ordinary, healthy site is not reported as themeless eithe
   const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID });
   assert.equal(profile.sections.theme?.data?.themeDisabled, false);
   assert.equal(profile.sections.theme?.data?.active?.id, "basic");
+});
+
+test("theme switches are visible immediately and the obsolete boot mirror is never reported", async () => {
+  let activeThemeId = "basic";
+  const deps = { ...makeDeps(), readActiveThemeId: async () => activeThemeId,
+    readSetting: async ({ namespace }: { namespace: string; key: string }) => namespace === "core.presentation" ? "old-boot-theme" : null };
+  const before = await buildSiteProfile(deps, { principalId: PRINCIPAL_ID });
+  assert.equal(before.sections.theme?.data?.activeThemeId, "basic");
+  activeThemeId = "new-theme";
+  const after = await buildSiteProfile(deps, { principalId: PRINCIPAL_ID });
+  assert.equal(after.sections.theme?.data?.activeThemeId, "new-theme");
+  assert.equal(after.sections.settings?.data?.some(row => row.namespace === "core.presentation"), false);
 });

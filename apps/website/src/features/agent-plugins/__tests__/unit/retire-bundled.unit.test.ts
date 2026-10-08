@@ -16,13 +16,13 @@ import {
   readBundledAgentPluginDigests,
   recordBundledAgentPluginDigests,
   removeBundledAgentPluginDigest,
-} from "../../bundled-digests.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+} from "../../lifecycle.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
-import { RETIRED_BUNDLED_AGENT_PLUGINS, retireBundledAgentPlugins } from "../../retire-bundled.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
-import { AgentPluginNotUninstallableError, uninstallAgentPlugin } from "../../uninstall.js";
+import { listInstalledPlugins } from "../../lifecycle.js";
+import { RETIRED_BUNDLED_AGENT_PLUGINS, retireBundledAgentPlugins } from "../../lifecycle.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
+import { AgentPluginNotUninstallableError, uninstallAgentPlugin } from "../../lifecycle.js";
 
 /**
  * @file `retireBundledAgentPlugins()` — the boot migration that removes `tovu-deploy-fly` (merged

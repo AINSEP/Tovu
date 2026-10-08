@@ -7,16 +7,8 @@
  * one property of it (redirects) for a call shape that turned out to need them — see each policy's
  * own doc for why its consumer could not simply keep using the shared one.
  *
- * Before 2026-09-06 the shape now named {@link SINGLE_HOP_HTTPS_EGRESS_POLICY} was hand-copied at
- * three independent call sites — `server/runtime/composition/deps.ts`'s `mailHttpClientPolicy` and
- * `customCredentialsHttpClientPolicy`, and `server/runtime/composition/app.ts`'s inline literal
- * backing its own hermetic `customCredentialsHttpClient` — and `deps.ts`'s own comment already named
- * the risk ("Identical policy shape") without closing it: a future hardening (a shorter timeout, a
- * lower response cap) landing in one copy would silently miss the other two, on the exact egress
- * path (`custom_credential_make_request`) that accepts an arbitrary operator-typed base URL. One
- * named export, one place to change it. (`custom_credential_make_request` has since moved to its own
- * {@link CUSTOM_CREDENTIALS_EGRESS_POLICY}, 2026-09-10 — the mailer is this export's one remaining
- * consumer.)
+ * Shared named policies give each call shape one hardening point, preventing timeout,
+ * response-cap and address-guard drift across composition roots.
  *
  * NOT a claim that every outbound-call site in this codebase should use one shared policy — a
  * consumer with genuinely different needs still authors its own `EgressPolicy` literal, as all three
@@ -34,20 +26,9 @@
 import type { EgressPolicy } from "./ports.js";
 
 /**
- * A single, fixed-method HTTPS call to a specific endpoint with no legitimate reason to redirect:
- * denies private/loopback addresses, follows zero redirects, and bounds connect time and response
- * size. Used today for outbound mail-API calls (plugin-provided hosted mail adapters) — see this file's own header for why this
- * used to be a hand-copied literal.
- *
- * `custom_credential_verify`/`custom_credential_make_request` used this same policy until
- * 2026-09-10, when a live GitHub-Actions-log-diagnosis incident showed a fixed-method,
- * zero-redirect policy does not fit every "operator-typed base URL" call after all: GitHub's own
- * Actions job-logs endpoint answers with a 302 to a signed, short-lived Azure Blob URL, and
- * `maxRedirects: 0` made that log structurally unreadable through this tool. That domain now has
- * its own {@link CUSTOM_CREDENTIALS_EGRESS_POLICY} below — see that policy's own doc for why it is
- * a separate export rather than a widening of this one (the same "a consumer with genuinely
- * different needs authors its own literal" rule {@link MEDIA_IMPORT_EGRESS_POLICY} already
- * follows, restated in this file's own header).
+ * Fixed-method mail API HTTPS calls: private/loopback addresses are denied, no redirect
+ * is followed, and connect time/response size are bounded. Consumers that legitimately
+ * need redirects use their own policies below rather than relaxing the mailer boundary.
  */
 export const SINGLE_HOP_HTTPS_EGRESS_POLICY: EgressPolicy = {
   allowedSchemes: ["https"],
@@ -123,7 +104,7 @@ export const MEDIA_IMPORT_EGRESS_POLICY: EgressPolicy = {
 };
 
 /**
- * `features/custom-credentials`'s own policy (2026-09-10) for `custom_credential_verify`/
+ * `features/custom-credentials`'s own policy for `custom_credential_verify`/
  * `custom_credential_make_request` — an authenticated call through a saved credential
  * (`fly.io`, `github`, ...) to its own operator-typed `baseUrl`. Differs from
  * {@link SINGLE_HOP_HTTPS_EGRESS_POLICY} on exactly ONE axis, `maxRedirects` (everything else about
@@ -132,15 +113,13 @@ export const MEDIA_IMPORT_EGRESS_POLICY: EgressPolicy = {
  * axes because it fetches a multi-megabyte file, this one fetches neither more nor slower data than
  * before, only from one extra hop).
  *
- * **The live incident this closes.** GitHub's own Actions job-logs REST endpoint — a perfectly
+ * GitHub's Actions job-logs REST endpoint — a perfectly
  * ordinary, already-allowlisted API call — answers with a 302 to a signed, short-lived Azure Blob
  * Storage URL (`*.blob.core.windows.net`); this is simply how that endpoint is documented to work,
- * not an edge case. `maxRedirects: 0` made that response structurally unreadable through
- * `custom_credential_make_request`: the assistant received a naked 302 it could not act on and had
- * no allowlisted way to complete the fetch (the blob host is neither `github`'s own saved host nor
- * something an operator could sensibly be asked to add — a fresh, single-use signed URL is minted
- * per call). See `client.ts`'s own `canFollowRedirect` doc for why raising `maxRedirects` here is
- * safe to do WITHOUT widening the allowlist:
+ * requiring redirects. The blob host is not the credential's saved host, and a fresh
+ * single-use signed URL is minted per call, so an operator cannot preconfigure that URL.
+ * See `client.ts`'s `canFollowRedirect` contract for why redirects are safe without
+ * widening the allowlist:
  *
  * 1. **GET only, enforced in `client.ts`, not by this policy.** `EgressPolicy` has no method axis —
  *    `sendWithPolicy` gates redirect-following to `request.method === "GET"` unconditionally, so

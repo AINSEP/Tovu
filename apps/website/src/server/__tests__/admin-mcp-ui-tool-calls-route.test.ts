@@ -9,6 +9,9 @@ import express from "express";
 import { A2UI_ACTIONS_PATH, AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Route-level tests for `server/modules/assistant.ts`'s MCP-UI confirmation redemption proxy
@@ -68,7 +71,7 @@ function harness() {
     const { createRouteDeps } = await import("../runtime/composition/app.js");
     const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
     const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
-    const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
+    const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 
     return {
       daemon: server,
@@ -77,10 +80,9 @@ function harness() {
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
-        // A fresh, empty store: none of this file's request bodies carry an exchangeId (top-level or
-        // in `params`), so the new local-delivery branch never triggers and every request still
-        // reaches the stand-in daemon exactly as before these tests were written.
-        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes?.(app);
+        // A fresh, empty store: redemption replies name daemon-held exchanges, so the local
+        // delivery branch cannot consume them. The daemon owns and validates those exchanges.
+        createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
         return app;
       },
     };
@@ -165,7 +167,23 @@ test("rejects a missing/empty toolName without reaching the daemon", async (t) =
   assert.equal(recorded.length, 0);
 });
 
-test("forwards an allowlisted call to the daemon with the bearer token and the session principal", async (t) => {
+test("rejects a fresh destructive callback before reaching the daemon", async (t) => {
+  const { baseUrl, cookie } = await boot(t);
+  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: {} }),
+  });
+
+  assert.equal(res.status, 403);
+  assert.deepEqual(await res.json(), {
+    error: "'webhooks_delete_subscription' is not an MCP-UI-redeemable tool",
+    code: "TOOL_NOT_ALLOWLISTED",
+  });
+  assert.equal(recorded.length, 0, "a destructive callback must answer an existing exchange");
+});
+
+test("forwards a confirmation reply to the daemon with the bearer token and the session principal", async (t) => {
   const { baseUrl, cookie } = await boot(t);
   const me = (await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json()) as {
     user: { id: string };
@@ -174,7 +192,7 @@ test("forwards an allowlisted call to the daemon with the bearer token and the s
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: { id: "post-1", kind: "post", confirmationToken: "tok" } }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: { __exchangeId: "daemon-held-card", decision: "confirm" } }),
   });
 
   assert.equal(res.status, 200);
@@ -185,7 +203,7 @@ test("forwards an allowlisted call to the daemon with the bearer token and the s
   assert.equal(recorded[0].headers[RUN_PRINCIPAL_HEADER], me.user.id);
   assert.deepEqual(JSON.parse(recorded[0].body), {
     toolName: "webhooks_delete_subscription",
-    params: { id: "post-1", kind: "post", confirmationToken: "tok" },
+    params: { __exchangeId: "daemon-held-card", decision: "confirm" },
   });
 });
 
@@ -195,12 +213,14 @@ test("a browser-supplied principal header is overwritten, never trusted", async 
     user: { id: string };
   };
 
-  await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+  const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: "principal-someone-else" },
-    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: {} }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: { __exchangeId: "daemon-held-card", decision: "confirm" } }),
   });
 
+  assert.equal(response.status, 200);
+  assert.equal(recorded.length, 1);
   assert.equal(recorded[0].headers[RUN_PRINCIPAL_HEADER], me.user.id);
 });
 
@@ -216,9 +236,9 @@ async function bootWithStore(t: import("node:test").TestContext) {
   const { createRouteDeps } = await import("../runtime/composition/app.js");
   const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
   const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
-  const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
+  const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
@@ -234,11 +254,12 @@ async function bootWithStore(t: import("node:test").TestContext) {
 /** The session principal this proxy stamps outbound — read off a forwarded request rather than
  *  hardcoded, since only `getAuthedPrincipal` knows it. */
 async function authedPrincipalId(baseUrl: string, cookie: string): Promise<string> {
-  await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+  const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: {} }),
+    body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: { __exchangeId: "daemon-held-card", decision: "confirm" } }),
   });
+  assert.equal(response.status, 200);
   const forwarded = recorded.at(-1);
   assert.ok(forwarded, "the probe request must have reached the stand-in daemon");
   const principalId = forwarded.headers[RUN_PRINCIPAL_HEADER.toLowerCase()];
@@ -250,10 +271,10 @@ test("a typed answer is delivered to a locally-parked exchange without a daemon 
   const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
   const principalId = await authedPrincipalId(baseUrl, cookie);
   const exchange = surfaceExchanges.open(
-    { toolId: "assistant_ask_choice", principalId },
-    async () => undefined,
+    { binding: { toolId: "assistant_ask_choice", principalId },
+    emit: async () => undefined },
   );
-  const waiting = exchange.receive();
+  const waiting = exchange.receive({});
   const forwardedBefore = recorded.length;
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -278,8 +299,8 @@ test("a typed answer is delivered to a locally-parked exchange without a daemon 
 test("an explicit confirmation exchange ID delivers locally without calling the daemon", async (t) => {
   const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
   const principalId = await authedPrincipalId(baseUrl, cookie);
-  const exchange = surfaceExchanges.open({ toolId: "webhooks_delete_subscription", principalId }, async () => undefined);
-  const waiting = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "webhooks_delete_subscription", principalId }, emit: async () => undefined });
+  const waiting = exchange.receive({});
   const before = recorded.length;
   const params = { __exchangeId: exchange.id, decision: "confirm" };
   const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -294,8 +315,8 @@ test("an explicit confirmation exchange ID delivers locally without calling the 
 
 test("a caller cannot answer another principal's local confirmation", async (t) => {
   const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
-  const exchange = surfaceExchanges.open({ toolId: "webhooks_delete_subscription", principalId: "another-admin" }, async () => undefined);
-  const waiting = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "webhooks_delete_subscription", principalId: "another-admin" }, emit: async () => undefined });
+  const waiting = exchange.receive({});
   const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST", headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({ toolName: "webhooks_delete_subscription", params: { __exchangeId: exchange.id, decision: "confirm" } }),
@@ -339,8 +360,8 @@ test("a typed answer this process holds no exchange for still reaches the daemon
 test("BYOK: an A2UI renderer rejection reaches the locally-held render_ui exchange, with no daemon round trip", async (t) => {
   const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
   const principalId = await authedPrincipalId(baseUrl, cookie);
-  const exchange = surfaceExchanges.open({ toolId: "assistant_render_ui", principalId, channel: "a2ui" }, async () => undefined);
-  const waiting = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "assistant_render_ui", principalId, channel: "a2ui" }, emit: async () => undefined });
+  const waiting = exchange.receive({});
   const forwardedBefore = recorded.length;
 
   const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: exchange.id, path: "/components/0", message: "bad prop" } };
@@ -359,8 +380,8 @@ test("BYOK: an A2UI renderer rejection reaches the locally-held render_ui exchan
 test("BYOK: an A2UI post cannot answer or cancel a locally-held MCP-UI confirmation", async (t) => {
   const { baseUrl, cookie, surfaceExchanges } = await bootWithStore(t);
   const principalId = await authedPrincipalId(baseUrl, cookie);
-  const exchange = surfaceExchanges.open({ toolId: "webhooks_delete_subscription", principalId }, async () => undefined);
-  const waiting = exchange.receive();
+  const exchange = surfaceExchanges.open({ binding: { toolId: "webhooks_delete_subscription", principalId }, emit: async () => undefined });
+  const waiting = exchange.receive({});
 
   const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: exchange.id, path: "/", message: "x" } };
   const res = await fetch(`${baseUrl}${A2UI_ACTIONS_PATH}`, {

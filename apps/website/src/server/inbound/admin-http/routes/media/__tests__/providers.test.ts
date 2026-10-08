@@ -139,7 +139,7 @@ test("put-providers: valid apiKey saves and never echoes the key back (200)", as
   const body = json as { openai?: { apiKey?: string; keyTail?: string } };
   assert.ok(body.openai);
   assert.equal(body.openai?.apiKey, undefined, "key material must never be echoed back");
-  const expected = { openai: { baseUrl: "https://api.openai.com/v1", apiKeyConfigured: true, apiKeyTail: "alue" } };
+  const expected = { openai: { baseUrl: "https://api.openai.com/v1", apiKeyConfigured: true, apiKeyTail: "alue", apiKeyHint: { length: 15, last4: "alue" } } };
   assert.deepEqual(json, expected);
   const fetched = await get(t, app);
   assert.equal(fetched.status, 200);

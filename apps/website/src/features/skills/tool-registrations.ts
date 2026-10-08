@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/skills.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -349,7 +350,7 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
     };
   }
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "skill",
     catalogModule: "features/skills/tool-registrations.ts",
     catalog: indexCatalogById({ catalog: catalog }),

@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
-import type { Tier2Request } from "#src/features/plugin-runtime/tier2/protocol";
+import type { Tier2Request } from "@jini-ai/plugins/host/worker";
 import { importPluginModule, main, startIfWorker } from "../worker.js";
 
 /**
@@ -65,7 +65,7 @@ test("main() without an importer resolves @tovu/sdk for a plugin outside the rep
     const request: Tier2Request = {
       kind: "beforeSave",
       plugin: { ...plugin, entryPath: pathToFileURL(entry).href },
-      entry: { id: "e", workspaceId: "ws", title: "Hi", slug: "hi", status: "draft", bodyJson: {}, ext: {} },
+      entry: { id: "e", workspaceId: "ws", title: "Hi", slug: "hi", status: "draft", bodyJson: {}, ext: {} } as import("@tovu/sdk").ContentEntryDraft,
       ctx: { pluginId: "t2", workspaceId: "ws" },
     };
     await main({ workerData: request, parentPort });

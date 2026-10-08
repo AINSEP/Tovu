@@ -1,8 +1,11 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/settings.js';
+import { withToolMetadata } from '@jini-ai/core';
+import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS } from "../../contracts/headless/assistant-tool-approval-policy.js";
 /**
- * @file Settings' agent-tool registrations — adapted from `@jini-ai/cms/settings`.
+ * @file Settings' agent-tool registrations — adapted from `@jini-ai/core/settings`.
  *
  * The package owns the catalog, validation and writes. This host adapter supplies the shared
- * human card for privacy/instructions/runtime changes and the existing site-title validator.
+ * human card for the six assistant execution escalations and the existing site-title validator.
  * It contributes those tools through the same registration seam used before value writes existed.
  *
  * Converted to the standard `registerToolContributor` pattern 2026-08-17, the last domain to do so —
@@ -27,53 +30,65 @@
  * / largest SCC 0 with `settings` wired this way.
  */
 import type { ToolContributor } from "#src/assistant/index";
-import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
-import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps, type AgentSettingWriteRule } from "@jini-ai/cms/settings";
-import { requireHumanConfirm } from "#src/contracts/core/human-confirm";
-import type { AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import type { ToolExecutionOptions, ToolExecutionContext, ToolRegistration, RememberedApprovalPort } from "@jini-ai/core";
+import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps as CoreSettingsToolDeps, type AgentSettingWriteRule } from "@jini-ai/core/settings";
+import { approvalToolHandler } from "#src/contracts/core/human-confirm";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { set } from "./site-title-write.js";
 
-export { settingsDerivedRisk, type SettingsToolDeps } from "@jini-ai/cms/settings";
+export { settingsDerivedRisk } from "@jini-ai/core/settings";
+
+/** Native grants are bound to the invoking plugin's admitted identity/version/digest, never model input. */
+export type SettingsToolDeps = CoreSettingsToolDeps & {
+  nativeApprovalMemory?: RememberedApprovalPort;
+  approvalIdentityForRun?: (required: { ctx: ToolExecutionContext }) => Promise<{ key: string; label: string; version?: string }>;
+};
 
 /** Host-owned assistant configuration: changes are possible only after a human card.
  * Credentials are not settings: core.execution intentionally omits byok.apiKey; provider
  * credentials, OAuth state and external-MCP grants use their own repositories. */
-export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = [
-  { namespace: "core.execution", key: "localCli.permissionLevel", reason: "Changes the assistant's permission level" },
-  { namespace: "core.execution", key: "mode", reason: "Changes which execution service receives assistant requests" },
-  { namespace: "core.execution", key: "localCli.agentId", reason: "Changes the assistant runtime and its access to requests" },
-  { namespace: "core.execution", key: "byok.protocol", reason: "Changes the protocol used to send assistant requests" },
-  { namespace: "core.execution", key: "byok.providerId", reason: "Changes which provider receives assistant requests" },
-  { namespace: "core.execution", key: "byok.baseUrl", reason: "Changes the endpoint receiving assistant requests" },
-];
+export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = ASSISTANT_EXECUTION_APPROVAL_SETTINGS;
 
 /** Wires the generic cms tools to the host's authenticated card transport and title validator.
  * Card parameters carry only a decision, never replacement setting coordinates or values.
  * @complexity O(t) registration construction; one bounded card exchange per protected write. */
 export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
-  return buildCmsSettingsRegistrations({
+  return withToolMetadata({ metadata: toolMetadata, registrations: buildCmsSettingsRegistrations({
     ...routeDeps,
     setValue: set,
-    extraConfirmationSettings: [...(routeDeps.extraConfirmationSettings ?? []), ...TOVU_CONFIRMATION_SETTINGS],
+    confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
     // Declared optional so this still type-checks against a @jini-ai/cms whose confirmWrite takes one argument.
     confirmWrite: async ({ ctx, toolId, namespace, key, scope, previous, value, reason }, options?: ToolExecutionOptions) => {
-      const outcome = await requireHumanConfirm({ ctx, surfaces, spec: {
-        toolId,
-        errorCode: "SETTINGS",
-        title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this assistant setting override?",
-        description: reason,
-        details: [
-          { label: "Setting", value: `${namespace}.${key}` },
-          { label: "Scope", value: scope },
-          { label: "Previous override", value: JSON.stringify(previous) },
-          { label: "New value", value: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : JSON.stringify(value ?? null) },
-        ],
-        confirmLabel: "Confirm change",
-      } }, options);
-      return outcome.confirmed;
+      // Reuse the invoking plugin's canonical enable grant. Escalation consent applies once to
+      // that admitted identity/version/digest; it never replaces fresh per-write scope permissions.
+      const handler = approvalToolHandler({ surfaces,
+        prepare: async ({ ctx: snapshot }) => {
+          const identity = await routeDeps.approvalIdentityForRun?.({ ctx: snapshot });
+          return { rememberKey: identity?.key, identity };
+        },
+        describe: ({ prepared }) => ({ toolId, errorCode: "SETTINGS",
+          title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this assistant setting override?",
+          description: reason + (prepared.identity ? ". This escalation approval is saved for this plugin identity, version and digest. It also covers enabling this plugin and the six assistant execution settings; every action still checks its current permissions." : ""),
+          details: [...(prepared.identity ? [{ label: "Plugin", value: prepared.identity.label },
+            ...(prepared.identity.version ? [{ label: "Plugin version", value: prepared.identity.version }] : [])] : []), { label: "Setting", value: `${namespace}.${key}` }, { label: "Scope", value: scope },
+            { label: "Previous override", value: JSON.stringify(previous) },
+            { label: "New value", value: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : JSON.stringify(value ?? null) }],
+          confirmLabel: "Confirm change",
+        }),
+        // The settings owner retains fresh authorization, layer-sequence and definition-version checks.
+        run: async ({ ctx: snapshot, prepared }) => {
+          const currentKey = (await routeDeps.approvalIdentityForRun?.({ ctx: snapshot }))?.key;
+          return { confirmed: !snapshot.signal.aborted && currentKey === prepared.rememberKey };
+        },
+      }, { remembered: routeDeps.nativeApprovalMemory, rememberKey: ({ prepared }) => prepared.rememberKey,
+        declined: () => ({ confirmed: false }),
+      });
+      // No credentials enter this description; they use the secret-card engine and separate stores.
+      const result = await handler(ctx, options) as { confirmed: boolean; key?: string };
+      return result.confirmed;
     },
-  });
+  }) });
 }
 
 /**

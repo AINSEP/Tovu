@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/fs-files.js';
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 
@@ -128,7 +129,7 @@ export function buildFsFilesRegistrations(routeDeps: FsFilesToolDeps): ToolRegis
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "fs-files",
     catalogModule: "features/fs-files/agent-tools.ts",
     catalog: CATALOG_BY_ID,

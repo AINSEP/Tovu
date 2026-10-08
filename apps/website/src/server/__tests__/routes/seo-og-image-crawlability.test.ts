@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import sharp from "sharp";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 
 import type { PostRecord } from "#src/features/post/index";
 import { registerTransform, uploadMedia, SharpImageTransformer } from "#src/features/media/index";
@@ -10,7 +10,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
 /**
- * @file Certifies the 2026-09-05 owner-directed fix to the seam between `seo/media.ts`'s
+ * @file Certifies the 2026-09-05 owner-directed fix to the seam between `Jini/packages/cms/src/seo/media.ts`'s
  * `resolveSeoImageRef` and the public media-rendition route (`routes/site/media-rendition.ts`).
  *
  * Before this fix (ADR-PIPE-008 EC-07's original "never generates" clause, certified by
@@ -43,17 +43,18 @@ async function imageBytes(): Promise<Uint8Array> {
 }
 
 function configureCrawlerOrigin(deps: ReturnType<typeof createRouteDeps>) {
-  let repo = new InMemoryOriginSettingRepo();
+  let repo = new InMemoryOriginSettingRepo({ seeds: [] });
   deps.originRegistry = new OriginRegistry({ repo: {
     findByWorkspaceId: (workspaceId) => repo.findByWorkspaceId(workspaceId),
     findRedirectAllowlist: (workspaceId) => repo.findRedirectAllowlist(workspaceId),
     findEgressAllowlist: (workspaceId) => repo.findEgressAllowlist(workspaceId),
   } });
+  deps.seoDeps.originRegistry = deps.originRegistry;
   return (baseUrl: string) => {
     const url = new URL(baseUrl);
-    repo = new InMemoryOriginSettingRepo([{ workspaceId: deps.workspaceId, origin: createVerifiedOrigin({
+    repo = new InMemoryOriginSettingRepo({ seeds: [{ workspaceId: deps.workspaceId, origin: createVerifiedOrigin({
       scheme: "http", host: url.hostname, port: Number(url.port), verifiedAt: "2026-09-05T00:00:00.000Z", source: "dev-capability",
-    }) }]);
+    }) }] });
   };
 }
 

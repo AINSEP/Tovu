@@ -1,96 +1,26 @@
+export const WRITE_FILES_TOOL_ID = "custom_credential_write_files";
 import type { AgentToolSideEffect } from "@jini-ai/core";
 
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
 import { WRITE_FILES_LIMITS } from "./write-files-validation.js";
 
 /**
- * @file Agent-tool catalog for `features/custom-credentials` — closes the gap the admin's Access
- * Tokens "Add custom provider" form leaves open: the assistant could already SEE that a custom
- * credential (e.g. "name.com", a hosting provider) is saved, but had no way to actually USE one, or (until
- * `content_read.custom_credential` below) even discover what labels exist without a human typing them out.
- * Six tools, all wired in this directory's sibling `tool-registrations.ts`:
+ * @file Custom-credential read, verification, request, username and file-write tool catalog.
+ * credential-save-tool.ts owns creation/rotation schemas; tool-registrations.ts owns the wiring
+ * and its authorization, human-input and write-freshness rationale.
  *
- * - `content_read.custom_credential` — added 2026-09-01. Read-back for every saved custom credential: label
- *   (the exact value the other three tools' `label` field expects — call this first to chain straight
- *   into `custom_credential_verify`/`custom_credential_make_request`/`custom_credential_set_username`
- *   without asking a human to retype a name.com or hosting-provider label the system already has), category,
- *   baseUrl/additionalHosts, and created/updated timestamps. Built on `store.ts`'s existing
- *   non-decrypting `listCustomCredentials` read model — never touches `sealer`/`keyring`, so it cannot
- *   fail on a misconfigured site key and, structurally, cannot leak a token:
- *   `CustomCredentialSummary` has no field capable of carrying one (see `types.ts`'s own doc). Also
- *   reports the credential's `username` when it has one (2026-09-01). That was NOT true when this tool
- *   shipped: `username` used to live inside the same sealed ciphertext as the token, so surfacing it
- *   would have meant decrypting every row on every list call — the exact "never touch the sealer for a
- *   read model" contract this store's own header documents twice. The fix was to move the field rather
- *   than to widen the tool: a username is an account identifier, not a secret, so it now has its own
- *   plaintext column beside `base_url` (`db/schema.sqlite.ts`'s `customCredentialSets.username`) and this tool
- *   reads it with zero decrypts, exactly like `category`/`baseUrl`. The token remains sealed and
- *   remains unreachable from here.
- * - `custom_credential_verify` — checks ONE saved credential against its own real provider, live, and
- *   reports valid/invalid/unreachable. A 401/403 ("invalid") result carries `authDiagnostic` (see
- *   `credentialed-request.ts`'s header, "Authentication-failure diagnostics") — read it before
- *   reporting a bare failure back to the human; see `custom_credential_set_username` below for the fix
- *   half of that diagnosis.
- * - `custom_credential_make_request` — an authenticated GET/POST/PUT/PATCH/DELETE through a saved
- *   credential, at parity with what a human can already do from the site itself (2026-08-31 owner
- *   override — an earlier revision restricted this to GET only; see `credentialed-request.ts`'s
- *   header for the full history). DELETE is the one verb gated behind an in-chat confirmation
- *   (`tool-registrations.ts`'s handler) — the owner's own call: "the only thing we maybe should be
- *   worried about is deletion, but we can gate that with MCP-UI." GET/POST/PUT/PATCH run immediately,
- *   no ceremony, matching what a human can already do from the browser. A 401/403 executed result
- *   ALSO carries `authDiagnostic`, for the identical reason.
- * - `custom_credential_set_username` — added 2026-09-01, the FIX half of the diagnostic the two tools
- *   above now carry: sets (or, with `username: null`, clears) ONLY the plaintext `username` column on
- *   one saved credential, so the assistant can close the loop in-chat ("ask the human for the missing
- *   username, save it, retry") instead of telling them to go edit Access Tokens by hand. Structurally
- *   cannot accept, read, or write a token — see `tool-registrations.ts`'s
- *   `rejectUnexpectedSetUsernameFields` for the enforcement, and that file's header for why this is the
- *   one write tool in this domain left un-confirmed on top of DELETE.
- * - `custom_credential_set_token` — added 2026-09-01, an MCP-UI surface for setting or rotating a
- *   saved credential's TOKEN itself, holding up the governing rule this whole domain now follows: not
- *   "an agent must never write a token" but "a token must never pass through the model's context". The
- *   model supplies only `label` — its input schema has no token-shaped field at all (see
- *   `SET_TOKEN_SCHEMA` below) — and the handler opens an interactive form the HUMAN types the token
- *   into directly; that keystroke travels browser -> `mcp-ui-tool-calls-route.ts` ->
- *   `SurfaceExchangeStore` -> the parked handler, and is sealed via `store.ts`'s existing
- *   `updateCustomCredential({..., connection})`, never touching the spawned agent CLI's stdio and
- *   therefore never reaching the model, the chat transcript, or `agent_tool_attempts`' audit detail.
- *   The tool's own result is value-free by construction (`{saved: true}` or `{saved: false, reason}`)
- *   — see `tool-registrations.ts`'s `handleSetTokenAnswer` and `custom-credential-set-token-ui.ts`'s
- *   header for the full mechanism, including why it uses `askThenReport` rather than `askOnce`.
- * - `custom_credential_create` — added 2026-09-03, closing the gap `custom_credential_set_token`
- *   itself cannot close: that tool can only ROTATE a token on a credential that already exists (it
- *   resolves an existing row by `label` before ever opening its form), so an agent that found no saved
- *   credential for a provider had no way to finish the job in chat — it had to dead-end the human with
- *   directions to Admin -> Access Tokens -> "Add custom provider" instead. This tool is that missing
- *   capability: the model may optionally supply `label`/`baseUrl`/`category` as non-secret PRE-FILL
- *   hints (e.g. from earlier in the conversation), and the handler opens an interactive form
- *   collecting those three fields plus an optional username and the token itself — the SAME
- *   "token never passes through the model's context" mechanism `custom_credential_set_token` uses,
- *   driven by the same `askThenReport` for the same reason (see `custom-credential-create-ui.ts`'s
- *   header). A submitted label that collides with an existing saved credential is refused outright —
- *   this tool creates ONLY new rows, never overwrites one, and its refusal message names
- *   `custom_credential_set_token` as the correct tool for a rotation instead. On success, returns the
- *   SAME summary shape `content_read.custom_credential` does (safe in full — see that tool's own bullet above
- *   for why `CustomCredentialSummary` can never carry a token) — never the token itself.
- * - `custom_credential_write_files` — added 2026-09-09, a general-purpose, human-confirmed multi-file
- *   commit through a saved credential (e.g. the `deploy` plugin's skill writing a platform config file
- *   plus a GitHub Actions workflow, but not hardcoded to that pair — any future caller can write
- *   any named files). Unlike `custom_credential_make_request`, EVERY call is gated: the dialog names
- *   the credential, repository, branch, and every path being written (each labeled create or update,
- *   resolved against the branch's real current state before the dialog is ever shown), with an extra,
- *   more prominent warning for any `.github/workflows/**` path. Confirmed writes land as ONE atomic
- *   commit built on the branch's current tree — see `tool-registrations.ts`'s own header for the full
- *   design and why neither existing write path (`source_control_execute_commit`'s separate credential
- *   table, or `make_request`'s un-gated POST/PUT/PATCH) fit this job.
+ * content_read.custom_credential returns saved labels, hosts, account identifiers and timestamps,
+ * using the non-decrypting store read model. CustomCredentialSummary cannot carry a token and
+ * listing must not depend on a working site key. Labels let callers reuse saved credentials
+ * without asking the human to retype identifiers the system already knows.
+ * verify and make_request return authDiagnostic for 401/403; set_username repairs the non-secret
+ * account identifier without accepting or touching a token. credential_save distinguishes new
+ * API rows from existing-label rotation and refuses duplicate-label creation.
  *
- * No schema below carries a token field of any kind: the credential's own SAVED allowed-origin
- * set (`baseUrl` plus any `additionalHosts` — set by a human through the Access Tokens form, never by
- * any tool call) is the per-credential host allowlist a caller-supplied `url`'s origin is checked
- * against, and the real Authorization header is injected server-side — see `credentialed-request.ts`'s
- * header, "Security design", for the full reasoning.
- *
- * Architectural role: `features/custom-credentials` domain logic. No dependencies.
+ * DELETE requests require human confirmation; GET/POST/PUT/PATCH and named file creation/editing
+ * run directly under the owner's policy. File writes use a validated provider plan and one atomic
+ * commit; see tool-registrations.ts for the unchanged branch-freshness boundary.
+ * No schema here carries a token. credentialed-request.ts owns the saved-origin allowlist and
+ * server-side Authorization injection, so a caller-supplied URL cannot redirect a credential.
  */
 
 /** Local declaration, not shared — same "duplicate the tiny type, never share across
@@ -169,49 +99,6 @@ const SET_USERNAME_SCHEMA = {
       type: ["string", "null"],
       description:
         "The account username/login to save for this credential (e.g. an email address or account handle) — an account identifier, never a secret. Pass null to explicitly clear a previously saved username. This field is REQUIRED on every call (there is no 'leave unchanged' — call this tool only when you actually mean to set or clear it). Do NOT pass a token, API key, password, or any other secret here: this tool has no field capable of accepting one, and a call naming any field other than 'label'/'username' is refused outright.",
-    },
-  },
-} as const;
-
-/** `custom_credential_set_token`'s ENTIRE input shape — `label` only. There is no `token` property to
- *  fill in, mistakenly or otherwise: the schema itself is the first of two independent enforcement
- *  layers (`tool-registrations.ts`'s `rejectUnexpectedSetTokenFields` is the second, since a JSON
- *  Schema's `additionalProperties: false` is descriptive only — the kernel neither parses nor
- *  validates a tool's schema, per `@jini-ai/core`'s own `ToolDescriptor.inputSchema` doc). */
-const SET_TOKEN_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["label"],
-  properties: {
-    label: { type: "string", description: LABEL_FIELD_DESCRIPTION },
-  },
-} as const;
-
-/** `custom_credential_create`'s entire input shape — three OPTIONAL, non-secret pre-fill hints, no
- *  required field at all (a call with none of them is valid; the human fills in everything on the
- *  form). There is no `token`/`username`/`connection` property to fill in, mistakenly or otherwise —
- *  the same two-layer guarantee `SET_TOKEN_SCHEMA`'s own doc gives (JSON Schema's
- *  `additionalProperties: false` is descriptive only, per `@jini-ai/core`'s own
- *  `ToolDescriptor.inputSchema` doc) — this schema simply has no field capable of carrying one in the
- *  first place. */
-const CREATE_CREDENTIAL_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: [],
-  properties: {
-    label: {
-      type: "string",
-      description:
-        "Optional pre-fill hint for the form's Label field — the display name to save this credential under (e.g. 'github', 'name.com'), from earlier in the conversation. Non-secret; the human can change it before submitting. Must be unique in this workspace — a submitted label that collides with an existing saved credential is refused, and the refusal names custom_credential_set_token as the tool to use instead (this tool only creates NEW credentials, it never overwrites one).",
-    },
-    baseUrl: {
-      type: "string",
-      description: "Optional pre-fill hint for the form's Base URL field (e.g. 'https://api.github.com'). Non-secret.",
-    },
-    category: {
-      type: "string",
-      enum: [...CUSTOM_CREDENTIAL_CATEGORIES],
-      description: `Optional pre-fill hint for the form's Category field — one of: ${CUSTOM_CREDENTIAL_CATEGORIES.join(", ")}.`,
     },
   },
 } as const;
@@ -296,22 +183,8 @@ export const customCredentialsAgentToolCatalog: AgentToolDefinition[] = [
     authorization: { permission: "custom-credentials.write" },
     inputSchema: SET_USERNAME_SCHEMA,
   },
-  {
-    name: "custom_credential_set_token",
-    description:
-      "THIS IS HOW TO SET OR ROTATE A SAVED CREDENTIAL'S TOKEN — in chat, without the human going to the Access Tokens page, and WITHOUT the token ever passing through you. Call this when a saved custom credential (Access Tokens page → 'Add custom provider') needs a new or first token: a rotated name.com/hosting/etc key, a token that expired, or filling in one that was never set. You supply ONLY the exact saved 'label' (call content_read.custom_credential first if unsure) — this tool has no field capable of accepting a token, and a call naming anything else is refused outright. Calling it shows the human an interactive form with a masked input; they type the token directly into it, and it is sealed on the server the instant they submit — it is never sent to you, never appears in this tool's result, and never enters the chat transcript. THIS ONE CALL raises that form and WAITS — it does not return until the human submits or cancels, or the form times out; there is no second call to make and no token to invent, guess, or pass yourself. If they submit a token, it is saved and this call returns {saved: true}. If they cancel, it returns {saved: false, reason: 'cancelled'}. If nobody answers before the form expires (or the run ends first), it returns {saved: false, reason: 'expired'|'abandoned'}. A blank submission is refused and returns {saved: false, reason: 'invalid'} with nothing changed. Any other failure (e.g. the server's secret store is unconfigured) returns {saved: false, reason: 'error', message} with an actionable message — never the token, never a raw error dump. The credential's existing saved username, if any, is left exactly as it was; use custom_credential_set_username separately to change that. Never echoes, logs, or otherwise reveals the token you asked to have set — treat every result from this tool as proof only of whether the save happened, nothing more.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "custom-credentials.write" },
-    inputSchema: SET_TOKEN_SCHEMA,
-  },
-  {
-    name: "custom_credential_create",
-    description:
-      "THIS IS HOW TO CREATE A BRAND-NEW SAVED CREDENTIAL — in chat, without the human going to the Access Tokens page, and WITHOUT the token ever passing through you. Call this when content_read.custom_credential shows NO saved credential for a provider you need (a DNS registrar, hosting account, deployment target, or any other third-party API) and the human wants to save one now — do NOT tell them to go add it themselves in Admin; use this tool instead. You may optionally pass 'label'/'baseUrl'/'category' as non-secret pre-fill hints if you already know them from the conversation (e.g. label: 'github', baseUrl: 'https://api.github.com', category: 'source-control') — the human can still change any of them before submitting, and omitting one just leaves that field blank for them to fill in. This tool has NO field capable of accepting a token, username, or any other secret — a call naming anything besides 'label'/'baseUrl'/'category' is refused outright by its own schema. Calling it shows the human an interactive form (label, base URL, category, an optional username, and a masked token field); they fill it in and submit directly, and the token is sealed on the server the instant they submit — it is never sent to you, never appears in this tool's result, and never enters the chat transcript. THIS ONE CALL raises that form and WAITS — it does not return until the human submits or cancels, or the form times out; there is no second call to make. On a successful save this returns { created: true, credential } where 'credential' is the SAME summary shape content_read.custom_credential returns (id, label, category, baseUrl, additionalHosts, username if one was set, configured, createdAt, updatedAt) — never the token. If the submitted label already matches an existing saved credential, NOTHING is created or overwritten: this returns { created: false, reason: 'duplicate-label', message } naming the collision, and the message points you at custom_credential_set_token to rotate that existing credential's token instead — call that tool, do not retry this one with a different label unless the human actually wants a second, separate credential. If they cancel, it returns { created: false, reason: 'cancelled' }. If nobody answers before the form expires (or the run ends first), it returns { created: false, reason: 'expired' | 'abandoned' }. A blank token, or any other invalid field (an unparseable base URL, a category outside the fixed set, a blank label), is refused and returns { created: false, reason: 'invalid', message } naming what was wrong — nothing is written. Any other failure (e.g. the server's secret store is unconfigured) returns { created: false, reason: 'error', message } with an actionable message — never the token, never a raw error dump. Never echoes, logs, or otherwise reveals the token you asked to have saved — treat every result from this tool as proof only of whether the save happened, nothing more.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "custom-credentials.write" },
-    inputSchema: CREATE_CREDENTIAL_SCHEMA,
-  },
+
+
   {
     name: "custom_credential_write_files",
     description:

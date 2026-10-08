@@ -11,9 +11,12 @@ import { createSubscription } from "#src/features/webhooks/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The real, non-mocked round trip through the MCP-UI callback route's Shape 1 (exchange
@@ -140,7 +143,7 @@ async function openRealDialog(
 }
 
 test("real round trip: an exchange delivery from the SAME principal that opened it actually deletes the subscription", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor, webhookSubscriptionRepo, seedSubscription } = buildRealWebhooksToolExecutor(surfaceExchanges);
   const subscriptionId = await seedSubscription();
   const PRINCIPAL = "principal-admin-1";
@@ -182,7 +185,7 @@ test("real round trip: an exchange delivery from the SAME principal that opened 
 });
 
 test("SECURITY: a delivery from a DIFFERENT principal than the one that opened the exchange is refused, and nothing is delivered", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor, webhookSubscriptionRepo, seedSubscription } = buildRealWebhooksToolExecutor(surfaceExchanges);
   const subscriptionId = await seedSubscription();
 
@@ -216,12 +219,7 @@ test("SECURITY: a delivery from a DIFFERENT principal than the one that opened t
   assert.equal(row?.disabledAt ?? null, null);
 
   // Clean up the still-parked call so this test does not leak a pending exchange.
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: TOOL_ID,
-    principalId: "principal-who-ran-the-agent",
-    params: { decision: "cancel" },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: "principal-who-ran-the-agent", params: { decision: "cancel" } }, { toolId: TOOL_ID });
   await pending;
 });
 
@@ -229,7 +227,7 @@ test("a delivery cannot be replayed through this route — the exchange's single
   // The principal-mismatch test above proves the BINDING check; this proves the other half of "the
   // real store, not a mock" is load-bearing here too — a route bug that somehow bypassed
   // single-use would show up as a second 202, not a 409.
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor, webhookSubscriptionRepo, seedSubscription } = buildRealWebhooksToolExecutor(surfaceExchanges);
   const subscriptionId = await seedSubscription();
   const PRINCIPAL = "principal-admin-1";

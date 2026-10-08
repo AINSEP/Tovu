@@ -31,13 +31,13 @@ for (const surface of [
     name: "custom-credentials",
     path: "system/custom/credentials",
     body: { label: "name.com", category: "general", baseUrl: "https://api.name.com", connection: { token: "sk_never_stored" } },
-    detail: /^custom credential secret store is unconfigured: TOVU_SITE_KEY is not set$/,
+    detail: "The credential could not be saved or unlocked. Check the site credential store.",
   },
   {
     name: "source-control-credentials",
     path: "system/source-control/credentials",
     body: { label: "default", connection: { providerId: "github", token: "ghp_never_stored" } },
-    detail: /^source control credential secret store is unconfigured: TOVU_SITE_KEY is not set$/,
+    detail: "The credential could not be saved or unlocked. Check the site credential store.",
   },
 ]) {
   test(`${surface.name}: POST with a secret store that cannot seal is 503 SECRET_STORE_UNCONFIGURED and stores no row`, async (t) => {
@@ -54,7 +54,8 @@ for (const surface of [
     assert.equal(res.status, 503, raw);
     const body = JSON.parse(raw) as { error: string; detail: string };
     assert.equal(body.error, "SECRET_STORE_UNCONFIGURED");
-    assert.match(body.detail, surface.detail);
+    assert.equal(body.detail, surface.detail);
+    assert.equal(raw.includes("TOVU_SITE_KEY"), false, "internal sealer details stay private");
     assert.equal(raw.includes("never_stored"), false, "the refused secret must not be echoed back");
 
     const list = await fetch(base, { headers: { cookie } });

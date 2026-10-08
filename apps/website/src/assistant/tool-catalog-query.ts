@@ -6,6 +6,7 @@ import { buildToolCatalogQuery as buildCatalogSnapshot, listToolCatalogEntries a
 import { createSqliteCatalogStoreFactory } from "@jini-ai/registry/tool-catalog-builder/sqlite";
 
 import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywords.js";
+import { PAGE_HTML_CONTRACT } from "../features/pages/agent-tools.js";
 
 /**
  * @file Backs `@jini-ai/daemon/http`'s `GET /api/tools/search` / `GET /api/tools/:id` with Tovu's own
@@ -13,22 +14,9 @@ import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywor
  * `ToolExecutor` already executes against, so search/describe can never drift from what
  * `execute_delegated_tool` can actually run.
  *
- * Missing until 2026-07-30: `agent-daemon-server.ts` built the registry and the executor but never
- * mounted `registerToolCatalogRoutes`, so `@jini-ai/mcp`'s `search_tools`/`describe_tool` (which
- * proxy these two routes) 404'd for every spawned CLI — confirmed live via a direct curl against
- * the daemon. This is the other half of that fix, alongside `mcp-injection.ts`'s missing bearer
- * credential.
- *
- * Ranking backend, 2026-07-30: swapped from a hand-rolled in-memory term-count scorer to
- * `@jini-ai/registry/tool-catalog/sqlite`'s FTS5 + `bm25()` implementation, after benchmarking both against the real
- * registered catalog. Timing is a wash either way (both sub-millisecond; a network/LLM round-trip
- * dwarfs the difference), but BM25's quality is meaningfully better: the in-memory scorer produced
- * frequent score ties on ambiguous queries (e.g. "notification email" scored
- * `forms_update_definition` and `identity_user_update_email` identically), while BM25 correctly
- * separates them by term-frequency/length-normalized relevance. That gap widens, not narrows, as
- * the catalog grows. (That 2026-07-30 benchmark ran against an 18-tool registry; the wired catalog
- * is 131 tools as of 2026-08-05, so the quality gap the swap was made for is wider now than the
- * numbers in that note imply, not narrower.)
+ * SQLite FTS5's BM25 ranking normalizes term frequency and description length, separating
+ * ambiguous queries that a simple term count would tie. The index is disposable; the live
+ * registry remains authoritative.
  */
 
 /** The tool id's own naming convention (`forms_create_definition` -> `forms`) doubles as its
@@ -43,7 +31,16 @@ function sourceForToolId(id: string): string {
 // Generic snapshot validation and its rationale live in Jini's registry/src/tool-catalog-builder/query.ts.
 // Tovu keeps its source names and search vocabulary here; keywords affect ranking, never authored text.
 const enricher: SearchEnricher = {
-  indexedDescription: ({ id, description }, optional) => indexedDescriptionFor(id, description, optional),
+  // Both page writers carry the same long HTML authoring contract. Index their distinct action
+  // text so that shared styling/embed instructions do not dilute BM25 relevance for section edits.
+  // The full contract remains in authored descriptions returned by search and describe.
+  // Index the writers' action paragraph: their later instructions mention the reader and sibling
+  // writers as prerequisites or alternatives, which otherwise rank as competing edit intentions.
+  // Apply the same boundary to the reader: its follow-up guidance describes section edits,
+  // but discovering the read prerequisite must not outrank the requested write action.
+  indexedDescription: ({ id, description, metadata }, optional) => indexedDescriptionFor(id,
+    id === "pages_read_html" || description.includes(PAGE_HTML_CONTRACT) ? description.split("\n\n", 1)[0]! : description,
+    { ...optional, ...(metadata ? { metadata } : {}) }),
   authoredDescription: ({ description }) => stripSearchKeywords(description),
 };
 const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) };
@@ -58,7 +55,7 @@ const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) }
  * doc ("this table only makes that id discoverable... reseeded wholesale"). Called once at daemon
  * startup (`agent-daemon-server.ts`), after every domain's registrations are wired in.
  *
- * @complexity O(r) to seed (r = registered tools, ~tens today); search/describe are SQLite's own
+ * @complexity O(r) to seed (r = registered tools); search/describe are SQLite's own
  * FTS5/index cost, not this function's.
  * @overallScore 100
  */
@@ -72,8 +69,7 @@ export function buildToolCatalogQuery(
   const db = new Database(":memory:");
   // Indexed text, not the raw description — see `tool-search-keywords.ts` for why. Short
   // version: BM25 can only rank words that are in the index, and this catalog's descriptions
-  // are written in the codebase's nouns while operators search in theirs. Measured at 40%
-  // top-1 before this.
+  // are written in the codebase's nouns while operators search in theirs.
   const snapshot = buildCatalogSnapshot({
     source: { list: () => registry.list({}) },
     storeFactory: createSqliteCatalogStoreFactory({ db }),

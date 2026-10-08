@@ -1,12 +1,13 @@
+import { renderHumanApproval } from "../../../../__tests__/support/render-human-approval.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { buildUninstallConfirmationResource } from "../../uninstall-confirmation-ui.js";
+import { describeAgentPluginUninstallApproval } from "../../uninstall-confirmation-ui.js";
 
 /** Execute the delivered script. The sandbox can be hidden while document.write runs and visible
  * by ui/initialize without delivering visibilitychange to the newly written document. */
-function mount() {
-  const html = buildUninstallConfirmationResource({ preview: { pluginId: "notes", versions: ["1"], archiveDigests: ["a"] }, exchangeId: "exchange", expiresAtMs: Date.now() + 60_000 }).resource.text;
+async function mount() {
+  const html = (await renderHumanApproval({ spec: describeAgentPluginUninstallApproval({ preview: { pluginId: "notes", versions: ["1"], archiveDigests: ["a"] } }), exchangeId: "exchange", expiresAtMs: Date.now() + 60_000 })).resource.text;
   let time = 0, visibilityState = "hidden";
   const ready: Array<() => void> = [], calls: unknown[] = [];
   const timers = new Map<number, { at: number; fn: () => void }>();
@@ -35,9 +36,9 @@ function mount() {
   };
 }
 
-test("both uninstall choices re-arm after sandbox initialization without a visibilitychange event", () => {
+test("both uninstall choices re-arm after sandbox initialization without a visibilitychange event", async () => {
   for (const action of ["confirm", "delete-memory"]) {
-    const surface = mount();
+    const surface = await mount();
     assert.deepEqual(surface.buttons.map(b => b.disabled), [true, true, false]);
     surface.initialized();
     surface.advance(1499); surface.click(action);
@@ -51,8 +52,8 @@ test("both uninstall choices re-arm after sandbox initialization without a visib
   }
 });
 
-test("cancel is usable before initialization and locks both uninstall choices", () => {
-  const surface = mount(); surface.click("cancel"); surface.initialized(); surface.advance(1500);
+test("cancel is usable before initialization and locks both uninstall choices", async () => {
+  const surface = await mount(); surface.click("cancel"); surface.initialized(); surface.advance(1500);
   assert.deepEqual(surface.buttons.map(b => b.disabled), [true, true, true]);
   assert.equal(surface.calls.length, 1);
 });

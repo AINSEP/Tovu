@@ -4,7 +4,7 @@ import { type Clock as ClockPort, type UUID } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 
-import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import {
   ExternalMcpValidationError,
@@ -18,16 +18,14 @@ import { externalMcpRecordHasStaticAccessToken } from "../external-mcp/auth-mode
 import { buildAgentPluginConnectCard } from "./connect-card-ui.js";
 import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from "./federate-mcp.js";
 import { readInstalledMcpServers } from "./capability-projection.js";
-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
+import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import { resolveAgentPluginLayout } from "./layout.js";
-import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
+import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
 
 /**
- * @file `agent_plugin_connect` — G1 of the 2026-09-27 Supabase-agent-plugin v2 plan
- * (`ADS-memory/reports/2026-09-27-supabase-agent-plugin-plan-v2.md`, section 3): a GENERIC "connect
- * this plugin's account" tool any OAuth-authenticated Agent Plugin can use, so no plugin needs its
- * own bespoke connect tool the way `features/supabase-connect/` did (deleted 2026-09-29).
+ * @file agent_plugin_connect connects any OAuth-authenticated Agent Plugin's account through
+ * one shared host flow, so plugins do not need vendor-specific connect tools.
  *
  * ## What one call does
  *
@@ -67,7 +65,7 @@ export const AGENT_PLUGIN_CONNECT_TOOL_ID = "agent_plugin_connect";
 const AGENT_PLUGIN_CONNECT_PERMISSION = "admin.integrations.manage";
 
 const DEFAULT_POLL_INTERVAL_MS = 3000;
-/** Matches `contracts/core/tool-surface-exchanges.ts`'s `DEFAULT_SURFACE_IDLE_TTL_MS` — the same
+/** Matches `@jini-ai/daemon/surface-exchanges`'s `DEFAULT_SURFACE_IDLE_TTL_MS` — the same
  *  "long enough to read a card and go sign in, short enough not to hold a subprocess open forever"
  *  budget, restated here because this call never touches that constant (it does not call
  *  `exchange.receive()`, so the exchange store's own idle timer never fires for it). */
@@ -335,15 +333,15 @@ export async function runAgentPluginConnect(
   const signInUrl = await beginSignIn(externalMcpOAuth, server.connectionId, routeDeps.derivedPublicOrigin);
   const pluginDisplayName = titleCaseFromPluginId(pluginId);
 
-  const exchange = surfaces.surfaceExchanges.open({ toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const closeOnAbort = () => exchange.close();
+  const exchange = surfaces.surfaceExchanges.open({ binding: { toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface });
+  const closeOnAbort = () => exchange.close({});
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
 
   try {
-    await exchange.send({
+    await exchange.send({ emission: {
       channel: "mcp-ui",
       payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "waiting", signInUrl }) },
-    });
+    } });
 
     const pollIntervalMs = routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     const waitTimeoutMs = routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
@@ -360,10 +358,10 @@ export async function runAgentPluginConnect(
 
     if (connected) {
       try {
-        await exchange.send({
+        await exchange.send({ emission: {
           channel: "mcp-ui",
           payload: { resource: buildAgentPluginConnectCard({ pluginId, pluginDisplayName, state: "connected" }) },
-        });
+        } });
       } catch {
         // A human-visible card update failing must never turn a real connection into a tool failure.
       }
@@ -371,6 +369,6 @@ export async function runAgentPluginConnect(
     return { status: connected ? "connected" : "waiting-for-sign-in" };
   } finally {
     ctx.signal.removeEventListener("abort", closeOnAbort);
-    exchange.close();
+    exchange.close({});
   }
 }

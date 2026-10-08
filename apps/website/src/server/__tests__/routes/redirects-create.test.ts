@@ -18,7 +18,7 @@ import { bootAuthenticated, extractRouteHandler, createCapturingResponse } from 
  * explicitly: can this route create a redirect LOOP (self, or an A->B/B->A chain), or shadow an
  * existing rule silently.
  *
- * Verdict on both: NO. `resolveCollapsedTarget` (`features/redirects/redirects.ts`) rejects a
+ * Verdict on both: NO. `resolveCollapsedTarget` (Jini `packages/cms/src/redirects/redirects.ts`) rejects a
  * self-redirect and a two-hop A->B/B->A chain identically (both collapse to a target equal to the
  * request's own `fromPattern` and throw `RedirectLoopError`) — proven directly below, not asserted
  * from reading the source alone.

@@ -1,4 +1,4 @@
-import { hasForbiddenRawUrlCharacter } from "#src/features/origin/origin";
+import { hasForbiddenRawUrlCharacter } from "@jini-ai/http-kit/verified-origin";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -87,7 +87,7 @@ function refusalReason(url: URL): string | null {
 export function normalizePeerBaseUrl(raw: string): PeerBaseUrlAccepted | PeerBaseUrlRefusal {
   const trimmed = raw.trim();
   if (trimmed === "") return { error: "baseUrl is required" };
-  if (hasForbiddenRawUrlCharacter(trimmed)) {
+  if (hasForbiddenRawUrlCharacter({ raw: trimmed })) {
     return { error: "baseUrl carries a backslash, whitespace or control character" };
   }
 

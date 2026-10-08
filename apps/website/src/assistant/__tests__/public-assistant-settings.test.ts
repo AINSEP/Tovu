@@ -6,10 +6,8 @@ import {
   InMemorySettingsRepo,
   ForbiddenError,
   getEffective,
-  resolveDefinitionRaw,
-  registerDefinitions,
+  ensureSettingDefinitions,
   set,
-  SCOPE_BIT,
 } from "../../features/settings/index.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import {
@@ -41,8 +39,8 @@ const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 /**
  * `settingsRepo`/`principals` plus a fully-wired `deps` bag covering every deps interface this file
  * exercises (`EnsurePublicAssistantSettingDefinitionsDeps` and `PublicAssistantSettingsWriteDeps` —
- * a superset of `GetPublicAssistantSettingsDeps`). `resolveDefinitionRaw`/`registerDefinitions`/
- * `scopeBit`/`getEffective`/`set` are the real `features/settings` functions/constants, used
+ * a superset of `GetPublicAssistantSettingsDeps`). `ensureSettingDefinitions`/
+ * `getEffective`/`set` are the real `features/settings` functions, used
  * directly rather than faked: test files are exempt from `check:architecture`'s module-cycle graph
  * (the reason these are injected in production code at all — see `public-assistant-settings.ts`'s
  * header), and this file's whole point is proving the real ledger's behavior through this surface.
@@ -59,9 +57,7 @@ function makeDeps() {
       ids,
       authorize: alwaysAllow,
       principals: createSettingsPrincipalLookup({ repo: principals }),
-      resolveDefinitionRaw,
-      registerDefinitions,
-      scopeBit: SCOPE_BIT,
+      ensureSettingDefinitions,
       getEffective,
       set,
     },

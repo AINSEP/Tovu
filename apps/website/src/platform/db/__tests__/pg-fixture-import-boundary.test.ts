@@ -1,5 +1,5 @@
 /**
- * @file Enforces `src/platform/db/migration/pg-fixture.ts`'s own module doc: "this file is TEST
+ * @file Enforces `@jini-ai/db/testing/pg-fixture`'s own module doc: "this file is TEST
  * INFRASTRUCTURE ONLY ... it must never be imported from product code."
  *
  * Why a test rather than `check:boundaries` (dependency-cruiser): this repo's dependency-cruiser
@@ -22,6 +22,8 @@
  * (over-inclusive) is the correct failure direction here, matching this suite's fail-closed posture
  * (see `migration-manifest-postgres.test.ts`'s own header on why it never skips).
  */
+// The original driver-dependency rationale above is historical; the subprocess boundary remains
+// test-only after moving its implementation into Jini. The existing pattern also matches the package entry.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -96,6 +98,15 @@ test("the boundary scanner detects supported import, require and re-export speci
       `const fixture = import('../migration/pg-fixture${extension}');`,
     ]) assert.equal(IMPORT_SPECIFIER_PATTERN.test(source), true, source);
   }
+});
+
+test("the boundary scanner detects the Jini package entry for every supported import form", () => {
+  for (const source of [
+    'import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";',
+    'export { createPgFixture } from "@jini-ai/db/testing/pg-fixture";',
+    'const fixture = require("@jini-ai/db/testing/pg-fixture");',
+    'const fixture = import("@jini-ai/db/testing/pg-fixture");',
+  ]) assert.equal(IMPORT_SPECIFIER_PATTERN.test(source), true, source);
 });
 
 test("the importer fence admits storage-layer test directories only", () => {

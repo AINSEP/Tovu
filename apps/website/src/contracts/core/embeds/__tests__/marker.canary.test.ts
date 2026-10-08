@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { describeRejection, markersOfType, scanEmbedMarkers, withAddedId } from "../marker.js";
+import { describeRejection, markersOfType, scanEmbedMarkers, withAddedId } from "@jini-ai/cms/widgets/markers";
 
 /**
  * @file CANARIES for the unified `data-embed-config` marker spine (2026-08-10).
@@ -57,9 +57,9 @@ test("canary: every marker in every migrated theme file parses, with zero reject
   const problems: string[] = [];
   let total = 0;
   for (const file of files) {
-    const { markers, rejected } = scanEmbedMarkers(read(file));
+    const { markers, rejected } = scanEmbedMarkers({ html: read(file) });
     total += markers.length;
-    for (const r of rejected) problems.push(`${file} — ${describeRejection(r)}`);
+    for (const r of rejected) problems.push(`${file} — ${describeRejection({ rejection: r })}`);
   }
   assert.deepEqual(problems, [], `unparseable markers found:\n${problems.join("\n")}`);
   assert.ok(total > 20, `expected the real themes to contain many markers, found ${total}`);
@@ -88,14 +88,14 @@ test("canary: no theme still carries an attribute from the retired vocabularies"
 });
 
 test("canary: the nav partial marker carries type, id, and its current-page key", () => {
-  const { markers } = scanEmbedMarkers(read(pagePath("tovu-theme", "index")));
+  const { markers } = scanEmbedMarkers({ html: read(pagePath("tovu-theme", "index")) });
   const nav = markers.find((m) => m.type === "partial" && m.id === "nav");
   assert.ok(nav, "basic/index.html must reference the nav partial");
   assert.equal(nav.config.current, "index", "the current-page hint must survive the migration into config");
 });
 
 test("canary: the footer variant survived as a config key, not a lost attribute", () => {
-  const { markers } = scanEmbedMarkers(read(pagePath("tovu-theme", "signin")));
+  const { markers } = scanEmbedMarkers({ html: read(pagePath("tovu-theme", "signin")) });
   const footer = markers.find((m) => m.type === "partial" && m.id === "footer");
   assert.ok(footer, "signin.html must reference the footer partial");
   assert.equal(footer.config.variant, "minimal", "signin uses the minimal footer — losing this is a silent visual regression");
@@ -105,7 +105,7 @@ test("canary: the docs sidebar keeps its tree variant AND its authored fallback 
   // The docs sidebar template is `posts-sidebar.html` (it was `blog-sidebar-template.html` before the
   // posts-*/pages-* template rename).
   const html = read(pagePath("tovu-theme", "posts-sidebar"));
-  const menu = markersOfType(html, "menu")[0];
+  const menu = markersOfType({ html: html, type: "menu" })[0];
   assert.ok(menu, "the docs template must reference a menu");
   // `docs-section` — the reserved id the route layer resolves to the current page's docs section
   // (`pages.ts` `DOCS_SECTION_MENU_ID`). It replaced `docs-current-page-sidebar` (2026-08-31
@@ -120,21 +120,17 @@ test("canary: the docs sidebar keeps its tree variant AND its authored fallback 
 });
 
 test("canary: the real theme's content-slot marker carries no id, and a real id can be added without breaking the JSON", () => {
-  // 2026-08-11 unification retired the `{"type":"post","id":"{{post}}"}` literal-placeholder marker
-  // this canary used to pin — replaced by `{"type":"content"}` with no id at all, filled in at render
-  // time by `injectCurrentEntityContentId`/`withAddedId` rather than a pre-authored placeholder
-  // string. The property worth canary-testing against the real file is now the ADD-an-id path itself:
-  // it must produce legal, re-parseable JSON for the theme's own real (not synthetic) marker shape.
-  // The post template is `posts-default.html` (it was `blog-post.html` before the template rename).
+  // The real posts-default.html content marker has no id until render-time injection. Adding
+  // the current entity id must produce legal, re-parseable JSON while preserving authored config.
   const html = read(pagePath("tovu-theme", "posts-default"));
-  const { markers, rejected } = scanEmbedMarkers(html);
+  const { markers, rejected } = scanEmbedMarkers({ html: html });
   assert.deepEqual(rejected, []);
   const content = markers.find((m) => m.type === "content");
   assert.ok(content, "the template must carry a content marker");
   assert.equal(content.id, undefined, "the theme's own authored marker carries no id — that is what makes it a template slot");
 
-  const withId = withAddedId(content, "22222222-2222-4222-8222-222222222222");
-  const { markers: reparsed, rejected: reparsedRejected } = scanEmbedMarkers(withId);
+  const withId = withAddedId({ marker: content, id: "22222222-2222-4222-8222-222222222222" });
+  const { markers: reparsed, rejected: reparsedRejected } = scanEmbedMarkers({ html: withId });
   assert.deepEqual(reparsedRejected, [], "adding an id must still produce valid, parseable JSON");
   assert.equal(reparsed[0]?.type, "content");
   assert.equal(reparsed[0]?.id, "22222222-2222-4222-8222-222222222222");
@@ -144,7 +140,7 @@ test("canary: other authored attributes on a marker element are preserved verbat
   // The docs nav carries class and aria-label. A substitution that rebuilds the tag from config
   // alone would drop them — losing styling and the accessible name with no test failing elsewhere.
   const html = read(pagePath("tovu-theme", "posts-sidebar"));
-  const menu = markersOfType(html, "menu")[0];
+  const menu = markersOfType({ html: html, type: "menu" })[0];
   assert.ok(menu.attrs.includes('class="docs-nav"'), menu.attrs);
   assert.ok(menu.attrs.includes('aria-label="Documentation"'), menu.attrs);
   assert.equal(menu.tag, "nav", "the marker's own tag must be reported so a rebuild keeps it");
@@ -159,13 +155,13 @@ test("canary: malformed config is REJECTED, never silently treated as an empty m
   const expectedKinds = ["invalid-json", "not-an-object", "missing-type"];
   const expectedDescriptions = [/not valid JSON/, /must be a JSON object/, /missing a "type"/];
   for (const [i, html] of cases.entries()) {
-    const { markers, rejected } = scanEmbedMarkers(html);
+    const { markers, rejected } = scanEmbedMarkers({ html: html });
     assert.equal(markers.length, 0, `should not yield a marker: ${html}`);
     assert.equal(rejected.length, 1, `should report exactly one rejection: ${html}`);
     assert.equal(rejected[0].problem.kind, expectedKinds[i], "the scanner must retain the actionable rejection reason");
-    assert.ok(describeRejection(rejected[0]).length > 20, "a rejection must describe itself well enough to act on");
-    assert.match(describeRejection(rejected[0]), expectedDescriptions[i]);
-    assert.ok(describeRejection(rejected[0]).includes(rejected[0].problem.raw), "the diagnostic must identify the offending config");
+    assert.ok(describeRejection({ rejection: rejected[0] }).length > 20, "a rejection must describe itself well enough to act on");
+    assert.match(describeRejection({ rejection: rejected[0] }), expectedDescriptions[i]);
+    assert.ok(describeRejection({ rejection: rejected[0] }).includes(rejected[0].problem.raw), "the diagnostic must identify the offending config");
   }
 });
 
@@ -174,7 +170,7 @@ test("canary: occurrence numbering is stable and 1-based, for entry_refs locator
     `<div data-embed-config='{"type":"menu","id":"a"}'></div>`,
     `<div data-embed-config='{"type":"menu","id":"b"}'></div>`,
   ].join("");
-  const { markers } = scanEmbedMarkers(html);
+  const { markers } = scanEmbedMarkers({ html: html });
   assert.deepEqual(markers.map((m) => m.occurrence), [1, 2]);
   assert.deepEqual(markers.map((m) => m.id), ["a", "b"]);
 });

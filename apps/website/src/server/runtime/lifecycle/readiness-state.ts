@@ -93,9 +93,8 @@ export function getAssistantDaemonFailureReasonCode(): string | null {
  * Clears a previously-latched daemon failure. Called at the start of every spawn attempt inside
  * `daemon-supervisor.ts` — the very first boot, every automatic respawn, and the manual restart
  * seam alike — so a later successful attempt is never stuck behind a stale 503 an earlier,
- * unrelated attempt latched. On the very first boot this is a no-op (the snapshot starts with no
- * `assistant-daemon` entry at all); the "future retry" this comment used to say didn't exist yet
- * is exactly what `daemon-supervisor.ts` now is.
+ * unrelated attempt latched. On the first boot this is a no-op because the snapshot
+ * has no `assistant-daemon` entry.
  */
 export function clearAssistantDaemonFailure(): void {
   if (!isAssistantDaemonKnownFailed()) return;

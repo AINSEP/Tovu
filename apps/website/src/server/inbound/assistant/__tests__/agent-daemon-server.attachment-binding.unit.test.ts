@@ -14,8 +14,8 @@ import { constrainPrincipalToReadOnlyTools } from "#src/assistant/read-only-tool
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
 import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
-import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../agent-run-concurrency.js";
-import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../agent-session-resume.js";
+import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../../../../assistant/agent-session-preset.js";
+import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../../../../assistant/agent-session-preset.js";
 import { captureDaemonRun, daemonFunction, daemonInitializer, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /** Evaluate the real registration's resolver, not a test-written callback that already knows the
@@ -65,7 +65,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     const launched = await captureDaemonRun(context, {
       lifecycle, request: { agentId: "claude" }, bindings: {
         principalByRunId, messageAttachmentRefsByRunId, attachmentStore: store, resolveAttachmentRunFields,
-        liveRunTracker: createLiveRunTracker(), waitForStoppingRuns, STOPPING_RUN_WAIT_MS,
+        liveRunTracker: createLiveRunTracker({}, {}), waitForStoppingRuns, STOPPING_RUN_WAIT_MS,
         extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume,
         runCredentials: { revoke() {} }, runOwners: { record() {}, forget() {} }, RUN_OWNER_RETENTION_MS: 0,
         routeDeps: { workspaceId: "ws-attachment-regression", chatRunLedger: {}, agentSessions: {

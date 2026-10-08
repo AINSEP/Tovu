@@ -10,11 +10,11 @@ import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
 
-import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
+import { packAgentPluginDirectory } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 
 /**

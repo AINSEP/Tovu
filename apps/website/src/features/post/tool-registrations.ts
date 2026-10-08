@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
@@ -55,8 +56,9 @@ import { requireToolPermission, type EventBusPort, type OutboxPort } from "@jini
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'`. Everything else this file needs comes from `@jini-ai/cms/core`.
 import { ToolInputError } from "@jini-ai/core";
-import { type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
-import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
@@ -135,7 +137,6 @@ export type DuplicatePagesHtmlStoreFactory = (scope: { workspaceId: string; post
  * separate, already-disclosed back-edge left
  * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
  * structurally by passing its existing `RouteDeps` object; nothing there changes.
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export interface PostToolDeps {
   authorize: AuthorizeFn;
@@ -288,7 +289,7 @@ const POST_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   { error: PostConflictError, code: "CONTENT_POST_CONFLICT" },
   { error: PostNotFoundError, code: "CONTENT_POST_NOT_FOUND" },
   { error: PostValidationError, code: "CONTENT_POST_VALIDATION_FAILED" },
-  forbiddenRule("CONTENT_POST"),
+  forbiddenRule({ domainPrefix: "CONTENT_POST", error: ForbiddenError }),
 ];
 
 function requirePostKind(input: Record<string, unknown>): PostKind {
@@ -450,7 +451,7 @@ function scheduleView(post: PostRecord): Pick<PostToolView, "publishAt" | "featu
 
 /** Projects a `PostRecord` into the explicit model-facing shape — `workspaceId` is dropped (the
  * agent is already scoped to one workspace it did not choose and cannot change), and the internal
- * `seoExtJson` sidecar (owned exclusively by `src/seo/write-service.ts`'s chokepoint, per `post.ts`'s
+ * `seoExtJson` sidecar (owned exclusively by `Jini/packages/cms/src/seo/write-service.ts`'s chokepoint, per `post.ts`'s
  * own field doc) is dropped too, mirroring `toHeadlessPost`'s own admin-facing projection. */
 function toPostToolView(post: PostRecord): PostToolView {
   return {
@@ -569,7 +570,7 @@ function toPostWriteResultView(routeDeps: PostToolDeps, post: PostRecord): PostT
 }
 
 /**
- * Plain-text characters one `content_post_list` call returns across all its rows (2026-09-28).
+ * Plain-text characters one `content_post_list` call returns across all its rows.
  * The listing used to return every row's full TipTap `bodyJson`: a real "summarize my 6 posts" turn
  * got 67.7 KB back through the MCP bridge, over Claude Code's MCP output cap, so the CLI saved it to
  * a file and the model spent extra rounds reading it back. Now each row carries a plain-text
@@ -688,7 +689,6 @@ async function loadDeletablePost(routeDeps: PostToolDeps, id: string, kind: Post
  * Refuses to write if the row moved between read and removal. See the caller's own
  * inline history: this replaces the former token-bound version check (ADR-055
  * Decision 3 removed the token, not the need for the check).
- * PendingConfirmationStore (apps/website/src/assistant/pending-confirmations.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 function assertFreshVersion(current: PostRecord | null, existing: PostRecord, kind: PostKind): void {
   if (current && !isTrashed(current) && current.version !== existing.version) {
@@ -1074,7 +1074,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       } });
     },
 
-    /** Domain execution after the shared approval policy asks the human (owner 2026-10-07).
+    /** Domain execution after the shared approval policy asks the human.
      * Permission and version checks still apply here; the registration composition owns the card. */
     content_post_delete: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -1162,7 +1162,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 
   // No `unwiredToolIds`: Posts/Pages wires its ENTIRE catalog, same tripwire discipline as
   // Forms/Entries/Widgets — a 7th catalog entry added without a handler fails the build.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "post",
     catalogModule: "features/post/agent-tools.ts",
     catalog: CATALOG_BY_ID as ReadonlyMap<string, PostAgentToolDefinition>,
@@ -1377,79 +1377,10 @@ export function contributePostDuplicateHandlers(): DuplicateResourceHandlerContr
   ];
 }
 
-// 2026-08-17: Post was briefly converted to the tool-contribution registry (`contributePostTools`,
-// registered via `#src/assistant/index`'s `registerToolContributor`) alongside Comments/Newsletter,
-// then reverted the same night — `check:architecture --list` showed it opened a NEW, larger module
-// cycle: `assistant -> widgets` (still a static `DOMAIN_SLICES` import) + `widgets ->
-// features/post` (`widgets/resolver-service.ts` imports `findPublishedPostById`) +
-// `features/post -> assistant` (the reverted edge) closed a 3-cycle that pulled `export`,
-// `features/deployments`, `features/source-control`, and `features/vendor-credentials` into one
-// 7-module SCC — worse than the 4-module one this registry exists to remove. Unlike Comments/
-// Newsletter (which import nothing else and nothing else imports), Post is depended on by other
-// modules (`widgets`, `export`), so it cannot convert safely until either those edges are relocated
-// or the still-static `widgets`/`deployments`/`source-control`/`vendor-credentials` DOMAIN_SLICES
-// entries above convert too.
-//
-// RETRIED 2026-08-17 (same day, later pass) after `widgets` (Stage 2 batch 2) and `source-control`
-// (this same later pass) both converted off `DOMAIN_SLICES`. Empirically wired
-// `registerToolContributor` here and ran `check:architecture --list`: the `widgets`/`source-control`
-// half of the original 7-module SCC is gone, but a NEW, smaller one remains — `[assistant, export,
-// features/deployments, features/post, features/vendor-credentials]` (5 modules; "module cycles
-// (mutual pairs)" read 1, "largest strongly-connected component" grew 0 -> 5, which
-// `check-architecture.ts`'s own gate treats as a regression on the combined "module cycles / SCC"
-// hard-constraint metric regardless of the mutual-pairs count). This is the SAME cluster that blocks
-// `deployments`/`static-publish` (a previously-undocumented `features/vendor-credentials/store.ts`
-// value import of `extractGitHubLogin` from `features/deployments/static-publish/index.ts` — see
-// `features/deployments/tool-registrations.ts`'s own header) and `themes` (same cluster, `export`
-// depends on both `features/theme` and, transitively via this domain, `features/post`). The exact
-// edge chain linking `export`/`features/post` into this cluster was not fully re-traced beyond
-// confirming the SCC membership above — out of scope for this dispatch. Reverted cleanly instead;
-// still needs `deployments`'s own blocker fixed first (Option-B-style injection of
-// `extractGitHubLogin` into `store.ts`) before a future retry has a chance.
-//
-// RETRIED 2026-08-17 (same session, later pass) after `deployments`/`static-publish` (the
-// `vendor-credentials/store.ts` `extractGitHubLogin` fix) AND `themes` all converted off
-// `DOMAIN_SLICES` — the exact fix the paragraph above called for, plus one more. That cleared the
-// 5-module `[assistant, export, features/deployments, features/post, features/vendor-credentials]`
-// cluster (confirmed: with `themes` converted the same way and its own SCC landing at 0, the shared
-// `export` path was genuinely gone). But `check:architecture --list` still found a NEW, SMALLER
-// cycle after wiring `registerToolContributor` here: `[assistant, features/post]` (2 modules; largest
-// strongly-connected component 0 -> 2) — a previously-undocumented edge unrelated to the
-// `export`/`vendor-credentials` cluster entirely. Root cause: `assistant/site/tools.ts` and
-// `assistant/site/client-directives.ts` (the Site Assistant's own public/visitor-facing runtime, see
-// `assistant/index.ts`'s "Section A" header) both value-import `listPublishedPosts` from
-// `../../features/post` — a genuine, load-bearing dependency (the same predicate
-// `routes/site/pages.ts` uses to resolve a slug into a live page), not a grep-visible import INTO
-// `tool-registrations.ts` itself. `check:architecture`'s module graph is per-directory: `assistant`
-// is ONE module spanning every file under `src/assistant/`, so this edge exists independent of
-// anything `tool-registrations.ts` does, and `features/post -> assistant` (this file's own
-// `registerToolContributor` call) closes the cycle directly against it — no chain through `export`
-// or `vendor-credentials` required this time. Reverted cleanly instead. Safe conversion needs
-// `listPublishedPosts` either relocated off `features/post`'s barrel into something `assistant/site/`
-// can depend on without closing this loop, or injected into `assistant/site/tools.ts`/
-// `client-directives.ts` the same Option-B-style way `vendor-credentials/store.ts` now takes
-// `extractGitHubLogin` — not attempted here, new design work beyond this dispatch's scope (execute
-// the recommended fix, don't re-litigate/extend the design).
-//
-// RETRIED AND LANDED HERE (2026-08-17, same day, final pass) after a Software Architect investigation
-// (`ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md`) confirmed
-// the exact edge the paragraph above named and recommended Option A: inject `listPublishedPosts` into
-// `assistant/site/tools.ts`'s `SiteAssistantToolDeps` and `assistant/site/client-directives.ts`'s
-// `resolvePublicTarget` deps, both typed with a locally-declared structural `ListPublishedPosts`
-// signature rather than an imported function type, and wire the real `features/post` function in
-// ONLY at the one production composition root, `server/modules/site-assistant.ts`. That removed both
-// value-import edges closing the cycle while leaving the actual function called at runtime
-// byte-identical — the same Option-B-style technique `vendor-credentials/store.ts`'s
-// `extractGitHubLogin` and `dual-read.ts`'s legacy-table imports already used. That report's Option B
-// (moving `listPublishedPosts` itself out of `features/post`) and Option C (pushing the filter into
-// `PostRepoPort`) were both considered and rejected — see its §4/§5. Rejecting Option C matters
-// specifically: this codebase already tried pushing the predicate into the port layer once (the old
-// `entries`/`EntryListPort` model `tools.ts` used before) and moved deliberately away from it, so
-// reopening that shape to solve a graph-shape problem would trade a solved correctness risk for
-// convenience — see `tools.ts`'s own header. `check:architecture --list` confirms 0 module cycles /
-// largest SCC 0 with `post` wired this way — the last of the 25-domain rollout to convert. No
-// production `assistant/site/*` file value-imports `features/post` anymore; both keep only their
-// `import type` lines.
+// The composition root installs this contributor. Assistant site tools receive listPublishedPosts
+// through structural, type-only ports: a feature-to-assistant registration value import would close
+// a cycle against the site's post reader. Keep the published-post predicate with its domain owner;
+// moving it into PostRepoPort would trade a correctness boundary for a dependency-graph shortcut.
 export function contributePostTools(): ToolContributor {
   return { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk };
 }

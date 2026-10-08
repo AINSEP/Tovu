@@ -551,7 +551,7 @@ export async function deletePublishCredential(deps: { repo: VendorCredentialSetR
 async function decryptRecord(sealer: SecretSealerPort, record: VendorCredentialSetRecord, providerId: PublishProviderId): Promise<PublishConnectionInput> {
   const aad = buildVendorCredentialAad({ workspaceId: record.workspaceId, vendorId: record.vendorId, id: record.id });
   try {
-    const { vendorId: _vendorId, ...fields } = JSON.parse(await sealer.open({ sealed: record.sealed, aad })) as Record<string, string>;
+    const { vendorId: _vendorId, ...fields } = JSON.parse(await sealer.open({ sealed: record.sealed }, { aad })) as Record<string, string>;
     return { ...fields, providerId };
   } catch (err) {
     throw new PublishCredentialSecretStoreUnconfiguredError(

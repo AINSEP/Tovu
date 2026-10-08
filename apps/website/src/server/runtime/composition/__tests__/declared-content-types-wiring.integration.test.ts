@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
-import { setPluginEnabled } from "#src/features/plugin-runtime/activation";
+import { setPluginEnabled } from "@jini-ai/plugins/host";
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
 

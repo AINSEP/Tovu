@@ -1,4 +1,4 @@
-import { PLUGIN_PACKAGE_FILE_LIMITS, PluginPackagePathError } from "#src/features/plugin-runtime/package-files";
+import { PLUGIN_PACKAGE_FILE_LIMITS, PluginPackagePathError } from "@jini-ai/plugins/host/node";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Response } from "express";
@@ -29,7 +29,7 @@ function sendPluginFilesError(res: Response, err: unknown): void {
  * The id must name a record in a fresh discovery pass (`PLUGIN_NOT_FOUND` otherwise), so no request
  * text is ever joined into a path directly. Which directory that record maps to, and the path
  * safety for it, live in `deps.readPluginPackageFiles` (`plugin-runtime.ts`) and
- * `features/plugin-runtime/package-files.ts` — see those files' headers.
+ * `Jini/packages/plugins/src/host/node/package-files.ts` — see those files' headers.
  *
  * Unlike the Agent Plugins viewer (a compile-time allowlist in the admin bundle, no route at all),
  * this reads the disk: a `.tovu-plugin` is dropped into the install directory at runtime, so no

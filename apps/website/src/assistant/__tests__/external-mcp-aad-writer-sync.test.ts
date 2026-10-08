@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
+import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
@@ -37,13 +37,13 @@ const PROVIDER: OAuthProviderDescriptor = {
   clientAuth: "none",
 };
 
-function scriptedFetch(script: readonly unknown[]): OAuthFetch {
+function scriptedFetch(script: readonly unknown[]): typeof fetch {
   let calls = 0;
   return (async (): Promise<Response> => {
     const body = script[Math.min(calls, script.length - 1)] ?? {};
     calls += 1;
     return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
-  }) as OAuthFetch;
+  }) as typeof fetch;
 }
 
 function makeClock() {
@@ -52,7 +52,7 @@ function makeClock() {
     nowIso: () => new Date(nowMs).toISOString(), advance: (ms: number) => void (nowMs += ms) };
 }
 
-async function harness(fetchFn?: OAuthFetch) {
+async function harness(fetchFn?: typeof fetch) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
@@ -144,7 +144,7 @@ test("the desync is unopenable, not merely mislabelled — proving the data loss
     () => openExternalMcpOAuthPayload(sealer, { ...row!, sealedOAuth: aadBound, oauthAadVersion: 0 }),
     (err: unknown) => {
       assert.ok(err instanceof Error);
-      assert.match(err.message, /^stored OAuth credentials could not be decrypted: /);
+      assert.equal(err.message, "Stored OAuth credentials could not be decrypted.");
       return true;
     },
   );

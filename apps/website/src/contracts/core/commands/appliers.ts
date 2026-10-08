@@ -10,20 +10,9 @@ import type { ChangeSetItemRecord } from "@jini-ai/cms/core";
  * restore it from a change-set item's inverse payload. Keeps `revert.ts` free of per-entity-type
  * branching — new revertible entity types register an `EntityReverter` here.
  *
- * This file holds ONLY the generic mechanism — no feature-specific reverter lives here. That is a
- * 2026-08-13 inversion (`features-post-deep-import-trace.md` Job 2): `postUpdateReverter`/
- * `postDeleteReverter` used to live in this file and pulled in `features/post`/`features/settings`
- * directly, which tripped `core-no-server-or-app-imports` (ADR-018 Enforcement: "core/commands/*
- * must not import Express or any DB/adapter — depends only on core/ports"). Concrete reverters are
- * adapter code, not core, so they moved to `features/post/reverters.ts`; the composition roots
- * (`server/deps.ts`/`server/app.ts`) build and register them once at boot onto
- * `RouteDeps.revertRegistry`, the same place every other concrete adapter in this codebase gets
- * selected. `EntityReverter`'s methods dropped their `deps` parameter as part of the same move —
- * `features/post/reverters.ts`'s reverters close over their adapters at construction time instead,
- * since the composition roots already build `postRepo`/`clock`/`outbox` once per process and thread
- * the same instances through every request (verified via `src/index.ts`'s single
- * `createSiteRouteDeps()`/`createRouteDeps()` call per boot) — closing over them here changes
- * nothing observable, it just moves where the closure happens.
+ * Core holds only the generic registry, never feature-specific reverters (ADR-018 Enforcement).
+ * Concrete reverters live with their domains; composition roots construct and register them at
+ * boot. They close over the root's shared adapters rather than importing feature or DB code here.
  */
 
 /** Restore + version-read behavior for one `(entityType, operation)`. */
@@ -33,10 +22,8 @@ export interface EntityReverter {
   /**
    * Optional: the raw principal id that produced the entity's CURRENT (still-live) write — used
    * only to enrich `revert.ts`'s version-conflict message with "who changed this" so a human can
-   * judge whether to force past it. Deliberately optional and additive (Task 14b, 2026-09-18): the
-   * two pre-existing `revert.unit.test.ts` fakes that predate this field never implement it, and
-   * `revert.ts` treats a missing/`null`-resolving `currentActor` identically to "unknown", so their
-   * exact conflict-message assertions stay byte-for-byte unchanged. Returns the raw id (never a
+   * judge whether to force past it. Optional: a missing or null result means "unknown".
+   * Returns the raw id (never a
    * resolved display name), matching `gated-mutations/composition.ts`'s own disclosed
    * `resolveActorClassIdentity` precedent — resolving a friendlier name belongs at the route layer,
    * which already has `deps.principalRepo`, not here.

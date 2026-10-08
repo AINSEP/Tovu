@@ -216,6 +216,13 @@ for (const dialect of SITE_DIALECTS) {
     assert.ok(rescan.availableThemeIds.includes("unrun-regions"), "the copied theme loads as valid");
     await expectJson(await send(site, "PATCH", `${site.ws}/presentation`, { activeThemeId: "unrun-regions" }), 200);
 
+    // The seeded Page claiming "/" wins over a theme's home template. Trash it through the real
+    // route so this fixture exercises the declared region, as widgets-site-serving.test.ts does.
+    const pages = await expectJson<{ posts: Array<{ post: { id: string; slug: string } }> }>(await send(site, "GET", `${site.ws}/pages`), 200);
+    const rootPage = pages.posts.find(({ post }) => post.slug === "/");
+    assert.ok(rootPage, "fixture: initSite seeds the Page claiming the root slug");
+    await expectJson(await send(site, "DELETE", `${site.ws}/pages/${rootPage.post.id}`), 200);
+
     const first = await createTextWidget(site, "Unrun First", "Unrun first widget");
     const second = await createTextWidget(site, "Unrun Second", "Unrun second widget");
     const area = await bindRegion(site);

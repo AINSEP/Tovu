@@ -43,7 +43,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * `templateChoice` threaded, as originally built) renders the last-SAVED body — silently stale, worse
  * than the honest unstyled fallback it would replace. Fixed by accepting an optional `bodyJson` on
  * `POST` (see the handler below) and threading it through as
- * `ResolveHtmlPageEmbedsDeps.pendingContentOverride` (`widgets/resolver-service.ts`) — the ONE place
+ * `ResolveHtmlPageEmbedsDeps.pendingContentOverride` (`Jini/packages/cms/src/widgets/resolver-service.ts`) — the ONE place
  * the current entity's own `{"type":"content"}` slot re-fetches by id
  * (`findPublishedPostById`/`features/post/post.ts`), silently discarding any in-memory-only override
  * that never reached that call. `GET` (unchanged, still template-choice-only) and `POST` (new, also
@@ -102,7 +102,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  */
 
 /** Same minimal "is this a JSON object, not an array/primitive/null" shape check
- * `features/post/post.ts`'s own private `isJsonObject` and `widgets/resolver-service.ts`'s
+ * `features/post/post.ts`'s own private `isJsonObject` and `Jini/packages/cms/src/widgets/resolver-service.ts`'s
  * `isPlainObject` use — kept as a separate local copy rather than importing either (neither is
  * exported, and this module already avoids reaching into `features/post`'s internals beyond its
  * published surface). Guards the POST body's `bodyJson` field: a malformed value (string, array,

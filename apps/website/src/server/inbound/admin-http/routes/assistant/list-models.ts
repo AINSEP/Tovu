@@ -1,7 +1,7 @@
 import { listProviderModels } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
+import type { AssistantExecutionRouteDeps, AssistantExecutionRouteRegistrar } from "./execution-deps.js";
 import { readOptionalString, validateSupportedProtocol, type SupportedExecutionProtocol } from "./execution-request-fields.js";
 import { resolveProbeCredential, type ProbeCredentialResolution } from "./stored-credential-probe.js";
 
@@ -14,19 +14,23 @@ export const NO_SERVER_KEY_MESSAGE = "No API key saved on the server. Save one f
 /**
  * Calls `listProviderModels` and shapes its result into this route's response body — isolated so
  * the two `?? []`/spread-if-present shapes don't add to the handler's own branching.
+ * Host DNS/dispatcher dependencies flow through the runtime's existing guarded transport seams.
  *
  * @complexity O(n) in the returned model count (one `.map()`).
  */
 async function fetchListModelsResponse(
   protocol: SupportedExecutionProtocol,
   credential: Extract<ProbeCredentialResolution, { ok: true }>,
-  apiVersion: string | undefined
+  apiVersion: string | undefined,
+  deps: AssistantExecutionRouteDeps
 ) {
   const result = await listProviderModels({
     protocol,
     baseUrl: credential.baseUrl,
     apiKey: credential.apiKey,
   }, {
+    dnsLookup: deps.probeDnsLookup,
+    requestInit: deps.probeRequestInit,
     ...(apiVersion ? { apiVersion } : {}),
   });
   const missingKey = result.kind === "auth_failed" && !credential.apiKey.trim();
@@ -145,7 +149,7 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
         return;
       }
 
-      res.json(await fetchListModelsResponse(protocol as SupportedExecutionProtocol, credential, apiVersion));
+      res.json(await fetchListModelsResponse(protocol as SupportedExecutionProtocol, credential, apiVersion, deps));
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

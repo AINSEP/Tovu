@@ -1,20 +1,15 @@
 /** t09: drive the real held-open card and gateway; a model's input never substitutes for a click. */
 import assert from "node:assert/strict";
-import test, { beforeEach, mock } from "node:test";
-import * as gateway from "../../../contracts/core/gated-mutations/gateway.js";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../contracts/core/tool-surface-exchanges.js";
+import test from "node:test";
+import type { ConfirmationTokenRecord } from "../../../contracts/core/gated-mutations/token.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { confirm, ForbiddenError } from "../../../contracts/core/gated-mutations/gateway.js";
 import { buildConfirmOnlyHooks } from "../../../contracts/core/gated-mutations/composition.js";
 import { isMcpUiToolCallPermitted } from "../../../assistant/mcp-ui-tool-calls.js";
 import { fixture, packed, context, tool, OWNER } from "./pull-tool-fixture.js";
-const confirms: Parameters<typeof gateway.confirm>[0][] = [];
-const executions: Parameters<typeof gateway.execute>[0][] = [];
-beforeEach(() => { confirms.length = 0; executions.length = 0; });
-mock.module("../../../contracts/core/gated-mutations/gateway.js", { namedExports: {
-  ...gateway,
-  confirm: async (args: Parameters<typeof gateway.confirm>[0]) => { confirms.push(args); return gateway.confirm(args); },
-  execute: async (args: Parameters<typeof gateway.execute>[0]) => { executions.push(args); return gateway.execute(args); },
-} });
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 const ID = "publish_content_execute_pull";
 async function planned() {
   const f = await fixture([packed("new"), packed("conflict", "Owner's article")]);
@@ -24,7 +19,7 @@ async function planned() {
 }
 async function start(f: Awaited<ReturnType<typeof planned>>, overwriteEntityKeys = ["pull-fixture:conflict"]) {
   const controller = new AbortController();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   let resolveSurface!: (value: any) => void;
   const surface = new Promise<any>(resolve => { resolveSurface = resolve; });
   const r = await tool(f.deps, ID, { surfaceExchanges });
@@ -36,16 +31,19 @@ async function start(f: Awaited<ReturnType<typeof planned>>, overwriteEntityKeys
   const exchangeId = match![1]!;
   const answer = (decision: "confirm" | "cancel", principalId = OWNER) => {
     assert.equal(isMcpUiToolCallPermitted(ID, true), true, "production callback admits the confirm card");
-    return surfaceExchanges.deliver({ exchangeId, toolId: ID, principalId, params: { decision } });
+    return surfaceExchanges.deliver({ exchangeId, principalId, params: { decision } }, { toolId: ID });
   };
   return { html, pending, answer, controller, surfaceExchanges };
 }
 test("the card names the source, counts and every overwritten title; only a human confirm applies", async () => {
   const f = await planned();
-  const confirmedBy: string[] = [];
+  const confirmations: ConfirmationTokenRecord[] = [];
+  let redemptions = 0;
   const tokens = f.deps.gatedMutations.gatewayDeps.tokens;
   const save = tokens.save.bind(tokens);
-  tokens.save = async record => { confirmedBy.push(record.confirmerPrincipalId); return save(record); };
+  tokens.save = async record => { confirmations.push(record); return save(record); };
+  const tryRedeem = tokens.tryRedeem.bind(tokens);
+  tokens.tryRedeem = async args => { redemptions++; return tryRedeem(args); };
   const { html, pending, answer } = await start(f);
   assert.equal(html.includes("Live site"), true);
   assert.match(html, /<dt>Create<\/dt><dd>1<\/dd>/);
@@ -54,18 +52,18 @@ test("the card names the source, counts and every overwritten title; only a huma
   assert.match(html, /<dt>Blocked<\/dt><dd>0<\/dd>/);
   assert.match(html, /Owner(?:&#39;|&#x27;|')s article/);
   assert.deepEqual(f.applied, []);
+  assert.equal(confirmations.length, 0);
+  assert.equal(redemptions, 0);
   assert.deepEqual(answer("confirm"), { ok: true });
   assert.deepEqual(await pending, { executed: true, counts: { create: 1, update: 1, unchanged: 0, blocked: 0 }, entities: [{ entityKey: "pull-fixture:new", title: "Live new", outcome: "created", reason: null }, { entityKey: "pull-fixture:conflict", title: "Owner's article", outcome: "forced", reason: "no prior sync baseline for pull-fixture 'conflict' with this peer — the destination already holds different content" }] });
   assert.equal(f.destination.get("conflict")?.title, "Owner's article");
   assert.equal(f.destination.get("new")?.title, "Live new");
   assert.equal(f.restorePoints.size, 1);
-  assert.deepEqual(confirmedBy, [OWNER]);
-  assert.equal(confirms.length, 1);
-  assert.equal(executions.length, 1);
-  assert.equal(confirms.at(-1)?.principalId, OWNER);
-  assert.equal(confirms.at(-1)?.principalKind, "user");
-  assert.equal(executions.at(-1)?.principalId, OWNER);
-  assert.equal(executions.at(-1)?.principalKind, "agent");
+  assert.deepEqual(confirmations.map(record => ({ confirmer: record.confirmerPrincipalId, scope: record.scopeId })), [{ confirmer: OWNER, scope: "local" }]);
+  assert.equal(redemptions, 1);
+  assert.equal((await tokens.findByToken(confirmations[0]!.confirmationToken))?.status, "redeemed");
+  assert.equal(f.applied.length, 1);
+  assert.equal(f.applied[0]!.principalId, OWNER);
   const applyAuth = f.authCalls.filter(a => a.permission === "publish_content.apply");
   assert.equal(applyAuth.every(a => a.principalId === OWNER), true);
 
@@ -151,7 +149,7 @@ test("success reports the stored apply-time outcomes, including a conflict downg
 test("a headless call cannot apply, and an expired confirmation resolves executed false", async () => {
   const f = await planned();
   await assert.rejects(() => tool(f.deps, ID).then(r => r.handler(context({ bundleId: f.bundleId }))), { message: "PUBLISH_CONTENT_NO_CONFIRMATION_CHANNEL: publish_content_execute_pull: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 0, maxLifetimeMs: 1000 });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1, maxLifetimeMs: 1000 });
   const r = await tool(f.deps, ID, { surfaceExchanges });
   // The exchange's timer is unref'ed; keep the runner alive until the explicit result settles.
   const keepAlive = setInterval(() => {}, 1000);

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
@@ -14,6 +14,9 @@ import {
   POST_LIST_TEXT_BUDGET,
   type PostToolDeps,
 } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `content_post_list` (the listing mode of `content_read.content_post`) used to return every
@@ -43,7 +46,7 @@ function fakeRouteDeps() {
 }
 
 function listTool(deps: PostToolDeps): ToolRegistration {
-  const found = buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
+  const found = buildPostRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find(
     (r) => r.descriptor.id === "content_post_list",
   );
   assert.ok(found, "expected 'content_post_list' to be wired");

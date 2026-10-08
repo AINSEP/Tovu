@@ -5,8 +5,8 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 /**
  * GET the workspace's SITE assistant credential (ADR-058) — never the key itself, only whether one
  * is set and what it ends in. Shape and error contract copied from `get-settings.ts` in this same
- * directory: same auth gate, same `{ data }` envelope, same 404-on-workspace-mismatch. Pure DB read
- * (`getSiteAssistantCredential` never decrypts — see that function's own doc), so this route cannot
+ * directory: same auth gate, same `{ data }` envelope, same 404-on-workspace-mismatch. The safe length hint is derived
+ * by a server-only open. An open failure still leaves metadata readable, so this route cannot
  * fail on a misconfigured site key the way PUT can.
  */
 export const registerAdminAssistantGetSiteCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
@@ -34,7 +34,7 @@ export const registerAdminAssistantGetSiteCredentialRoute: AssistantSettingsRout
       }
 
       const view = await getSiteAssistantCredential(
-        { repo: deps.siteAssistantCredentialRepo },
+        { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
         { workspaceId: deps.workspaceId }
       );
       res.json({ data: view });

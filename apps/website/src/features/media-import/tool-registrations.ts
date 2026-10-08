@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/media-import.js';
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
@@ -304,7 +305,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: DOMAIN,
     catalogModule: "features/media-import/agent-tools.ts",
     catalog: CATALOG_BY_ID,

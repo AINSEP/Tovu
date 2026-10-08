@@ -1,18 +1,18 @@
+import { toWhereUsedResponse } from "@jini-ai/cms/widgets";
 import type { Response } from "express";
 
 import { buildWidgetsDeps, buildWidgetsRegionDeps } from "#src/features/widgets/deps";
-import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "#src/features/widgets/entry-payload";
-import { insertWidgetEmbed, removeWidgetEmbed } from "#src/features/widgets/embed-service";
-import { mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
-import { createWidgetInstance } from "#src/features/widgets/write-service";
-import { WidgetAreaNotFoundError } from "#src/features/widgets/errors";
-import { WIDGET_CONTENT_TYPE } from "#src/features/widgets/types";
-import type { WidgetPlacementNode, WidgetTypeKey } from "#src/features/widgets/types";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
+import { insertWidgetEmbed, removeWidgetEmbed } from "@jini-ai/cms/widgets";
+import { mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
+import { createWidgetInstance } from "@jini-ai/cms/widgets";
+import { WidgetAreaNotFoundError } from "@jini-ai/cms/widgets";
+import { WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
+import type { WidgetPlacementNode, WidgetTypeKey } from "@jini-ai/cms/widgets";
 import {
   mapWidgetErrorToResponse,
   requireWidgetsPermissionOrRespond,
   toAdminWidgetResponse,
-  toWhereUsedResponse,
   widgetErrorToResponse,
 } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -46,10 +46,10 @@ async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { pr
   // Round-2 external-audit fix (2026-07-21, agy + Opus 4.8, independently converged): a bare Error
   // isn't recognized by widgetErrorToResponse, so an unbound region 500'd instead of the same 404
   // WIDGETS_AREA_NOT_FOUND region-mutate-placements.ts already returns for this exact condition.
-  if (!binding) throw new WidgetAreaNotFoundError(`region '${regionKey}' is not bound`);
+  if (!binding) throw new WidgetAreaNotFoundError({ message: `region '${regionKey}' is not bound` });
   const areaEntry = await deps.entryRepo.findById({ workspaceId, id: binding.areaEntryId });
-  if (!areaEntry) throw new WidgetAreaNotFoundError(`region area entry for '${regionKey}' was not found`);
-  const currentPlacements = parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements;
+  if (!areaEntry) throw new WidgetAreaNotFoundError({ message: `region area entry for '${regionKey}' was not found` });
+  const currentPlacements = parseWidgetAreaPayload({ fieldsJson: areaEntry.fieldsJson }).doc.placements;
   const nextPlacements: WidgetPlacementNode[] = [...currentPlacements, { placementId: deps.idGen.newId(), widgetEntryId, enabled: true }];
 
   return mutateWidgetAreaPlacements({
@@ -137,10 +137,10 @@ async function removeRegionPlacement(
   placementId: string
 ) {
   const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId, regionKey: target.regionKey });
-  if (!binding) throw new WidgetAreaNotFoundError(`region '${target.regionKey}' is not bound`);
+  if (!binding) throw new WidgetAreaNotFoundError({ message: `region '${target.regionKey}' is not bound` });
   const areaEntry = await deps.entryRepo.findById({ workspaceId, id: binding.areaEntryId });
-  if (!areaEntry) throw new WidgetAreaNotFoundError(`region area entry for '${target.regionKey}' was not found`);
-  const nextPlacements = parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements.filter((p) => p.placementId !== placementId);
+  if (!areaEntry) throw new WidgetAreaNotFoundError({ message: `region area entry for '${target.regionKey}' was not found` });
+  const nextPlacements = parseWidgetAreaPayload({ fieldsJson: areaEntry.fieldsJson }).doc.placements.filter((p) => p.placementId !== placementId);
   return mutateWidgetAreaPlacements({
     deps: buildWidgetsRegionDeps(deps),
     input: { workspaceId, actor, areaEntryId: binding.areaEntryId, baseVersion: target.baseVersion, placements: nextPlacements },
@@ -176,7 +176,7 @@ function resolveWidgetStatus(entry: Awaited<ReturnType<RouteDeps["entryRepo"]["f
   // an uncaught `parseWidgetInstancePayload` throw — `getWidgetInstance` already guards the same
   // case with an `entry.type` check; this mirrors it instead of parsing blind.
   try {
-    return { exists: true, status: parseWidgetInstancePayload(entry.fieldsJson).status };
+    return { exists: true, status: parseWidgetInstancePayload({ fieldsJson: entry.fieldsJson }).status };
   } catch {
     return { exists: true, status: null };
   }
@@ -302,7 +302,7 @@ const registerDiagnoseTool: RouteRegistrar = (app, deps) => {
         tool: "widgets.diagnose",
         exists,
         status,
-        whereUsed: toWhereUsedResponse(refs),
+        whereUsed: toWhereUsedResponse({ refs }, {}),
       });
     } catch (err) {
       mapWidgetErrorToResponse(err, res);

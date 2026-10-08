@@ -1,9 +1,4 @@
-import {
-  WIDGET_AREA_CONTENT_TYPE,
-  WIDGET_AREA_FIELD_NAMESPACE,
-  WIDGET_CONTENT_TYPE,
-  WIDGET_FIELD_NAMESPACE,
-} from "../widgets/types.js";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE, WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "@jini-ai/cms/widgets";
 
 /**
  * @file The envelope owner (`fieldsJson.ext.<owner>`) of every content type whose owner is not the

@@ -4,9 +4,9 @@ import test from "node:test";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import * as schema from "#src/platform/db/schema.sqlite";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
-import { submitForm, type SubmitFormDeps } from "#src/features/forms/submit-service";
-import { FormDefinitionNotFoundError } from "#src/features/forms/index";
-import { createContactFormResolver } from "#src/features/widgets/resolvers/contact-form";
+import { submitForm, type SubmitFormDeps } from "#src/features/forms/index";
+import { FormDefinitionNotFoundError } from "@jini-ai/cms/forms";
+import { createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
 
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";

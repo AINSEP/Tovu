@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
-import { markersOfType } from "#src/contracts/core/embeds/marker";
+import { markersOfType } from "@jini-ai/cms/widgets/markers";
 import { checkBuiltThemeConformance } from "./build-conformance.js";
 import { lintHandlebarsTemplate } from "./handlebars-allowlist.js";
 import { lintLiquidTemplate } from "./liquid-allowlist.js";
@@ -41,14 +41,6 @@ import { resolveThemeLayout } from "./theme-layout.js";
 export type ThemeTier = "declarative" | "templated" | "handlebars" | "static" | "code";
 
 const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "handlebars", "static", "code"];
-
-/**
- * Themes trusted to skip the Liquid allowlist lint (`ThemeManifest.skipLiquidAllowlist`'s own doc) —
- * a maintainer-controlled list in Tovu's OWN source, never a field a theme package can set about
- * itself (schema v2 decision, 2026-08-18). Empty today: no first-party theme currently needs the
- * exception; extending this requires editing Tovu's own source, not a theme's `theme.json`.
- */
-export const TRUSTED_SKIP_LIQUID_ALLOWLIST_THEME_IDS: ReadonlySet<string> = new Set([]);
 
 /**
  * `theme.json.build` — ADR-020 §5 (2026-08-12): declares which of the two lifecycle classes a
@@ -160,40 +152,12 @@ export interface ThemeManifest {
    * widget placement, the same way it already declares templates/slots. Additive, optional field:
    * absent/undefined means "no declared regions" (unchanged behavior for every existing `theme.json`
    * on disk today — no back-compat migration needed). `resolvePageWidgets`'s `resolvedRegions` input
-   * (`src/widgets/resolver-service.ts`) is sourced directly from this field at render time
+   * (`Jini/packages/cms/src/widgets/resolver-service.ts`) is sourced directly from this field at render time
    * (`server/http/site/render.ts::renderSite`) — this fulfills what ADR-047 §2a's own framing already
    * assumed existed ("themes declare region keys the same way they already declare template
    * slots/regions") rather than a hardcoded core constant.
    */
   regions?: string[];
-  /**
-   * Opt-out of the ADR-020 §3 Liquid tag/filter allowlist (`liquid-allowlist.ts`) for this theme's
-   * `.liquid` templates. Absent/`false` (default) keeps the existing enforced behavior — every
-   * theme on disk today is unaffected, no migration needed. `true` means fuller Liquid (e.g.
-   * `include`/`render` or a wider filter set) is available for this theme — the runtime's
-   * independent layers (worker isolation, `NO_ACCESS_FS` filesystem lockdown, memory/render/parse
-   * limits — `liquid-worker.ts`) still apply regardless of this flag; only the allowlist's own
-   * pre-flight lint is skipped.
-   *
-   * **Schema v2 decision (2026-08-18): NOT publisher-controlled, never read from `theme.json`.**
-   * A theme package setting this about itself would let ANY publisher silently disable the one lint
-   * standing between an author's `.liquid` template and the render worker — the opposite of "the
-   * theme is a first-party/trusted artifact" this flag is meant to express. `loadTheme()` resolves
-   * this field from {@link TRUSTED_SKIP_LIQUID_ALLOWLIST_THEME_IDS} — a maintainer-controlled list
-   * in Tovu's OWN source — keyed by the theme's folder id, never from the raw manifest JSON. This
-   * field stays on `ThemeManifest` as the RESOLVED value every other read site (the `.liquid` lint
-   * branch below) already consumes; only its SOURCE changed.
-   *
-   * Liquid-only by name and by effect: the `handlebars` tier has NO equivalent opt-out, and that
-   * asymmetry is deliberate rather than an omission. Liquid's excluded surface is mostly
-   * capability breadth (a wider filter set, `include`/`render`), so "this theme is a first-party
-   * artifact" is a coherent trade. The Handlebars allowlist's three headline refusals — raw
-   * `{{{output}}}`, partials, and decorators — are not breadth; they are the tier's XSS seam and
-   * its two documented routes from template text into the compiler's own object graph (see
-   * `handlebars-allowlist.ts`). There is no theme whose convenience justifies re-opening those, so
-   * the flag simply does not apply to `.hbs`/`.handlebars` files.
-   */
-  skipLiquidAllowlist?: boolean;
   /**
    * `static` tier only — the ordered list of `pages/*.html` filenames (e.g. `["blog-post.html",
    * "page-shell.html"]`) a Post OR a Page can pick between, "ordered to nudge the right choice"
@@ -467,7 +431,7 @@ function parseThemeBuildInfo(value: JsonValue | undefined): ThemeBuildInfo | und
  * `raw.honorsCurrentPage` (current) or a legacy `raw.activeAttr` string (pre-2026-08-10 spelling —
  * see {@link ThemeSlotDescriptor.honorsCurrentPage}) — either one opts a slot in. Split out of
  * {@link parseSlots} so that function stays a plain per-key loop, the same shape `parseMarkerConfig`
- * was split out of `scanEmbedMarkers` for (`core/embeds/marker.ts`).
+ * was split out of `scanEmbedMarkers` for (`Jini/packages/cms/src/widgets/markers/marker.ts`).
  */
 function parseSlotHonorsCurrentPage(raw: Readonly<Record<string, unknown>>): boolean {
   return raw.honorsCurrentPage === true || typeof raw.activeAttr === "string";
@@ -632,7 +596,7 @@ function validateTemplateDeclarations(
       errors.push(`theme.json templates entry '${entry}' has no matching ${pagesDirName}/${pageId}.html file`);
       continue;
     }
-    if (markersOfType(html, TEMPLATE_SLOT_MARKER_TYPE).length === 0) {
+    if (markersOfType({ html: html, type: TEMPLATE_SLOT_MARKER_TYPE }).length === 0) {
       errors.push(
         `${pagesDirName}/${pageId}.html is declared in theme.json templates but has no {"type":"${TEMPLATE_SLOT_MARKER_TYPE}"} marker`
       );
@@ -798,9 +762,9 @@ function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeMan
     description: parseOptionalString(raw.description),
     fonts: parseOptionalStringArray(raw.fonts),
     regions: parseOptionalStringArray(raw.regions),
-    // NOT `raw.skipLiquidAllowlist` — see this field's own doc comment on `ThemeManifest` for the
-    // 2026-08-18 schema v2 decision. Sourced from the trusted local list, never the package's own JSON.
-    skipLiquidAllowlist: TRUSTED_SKIP_LIQUID_ALLOWLIST_THEME_IDS.has(resolvedId),
+    // Publisher-authored flags must never disable template lint: the allowlist is the boundary
+    // between authored templates and the worker. Liquid and Handlebars both enforce it;
+    // Handlebars raw output, partials and decorators also expose XSS/compiler-object seams.
     // No `postTemplate`/`pageTemplate` back-compat aliases (2026-08-11 unification, owner's
     // standing rule on this contract: strictness over compat code). A manifest still carrying the
     // retired spelling simply loads with no templates, same as one that never declared any —
@@ -955,20 +919,18 @@ function loadJsonTemplateFile(
 /**
  * Templated tier (ADR-020): raw LiquidJS source, rendered by the engine in render.ts. C6/REQ-06
  * lint-before-publish: reject any tag/filter outside the ADR-020 §3 allowlist before the theme
- * can load as valid — unless this theme is on the trusted `skipLiquidAllowlist` list (see
- * `ThemeManifest` doc comment: the runtime's other Tier-2 guardrails — worker isolation,
- * filesystem lockdown, memory/render/parse limits — still apply either way).
+ * can load as valid. Worker isolation, filesystem lockdown and memory/render/parse limits
+ * remain independent safeguards; none substitutes for this unconditional lint.
  */
 function loadLiquidTemplateFile(
   templatesDir: string,
   templatesDirName: string,
   file: string,
-  skipLiquidAllowlist: boolean,
   target: { liquidTemplates: Record<string, string>; errors: string[] }
 ): void {
   const templateId = file.slice(0, -".liquid".length);
   const source = readFileSync(join(templatesDir, file), "utf8");
-  const violations = skipLiquidAllowlist ? [] : lintLiquidTemplate(source);
+  const violations = lintLiquidTemplate(source);
   if (violations.length > 0) {
     target.errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
   } else {
@@ -1040,7 +1002,7 @@ function loadTemplateSources(
     if (kind === "json") {
       loadJsonTemplateFile(templatesDir, templatesDirName, file, { templates, errors });
     } else if (kind === "liquid") {
-      loadLiquidTemplateFile(templatesDir, templatesDirName, file, manifest.skipLiquidAllowlist ?? false, {
+      loadLiquidTemplateFile(templatesDir, templatesDirName, file, {
         liquidTemplates,
         errors,
       });

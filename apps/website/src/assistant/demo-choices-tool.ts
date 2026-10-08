@@ -1,3 +1,4 @@
+import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { buildFormSurface, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -10,7 +11,7 @@ import {
   type AssistantSurfaceDeps,
   type SurfaceExchange,
   type SurfaceMessage,
-} from "../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
 
 /**
  * @file A development-only agent tool that renders a grouped-choice MCP-UI form, so the radio and
@@ -18,25 +19,18 @@ import {
  *
  * ## Why this exists as a tool rather than a test page
  *
- * `content_post_delete` is currently the ONLY tool in this codebase that emits an MCP-UI surface,
- * and it emits a *confirmation* — the one surface shape that carries a secret and must never be
- * re-rendered casually. So there was no way to see a form surface in the product at all, which made
- * "does a radio group actually work in the chat pane" unanswerable without either building this or
- * pointing the delete dialog at something it is not for.
+ * A pure sample form lets grouped-choice controls be exercised without re-rendering a
+ * security-sensitive confirmation surface or exposing a confirmation secret.
  *
  * The path it exercises is the real one, end to end and unmodified: the daemon's
  * `splitToolResultSurfaces` withholds the resource from the model, emits it as an `mcp-ui` run
  * event, `assistant-transport.ts` unwraps it, `McpUiSurfaceCard` mounts it, and the human's submit
  * travels back through `/api/admin/v1/mcp-ui/tool-calls`. Nothing about that path is stubbed here.
  *
- * ## It ships enabled (2026-08-26)
+ * ## Always enabled
  *
- * This tool used to register only when `TOVU_ENABLE_DEMO_TOOLS` was set, on the reasoning that a
- * demo tool on the shipped surface is one a model can call in production for no reason, and that
- * every wired tool costs context in every prompt. The owner decided otherwise: the in-chat UI
- * surfaces ship on, and the env gate was removed entirely along with the same gate on
- * `demo-a2ui-tool.ts`, `demo-image-tool.ts` and `render-ui-tool.ts`. The context cost is real and
- * was accepted knowingly — it is not an oversight, and this tool should not be re-gated.
+ * The owner requires usable in-chat transport demonstrations by default and accepts their
+ * prompt-context cost. All four UI demo tools register unconditionally.
  *
  * ## It writes nothing, deliberately
  *
@@ -48,19 +42,13 @@ import {
  *
  * ## One call, not two (ADR-055 Decision 1)
  *
- * This tool used to return the form and end its turn, leaving the human's submission to arrive as a
- * SECOND tool call whose result went to the dialog and stopped there. The agent never received the
- * selections. A form exists to collect input *for the agent*, so that was not a rough edge — the
- * feature did not work.
- *
- * It now makes one call that blocks: emit the surface through `emitSurface`, park on the answer,
- * and return the human's selections as the call's ordinary result. The emit-then-park order is
- * mandatory and not a style choice — the daemon reads surfaces out of a *completed* result, so a
- * handler that parked first would never show the form it is waiting on.
+ * One call emits the surface through emitSurface, parks on the answer, and returns the selections
+ * to the agent (ADR-055 Decision 1). Emit must precede parking: result-based surface extraction waits
+ * for a completed result, so parking first would prevent the form from ever appearing.
  *
  * The second-call branch is kept as a fallback for an executor that supplies no `emitSurface` (a
  * synthetic or headless execution). Parking there would hang for the full TTL with nothing on screen
- * to answer it, so the fallback returns the surface the old way instead.
+ * to answer it, so the fallback returns the surface for callback redemption instead.
  */
 
 /** The tool id, shared by the catalog, the handler, and the surface's own callback target. */
@@ -213,13 +201,13 @@ async function awaitDemoChoicesSubmission(input: {
   const { exchange, ui, signal } = input;
   // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
   // handler open until the deadline.
-  const closeOnAbort = () => exchange.close();
+  const closeOnAbort = () => exchange.close({});
   signal.addEventListener("abort", closeOnAbort, { once: true });
   try {
     // One send and one receive, so `askOnce` says exactly that. A tool needing a follow-up turn
     // (a validation error, an A2UI `updateComponents`) stops calling this and drives `send`/
     // `receive` in a loop — same exchange, same store, same route, no transport change.
-    const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+    const answer = await askOnce({ exchange, emission: { channel: "mcp-ui", payload: { resource: ui } } });
 
     // ADR-055 Decision 6: the no-answer path is a result, not an exception. The model is still
     // alive to read this and say something sensible, which is the entire point of blocking.
@@ -240,7 +228,7 @@ async function awaitDemoChoicesSubmission(input: {
 }
 
 /**
- * Builds this tool's registration. Unconditional since 2026-08-26 — see this module's header.
+ * Builds this tool's registration unconditionally; see the module header.
  *
  * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature.
@@ -268,7 +256,7 @@ export function buildDemoChoicesRegistrations(
       // `open` takes the emitter, so this is unreachable without one — the deadlock of waiting on a
       // message that was never sent is not expressible here.
       const exchange = emitSurface
-        ? surfaces.surfaceExchanges.open({ toolId: DEMO_CHOICES_TOOL_ID, principalId: ctx.principal.id }, emitSurface)
+        ? surfaces.surfaceExchanges.open({ binding: { toolId: DEMO_CHOICES_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface })
         : undefined;
 
       const ui = buildDemoChoicesFormSurface({ principalId: ctx.principal.id, exchange });
@@ -291,7 +279,7 @@ export function buildDemoChoicesRegistrations(
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "demo-choices",
     catalogModule: "assistant/demo-choices-tool.ts",
     catalog: CATALOG_BY_ID,

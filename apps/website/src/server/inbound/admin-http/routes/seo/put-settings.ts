@@ -1,4 +1,5 @@
-import { setSeoSettings, invalidateSitemapCache, SeoSettingsValidationError } from "#src/features/seo/index";
+import { setSeoSettings } from "#src/features/seo/index";
+import { SeoSettingsValidationError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 
@@ -35,8 +36,8 @@ export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = (app, deps) =
           ids: deps.idGen,
           authorize: deps.authorize,
           principals: deps.principalRepo,
-          invalidateSitemap: invalidateSitemapCache,
-          media: deps,
+          invalidateSitemap: deps.sitemapService.invalidateSitemapCache,
+          media: deps.seoDeps.media,
         },
         { workspaceId: deps.workspaceId, patch: req.body ?? {}, callerPrincipalId: principal.id }
       );

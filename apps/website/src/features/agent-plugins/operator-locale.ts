@@ -1,4 +1,4 @@
-import { getEffective as settingsGetEffective, LANGUAGE_NAMESPACE, type SettingsRepoPort } from "@jini-ai/cms/settings";
+import { getEffective as settingsGetEffective, LANGUAGE_NAMESPACE, type SettingsRepoPort } from "@jini-ai/core/settings";
 
 /**
  * @file The calling operator's admin language, for the Agent Plugin confirmation dialogs.
@@ -16,7 +16,7 @@ export interface OperatorLocaleDeps {
   readonly settingsRepo?: SettingsRepoPort;
 }
 
-/** Structural signature of `@jini-ai/cms/settings`'s `getEffective`, narrowed to what is read here. */
+/** Structural signature of `@jini-ai/core/settings`'s `getEffective`, narrowed to what is read here. */
 export type GetEffectiveSetting = (
   deps: { repo: SettingsRepoPort },
   input: { namespace: string; key: string; scopeContext: { workspaceId: string; principalId: string } },

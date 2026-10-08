@@ -5,7 +5,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import Database from "better-sqlite3";
-import { getEffective, resolveDefinitionRaw, type SettingRevisionRecord } from "@jini-ai/cms/settings";
+import { getEffective, resolveDefinitionRaw, type SettingRevisionRecord } from "@jini-ai/core/settings";
 
 import { copyRowsIntoOlderSchema, migrateToBeforeSiteTitleMarker } from "#src/platform/db/__tests__/helpers/pre-site-title-marker-db";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -17,7 +17,8 @@ import { initSite } from "#src/platform/site-dir/init-site";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
-import { createApp } from "#src/server/runtime/composition/app";
+import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
+import type { CommerceSiteAdapterDeps } from "../../products.js";
 import { createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
@@ -42,7 +43,7 @@ const SITE_NAME = "My Site";
 const SYSTEM_PRINCIPAL_ID = "system-settings-migration";
 
 interface BootedSite {
-  deps: RouteDeps;
+  deps: CommerceSiteAdapterDeps;
   baseUrl: string;
   cookie: string;
 }
@@ -464,7 +465,7 @@ const RENAMED_SITE_NAME = "Renamed Site";
 function renameSiteConfig(dir: string, name: string): void {
   const configPath = path.join(dir, "config.json");
   const config = JSON.parse(fs.readFileSync(configPath, "utf8")) as Record<string, unknown>;
-  writeJsonFileAtomic(configPath, { ...config, name });
+  writeJsonFileAtomic({ filePath: configPath, data: { ...config, name } }, {});
 }
 
 test("AC-22 (REQ-13, EC-01): a config.json rename on a running new site renders on the next request with no restart, and an owner title still wins over a later one", async (t) => {

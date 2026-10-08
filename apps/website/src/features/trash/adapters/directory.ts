@@ -61,17 +61,21 @@ async function assertSameFilesystem(liveParent: string, parkedDir: string): Prom
   }
 }
 
-async function moveDir(from: string, to: string): Promise<void> {
+/** Move one root with its exact original mode, restoring that mode even when rename throws.
+ * @complexity O(1) filesystem operations; rename errors propagate to the adapter's rollback. */
+async function moveDir(required: { from: string; to: string }, optional: { readonly rename?: typeof rename } = {}): Promise<void> {
+  const { from, to } = required;
+  const renameDirectory = optional.rename ?? rename;
   const entry = await lstat(from);
   if (entry.isSymbolicLink()) {
-    await rename(from, to);
+    await renameDirectory(from, to);
     return;
   }
   const originalMode = entry.mode & 0o7777;
   await chmod(from, originalMode | 0o700);
   let current = from;
   try {
-    await rename(from, to);
+    await renameDirectory(from, to);
     current = to;
   } catch (error) {
     if (errorCode(error) === "EXDEV") {
@@ -108,9 +112,11 @@ async function parkedCount(parkedDir: string): Promise<number> {
   return Math.max(1, (await readdir(parkedDir)).length);
 }
 
-async function rollbackMoves(moved: readonly { from: string; to: string }[]): Promise<void> {
-  for (const move of [...moved].reverse()) {
-    if (await exists(move.from)) await moveDir(move.from, move.to);
+/** Restore staged roots in reverse order through the same rename port as the forward moves.
+ * @complexity O(n) time and space in staged roots; filesystem errors propagate. */
+async function rollbackMoves(required: { moved: readonly { from: string; to: string }[] }, optional: { readonly rename?: typeof rename } = {}): Promise<void> {
+  for (const move of [...required.moved].reverse()) {
+    if (await exists(move.from)) await moveDir(move, optional);
   }
 }
 
@@ -135,7 +141,10 @@ export function unhideIfRemoveThrows<R extends { workspaceId: string; id: string
   };
 }
 
-export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps): TrashAdapter {
+/** Bind directory Trash operations; optional rename injection keeps failure probes on real files.
+ * @example createDirectoryTrashAdapter({ entityType: "plugin", locate }, { rename });
+ * @complexity O(1) composition; each operation retains its existing errors and side effects. */
+export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps, optional: { readonly rename?: typeof rename } = {}): TrashAdapter {
   async function locate(required: { workspaceId: string; entityId: string }): Promise<DirectoryTrashLocation> {
     const location = await deps.locate(required);
     validateLocation(location);
@@ -171,7 +180,7 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps): Tr
           const from = join(location.liveParent, name);
           const to = join(location.parkedDir, name);
           try {
-            await moveDir(from, to);
+            await moveDir({ from, to }, optional);
             moved.push({ from: to, to: from });
           } catch (error) {
             if ((await exists(to)) && !(await exists(from))) moved.push({ from: to, to: from });
@@ -179,7 +188,7 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps): Tr
           }
         }
       } catch (error) {
-        await rollbackMoves(moved);
+        await rollbackMoves({ moved }, optional);
         await removeEmptyDir(location.parkedDir);
         if (errorCode(error) === "ENOENT") return { ok: false, reason: "not-found" };
         throw error;
@@ -204,7 +213,7 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps): Tr
           const from = join(location.parkedDir, name);
           const to = join(location.liveParent, name);
           try {
-            await moveDir(from, to);
+            await moveDir({ from, to }, optional);
             moved.push({ from: to, to: from });
           } catch (error) {
             if ((await exists(to)) && !(await exists(from))) moved.push({ from: to, to: from });
@@ -212,7 +221,7 @@ export function createDirectoryTrashAdapter(deps: DirectoryTrashAdapterDeps): Tr
           }
         }
       } catch (error) {
-        await rollbackMoves(moved);
+        await rollbackMoves({ moved }, optional);
         throw error;
       }
       await removeEmptyDir(location.parkedDir);

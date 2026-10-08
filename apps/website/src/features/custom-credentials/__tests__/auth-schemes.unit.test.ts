@@ -12,8 +12,8 @@ import test from "node:test";
 
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 
-import { recordBundledAgentPluginDigests } from "#src/features/agent-plugins/bundled-digests";
-import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
+import { recordBundledAgentPluginDigests } from "../../agent-plugins/lifecycle.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 
 import {

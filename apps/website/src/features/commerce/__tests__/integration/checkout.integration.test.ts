@@ -3,10 +3,10 @@ import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { commerceOrders, commerceOrderItems, members, workspaces } from "#src/platform/db/schema.sqlite";
-import { checkout, MAX_CHECKOUT_QUANTITY } from "../../checkout.js";
-import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "../../errors.js";
+import { checkout, MAX_CHECKOUT_QUANTITY } from "@jini-ai/commerce";
+import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "@jini-ai/commerce";
 import { SqliteCommerceOrderRepo, SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../../repo.sqlite.js";
-import type { CommerceProductRecord, CommercePriceRecord } from "../../types.js";
+import type { CommerceProductRecord, CommercePriceRecord } from "@jini-ai/commerce";
 
 /**
  * @file Proves `checkout()` end to end against a real SQLite `content.db` — the vertical-slice

@@ -1,6 +1,5 @@
-import { buildConfirmationSurface as buildJiniConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
 
-import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 import type { DatabaseTransferPlan } from "./plan-store.js";
 
 /**
@@ -11,10 +10,6 @@ import type { DatabaseTransferPlan } from "./plan-store.js";
  */
 
 export const DATABASE_TRANSFER_RUN_TOOL_ID = "database_transfer_run";
-
-export function databaseTransferConfirmationUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/database-transfer-run/${exchangeId}` as UIResourceUri;
-}
 
 /** `3:41 PM, Sep 27` in the server's locale-neutral English. */
 export function formatSnapshotTime(iso: string): string {
@@ -29,8 +24,7 @@ function plural(n: number, one: string, many: string): string {
 
 /** `spec.expiresAtMs` is the exchange's deadline, so the chat counts the card down and closes it — as
  *  `requireHumanConfirm` does. @complexity O(left-out tables). */
-export function buildConfirmationSurface(spec: { plan: DatabaseTransferPlan; exchangeId: string; expiresAtMs?: number }): UIResource {
-  const { plan, exchangeId, expiresAtMs } = spec;
+export function describeTransferApproval({ plan }: { plan: DatabaseTransferPlan }, _optional = {}): HumanConfirmSpec {
   const where = `${plan.destination.database} on ${plan.destination.host}`;
   const leftOutRows = plan.leftOut.reduce((sum, entry) => sum + entry.rows, 0);
   const details = [
@@ -40,16 +34,12 @@ export function buildConfirmationSurface(spec: { plan: DatabaseTransferPlan; exc
     { label: "Replaces", value: plan.replaces === null ? "Nothing. This is the first copy." : `The earlier copy from ${formatSnapshotTime(plan.replaces)}` },
     { label: "Left out", value: `Logins and saved keys (${plural(leftOutRows, "row", "rows")}). Photos and files stay where they are.` },
   ];
-  return buildJiniConfirmationSurface({
-    uri: databaseTransferConfirmationUri(exchangeId),
+  return {
+    toolId: DATABASE_TRANSFER_RUN_TOOL_ID, errorCode: "DATABASE_TRANSFER",
     title: `Copy this site's data to ${where}?`,
     description: "Your site keeps running on its built-in storage. This only makes a copy.",
     details,
     ...(plan.replaces === null ? {} : { warning: `The earlier copy from ${formatSnapshotTime(plan.replaces)} is replaced once this copy has been checked.` }),
-    confirm: { label: "Copy", toolName: DATABASE_TRANSFER_RUN_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" } },
-    cancel: { label: "Cancel", toolName: DATABASE_TRANSFER_RUN_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" } },
-    app: { appName: "tovu-database-transfer-run", appVersion: "1" },
-    preferredFrameSize: ["100%", "420px"],
-    ...(expiresAtMs === undefined ? {} : { expiresAtMs }),
-  });
+    confirmLabel: "Copy", cancelLabel: "Cancel",
+  };
 }

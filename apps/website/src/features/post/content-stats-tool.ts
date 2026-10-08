@@ -1,9 +1,11 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { forbiddenRule } from "#src/contracts/core/model-facing-tool-errors";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PostRecord, PostRepoPort } from "./post.js";
@@ -96,7 +98,7 @@ async function readMediaTypes(deps: ContentStatsToolDeps, assets: ReadonlyArray<
  * @complexity O(records + text + posts log posts) time, O(records + text) space; bulk repository reads.
  */
 export function buildContentStatsRegistrations(deps: ContentStatsToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "content-stats", catalogModule: "features/post/content-stats-tool.ts", catalog: indexCatalogById({ catalog: contentStatsAgentToolCatalog }), derivedRisk: contentStatsDerivedRisk, handlers: withModelFacingErrors({ handlers: {
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "content-stats", catalogModule: "features/post/content-stats-tool.ts", catalog: indexCatalogById({ catalog: contentStatsAgentToolCatalog }), derivedRisk: contentStatsDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     content_stats: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       const includeWordCounts = input.includeWordCounts === undefined ? true : input.includeWordCounts;
@@ -140,7 +142,7 @@ export function buildContentStatsRegistrations(deps: ContentStatsToolDeps): Tool
       if (omitted.length) result.omitted = omitted;
       return result;
     },
-  }, rules: [forbiddenRule("CONTENT_STATS")] }) });
+  }, rules: [forbiddenRule({ domainPrefix: "CONTENT_STATS", error: ForbiddenError })] }) });
 }
 
 /** Installs under a unique domain key, preserving the existing post contributor. */

@@ -1,3 +1,4 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /**
  * @file RED regression suite (2026-10-05): `content_duplicate` over a `post`/`page` source runs
  * `createPost`'s plugin `content.entry.beforeSave` hook (`duplicatePostOrPage`), but the
@@ -25,7 +26,7 @@ import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registration
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
-import { createHookRegistry } from "#src/features/plugin-runtime/hook-registry";
+import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import type { BeforeSaveHookPort } from "../post.js";
 import { contributePostDuplicateHandlers } from "../tool-registrations.js";
@@ -39,11 +40,11 @@ const RAW_PLUGIN_TEXT = "SQLITE_CORRUPT reading /Users/owner/site/.tovu/data.sql
 const REFUSAL = `PLUGIN_HOOK_FAILED: a site plugin (${PLUGIN_ID}) refused this save; the content was not saved`;
 
 function refusingHook(): BeforeSaveHookPort {
-  const registry = createHookRegistry();
-  registry.attach(PLUGIN_ID, "site", async () => {
+  const registry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
+  registry.attach({ pluginId: PLUGIN_ID, source: "site", filter: async () => {
     throw new Error(RAW_PLUGIN_TEXT);
-  }, []);
-  return registry.runBeforeSave;
+  }, declaredFields: [] });
+  return (entry) => registry.runBeforeSave({ entry });
 }
 
 /** Deps carrying one seeded source row of `kind`, so the only thing that can refuse is the hook. */

@@ -42,15 +42,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * own header traces the precedent): a NEW dot-namespaced permission, not a reused one, and the
  * seeded owner's wildcard grant authorizes it immediately with no seed edit required.
  *
- * 2026-08-18 (`RouteDeps` decomposition Slice 3): was a bare `RouteDeps` alias; narrowed to a `Pick`
- * naming exactly the 7 fields `registerAdminSourceControlCredentialsRoutes` reads below (confirmed by
- * reading every `deps.*` access in this file, not guessed) — `sourceControlCredentialSetRepo` (now
- * part of `routes/types.ts`'s `CredentialsDeps` group) plus the two shared ADR-058 sealing fields,
- * `clock`/`idGen`, and `workspaceId`/`authorize`. Not composed from `CredentialsDeps` directly: this
- * route only ever touches its OWN repo, and pulling in the whole 10-field group would add the other 9
- * credential repos (custom/vendor/publish/media-provider/... ) this file never reads — the same
- * "would widen, not narrow" reasoning `routes/types.ts`'s own `CredentialsDeps` doc gives for why
- * `MediaProviderRouteDeps`/`ExternalMcpRouteDeps` were left alone instead of composing the group.
+ * See `CredentialsDeps` in `server/routes/types.ts` for why each route picks only its own repo.
  */
 export type AdminSourceControlCredentialsDeps = Pick<
   RouteDeps,

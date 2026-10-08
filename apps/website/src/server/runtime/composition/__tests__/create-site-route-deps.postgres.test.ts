@@ -53,7 +53,7 @@ after(() => {
   delete process.env[URL_ENV];
   if (savedSiteKey === undefined) delete process.env.TOVU_SITE_KEY;
   else process.env.TOVU_SITE_KEY = savedSiteKey;
-  psql("postgres", `DROP DATABASE IF EXISTS ${DATABASE} WITH (FORCE);`);
+  psql({ database: "postgres", sql: `DROP DATABASE IF EXISTS ${DATABASE} WITH (FORCE);` });
   fs.rmSync(parent, { recursive: true, force: true });
 });
 
@@ -63,7 +63,7 @@ function writeStorage(storage: unknown): void {
 
 /** One scalar out of the test database. */
 function query(sql: string): string {
-  const result = psql(DATABASE, sql);
+  const result = psql({ database: DATABASE, sql: sql });
   assert.ok(result.ok, `psql failed: ${result.stderr}`);
   return result.stdout.trim();
 }

@@ -1,3 +1,5 @@
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,7 +7,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { VerifiedOrigin } from "#src/features/origin/index";
+import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import { setSeoSettings } from "#src/features/seo/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
@@ -32,6 +34,9 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     clock: base.clock,
     idGen: base.idGen,
     seoReady: base.seoReady,
+    seoDeps: base.seoDeps,
+    sitemapService: base.sitemapService,
+    mediaContentTypeStore: base.mediaContentTypeStore,
     postRepo: base.postRepo,
     settingsRepo: base.settingsRepo,
     principalRepo: base.principalRepo,
@@ -44,6 +49,8 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
+  deps.seoDeps = depsOverrides.seoDeps ?? createSeoDeps({ deps }, {});
+  deps.sitemapService = depsOverrides.sitemapService ?? createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => {
@@ -101,9 +108,9 @@ test("get-entry-analyze: valid entry returns analysis score and issues (200)", a
     updatedAt: "2026-09-30T00:00:00.000Z", version: 1, seoExtJson: null,
   }]);
   await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
-    authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo },
+    authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo, media: base.seoDeps.media },
     { workspaceId: WORKSPACE_ID, callerPrincipalId: "principal-owner", patch: { titleTemplate: "%s | Canary", defaultDescription: "" } });
-  const originRegistry = { ...base.originRegistry, canonicalOrigin: async () => ({ scheme: "https", host: "seo.example.com", basePath: "", source: "workspace-setting", verifiedAt: "2026-09-30T00:00:00.000Z" } satisfies VerifiedOrigin) };
+  const originRegistry = { isAllowedRedirectTarget: base.originRegistry.isAllowedRedirectTarget.bind(base.originRegistry), isAllowedEgressTarget: base.originRegistry.isAllowedEgressTarget.bind(base.originRegistry), canonicalOrigin: async () => ({ scheme: "https", host: "seo.example.com", basePath: "", source: "workspace-setting", verifiedAt: "2026-09-30T00:00:00.000Z" } satisfies VerifiedOrigin) };
   const app = buildApp({ postRepo, settingsRepo: base.settingsRepo, seoReady: base.seoReady, originRegistry });
   const { status, json } = await get(t, app);
   assert.equal(status, 200);

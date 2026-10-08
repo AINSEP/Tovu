@@ -8,6 +8,9 @@ import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/regis
 import { isMcpUiToolCallPermitted } from "#src/assistant/mcp-ui-tool-calls";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -46,17 +49,22 @@ for (const [id, input] of [
   ["identity_user_delete", { principalId: "target-user" }],
 ] as const) {
   test(`${id}: real composition cannot reach purgeSelected without a human click`, async () => {
-    const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-surface-exchanges");
-    const store = createSurfaceExchangeStore();
+    const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
+    const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const deps = createRouteDeps();
+    await deps.identityReady;
+    const owner = await deps.ownerPrincipalId;
+    // Real target/caller identities let the account guard run before the confirmation gate.
+    await deps.principalRepo.save({ id: "target-user", workspaceId: deps.workspaceId,
+      kind: "user", displayName: "Target user", status: "disabled", createdAt: "2026-10-01T00:00:00Z" });
     let purges = 0;
     const item = {
       id: "row-1", workspaceId: deps.workspaceId, entityType: "user", entityId: "target-user",
       displayTitle: "Target user", displaySubtitle: null, entityVersion: null, priorMarker: "active",
-      actorPrincipalId: "owner", actorPluginId: null, trashedAt: "2026-10-01T00:00:00Z", purgeAfter: "2026-12-01T00:00:00Z",
+      actorPrincipalId: owner, actorPluginId: null, trashedAt: "2026-10-01T00:00:00Z", purgeAfter: "2026-12-01T00:00:00Z",
     };
     const routeDeps = {
-      ...deps, ownerPrincipalId: Promise.resolve("seeded-owner"),
+      ...deps,
       authorize: async () => ({ allowed: true, reason: "matched" }),
       trash: { ...deps.trash, list: async () => ({ items: [item], nextCursor: null }), purgeSelected: async (spec: Parameters<typeof deps.trash.purgeSelected>[0]) => {
         assert.equal(await spec.authorizeItem({ item }), true);
@@ -66,19 +74,19 @@ for (const [id, input] of [
       } },
     };
     const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaceExchanges: store }, { contributions }).find(r => r.descriptor.id === id)!;
-    const ctx = { executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal };
+    const ctx = { executionId: "e", principal: { id: owner }, run: { id: "r" }, input, signal: new AbortController().signal };
     await assert.rejects(registration.handler(ctx), { message: `PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: ${id}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
     assert.equal(purges, 0);
     assert.deepEqual(await registration.handler({ ...ctx }, { emitSurface: async () => {
       assert.equal(purges, 0);
-      const exchangeId = store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!;
-      store.deliver({ exchangeId, principalId: "owner", toolId: id, params: { decision: "cancel" } });
+      const exchangeId = store.findTypedAnswerTarget({ principalId: owner, toolId: id })!;
+      store.deliver({ exchangeId, principalId: owner, params: { decision: "cancel" } }, { toolId: id });
     } }), { removed: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
     assert.equal(purges, 0);
     assert.deepEqual(await registration.handler({ ...ctx }, { emitSurface: async () => {
       assert.equal(purges, 0);
-      const exchangeId = store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!;
-      store.deliver({ exchangeId, principalId: "owner", toolId: id, params: { decision: "confirm" } });
+      const exchangeId = store.findTypedAnswerTarget({ principalId: owner, toolId: id })!;
+      store.deliver({ exchangeId, principalId: owner, params: { decision: "confirm" } }, { toolId: id });
     } }), { removed: true, purged: 1, results: [{ id: "row-1", outcome: "purged" }] });
     assert.equal(purges, 1);
   });

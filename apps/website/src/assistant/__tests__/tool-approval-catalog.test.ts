@@ -10,7 +10,7 @@ function fixture() {
   const contributions={contributors:createContributionRegistry({keyOf:({contribution}:{contribution:ToolContributor})=>contribution.domain}),derivedContributors:createContributionRegistry({keyOf:({contribution}:{contribution:DerivedToolContributor})=>contribution.domain})};
   installFirstPartyToolContributors({contributions});
   // Construction inspects metadata only; no repo operation is allowed by this fake.
-  const deps={workspaceId:'ws',clock:{nowMs:()=>0,nowIso:()=>new Date(0).toISOString()},authorize:async()=>({allowed:true,reason:'matched'}),idGen:{newId:()=> 'id'},magicLinkPerEmailLimiter:{},themes:[]};
+  const deps={workspaceId:'ws',clock:{nowMs:()=>0,nowIso:()=>new Date(0).toISOString()},authorize:async()=>({allowed:true,reason:'matched'}),idGen:{newId:()=> 'id'},magicLinkPerEmailLimiter:{},themes:[],seoDeps:{dispatch:async()=>{throw new Error('SEO is outside this fixture');}}};
   return {contributions,deps:deps as unknown as Parameters<typeof buildAssistantToolRegistrations>[0]};
 }
 test('every first-party registration has a reviewed action classification before read collapse',()=>{

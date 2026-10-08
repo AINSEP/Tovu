@@ -244,8 +244,8 @@ test("makeCredentialedRequest: the general tool-failure diagnostic is issued for
   // The type annotation documents the shared shape; the recovery contract's validator proves
   // issuance by identity. Returning a plain object or a copy of an issued one fails this (F4.1).
   const asGeneralContract: ToolFailureDiagnostic = result.authDiagnostic!;
-  assert.equal(isIssuedToolFailureDiagnostic(asGeneralContract), true);
-  assert.equal(isIssuedToolFailureDiagnostic({ ...asGeneralContract }), false, "matching fields alone must not authorize recovery");
+  assert.equal(isIssuedToolFailureDiagnostic({ value: asGeneralContract }, {}), true);
+  assert.equal(isIssuedToolFailureDiagnostic({ value: { ...asGeneralContract } }, {}), false, "matching fields alone must not authorize recovery");
   assert.equal(asGeneralContract.hint,
     "This request was sent with a Bearer token and no saved username. Some providers (e.g. ones that " +
     "authenticate a token against an account username via HTTP Basic) may reject a Bearer-only request " +

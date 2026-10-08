@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -9,7 +10,7 @@ import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../
 import { registerContentType } from "../../features/content-types/index.js";
 import { entriesAgentToolCatalog, type EntriesAgentToolDefinition } from "../../features/entries/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeEntriesTools } from "../../features/entries/tool-registrations.js";
@@ -20,11 +21,7 @@ const contributions = {
 };
 
 
-// Entries moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeEntriesTools() });
 
@@ -103,8 +100,8 @@ function catalogEntry(toolId: string): EntriesAgentToolDefinition {
   return entry;
 }
 
-function entriesRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("collections_entry_") || r.descriptor.id === "content_read.collection_entry").map((r) => [r.descriptor.id, r]));
+function entriesRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
+  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions, includeContentReadCollapse } }).filter((r) => r.descriptor.id.startsWith("collections_entry_") || r.descriptor.id === "content_read.collection_entry").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
@@ -134,7 +131,8 @@ test("exactly the 5 Entries operations are wired — the entire catalog, no dele
 
 test("every wired Entries registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
-  for (const [id, registration] of entriesRegistrations(deps)) {
+  // Compare the source catalog before the host read-id projection; contracts.test.ts checks that projection.
+  for (const [id, registration] of entriesRegistrations(deps, false)) {
     // A `content_read.*` card's catalog entry lives in assistant/content-read-tool.ts, not this
     // domain's own static catalog, so `catalogEntry(id)` has nothing to cross-check it against.
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL

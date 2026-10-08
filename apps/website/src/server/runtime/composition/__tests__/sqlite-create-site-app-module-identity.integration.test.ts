@@ -15,7 +15,7 @@ import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/routing";
-import type { RedirectRecord, RedirectRevision } from "#src/features/redirects/types";
+import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import type { OutboundEmail } from "#src/platform/mail/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";

@@ -1,48 +1,33 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/identity.js';
+import { withToolMetadata } from '@jini-ai/core';
+import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
 import { assertUserAccountAction, SelfDeleteError } from "./delete-user-service.js";
-import { OwnerRequiredError } from "@jini-ai/user-management";
+import { IdentityConflictError, OwnerRequiredError } from "@jini-ai/user-management";
 /**
- * @file Identity's agent-tool registrations — built by `@jini-ai/user-management`, with Tovu's human
- * confirmation added on top.
- *
- * A shim rather than a rewrite of the one importer, deliberately.
- * `assistant/tool-registrations.ts` imports every not-yet-converted domain as a single uniform block
- * of `../<domain>/tool-registrations` lines. Pointing only identity somewhere else would make the
- * one ported domain the odd line out, and would invite the next reader to "restore consistency" by
- * reaching past a barrel rather than through it. When more domains move, this file and its
- * siblings retire together.
- *
- * 2026-08-17 (Stage 2 of the registry rollout): converted to `assistant/tool-contribution-registry.ts`'s
- * explicit-call registry, same as `comments`/`newsletter` — see that file's header for why. Safe to
- * convert first among Stage 2's batch: nothing outside `server/*` imports `identity/tool-registrations`
- * by name, so there is no sibling domain still statically wired through `assistant` that could route
- * back through identity and close a new cycle.
- *
- * 2026-09-24 (tool-design audit, F3): three tools now ask the human first. The confirm transport
- * (`SurfaceExchangeStore` + `mcp-ui-tool-calls-route.ts`) is Tovu's, so the gate wraps Jini's
- * handlers here instead of living in Jini:
- * - `identity_role_delete` / `identity_policy_delete` delete for good — the owner's standing rule
- *   now requires approval for trash/delete/restore-over-existing/publish (owner 2026-10-07). (`identity_role_assign` /
- *   `identity_policy_attach` were gated too for one day, 2026-09-24, then backed out the same day:
- *   granting a role/policy isn't a delete, even though there is no unassign/detach tool.)
- * - `identity_user_create` no longer takes a password from the model. The human types the first
- *   password into the dialog; it goes browser -> route -> this parked call and never enters the
- *   model's context or the chat transcript (same path `custom_credential_set_token` uses).
+ * @file Identity tools built by Jini, with host human-confirmation and password-entry adapters.
+ * The host owns SurfaceExchangeStore/tool-calls transport, so it wraps the domain handlers here.
+ * identity_role_delete and identity_policy_delete permanently delete and require human approval,
+ * consistent with the owner's trash/delete/restore-over-existing/publish policy. Granting a role
+ * or attaching a policy is not a delete and does not need that gate.
+ * identity_user_create takes the first password through the human dialog, browser -> route ->
+ * parked handler, so it never enters model context or chat. The composition root installs tools;
+ * importing this feature must not register them or create an assistant runtime cycle.
  */
 import type { ToolContributor } from "#src/assistant/index";
-import { notConfirmedResult, requireHumanConfirm } from "#src/contracts/core/human-confirm";
+import { approvalToolHandler, notConfirmedResult } from "#src/contracts/core/human-confirm";
 import {
   askThenReport,
   createSurfaceExchangeStore,
-  SURFACE_DISMISSED_PARAM,
-  SURFACE_EXCHANGE_ID_PARAM,
   type AssistantSurfaceDeps,
-  type ConfirmationOutcome,
-} from "#src/contracts/core/tool-surface-exchanges";
+} from "@jini-ai/daemon/surface-exchanges";
 import { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps } from "@jini-ai/user-management/server";
-import { parseIdentityToolInput } from "@jini-ai/user-management/server";
-import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { assertCallerHasAnyPermission, normalizeUsername, parseIdentityToolInput } from "@jini-ai/user-management/server";
+import { ToolInputError, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
-import { buildFormSurface, buildOutcomeSurface, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 export { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps };
 
@@ -71,26 +56,6 @@ function validated(toolId: string, schema: unknown, input: unknown): Readonly<Re
 }
 
 /**
- * Wraps `inner` so it runs only after `confirm` says yes. `flag` is the key the tool's success
- * result already uses (`assigned`, `attached`, `deleted`), so a "no" reads as `{ flag: false, ... }`.
- */
-function gated(
-  registration: ToolRegistration,
-  flag: string,
-  confirm: (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>, options: ToolExecutionOptions) => Promise<ConfirmationOutcome>,
-): ToolRegistration {
-  const { descriptor, handler } = registration;
-  return {
-    ...registration,
-    handler: async (ctx, options = {}) => {
-      const outcome = await confirm(ctx, validated(descriptor.id, descriptor.inputSchema, ctx.input), options);
-      if (!outcome.confirmed) return { [flag]: false, ...notConfirmedResult(outcome) };
-      return handler(ctx, options);
-    },
-  };
-}
-
-/**
  * The model-facing schema for `identity_user_create`: Jini's, minus `password`. Exported so
  * `assistant/__tests__/tool-registrations.contracts.test.ts` can assert the wired registration's
  * published schema against a real derivation of the Jini catalog entry instead of either a second,
@@ -111,38 +76,30 @@ export function withoutPassword(schema: unknown): unknown {
  */
 export function buildGatedIdentityRegistrations(
   routeDeps: TovuIdentityToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const scope = { workspaceId: routeDeps.workspaceId };
-
-  const roleLabel = async (id: string) => (await routeDeps.roleRepo.findById({ ...scope, id }))?.name ?? `${id} (not found)`;
-  const policyLabel = async (id: string) => (await routeDeps.policyRepo.findById({ ...scope, id }))?.name ?? `${id} (not found)`;
-
-  const confirmRoleDelete = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>, options: ToolExecutionOptions) => {
-    const role = await roleLabel(input["roleId"]!);
-    return requireHumanConfirm({ ctx, surfaces, spec: {
-      toolId: ROLE_DELETE_TOOL_ID,
-      errorCode: "IDENTITY",
-      title: `Delete the role ${role}?`,
-      details: [{ label: "Role", value: role }],
-      warning: "The role is deleted for good. This can't be undone.",
-      danger: true,
-      confirmLabel: "Delete role",
-    } }, options);
-  };
-
-  const confirmPolicyDelete = async (ctx: ToolExecutionContext, input: Readonly<Record<string, string>>, options: ToolExecutionOptions) => {
-    const policy = await policyLabel(input["policyId"]!);
-    return requireHumanConfirm({ ctx, surfaces, spec: {
-      toolId: POLICY_DELETE_TOOL_ID,
-      errorCode: "IDENTITY",
-      title: `Delete the policy ${policy}?`,
-      details: [{ label: "Policy", value: policy }],
-      warning: "The policy is deleted for good. This can't be undone.",
-      danger: true,
-      confirmLabel: "Delete policy",
-    } }, options);
-  };
+  /** Each family supplies its own label and service permission; Jini owns the asking sequence.
+   * The inner service reauthorizes at write time; the snapshot prevents callback input retargeting. */
+  const confirmedDelete = (registration: ToolRegistration, kind: "role" | "policy"): ToolRegistration => ({
+    ...registration,
+    handler: approvalToolHandler({ surfaces,
+      prepare: async ({ ctx }) => {
+        const input = validated(registration.descriptor.id, registration.descriptor.inputSchema, ctx.input);
+        await assertCallerHasAnyPermission({ deps: identity, workspaceId: routeDeps.workspaceId,
+          // Jini owns both role and policy deletion under role.manage.
+          callerPrincipalId: ctx.principal.id, permissions: ["role.manage"] });
+        const id = input[`${kind}Id`]!;
+        const repo = kind === "role" ? routeDeps.roleRepo : routeDeps.policyRepo;
+        return { label: (await repo.findById({ workspaceId: routeDeps.workspaceId, id }))?.name ?? `${id} (not found)` };
+      },
+      describe: ({ prepared: { label } }) => ({
+        toolId: registration.descriptor.id, errorCode: "IDENTITY", title: `Delete the ${kind} ${label}?`,
+        details: [{ label: kind === "role" ? "Role" : "Policy", value: label }],
+        warning: `The ${kind} is deleted for good. This can't be undone.`, danger: true, confirmLabel: `Delete ${kind}`,
+      }),
+      run: ({ ctx }, options) => registration.handler(ctx, options),
+    }, { flag: "deleted" }),
+  });
 
   const createUserWithHumanPassword = (inner: ToolHandler, publishedSchema: unknown): ToolHandler => async (ctx, options = {}) => {
     if (typeof ctx.input === "object" && ctx.input !== null && "password" in ctx.input) {
@@ -151,72 +108,52 @@ export function buildGatedIdentityRegistrations(
     }
     const input = validated(USER_CREATE_TOOL_ID, publishedSchema, ctx.input);
     const username = input["username"]!;
-    if (!options.emitSurface) {
-      throw new ToolInputError({ message: `IDENTITY_NO_CONFIRMATION_CHANNEL: ${USER_CREATE_TOOL_ID}: this execution context has no interactive ` +
-          "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
-    }
-
-    const exchange = surfaces.surfaceExchanges.open({ toolId: USER_CREATE_TOOL_ID, principalId: ctx.principal.id }, options.emitSurface);
-    const uri = `ui://tovu/identity-user-create/${exchange.id}` as UIResourceUri;
-    const email = input["email"] ? ` (${input["email"]})` : "";
-    const form = buildFormSurface({
-      uri,
-      title: `Create the user ${username}?`,
-      description: `A new login named ${username}${email} will be created with no roles. Type their first password below.`,
-      submitLabel: "Create user",
-      toolName: USER_CREATE_TOOL_ID,
-      baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
-      fields: [
-        { kind: "string", name: "password", label: "Password", hint: "Typed here only, never shown to the assistant.", required: true, secret: true },
-      ],
-      cancel: { label: "Cancel", toolName: USER_CREATE_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true } },
-      app: { appName: "tovu-identity-user-create", appVersion: "1" },
-      preferredFrameSize: ["100%", "360px"],
-    });
-    const report = (state: "success" | "failure", message: string) => ({
-      channel: "mcp-ui",
-      payload: {
-        resource: buildOutcomeSurface({
-          uri,
-          title: state === "success" ? "User created" : "User not created",
-          details: [{ label: "Username", value: username }],
-          state,
-          message,
-          app: { appName: "tovu-identity-user-create-outcome", appVersion: "1" },
-          preferredFrameSize: ["100%", "240px"],
-        }),
+    let failureMessage: string | undefined;
+    const card = defineSecretCardTool<Readonly<Record<string, string>>, Record<string, unknown>, Record<string, unknown> | undefined>({
+      toolId: USER_CREATE_TOOL_ID,
+      prepare: async () => {
+        // Use the service's own permission rule before opening; createUser checks it again at save.
+        await assertCallerHasAnyPermission({ deps: identity, workspaceId: routeDeps.workspaceId,
+          callerPrincipalId: ctx.principal.id, permissions: ["user.manage"] });
+        return input;
       },
+      form: () => ({
+        title: `Create the user ${username}?`,
+        description: `A new login named ${username}${input["email"] ? ` (${input["email"]})` : ""} will be created with no roles. Type their first password below.`,
+        submitLabel: "Create user",
+        fields: [{ kind: "string", name: "password", label: "Password", hint: "Typed here only, never shown to the assistant.", required: true,
+          ...SECRET_FORM_CARD_DEFINITIONS.identity_user_create.secretField }],
+        cancelLabel: "Cancel", app: { appName: "tovu-identity-user-create", appVersion: "1" },
+        preferredFrameSize: ["100%", "360px"],
+      }),
+      save: async ({ values, prep, signal }) => (await inner({ ...ctx, signal, input: { ...prep, password: values.password } }, options)) as Record<string, unknown>,
+      result: ({ run }) => {
+        if (run.status === "saved") return { created: true, ...run.saved };
+        if (run.status === "blank") return { created: false, cancelled: false, note: "The user submitted no password. Nothing was created." };
+        if (run.status === "failed") { failureMessage = run.safeMessage; return undefined; }
+        return { created: false, ...notConfirmedResult({ confirmed: false, reason: run.status === "cancelled" ? "declined" : run.status }) };
+      },
+      outcome: ({ run }) => {
+        if (run.status !== "saved" && run.status !== "blank" && run.status !== "failed") return undefined;
+        return {
+          title: run.status === "saved" ? "User created" : "User not created",
+          details: [{ label: "Username", value: username }], state: run.status === "saved" ? "success" : "failure",
+          message: run.status === "saved" ? `${username} can now sign in with the password you typed.`
+            : run.status === "blank" ? "No password was entered. Nothing was created." : run.safeMessage,
+          app: { appName: "tovu-identity-user-create-outcome", appVersion: "1" }, preferredFrameSize: ["100%", "240px"],
+        };
+      },
+    }, {
+      uriHost: "tovu",
+      text: { noEmitter: `IDENTITY_NO_CONFIRMATION_CHANNEL: ${USER_CREATE_TOOL_ID}: this execution context has no interactive ` +
+        "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.", saveFailure: "The user was not created." },
+      // Rebuild the known conflict from public input; hasher/repository exceptions can contain the password.
+      safeError: error => error instanceof IdentityConflictError ? `username '${normalizeUsername({ raw: username })}' is already in use` : undefined,
     });
-
-    let failure: unknown;
-    const closeOnAbort = () => exchange.close();
-    ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-    try {
-      const result = await askThenReport<Record<string, unknown> | undefined>(exchange, { channel: "mcp-ui", payload: { resource: form } }, async (answer) => {
-        if (answer.status !== "received") return { result: { created: false, ...notConfirmedResult({ confirmed: false, reason: answer.status }) } };
-        if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
-          return { result: { created: false, ...notConfirmedResult({ confirmed: false, reason: "declined" }) } };
-        }
-        const password = typeof answer.params["password"] === "string" ? answer.params["password"] : "";
-        if (password === "") {
-          return {
-            result: { created: false, cancelled: false, note: "The user submitted no password. Nothing was created." },
-            outcome: report("failure", "No password was entered. Nothing was created."),
-          };
-        }
-        try {
-          const created = (await inner({ ...ctx, input: { ...input, password } }, options)) as Record<string, unknown>;
-          return { result: { created: true, ...created }, outcome: report("success", `${username} can now sign in with the password you typed.`) };
-        } catch (error) {
-          failure = error;
-          return { result: undefined, outcome: report("failure", error instanceof Error ? error.message : "The user was not created.") };
-        }
-      });
-      if (failure !== undefined) throw failure;
-      return result;
-    } finally {
-      ctx.signal.removeEventListener("abort", closeOnAbort);
-    }
+    const result = await card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, options);
+    // Preserve the domain's rejection contract after the engine has delivered the safe failure card.
+    if (failureMessage !== undefined) throw new ToolInputError({ message: failureMessage });
+    return result;
   };
 
   const hostClock = routeDeps.clock;
@@ -228,7 +165,7 @@ export function buildGatedIdentityRegistrations(
       principalRoles: routeDeps.principalRoleRepo, principalPolicies: routeDeps.principalPolicyRepo },
     hasher: routeDeps.passwordHasher, clock, idGen: routeDeps.idGen, tokens: routeDeps.tokens,
   };
-  return buildIdentityRegistrations({ ...routeDeps, clock }).map((registration): ToolRegistration => {
+  return withToolMetadata({ registrations: buildIdentityRegistrations({ ...routeDeps, clock }), metadata: toolMetadata }).map((registration): ToolRegistration => {
     switch (registration.descriptor.id) {
       case "identity_user_disable":
         return { ...registration, handler: async (ctx, options = {}) => {
@@ -249,9 +186,9 @@ export function buildGatedIdentityRegistrations(
         } };
 
       case ROLE_DELETE_TOOL_ID:
-        return gated(registration, "deleted", confirmRoleDelete);
+        return confirmedDelete(registration, "role");
       case POLICY_DELETE_TOOL_ID:
-        return gated(registration, "deleted", confirmPolicyDelete);
+        return confirmedDelete(registration, "policy");
       case USER_CREATE_TOOL_ID: {
         const inputSchema = withoutPassword(registration.descriptor.inputSchema);
         return {

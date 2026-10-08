@@ -1,3 +1,4 @@
+import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
 
 import { getPublishedPostBySlug, PostNotFoundError } from "#src/features/post/index";
@@ -7,26 +8,10 @@ import { toContentPostResponse } from "#src/server/inbound/public-http/http/cont
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 import { MEMBER_SESSION_COOKIE } from "../../members/complete-sign-in.js";
 
-/**
- * Manual `req.headers.cookie` parse -- no `cookie-parser` middleware mounted anywhere in this app;
- * duplicated from `routes/site/pages.ts`'s own (file-private, unexported) `readRawCookie` rather
- * than imported, matching this codebase's established precedent for small route-local pure
- * helpers (`access-resolver.ts`'s own `hashToken` docs the same "each side owns its own copy"
- * reasoning). `req.headers` is optional-chained: unlike `pages.ts`'s handler, this route's own
- * direct-invocation tests (`content-post-get-by-slug.test.ts`) call the extracted handler with a
- * bare `{ params }` object that carries no `headers` at all, and a missing cookie header must
- * resolve to "anonymous", not throw.
- */
-function readRawCookie(req: Request, name: string): string | undefined {
-  const header = req.headers?.cookie;
-  if (!header) return undefined;
-  for (const part of header.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
-  }
-  return undefined;
-}
+
+
+/** No cookie-parser middleware is mounted. The shared reader preserves anonymous access
+ * for direct handler tests with bare params and no headers, without duplicating pages.ts. */
 
 /** Same `MemberAccessResolver` construction as `routes/site/pages.ts`'s own `createMemberAccessResolver`
  *  (ADR-030 §4) -- built per request from the three member repo ports already on `RouteDeps`, never a
@@ -61,7 +46,7 @@ export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
         }),
         memberAccessResolver.resolveContext({
           workspaceId: deps.workspaceId,
-          sessionToken: readRawCookie(req, MEMBER_SESSION_COOKIE),
+          sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }),
           nowIso: new Date().toISOString(),
         }),
       ]);

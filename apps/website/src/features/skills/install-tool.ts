@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/skills.js';
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import {
   buildDomainRegistrations,
@@ -75,7 +76,7 @@ async function asToolInput<T>(work: () => Promise<T>): Promise<T> {
  * @complexity O(skill files + bytes).
  */
 export function buildRegistrations(deps: SkillsInstallToolDeps): ToolRegistration[] {
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "skills-install",
     catalogModule: "features/skills/install-tool.ts",
     catalog: indexCatalogById({ catalog }),

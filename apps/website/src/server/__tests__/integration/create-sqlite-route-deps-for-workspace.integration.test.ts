@@ -2,19 +2,20 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test, { mock } from "node:test";
+import test from "node:test";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 
 import { openSiteContentDb } from "../../runtime/composition/open-site-content-db.js";
 
-const openedHandles: Awaited<ReturnType<typeof openSiteContentDb>>[] = [];
-mock.module(new URL("../../runtime/composition/open-site-content-db.ts", import.meta.url).href, {
-  namedExports: { openSiteContentDb: async (dbPath: string) => {
-    const db = await openSiteContentDb(dbPath);
-    openedHandles.push(db);
-    return db;
-  } },
-});
-const { createSiteRouteDepsForWorkspace } = await import("../../runtime/composition/deps.js");
+import { createSiteRouteDepsForWorkspace, createSiteRouteDeps, defaultContentDbPath } from "../../runtime/composition/deps.js";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
+import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
+import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
+import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
+import type { SiteStore } from "../../runtime/composition/open-site-store.js";
+import { drainBootReadiness, type BootReadiness } from "../helpers/unrun-site-boot.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 
@@ -49,18 +50,8 @@ function mkTempDbPath(): string {
  * the NEXT test rather than the one that caused it. Awaiting them first, mirroring `index.ts`,
  * closes the same window here.
  */
-async function settle(deps: { identityReady: Promise<void>; settingsReady: Promise<void>; seoReady: Promise<void>; commentsReady: Promise<void>; commentsSettingsReady: Promise<void>; executionSettingsReady: Promise<void>; settingsUiTabsReady: Promise<void>; analyticsSettingsReady: Promise<void>; siteTitleReady: Promise<void> }): Promise<void> {
-  await Promise.all([
-    deps.identityReady,
-    deps.settingsReady,
-    deps.seoReady,
-    deps.commentsReady,
-    deps.commentsSettingsReady,
-    deps.executionSettingsReady,
-    deps.settingsUiTabsReady,
-    deps.analyticsSettingsReady,
-    deps.siteTitleReady,
-  ]);
+async function settle(deps: BootReadiness): Promise<void> {
+  await drainBootReadiness(deps);
 }
 
 test("workspaceIdOverride undefined: behaves byte-identical to createSiteRouteDeps(dbPath) — the daemon's existing single-workspace behavior is unaffected when TOVU_WORKSPACE is unset", async () => {
@@ -118,19 +109,44 @@ test("workspaceIdOverride names a workspace that does not exist: throws loudly r
 
 test("workspaceIdOverride supplied: the db opened for validation is the SAME handle the returned deps read from (not a second, divergent connection)", async () => {
   const dbPath = mkTempDbPath();
+  const openedHandles: Awaited<ReturnType<typeof openSiteContentDb>>[] = [];
+  let store: SiteStore | undefined;
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
     const seedDb = openContentDb(dbPath);
     seedDb.insert(workspaces).values({ id: "ws-shared-handle", name: "Shared Handle", slug: "shared-handle", createdAt: "2026-01-01T00:00:00.000Z" }).run();
     seedDb.$client.close();
 
-    const before = openedHandles.length;
-    const deps = await createSiteRouteDepsForWorkspace("ws-shared-handle", dbPath);
-    assert.equal(openedHandles.length - before, 1, "validation and composition must open only one connection");
+    // Execute the real function body with explicit boot ports, as composition-boot-order does.
+    // Module mocks require runner flags and replace global imports; this isolates only the opener
+    // observation and still composes the real repos over the real returned SQLite connection.
+    const source = ts.createSourceFile("deps.ts", fs.readFileSync(new URL("../../runtime/composition/deps.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
+    const declaration = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "createSiteRouteDepsForWorkspace");
+    assert.ok(declaration);
+    const compiled = ts.transpileModule(declaration.getText(source).replace(/^export\s+/, ""), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+    const composeWithPorts: typeof createSiteRouteDepsForWorkspace = runInNewContext(`${compiled}\ncreateSiteRouteDepsForWorkspace`, {
+      defaultContentDbPath, isInMemoryDbPath, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel,
+      openSiteContentDb: async (file: string) => {
+        const opened = await openSiteContentDb(file);
+        openedHandles.push(opened);
+        return opened;
+      },
+      createSiteRouteDeps: (file: string, overrides: Parameters<typeof createSiteRouteDeps>[1]) =>
+        createSiteRouteDeps(file, { ...overrides, onStoreOpened: (opened) => { store = opened; } }),
+    });
+    deps = await composeWithPorts("ws-shared-handle", dbPath);
+    assert.equal(openedHandles.length, 1, "validation and composition must open only one connection");
+    const [validationConnection] = openedHandles;
+    assert.ok(validationConnection);
+    assert.ok(deps.contentKernel);
+    assert.equal(sqliteConnectionOf(deps.contentKernel), validationConnection.$client, "the composed kernel must use the validation connection itself");
     const found = await deps.workspaceRepo.findById({ id: "ws-shared-handle" });
     assert.ok(found, "the returned deps must read from the same on-disk db the override was validated against");
     assert.equal(found?.name, "Shared Handle");
     await settle(deps);
   } finally {
+    if (deps) await settle(deps);
+    await store?.close();
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
   }
 });

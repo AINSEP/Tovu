@@ -4,8 +4,10 @@ import type { IncomingMessage, ClientRequest } from "node:http";
 import type { RequestOptions } from "node:https";
 import { PassThrough } from "node:stream";
 import test from "node:test";
+import { FetchHttpTransportAdapter } from "@jini-ai/platform/http/guarded";
+import { createHttpClient } from "../client.js";
 
-test("the guarded production transport dials the vetted IP and preserves authority and TLS SNI", async (t) => {
+test("the guarded production transport dials the vetted IP and preserves authority and TLS SNI", async () => {
   const calls: Array<{ secure: boolean; options: RequestOptions }> = [];
   const request = (secure: boolean) => (options: RequestOptions, callback: (response: IncomingMessage) => void) => {
     calls.push({ secure, options });
@@ -23,22 +25,25 @@ test("the guarded production transport dials the vetted IP and preserves authori
     }) as ClientRequest["end"];
     return req;
   };
-  t.mock.module("node:http", { namedExports: { request: request(false) } });
-  t.mock.module("node:https", { namedExports: { request: request(true) } });
-  let lookups = 0;
-  t.mock.module("node:dns/promises", { namedExports: {
-    lookup: async (host: string, options: unknown) => {
-      assert.equal(host, "provider.example");
-      assert.deepEqual(options, { all: true, verbatim: true });
-      lookups += 1;
-      return [{ address: "8.8.8.8", family: 4 }];
-    },
-  } });
-  const { createDefaultHttpClient } = await import("../client.js");
-  const client = createDefaultHttpClient({
-    allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [],
-    maxRedirects: 0, connectTimeoutMs: 500, maxResponseBytes: 1000, maxDecompressedBytes: 1000,
+  // Fake only the socket effect: the native adapter still constructs options and reads the body.
+  const transport = new FetchHttpTransportAdapter({}, {
+    request: ({ secure, options, onResponse }) => request(secure)(options, onResponse),
   });
+  let lookups = 0;
+  const dns = {
+    resolve: async ({ hostname }: { hostname: string }) => {
+      assert.equal(hostname, "provider.example");
+      lookups += 1;
+      return ["8.8.8.8"];
+    },
+  };
+  const client = createHttpClient({
+    transport: { requestPinned: (request, peer) => transport.requestPinned({ request, peer }) },
+    policy: {
+      allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [],
+      maxRedirects: 0, connectTimeoutMs: 500, maxResponseBytes: 1000, maxDecompressedBytes: 1000,
+    },
+  }, { dns });
   for (const [url, secure, port] of [["https://provider.example:8443/path?x=1", true, 8443], ["http://provider.example/path?x=1", false, 80]] as const) {
     const result = await client.send({ method: "GET", url, headers: { "X-Kept": "yes" }, timeoutMs: 100 });
     assert.equal(result.status, 200);

@@ -1,3 +1,5 @@
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,7 +10,7 @@ import { bootAuthenticated, startTestServer } from "#src/server/__tests__/helper
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerSeoRobotsRoute } from "../robots.js";
 import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 
 /**
  * @file Coverage-gap fill for `registerSeoRobotsRoute` (`routes/site/robots.ts`). The happy path
@@ -18,7 +20,7 @@ import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } 
  * reach:
  *  - a rule that carries only `allow` (no `disallow`) and one that carries only `disallow` (no
  *    `allow`) — `RobotsRule.allow`/`.disallow` are both genuinely optional
- *    (`features/seo/types.ts`), and `validateRobotsRule` (`features/seo/settings.ts`) explicitly
+ *    (`Jini/packages/cms/src/seo/types.ts`), and `validateRobotsRule` (`features/seo/settings.ts`) explicitly
  *    permits omitting either, so `rule.allow ?? []` / `rule.disallow ?? []` are real, reachable
  *    fallbacks, not defensive dead code.
  *  - the fully-empty body (`policy.rules` AND `policy.sitemapUrls` both empty) — reachable by an
@@ -79,6 +81,8 @@ test("GET /robots.txt: no rules and sitemap disabled -> completely empty body, n
 function buildRobotsOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Express {
   const base = createRouteDeps();
   const deps: SeoRouteDeps = { ...base, ...depsOverrides };
+  deps.seoDeps = createSeoDeps({ deps }, {});
+  deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
   registerSeoRobotsRoute(app, deps);
   return app;

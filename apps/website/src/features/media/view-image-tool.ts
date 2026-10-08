@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -237,7 +238,7 @@ export function buildMediaViewImageRegistrations(deps: MediaViewImageToolDeps): 
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "media-view",
     catalogModule: "features/media/view-image-tool.ts",
     catalog: CATALOG_BY_ID,

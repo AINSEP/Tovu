@@ -317,7 +317,7 @@ test("both credentials present but both fail to decrypt: falls back to console a
   const brokenOpenSealer = {
     seal: credentialDeps.sealer.seal.bind(credentialDeps.sealer),
     open: async () => {
-      throw new Error("simulated decrypt failure");
+      throw new Error("simulated decrypt failure: decrypt-detail-canary");
     },
   };
   const deps = makeResolveDeps({ customCredentialRepo: credentialDeps.repo, sealer: brokenOpenSealer }, warnings);
@@ -329,14 +329,14 @@ test("both credentials present but both fail to decrypt: falls back to console a
   assert.equal(
     warnings[0],
     `[mail] no working mail credential found (the "${MAIL_HTTP_API_CREDENTIAL_LABEL}" credential is saved but could ` +
-      "not be decrypted (custom credential could not be decrypted (secret store unconfigured, or the stored row is " +
-      "corrupted): simulated decrypt failure); " +
-      `the "${MAIL_SMTP_CREDENTIAL_LABEL}" credential is saved but could not be decrypted (custom credential could not be decrypted (secret store unconfigured, or the stored row is ` +
-      "corrupted): simulated decrypt failure)) — falling back to ConsoleMailerAdapter, so outbound mail (form " +
+      "not be decrypted (The credential could not be saved or unlocked. Check the site credential store.); " +
+      `the "${MAIL_SMTP_CREDENTIAL_LABEL}" credential is saved but could not be decrypted (The credential could not be saved or unlocked. Check the site credential store.` +
+      ")) — falling back to ConsoleMailerAdapter, so outbound mail (form " +
       "notifications, newsletter, member verification) will NOT actually be sent. " +
       `Add a "${MAIL_HTTP_API_CREDENTIAL_LABEL}" (recommended) or "${MAIL_SMTP_CREDENTIAL_LABEL}" ` +
       'credential under Access Tokens (category "ops") to fix this.'
   );
+  assert.equal(warnings[0]!.includes("decrypt-detail-canary"), false);
 });
 
 test("mailer.send()/sendBatch() delegate through capabilities() consistently before and after the background swap settles", async () => {

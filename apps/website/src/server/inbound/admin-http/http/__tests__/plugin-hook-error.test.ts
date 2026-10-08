@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import { PluginHookFailedError } from "#src/features/plugin-runtime/hook-registry";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { sendPluginHookFailedError } from "../plugin-hook-error.js";
 import { widgetErrorToResponse } from "../widgets.js";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";

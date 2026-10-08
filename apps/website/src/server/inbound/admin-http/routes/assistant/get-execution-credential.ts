@@ -7,8 +7,8 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * set and what it ends in. Scoped to `(deps.workspaceId, getAuthedPrincipal(res).id)`: there is no
  * `:principalId` in the path and none accepted from the request — an admin can only ever read their
  * own row, by construction, not by an authorization check. Shape and error contract mirror
- * `get-site-credential.ts`: same `{ data }` envelope, same 404-on-workspace-mismatch. Pure DB read
- * (`getExecutionCredential` never decrypts), so this cannot fail on a misconfigured site key.
+ * `get-site-credential.ts`: same `{ data }` envelope, same 404-on-workspace-mismatch. The safe hint uses a
+ * server-only open that degrades to no hint, so this cannot fail on a misconfigured site key.
  */
 export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/assistant/execution-credential", async (req, res) => {
@@ -20,7 +20,7 @@ export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSetting
     try {
       const principal = getAuthedPrincipal(res);
       const view = await getExecutionCredential(
-        { repo: deps.adminExecutionCredentialRepo },
+        { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
         { workspaceId: deps.workspaceId, principalId: principal.id }
       );
       res.json({ data: view });

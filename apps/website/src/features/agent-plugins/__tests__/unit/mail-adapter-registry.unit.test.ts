@@ -11,8 +11,8 @@ import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove.js";
 
-import { recordBundledAgentPluginDigests } from "../../bundled-digests.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../install.js";
+import { recordBundledAgentPluginDigests } from "../../lifecycle.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { MAIL_ADAPTERS_FILENAME, loadMailAdapterRegistry, parseMailAdaptersFile } from "../../mail-adapter-registry.js";
 

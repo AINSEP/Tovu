@@ -7,7 +7,7 @@ import {
   agentAcceptsHostMintedSessionId,
   resolveHostMintedSessionId,
   resolveNewSessionField,
-} from "../agent-session-binding.js";
+} from "../../../../assistant/agent-session-preset.js";
 
 /**
  * @file Regression suite for Defect 1 (2026-09-11 chat-lifecycle repair): a conversation forked
@@ -35,26 +35,26 @@ describe("agentAcceptsHostMintedSessionId — which defs the host may mint a ses
     // The product default (`DEFAULT_AGENT_ID`) and the agent the observed defect happened under:
     // `resumesSessionViaCli: true` with no `capturesSessionIdFromStream`, which `types.ts` defines
     // as "specify-style — the caller mints the id and the CLI is told to use it".
-    assert.equal(agentAcceptsHostMintedSessionId("claude"), true);
+    assert.equal(agentAcceptsHostMintedSessionId({ agentId: "claude" }, {}), true);
   });
 
   test("codex does NOT — it is capture-style, the CLI mints its own id", () => {
     // `capturesSessionIdFromStream: true`. Minting for this def would persist an id the CLI never
     // uses, which is strictly worse than persisting nothing: the next turn would resume a session
     // that does not exist.
-    assert.equal(agentAcceptsHostMintedSessionId("codex"), false);
+    assert.equal(agentAcceptsHostMintedSessionId({ agentId: "codex" }, {}), false);
   });
 
   test("opencode does NOT — also capture-style", () => {
-    assert.equal(agentAcceptsHostMintedSessionId("opencode"), false);
+    assert.equal(agentAcceptsHostMintedSessionId({ agentId: "opencode" }, {}), false);
   });
 
   test("amr does NOT — ACP `session/load` resume, whose handle is the ACP session, not a CLI flag", () => {
-    assert.equal(agentAcceptsHostMintedSessionId("amr"), false);
+    assert.equal(agentAcceptsHostMintedSessionId({ agentId: "amr" }, {}), false);
   });
 
   test("an unknown agent id does NOT — fails closed, same default as agentCarriesOwnMemory", () => {
-    assert.equal(agentAcceptsHostMintedSessionId("not-a-real-agent"), false);
+    assert.equal(agentAcceptsHostMintedSessionId({ agentId: "not-a-real-agent" }, {}), false);
   });
 
   test("every def this returns true for actually consumes newSessionId in its own buildArgs", () => {
@@ -66,7 +66,7 @@ describe("agentAcceptsHostMintedSessionId — which defs the host may mint a ses
      * the end-to-end check — a def that declares specify-style resume but drops the field would
      * leave Tovu storing an id no CLI session was ever created under.
      */
-    const accepted = AGENT_DEFS.filter((def) => agentAcceptsHostMintedSessionId(def.id));
+    const accepted = AGENT_DEFS.filter((def) => agentAcceptsHostMintedSessionId({ agentId: def.id }, {}));
     assert.ok(accepted.length > 0, "no def accepts a host-minted session id — the predicate cannot be exercised at all");
     for (const def of accepted) {
       const args = def.buildArgs({ prompt: "hi", imagePaths: [] }, { extraAllowedDirs: [], options: {}, runtimeContext: { newSessionId: "minted-abc" } });
@@ -88,7 +88,7 @@ describe("resolveHostMintedSessionId — when a fresh id is minted at dispatch",
         effectiveResumeSessionId: null,
         acceptsHostMintedSessionId: true,
         mint,
-      }),
+      }, {}),
       "minted-1",
     );
   });
@@ -100,7 +100,7 @@ describe("resolveHostMintedSessionId — when a fresh id is minted at dispatch",
         effectiveResumeSessionId: "stored-9",
         acceptsHostMintedSessionId: true,
         mint,
-      }),
+      }, {}),
       null,
     );
   });
@@ -112,7 +112,7 @@ describe("resolveHostMintedSessionId — when a fresh id is minted at dispatch",
         effectiveResumeSessionId: null,
         acceptsHostMintedSessionId: false,
         mint,
-      }),
+      }, {}),
       null,
     );
   });
@@ -126,7 +126,7 @@ describe("resolveHostMintedSessionId — when a fresh id is minted at dispatch",
         effectiveResumeSessionId: null,
         acceptsHostMintedSessionId: true,
         mint,
-      }),
+      }, {}),
       null,
     );
   });
@@ -138,21 +138,21 @@ describe("resolveHostMintedSessionId — when a fresh id is minted at dispatch",
       return `minted-${n}`;
     };
     const input = { conversationId: "conv-1", effectiveResumeSessionId: null, acceptsHostMintedSessionId: true } as const;
-    assert.equal(resolveHostMintedSessionId({ ...input, mint: counting }), "minted-1");
-    assert.equal(resolveHostMintedSessionId({ ...input, mint: counting }), "minted-2");
+    assert.equal(resolveHostMintedSessionId({ ...input, mint: counting }, {}), "minted-1");
+    assert.equal(resolveHostMintedSessionId({ ...input, mint: counting }, {}), "minted-2");
   });
 });
 
 describe("resolveNewSessionField — the AgentExecutor.run() spread", () => {
   test("carries the minted id", () => {
-    assert.deepEqual(resolveNewSessionField("minted-1"), { newSessionId: "minted-1" });
+    assert.deepEqual(resolveNewSessionField({ hostMintedSessionId: "minted-1" }, {}), { newSessionId: "minted-1" });
   });
 
   test("is an EMPTY object for null — not `{ newSessionId: undefined }`", () => {
     // Byte-identical to `resolveResumeSessionField`'s own contract: an explicit `undefined` key
     // would still spread into `AgentExecutor.run()`'s input object, which every other optional
     // field in `onStarted` deliberately avoids.
-    const field = resolveNewSessionField(null);
+    const field = resolveNewSessionField({ hostMintedSessionId: null }, {});
     assert.deepEqual(field, {});
     assert.equal("newSessionId" in field, false);
   });

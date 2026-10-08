@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -10,22 +11,22 @@ import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { InMemorySettingsRepo } from "#src/features/settings/index";
-import { createCommentHookRegistry } from "#src/features/comments/hooks";
-import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
-import { createCommentWriteService } from "#src/features/comments/write-service";
+import { createCommentHookRegistry } from "@jini-ai/cms/comments";
+import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+import { createCommentWriteService } from "@jini-ai/cms/comments";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "#src/features/comments/tool-registrations";
 
-import { PRE_AUTHORIZED } from "#src/features/widgets/authorize-helper";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memory";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
-import { createWidgetInstance } from "#src/features/widgets/write-service";
+import { createWidgetInstance } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "#src/features/widgets/tool-registrations";
 import { memoryWidgetTrash } from "#src/features/widgets/__tests__/support/memory-widget-trash";
 
@@ -33,12 +34,12 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { buildThemesRegistrations, type ThemeToolDeps } from "#src/features/theme/tool-registrations";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry, type OriginRegistryPort } from "#src/features/origin/index";
-import { redirectMatcher } from "#src/features/redirects/matcher";
-import type { RedirectDbHandle } from "#src/features/redirects/ports.internal";
-import { InMemoryRedirectRepo } from "#src/features/redirects/repo.memory";
-import type { RedirectsWriteDeps } from "#src/features/redirects/redirects";
-import { createRedirect } from "#src/features/redirects/redirects";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import { redirectMatcher } from "@jini-ai/cms/redirects";
+import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
+import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
+import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { createRedirect } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "#src/features/redirects/__tests__/remove-redirect-double";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "#src/features/redirects/tool-registrations";
 
@@ -46,33 +47,18 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#s
 import { createSubscription } from "#src/features/webhooks/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
 import { commentTrashDoubles } from "#src/features/comments/__tests__/comment-trash-doubles";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
- * @file Route-level proof for the five sibling tools of `media_trash_asset` in the same 2026-09-08
- * delete-confirmation build (ADS-memory/reports/2026-09-08-delete-confirmation-build.md):
- * `comments_trash_comment`, `widgets_trash_instance`, `theme_trash_file`, `redirects_tombstone`,
- * `webhooks_delete_subscription`. Modeled directly on
- * `mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts`'s own module doc: none of these
- * domains' handler-level tests ever goes through the real `MCP_UI_TOOL_CALLS_PATH` route, and only
- * `registerMcpUiToolCallsRoute` consults the allowlist (`isMcpUiToolCallPermitted`), so a tool can
- * register and pass every handler-level test while the route still does the wrong thing with it —
- * exactly the way `media_trash_asset` shipped for one commit, 403ing on every real click.
+ * @file Real callback-route coverage for confirmed deletes and reversible Trash/tombstone tools.
+ * Handler-level registration/execution tests do not exercise the route's callback allowlist.
  *
- * Two families since 6eac86229 ("confirm destructive and protected actions only", 2026-10-01):
- *
- *  - {@link CONFIRMED_SCENARIOS}: a permanent delete still raises a card. Its confirm and cancel
- *    clicks must both reach the parked call through this route (202), not a 403.
- *  - {@link TRASH_SCENARIOS}: a reversible Trash move/tombstone no longer raises a card and left
- *    `MCP_UI_REDEEMABLE_TOOL_IDS`. Each must finish in one call with no dialog, and this route must
- *    refuse to run it (403 `TOOL_NOT_ALLOWLISTED`) without ever reaching the executor. This is the
- *    route-level form of the inversion that same commit made in `mcp-ui-tool-calls.test.ts` ("runs
- *    normally and cannot be executed by a surface callback").
- *
- * One file, five independent scenarios: each produces its OWN pair of named `test()` cases via the
- * loops at the bottom, so a wrong allowlist entry for any one domain fails ONLY that domain's own
- * named test — this deliberately does not collapse the tool ids into a single alternation-style
- * assertion, which would stay green while tolerating one broken member (the exact failure mode
- * `MCP_UI_REDEEMABLE_TOOL_IDS`'s own header warns about).
+ * CONFIRMED_SCENARIOS must deliver confirm/cancel to the parked call (202). TRASH_SCENARIOS
+ * complete without a dialog and must be refused here (403 TOOL_NOT_ALLOWLISTED), without execution.
+ * Each scenario has independent named cases so an allowlist mistake identifies its own domain;
+ * a single alternation-style assertion could stay green while missing a broken member.
  */
 
 const PRINCIPAL = "principal-admin-1";
@@ -112,7 +98,7 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
   const clock = { nowMs: () => Date.parse(NOW) };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
-  const commentWriteService = createCommentWriteService({ repo: commentRepo, outbox: new InMemoryOutbox(), hooks: createCommentHookRegistry(), clock, idGen, ...commentTrashDoubles() });
+  const commentWriteService = createCommentWriteService({ repo: commentRepo, outbox: new InMemoryOutbox(), hooks: createCommentHookRegistry({}, {}), clock, idGen, ...commentTrashDoubles() });
   const deps = {
     workspaceId,
     clock,
@@ -125,7 +111,7 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
     settingsRepo,
   } as unknown as CommentsToolDeps;
 
-  await commentRepo.create({
+  await commentRepo.create({ record: {
     id: "comment-1",
     workspaceId,
     entryId: "entry-1",
@@ -144,7 +130,7 @@ async function setupComments(surfaceExchanges: SurfaceExchangeStore): ReturnType
     createdAt: NOW,
     updatedAt: NOW,
     version: 1,
-  });
+  } }, {});
 
   const registry = createToolRegistry({});
   for (const registration of buildCommentsRegistrations(deps, { surfaceExchanges })) {
@@ -252,9 +238,9 @@ async function setupTheme(surfaceExchanges: SurfaceExchangeStore): ReturnType<Sc
 async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnType<Scenario["setup"]> {
   const workspaceId = "ws-mcp-ui-redirects-tombstone-integration";
   const redirectRepo = new InMemoryRedirectRepo();
-  const originRepo = new InMemoryOriginSettingRepo([
+  const originRepo = new InMemoryOriginSettingRepo({ seeds: [
     { workspaceId, origin: createVerifiedOrigin({ scheme: "https", host: "trusted.example", verifiedAt: NOW, source: "workspace-setting" }), redirectAllowlist: [] },
-  ]);
+  ] });
   let idTick = 0;
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
@@ -263,6 +249,7 @@ async function setupRedirects(surfaceExchanges: SurfaceExchangeStore): ReturnTyp
     restore: restoreVia(redirectRepo),
     db: redirectRepo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
+    reservedSegments: RESERVED_SEGMENTS,
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
     clock: { nowMs: () => Date.parse(NOW) },
@@ -323,7 +310,7 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
       clock,
       repo: webhookSubscriptionRepo,
       idGenerator: idGen,
-      isAllowedTarget: (url: string) => originRegistry.isAllowedEgressTarget({ workspaceId }, url),
+      isAllowedTarget: (url: string) => originRegistry.isAllowedEgressTarget({ context: { workspaceId }, url: url }),
     },
     input: {
       workspaceId,
@@ -373,7 +360,7 @@ const TRASH_SCENARIOS: Scenario[] = [
 
 for (const scenario of CONFIRMED_SCENARIOS) {
   test(`real round trip: a browser confirmation click for ${scenario.toolId} is accepted by the allowlist`, async (t) => {
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const { toolExecutor, trashParams, assertDone } = await scenario.setup(surfaceExchanges);
 
     const emitted: SurfaceEmission[] = [];
@@ -409,7 +396,7 @@ for (const scenario of CONFIRMED_SCENARIOS) {
   });
 
   test(`SECURITY: a Cancel click for ${scenario.toolId} also reaches the allowlist and reports the cancellation, not a 403`, async (t) => {
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const { toolExecutor, trashParams, assertCancelled } = await scenario.setup(surfaceExchanges);
 
     const emitted: SurfaceEmission[] = [];
@@ -440,7 +427,7 @@ for (const scenario of CONFIRMED_SCENARIOS) {
 
 for (const scenario of TRASH_SCENARIOS) {
   test(`${scenario.toolId} completes in one call and emits no dialog`, async () => {
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const { toolExecutor, trashParams, assertDone } = await scenario.setup(surfaceExchanges);
 
     const emitted: SurfaceEmission[] = [];
@@ -454,7 +441,7 @@ for (const scenario of TRASH_SCENARIOS) {
   });
 
   test(`SECURITY: a surface callback cannot run ${scenario.toolId} — the route refuses it with 403 and never reaches the executor`, async (t) => {
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const { toolExecutor, trashParams } = await scenario.setup(surfaceExchanges);
 
     let routeExecutions = 0;

@@ -4,7 +4,7 @@ import type { resolveAgentPluginReadOnlyRemoteNames } from "../features/agent-pl
 
 import type { SecretSealerPort } from "../features/webhooks/index.js";
 
-import type { SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
+import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { createFederatedCallConfirmer, type FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
 import { createExternalMcpConnectionGate, type ExternalMcpOAuthService } from "./external-mcp-oauth.js";
@@ -19,12 +19,8 @@ import type { McpAuthFailedError } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";
 
 /**
- * @file The stored-roster half of `design-byok-external-mcp-2026-09-24.md` §2.1 piece 1: what used
- * to be `agent-daemon-server.ts`'s private `resolveStoredExternalMcpConnections` (`:1233-1262`) plus
- * the module-level `externalMcpConfigFailures` binding it wrote (`:1231`), and the `federationDeps`
- * object literal from that same file's `start()` (`:1271-1289`). Moved unchanged apart from the log
- * prefix, which becomes a parameter so BYOK's `[assistant-byok]` lines and the daemon's
- * `[agent-daemon]` lines both stay byte-identical to what each already printed.
+ * @file Shared stored-roster resolution and federation dependency binding for daemon and BYOK.
+ * Each composition supplies its own log prefix so process-specific diagnostics remain identifiable.
  */
 
 /** One roster-read failure, in the shape both the daemon's admissions route and BYOK's refusal
@@ -41,8 +37,7 @@ export interface StoredExternalMcpConnectionSourceDeps {
    *  process is launched with it. Omitted where no root wires OAuth-backed connections. */
   readonly oauth?: ExternalMcpOAuthTokenResolverPort;
   readonly workspaceId: UUID;
-  /** Log-line prefix (`"[agent-daemon]"`, `"[assistant-byok]"`, ...), so each root's console output
-   *  stays exactly what it was before this moved out from under it. */
+  /** Log-line prefix (`"[agent-daemon]"`, `"[assistant-byok]"`, ...) identifies the composition root. */
   readonly log: string;
   /** Local manifest lookup, never remote annotations. Injected to exercise roster reloads. */
   readonly resolvePluginReadOnlyRemoteNames?: typeof resolveAgentPluginReadOnlyRemoteNames;

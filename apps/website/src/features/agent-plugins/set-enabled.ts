@@ -1,7 +1,4 @@
 
-// activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
-import { agentPluginActivations } from "./activation-effects.js";
-const { setAgentPluginActivation } = agentPluginActivations;
 /**
  * @file The ONE composition that turns "enable/disable this Agent Plugin" into a durable decision:
  * verify the id is actually installed in this workspace, then write the activation record.
@@ -39,34 +36,10 @@ const { setAgentPluginActivation } = agentPluginActivations;
  * the same tenant-isolation guarantee every other path in this feature goes through.
  */
 
-import { resolveAgentPluginLayout } from "./layout.js";
-import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
-
-/**
- * The id named is not installed in this workspace. A distinct class rather than a bare `Error` so
- * each caller can map it to its own boundary's vocabulary — 404 `AGENT_PLUGIN_NOT_FOUND` at the
- * admin route, `ToolInputError` at the tool — without either one string-matching a message.
- */
-export class AgentPluginNotInstalledError extends Error {
-  constructor(pluginId: string) {
-    super(`agent plugin '${pluginId}' is not installed in this workspace`);
-    this.name = "AgentPluginNotInstalledError";
-  }
-}
-
-export interface SetAgentPluginEnabledInput {
-  readonly workspaceId: string;
-  readonly pluginId: string;
-  readonly enabled: boolean;
-  /** Recorded as the activation record's `updatedBy`. The authenticated principal, never a constant. */
-  readonly actor: string;
-}
-
-export interface SetAgentPluginEnabledResult {
-  readonly pluginId: string;
-  /** As actually written and read back, not as requested. */
-  readonly enabled: boolean;
-}
+import { agentPluginLifecycle } from "./lifecycle.js";
+import type { SetAgentPluginEnabledInput, SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
+export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
+export type { SetAgentPluginEnabledInput, SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
 
 /**
  * Records an operator's enable/disable decision for one installed Agent Plugin.
@@ -78,19 +51,6 @@ export interface SetAgentPluginEnabledResult {
  * @complexity O(d) in installed-digest count for the precondition, plus one whole-file rewrite of
  * the (small) activations record.
  */
-export async function setAgentPluginEnabled(input: SetAgentPluginEnabledInput): Promise<SetAgentPluginEnabledResult> {
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(input.workspaceId);
-  const installed = await listInstalledPlugins(workspaceLayout.root);
-  if (!installed.some((plugin) => plugin.pluginId === input.pluginId)) {
-    throw new AgentPluginNotInstalledError(input.pluginId);
-  }
-
-  const written = await setAgentPluginActivation({
-    workspaceRoot: workspaceLayout.root,
-    pluginId: input.pluginId,
-    enabled: input.enabled,
-    actor: input.actor,
-  });
-
-  return { pluginId: input.pluginId, enabled: written.plugins[input.pluginId]?.enabled ?? input.enabled };
+export function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, _options: Record<string, never> = {}): Promise<SetAgentPluginEnabledResult> {
+  return agentPluginLifecycle.setAgentPluginEnabled(input);
 }

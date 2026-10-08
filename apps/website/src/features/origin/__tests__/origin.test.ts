@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { OriginRegistry } from "../origin.js";
-import { InMemoryOriginSettingRepo } from "../repo.memory.js";
+import { OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import { InMemoryOriginSettingRepo } from "@jini-ai/http-kit/verified-origin";
 import { OriginNotVerifiedError, createVerifiedOrigin, InsecureOriginSourceError } from "@jini-ai/http-kit/verified-origin";
 
 const WORKSPACE = "workspace-1";
@@ -11,7 +11,7 @@ function makeRegistry(options?: {
   redirectAllowlist?: string[];
   egressAllowlist?: string[];
 }) {
-  const repo = new InMemoryOriginSettingRepo([
+  const repo = new InMemoryOriginSettingRepo({ seeds: [
     {
       workspaceId: WORKSPACE,
       origin: {
@@ -23,7 +23,7 @@ function makeRegistry(options?: {
       redirectAllowlist: options?.redirectAllowlist,
       egressAllowlist: options?.egressAllowlist,
     },
-  ]);
+  ] });
   return new OriginRegistry({ repo });
 }
 
@@ -66,7 +66,7 @@ test("createVerifiedOrigin rejects http for a workspace-setting origin", () => {
 test("InMemoryOriginSettingRepo seeding rejects an insecure workspace-setting origin", () => {
   assert.throws(
     () =>
-      new InMemoryOriginSettingRepo([
+      new InMemoryOriginSettingRepo({ seeds: [
         {
           workspaceId: WORKSPACE,
           origin: {
@@ -76,7 +76,7 @@ test("InMemoryOriginSettingRepo seeding rejects an insecure workspace-setting or
             source: "workspace-setting",
           },
         },
-      ]),
+      ] }),
     InsecureOriginSourceError
   );
 });
@@ -102,30 +102,30 @@ test("canonicalOrigin fails closed for an unregistered workspace", async () => {
 
 test("isAllowedRedirectTarget allows the exact canonical origin", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://good.com/path"), true);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://good.com/path" }), true);
 });
 
 test("isAllowedRedirectTarget allows an allowlisted cross-origin host", async () => {
   const registry = makeRegistry({ redirectAllowlist: ["partner.com"] });
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://partner.com/x"), true);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://partner.com/x" }), true);
 });
 
 test("isAllowedRedirectTarget rejects a non-allowlisted cross-origin host", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://elsewhere.com"), false);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://elsewhere.com" }), false);
 });
 
 // --- isAllowedRedirectTarget: ADR-040 F3 bypass strings ---------------------
 
 test("isAllowedRedirectTarget rejects protocol-relative //evil.com", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "//evil.com"), false);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "//evil.com" }), false);
 });
 
 test("isAllowedRedirectTarget rejects userinfo bypass https://good.com@evil.com", async () => {
   const registry = makeRegistry();
   assert.equal(
-    await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://good.com@evil.com"),
+    await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://good.com@evil.com" }),
     false
   );
 });
@@ -133,41 +133,41 @@ test("isAllowedRedirectTarget rejects userinfo bypass https://good.com@evil.com"
 test("isAllowedRedirectTarget rejects a subdomain-confusable host not on the allowlist", async () => {
   const registry = makeRegistry();
   assert.equal(
-    await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://good.com.evil.com"),
+    await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://good.com.evil.com" }),
     false
   );
 });
 
 test("isAllowedRedirectTarget rejects a backslash scheme-separator bypass", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https:/\\evil.com"), false);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https:/\\evil.com" }), false);
 });
 
 test("isAllowedRedirectTarget allows the canonical host with a trailing dot stripped", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://good.com./path"), true);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://good.com./path" }), true);
 });
 
 test("isAllowedRedirectTarget matches the canonical host case-insensitively", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://GOOD.COM/path"), true);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://GOOD.COM/path" }), true);
 });
 
 test("isAllowedRedirectTarget rejects non-https schemes (http, javascript, data)", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "http://good.com"), false);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "http://good.com" }), false);
   assert.equal(
-    await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "javascript:alert(1)"),
+    await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "javascript:alert(1)" }),
     false
   );
   assert.equal(
-    await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "data:text/html,evil"),
+    await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "data:text/html,evil" }),
     false
   );
 });
 
 test("isAllowedRedirectTarget allows http same-origin against a dev-capability canonical origin (R2-005 fix)", async () => {
-  const repo = new InMemoryOriginSettingRepo([
+  const repo = new InMemoryOriginSettingRepo({ seeds: [
     {
       workspaceId: WORKSPACE,
       origin: {
@@ -178,13 +178,13 @@ test("isAllowedRedirectTarget allows http same-origin against a dev-capability c
         source: "dev-capability",
       },
     },
-  ]);
+  ] });
   const registry = new OriginRegistry({ repo });
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "http://localhost:3000/foo"), true);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "http://localhost:3000/foo" }), true);
 });
 
 test("isAllowedRedirectTarget still rejects a cross-origin http target against a dev-capability canonical origin", async () => {
-  const repo = new InMemoryOriginSettingRepo([
+  const repo = new InMemoryOriginSettingRepo({ seeds: [
     {
       workspaceId: WORKSPACE,
       origin: {
@@ -196,23 +196,23 @@ test("isAllowedRedirectTarget still rejects a cross-origin http target against a
       },
       redirectAllowlist: ["other.com"],
     },
-  ]);
+  ] });
   const registry = new OriginRegistry({ repo });
   // "other.com" is on the allowlist, but only as an https target — the dev-capability http
   // exception applies to the same-origin comparison only, never to the cross-origin allowlist.
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "http://other.com"), false);
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://other.com"), true);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "http://other.com" }), false);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://other.com" }), true);
 });
 
 test("isAllowedRedirectTarget rejects a malformed URL instead of throwing", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "not a url"), false);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "not a url" }), false);
 });
 
 test("isAllowedRedirectTarget rejects whitespace-embedded bypass attempts", async () => {
   const registry = makeRegistry();
   assert.equal(
-    await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://good.com\t.evil.com"),
+    await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://good.com\t.evil.com" }),
     false
   );
 });
@@ -220,7 +220,7 @@ test("isAllowedRedirectTarget rejects whitespace-embedded bypass attempts", asyn
 test("isAllowedRedirectTarget fails closed when the workspace has no verified origin", async () => {
   const registry = makeRegistry();
   assert.equal(
-    await registry.isAllowedRedirectTarget({ workspaceId: "unregistered-workspace" }, "https://good.com"),
+    await registry.isAllowedRedirectTarget({ context: { workspaceId: "unregistered-workspace" }, url: "https://good.com" }),
     false
   );
 });
@@ -229,7 +229,7 @@ test("isAllowedRedirectTarget fails closed when the workspace has no verified or
 
 test("isAllowedEgressTarget allows the canonical origin", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "https://good.com"), true);
+  assert.equal(await registry.isAllowedEgressTarget({ context: { workspaceId: WORKSPACE }, url: "https://good.com" }), true);
 });
 
 test("isAllowedEgressTarget uses a separate allowlist from redirects", async () => {
@@ -239,42 +239,42 @@ test("isAllowedEgressTarget uses a separate allowlist from redirects", async () 
   });
 
   assert.equal(
-    await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "https://egress-partner.com"),
+    await registry.isAllowedEgressTarget({ context: { workspaceId: WORKSPACE }, url: "https://egress-partner.com" }),
     true
   );
   assert.equal(
-    await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "https://redirect-partner.com"),
+    await registry.isAllowedEgressTarget({ context: { workspaceId: WORKSPACE }, url: "https://redirect-partner.com" }),
     false
   );
   assert.equal(
-    await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://egress-partner.com"),
+    await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://egress-partner.com" }),
     false
   );
 });
 
 test("isAllowedEgressTarget rejects the same bypass strings as redirects", async () => {
   const registry = makeRegistry();
-  assert.equal(await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "https://good.com@evil.com"), false);
-  assert.equal(await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "//evil.com"), false);
+  assert.equal(await registry.isAllowedEgressTarget({ context: { workspaceId: WORKSPACE }, url: "https://good.com@evil.com" }), false);
+  assert.equal(await registry.isAllowedEgressTarget({ context: { workspaceId: WORKSPACE }, url: "//evil.com" }), false);
 });
 
 test("redirect and egress require matching effective ports for canonical and dev origins", async () => {
   const canonical = makeRegistry();
-  const dev = new OriginRegistry({ repo: new InMemoryOriginSettingRepo([{
+  const dev = new OriginRegistry({ repo: new InMemoryOriginSettingRepo({ seeds: [{
     workspaceId: WORKSPACE,
     origin: { scheme: "http", host: "localhost", port: 3000, verifiedAt: "2026-07-10T00:00:00.000Z", source: "dev-capability" },
-  }]) });
-  const custom = new OriginRegistry({ repo: new InMemoryOriginSettingRepo([{
+  }] }) });
+  const custom = new OriginRegistry({ repo: new InMemoryOriginSettingRepo({ seeds: [{
     workspaceId: WORKSPACE,
     origin: { scheme: "https", host: "good.com", port: 8443, verifiedAt: "2026-07-10T00:00:00.000Z", source: "workspace-setting" },
-  }]) });
+  }] }) });
   for (const oracle of ["isAllowedRedirectTarget", "isAllowedEgressTarget"] as const) {
-    assert.equal(await canonical[oracle]({ workspaceId: WORKSPACE }, "https://good.com:443/path"), true);
-    assert.equal(await canonical[oracle]({ workspaceId: WORKSPACE }, "https://good.com:8443/path"), false);
-    assert.equal(await custom[oracle]({ workspaceId: WORKSPACE }, "https://good.com:8443/path"), true);
-    assert.equal(await custom[oracle]({ workspaceId: WORKSPACE }, "https://good.com/path"), false);
-    assert.equal(await dev[oracle]({ workspaceId: WORKSPACE }, "http://localhost:3000/path"), true);
-    assert.equal(await dev[oracle]({ workspaceId: WORKSPACE }, "http://localhost:3001/path"), false);
+    assert.equal(await canonical[oracle]({ context: { workspaceId: WORKSPACE }, url: "https://good.com:443/path" }), true);
+    assert.equal(await canonical[oracle]({ context: { workspaceId: WORKSPACE }, url: "https://good.com:8443/path" }), false);
+    assert.equal(await custom[oracle]({ context: { workspaceId: WORKSPACE }, url: "https://good.com:8443/path" }), true);
+    assert.equal(await custom[oracle]({ context: { workspaceId: WORKSPACE }, url: "https://good.com/path" }), false);
+    assert.equal(await dev[oracle]({ context: { workspaceId: WORKSPACE }, url: "http://localhost:3000/path" }), true);
+    assert.equal(await dev[oracle]({ context: { workspaceId: WORKSPACE }, url: "http://localhost:3001/path" }), false);
   }
 });
 
@@ -284,25 +284,25 @@ test("redirect and egress allowlists require exact hosts, rejecting suffix and s
     ["isAllowedRedirectTarget", "partner.com"],
     ["isAllowedEgressTarget", "api.example.com"],
   ] as const) {
-    assert.equal(await registry[oracle]({ workspaceId: WORKSPACE }, `https://${host}`), true);
+    assert.equal(await registry[oracle]({ context: { workspaceId: WORKSPACE }, url: `https://${host}` }), true);
     for (const candidate of [`evil${host}`, `sub.${host}`, `${host}.evil.com`]) {
-      assert.equal(await registry[oracle]({ workspaceId: WORKSPACE }, `https://${candidate}`), false, candidate);
+      assert.equal(await registry[oracle]({ context: { workspaceId: WORKSPACE }, url: `https://${candidate}` }), false, candidate);
     }
   }
 });
 
 test("redirect and egress fail closed when their allowlist lookup rejects", async () => {
-  const repo = new InMemoryOriginSettingRepo([{
+  const repo = new InMemoryOriginSettingRepo({ seeds: [{
     workspaceId: WORKSPACE,
     origin: { scheme: "https", host: "good.com", verifiedAt: "2026-07-10T00:00:00.000Z", source: "workspace-setting" },
-  }]);
+  }] });
   let redirectLookups = 0;
   let egressLookups = 0;
   repo.findRedirectAllowlist = async () => { redirectLookups++; throw new Error("redirect lookup failed"); };
   repo.findEgressAllowlist = async () => { egressLookups++; throw new Error("egress lookup failed"); };
   const registry = new OriginRegistry({ repo });
-  assert.equal(await registry.isAllowedRedirectTarget({ workspaceId: WORKSPACE }, "https://partner.com"), false);
-  assert.equal(await registry.isAllowedEgressTarget({ workspaceId: WORKSPACE }, "https://api.example.com"), false);
+  assert.equal(await registry.isAllowedRedirectTarget({ context: { workspaceId: WORKSPACE }, url: "https://partner.com" }), false);
+  assert.equal(await registry.isAllowedEgressTarget({ context: { workspaceId: WORKSPACE }, url: "https://api.example.com" }), false);
   assert.equal(redirectLookups, 1);
   assert.equal(egressLookups, 1);
 });

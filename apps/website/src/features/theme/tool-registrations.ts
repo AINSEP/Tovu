@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Themes' half of ADR-049 Decision 4: maps every one of `agent-tools.ts`'s catalog entries
@@ -37,7 +38,7 @@ import { buildDomainRegistrations, indexCatalogById, optionalString, requireInpu
 import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { ToolContributor } from "#src/assistant/index";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import {
   getThemesAgentToolCatalog,
   THEME_READ_PERMISSION,
@@ -75,6 +76,9 @@ import {
   trashDestinationFor,
   validateFileIdentityChange,
 } from "./file-identity-lock.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: getThemesAgentToolCatalog() });
 
@@ -95,7 +99,7 @@ export interface ThemeToolDeps {
    */
   themes: DiscoveredTheme[];
   themesDir: string;
-  /** Design C (2026-09-16) — the package's own read-only catalog fallback; see
+  /** Design C — the package's own read-only catalog fallback; see
    *  `RouteDeps.packageThemesDir`'s own doc (`server/routes/types.ts`) for the full rationale.
    *  Optional: `undefined` for any caller that predates this field, structurally satisfied by every
    *  existing `RouteDeps`-shaped test fixture without a source change. */
@@ -293,7 +297,7 @@ function assertCompiledWriteBoundaryUnchanged(theme: DiscoveredTheme, relativePa
 
 /**
  * Where `theme_reset_file` reads its original from and compares against: the site's own catalog
- * copy, or — since Design C (2026-09-16), only when the site has none at all — the package's own
+ * copy, or — since Design C, only when the site has none at all — the package's own
  * read-only catalog. See `resolveThemeOriginalSource`'s own doc (`theme-files.ts`) for the full
  * rationale; `routeDeps.packageThemesDir` is `undefined` for any caller that predates that field,
  * which resolves the identical "no fallback" answer this tool always got before.
@@ -589,7 +593,7 @@ function selectThemeReadContent(content: string, selection: Exclude<ThemeReadSel
 
 export function buildThemesRegistrations(
   routeDeps: ThemeToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     preview_reload: async (ctx) => {
@@ -682,7 +686,7 @@ export function buildThemesRegistrations(
       return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
-        // ADR-020 §5 generated-tree refusal + the `preview/` security-parity refusal (2026-08-18) —
+        // ADR-020 §5 generated-tree refusal + the `preview/` security-parity refusal —
         // both checked BEFORE any filesystem write, so a rejected write never touches disk. See
         // `assertThemeFileWritable`'s own doc; shared with `theme_edit_file` below.
         assertThemeFileWritable(theme, relativePath);
@@ -1004,7 +1008,7 @@ export function buildThemesRegistrations(
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "themes",
     catalogModule: "features/theme/agent-tools.ts",
     catalog: CATALOG_BY_ID,
@@ -1014,37 +1018,9 @@ export function buildThemesRegistrations(
 }
 
 /**
- * Contributes Themes' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
- * module.
- *
- * 2026-08-17: Themes was briefly converted to the tool-contribution registry (`contributeThemesTools`,
- * registered via `#src/assistant/index`'s `registerToolContributor`) alongside identity/members/
- * taxonomy/redirects in the same Stage 2 batch, then reverted the same night — `check:architecture`
- * showed it opened a NEW module cycle: `export/route-manifest.ts` imports `#src/features/theme/index`
- * (a `#src/*` subpath import, not a relative one — the reason a plain relative-path grep for this
- * domain's importers missed it beforehand), and `assistant` already reached `export` transitively
- * through its still-static `deployments`/`source-control` `DOMAIN_SLICES` entries. Adding
- * `themes -> assistant` closed a 6-module SCC: `assistant, export, features/deployments,
- * features/source-control, features/theme, features/vendor-credentials`.
- *
- * RETRIED 2026-08-17 (same day, later pass) after `source-control` converted cleanly — `deployments`
- * did NOT convert yet (reverted again on a different edge). Empirically wired `registerToolContributor`
- * here and ran `check:architecture --list`: `source-control` leaving `DOMAIN_SLICES` alone was NOT
- * enough — `deployments` staying static (plus the SAME previously-undocumented
- * `vendor-credentials/store.ts` `extractGitHubLogin` edge that blocked `deployments`/`static-publish`
- * themselves) still gave `assistant` a path into this cluster. Largest strongly-connected component
- * grew 0 -> 5 — `[assistant, export, features/deployments, features/theme,
- * features/vendor-credentials]`. Reverted cleanly instead.
- *
- * RETRIED AND LANDED HERE (2026-08-17, same session) after `deployments`/`static-publish` both
- * converted (see `features/deployments/tool-registrations.ts`'s own header for the
- * `vendor-credentials/store.ts` `extractGitHubLogin` fix that unblocked them). With `deployments`
- * off `DOMAIN_SLICES` too, `assistant` no longer reaches `export` transitively through any
- * still-static `DOMAIN_SLICES` entry — `check:architecture` confirms 0 module cycles / largest SCC
- * 0 with Themes wired this way. `export/route-manifest.ts`'s own `#src/features/theme/index` import
- * is untouched and still real; it simply no longer closes a cycle back to `assistant` now that
- * nothing reachable from `assistant` reaches `export`.
+ * Contributes Themes's AI tools; called once by the composition root's
+ * `installFirstPartyToolContributors()`, never as an import side effect.
+ * Registration is a composition-root effect; feature imports must not reach back into the assistant.
  */
 export function contributeThemesTools(): ToolContributor {
   return { domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk };

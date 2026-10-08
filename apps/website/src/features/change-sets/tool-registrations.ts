@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/change-sets.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
@@ -168,7 +169,7 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "change-sets",
     catalogModule: "features/change-sets/agent-tools.ts",
     catalog: CATALOG_BY_ID,

@@ -3,18 +3,17 @@
  * "approved" | "spam" | "trash"`).
  *
  * The comments table is NOT in the core schema — it is created by the ADR-023 dataModule engine as
- * `p_comments__comments`, so this adapter addresses it by the same derived name
- * `features/comments/repo.ts` uses, over the same content kernel.
+ * the comments plugin table, so this adapter addresses it by the same derived name
+ * `Jini/packages/cms/src/comments/sql/repo.ts` uses, over the same content kernel.
  *
  * Restore goes back to `"pending"`, not to whatever the comment was before. Deliberate: the
  * original status is not recorded anywhere the no-parse rule allows this adapter to read, and of
  * the two guesses available, sending a restored comment back through moderation is the one that
  * cannot accidentally republish spam onto a public page.
  */
-// The domain's public barrel, not `comments/types.js`: `no-deep-imports:features/comments` makes a
-// deep import an error, and the plugin id is the ONE thing this adapter takes from that domain —
+// Jini's public comments entry owns the plugin id, the ONE thing this adapter takes from that domain —
 // re-deriving the table name here instead would put the same string in two files.
-import { COMMENTS_PLUGIN_ID } from "#src/features/comments/index";
+import { COMMENTS_PLUGIN_ID } from "@jini-ai/cms/comments";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 

@@ -1,3 +1,4 @@
+import { isNonArrayRecord } from "@jini-ai/core";
 import { load, FAILSAFE_SCHEMA } from "js-yaml";
 
 /**
@@ -26,10 +27,6 @@ function collapseWhitespace(raw: string): string | undefined {
   return value.length > 0 ? value : undefined;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** Today's original single-line reader, kept verbatim as the fallback for frontmatter that YAML
  *  itself refuses to parse — trims the value and strips one layer of surrounding quotes. */
 function readFieldByRegex(frontmatter: string, key: string): string | undefined {
@@ -53,15 +50,15 @@ export function readFrontmatterField(markdown: string, key: string): string | un
   if (!closing) return undefined;
   const frontmatter = markdown.slice(3, 3 + closing.index!);
 
-  let parsed: unknown;
+  const parsed = { value: undefined as unknown };
   try {
-    parsed = load(frontmatter, { schema: FAILSAFE_SCHEMA });
+    parsed.value = load(frontmatter, { schema: FAILSAFE_SCHEMA });
   } catch {
     return readFieldByRegex(frontmatter, key);
   }
 
-  if (!isPlainObject(parsed)) return undefined;
-  const raw = parsed[key];
+  if (!isNonArrayRecord(parsed)) return undefined;
+  const raw = parsed.value[key];
   if (typeof raw === "string") return collapseWhitespace(raw);
   // A value YAML reads as a sequence/map (e.g. `description: [Beta]`) was a plain string to the old
   // regex; keep reading it that way so such a skill doesn't silently stop loading.

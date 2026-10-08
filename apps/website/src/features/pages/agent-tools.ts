@@ -1,4 +1,4 @@
-import { COLLECTION_MARKER_TYPE, EMBED_MARKER_TARGET_KEYS } from "#src/contracts/core/embeds/marker";
+import { COLLECTION_MARKER_TYPE, EMBED_MARKER_TARGET_KEYS } from "@jini-ai/cms/widgets/markers";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 import { PAGE_SKELETON_REGIONS } from "./skeleton.js";
 
@@ -89,7 +89,7 @@ function otherEmbedTypesText(): string {
  * is what makes a page track the site's theme instead of hardcoding one theme's palette; the
  * no-`<form>` rule exists because a form posting nowhere silently loses real leads.
  */
-const PAGE_HTML_CONTRACT =
+export const PAGE_HTML_CONTRACT =
   "CONTRACT for the HTML you write:\n" +
   "- INNER CONTENT ONLY. Never emit <html>, <head>, <body>, <nav>, or a site footer — the active " +
   "theme's template owns all page chrome and wraps whatever you write. Emitting them produces a " +
@@ -238,9 +238,9 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "pages_write_region",
     description:
-      "Replaces the CONTENTS of one editable region of a page, leaving every other byte of the page " +
-      "exactly as it was. This is how you change one section — a headline, a pricing block, a call to " +
-      "action — without rewriting the whole document.\n\n" +
+      "Edit or update one section of a page — a hero headline, pricing block, or call to action — " +
+      "without rewriting it. Replaces that editable region's CONTENTS, leaving the rest of the page " +
+      "alone and every other byte exactly as it was.\n\n" +
       "Address the region by the handle from pages_read_html's 'regions' list (the value of that " +
       "section's data-agent-element attribute). A handle that is not in the page, or that two " +
       "elements both carry, is REJECTED rather than guessed at — nothing is written and the error " +

@@ -1,3 +1,5 @@
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -30,6 +32,9 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     clock: base.clock,
     idGen: base.idGen,
     seoReady: base.seoReady,
+    seoDeps: base.seoDeps,
+    sitemapService: base.sitemapService,
+    mediaContentTypeStore: base.mediaContentTypeStore,
     postRepo: base.postRepo,
     settingsRepo: base.settingsRepo,
     principalRepo: base.principalRepo,
@@ -42,6 +47,8 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     siteDisplayName: base.siteDisplayName,
     ...depsOverrides,
   };
+  deps.seoDeps = depsOverrides.seoDeps ?? createSeoDeps({ deps }, {});
+  deps.sitemapService = depsOverrides.sitemapService ?? createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => {
@@ -100,7 +107,7 @@ test("get-settings: returns workspace seo settings (200)", async (t) => {
     robotsRules: [{ userAgent: "CanaryBot", allow: ["/public"], disallow: ["/private"] }],
   };
   await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
-    authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo },
+    authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo, media: base.seoDeps.media },
     { workspaceId: WORKSPACE_ID, callerPrincipalId: "test-principal", patch: expected });
   const app = buildApp({ settingsRepo: base.settingsRepo, seoReady: base.seoReady });
   const { status, json } = await get(t, app);

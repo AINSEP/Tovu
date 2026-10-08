@@ -363,7 +363,7 @@ const MAX_IDENTIFIER_BYTES = 63;
  * one backend into an install-time error the plugin author sees immediately.
  *
  * Measured headroom at the time this was added: the longest live identifier is 42 bytes
- * (`idx_p_comments__comments__moderation_queue`), so no existing plugin is affected. The budget a
+ * (the comments plugin's moderation-queue index), so no existing plugin is affected. The budget a
  * plugin author actually has is `pluginId + tableName + indexName <= 53` for an index, since the
  * `idx_`, `p_`, and two `__` separators consume the other 10.
  */

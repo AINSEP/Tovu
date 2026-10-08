@@ -1,21 +1,11 @@
 /**
  * @file Public surface (barrel) for taxonomy — re-exported from `@jini-ai/cms/taxonomy`.
  *
- * The domain moved into the package on 2026-08-03 so a second host can use the same taxonomies,
- * terms, hierarchy rules, and term-assignment chokepoint. What is left in this directory is only
- * what is genuinely this host's:
- *
- * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.sqlite.ts`, this repo's shared
- *   1,246-line schema covering every domain, so they are host persistence, not library code.
- * - `gated-hooks.ts` — the `mergeTerm` ceremony's `GatedMutationHooks` factory. It composes
- *   `core/gated-mutations`, a kernel that has not been extracted, so it is composition over a
- *   host-owned module.
- * - `tool-registrations.ts` — the same, plus it binds the gateway's `plan()` into the agent-tool
- *   layer and is the seam `assistant/tool-registrations.ts` reaches uniformly across domains.
- *
- * Everything else here is a re-export, and the shape of what is *not* re-exported is the point:
- * there is no SQLite, hooks, or registration export on this barrel, so nothing outside the
- * composition root can accidentally depend on this host's persistence or gateway choice.
+ * Jini owns taxonomy, hierarchy and term assignment. SQLite adapters bind the site's schema;
+ * `gated-hooks.ts` composes the host's gated-mutation kernel, and `tool-registrations.ts` binds
+ * its gateway to the assistant's uniform domain registration seam.
+ * This barrel omits SQLite, hooks and registrations so consumers cannot accidentally depend
+ * on the host's persistence or gateway choice.
  */
 export {
   TaxonomyNotApplicableError,

@@ -303,10 +303,10 @@ export async function repairSite(required: RepairSiteRequired): Promise<RepairSi
 
   let wroteConfig = false;
   try {
-    writeJsonFileAtomic(configPath, plan.config);
+    writeJsonFileAtomic({ filePath: configPath, data: plan.config }, {});
     wroteConfig = true;
     // The commit marker, written LAST on success (mirrors `initSite`'s own CIC U-003-ORD1).
-    writeJsonFileAtomic(metaPath, plan.meta);
+    writeJsonFileAtomic({ filePath: metaPath, data: plan.meta }, {});
   } catch (err) {
     if (wroteConfig) {
       try {

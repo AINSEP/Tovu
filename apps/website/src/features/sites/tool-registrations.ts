@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/sites.js';
 import path from "node:path";
 
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -227,7 +228,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "sites",
     catalogModule: "features/sites/agent-tools.ts",
     catalog: CATALOG_BY_ID,

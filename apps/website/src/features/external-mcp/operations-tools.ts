@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/external-mcp.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
@@ -66,7 +67,7 @@ function readOperationInput(input: unknown, toolId: string, allowedKeys: readonl
  */
 export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDeps, operations: ExternalMcpOperations): ToolRegistration[] {
   const limiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "external-mcp-operations",
     catalogModule: "features/external-mcp/operations-tools.ts",
     catalog: indexCatalogById({ catalog: externalMcpOperationsToolCatalog }),

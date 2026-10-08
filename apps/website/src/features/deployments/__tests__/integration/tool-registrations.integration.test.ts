@@ -36,7 +36,7 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  * (no run has started yet in this process) holds, the same ordering discipline
  * `export-site-route.test.ts` already documents for its own file.
  *
- * ## 2026-08-15 — `ifMatch` (Terra audit finding C5)
+ * ifMatch preserves concurrent edits
  *
  * `deployment_set_dockerfile` now requires `ifMatch` in its input, so every test below that expects
  * a successful write reads a real etag from `deployment_get_dockerfile` (or an earlier successful
@@ -83,7 +83,6 @@ test("all 4 deployments tools are registered with input schemas the model needs"
   }
 });
 
-// deployment_list assertions retired with the never-written deployment tables (2026-10-03).
 
 test("deployment_set_dockerfile refuses when the caller lacks system.write, and never touches the file", async (t) => {
   isolateDockerfile(t);

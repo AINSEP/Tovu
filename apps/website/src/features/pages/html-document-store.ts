@@ -6,7 +6,7 @@ import { assertEntityLive } from "@jini-ai/cms/core";
 
 import type { ContentDatabase, PostsTable } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { normalizeEmbedMarkerQuoting } from "../../contracts/core/embeds/marker.js";
+import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 // Not from `../post/index.js`: that barrel deliberately never re-exports Pages-specific things and,
@@ -316,7 +316,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    */
   async ensureHtmlFormat(authoredSeedHtml: string): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
-    const seedHtml = normalizeEmbedMarkerQuoting(authoredSeedHtml);
+    const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.deps.kernel.run((db) =>
       this.thisRow(db).select(["kind", "body_format", "version", "deleted_at"]).limit(1).executeTakeFirst()
     );
@@ -459,7 +459,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    */
   async write(authoredHtml: string): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
-    const html = normalizeEmbedMarkerQuoting(authoredHtml);
+    const html = normalizeEmbedMarkerQuoting({ html: authoredHtml });
     if (this.lastReadVersion === null) {
       throw new Error("PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on");
     }

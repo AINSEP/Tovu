@@ -10,8 +10,8 @@ import test from "node:test";
 
 
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { resolveAgentPluginRefs, listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
-import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { resolveAgentPluginRefs, listInstalledPlugins } from "../../lifecycle.js";
+import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "../../lifecycle.js";
 import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources } from "../../tool-registrations.js";
 
 /**

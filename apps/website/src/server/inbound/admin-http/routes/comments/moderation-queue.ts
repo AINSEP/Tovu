@@ -1,7 +1,7 @@
 import { optionalOneOf, optionalString, readToolLimit, ToolInputError } from "@jini-ai/core";
 import type { Express } from "express";
 
-import { COMMENT_STATUSES, type CommentRepoPort, type CommentStatus } from "#src/features/comments/index";
+import { COMMENT_STATUSES, type CommentRepoPort, type CommentStatus } from "@jini-ai/cms/comments";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 

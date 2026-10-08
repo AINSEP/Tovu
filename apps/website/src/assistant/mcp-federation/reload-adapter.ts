@@ -1,4 +1,4 @@
-/** @file Host DI/ABI adapter; reload.ts's admission freeze and trailing-edge queue moved to Jini. */
+/** @file Host DI/ABI adapter for Jini-owned admission freezing and reload coalescing. */
 import { createFederationReloadCoordinator as createJiniReload, type FederationReloadResult } from "@jini-ai/mcp/federation";
 import { attachFederatedMcpTools, createDefaultConnect, tovuStdioLaunchResolverFromEnv, type AttachFederatedMcpToolsParams, type FederationLogger } from "./bootstrap.js";
 import { toJiniFederationDeps, type FederationDeps } from "./registrations.js";

@@ -1,6 +1,5 @@
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService } from "./shared.js";
+import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 /** This route's two required query params, or `null` if either is missing.
  *  @complexity O(1). */
@@ -14,7 +13,7 @@ function parseGetRawQuery(query: Record<string, unknown>): { namespace: string; 
 }
 
 /**
- * Layer resolution and rationale: Jini packages/cms/src/http/settings/cms-adapter.ts.
+ * Layer resolution and rationale: Jini packages/core/src/settings/express/cms-adapter.ts.
  * `state === "set"` yields stored data; cleared or absent layers read as null.
  *
  * GET the per-layer raw values of one setting key (SPEC-007 api.spec.md
@@ -40,38 +39,16 @@ function parseGetRawQuery(query: Record<string, unknown>): { namespace: string; 
  * `set.ts`/`clear.ts`'s identical mapping for the same error.
  */
 export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = (app, deps) => {
-  app.get("/api/admin/v1/workspaces/:workspaceId/settings/raw", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
-    try {
-      await deps.settingsReady;
-      const principal = getAuthedPrincipal(res);
-
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "settings.read.raw",
-        workspaceId: deps.workspaceId,
-        entityType: "setting-value",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'settings.read.raw' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "settings.read.raw", reason: authResult.reason },
-        });
-        return;
-      }
+  mountSettingsJsonRoute({ app, deps, method: "get", path: "/api/admin/v1/workspaces/:workspaceId/settings/raw",
+    handle: async ({ request: req, principal, authorize }) => {
+      await authorize({ permission: "settings.read.raw", entityType: "setting-value" });
 
       const parsedQuery = parseGetRawQuery(req.query as Record<string, unknown>);
       if (!parsedQuery) {
-        res.status(400).json({
+        rejectSettingsRequest({ status: 400,
           error: "'namespace' and 'key' query params are required",
           code: "VALIDATION_ERROR",
         });
-        return;
       }
       const { namespace, key } = parsedQuery;
       // `authorize()` above was checked against `deps.workspaceId` and `principal.id` — never let
@@ -84,27 +61,22 @@ export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = (app, de
         callerPrincipalId: principal.id,
       });
       if (!readTarget.allowed) {
-        res.status(403).json({
+        rejectSettingsRequest({ status: 403,
           error: `principal '${principal.id}' is not authorized to read another principal's user-layer value (${readTarget.reason})`,
           code: "FORBIDDEN",
           details: { permission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, reason: readTarget.reason },
         });
-        return;
       }
       const principalId = readTarget.principalId;
 
       const value = await createTovuSettingsService({ deps }).raw({ namespace, key, workspaceId, principalId });
       if (!value) {
-        res.status(404).json({
+        rejectSettingsRequest({ status: 404,
           error: `definition '${namespace}.${key}' was not found`,
           code: "DEFINITION_NOT_FOUND",
         });
-        return;
       }
-      res.json(value);
-    } catch (err) {
-      void err;
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
-    }
+      return value;
+    },
   });
 };

@@ -69,17 +69,17 @@ test("a disallowed tag is rejected by the worker's defensive re-lint even when i
   );
 });
 
-test("trusted Liquid templates still cannot include an existing filesystem file", async (t) => {
+test("Liquid templates cannot include an existing filesystem file", async (t) => {
   const dir = mkdtempSync(join(process.cwd(), ".tovu-liquid-no-fs-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = join(dir, "private.liquid");
   writeFileSync(file, "PRIVATE_FILE_CONTENT");
   const source = `{% include '${file}' %}`;
   assert.equal(await new Liquid().parseAndRender(source), "PRIVATE_FILE_CONTENT", "control: the ordinary filesystem adapter can resolve and read this exact include");
-  assert.equal(await renderLiquidInSandbox({ source: "{{ site.title }}", ctx: baseCtx(), skipLiquidAllowlist: true }), "Test Site");
+  assert.equal(await renderLiquidInSandbox({ source: "{{ site.title }}", ctx: baseCtx() }), "Test Site");
   await assert.rejects(
-    renderLiquidInSandbox({ source, ctx: baseCtx(), skipLiquidAllowlist: true }),
-    /ENOENT|filesystem access disabled/
+    renderLiquidInSandbox({ source, ctx: baseCtx() }),
+    /disallowed Liquid usage.*disallowed tag "include"/
   );
 });
 

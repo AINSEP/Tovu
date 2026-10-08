@@ -1,6 +1,6 @@
 import { assertNotRedirected, DeployError, redirectGuardInit } from "@jini-ai/devops/deploy";
 
-import { describeErrorForLog } from "../../contracts/core/model-facing-tool-errors.js";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 import { trackFetch, type ObservabilityPort } from "../../platform/observability/index.js";
 import type { SourceControlProviderKit } from "./provider-module.js";
@@ -36,7 +36,7 @@ export function createSourceControlProviderKit(
     httpClient: options.httpClient ?? NO_HTTP_CLIENT,
     describeTransportError: (error) => ({
       refusal: error instanceof EgressRefusedError ? error.callerSafeMessage : undefined,
-      logDetail: error instanceof EgressRefusedError ? error.message : describeErrorForLog(error),
+      logDetail: error instanceof EgressRefusedError ? error.message : describeErrorForLog({ err: error }),
     }),
     sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
   };

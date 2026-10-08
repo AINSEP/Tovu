@@ -7,10 +7,11 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo, PostNotFoundError } from "#src/features/post/index";
+import { createSeoPostPort } from "#src/features/seo/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { loadTheme } from "#src/features/theme/index";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "#src/features/origin/index";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveMarketingPageOrOverride } from "../pages.js";
 import { registerResolvePhase } from "#src/platform/routing/routing";
@@ -32,6 +33,8 @@ import { registerPageHeadContributor } from "../../../http/site/page-head.js";
 
 async function startServer(overrides: Partial<ReturnType<typeof createRouteDeps>>) {
   const deps = { ...createRouteDeps(), ...overrides };
+  // Rebind the derived SEO reader as well: both paths must see the same fixture posts.
+  deps.seoDeps = { ...deps.seoDeps, postRepo: createSeoPostPort({ postRepo: deps.postRepo }, {}) };
   const server = createServer(createApp(deps));
   server.listen(0);
   await once(server, "listening");

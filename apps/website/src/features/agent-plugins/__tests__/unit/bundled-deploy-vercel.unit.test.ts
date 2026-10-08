@@ -155,7 +155,6 @@ describe("VercelDeployTarget.publish — responseHeaders", () => {
   });
 });
 
-// ---- Ported from @jini-ai/devops 28f67f9a src/deploy/__tests__/vercel.test.ts ----
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });

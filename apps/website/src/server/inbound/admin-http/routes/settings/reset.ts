@@ -1,7 +1,6 @@
 import { ForbiddenError, type SettingScope } from "#src/features/settings/index";
-import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, createTovuSettingsService } from "./shared.js";
+import { resolveTargetWorkspaceId, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -21,7 +20,7 @@ function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: 
 }
 
 /**
- * Partition selection and rationale: Jini packages/cms/src/http/settings/cms-adapter.ts.
+ * Partition selection and rationale: Jini packages/core/src/settings/express/cms-adapter.ts.
  * The workspace partition a namespace's definitions live in for this scope — `null` (platform) for
  * `global`, else this workspace's own partition, falling back to the ambient workspace when the
  * resolved target workspace itself was `undefined` (the `scope: "global"` case `resolveTargetWorkspaceId`
@@ -46,23 +45,15 @@ function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: 
  * this workspace's site-owned partition.
  */
 export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, deps) => {
-  app.post("/api/admin/v1/workspaces/:workspaceId/settings/reset", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-
-    try {
-      await deps.settingsReady;
-      const principal = getAuthedPrincipal(res);
-
+  mountSettingsJsonRoute({ app, deps, method: "post", path: "/api/admin/v1/workspaces/:workspaceId/settings/reset",
+    errorMappings: [{ matches: (error) => error instanceof ForbiddenError, status: 403, code: "FORBIDDEN" }],
+    handle: async ({ request: req, principal, authorize }) => {
       const parsedBody = parseResetRequestFields(req.body);
       if (!parsedBody) {
-        res.status(400).json({
+        rejectSettingsRequest({ status: 400,
           error: "namespace and scope (global|workspace|user) are required",
           code: "VALIDATION_ERROR",
         });
-        return;
       }
       const { namespace, scope, bodyWorkspaceId } = parsedBody;
       // See `resolveTargetWorkspaceId` in `shared.ts`. This was the worst of the three: it took the
@@ -70,8 +61,7 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, dep
       // request could wipe an entire namespace in another tenant.
       const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
       if (!targetWorkspace.ok) {
-        res.status(400).json({ error: targetWorkspace.error, code: "VALIDATION_ERROR" });
-        return;
+        rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }
       const workspaceId = targetWorkspace.workspaceId;
 
@@ -79,32 +69,13 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, dep
       // See `set.ts`'s identical comment: always the ambient `deps.workspaceId`,
       // never a fallback to the caller's own principal id.
       const authWorkspaceId = deps.workspaceId;
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission,
-        workspaceId: authWorkspaceId,
-        entityType: "setting-namespace",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${permission}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission, reason: authResult.reason },
-        });
-        return;
-      }
+      await authorize({ permission, entityType: "setting-namespace" });
 
       const result = await createTovuSettingsService({ deps }).reset({
         namespace, scope, workspaceId, callerPrincipalId: principal.id, authWorkspaceId,
       });
 
-      res.json({ namespace, clearedCount: result.clearedCount, revisionSeqs: result.revisionSeqs });
-    } catch (err) {
-      if (err instanceof ForbiddenError) {
-        res.status(403).json({ error: err.message, code: "FORBIDDEN" });
-        return;
-      }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
-    }
+      return { namespace, clearedCount: result.clearedCount, revisionSeqs: result.revisionSeqs };
+    },
   });
 };

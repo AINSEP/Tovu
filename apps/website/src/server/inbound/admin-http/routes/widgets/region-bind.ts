@@ -1,5 +1,5 @@
 import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
-import { bindWidgetArea } from "#src/features/widgets/region-area-service";
+import { bindWidgetArea } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
 

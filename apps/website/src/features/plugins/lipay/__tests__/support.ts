@@ -10,9 +10,9 @@ import Database from "better-sqlite3";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { activateLipay, type LipayApi } from "../lipay-plugin.js";
-import { createLipayGateway } from "../providers/lipay-gateway.js";
-import { InMemoryPaymentCredentials } from "../credentials.js";
-import type { PaymentProvider } from "../ports.js";
+import { createLipayGateway } from "@jini-ai/commerce/payments";
+import { InMemoryPaymentCredentials } from "@jini-ai/commerce/payments";
+import type { PaymentProvider } from "@jini-ai/commerce/payments";
 
 export const WORKSPACE_ID = "workspace-1";
 export const API_BASE = "https://lipay.test";

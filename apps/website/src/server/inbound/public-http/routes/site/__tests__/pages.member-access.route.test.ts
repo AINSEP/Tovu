@@ -183,3 +183,31 @@ for (const tokenKind of ["unknown", "expired"] as const) {
     assert.doesNotMatch(html, /Members Only Post|members-only-post/);
   });
 }
+
+test("malformed member cookies do not turn a gated page into a 500", async t => {
+  const post = memberGatedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) });
+  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo([post]) });
+  t.after(() => closeServer(server));
+  const response = await fetch(`${baseUrl}/${post.slug}`, { headers: { cookie: "tovu_member_session=%E0%A4%A" } });
+  assert.equal(response.status, 404);
+});
+
+test("consuming a form flash appends its clearing cookie without replacing an earlier cookie", async t => {
+  const express = (await import("express")).default;
+  const deps = createRouteDeps();
+  const app = express();
+  app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
+  app.use(createApp(deps));
+  const server = createServer(app);
+  server.listen(0);
+  await once(server, "listening");
+  t.after(() => closeServer(server));
+  const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const flash = encodeURIComponent(JSON.stringify({ slug: "contact", values: { name: "Ada" } }));
+  const response = await fetch(`${baseUrl}/`, { headers: { cookie: `tovu_form_flash=${flash}` } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.headers.getSetCookie(), [
+    "upstream=kept; Path=/",
+    "tovu_form_flash=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax",
+  ]);
+});

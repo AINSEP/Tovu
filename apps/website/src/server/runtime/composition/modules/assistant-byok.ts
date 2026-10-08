@@ -1,5 +1,5 @@
-import { CREDENTIAL_GUIDANCE, withCredentialPasteGuidance } from "#src/assistant/credential-guidance";
-import { redactUserMessage } from "@jini-ai/chat/core";
+import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
+import { guardUserText } from "@jini-ai/chat/core";
 import { prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
@@ -143,7 +143,7 @@ function beginStream(req: Request, res: Response): void {
   res.flushHeaders?.();
 }
 
-function isPlainMessage(value: unknown): value is { role: unknown; content: unknown } {
+function isPlainMessage(value: unknown): value is { role: unknown; content: unknown; secretRedacted?: unknown } {
   return typeof value === "object" && value !== null;
 }
 
@@ -186,8 +186,10 @@ function toByokChatMessage(entry: unknown): ByokChatMessage | null {
   const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
   const content = typeof entry.content === "string" ? entry.content : null;
   if (role === null || content === null || content.length === 0) return null;
-  const safe = redactUserMessage({ message: { role, content } }).message;
-  return { ...safe, role, content: role === "user" ? withCredentialPasteGuidance({ text: safe.content }, {}) : safe.content };
+  const modelContent = role === "user" ? guardUserText({ text: content }, {
+    modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: entry.secretRedacted === true,
+  }) : content;
+  return { role, content: modelContent };
 }
 
 /** Validates and bounds the client-supplied history. Fail-soft on individual malformed entries
@@ -375,44 +377,14 @@ export function createAssistantByokModule(
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions }, { observability: routeDeps.observability });
-  // Historical rationale for the pre-extraction cast (retained to explain the old failure):
-  // `routeDeps`'s declared type here was `RouteDeps` (the old parameter), which is
-  // honestly narrower than what `createByokToolSurface` needs (`ByokToolSurfaceDeps` — every
-  // `AssistantToolRegistryDeps` field, including all 10 of `NewsletterToolDeps`'s own). The real
-  // object this is always called with (`app.ts`'s `createApp(routeDeps: RouteDeps =
-  // createRouteDeps())`) already carries them — `createRouteDeps()`'s actual return type is
-  // `NewsletterRouteDeps`, a superset of `RouteDeps` — the same structural-narrowing gap
-  // `server/app.ts`'s own `newsletterAdminDeps = routeDeps as NewsletterRouteDeps` cast documents and
-  // accepted at the identical seam, a few hundred lines away in the same composition root.
-  //
-  // Unlike that precedent, a SINGLE cast is not available here: `NewsletterRouteDeps extends
-  // RouteDeps` is a declared nominal relationship, so TypeScript accepts `routeDeps as
-  // NewsletterRouteDeps` outright. `ByokToolSurfaceDeps` declares no such relationship to `RouteDeps`
-  // — verified empirically, not assumed: `routeDeps as ByokToolSurfaceDeps` alone fails with TS2352
-  // ("neither type sufficiently overlaps... convert the expression to 'unknown' first"), naming the
-  // exact same `NewsletterToolDeps` fields TS2345 named when this parameter's own type was
-  // `Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter">` outright (`npx tsc -p tsconfig.json
-  // --noEmit`, both checked directly before choosing this form). The old `unknown` detour was
-  // TypeScript's required spelling at that time for "these two types don't provably overlap, trust the
-  // runtime invariant" — the same one-step escape hatch `byok-tool-surface.ts` used to need
-  // internally before its own signature was made honest; it then lived at the one remaining seam
-  // where the type information was actually insufficient, not two stacked assumptions.
-  //
-  // Widening this function's own `routeDeps: RouteDeps` parameter to close the gap structurally
-  // (instead of casting) would ripple into `app.ts`'s `createApp` signature and every test that
-  // constructs a bare `RouteDeps` fixture for this module — a behavior-preserving but far wider
-  // change than this narrowing pass's scope.
-  // Extraction now requires the complete BYOK deps in the public contract and in both roots;
-  // no cast may conceal a missing runtime port. This replaces that historical scope compromise.
+  // The public contract and both roots require complete BYOK dependencies;
+  // no cast may conceal a missing runtime port.
   const resolvedToolSurface =
     toolSurface ??
     createByokToolSurface(routeDeps, {
       contributions,
-      // Injected by the composition root, never resolved here — see
-      // `RouteDeps.toolAttemptAuditSink`'s own doc. This module used to pick memory-vs-sqlite off
-      // `process.env.TOVU_DB` and open its OWN `ContentDb` for the sink; `openContentDb` migrates
-      // unconditionally, so doing that here made merely CONSTRUCTING this module a database
-      // migration. A caller-supplied `toolSurface` still bypasses this branch entirely.
+      // The root injects the audit sink; see RouteDeps.toolAttemptAuditSink for why
+      // consumers must not open their own database. A supplied toolSurface bypasses this branch.
       toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
       // Feature registrars `assistant/` must not import by value (module cycles) — injected here.
       registerInstalledExtensions: registerInstalledExtensionTools,

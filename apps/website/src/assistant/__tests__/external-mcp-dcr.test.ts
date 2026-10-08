@@ -2,7 +2,7 @@ import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPendingAuthorizationStore, type OAuthFetch } from "../../platform/oauth/index.js";
+import { createPendingAuthorizationStore } from "../../platform/oauth/index.js";
 import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../platform/oauth/__tests__/helpers.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
@@ -106,7 +106,7 @@ async function saveWithoutGrant(store: ReturnType<typeof makeStore>, options: Sa
   });
 }
 
-function makeService(store: ReturnType<typeof makeStore>, overrides: { readonly fetchFn?: OAuthFetch } = {}) {
+function makeService(store: ReturnType<typeof makeStore>, overrides: { readonly fetchFn?: typeof fetch } = {}) {
   return createExternalMcpOAuthService({
     workspaceId: WORKSPACE,
     repo: store.repo,
@@ -130,13 +130,13 @@ function registrationCalls(fixture: { requests: readonly { url: string }[] }): n
  *  no route on {@link startDiscoveryFixture}'s loopback server, so a device-grant test that wants
  *  REAL RFC 8414 discovery (to prove the grant was actually resolved from what the server advertised,
  *  not hardcoded) needs exactly one endpoint stubbed rather than the whole fetch. */
-function stubOneEndpoint(url: string, json: unknown): OAuthFetch {
+function stubOneEndpoint(url: string, json: unknown): typeof fetch {
   return (async (input, init) => {
     if (String(input).split("?")[0] === url) {
       return new Response(JSON.stringify(json), { status: 200, headers: { "content-type": "application/json" } });
     }
     return fetch(input, init);
-  }) as OAuthFetch;
+  }) as typeof fetch;
 }
 
 // ---------------------------------------------------------------------------

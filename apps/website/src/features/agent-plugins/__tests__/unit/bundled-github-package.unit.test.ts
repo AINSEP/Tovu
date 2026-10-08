@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
-import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
+import { packAgentPluginDirectory } from "../../lifecycle.js";
 
 /**
  * @file The `github` bundled Agent Plugin's package is VALID, INSTALLABLE, host-AGNOSTIC, and still

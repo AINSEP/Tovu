@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { InMemorySettingsRepo } from "@jini-ai/cms/settings";
+import { InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { SqlSettingsRepo } from "../repo.js";
-import type { SettingsRepoPort, SettingDefinitionRecord, SettingValueRecord } from "@jini-ai/cms/settings";
+import type { SettingsRepoPort, SettingDefinitionRecord, SettingValueRecord } from "@jini-ai/core/settings";
 
 /** Every workspace id any contract-suite test below references — seeded up front so the SQLite adapter's real FK doesn't reject them. */
 const CONTRACT_TEST_WORKSPACE_IDS = ["ws-1", "ws-2", "ws-OTHER"];

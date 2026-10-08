@@ -4,7 +4,7 @@
  * Purpose:
  * One class per error `site-dir` originates; `cli/errors.ts` maps these 1:1 to the
  * `errors.spec.md` exit-code registry. Mirrors this codebase's established convention
- * (`widgets/errors.ts`, `features/entries/errors.ts`): `class X extends Error {}` does NOT
+ * (`Jini/packages/cms/src/widgets/errors.ts`, `features/entries/errors.ts`): `class X extends Error {}` does NOT
  * give an instance a `.name` of `"X"` on this runtime unless the constructor sets `this.name`
  * explicitly, so every class below sets it.
  *

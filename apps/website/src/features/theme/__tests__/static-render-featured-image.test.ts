@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { FEATURED_IMAGE_MARKER_TYPE, markersOfType } from "#src/contracts/core/embeds/marker";
+import { FEATURED_IMAGE_MARKER_TYPE, markersOfType } from "@jini-ai/cms/widgets/markers";
 import { injectFeaturedImage, type StaticFeaturedImage } from "../static-render.js";
 
 /**
@@ -51,12 +51,12 @@ for (const themeId of ["tovu-theme", "tovu-starter"]) test(`canary: every ${them
   assert.ok(postTemplates.length > 0, `${themeId} must declare at least one posts-* template`);
   for (const name of postTemplates) {
     const html = fs.readFileSync(path.join(themeDir, "render/pages", name.endsWith(".html") ? name : `${name}.html`), "utf8");
-    assert.equal(markersOfType(html, FEATURED_IMAGE_MARKER_TYPE).length, 1, `${name} must carry exactly one featured-image marker`);
+    assert.equal(markersOfType({ html: html, type: FEATURED_IMAGE_MARKER_TYPE }).length, 1, `${name} must carry exactly one featured-image marker`);
     const featuredAt = html.indexOf(`'{"type":"${FEATURED_IMAGE_MARKER_TYPE}"}'`);
     const contentAt = html.indexOf(`'{"type":"content"}'`);
     assert.ok(featuredAt !== -1 && featuredAt < contentAt, `${name}: the featured image must sit above the post body`);
     const rendered = injectFeaturedImage(html, IMAGE);
     assert.ok(rendered.includes(`<img src="${IMAGE.url}"`), `${name} must render the image`);
-    assert.equal(markersOfType(injectFeaturedImage(html, null), FEATURED_IMAGE_MARKER_TYPE).length, 0, `${name}: no image must leave no marker`);
+    assert.equal(markersOfType({ html: injectFeaturedImage(html, null), type: FEATURED_IMAGE_MARKER_TYPE }).length, 0, `${name}: no image must leave no marker`);
   }
 });

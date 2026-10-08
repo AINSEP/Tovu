@@ -1,3 +1,4 @@
+export const CONTENT_POST_DELETE_TOOL_ID = "content_post_delete";
 import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN, SLUG_OR_ROOT_PATTERN } from "./post.js";
 import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
 
@@ -325,7 +326,7 @@ const TIPTAP_TEXT_NODE_SCHEMA = {
  * metadata fields, layered over them per field at render time (`render.ts`'s
  * `mediaNodeStyleOverride` — node value wins when set, asset value otherwise). `htmlAttributes` is
  * re-validated at render time against the shared allowlist
- * (`#src/contracts/core/embeds/html-attributes`'s `parseEmbedHtmlAttributes`) — class/id/style/
+ * (`Jini/packages/cms/src/widgets/markers/html-attributes.ts`'s `parseEmbedHtmlAttributes`) — class/id/style/
  * data- prefix/aria- prefix and more are kept; on-prefixed handlers, javascript:/vbscript:/data:
  * URLs and unsafe style values are dropped per token (every other accepted token in the same string
  * still lands); malformed text drops all. Rejected/dropped tokens are silently omitted from the tag

@@ -1,3 +1,4 @@
+import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import {
@@ -69,8 +70,7 @@ import { canPublishToLive } from "#src/features/publish-content/live-site-policy
  * that close over the identity repos + hasher + the `identityReady` seed
  * promise (`registerAuthRoutes` still takes the full `RouteDeps` bag it's
  * registered against; `requireAdminSession`/`currentPrincipal` take only
- * `SessionAuthDeps` — see that type's own doc, the first slice of the
- * `RouteDeps` decomposition, 2026-08-18) — the composition roots
+ * `SessionAuthDeps` — see that type's own doc) — the composition roots
  * (`server/app.ts`) pass `routeDeps` in either way, since `RouteDeps` is a
  * strict superset of `SessionAuthDeps`. Not a port (ADR-006): one real
  * session/credential implementation.
@@ -187,26 +187,17 @@ function apiKeyServiceDepsFrom(deps: SessionAuthDeps): ApiKeyServiceDeps {
 }
 
 function readSessionToken(req: Request): string | null {
-  const header = req.headers.cookie;
-  if (!header) return null;
-  for (const part of header.split(";")) {
-    const [name, ...rest] = part.trim().split("=");
-    if (name === SESSION_COOKIE) return decodeURIComponent(rest.join("="));
-  }
-  return null;
+  return readRequestCookie({ request: req, name: SESSION_COOKIE }) ?? null;
 }
 
 /** REQ-06: `HttpOnly`, `SameSite=Strict`, `Secure`, bound to the admin origin. */
 function setSessionCookie(res: Response, rawToken: string, expiresAtIso: string): void {
-  const maxAgeSeconds = Math.max(0, Math.floor((new Date(expiresAtIso).getTime() - Date.now()) / 1000));
-  res.setHeader(
-    "Set-Cookie",
-    `${SESSION_COOKIE}=${encodeURIComponent(rawToken)}; HttpOnly; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Strict; Secure`
-  );
+  const maxAge = Math.max(0, new Date(expiresAtIso).getTime() - Date.now());
+  res.cookie(SESSION_COOKIE, rawToken, { httpOnly: true, path: "/", maxAge, sameSite: "strict", secure: true });
 }
 
 function clearSessionCookie(res: Response): void {
-  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict; Secure`);
+  res.clearCookie(SESSION_COOKIE, { httpOnly: true, path: "/", sameSite: "strict", secure: true });
 }
 
 /** Pull the raw key out of an `Authorization` header, or `null` when there is no key-shaped one. */

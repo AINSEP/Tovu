@@ -10,7 +10,10 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file The single-call MCP-UI return path, end to end through a real tool handler (ADR-055
@@ -61,7 +64,7 @@ function exchangeIdFromSurface(surface: unknown): string {
 }
 
 test("the call stays open after the form is shown, and the human's selections become its result", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
 
@@ -82,12 +85,7 @@ test("the call stays open after the form is shown, and the human's selections be
   );
 
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  const delivered = surfaceExchanges.deliver({
-    exchangeId,
-    toolId: DEMO_CHOICES_TOOL_ID,
-    principalId: "principal-1",
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, plan: "pro", extras: ["analytics", "backups"] },
-  });
+  const delivered = surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, plan: "pro", extras: ["analytics", "backups"] } }, { toolId: DEMO_CHOICES_TOOL_ID });
   assert.deepEqual(delivered, { ok: true });
 
   // The hop that was missing: the values reach the agent, as this call's ordinary return value.
@@ -101,7 +99,7 @@ test("the call stays open after the form is shown, and the human's selections be
 });
 
 test("the surface reaches the human while the call is still open, carrying the id that answers it", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   let sizeAtEmit = -1;
@@ -120,12 +118,7 @@ test("the surface reaches the human while the call is still open, carrying the i
   assert.equal(sizeAtEmit, 1);
   assert.ok(idInEmittedHtml);
 
-  surfaceExchanges.deliver({
-    exchangeId: idInEmittedHtml,
-    toolId: DEMO_CHOICES_TOOL_ID,
-    principalId: "principal-1",
-    params: { plan: "basic" },
-  });
+  surfaceExchanges.deliver({ exchangeId: idInEmittedHtml, principalId: "principal-1", params: { plan: "basic" } }, { toolId: DEMO_CHOICES_TOOL_ID });
   assert.deepEqual(await pending, {
     submitted: true,
     plan: "basic",
@@ -136,19 +129,14 @@ test("the surface reaches the human while the call is still open, carrying the i
 });
 
 test("an empty checklist is a real answer, not a missing one", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
   const pending = call(handler, { emitSurface: async (s) => void emitted.push(s) });
 
   await new Promise((resolve) => setImmediate(resolve));
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: DEMO_CHOICES_TOOL_ID,
-    principalId: "principal-1",
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, plan: "basic", extras: [] },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, plan: "basic", extras: [] } }, { toolId: DEMO_CHOICES_TOOL_ID });
 
   assert.deepEqual(await pending, {
     submitted: true,
@@ -160,7 +148,7 @@ test("an empty checklist is a real answer, not a missing one", async () => {
 });
 
 test("Cancel resolves the call immediately instead of stranding it until the TTL", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
   const pending = call(handler, { emitSurface: async (s) => void emitted.push(s) });
@@ -170,12 +158,7 @@ test("Cancel resolves the call immediately instead of stranding it until the TTL
 
   // The Cancel action posts back rather than just closing the dialog — a silent close would leave
   // the agent blocked for five minutes on a form the human already walked away from.
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: DEMO_CHOICES_TOOL_ID,
-    principalId: "principal-1",
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true } }, { toolId: DEMO_CHOICES_TOOL_ID });
 
   const result = (await pending) as { submitted: boolean; reason: string; note: string };
   assert.equal(result.submitted, false);
@@ -184,7 +167,7 @@ test("Cancel resolves the call immediately instead of stranding it until the TTL
 });
 
 test("an unanswered form returns an explicit no-answer result, not a hang or a throw", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
   const handler = buildHandler(surfaceExchanges);
 
   const result = (await call(handler, { emitSurface: async () => undefined })) as {
@@ -201,7 +184,7 @@ test("an unanswered form returns an explicit no-answer result, not a hang or a t
 });
 
 test("a cancelled run closes the exchange rather than holding the handler to the deadline", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const controller = new AbortController();
 
@@ -217,7 +200,7 @@ test("a cancelled run closes the exchange rather than holding the handler to the
 });
 
 test("with no emit seam the tool falls back to returning the surface, and opens no exchange", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   const result = (await call(handler)) as { content: Array<{ type: string }> };
@@ -230,7 +213,7 @@ test("with no emit seam the tool falls back to returning the surface, and opens 
 });
 
 test("the fallback's second call still echoes the human's selections to the agent", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   const result = await call(handler, { input: { plan: "team", extras: ["support"] } });
@@ -247,7 +230,7 @@ test("the fallback's second call still echoes the human's selections to the agen
 });
 
 test("the fallback surface carries no exchange id, since nothing is waiting on it", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   const result = (await call(handler)) as { content: Array<{ resource?: { text: string } }> };
@@ -261,15 +244,12 @@ test("the fallback surface carries no exchange id, since nothing is waiting on i
   assert.ok(!html.includes(SURFACE_EXCHANGE_ID_PARAM), "an exchange id in a surface with no exchange behind it would name a call that does not exist");
 });
 
-// The inversion of the test this replaces ("stays unwired when its env gate is unset"). The gate was
-// removed on 2026-08-26 by owner decision; asserting the tool registers with a DELIBERATELY HOSTILE
-// environment is what would fail if someone re-introduced any env condition, which is the outcome
-// that decision rules out. See `demo-choices-tool.ts`'s header.
+// A hostile environment must not disable registration; see demo-choices-tool.ts owner policy.
 test("registers unconditionally — no environment can switch this tool off", () => {
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
-    const registrations = buildDemoChoicesRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() });
+    const registrations = buildDemoChoicesRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     assert.ok(
       registrations.some((r) => r.descriptor.id === DEMO_CHOICES_TOOL_ID),
       "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",

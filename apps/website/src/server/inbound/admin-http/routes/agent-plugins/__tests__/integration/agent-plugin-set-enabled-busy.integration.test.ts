@@ -3,12 +3,11 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { mock } from "node:test";
 import test from "node:test";
 
 import express from "express";
 
-import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "#src/features/agent-plugins/install";
+import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import type { AgentPluginsRouteDeps } from "../../deps.js";
 
 /**
@@ -18,30 +17,25 @@ import type { AgentPluginsRouteDeps } from "../../deps.js";
  * `agent-plugin-set-enabled.integration.test.ts` already proves for the UNREADABLE case — never an
  * opaque 500, and nothing is written.
  *
- * Mocks `@jini-ai/platform/fs/file-lock`'s `withFileLock` to throw a real `FileLockTimeoutError`
+ * Formerly mocked `@jini-ai/platform/fs/file-lock`'s `withFileLock` to throw a real `FileLockTimeoutError`
  * instantly rather than forcing real cross-process contention: the real lock's own correctness is
  * `activation-cross-process-writes.integration.test.ts`'s job; this file only proves the mapping
  * from that failure to this route's response. Same mock-before-any-real-import idiom as
  * `activation-lock-busy.unit.test.ts` — `mock.module()` is registered, with the real module's own
  * exports spread through it, before `activation.js`/`set-enabled.js`/the route module are ever
  * imported, and each is imported only once, dynamically, because `mock.module()` cannot
- * retroactively rebind a specifier a module already resolved at its first load.
+ * retroactively rebind a specifier a module already resolved at its first load. That historical
+ * module replacement is now DI into the owner: the real lock/write/error-mapping path still runs.
  */
 
 const real = await import("@jini-ai/platform/fs/file-lock");
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: this file swaps
-// `behavior` per test to cover the lock-failure shape without re-deriving the generic signature.
-let behavior: (lockPath: string, run: (lock: any) => Promise<any>, options?: any) => Promise<any> = (lockPath, run, options) => real.withFileLock({ lockPath, run }, options);
-
-mock.module("@jini-ai/platform/fs/file-lock", {
-  namedExports: {
-    ...real,
-    withFileLock: ({ lockPath, run }: { lockPath: string; run: (lock: unknown) => Promise<unknown> }, options?: unknown) => behavior(lockPath, run, options),
-  },
+const realFsp = await import("node:fs/promises");
+let behavior: typeof realFsp.open = realFsp.open;
+const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../../../../../../features/agent-plugins/lifecycle.js");
+const lifecycle = createTovuAgentPluginLifecycle({}, {
+  filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
-
-const { installAgentPlugin } = await import("#src/features/agent-plugins/install");
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
 const { readAgentPluginActivations } = (await import("#src/features/agent-plugins/activation-effects")).agentPluginActivations;
 const { forceRemove } = await import("#src/features/agent-plugins/__tests__/fixtures/force-remove");
@@ -84,6 +78,7 @@ async function withAgentPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } finally {
+    behavior = realFsp.open;
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
@@ -115,6 +110,7 @@ function buildTestApp(): { app: express.Express } {
     externalMcpServerRepo: baseDeps.externalMcpServerRepo,
     siteAssistantSecretSealer: baseDeps.siteAssistantSecretSealer,
     siteAssistantSecretKeyring: baseDeps.siteAssistantSecretKeyring,
+    setAgentPluginEnabled: lifecycle.setAgentPluginEnabled,
   };
 
   const app = express();
@@ -134,7 +130,9 @@ function patch(baseUrl: string, cookie: string, pluginId: string, body: unknown)
 }
 
 function timeoutBehavior(pid: number): typeof behavior {
-  return async (lockPath) => {
+  return async (...args) => {
+    const lockPath = String(args[0]);
+    if (path.basename(lockPath) !== "activations.json.lock") return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
     throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
@@ -169,13 +167,19 @@ test("AGENT_PLUGIN_SET_ENABLED: a lock lost right before commit is also 409 AGEN
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-busy-b");
     const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
-    behavior = async (lockPath, run) =>
-      run({
-        lockPath,
-        assertHeld: async () => {
-          throw new real.FileLockLostError({ lockPath });
-        },
-      });
+    behavior = async (...args) => {
+      const handle = await realFsp.open(...args);
+      const target = String(args[0]);
+      if (path.basename(target).startsWith("activations.json.tmp-")) {
+        const close = handle.close.bind(handle);
+        // Remove real ownership before the owner's assertHeld() can authorize publication.
+        handle.close = async () => {
+          await close();
+          await realFsp.rm(path.join(path.dirname(target), "activations.json.lock"));
+        };
+      }
+      return handle;
+    };
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
     const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });

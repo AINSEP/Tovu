@@ -315,14 +315,14 @@ async function withFingerprintReconciliation(
   }
   const stamped = meta.siteKeyFingerprint;
   if (stamped === undefined) {
-    writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
+    writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint } }, {});
     return { action, perSiteFilePath, fingerprint };
   }
   if (stamped === fingerprint) {
     return { action, perSiteFilePath, fingerprint };
   }
   if (await mayRestamp()) {
-    writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
+    writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint } }, {});
     return { action, perSiteFilePath, fingerprint };
   }
   return { action: "mismatch", perSiteFilePath, fingerprint };
@@ -490,7 +490,7 @@ export function installSiteKey(input: InstallSiteKeyInput): InstallSiteKeyResult
 function stampFingerprint(siteDir: string, fingerprint: string): void {
   const meta = readSiteMetaJson(siteDir);
   if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
-  writeJsonFileAtomic(join(siteDir, ".site-meta.json"), { ...meta, siteKeyFingerprint: fingerprint });
+  writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint } }, {});
 }
 
 /**

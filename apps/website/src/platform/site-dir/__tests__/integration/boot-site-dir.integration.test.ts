@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import Database from "better-sqlite3";
+import { createNodeAtomicFilesystem } from "@jini-ai/platform/fs";
 
 import { openContentDb, openSqliteContentConnection } from "#src/platform/db/sqlite/content-db";
 import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
@@ -288,14 +289,15 @@ test("U-002-B2/U-002-ORD1: a failed metadata temp-file write after migration pre
   const runtime = runtimeSchemaVersion();
   assert.ok(runtime.index > 0);
   const dir = buildFixtureDir({ metaOverrides: { schemaVersion: runtime.index - 1, schemaTag: "an-older-tag" } });
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const metaPath = path.join(dir, ".site-meta.json");
   const originalMetaText = fs.readFileSync(metaPath, "utf8");
 
   const writeFailure = Object.assign(new Error("blocked metadata temp-file write"), { code: "EACCES" });
-  const originalWrite = fs.writeFileSync;
   let blockedWrites = 0;
-  const writeMock = t.mock.method(fs, "writeFileSync", (file: fs.PathOrFileDescriptor, data: string | NodeJS.ArrayBufferView, options?: fs.WriteFileOptions) => {
-    if (typeof file === "string" && path.dirname(file) === dir && path.basename(file).startsWith("..site-meta.json.") && file.endsWith(".tmp")) {
+  const metadataFilesystem = {
+    ...createNodeAtomicFilesystem({}, {}),
+    write: () => {
       blockedWrites += 1;
       const migrated = new Database(path.join(dir, "content.db"), { readonly: true });
       try {
@@ -305,17 +307,12 @@ test("U-002-B2/U-002-ORD1: a failed metadata temp-file write after migration pre
         migrated.close();
       }
       throw writeFailure;
-    }
-    return originalWrite(file, data, options);
-  });
-  try {
-    await assert.rejects(() => bootSiteDir({ dir }), (error) => error === writeFailure);
-    assert.equal(blockedWrites, 1, "the failure must come specifically from the metadata write");
-    const metaAfterFailedAttempt = fs.readFileSync(metaPath, "utf8");
-    assert.equal(metaAfterFailedAttempt, originalMetaText, "U-002-ORD1: the stamp must be left completely unchanged (old version) — never partially bumped");
-  } finally {
-    writeMock.mock.restore();
-  }
+    },
+  };
+  await assert.rejects(() => bootSiteDir({ dir }, { metadataFilesystem }), (error) => error === writeFailure);
+  assert.equal(blockedWrites, 1, "the failure must come specifically from the metadata write");
+  const metaAfterFailedAttempt = fs.readFileSync(metaPath, "utf8");
+  assert.equal(metaAfterFailedAttempt, originalMetaText, "U-002-ORD1: the stamp must be left completely unchanged (old version) — never partially bumped");
 
   // Retry after removing the write failure: the runner is idempotent, and both stamp fields
   // must advance together now that the metadata write can finish.

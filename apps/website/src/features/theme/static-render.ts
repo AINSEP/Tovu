@@ -1,17 +1,4 @@
-import {
-  COLLECTION_MARKER_TYPE,
-  FEATURED_IMAGE_MARKER_TYPE,
-  markersOfType,
-  MENU_MARKER_TYPE,
-  PARTIAL_MARKER_TYPE,
-  POST_PREVIEWS_MARKER_TYPE,
-  substituteMarkers,
-  withAddedId,
-  withElementKeptIfAttributed,
-  withInnerContent,
-  withInnerContentFinal,
-  type EmbedMarker,
-} from "#src/contracts/core/embeds/marker";
+import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, PARTIAL_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { renderHtmlMenu } from "#src/features/navigation/html-render";
 import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
@@ -112,10 +99,10 @@ function hasAuthoredSlug(marker: EmbedMarker): boolean {
  * shape every other marker-substitution call in this codebase already pays.
  */
 export function injectCurrentEntityContentId(html: string, entityId: string): string {
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== "content" || marker.id !== undefined || hasAuthoredSlug(marker)) return undefined;
-    return withAddedId(marker, entityId);
-  });
+    return withAddedId({ marker: marker, id: entityId });
+  } });
 }
 
 /**
@@ -350,7 +337,7 @@ function renderMenuTree(items: readonly StaticMenuItem[], depth = 0): string {
  * The marker element itself survives — {@link withInnerContent} rebuilds it from its own tag and
  * attributes, so `nav.html`'s `class="main-nav"` and the docs sidebar's `aria-label` are preserved.
  *
- * Marker location and parsing are `core/embeds/marker.ts`'s job; this function only decides what goes
+ * Marker location and parsing are `Jini/packages/cms/src/widgets/markers/marker.ts`'s job; this function only decides what goes
  * inside. That split is the point of the 2026-08-10 unification — four scanners with four regexes
  * became one.
  */
@@ -358,18 +345,18 @@ function injectMenuEmbeds(
   html: string,
   menus: Readonly<Record<string, readonly StaticMenuItem[]>>
 ): string {
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== MENU_MARKER_TYPE || marker.id === undefined) return undefined;
     const items = menus[marker.id];
     if (items === undefined) return undefined;
     if (marker.config.mode === "html") {
       const plain = renderHtmlMenu({ id: marker.id, items, sanitizeHref: safeHref });
       // Match forms: a bare marker disappears; explicitly authored wrapper attributes survive.
-      return plain === "" ? undefined : withElementKeptIfAttributed(marker, plain);
+      return plain === "" ? undefined : withElementKeptIfAttributed({ marker: marker, inner: plain });
     }
     const inner = marker.config.variant === "tree" ? renderMenuTree(items) : renderMenuLinks(items);
-    return inner === "" ? undefined : withInnerContent(marker, inner);
-  });
+    return inner === "" ? undefined : withInnerContent({ marker: marker, inner: inner });
+  } });
 }
 
 /**
@@ -386,7 +373,7 @@ function injectMenuEmbeds(
 export function scanMenuEmbedIds(theme: DiscoveredTheme): readonly string[] {
   const ids = new Set<string>();
   for (const html of [...Object.values(theme.pages), ...Object.values(theme.partials)]) {
-    for (const marker of markersOfType(html, MENU_MARKER_TYPE)) {
+    for (const marker of markersOfType({ html: html, type: MENU_MARKER_TYPE })) {
       if (marker.id !== undefined) ids.add(marker.id);
     }
   }
@@ -403,7 +390,7 @@ export function scanMenuEmbedIds(theme: DiscoveredTheme): readonly string[] {
  */
 
 /** Default and ceiling for a `{"type":"post-previews"}` marker's own `limit` config key — mirrors
- *  `widgets/resolvers/recent-entries.ts`'s registered-clamp discipline (REQ-25): a marker's `limit`
+ *  `Jini/packages/cms/src/widgets/resolvers/recent-entries.ts`'s registered-clamp discipline (REQ-25): a marker's `limit`
  *  is always clamped into `[1, MAX_POST_PREVIEWS_LIMIT]` before it ever reaches the bounded repo
  *  query that feeds this marker, so neither an absent config nor an adversarially large one can turn
  *  a post listing into an unbounded scan. */
@@ -467,11 +454,11 @@ function renderPostPreviewCard(preview: StaticPostPreview): string {
  * number of post-previews markers a real page carries.
  */
 function injectPostPreviewsEmbeds(html: string, previews: readonly StaticPostPreview[]): string {
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== POST_PREVIEWS_MARKER_TYPE) return undefined;
     const slice = previews.slice(0, clampPostPreviewsLimit(marker.config.limit));
-    return slice.length === 0 ? undefined : withInnerContent(marker, slice.map(renderPostPreviewCard).join(""));
-  });
+    return slice.length === 0 ? undefined : withInnerContent({ marker: marker, inner: slice.map(renderPostPreviewCard).join("") });
+  } });
 }
 
 /**
@@ -484,7 +471,7 @@ function injectPostPreviewsEmbeds(html: string, previews: readonly StaticPostPre
  *
  * Returns `undefined` when `html` carries no such marker at all — the route layer's signal to skip
  * the bounded query entirely. When multiple markers appear on one page, returns the WIDEST clamped
- * limit found: `widgets/resolvers/recent-entries.ts`'s own "one batched query bounded to the widest
+ * limit found: `Jini/packages/cms/src/widgets/resolvers/recent-entries.ts`'s own "one batched query bounded to the widest
  * requested max; each instance's own smaller value then slices the already-fetched result" discipline
  * (REQ-24/25), so N markers with different limits on the same page still cost exactly one bounded
  * query — {@link injectPostPreviewsEmbeds} does that per-marker slicing.
@@ -493,7 +480,7 @@ function injectPostPreviewsEmbeds(html: string, previews: readonly StaticPostPre
  * of post-previews markers a real page carries.
  */
 export function scanPostPreviewsLimit(html: string): number | undefined {
-  const markers = markersOfType(html, POST_PREVIEWS_MARKER_TYPE);
+  const markers = markersOfType({ html: html, type: POST_PREVIEWS_MARKER_TYPE });
   if (markers.length === 0) return undefined;
   return markers.reduce((widest, marker) => Math.max(widest, clampPostPreviewsLimit(marker.config.limit)), 0);
 }
@@ -576,11 +563,11 @@ export function splitCollectionMarkerInner(inner: string): { template?: string; 
  * per collection marker for the map lookup.
  */
 function injectCollectionEmbeds(html: string, lists: ReadonlyMap<string, string | undefined>): string {
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== COLLECTION_MARKER_TYPE) return undefined;
     const rendered = lists.get(collectionMarkerKey(marker));
-    return rendered === undefined ? undefined : withInnerContentFinal(marker, rendered);
-  });
+    return rendered === undefined ? undefined : withInnerContentFinal({ marker: marker, inner: rendered });
+  } });
 }
 
 /**
@@ -615,15 +602,10 @@ function renderFeaturedImageTag(image: StaticFeaturedImage): string {
  * @complexity O(n) over `html`'s length — one `substituteMarkers` scan-and-splice pass.
  */
 export function injectFeaturedImage(html: string, image: StaticFeaturedImage | null | undefined): string {
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== FEATURED_IMAGE_MARKER_TYPE) return undefined;
-    return image ? withInnerContentFinal(marker, renderFeaturedImageTag(image)) : "";
-  });
-}
-
-/** Escape a manifest-supplied string so it matches literally inside a constructed `RegExp`. */
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return image ? withInnerContentFinal({ marker: marker, inner: renderFeaturedImageTag(image) }) : "";
+  } });
 }
 
 /** `nav.html` → `nav`; the partial-id key `loadStaticTierAssets` stores root partials under. */
@@ -657,7 +639,8 @@ function resolveSlotMarker(
   const partial = partials[partialIdFromSource(source)] ?? "";
 
   if (descriptor.honorsCurrentPage !== true || current === undefined) return partial;
-  const linkRe = new RegExp(`(<a href="[^"]+" data-nav-id="${escapeRegExp(current)}")(>)`);
+  /** Escape a manifest-supplied string so it matches literally inside a constructed `RegExp`. */
+  const linkRe = new RegExp(`(<a href="[^"]+" data-nav-id="${RegExp.escape(current)}")(>)`);
   return partial.replace(linkRe, '$1 aria-current="page"$2');
 }
 
@@ -684,12 +667,12 @@ function resolveSlots(
   partials: Record<string, string>,
   slots: Readonly<Record<string, ThemeSlotDescriptor>> = DEFAULT_THEME_SLOTS
 ): string {
-  return substituteMarkers(html, (marker) => {
+  return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== PARTIAL_MARKER_TYPE || marker.id === undefined) return undefined;
     const descriptor = slots[marker.id];
     if (descriptor === undefined) return undefined;
-    return withElementKeptIfAttributed(marker, resolveSlotMarker(descriptor, partials, marker.config));
-  });
+    return withElementKeptIfAttributed({ marker: marker, inner: resolveSlotMarker(descriptor, partials, marker.config) });
+  } });
 }
 
 /**
@@ -988,7 +971,7 @@ export function resolveTemplate(
     // 200 — the exact 2026-08-09 regression this function's own doc was written about, re-entered
     // through a different door. Asking `markersOfType` also means a template carrying a hardcoded
     // real id (or an already-spliced body) counts as having a slot, which it does.
-    if (html === undefined || markersOfType(html, "content").length === 0) return undefined;
+    if (html === undefined || markersOfType({ html: html, type: "content" }).length === 0) return undefined;
     return { kind: "template", pageId, html };
   };
 
@@ -1232,7 +1215,7 @@ function findPageShellCandidate(theme: DiscoveredTheme): PageShellCandidateOutco
   for (const id of STATIC_TIER_PAGE_SHELL_IDS) {
     const html = theme.pages[id];
     if (html === undefined) continue;
-    if (markersOfType(html, "content").length > 0) return { kind: "usable", id };
+    if (markersOfType({ html: html, type: "content" }).length > 0) return { kind: "usable", id };
     slotlessId ??= id;
   }
   return slotlessId !== undefined ? { kind: "slotless", id: slotlessId } : { kind: "none" };

@@ -23,7 +23,7 @@ const AT = "2026-10-04T00:00:00.000Z";
 const opened: ContentKernel[] = [];
 after(async () => {
   for (const kernel of opened) await kernel.close();
-  dropDatabase(DATABASE);
+  dropDatabase({ database: DATABASE });
 });
 
 async function insertEntry(kernel: ContentKernel, id: string, type: string, fields: unknown): Promise<void> {

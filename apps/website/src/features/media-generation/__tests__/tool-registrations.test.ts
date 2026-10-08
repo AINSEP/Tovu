@@ -214,7 +214,7 @@ test("media_generate_asset publishes its catalog entry's inputSchema and descrip
   assert.ok(registration.descriptor.inputSchema);
   assert.deepEqual(registration.descriptor.inputSchema, catalogEntry("media_generate_asset").inputSchema);
   assert.equal(registration.descriptor.description, catalogEntry("media_generate_asset").description);
-  assert.equal(registration.descriptor.description?.includes("call media_propose_provider_credential in this turn, then retry the original generation exactly once after the key is saved."), true);
+  assert.equal(registration.descriptor.description?.includes("call credential_save with kind media-provider in this turn, then retry the original generation exactly once after the key is saved."), true);
   assert.equal(registration.descriptor.description?.includes("Do not retry"), false);
 });
 
@@ -237,7 +237,7 @@ test("no OpenAI credential configured: returns the secure-card diagnostic, calls
   const result = await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle" })) as { generated: boolean; credentialSetup: unknown };
   assert.equal(result.generated, false);
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: "media_propose_provider_credential", remedyToolId: "media_propose_provider_credential", prefill: { provider: "openai" },
+    setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "media-provider", target: "openai" },
     hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
   });
 
@@ -255,7 +255,7 @@ test("a legacy credential saved with baseUrl/model but no key yet is treated the
 
   const result = await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red bicycle" })) as { generated: boolean; credentialSetup: { setupToolId: string } };
   assert.equal(result.generated, false);
-  assert.equal(result.credentialSetup.setupToolId, "media_propose_provider_credential");
+  assert.equal(result.credentialSetup.setupToolId, "credential_save");
   assert.equal(generateCalls.length, 0);
 });
 
@@ -399,11 +399,11 @@ test("no credential anywhere (saved or env) names the selected model's vendor, n
   assert.equal(result.generated, false);
   assert.equal(result.message,
     "media_generate_asset: no Nano Banana media-provider credential is configured for this workspace (also checked GOOGLE_API_KEY, GEMINI_API_KEY in this process's environment — none were set). " +
-    "Call media_propose_provider_credential to open a human key form, or an operator can add one in the admin under Media -> \"Media providers\" (Access Tokens' " +
+    "Call credential_save with kind media-provider to open a human key form, or an operator can add one in the admin under Media -> \"Media providers\" (Access Tokens' " +
     "counterpart for generation vendors) then retry this tool once with the same model. " +
     "this will not resolve without that credential being added.");
   assert.deepEqual(result.credentialSetup, {
-    setupToolId: "media_propose_provider_credential", remedyToolId: "media_propose_provider_credential", prefill: { provider: "nanobanana" },
+    setupToolId: "credential_save", remedyToolId: "credential_save", prefill: { kind: "media-provider", target: "nanobanana" },
     hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
   });
   assert.equal(generateCalls.length, 0);

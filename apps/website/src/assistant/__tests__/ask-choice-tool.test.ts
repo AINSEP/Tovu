@@ -11,7 +11,10 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `assistant_ask_choice`'s own round trip, end to end through a real tool handler — the
@@ -78,7 +81,7 @@ const MOBILE_CSS_CALL = {
 };
 
 test("a single-select question round-trips the model's own title and options, not a fixed sample", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
 
@@ -103,12 +106,7 @@ test("a single-select question round-trips the model's own title and options, no
   assert.match(html, /Wait for my review/, "the model's own option label must appear in the rendered form");
 
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  const delivered = surfaceExchanges.deliver({
-    exchangeId,
-    toolId: ASK_CHOICE_TOOL_ID,
-    principalId: "principal-1",
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, choice: "wait" },
-  });
+  const delivered = surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, choice: "wait" } }, { toolId: ASK_CHOICE_TOOL_ID });
   assert.deepEqual(delivered, { ok: true });
 
   assert.deepEqual(await pending, {
@@ -119,7 +117,7 @@ test("a single-select question round-trips the model's own title and options, no
 });
 
 test("a multi-select-only question has no 'choice' field at all, and an empty selection is a real answer", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
 
@@ -139,12 +137,7 @@ test("a multi-select-only question has no 'choice' field at all, and an empty se
 
   await new Promise((resolve) => setImmediate(resolve));
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: ASK_CHOICE_TOOL_ID,
-    principalId: "principal-1",
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, selections: [] },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, selections: [] } }, { toolId: ASK_CHOICE_TOOL_ID });
 
   assert.deepEqual(await pending, {
     submitted: true,
@@ -154,7 +147,7 @@ test("a multi-select-only question has no 'choice' field at all, and an empty se
 });
 
 test("a question with both fields returns both the choice and the selections", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
 
@@ -169,12 +162,7 @@ test("a question with both fields returns both the choice and the selections", a
 
   await new Promise((resolve) => setImmediate(resolve));
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: ASK_CHOICE_TOOL_ID,
-    principalId: "principal-1",
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, choice: "now", selections: ["email", "slack"] },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, choice: "now", selections: ["email", "slack"] } }, { toolId: ASK_CHOICE_TOOL_ID });
 
   assert.deepEqual(await pending, {
     submitted: true,
@@ -185,7 +173,7 @@ test("a question with both fields returns both the choice and the selections", a
 });
 
 test("Cancel resolves the call immediately instead of stranding it until the TTL", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const emitted: unknown[] = [];
   const pending = call(handler, { input: MOBILE_CSS_CALL, emitSurface: async (s) => void emitted.push(s) });
@@ -193,12 +181,7 @@ test("Cancel resolves the call immediately instead of stranding it until the TTL
   await new Promise((resolve) => setImmediate(resolve));
   const exchangeId = exchangeIdFromSurface(emitted[0]);
 
-  surfaceExchanges.deliver({
-    exchangeId,
-    toolId: ASK_CHOICE_TOOL_ID,
-    principalId: "principal-1",
-    params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true },
-  });
+  surfaceExchanges.deliver({ exchangeId, principalId: "principal-1", params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true } }, { toolId: ASK_CHOICE_TOOL_ID });
 
   const result = (await pending) as { submitted: boolean; reason: string; note: string };
   assert.equal(result.submitted, false);
@@ -207,7 +190,7 @@ test("Cancel resolves the call immediately instead of stranding it until the TTL
 });
 
 test("an unanswered form returns an explicit no-answer result, not a hang or a throw", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
   const handler = buildHandler(surfaceExchanges);
 
   const result = (await call(handler, { input: MOBILE_CSS_CALL, emitSurface: async () => undefined })) as {
@@ -222,7 +205,7 @@ test("an unanswered form returns an explicit no-answer result, not a hang or a t
 });
 
 test("a cancelled run closes the exchange rather than holding the handler to the deadline", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
   const controller = new AbortController();
 
@@ -238,7 +221,7 @@ test("a cancelled run closes the exchange rather than holding the handler to the
 });
 
 test("with no emit seam the tool falls back to returning the surface, and opens no exchange", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   const result = (await call(handler, { input: MOBILE_CSS_CALL })) as { content: Array<{ type: string }> };
@@ -249,7 +232,7 @@ test("with no emit seam the tool falls back to returning the surface, and opens 
 });
 
 test("the fallback's second call still echoes the administrator's selections to the agent, when it carries the real ticket", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   const opened = (await call(handler, { input: MOBILE_CSS_CALL })) as { content: Array<{ resource?: { text: string } }> };
@@ -265,7 +248,7 @@ test("the fallback's second call still echoes the administrator's selections to 
 });
 
 test("a real fallback ticket refuses choices and selections outside its rendered options", async (t) => {
-  const handler = buildHandler(createSurfaceExchangeStore());
+  const handler = buildHandler(createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   for (const answer of [
     { choice: "never-offered" },
     { choice: "wait", selections: ["never-offered"] },
@@ -287,7 +270,7 @@ test("a real fallback ticket refuses choices and selections outside its rendered
 });
 
 test("a fallback ticket accepts only the choices and selections offered by its own form", async () => {
-  const handler = buildHandler(createSurfaceExchangeStore());
+  const handler = buildHandler(createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const input = { ...MOBILE_CSS_CALL, multiSelect: { label: "Extras", options: [{ value: "email", label: "Email" }] } };
   const ticket = answerTicketFromResult(await call(handler, { input }));
   const result = await call(handler, { input: { choice: "wait", selections: ["email"], [ASK_CHOICE_ANSWER_TICKET_PARAM]: ticket } });
@@ -301,7 +284,7 @@ test("a fabricated second call with no ticket at all is refused, never reported 
   // so there is nothing to redeem. Before the fix this returned `{ submitted: true, choice:
   // 'media_generate_asset', ... }` — a decision the administrator never made, echoed straight into
   // the agent's next turn. The exact scenario a live incident traced a paid credential spend to.
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   await assert.rejects(
@@ -315,7 +298,7 @@ test("a fabricated second call with no ticket at all is refused, never reported 
 });
 
 test("a second call carrying an unknown ticket is refused the same way as no ticket", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   await assert.rejects(
@@ -325,7 +308,7 @@ test("a second call carrying an unknown ticket is refused the same way as no tic
 });
 
 test("a ticket already redeemed once cannot be replayed", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   const opened = (await call(handler, { input: MOBILE_CSS_CALL })) as { content: Array<{ resource?: { text: string } }> };
@@ -341,7 +324,7 @@ test("a ticket already redeemed once cannot be replayed", async () => {
 });
 
 test("a ticket minted for one administrator cannot be redeemed by another", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   const opened = (await call(handler, { input: MOBILE_CSS_CALL, principalId: "principal-1" })) as {
@@ -356,7 +339,7 @@ test("a ticket minted for one administrator cannot be redeemed by another", asyn
 });
 
 test("rejects a call with no title, decorated with the tool's own schema so the model can correct in one turn", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   await assert.rejects(
@@ -371,7 +354,7 @@ test("rejects a call with no title, decorated with the tool's own schema so the 
 });
 
 test("rejects a call with neither singleSelect nor multiSelect", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const handler = buildHandler(surfaceExchanges);
 
   await assert.rejects(
@@ -381,7 +364,7 @@ test("rejects a call with neither singleSelect nor multiSelect", async () => {
 });
 
 test("registers unconditionally, publishing its own catalog schema", () => {
-  const registrations = buildAskChoiceRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() });
+  const registrations = buildAskChoiceRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
   const registration = registrations.find((r) => r.descriptor.id === ASK_CHOICE_TOOL_ID);
   assert.ok(registration, "the tool must register");
   assert.ok(registration.descriptor.inputSchema, "the tool must publish an inputSchema");

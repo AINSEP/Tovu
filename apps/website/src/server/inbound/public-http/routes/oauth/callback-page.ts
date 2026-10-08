@@ -1,6 +1,5 @@
 /**
- * @file The HTML an OAuth popup lands on — extracted verbatim from the (since-removed) Composio
- * connector callback so a second OAuth flow inherited its properties instead of re-deriving them.
+ * @file Shared OAuth popup landing page. All flows use the same XSS and origin protections.
  *
  * ## Why this page is safe, restated because it is the reason it can be shared
  *
@@ -38,11 +37,7 @@
  * message undelivered, which is why every bridge that consumes this page ALSO re-checks connection
  * status when the admin tab regains focus. An operator who abandons the popup must resolve as
  * "still not connected", not as an error — see `apps/admin`'s connectors port for the precedent.
- * CONNECTOR_CALLBACK_MESSAGE_TYPE (server/inbound/public-http/routes/oauth/callback-page.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
-
-/** Posted to `window.opener` by the OAuth callback page. Must match `@jini-ai/ui`'s own constant. */
-// CONNECTOR_CALLBACK_MESSAGE_TYPE (apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
 
 /** Posted by the external-MCP OAuth callback. Distinct from the connectors one on purpose. */
 export const EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE = "tovu:external-mcp-connected";

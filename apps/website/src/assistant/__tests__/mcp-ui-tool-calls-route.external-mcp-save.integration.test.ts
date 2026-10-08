@@ -12,9 +12,12 @@ import { readEnabledExternalMcpConfigs } from "#src/assistant/index";
 import type { ExternalMcpToolDeps } from "#src/features/external-mcp/deps";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Real, non-mocked proof that `external_mcp_save`'s confirmation gate reaches the actual
@@ -67,11 +70,12 @@ function exchangeIdFromEmission(emission: SurfaceEmission): string {
 }
 
 test("real round trip: a browser confirmation click for external_mcp_save is accepted by the allowlist and actually saves the server", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor } = buildRealExternalMcpToolExecutor(surfaceExchanges);
 
   const emitted: SurfaceEmission[] = [];
-  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "external_mcp_save", input: { id: "higgsfield", transport: "streamable_http" } }, { emitSurface: async (emission: SurfaceEmission) => {
+  // This no-token round trip selects public access; token-authenticated servers must still refuse a blank token.
+  const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-1" }, toolId: "external_mcp_save", input: { id: "higgsfield", transport: "streamable_http", authMode: "none" } }, { emitSurface: async (emission: SurfaceEmission) => {
       emitted.push(emission);
     } });
   await new Promise((resolve) => setImmediate(resolve));
@@ -113,10 +117,15 @@ test("real round trip: a browser confirmation click for external_mcp_save is acc
   assert.equal(output.saved, true);
   assert.equal(output.server.serverId, "higgsfield");
   assert.equal(output.server.url, "https://mcp.higgsfield.ai/mcp");
+  assert.deepEqual(emitted.map(surface => (surface.payload as { resource: { resource: { uri: string } } }).resource.resource.uri), [
+    `ui://tovu/secret-card/external_mcp_save/${exchangeId}`,
+    `ui://tovu/secret-card/external_mcp_save/${exchangeId}`,
+  ], "the real save outcome replaces the form under the engine's shared URI");
+  assert.equal(surfaceExchanges.size(), 0);
 });
 
 test("SECURITY: a Cancel click for external_mcp_save also reaches the allowlist and reports the cancellation, not a 403", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor } = buildRealExternalMcpToolExecutor(surfaceExchanges);
 
   const emitted: SurfaceEmission[] = [];
@@ -150,7 +159,7 @@ test("SECURITY: a Cancel click for external_mcp_save also reaches the allowlist 
 
 // Port test, not run in the sandbox: proves the browser's credential delivery stays out of model output.
 test("a hosted token delivered by the human MCP-UI form is stored without echoing it to the model", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor, deps } = buildRealExternalMcpToolExecutor(surfaceExchanges);
   const emitted: SurfaceEmission[] = [];
   const pending = toolExecutor.execute({ principal: { id: PRINCIPAL }, run: { id: "run-token" }, toolId: "external_mcp_save", input: { id: "hosted-token", transport: "streamable_http", authMode: "static_env" } }, { emitSurface: async (emission: SurfaceEmission) => { emitted.push(emission); } });

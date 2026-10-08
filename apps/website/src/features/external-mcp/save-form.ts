@@ -1,12 +1,6 @@
-import {
-  buildFormSurface,
-  type SurfaceField,
-  type UIResource,
-  type UIResourceUri,
-} from "@jini-ai/ui/mcp-ui/surfaces";
-
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
+import type { SecretCardField, SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 import type { ExternalMcpServerView } from "#src/assistant/index";
+import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
 
 /**
  * @file The confirmation form `external_mcp_save` renders — see `tool-registrations.ts`'s handler
@@ -23,7 +17,7 @@ import type { ExternalMcpServerView } from "#src/assistant/index";
  * rather than importing the admin package's React-specific type. Two independent, intentionally
  * parallel implementations of one documented rule — not a shared abstraction — because the two
  * outputs are genuinely different shapes (`@jini-ai/ui`'s `SourceFieldSpec` vs `@jini-ai/ui/mcp-ui/
- * surfaces`'s `SurfaceField`) for two different rendering systems.
+ * secret-card`'s `SecretCardField`) for two different rendering systems.
  *
  * ## Secrets never appear as `value`
  *
@@ -65,10 +59,6 @@ export interface ExternalMcpSaveInput {
   oauthAuthorizationEndpoint?: string;
   oauthTokenEndpoint?: string;
   oauthDeviceAuthorizationEndpoint?: string;
-}
-
-function externalMcpSaveFormUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/external-mcp-save/${exchangeId}` as UIResourceUri;
 }
 
 /**
@@ -116,26 +106,26 @@ function fieldValue<T>(value: T | undefined): { value: T } | Record<string, neve
   return value !== undefined ? { value } : {};
 }
 
-function buildIdField(input: ExternalMcpSaveInput): SurfaceField {
+function buildIdField(input: ExternalMcpSaveInput): SecretCardField {
   return { kind: "string", name: "id", label: "ID", required: true, value: input.id, hint: "Lowercase letters, digits and dashes." };
 }
 
-function buildLabelField(input: ExternalMcpSaveInput): SurfaceField {
+function buildLabelField(input: ExternalMcpSaveInput): SecretCardField {
   return { kind: "string", name: "label", label: "Display name", ...fieldValue(input.label) };
 }
 
-function buildStdioTransportFields(input: ExternalMcpSaveInput): SurfaceField[] {
+function buildStdioTransportFields(input: ExternalMcpSaveInput): SecretCardField[] {
   return [
     { kind: "string", name: "command", label: "Command", required: true, ...fieldValue(input.command), placeholder: "e.g. npx, node, /path/to/binary" },
     { kind: "string", name: "args", label: "Args", ...fieldValue(input.args), placeholder: "space-separated" },
   ];
 }
 
-function buildHttpTransportFields(input: ExternalMcpSaveInput): SurfaceField[] {
+function buildHttpTransportFields(input: ExternalMcpSaveInput): SecretCardField[] {
   return [{ kind: "string", name: "url", label: "URL", required: true, ...fieldValue(input.url), placeholder: "https://…" }];
 }
 
-function buildAllowedToolNamesField(input: ExternalMcpSaveInput): SurfaceField {
+function buildAllowedToolNamesField(input: ExternalMcpSaveInput): SecretCardField {
   return {
     kind: "string",
     name: "allowedToolNames",
@@ -145,7 +135,7 @@ function buildAllowedToolNamesField(input: ExternalMcpSaveInput): SurfaceField {
   };
 }
 
-function buildWriteAllowedToolNamesField(input: ExternalMcpSaveInput): SurfaceField {
+function buildWriteAllowedToolNamesField(input: ExternalMcpSaveInput): SecretCardField {
   return {
     kind: "string",
     name: "writeAllowedToolNames",
@@ -158,21 +148,21 @@ function buildWriteAllowedToolNamesField(input: ExternalMcpSaveInput): SurfaceFi
 /** A credential stays exclusively in the human form, with blank update submissions preserving it.
  * @complexity O(1) for a fixed field list.
  */
-function buildStaticTokenFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SurfaceField[] {
+function buildStaticTokenFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SecretCardField[] {
   return [
-    { kind: "string", name: "accessToken", label: "Access token", secret: true, hint: isUpdate ? "Leave blank to keep the stored token." : "Enter the API key or bearer token for this server." },
+    { kind: "string", name: "accessToken", label: "Access token", ...SECRET_FORM_CARD_DEFINITIONS.external_mcp_save.secretField, allowBlank: true, hint: isUpdate ? "Leave blank to keep the stored token." : "Enter the API key or bearer token for this server." },
     ...(isStdio ? [{ kind: "string" as const, name: "accessTokenEnvName", label: "Access token environment variable", ...fieldValue(input.accessTokenEnvName), hint: "The environment variable name the local command reads, e.g. API_TOKEN." }] : []),
   ];
 }
 
-function buildEnvField(isUpdate: boolean): SurfaceField {
+function buildEnvField(isUpdate: boolean): SecretCardField {
   return {
     kind: "string",
     name: "env",
     label: "Environment variables",
     multiline: true,
     rows: 3,
-    secret: true,
+    ...SECRET_FORM_CARD_DEFINITIONS.external_mcp_save.secretField, allowBlank: true,
     placeholder: "KEY=VALUE, one per line",
     hint: isUpdate ? "Leave blank to keep the stored values." : undefined,
   };
@@ -191,7 +181,7 @@ function buildEnvField(isUpdate: boolean): SurfaceField {
  * reasoning, same wording as `apps/admin/src/features/settings/rules.ts`'s
  * `buildExternalMcpFieldSpecs`.
  */
-function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SurfaceField[] {
+function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SecretCardField[] {
   return [
     {
       kind: "string",
@@ -222,12 +212,12 @@ function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean, is
       ...fieldValue(input.oauthClientId),
       ...(isStdio ? {} : { placeholder: "leave blank to register with this server automatically" }),
     },
-    { kind: "string", name: "oauthClientSecret", label: "Client secret", secret: true, hint: isUpdate ? "Leave blank to keep the stored secret." : "Leave blank if this provider needs none (a public/PKCE client)." },
+    { kind: "string", name: "oauthClientSecret", label: "Client secret", ...SECRET_FORM_CARD_DEFINITIONS.external_mcp_save.secretField, allowBlank: true, hint: isUpdate ? "Leave blank to keep the stored secret." : "Leave blank if this provider needs none (a public/PKCE client)." },
     { kind: "string", name: "oauthScopes", label: "Scopes", ...fieldValue(input.oauthScopes), placeholder: "space- or comma-separated" },
   ];
 }
 
-function buildOAuthTokenEnvField(input: ExternalMcpSaveInput): SurfaceField {
+function buildOAuthTokenEnvField(input: ExternalMcpSaveInput): SecretCardField {
   return {
     kind: "string",
     name: "oauthTokenEnvName",
@@ -241,7 +231,7 @@ function buildOAuthTokenEnvField(input: ExternalMcpSaveInput): SurfaceField {
  *  discovery does not answer, not something to go and look up. See {@link buildOAuthCoreFields}. */
 const DISCOVERABLE_ENDPOINT_HINT = "Leave blank unless discovery against this server's URL fails.";
 
-function buildOAuthEndpointFields(input: ExternalMcpSaveInput, isStdio: boolean): SurfaceField[] {
+function buildOAuthEndpointFields(input: ExternalMcpSaveInput, isStdio: boolean): SecretCardField[] {
   return [
     {
       kind: "string",
@@ -267,7 +257,7 @@ function buildOAuthEndpointFields(input: ExternalMcpSaveInput, isStdio: boolean)
   ];
 }
 
-function buildOAuthFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SurfaceField[] {
+function buildOAuthFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SecretCardField[] {
   return [...buildOAuthCoreFields(input, isUpdate, isStdio), ...(isStdio ? [buildOAuthTokenEnvField(input)] : []), ...buildOAuthEndpointFields(input, isStdio)];
 }
 
@@ -279,7 +269,7 @@ function buildOAuthFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdi
  *
  * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
  */
-export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUpdate: boolean): SurfaceField[] {
+export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUpdate: boolean): SecretCardField[] {
   const isStdio = input.transport !== "streamable_http";
   const isOAuth = input.authMode === "oauth";
 
@@ -298,23 +288,22 @@ export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUp
 /**
  * Builds `external_mcp_save`'s confirmation form.
  *
- * `id`/`transport`/`authMode` ride in `baseParams` rather than as editable fields — see this file's
+ * `id`/`transport`/`authMode` are bound to prepared state at save rather than trusted from submit — see this file's
  * header on why the field SET is fixed per call; changing transport or auth mode is "call this tool
- * again", not an in-form control. Posts back on cancel rather than a silent close, matching
- * `deployment_propose_custom_provider_credential`'s own `buildProposeCredentialForm` — with the call
+ * again", not an in-form control. The engine posts back on cancel rather than a silent close — with the call
  * parked, a silent close would strand the handler for the full TTL staring at a form the human
  * already walked away from.
  *
  * @complexity O(f) in the field count this call includes.
+ * @returns Domain form copy and fields; the engine supplies routing/dismissal and renders the card.
+ * @example buildExternalMcpSaveForm({ save: { id: "server", transport: "streamable_http" }, isUpdate: false });
  */
 export function buildExternalMcpSaveForm(input: {
-  exchange: SurfaceExchange;
   save: ExternalMcpSaveInput;
   isUpdate: boolean;
-}): UIResource {
-  const { exchange, save, isUpdate } = input;
-  return buildFormSurface({
-    uri: externalMcpSaveFormUri(exchange.id),
+}, _optional = {}): SecretCardForm {
+  const { save, isUpdate } = input;
+  return {
     title: isUpdate ? `Update "${save.id}"` : `Add "${save.id}"`,
     description: isUpdate
       ? "The assistant wants to update this external MCP server's configuration. Review and edit anything before saving."
@@ -324,20 +313,8 @@ export function buildExternalMcpSaveForm(input: {
       { label: "Credentials", value: save.authMode === "oauth" ? "Connect via OAuth" : save.authMode === "none" ? "None needed" : "API key / token" },
     ],
     submitLabel: isUpdate ? "Save changes" : "Add server",
-    toolName: EXTERNAL_MCP_SAVE_TOOL_ID,
-    baseParams: {
-      [SURFACE_EXCHANGE_ID_PARAM]: exchange.id,
-      id: save.id,
-      transport: save.transport,
-      ...(save.authMode !== undefined ? { authMode: save.authMode } : {}),
-    },
     fields: buildExternalMcpSaveFormFields(save, isUpdate),
-    cancel: {
-      label: "Cancel",
-      toolName: EXTERNAL_MCP_SAVE_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true },
-    },
+    cancelLabel: "Cancel",
     app: { appName: "tovu-external-mcp-save", appVersion: "1" },
-    preferredFrameSize: ["100%", "640px"],
-  });
+  };
 }

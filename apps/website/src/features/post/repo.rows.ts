@@ -44,9 +44,9 @@ function parseExt(rawExt: string): JsonObject | undefined {
  * gap here rather than widening the type to `JsonObject | null` for every consumer. This placeholder
  * is inert only for a consumer that branches on `bodyFormat` before trusting `bodyJson` — widget
  * embeds and `entry_refs` extraction each have a separate `"html"`-format entry point that reads
- * `bodyHtml` instead (see `widgets/resolver-service.ts`'s and `core/entry-refs/extractor.ts`'s own
+ * `bodyHtml` instead (see `Jini/packages/cms/src/widgets/resolver-service.ts`'s and `core/entry-refs/extractor.ts`'s own
  * "HTML Page" sections), and search indexing in `save()` never runs against an `"html"` row at all
- * (that path is never called for one). SEO excerpting (`deriveExcerpt` in `features/seo/seo.ts`)
+ * (that path is never called for one). SEO excerpting (`deriveExcerpt` in `Jini/packages/cms/src/seo/seo.ts`)
  * used to skip that branch and read this placeholder unconditionally — every `"html"`-format entry
  * silently got an empty derived description — until it was fixed to read `bodyHtml` the same way.
  * `toHeadlessPost` (SPEC-047 REQ-3's discriminated union) is the reference branch; any new consumer

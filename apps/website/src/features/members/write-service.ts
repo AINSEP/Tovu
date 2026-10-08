@@ -33,7 +33,7 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { createHash, randomBytes } from "node:crypto";
 
 import type { MailerSendOptions, OutboundEmail } from "../../platform/mail/index.js";
-import { OriginNotVerifiedError } from "../../features/origin/index.js";
+import { OriginNotVerifiedError } from "@jini-ai/http-kit/verified-origin";
 import {
   MemberAuthError,
   MemberConflictError,

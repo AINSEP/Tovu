@@ -1,3 +1,4 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /**
  * @file RED regression suite (2026-10-05): `publish_content_execute_pull` let a plugin save-hook
  * refusal mid-pull reach the model as a redacted `INTERNAL_ERROR`, while the single-save tools say
@@ -20,8 +21,8 @@ import { ToolInputError } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
-import { createHookRegistry } from "#src/features/plugin-runtime/hook-registry";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
+import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { BeforeSaveHookPort, PostRecord } from "#src/features/post/post";
 import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
@@ -35,6 +36,9 @@ import { getPublishContentRunStatus } from "../run-repo.js";
 import { registerPublishContentContributor, type PackedEntity, type PublishContentDeps } from "../type-registry.js";
 import type { PublishContentToolDeps } from "../tool-registrations.js";
 import { context, fixture, OWNER, tool } from "./pull-tool-fixture.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const PLUGIN_ID = "seo-guard";
 /** Everything a plugin's own error text could carry that must never reach the model. */
@@ -51,12 +55,12 @@ function livePost(id: string): PackedEntity {
 }
 
 function refusingSecondPost(): BeforeSaveHookPort {
-  const registry = createHookRegistry();
-  registry.attach(PLUGIN_ID, "site", async (entry) => {
-    if (entry.id === "p-2") throw new Error(RAW_PLUGIN_TEXT);
+  const registry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
+  registry.attach({ pluginId: PLUGIN_ID, source: "site", filter: async (entry) => {
+    if ((entry as import("@tovu/sdk").ContentEntryDraft).id === "p-2") throw new Error(RAW_PLUGIN_TEXT);
     return {};
-  }, []);
-  return registry.runBeforeSave;
+  }, declaredFields: [] });
+  return (entry) => registry.runBeforeSave({ entry });
 }
 
 /** The t09 pull fixture with its fake apply port swapped for the REAL one over real posts. */
@@ -88,7 +92,7 @@ async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
 
 /** Starts execute, answers the held-open card with a human confirm, and returns the settled call. */
 async function confirmedExecute(deps: PublishContentToolDeps, bundleId: string): Promise<unknown> {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   let resolveSurface!: (value: any) => void;
   const surface = new Promise<any>(resolve => { resolveSurface = resolve; });
   const r = await tool(deps, "publish_content_execute_pull", { surfaceExchanges });
@@ -96,7 +100,7 @@ async function confirmedExecute(deps: PublishContentToolDeps, bundleId: string):
   const emitted = await Promise.race([surface, pending.then(() => { throw new Error("execute ended before a dialog"); })]);
   const html = emitted.payload.resource.resource.text as string;
   const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))![1]!;
-  assert.deepEqual(surfaceExchanges.deliver({ exchangeId, toolId: "publish_content_execute_pull", principalId: OWNER, params: { decision: "confirm" } }), { ok: true });
+  assert.deepEqual(surfaceExchanges.deliver({ exchangeId, principalId: OWNER, params: { decision: "confirm" } }, { toolId: "publish_content_execute_pull" }), { ok: true });
   return pending;
 }
 
@@ -120,7 +124,7 @@ test("a plugin refusing item 2 of 3 says PLUGIN_HOOK_FAILED with the plugin id a
 
 test("a save hook failing with anything other than a plugin refusal stays a redacted internal error", async () => {
   const { deps, postRepo, bundleId } = await pullOfThreePosts(async (entry) => {
-    if (entry.id === "p-2") throw new Error(RAW_PLUGIN_TEXT);
+    if ((entry as import("@tovu/sdk").ContentEntryDraft).id === "p-2") throw new Error(RAW_PLUGIN_TEXT);
     return {};
   });
 

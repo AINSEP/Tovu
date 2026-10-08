@@ -1,6 +1,5 @@
 /**
- * @file Public surface for deployments (ADR-009 §1). Export, publish and plugin deploy paths stay
- * live; the never-written deployment table reader was retired on 2026-10-03.
+ * @file Public surface for deployments (ADR-009 §1): export, publish and plugin deploy paths.
  */
 export type {
   DeploymentProviderId,
@@ -24,23 +23,13 @@ export type {
 
 export { GITHUB_DEPLOYMENT_PROVIDER_ID, createGitHubDeploymentProvider, mapGitHubDeploymentStatus } from "./providers/github.js";
 
-// Deployment read repositories removed with the unused tables (2026-10-03).
-
 // `sendPinned` is intentionally NOT re-exported here — it is an internal chokepoint, exported from
 // `./providers/github.ts` only so its own test can call it directly (see that file's doc comment).
 //
-// `static-publish/**`/`publish-credentials/**` are NOT re-exported here, deliberately. Both
-// sub-directories are themselves curated "Public surface for the X sub-feature" barrels (their own
-// `index.ts`, own ADR-009 §1 header, one level down — see each file's own docblock) — genuine
-// nested modules, not loose internal files. Re-exporting their content through this file too was
-// tried (2026-08-17 no-deep-imports:features/deployments triage) and reverted: it moved
-// `check:architecture`'s propagation cost (all-import) from 11.56% to 15.36% (+3.89pts), because
-// every one of this barrel's OTHER consumers — anyone reaching only `ExportEngine`, say
-// — would have inherited both sub-features' entire transitive graph too. `static-publish/index.ts`
-// and `publish-credentials/index.ts` are registered as their own doors in `EXTRA_TO_EXEMPT` in
-// `.dependency-cruiser.mjs` instead — the `no-deep-imports:features/deployments` generator only
-// special-cases the top-level `index.ts` (it has no first-class concept of a nested guarded
-// sub-module), so this is that registration filling the gap, not a policy exception.
+// static-publish and publish-credentials expose their own nested public barrels. Folding their
+// exports into this barrel would give every unrelated consumer their full transitive dependencies.
+// .dependency-cruiser.mjs registers those barrels in EXTRA_TO_EXEMPT because its generated
+// no-deep-imports rule recognizes only the top-level index, not nested guarded modules.
 
 // `ExportEngine`/`ExportRunCounts`/`ExportRunSnapshot`/`ExportRunStatus` are the shape
 // `server/routes/admin/system/export-site.ts` (the one composed caller) and `server/routes/types.ts`
@@ -90,19 +79,9 @@ export {
   type LoadedDeployConfigGenerator,
 } from "./deploy-config-registry.js";
 
-// `buildStaticPublishRegistrations`/`StaticPublishToolDeps` (`./publish-agent-tools.ts`) are NOT
-// re-exported here — that file itself imports `RouteDeps` from `server/routes/types.ts` (the
-// ~22-landing-import god-type; see `assistant/index.ts`'s own header for the same hazard measured
-// there). Routing it through this barrel would transitively hand routes/types.ts's entire reachable
-// set to every OTHER consumer of this barrel too — tried and reverted (2026-08-17
-// no-deep-imports:features/deployments triage): propagation cost (all-import) barely moved off
-// 15%+ until this one export was pulled back out. `publish-agent-tools.ts` is registered in
-// `EXTRA_TO_EXEMPT` in `.dependency-cruiser.mjs` instead, the same treatment as the
-// `static-publish`/`publish-credentials` sub-barrels above — it is also this module's own
-// `tool-registrations`/`agent-tools` seam file by name (`TOOL_REGISTRATION_SEAM_TO` already
-// recognizes it), so a direct reach from its two dedicated test consumers is the same
-// "contract test needs the real registration builder" shape every other domain's tool-registrations
-// seam already gets.
+// publish-agent-tools stays a dedicated tool-registration seam instead of a general barrel export,
+// so unrelated consumers do not inherit its tool/composition dependencies. EXTRA_TO_EXEMPT and
+// TOOL_REGISTRATION_SEAM_TO admit its registration contract tests directly.
 
 export { loadDeployOpsRegistry } from "./deploy-ops/registry.js";
 export type { DeployOpsRegistry } from "./deploy-ops/types.js";

@@ -37,7 +37,7 @@ function call(handler: ToolHandlerUnderTest) {
   });
 }
 
-// See `demo-choices-tool.test.ts`'s equivalent for why this asserts the opposite of what it used to.
+// Unconditional registration policy: see demo-choices-tool.ts.
 test("registers unconditionally — no environment can switch this tool off", () => {
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];

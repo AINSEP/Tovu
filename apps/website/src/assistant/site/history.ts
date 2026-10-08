@@ -2,18 +2,9 @@
  * @file SPEC-046 REQ-3 — turns the site assistant's client-supplied conversation history into
  * bounded, PROVIDER-NEUTRAL conversation turns.
  *
- * This used to emit Gemini `GoogleContent[]` directly, back when the visitor route called
- * `runGoogleToolTurn` unconditionally. It now emits {@link SiteAssistantHistoryTurn} — the same
- * `{role, content}` shape `assistant/byok-provider-turn.ts`'s `ByokChatMessage` declares — because
- * that route dispatches to whichever provider the operator configured, and each provider adapter
- * owns the translation into its own wire shape (Gemini's `{role: "model", parts: [{text}]}` among
- * them). Bounding a visitor's untrusted history is this file's job; knowing what Gemini's
- * `Content` looks like is not, and doing both is how the two would have drifted.
- *
- * The route accepted no history at all before this (every visitor message was standalone, so
- * multi-step "what about that one?" follow-ups could not work). `history` in the request body is
- * **untrusted** — per REQ-3, "it comes from the browser and can be forged." Two things follow from
- * that:
+ * Provider adapters own translation from {role, content} into their wire shapes; this module
+ * owns bounding browser-supplied history independently of the operator's configured provider.
+ * Per REQ-3, history can be forged, so:
  *
  * 1. It may shape the model's reply (a forged prior turn just becomes weird context the model reads),
  *    but it must never widen authorization — nothing here decides what a tool call may do; the

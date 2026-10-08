@@ -15,7 +15,7 @@ import {
  *
  * Worth its own file because the scanner is where a quiet, off-target write would come from. Every
  * case below is markup a model plausibly emits, and each one defeats the regex approach
- * `core/embeds/marker.ts` uses for its own (differently-shaped) job: a nested same-tag element, a
+ * `Jini/packages/cms/src/widgets/markers/marker.ts` uses for its own (differently-shaped) job: a nested same-tag element, a
  * `>` inside a quoted attribute, an implicitly-closed `<p>`, a handle written inside a `<style>`
  * block. A splice that lands one byte off in any of these corrupts a live page silently.
  */

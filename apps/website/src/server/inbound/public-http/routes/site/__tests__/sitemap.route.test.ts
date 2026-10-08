@@ -1,10 +1,11 @@
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { invalidateSitemapCache, registerSitemapCollectHook, resetSitemapCollectHooksForTests } from "#src/features/seo/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
@@ -16,21 +17,22 @@ import { registerSeoSitemapRoute } from "../sitemap.js";
  * `src/server/__tests__/routes/seo-site-serving.test.ts`. This file targets the branches only
  * reachable through the (currently unused-in-production, but live and exported) sitemap-collect
  * hook seam, an empty result set, or a failing dependency:
- *  - `SitemapEntry.lastmod` is optional (`features/seo/types.ts`); every entry `buildSitemap`
+ *  - `SitemapEntry.lastmod` is optional (`Jini/packages/cms/src/seo/types.ts`); every entry `buildSitemap`
  *    derives from a real post always sets it (`post.updatedAt`), so the only way to reach an
- *    entry with no `lastmod` is through `registerSitemapCollectHook` (`features/seo/sitemap.ts`'s
+ *    entry with no `lastmod` is through `registerSitemapCollectHook` (`Jini/packages/cms/src/seo/sitemap.ts`'s
  *    own documented "live-but-empty" OQ-01 seam) — a real, exported extension point, not dead code.
  *  - the fully-empty `<urlset>` (no published posts, no collect-hook entries).
  *  - the route's own `catch` — reachable whenever `buildSitemap` (post read) throws.
  *
- * Each test invalidates the module-level sitemap cache for its own workspace before asserting,
- * since `buildSitemap` caches per-workspace and `createRouteDeps()` always seeds the same
- * workspace id — without this, a later test could read an earlier test's cached result.
+ * Each test invalidates its service's workspace cache before asserting; cache and hooks now
+ * belong to that composed app, even when another test uses the same workspace id.
  */
 
 function buildSitemapOnlyApp(depsOverrides: Partial<SeoRouteDeps>): { app: express.Express; deps: SeoRouteDeps } {
   const base = createRouteDeps();
   const deps: SeoRouteDeps = { ...base, ...depsOverrides };
+  deps.seoDeps = createSeoDeps({ deps }, {});
+  deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
   registerSeoSitemapRoute(app, deps);
   return { app, deps };
@@ -38,11 +40,11 @@ function buildSitemapOnlyApp(depsOverrides: Partial<SeoRouteDeps>): { app: expre
 
 test("GET /sitemap.xml: an entry from a registered seo.sitemap.collect hook with no lastmod omits <lastmod> entirely", async (t) => {
   const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo([]) });
-  invalidateSitemapCache({ workspaceId: deps.workspaceId });
-  registerSitemapCollectHook({ priority: 0, handle: async () => [{ loc: "/hook-entry" }] });
+  deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
+  deps.sitemapService.registerSitemapCollectHook({ hook: { priority: 0, handle: async () => [{ loc: "/hook-entry" }] } }, {});
   t.after(() => {
-    resetSitemapCollectHooksForTests();
-    invalidateSitemapCache({ workspaceId: deps.workspaceId });
+    deps.sitemapService.resetSitemapCollectHooksForTests({}, {});
+    deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
   });
 
   const baseUrl = await startTestServer(app, t);
@@ -55,11 +57,11 @@ test("GET /sitemap.xml: an entry from a registered seo.sitemap.collect hook with
 
 test("GET /sitemap.xml: dated and undated entries retain their own exact lastmod serialization", async (t) => {
   const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo([]) });
-  invalidateSitemapCache({ workspaceId: deps.workspaceId });
-  registerSitemapCollectHook({ priority: 0, handle: async () => [{ loc: "/hook-entry" }, { loc: "/dated-hook?x=1&y=2", lastmod: "2026-09-03T12:34:56.000Z" }] });
+  deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
+  deps.sitemapService.registerSitemapCollectHook({ hook: { priority: 0, handle: async () => [{ loc: "/hook-entry" }, { loc: "/dated-hook?x=1&y=2", lastmod: "2026-09-03T12:34:56.000Z" }] } }, {});
   t.after(() => {
-    resetSitemapCollectHooksForTests();
-    invalidateSitemapCache({ workspaceId: deps.workspaceId });
+    deps.sitemapService.resetSitemapCollectHooksForTests({}, {});
+    deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
   });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/sitemap.xml`);
@@ -72,8 +74,8 @@ test("GET /sitemap.xml: dated and undated entries retain their own exact lastmod
 
 test("GET /sitemap.xml: no published posts and no collect-hook entries -> an empty <urlset>, no stray blank line", async (t) => {
   const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo([]) });
-  invalidateSitemapCache({ workspaceId: deps.workspaceId });
-  t.after(() => invalidateSitemapCache({ workspaceId: deps.workspaceId }));
+  deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
+  t.after(() => deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId }));
 
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/sitemap.xml`);
@@ -93,8 +95,8 @@ test("GET /sitemap.xml: a post-read failure is caught and reported as a plain-te
     throw new Error("post store unavailable");
   };
   const { app, deps } = buildSitemapOnlyApp({ postRepo });
-  invalidateSitemapCache({ workspaceId: deps.workspaceId });
-  t.after(() => invalidateSitemapCache({ workspaceId: deps.workspaceId }));
+  deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
+  t.after(() => deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId }));
 
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/sitemap.xml`);

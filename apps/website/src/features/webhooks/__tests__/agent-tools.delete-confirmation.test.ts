@@ -5,10 +5,13 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { createSubscription, pauseSubscription } from "../subscriptions.js";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Certification of `webhooks_delete_subscription`'s confirmation gate — migrated onto the
@@ -45,7 +48,7 @@ async function seedSubscription(deps: IntegrationsToolDeps, overrides: { label?:
       clock: deps.clock,
       repo: deps.webhookSubscriptionRepo,
       idGenerator: deps.idGen,
-      isAllowedTarget: (url: string) => deps.originRegistry.isAllowedEgressTarget({ workspaceId: deps.workspaceId }, url),
+      isAllowedTarget: (url: string) => deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
     },
     input: {
       workspaceId: WORKSPACE_ID,
@@ -122,7 +125,7 @@ function buttonCall(ui: UIResource, action: "confirm" | "cancel") {
 test("the call stays open after the dialog is shown, and nothing is deleted while it is pending", async () => {
   const deps = makeDeps();
   const subscription = await seedSubscription(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
   const { ui, exchangeId, pending } = await raiseDialog(deleteTool, subscription.id);
@@ -139,7 +142,7 @@ test("the call stays open after the dialog is shown, and nothing is deleted whil
   const row = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
   assert.equal(row?.status, "active", "the subscription must be unchanged while the dialog is open");
 
-  surfaceExchanges.deliver({ exchangeId, toolId: DELETE_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "cancel" } }, { toolId: DELETE_TOOL_ID });
   await pending;
 });
 
@@ -153,7 +156,7 @@ for (const status of ["active", "paused"] as const) {
         input: { workspaceId: WORKSPACE_ID, id: subscription.id },
       });
     }
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
     const { ui, exchangeId, pending } = await raiseDialog(deleteTool, subscription.id);
@@ -165,7 +168,7 @@ for (const status of ["active", "paused"] as const) {
     assert.match(ui.resource.text, /<dt>Target URL<\/dt>\s*<dd>https:\/\/example\.test\/hooks\/payments<\/dd>/);
     assert.match(ui.resource.text, new RegExp(`<dt>Current status</dt>\\s*<dd>${status}</dd>`));
 
-    surfaceExchanges.deliver({ exchangeId, toolId: DELETE_TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+    surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "cancel" } }, { toolId: DELETE_TOOL_ID });
     await pending;
   });
 }
@@ -177,11 +180,11 @@ for (const status of ["active", "paused"] as const) {
 test("confirm: the human's click disables the subscription and the SAME call reports it to the agent", async () => {
   const deps = makeDeps();
   const subscription = await seedSubscription(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
   const { ui, pending } = await raiseDialog(deleteTool, subscription.id);
-  const delivered = surfaceExchanges.deliver(buttonCall(ui, "confirm"));
+  const delivered = (({ toolId, ...required }) => surfaceExchanges.deliver(required, { toolId }))(buttonCall(ui, "confirm"));
   assert.deepEqual(delivered, { ok: true });
 
   const result = (await pending) as { deleted: boolean; cancelled: boolean; subscription: { status: string; disabledAt: string | null } };
@@ -198,11 +201,11 @@ test("confirm: the human's click disables the subscription and the SAME call rep
 test("cancel: nothing is deleted, and the SAME call reports the cancellation", async () => {
   const deps = makeDeps();
   const subscription = await seedSubscription(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
   const { ui, pending } = await raiseDialog(deleteTool, subscription.id);
-  assert.deepEqual(surfaceExchanges.deliver(buttonCall(ui, "cancel")), { ok: true });
+  assert.deepEqual((({ toolId, ...required }) => surfaceExchanges.deliver(required, { toolId }))(buttonCall(ui, "cancel")), { ok: true });
 
   const result = (await pending) as { deleted: boolean; cancelled: boolean; subscription: { status: string } };
   assert.equal(result.deleted, false);
@@ -216,11 +219,11 @@ test("cancel: nothing is deleted, and the SAME call reports the cancellation", a
 test("an answer with no 'decision' field at all is NOT confirm — nothing is deleted (fail-closed)", async () => {
   const deps = makeDeps();
   const subscription = await seedSubscription(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
   const { exchangeId, pending } = await raiseDialog(deleteTool, subscription.id);
-  surfaceExchanges.deliver({ exchangeId, toolId: DELETE_TOOL_ID, principalId: PRINCIPAL_ID, params: {} });
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: {} }, { toolId: DELETE_TOOL_ID });
 
   const result = (await pending) as { deleted: boolean; cancelled: boolean };
   assert.equal(result.deleted, false);
@@ -230,7 +233,7 @@ test("an answer with no 'decision' field at all is NOT confirm — nothing is de
 test("an unanswered dialog expires and reports 'expired', not a hang or a throw", async () => {
   const deps = makeDeps();
   const subscription = await seedSubscription(deps);
-  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 1 });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
   const result = (await call(deleteTool, { input: { subscriptionId: subscription.id }, emitSurface: async () => undefined })) as {
@@ -249,12 +252,12 @@ test("an unanswered dialog expires and reports 'expired', not a hang or a throw"
 test("aborting a pending run abandons the dialog and rejects a late confirmation", async (t) => {
   const deps = makeDeps();
   const subscription = await seedSubscription(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
   const controller = new AbortController();
   const { ui, pending } = await raiseDialog(deleteTool, subscription.id, controller.signal);
   // Bound a missing-listener regression without waiting for the exchange's long idle timeout.
-  t.after(() => surfaceExchanges.deliver(buttonCall(ui, "cancel")));
+  t.after(() => (({ toolId, ...required }) => surfaceExchanges.deliver(required, { toolId }))(buttonCall(ui, "cancel")));
   assert.equal(surfaceExchanges.size(), 1);
   controller.abort();
   assert.equal(surfaceExchanges.size(), 0);
@@ -263,7 +266,7 @@ test("aborting a pending run abandons the dialog and rejects a late confirmation
   assert.equal(result.cancelled, false);
   assert.equal(result.reason, "abandoned");
   assert.match(result.note, /run ended/);
-  assert.deepEqual(surfaceExchanges.deliver(buttonCall(ui, "confirm")), { ok: false, reason: "unknown-or-closed" });
+  assert.deepEqual((({ toolId, ...required }) => surfaceExchanges.deliver(required, { toolId }))(buttonCall(ui, "confirm")), { ok: false, reason: "unknown-or-closed" });
   const row = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
   assert.equal(row?.status, "active");
 });
@@ -275,7 +278,7 @@ test("aborting a pending run abandons the dialog and rejects a late confirmation
 test("with no emitSurface, the delete is refused outright — there is no fallback second call", async () => {
   const deps = makeDeps();
   const subscription = await seedSubscription(deps);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
   await assert.rejects(() => call(deleteTool, { input: { subscriptionId: subscription.id } }), /no interactive confirmation channel/);
@@ -284,7 +287,7 @@ test("with no emitSurface, the delete is refused outright — there is no fallba
 
 test("admin.integrations.manage is checked before any dialog is raised, and a denied principal never sees one", async () => {
   const deps = makeDeps({ allow: false });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
   await assert.rejects(() => call(deleteTool, { input: { subscriptionId: "whatever" } }), /not authorized/);
@@ -293,7 +296,7 @@ test("admin.integrations.manage is checked before any dialog is raised, and a de
 
 test("a nonexistent subscription id is refused before any dialog is raised", async () => {
   const deps = makeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
 
   await assert.rejects(() => call(deleteTool, { input: { subscriptionId: "nope" } }), /was not found/);

@@ -7,7 +7,7 @@ import {
   resolveResumeSessionField,
   shouldClearSessionOnFailedResume,
   wouldForcedColdStartLoseConversationContext,
-} from "../agent-session-resume.js";
+} from "../../../../assistant/agent-session-preset.js";
 
 /**
  * @file `agent-daemon-server.ts` cannot be imported directly by a unit test (import-time side
@@ -43,38 +43,38 @@ function makeEvent<Kind extends SessionEndEvent["kind"]>(
 
 describe("resolveResumeSessionField", () => {
   test("returns an empty object for a null stored session id (no prior turn to resume)", () => {
-    assert.deepEqual(resolveResumeSessionField(null), {});
+    assert.deepEqual(resolveResumeSessionField({ storedSessionId: null }, {}), {});
   });
 
   test("returns { resumeSessionId } for a stored session id", () => {
-    assert.deepEqual(resolveResumeSessionField("sess-abc"), { resumeSessionId: "sess-abc" });
+    assert.deepEqual(resolveResumeSessionField({ storedSessionId: "sess-abc" }, {}), { resumeSessionId: "sess-abc" });
   });
 });
 
 describe("extractSessionRefFromEndEvent", () => {
   test("returns undefined for a non-'end' event, even one that happens to carry a similarly-shaped field", () => {
     const event = makeEvent("agent", { type: "status", label: "thinking" });
-    assert.equal(extractSessionRefFromEndEvent(event), undefined);
+    assert.equal(extractSessionRefFromEndEvent({ event: event }, {}), undefined);
   });
 
   test("returns undefined for an 'end' event with no sessionRef (a def with no resumesSessionViaCli support)", () => {
     const event = makeEvent("end", { code: 0, signal: null, status: "succeeded" });
-    assert.equal(extractSessionRefFromEndEvent(event), undefined);
+    assert.equal(extractSessionRefFromEndEvent({ event: event }, {}), undefined);
   });
 
   test("returns undefined for an 'end' event with an empty-string sessionRef", () => {
     const event = makeEvent("end", { code: 0, signal: null, status: "succeeded", sessionRef: "" });
-    assert.equal(extractSessionRefFromEndEvent(event), undefined);
+    assert.equal(extractSessionRefFromEndEvent({ event: event }, {}), undefined);
   });
 
   test("returns the sessionRef for a terminal 'end' event that carries one", () => {
     const event = makeEvent("end", { code: 0, signal: null, status: "succeeded", sessionRef: "sess-from-cli" });
-    assert.equal(extractSessionRefFromEndEvent(event), "sess-from-cli");
+    assert.equal(extractSessionRefFromEndEvent({ event: event }, {}), "sess-from-cli");
   });
 
   test("returns the sessionRef even for a failed run that still reported a resumable session", () => {
     const event = makeEvent("end", { code: 1, signal: null, status: "failed", resumable: true, sessionRef: "sess-from-cli" });
-    assert.equal(extractSessionRefFromEndEvent(event), "sess-from-cli");
+    assert.equal(extractSessionRefFromEndEvent({ event: event }, {}), "sess-from-cli");
   });
 });
 
@@ -95,40 +95,40 @@ describe("shouldClearSessionOnFailedResume", () => {
 
   test("true: this run attempted a resume, reached its terminal end event, and the CLI never reconfirmed a session id", () => {
     const event = makeEvent("end", { code: 1, signal: null, status: "failed", resumable: false });
-    assert.equal(shouldClearSessionOnFailedResume(event, "sess-dead"), true);
+    assert.equal(shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: "sess-dead" }, {}), true);
   });
 
   test("false: this run never attempted a resume (cold first turn) — nothing was stored to protect", () => {
     const event = makeEvent("end", { code: 1, signal: null, status: "failed", resumable: false });
-    assert.equal(shouldClearSessionOnFailedResume(event, null), false);
+    assert.equal(shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: null }, {}), false);
   });
 
   test("false: the end event DID carry a sessionRef — the resume succeeded (or reconfirmed), nothing dead to clear", () => {
     const event = makeEvent("end", { code: 0, signal: null, status: "succeeded", sessionRef: "sess-from-cli" });
-    assert.equal(shouldClearSessionOnFailedResume(event, "sess-dead"), false);
+    assert.equal(shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: "sess-dead" }, {}), false);
   });
 
   test("false: not a terminal end event — a mid-run progress event says nothing about whether the resume ultimately failed", () => {
     const event = makeEvent("agent", { type: "status", label: "thinking" });
-    assert.equal(shouldClearSessionOnFailedResume(event, "sess-dead"), false);
+    assert.equal(shouldClearSessionOnFailedResume({ event: event, attemptedResumeSessionId: "sess-dead" }, {}), false);
   });
 });
 
 describe("agentCarriesOwnMemory", () => {
   test("true for a def declaring resumesSessionViaCli (e.g. claude)", () => {
-    assert.equal(agentCarriesOwnMemory("claude"), true);
+    assert.equal(agentCarriesOwnMemory({ agentId: "claude" }, {}), true);
   });
 
   test("true for a def declaring resumesSessionViaAcpLoad (e.g. amr)", () => {
-    assert.equal(agentCarriesOwnMemory("amr"), true);
+    assert.equal(agentCarriesOwnMemory({ agentId: "amr" }, {}), true);
   });
 
   test("false for a def declaring neither (e.g. qoder — native attachment delivery, but no CLI/ACP resume)", () => {
-    assert.equal(agentCarriesOwnMemory("qoder"), false);
+    assert.equal(agentCarriesOwnMemory({ agentId: "qoder" }, {}), false);
   });
 
   test("false for an unknown agentId (no matching def)", () => {
-    assert.equal(agentCarriesOwnMemory("not-a-real-agent-id"), false);
+    assert.equal(agentCarriesOwnMemory({ agentId: "not-a-real-agent-id" }, {}), false);
   });
 });
 
@@ -150,7 +150,7 @@ describe("wouldForcedColdStartLoseConversationContext", () => {
         storedSessionId: "sess-abc",
         hasConcurrentLiveRun: true,
         carriesOwnMemory: true,
-      }),
+      }, {}),
       true,
     );
   });
@@ -161,7 +161,7 @@ describe("wouldForcedColdStartLoseConversationContext", () => {
         storedSessionId: null,
         hasConcurrentLiveRun: true,
         carriesOwnMemory: true,
-      }),
+      }, {}),
       false,
     );
   });
@@ -172,7 +172,7 @@ describe("wouldForcedColdStartLoseConversationContext", () => {
         storedSessionId: "sess-abc",
         hasConcurrentLiveRun: false,
         carriesOwnMemory: true,
-      }),
+      }, {}),
       false,
     );
   });
@@ -183,7 +183,7 @@ describe("wouldForcedColdStartLoseConversationContext", () => {
         storedSessionId: "sess-abc",
         hasConcurrentLiveRun: true,
         carriesOwnMemory: false,
-      }),
+      }, {}),
       false,
     );
   });

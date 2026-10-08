@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { settingValuesUser, settingValuesWorkspace, workspaces } from "#src/platform/db/schema.sqlite";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
-import { purgeTenantSettings } from "@jini-ai/cms/settings";
+import { purgeTenantSettings } from "@jini-ai/core/settings";
 
 /**
  * T027 (AC-13, EC-07) — a raw `DELETE` on a workspace holding setting values

@@ -3,21 +3,21 @@ import { describe, test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { CommerceProductSlugConflictError } from "../errors.js";
+import { CommerceProductSlugConflictError } from "@jini-ai/commerce";
 import {
   commerceOrderRepoFor,
   commercePriceRepoFor,
   commerceProductImageRepoFor,
   commerceProductRepoFor,
   commerceWebhookEventRepoFor,
-} from "../repo.js";
+} from "@jini-ai/commerce/repo";
 import type {
   CommerceOrderItemRecord,
   CommerceOrderRecord,
   CommercePriceRecord,
   CommerceProductImageRecord,
   CommerceProductRecord,
-} from "../types.js";
+} from "@jini-ai/commerce";
 
 /**
  * @file The commerce repos on every dialect through the kernel's matrix (`describeEachDialect` + ONE
@@ -137,11 +137,11 @@ function inboundEvent(id: string, eventId: string, occurredAt: string, workspace
 function repos(kernel: ContentKernel) {
   return {
     kernel,
-    products: commerceProductRepoFor(kernel),
-    images: commerceProductImageRepoFor(kernel),
-    prices: commercePriceRepoFor(kernel),
-    orders: commerceOrderRepoFor(kernel),
-    events: commerceWebhookEventRepoFor(kernel),
+    products: commerceProductRepoFor({ kernel: kernel }),
+    images: commerceProductImageRepoFor({ kernel: kernel }),
+    prices: commercePriceRepoFor({ kernel: kernel }),
+    orders: commerceOrderRepoFor({ kernel: kernel }),
+    events: commerceWebhookEventRepoFor({ kernel: kernel }),
   };
 }
 

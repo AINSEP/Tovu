@@ -16,7 +16,7 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { installAgentPlugin, type AgentPluginArchiveEntry } from "#src/features/agent-plugins/install";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../../../../../../features/agent-plugins/lifecycle.js";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { registerAgentPluginFilesRoute } from "../../files.js";
 

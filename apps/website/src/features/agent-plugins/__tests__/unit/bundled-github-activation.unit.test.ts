@@ -11,7 +11,7 @@ import test from "node:test";
 import { forceRemove } from "../fixtures/force-remove.js";
 
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { buildSourceControlProvider, buildSourceControlProviders } from "#src/features/source-control/provider-registry";
 
 /**

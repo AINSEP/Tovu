@@ -1,7 +1,7 @@
 import path from "node:path";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
-import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "#src/features/plugin-runtime/package-files";
+import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SkillsRouteRegistrar } from "./deps.js";

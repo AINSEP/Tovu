@@ -8,4 +8,4 @@ export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorCred
 
 export { buildVendorCredentialAad } from "./aad.js";
 
-export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";
+export { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";

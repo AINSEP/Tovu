@@ -121,6 +121,7 @@ test("B: GET /products — repo/port call count and wall time", async (t) => {
   const res = await fetch(`${baseUrl}/products`);
   const wallMs = performance.now() - start;
   await res.text();
+  assert.equal(res.status, 200, "measure a successful product-grid render");
   logWork("GET /products", log, wallMs);
 });
 
@@ -137,6 +138,7 @@ test("B: 10 sequential GET / requests — does repeat-visit work look any cheape
     const res = await fetch(`${baseUrl}/`);
     // eslint-disable-next-line no-await-in-loop
     await res.text();
+    assert.equal(res.status, 200, `repeat-visit measurement request ${i + 1} must succeed`);
     perRequestTotals.push(log.total - before);
     const delta: Record<string, number> = {};
     for (const [k, v] of Object.entries(log.counts)) delta[k] = v - (beforeCounts[k] ?? 0);

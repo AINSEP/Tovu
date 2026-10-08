@@ -4,13 +4,16 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { deriveContentReadRegistrations } from "../content-read-tool.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -30,7 +33,7 @@ function fixture() {
         authorize: async () => ({ allowed: true, reason: "matched" }),
       },
     }),
-    { surfaceExchanges: createSurfaceExchangeStore() },
+    { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   );
   const dispatched: Array<{ id: string; input: unknown }> = [];
   const wrapped = source.map((r) => ({

@@ -9,13 +9,16 @@ import { type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration }
 
 import type { UIResource } from "#src/assistant/index";
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { connectionFor, dropDatabase, recreateDatabase, sql } from "./pg-test-db.js";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file `database_transfer_plan` / `database_transfer_run` driven through the real registrations,
@@ -61,7 +64,7 @@ function harness(t: test.TestContext) {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const logs: string[] = [];
   const dbOps = new FakeDbOps(dir);
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps: DatabaseTransferToolDeps = {
     authorize: async () => ({ allowed: true, reason: "test" }),
     workspaceId: WORKSPACE_ID,
@@ -100,7 +103,7 @@ async function typeDestination(h: ReturnType<typeof harness>, params: Record<str
   assert.equal(emitted.length, 1, "the tool must raise exactly one form before it waits");
   const form = emitted[0]!.payload.resource.resource.text;
   const exchangeId = new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`).exec(form)![1]!;
-  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_set_destination", principalId: OWNER, params });
+  h.surfaceExchanges.deliver({ exchangeId, principalId: OWNER, params }, { toolId: "database_transfer_set_destination" });
   const result = await pending;
   const outcome = emitted[1]?.payload.resource.resource.text ?? "";
   return { result, form, outcome };
@@ -170,7 +173,7 @@ test("first copy runs headlessly; replacement waits for Copy; the password never
   assert.match(html, /keeps running on its built-in storage/);
   assert.match(html, /A private area named (&quot;|")tovu(&quot;|")/);
   assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), plan.snapshotAt, "the original copy stays intact before consent");
-  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: cardAction(html, "confirm") });
+  h.surfaceExchanges.deliver({ exchangeId, principalId: OWNER, params: cardAction(html, "confirm") }, { toolId: "database_transfer_run" });
   const replaced = await pending;
   assert.equal(replaced.copied, true);
   assert.equal(replaced.rowCount, 2);
@@ -186,7 +189,7 @@ test("Cancel writes nothing, and a used planId is gone", async (t) => {
   assert.equal((await call(h.runTool, { planId: first.planId })).copied, true);
   const plan = await call(h.planTool, {});
   const { pending, exchangeId, html } = await raiseCard(h, plan.planId as string);
-  h.surfaceExchanges.deliver({ exchangeId, toolId: "database_transfer_run", principalId: OWNER, params: cardAction(html, "cancel") });
+  h.surfaceExchanges.deliver({ exchangeId, principalId: OWNER, params: cardAction(html, "cancel") }, { toolId: "database_transfer_run" });
   assert.deepEqual(await pending, { copied: false, cancelled: true });
   assert.equal(await tovuExists(), true);
   assert.equal(await sql(FIXTURE_DB, "SELECT snapshot_at FROM tovu._tovu_transfer"), first.snapshotAt);
@@ -212,7 +215,8 @@ test("the private form saves a reachable destination, and neither the form, its 
   await sql(FIXTURE_DB, "DROP SCHEMA IF EXISTS tovu CASCADE");
   const h = harness(t);
   const { result, form, outcome } = await typeDestination(h, { address: CONNECTION });
-  assert.deepEqual(result, { saved: true, destination: { host: "localhost", port: "5432", database: FIXTURE_DB, user: process.env.PGUSER ?? "la" }, replaces: null });
+  assert.deepEqual(result, { saved: true, destination: { host: "localhost", port: "5432", database: FIXTURE_DB, user: process.env.PGUSER ?? "la" }, replaces: null,
+    tokenHint: { length: CONNECTION.length, last4: CONNECTION.slice(-4) }, connection: "connected" });
   assert.match(form, /<input class="mcpui-input" type="password" id="mcpui-field-address" name="address"/, "the address field is masked");
   assert.match(outcome, /Destination saved/);
   for (const text of [JSON.stringify(result), form, outcome, ...h.logs]) assert.doesNotMatch(text, new RegExp(PASSWORD));

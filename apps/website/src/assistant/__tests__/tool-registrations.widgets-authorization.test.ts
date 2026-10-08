@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -27,8 +28,7 @@ import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
-import { buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
@@ -40,11 +40,7 @@ const contributions = {
 };
 
 
-// Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeWidgetsTools() });
 
@@ -103,7 +99,7 @@ function widgetsWiredId(toolId: string): string {
 
 function widgetsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } })
       .filter((r) => WIDGETS_TOOL_IDS.has(r.descriptor.id) || Object.values(WIDGETS_COLLAPSED_ID).includes(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
@@ -139,7 +135,7 @@ async function seedFixture(deps: RegistryDepsWithoutLimiter): Promise<{ widgetIn
   const { registerContentType } = await import("../../features/content-types/write-service.js");
   const { createEntry } = await import("../../features/entries/index.js");
   const { NoopContentTypeIndexProvisioner } = await import("../../features/content-types/repo.memory.js");
-  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
+  const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({
     deps: { repo: contentTypeRepo, clock: createFakeClock({ startIso: NOW }), ids: { newId: () => "ct-seed" }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } },
     input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, key: "article", label: "Article", fields: [] },

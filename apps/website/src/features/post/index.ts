@@ -70,5 +70,5 @@ export { SqlitePostRepo } from "./repo.sqlite.js";
 export { InMemoryPostSearchIndex } from "./search-index.memory.js";
 export { backfillPostSearchIndex, PostSearchIndex, postSearchFor, postSearchIndexFor, preparePostSearchIndex, reindexStalePostSearchIndex } from "./search-index.js";
 export { SqlitePostSearchIndex } from "./search-index.sqlite.js";
-export { CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui.js";
+export { CONTENT_POST_DELETE_TOOL_ID } from "./agent-tools.js";
 export { createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "./reverters.js";

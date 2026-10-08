@@ -72,7 +72,7 @@ async function loadUsernamesByPrincipalId(deps: TrashRouteDeps): Promise<Readonl
 
 /**
  * The principal id the boot-time widget adoption writes as its actor
- * (`features/widgets/write-service.ts`'s `ADOPTION_ACTOR`) — today the only non-human actor the
+ * (`Jini/packages/cms/src/widgets/write-service.ts`'s `ADOPTION_ACTOR`) — today the only non-human actor the
  * Trash records. No `userRepo` account can ever hold this id, so a row bearing it can never be a
  * real, since-removed user account; `actorIsSystem` lets the admin UI tell the two apart instead of
  * both collapsing into "Deleted user" (2026-09-21).

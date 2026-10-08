@@ -1,13 +1,13 @@
 import type { Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/core/primitives";
-import type { OriginSettingRepoPort } from "#src/features/origin/ports";
+import type { OriginSettingRepoPort } from "@jini-ai/http-kit/verified-origin";
 import {
   createVerifiedOrigin,
   type OriginScheme,
   type OriginSource,
   type VerifiedOrigin,
-} from "#src/features/origin/index";
+} from "@jini-ai/http-kit/verified-origin";
 import type { ContentKernel } from "../content-kernel.js";
 import type { OriginSettingsTable } from "../content-database.generated.js";
 
@@ -79,17 +79,17 @@ export class SqlOriginSettingRepo implements OriginSettingRepoPort {
     return this.kernel.run((db) => db.selectFrom("origin_settings").selectAll().where("workspace_id", "=", workspaceId).executeTakeFirst());
   }
 
-  async findByWorkspaceId(workspaceId: UUID): Promise<VerifiedOrigin | null> {
+  async findByWorkspaceId({ workspaceId }: { workspaceId: UUID }): Promise<VerifiedOrigin | null> {
     const row = await this.row(workspaceId);
     return row ? toVerifiedOrigin(row) : null;
   }
 
-  async findRedirectAllowlist(workspaceId: UUID): Promise<string[]> {
+  async findRedirectAllowlist({ workspaceId }: { workspaceId: UUID }): Promise<string[]> {
     const row = await this.row(workspaceId);
     return row ? (JSON.parse(row.redirect_allowlist_json) as string[]) : [];
   }
 
-  async findEgressAllowlist(workspaceId: UUID): Promise<string[]> {
+  async findEgressAllowlist({ workspaceId }: { workspaceId: UUID }): Promise<string[]> {
     const row = await this.row(workspaceId);
     return row ? (JSON.parse(row.egress_allowlist_json) as string[]) : [];
   }

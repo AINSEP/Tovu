@@ -1,22 +1,24 @@
-import { type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
+import { applyApprovalPolicy, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
 import { requireHumanConfirm, notConfirmedResult } from '../contracts/core/human-confirm.js';
-import type { AssistantSurfaceDeps } from '../contracts/core/tool-surface-exchanges.js';
-import { TOOL_APPROVAL_POLICY, type ToolApprovalClass, directPageAction, toolApprovalPolicyFor } from '../contracts/headless/assistant-tool-approval-policy.js';
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, directPageAction, toolApprovalPolicyFor } from '../contracts/headless/assistant-tool-approval-policy.js';
 import { approvalText } from '../contracts/core/approval-i18n.js';
 
 /** Classification is an owner-reviewed action policy, separate from read-only admission and auth.
- * NEEDS-JINI: the generic registration wrapper belongs in core; retain the CMS table in Tovu.
+ * Jini owns the generic registration wrapper; retain the CMS table in Tovu.
  * A frozen proposal prevents a later agent turn from changing what the human approved. */
-export function approvalClassFor({ toolId, input }: { toolId: string; input: unknown }, _optional = {}): ToolApprovalClass {
-  const policy = Object.hasOwn(TOOL_APPROVAL_POLICY, toolId) ? TOOL_APPROVAL_POLICY[toolId] : undefined;
+export function approvalClassFor({ toolId, input }: { toolId: string; input: unknown }, options: { policy?: import('../contracts/headless/assistant-tool-approval-policy.js').ToolApprovalPolicy } = {}): ToolApprovalClass {
+  const policy = options.policy ?? (Object.hasOwn(TOOL_APPROVAL_POLICY, toolId) ? TOOL_APPROVAL_POLICY[toolId] : undefined);
   if (!policy) throw new Error(`${toolId} has no approval classification`);
   const args = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
   switch (policy.rule) {
+    case 'plugin-enable': return args.enabled === false ? 'edit' : 'escalation';
+    case 'execution-setting': return ASSISTANT_EXECUTION_APPROVAL_SETTINGS.some(setting => setting.namespace === args.namespace && setting.key === args.key) ? 'escalation' : 'edit';
     case 'export-commit': return args.dryRun === true ? 'edit' : 'publish';
     case 'create-status': return args.status === 'published' ? 'publish' : 'edit';
     case 'update-status': return args.status === 'draft' || args.status === 'published' || args.publishAt !== undefined ? 'publish' : 'edit';
     case 'duplicate-status': return (args.overrides as Record<string, unknown> | undefined)?.status === 'published' ? 'publish' : 'edit';
-    case 'page-control': return directPageAction({ capabilityId: toolId, input }) ? 'edit' : 'safety';
+    case 'page-control': return directPageAction({ capabilityId: toolId, input }) ? 'edit' : 'delete';
     case 'http-method': return typeof args.method === 'string' && args.method.toUpperCase() === 'DELETE' ? 'delete' : 'edit';
     default: return policy.class;
   }
@@ -28,26 +30,26 @@ export function applyToolApprovalPolicy(
 ): ToolRegistration {
   const toolId = registration.descriptor.id;
   const policy = toolApprovalPolicyFor({ registration });
-  // Specific existing gates remain authoritative: wrapping those would ask twice for one action.
-  if (policy.confirmation === 'handler' || (policy.confirmation === 'direct' && !policy.rule)) return registration;
-  return { ...registration, handler: async (ctx, options = {}) => {
-    const input = structuredClone(ctx.input);
-    const actionClass = approvalClassFor({ toolId, input });
-    if (actionClass === 'read' || actionClass === 'edit') return registration.handler({ ...ctx, input }, options);
-    if (ctx.signal.aborted) return { executed: false, ...notConfirmedResult({ confirmed: false, reason: 'abandoned' }) };
-    let locale = 'en';
-    try { locale = await localeFor(ctx); } catch { /* Copy failure must never bypass a safety gate. */ }
-    const outcome = await requireHumanConfirm({ ctx, surfaces, spec: {
+  // Domain plans already use the same Jini owner; wrapping them would ask twice for one action.
+  if (policy.confirmation === 'plan' || (policy.confirmation === 'direct' && !policy.rule)) return registration;
+  return applyApprovalPolicy({
+    registration,
+    classify: ({ input }) => approvalClassFor({ toolId, input }, { policy }),
+    asks: ({ class: actionClass }) => actionClass !== 'read' && actionClass !== 'edit',
+    describe: async ({ ctx, class: actionClass }) => {
+      let locale = 'en';
+      try { locale = await localeFor(ctx); } catch { /* Copy failure must never bypass a safety gate. */ }
+      return {
       toolId, errorCode: 'TOOL_APPROVAL', title: approvalText({ locale, key: 'Confirm action?' }),
-      details: [{ label: approvalText({ locale, key: 'Tool' }), value: toolId }, { label: approvalText({ locale, key: 'Input' }), value: JSON.stringify(input ?? {}, null, 2) }],
+      details: [{ label: approvalText({ locale, key: 'Tool' }), value: toolId }, { label: approvalText({ locale, key: 'Input' }), value: JSON.stringify(ctx.input ?? {}, null, 2) }],
       danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing',
       confirmLabel: approvalText({ locale, key: 'Confirm' }), cancelLabel: approvalText({ locale, key: 'Cancel' }),
-    } }, options);
-    if (!outcome.confirmed) return { executed: false, ...notConfirmedResult(outcome) };
-    if (ctx.signal.aborted) return { executed: false, ...notConfirmedResult({ confirmed: false, reason: 'abandoned' }) };
+      };
+    },
+    askHuman: ({ ctx, description }, options) => requireHumanConfirm({ ctx, surfaces, spec: description }, options),
+    notConfirmed: ({ reason }) => ({ executed: false, ...notConfirmedResult({ confirmed: false, reason }) }),
     // Permissions and entity/version checks still run inside the original domain handler.
-    return registration.handler({ ...ctx, input }, options);
-  } };
+  });
 }
 
 /** A remote declaration can add friction, never grant admission or permissions. MCP has no standard

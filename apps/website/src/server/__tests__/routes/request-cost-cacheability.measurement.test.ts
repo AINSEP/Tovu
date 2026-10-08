@@ -8,7 +8,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
 import { MEMBER_SESSION_COOKIE } from "../../inbound/public-http/routes/members/complete-sign-in.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
-import { registerProductRoutes } from "../../inbound/public-http/routes/site/products.js";
+import { registerProductRoutes, type CommerceSiteAdapterDeps } from "../../inbound/public-http/routes/site/products.js";
 import { registerStoreRoutes } from "../../inbound/public-http/routes/site/store.js";
 import { createSeoModule } from "../../runtime/composition/modules/seo.js";
 import type { RouteDeps } from "../../routes/types.js";
@@ -34,8 +34,8 @@ import { startTestServer } from "../helpers/http-test-server.js";
  * cookies/headers), not asserted from reading the source.
  */
 
-function buildPublicSiteApp(): { app: express.Express; deps: RouteDeps } {
-  const deps: RouteDeps = createRouteDeps();
+function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteAdapterDeps } {
+  const deps: CommerceSiteAdapterDeps = createRouteDeps();
   const app = express();
   // Registration order matters — mirrors `app.ts`'s real order: SEO (sitemap/robots) and
   // store/products must precede `registerSiteRoutes`'s `/:slug` catch-all.
@@ -142,7 +142,7 @@ test("A: GET /store — plugin NOT wired (createRouteDeps()'s own default) — h
 });
 
 test("A: GET /store — plugin wired — query-string-dependent (not visitor-dependent) variance", async (t) => {
-  const deps: RouteDeps = createRouteDeps();
+  const deps: CommerceSiteAdapterDeps = createRouteDeps();
   // Minimal fake matching RouteDeps' own `store?` shape (types.ts:518) — exercises the flash-message
   // branch `req.query.msg` actually reads, which the no-plugin default above never reaches.
   deps.store = {
@@ -173,7 +173,7 @@ test("A: GET /store — plugin wired — query-string-dependent (not visitor-dep
 });
 
 test("A: GET /store/buy — MUST NEVER get a cache header of any kind (it's a GET that mutates)", async (t) => {
-  const deps: RouteDeps = createRouteDeps();
+  const deps: CommerceSiteAdapterDeps = createRouteDeps();
   deps.store = {
     listProducts: async () => [{ id: "p1", slug: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
     checkout: async () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }),
@@ -215,7 +215,7 @@ test("A: does the auto-generated ETag actually short-circuit a conditional GET t
 });
 
 test("A: GET /products/:id (detail)", async (t) => {
-  const deps: RouteDeps = createRouteDeps();
+  const deps: CommerceSiteAdapterDeps = createRouteDeps();
   deps.store = { listProducts: async () => [{ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }], checkout: async () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }) };
   const app = express();
   registerProductRoutes(app, deps);
@@ -265,7 +265,7 @@ test("A: GET /sitemap.xml and /robots.txt — headers + cacheability", async (t)
 //   1. Shared-cache cross-visitor leak — `public` with no `Vary: Cookie` lets a CDN/proxy serve
 //      visitor A's re-populated name/email/message body to visitor B.
 //   2. The flash cookie's read-once contract is defeated by the HTTP cache — the cookie is cleared
-//      with `Max-Age=0`, but the body holding the values stays cacheable for 60s under a
+//      with an expired `Expires`, but the body holding the values stays cacheable for 60s under a
 //      value-free URL, so a back-navigation re-serves them after the cookie is gone.
 // `Vary: Cookie` alone would close (1) and leave (2); `private, no-store` closes both.
 // ---------------------------------------------------------------------------
@@ -338,7 +338,7 @@ test("B: the flash cookie's read-once clear must not ride a publicly cacheable r
   logRow("GET / (flash cookie, no form_* query)", summarizeCacheHeaders(res), "read-once clear arm");
   assert.match(
     res.headers.get("set-cookie") ?? "",
-    /tovu_form_flash=;.*Max-Age=0/,
+    /tovu_form_flash=;.*Expires=Thu, 01 Jan 1970 00:00:00 GMT/,
     "precondition: the flash cookie really was read and cleared on THIS response"
   );
   assert.equal(
@@ -443,7 +443,7 @@ test("B: a member-session response must not be publicly cacheable — anonymous 
   );
 });
 
-async function seedMemberCookie(deps: RouteDeps): Promise<string> {
+async function seedMemberCookie(deps: CommerceSiteAdapterDeps): Promise<string> {
   const token = "cacheability-valid-member-token";
   await deps.memberRepo.save({ id: "cache-member", workspaceId: deps.workspaceId, email: "cache@example.com", status: "active", createdAt: deps.clock.nowIso(), updatedAt: deps.clock.nowIso(), version: 1 });
   await deps.memberSessionRepo.save({ id: "cache-session", workspaceId: deps.workspaceId, memberId: "cache-member", tokenHash: createHash("sha256").update(token).digest("hex"), createdAt: deps.clock.nowIso(), expiresAt: "2099-01-01T00:00:00.000Z" });
@@ -486,6 +486,6 @@ test("B: a content-owned homepage stays public anonymously and private for form 
     assert.equal(res.status, 200);
     assert.match(await res.text(), /Authored homepage cache probe/, "the authored page must own this response");
     assert.equal(res.headers.get("cache-control"), directive);
-    if (cookie.startsWith(FORM_FLASH_COOKIE_NAME)) assert.match(res.headers.get("set-cookie") ?? "", /tovu_form_flash=;.*Max-Age=0/);
+    if (cookie.startsWith(FORM_FLASH_COOKIE_NAME)) assert.match(res.headers.get("set-cookie") ?? "", /tovu_form_flash=;.*Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
   }
 });

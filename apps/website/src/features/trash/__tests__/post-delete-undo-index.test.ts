@@ -34,7 +34,7 @@ import type { TrashAdapter, TrashItem } from "@jini-ai/cms/trash";
  *
  * Either one that clears the marker without dropping the index row leaves a **live, published post
  * listed in the Trash screen and selectable for permanent deletion** — the exact stranded-index-row
- * failure `ForgetRemovedEntity` exists to prevent (`features/comments/write-service.ts` already
+ * failure `ForgetRemovedEntity` exists to prevent (`Jini/packages/cms/src/comments/write-service.ts` already
  * uses it for moderation-out-of-trash).
  *
  * Run against real SQLite and the real trash service, per `post/__tests__/remove-post-double.ts`'s

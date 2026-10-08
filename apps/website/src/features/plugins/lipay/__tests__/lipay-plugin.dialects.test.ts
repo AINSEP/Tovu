@@ -7,9 +7,9 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { listIndexes } from "#src/platform/db/kernel/dialect";
 import type { HttpResponse } from "#src/platform/http/index";
-import { InMemoryPaymentCredentials } from "../credentials.js";
+import { InMemoryPaymentCredentials } from "@jini-ai/commerce/payments";
 import { activateLipay, type LipayApi } from "../lipay-plugin.js";
-import { createLipayGateway, signLipayWebhook } from "../providers/lipay-gateway.js";
+import { createLipayGateway, signLipayWebhook } from "@jini-ai/commerce/payments";
 import { API_BASE, chargeOk, FakeHttpClient, refundOk, SECRET_KEY, TestClock, testIdGen, WEBHOOK_SECRET, WORKSPACE_ID } from "./support.js";
 
 /**

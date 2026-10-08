@@ -49,7 +49,7 @@ test("a saved destination and its last run survive a restart", async (t) => {
 
   reopen();
   const restarted = open();
-  assert.deepEqual(await restarted.get("ws-1"), DESTINATION);
+  assert.deepEqual(await restarted.get("ws-1"), { ...DESTINATION, tokenHint: { length: 81, last4: "uire" } });
   assert.deepEqual(await restarted.lastRun("ws-1"), { copied: true, snapshotAt: "2026-09-27T21:00:00.000Z", tableCount: 88, rowCount: 1234 });
   assert.equal(await restarted.get("ws-other"), null);
   assert.equal(await restarted.lastRun("ws-other"), null);
@@ -75,7 +75,7 @@ test("saving again replaces the destination, and a new destination forgets the o
   await store.recordRun("ws-1", { copied: false, snapshotAt: "x", code: "COPY_FAILED", message: "m" });
   const next = { ...DESTINATION, connectionString: "postgresql://other@db2.example.test/app", description: { host: "db2.example.test", port: "5432", database: "app", user: "other" } };
   await store.save("ws-1", next);
-  assert.deepEqual(await open().get("ws-1"), next);
+  assert.deepEqual(await open().get("ws-1"), { ...next, tokenHint: { length: 39, last4: "/app" } });
   assert.equal(await open().lastRun("ws-1"), null);
   assert.equal(db.$client.prepare<[], { n: number }>("SELECT count(*) AS n FROM database_transfer_destinations").get()?.n, 1);
 });
@@ -108,7 +108,7 @@ test("an unsupported stored AAD version is refused before attempting decryption"
   let opens = 0;
   const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(db), keyring, sealer: {
     seal: input => realSealer.seal(input),
-    open: input => { opens += 1; return realSealer.open(input); },
+    open: (input, optional) => { opens += 1; return realSealer.open(input, optional); },
   } });
   await assert.rejects(store.get("ws-1"), (error: unknown) => {
     assert.ok(error instanceof DestinationUnreadableError);

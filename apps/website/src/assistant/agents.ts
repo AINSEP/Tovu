@@ -1,22 +1,11 @@
 /**
- * @file ADR-049 Decision 5 — replaces the deleted, Claude-only `listAgents()` (old
- * `src/agent-chat/runner.ts`) with a real probe across `@jini-ai/agent-runtime`'s full 24-def
- * `AGENT_DEFS` registry. Every def is reported with its own truthfully-probed availability
- * (`AgentSummary.available`/`diagnostic`), matching `@jini-ai/daemon/http`'s `agents.ts` module doc:
- * "a hardcoded client-side agent list would enable the composer on machines where the run then
- * fails."
+ * @file ADR-049 Decision 5: probe the full `@jini-ai/agent-runtime` AGENT_DEFS registry.
+ * Every def reports its own availability and diagnostic, preventing a picker from offering a CLI
+ * whose run would fail. The host owns discovery, timeouts, caching and PATH/environment policy;
+ * the transport serializes safe summaries.
  *
- * The probe itself is real filesystem I/O (`resolveAgentLaunch` walks PATH per def, 24 defs), and
- * `@jini-ai/daemon/http`'s own `AgentsHttpDeps` doc is explicit that caching it is THIS file's job, not
- * the transport's: "The host owns probing, timeouts, caching, PATH/env policy... this transport only
- * serializes the safe summary." Before 2026-08-10 nothing here did — `listAssistantAgents()` re-ran
- * the full sweep on every call, and `agent-daemon-server.ts` never supplied `rescanAgents` at all, so
- * `POST /api/agents/rescan` silently fell back to that same uncached `listAgents` — "read" and
- * "explicit rescan" were indistinguishable, and neither was cheap. In production this cost more than
- * a per-turn re-read: `AssistantDock.tsx`'s `daemonOnline` health check polls `GET /api/agents` on a
- * fixed interval for as long as the dock stays mounted (session-lifetime), so the full 24-def PATH
- * sweep re-ran dozens of times a minute for a fact — which CLIs are installed on this machine's
- * PATH — that does not change turn to turn or even poll to poll.
+ * PATH probing performs filesystem I/O. Cache it across session-lifetime health polls because
+ * installed CLIs do not change each turn; explicit rescan refreshes that fact.
  */
 import { AGENT_DEFS, probeAgentModels, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 import type { AgentSummary } from "@jini-ai/daemon/http";
@@ -49,23 +38,15 @@ export type AssistantAgentSummary = AgentSummary & {
   readonly carriesOwnMemory: boolean;
 };
 
-/** Defs `@jini-ai/daemon`'s `AgentExecutor` cannot drive, kept out of the picker so the composer
- * never offers an agent whose run then fails (see this file's header). Empty as of 2026-07-30:
- * `antigravity` was the sole previous entry, deferred while its `AgentExecutor` support was
- * unbuilt; `agent-executor.ts`'s own module doc now documents it as one of the 5 `streamFormat:
- * 'plain'` defs the driver actually drives, via declarative `needsAgentLogFile`/`stdoutPolicy`/
- * `runtimeLock` fields (verified directly against the current source, not just the doc comment) —
- * this list drifting out of sync with that is exactly the kind of duplicated-guard bug
- * `assessAgentExecutorCompatibility`'s own doc warns about; `@jini-ai/daemon` doesn't export that
- * predicate publicly yet, so this hardcoded list is the interim mechanism until it does. */
+/** Defs the executor cannot drive stay out of the picker. Keep this list aligned with the
+ * runtime's compatibility rules; its compatibility predicate is not publicly exported. */
 const UNSUPPORTED_AGENT_IDS = new Set<string>([]);
 
 /**
  * Fetches one available def's model list — `@jini-ai/agent-runtime`'s `probeAgentModels`, which runs
  * the def's own `fetchModels`/`listModels` (e.g. `claude`'s credential-free `initialize` probe,
- * `codex debug models`) and falls back to `fallbackModels` on any failure. Before this was wired,
- * every entry here was hardcoded to `fallbackModels`/`"fallback"`, so no live model (e.g. a new
- * Claude release) could ever reach the Local CLI picker. Swappable so tests never spawn real CLIs.
+ * `codex debug models`) and falls back to `fallbackModels` on any failure. Live discovery keeps
+ * the Local CLI picker current. Swappable so tests never spawn real CLIs.
  */
 type AgentModelProber = typeof probeAgentModels;
 let agentModelProber: AgentModelProber = probeAgentModels;

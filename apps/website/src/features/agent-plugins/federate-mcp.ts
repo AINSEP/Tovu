@@ -9,8 +9,8 @@ import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./ca
 import { resolveAgentPluginLayout } from "./layout.js";
 import type { AgentPluginDefaultTools } from "@jini-ai/agent-plugins/lifecycle";
 import type { McpServerConfig } from "./mcp-metadata.js";
-import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./bundled-digests.js";
-import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
+import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
+import { listInstalledPlugins } from "./lifecycle.js";
 
 /**
  * @file Phase 4 of the 2026-09-10 plugin-MCP-wiring work: PROVISIONS an activated Agent Plugin's

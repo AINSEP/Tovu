@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/database.js';
 import type { Clock } from "@jini-ai/core/primitives";
 /**
  * @file Database's half of ADR-049 Decision 4 (SPEC-017/ADR-041): maps the wireable subset of
@@ -8,7 +9,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * migrate-forward can rewrite schema and data across every other domain at once, sometimes
  * irreversibly — so the surface is deliberately reads plus one write rather than full parity with
  * the admin UI. One of the nine entries is still declared unwired, with its reason recorded on
- * {@link UNWIRED_DATABASE_TOOL_IDS}. `database_execute_migrate_forward` (2026-09-24) asks the human
+ * {@link UNWIRED_DATABASE_TOOL_IDS}. `database_execute_migrate_forward` asks the human
  * in chat first and only runs on their click — see `contracts/core/human-confirm.ts`'s
  * `humanConfirmedToolHandler`.
  *
@@ -36,7 +37,7 @@ import {
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import { acquireOperationLock, releaseOperationLock } from "../../contracts/core/operation-lock.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "#src/assistant/index";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
@@ -48,6 +49,9 @@ import {
   type RestorePointSavePort,
 } from "./restore-points.js";
 import type { LedgerReadPort } from "./timeline.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * The exact slice of the route-deps bag Database's tool handlers read. Declared structurally
@@ -124,7 +128,7 @@ const UNWIRED_DATABASE_TOOL_IDS = new Set([
 
 export function buildDatabaseRegistrations(
   routeDeps: DatabaseToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const migrateHooks = (actorId: string) =>
     buildMigrateForwardHooks({
@@ -231,7 +235,7 @@ export function buildDatabaseRegistrations(
     }),
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "database",
     catalogModule: "features/database/agent-tools.ts",
     catalog: CATALOG_BY_ID,
@@ -241,35 +245,10 @@ export function buildDatabaseRegistrations(
 }
 
 /**
- * Contributes Database's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
- * module. `assistant/tool-registrations.ts` no longer imports `buildDatabaseRegistrations`/
- * `databaseDerivedRisk` by name; this is the seam that replaced it.
- *
- * 2026-08-17: Database was briefly converted to the tool-contribution registry in the same Stage 2
- * batch 2 that converted widgets/content-types/forms/menus, then reverted the same night —
- * `check:architecture --list` showed it opened a NEW, much larger module cycle than the
- * `themes`/`post` near-misses in the prior batch: adding `database -> assistant` closed a
- * 16-module SCC: `assistant, db, export, features/database, features/deployments, features/entries,
- * features/pages, features/plugin-runtime, features/post, features/presentation, features/recovery,
- * features/settings, features/source-control, features/vendor-credentials, features/workspace, seo`.
- * A plain relative-path/`#src/*` importer grep on `features/database` alone (server/* and
- * `db/sqlite/*` only) did not surface this — the cycle ran through the shared low-level `db` module
- * and the still-static `deployments`/`source-control`/`recovery`/`settings`/`workspace`/`entries`/
- * `post`/`pages`/`plugin-runtime`/`seo` `DOMAIN_SLICES` entries collectively, not through any single
- * direct importer.
- *
- * Retried and landed here (same day, later pass, per
- * `ADS-memory/reports/architecture/2026-08-17-database-cycle-investigation.md`): six of that
- * 16-module SCC's members (`entries`, `pages`, `plugin-runtime`, `recovery`, `workspace`, `seo`) had
- * since converted to the registry themselves, shrinking the SCC to 10 — and the one remaining edge
- * that actually closed it back into `features/database` was a single value import,
- * `db/sqlite/database-introspection-adapter.sqlite.ts`'s `getDriftStatus` from
- * `features/database/drift.ts`. That file relocated to `db/drift.ts` this same pass (see its own
- * header), which removed the `db -> features/database` edge outright — confirmed empirically
- * (stubbing the import collapsed the SCC to 0 before this registration was even added) before this
- * conversion landed. `check:architecture` now reports 0 module cycles / largest SCC 0 with Database
- * wired this way.
+ * Contributes Database's AI tools; called once by the composition root's
+ * `installFirstPartyToolContributors()`, never as an import side effect.
+ * Database drift logic belongs to the low-level database module, which must not value-import
+ * this feature: that would close a runtime cycle through assistant tool discovery.
  */
 export function contributeDatabaseTools(): ToolContributor {
   return { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk };

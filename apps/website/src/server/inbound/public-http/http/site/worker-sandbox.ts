@@ -13,6 +13,7 @@ import {
   createNodeWorkerScheduler,
   renderInWorkerSandbox as renderWithWorker,
   resolveDefaultTimeoutMs as resolveWorkerTimeout,
+  type WorkerFactory,
 } from "@jini-ai/sandbox/node-worker";
 import type { SiteRenderContext } from "./render.js";
 
@@ -27,6 +28,8 @@ export interface SandboxRenderInput {
 export interface SandboxOptions {
   timeoutMs?: number;
   resourceLimits?: ResourceLimits;
+  /** Alternate worker effect port; Jini still owns settlement, budgets and cleanup. */
+  workerFactory?: WorkerFactory;
 }
 
 // Use require.resolve for the TS registration module: the worker bootstrap needs a
@@ -87,7 +90,7 @@ export function renderInWorkerSandbox(
   options: SandboxOptions = {},
 ): Promise<string> {
   const isTsSource = import.meta.filename.endsWith(".ts");
-  const workerFactory = createNodeWorkerFactory({ env: { ...process.env } }, {
+  const workerFactory = options.workerFactory ?? createNodeWorkerFactory({ env: { ...process.env } }, {
     ...(isTsSource ? { typescriptBootstrap: { registerModulePath: require.resolve("tsx/cjs/api") } } : {}),
   });
   return renderWithWorker({

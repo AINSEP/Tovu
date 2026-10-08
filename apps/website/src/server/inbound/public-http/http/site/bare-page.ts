@@ -1,6 +1,6 @@
 import type { PostRecord } from "#src/features/post/index";
-import type { ResolveHtmlPageEmbedsResult } from "#src/features/widgets/resolver-service";
-import type { WidgetRenderIR } from "#src/features/widgets/types";
+import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
+import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { escapeHtml } from "#src/platform/html/escape";
 import { renderDocNode, renderHtmlPageBody, type MediaAssetRenderMeta } from "./render.js";
 

@@ -109,12 +109,13 @@ export async function resealCredentialsOpeningUnder(deps: ResealCredentialsDeps)
   let unreadable = 0;
   for (const value of await readSealedValues(deps)) {
     if (value.opens) continue;
-    const plaintext = value.aad === undefined ? undefined : await openValue(deps.previous, value.quad, value.aad);
-    if (plaintext === undefined) {
+    const aad = value.aad;
+    const plaintext = aad === undefined ? undefined : await openValue(deps.previous, value.quad, aad);
+    if (aad === undefined || plaintext === undefined) {
       unreadable += 1;
       continue;
     }
-    moves.push({ value, sealed: await deps.sealer.seal({ plaintext, key: deps.key, aad: value.aad }) });
+    moves.push({ value, sealed: await deps.sealer.seal({ plaintext, key: deps.key, aad }) });
   }
   await deps.kernel.transaction(async () => {
     for (const { value, sealed } of moves) {
@@ -213,7 +214,7 @@ async function openValue(sealer: Pick<SecretSealerPort, "open">, quad: Quad, aad
   const { keyId, ciphertext, nonce, alg } = quad;
   if (typeof keyId !== "string" || typeof nonce !== "string" || typeof alg !== "string") return undefined;
   try {
-    return await sealer.open({ sealed: { keyId, ciphertext, nonce, alg }, aad });
+    return await sealer.open({ sealed: { keyId, ciphertext, nonce, alg } }, { aad });
   } catch {
     return undefined;
   }

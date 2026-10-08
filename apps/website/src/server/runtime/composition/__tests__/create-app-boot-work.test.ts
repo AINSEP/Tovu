@@ -61,9 +61,10 @@ test("createServingApp returns that same pass as bootWork, so a serving process 
 
   const { bootWork, outboxDrainer, trashSweeper } = createServingApp(deps);
   try {
-    assert.equal(bootWork.length, 1);
+    // Serving also recovers interrupted assistant runs; both passes must settle before close.
+    assert.equal(bootWork.length, 2);
     let settled = false;
-    const settling = bootWork[0]!.then(() => (settled = true));
+    const settling = Promise.all(bootWork).then(() => (settled = true));
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(settled, false, "bootWork settled before the plugin catalog was read");
 

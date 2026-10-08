@@ -14,7 +14,7 @@
  * `status` — see that port's own doc). Every read here pins BOTH `status === "published"` AND
  * `!isTrashed(row)`.
  *
- * Unlike the `entries`/`EntryListPort` model this file used before, `PostRepoPort.list()` takes only
+ * `PostRepoPort.list()` takes only
  * `{ workspaceId }` — it has no `status` parameter to push down into the query at all
  * (`PostRepoPort` keeps `findById`/`findBySlug`/`list` deliberately trash- and status-BLIND so
  * uniqueness checks and reverters elsewhere can see every row; see `post.ts`'s `PostRecord.deletedAt`
@@ -50,7 +50,7 @@ import { resolvePublicTarget, type ClientDirective } from "./client-directives.j
  * Structural signature matching `features/post/post.ts`'s real `listPublishedPosts` function.
  * Declared locally (rather than importing `typeof listPublishedPosts`) so this module's only tie to
  * `features/post` is the two `import type`s above (`PostRecord`/`PostRepoPort`, already erased at
- * runtime) — importing the FUNCTION as a value here is exactly the edge that used to close the
+ * runtime) — importing the FUNCTION as a value here is exactly the edge that would close the
  * `[assistant, features/post]` module cycle `check:architecture` flags (`assistant/site/*` both
  * value-importing `features/post` while `features/post/tool-registrations.ts` registers into
  * `assistant`). See `SiteAssistantToolDeps.listPublishedPosts`'s doc for how the real function still

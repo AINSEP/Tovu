@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "#src/assistant/mcp-ui-tool-calls";
 import { createHookRegistry } from "../hooks.js";
@@ -9,6 +9,9 @@ import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo,
 import { buildNewsletterDeliveryRegistrations, newsletterDeliveryDerivedRisk, type NewsletterDeliveryToolDeps } from "../delivery/tool-registrations.js";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
 import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT, type SendBatchJob } from "../send-pipeline.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const NOW = "2026-10-01T00:00:00.000Z";
 const MAIL_OFF = "NEWSLETTER_MAIL_OFF: Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins before sending newsletters. Nothing was sent or scheduled.";
@@ -32,7 +35,7 @@ async function fixture(driver = "smtp", status = "draft") {
   };
   await deps.newsletterListRepo.save({ id: "list", workspaceId: "ws", name: "Readers", slug: "readers", isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW });
   await deps.newsletterCampaignRepo.saveCampaignRow({ id: "campaign", workspaceId: "ws", status: status as "draft", subject: "October news", preheader: "Preview", fromName: "Editor", fromEmail: "sender@example.com", replyTo: "reply@example.com", listId: "list", scheduledAt: null, sendStartedAt: null, audienceSnapshotId: null, counters: { recipients: 0, delivered: 0, failed: 0, bounced: 0, complained: 0, unsubscribed: 0 }, version: 1, createdByPrincipal: "owner", createdAt: NOW, updatedAt: NOW });
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tools = new Map(buildNewsletterDeliveryRegistrations(deps, { surfaceExchanges: store }).map((tool) => [tool.descriptor.id, tool]));
   const call = (toolId: string, input: unknown = { campaignId: "campaign" }, extra: Partial<ToolExecutionContext> & ToolExecutionOptions = {}) => {
     const tool = tools.get(toolId);
@@ -47,7 +50,7 @@ async function fixture(driver = "smtp", status = "draft") {
     const surface = await emission as { payload: { resource: { resource: { text: string } } } };
     const html = surface.payload.resource.resource.text;
     const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1];
-    return { pending, html, answer: (params: Record<string, unknown>, principalId = "operator", callbackTool = toolId) => store.deliver({ exchangeId, toolId: callbackTool, principalId, params }) };
+    return { pending, html, answer: (params: Record<string, unknown>, principalId = "operator", callbackTool = toolId) => store.deliver({ exchangeId, principalId, params }, { toolId: callbackTool }) };
   };
   return { deps, tools, store, messages, call, raise };
 }
@@ -62,7 +65,7 @@ test("delivery tools are registered as durable writes with independently derived
 });
 
 test("the browser callback policy admits newsletter confirmation cards", () => {
-  for (const id of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign", "newsletter_resend_confirmation"]) assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has(id), true, `${id} must accept its browser exchange callback`);
+  for (const id of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign"]) assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has(id), true, `${id} must accept its browser exchange callback`);
   assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("newsletter_send_test"), false);
 });
 
@@ -104,7 +107,7 @@ test("delivery tools check permission before reading campaign or sending", async
 test("mass actions cannot self-confirm through tool input or run without a browser channel", async () => {
   const h = await fixture();
   for (const id of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign"]) {
-    await assert.rejects(h.call(id, { campaignId: "campaign", scheduledAt: "2026-10-02T12:00:00.000Z", decision: "confirm" }), { message: `NEWSLETTER_NO_CONFIRMATION_CHANNEL: ${id} requires a human confirmation card. Nothing was sent or scheduled.` });
+    await assert.rejects(h.call(id, { campaignId: "campaign", scheduledAt: "2026-10-02T12:00:00.000Z", decision: "confirm" }), { message: `NEWSLETTER_NO_CONFIRMATION_CHANNEL: ${id}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
   }
 });
 
@@ -162,7 +165,7 @@ test("confirmed send freezes an audience and uses the existing outbox pipeline o
   assert.deepEqual(await raised.pending, { confirmed: true, started: true, campaignId: "campaign", status: "sending", delivered: false, mailDeliveryAvailable: true });
   assert.equal(h.messages.length, 1);
   assert.equal((await h.deps.newsletterCampaignRepo.findById({ workspaceId: "ws", id: "campaign" }))?.status, "sent");
-  await assert.rejects(h.call("newsletter_send_campaign"), { message: "NEWSLETTER_NO_CONFIRMATION_CHANNEL: newsletter_send_campaign requires a human confirmation card. Nothing was sent or scheduled." });
+  await assert.rejects(h.call("newsletter_send_campaign"), { message: "NEWSLETTER_NO_CONFIRMATION_CHANNEL: newsletter_send_campaign: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
   assert.equal(h.messages.length, 1);
 });
 
@@ -261,17 +264,13 @@ test("abort closes a waiting confirmation without scheduling", async () => {
 });
 
 test("approval does not survive permission revocation while the card is open", async () => {
-  for (const toolId of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign", "newsletter_resend_confirmation"]) {
+  for (const toolId of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign"]) {
     const h = await fixture();
-    if (toolId === "newsletter_resend_confirmation") {
-      const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find((entry) => entry.descriptor.id === toolId)!;
-      h.tools.set(toolId, tool);
-    }
-    const input = toolId === "newsletter_resend_confirmation" ? { subscriptionId: "subscription" } : { campaignId: "campaign", scheduledAt: "2026-10-02T12:00:00.000Z" };
+    const input = { campaignId: "campaign", scheduledAt: "2026-10-02T12:00:00.000Z" };
     const raised = await h.raise(toolId, input);
     h.deps.authorize = async () => ({ allowed: false, reason: "insufficient_permission" });
     raised.answer({ decision: "confirm" });
-    const permission = toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : toolId === "newsletter_resend_confirmation" ? "admin.newsletter.subscriber.manage" : "admin.newsletter.campaign.send";
+    const permission = toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : "admin.newsletter.campaign.send";
     await assert.rejects(raised.pending, { message: `NEWSLETTER_FORBIDDEN: principal 'operator' is not authorized for '${permission}' (insufficient_permission)` });
     assert.equal((await h.deps.newsletterCampaignRepo.findById({ workspaceId: "ws", id: "campaign" }))?.status, "draft");
     assert.deepEqual(h.messages, []);
@@ -279,18 +278,12 @@ test("approval does not survive permission revocation while the card is open", a
   }
 });
 
-test("abort immediately after approval refuses a resend before looking up a subscriber", async () => {
+test("an aborted resend refuses before looking up a subscriber", async () => {
   const h = await fixture();
-  const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find((entry) => entry.descriptor.id === "newsletter_resend_confirmation")!;
-  const abort = new AbortController();
+  const tool = buildNewsletterRegistrations(h.deps).find(entry => entry.descriptor.id === "newsletter_resend_confirmation")!;
+  const abort = new AbortController(); abort.abort();
   h.deps.newsletterSubscriptionRepo.findById = async () => { assert.fail("aborted resend must not look up subscriptions"); };
-  const pending = tool.handler({ executionId: "exec", principal: { id: "operator" }, run: { id: "run" }, input: { subscriptionId: "subscription" }, signal: abort.signal }, { emitSurface: async (surface) => {
-    const html = (surface.payload as { resource: { resource: { text: string } } }).resource.resource.text;
-    const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1];
-    h.store.deliver({ exchangeId, toolId: "newsletter_resend_confirmation", principalId: "operator", params: { decision: "confirm" } });
-    abort.abort();
-  } });
-  assert.deepEqual(await pending, { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true });
+  assert.deepEqual(await tool.handler({ executionId: "exec", principal: { id: "operator" }, run: { id: "run" }, input: { subscriptionId: "subscription" }, signal: abort.signal }), { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true });
   assert.deepEqual(h.messages, []);
 });
 
@@ -304,7 +297,7 @@ test("resend mail-off is constant for existing and missing subscriptions without
   }
 });
 
-test("resend requires a human card and hides missing contacts and subscription status", async () => {
+test("resend runs directly and hides missing contacts and subscription status", async () => {
   for (const scenario of [
     { exists: true, contact: true, status: "pending", sends: 1 },
     { exists: false, contact: true, status: "pending", sends: 0 },
@@ -317,12 +310,8 @@ test("resend requires a human card and hides missing contacts and subscription s
     h.deps.newsletterSubscriberDirectory.getContact = async () => scenario.contact ? ({ workspaceId: "ws", subscriberId: "subscriber", email: "reader@example.com", emailDeliverable: true }) : null;
     const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find((tool) => tool.descriptor.id === "newsletter_resend_confirmation")!;
     h.tools.set(tool.descriptor.id, tool);
-    await assert.rejects(h.call("newsletter_resend_confirmation", { subscriptionId: "subscription", decision: "confirm" }), { message: "NEWSLETTER_NO_CONFIRMATION_CHANNEL: newsletter_resend_confirmation requires a human confirmation card. Nothing was sent or scheduled." });
-    const raised = await h.raise("newsletter_resend_confirmation", { subscriptionId: "subscription" });
-    assert.doesNotMatch(raised.html, /reader@example.com/);
-    assert.deepEqual(h.messages, []);
-    raised.answer({ decision: "confirm" });
-    assert.deepEqual(await raised.pending, { delivered: true, mailDeliveryAvailable: true });
+    assert.deepEqual(await h.call("newsletter_resend_confirmation", { subscriptionId: "subscription" }, { emitSurface: async () => assert.fail("ordinary resend asked") }), { delivered: true, mailDeliveryAvailable: true });
+    assert.equal(h.store.size(), 0);
     assert.equal(h.messages.length, scenario.sends);
   }
 });
@@ -338,9 +327,7 @@ test("resend acknowledgement does not expose contact or provider failures", asyn
     h.deps.originRegistry.canonicalOrigin = async () => { throw new Error("private endpoint failed"); };
     const tool = buildNewsletterRegistrations(h.deps, { surfaceExchanges: h.store }).find((entry) => entry.descriptor.id === "newsletter_resend_confirmation")!;
     h.tools.set(tool.descriptor.id, tool);
-    const raised = await h.raise("newsletter_resend_confirmation", { subscriptionId: "subscription" });
-    raised.answer({ decision: "confirm" });
-    assert.deepEqual(await raised.pending, { delivered: true, mailDeliveryAvailable: true });
+    assert.deepEqual(await h.call("newsletter_resend_confirmation", { subscriptionId: "subscription" }), { delivered: true, mailDeliveryAvailable: true });
     assert.deepEqual(h.messages, []);
   }
 });

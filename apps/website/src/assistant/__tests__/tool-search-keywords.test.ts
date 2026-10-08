@@ -4,10 +4,8 @@ import test from "node:test";
 import { indexedDescriptionFor, stripSearchKeywords } from "../tool-search-keywords.js";
 
 /**
- * @file This module's own fold/strip contract, tested directly. Previously only exercised
- * indirectly through `tool-catalog-query.test.ts`, which always forwards a real boolean for
- * `includeDoc2query` (never omits it), so `indexedDescriptionFor`'s own `?? true` default, and the
- * no-keywords/no-doc2query "nothing to fold" path, were never reached.
+ * @file Direct fold/strip contract coverage, including omitted includeDoc2query defaults and
+ * the no-keywords/no-doc2query path that callers passing explicit booleans cannot exercise.
  */
 
 const KEYWORD_MARKER = " — also known as: ";

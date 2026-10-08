@@ -56,7 +56,7 @@ class BrokenKeyring implements KeyringPort {
 test("a workspace nobody has configured reads as not-set, with sensible defaults", async () => {
   const { deps } = makeDeps();
   const view = await getSiteAssistantCredential(deps, { workspaceId: WORKSPACE });
-  assert.deepEqual(view, { isSet: false, masked: null, provider: "google", baseUrl: null, model: null, updatedAt: null });
+  assert.deepEqual(view, { isSet: false, masked: null, tokenHint: null, provider: "google", baseUrl: null, model: null, updatedAt: null });
 });
 
 // ---------------------------------------------------------------------------
@@ -282,10 +282,8 @@ test("resolveSiteAssistantApiKey returns the key, provider, baseUrl, and model t
 });
 
 // ---------------------------------------------------------------------------
-// AAD (2026-09-02 gap closure) — `site_assistant_credentials` used to seal with no additional
-// authenticated data at all, so a ciphertext was transplantable between workspace rows. New writes
-// must bind `workspaceId` into the seal; existing (`aad_version = 0`) rows must keep opening exactly
-// as before so no live visitor-assistant key goes dark mid-migration.
+// Writes bind workspaceId into AAD so ciphertext cannot be transplanted across workspace rows.
+// Legacy aad_version=0 rows must keep opening to preserve existing visitor-assistant credentials.
 // ---------------------------------------------------------------------------
 
 test("a freshly saved key is sealed with AAD bound to workspaceId and the row is marked aadVersion 1", async () => {
@@ -297,7 +295,7 @@ test("a freshly saved key is sealed with AAD bound to workspaceId and the row is
 
   // Opening under the WRONG aad (the legacy no-aad shape) must fail closed.
   await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));
-  const opened = await sealer.open({ sealed: row!.sealed!, aad: buildSiteAssistantCredentialAad({ workspaceId: WORKSPACE }) });
+  const opened = await sealer.open({ sealed: row!.sealed! }, { aad: buildSiteAssistantCredentialAad({ workspaceId: WORKSPACE }) });
   assert.equal(opened, "aad-bound-key-1234");
 });
 
@@ -318,6 +316,7 @@ test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact
 
   const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
   assert.deepEqual(resolved, { apiKey: "legacy-no-aad-5678", provider: "google", baseUrl: null, model: null });
+  assert.deepEqual((await getSiteAssistantCredential(deps, { workspaceId: WORKSPACE })).tokenHint, { length: 18, last4: "5678" });
 });
 
 test("a metadata-only edit over a legacy (aadVersion 0) row leaves the ciphertext AND its aadVersion untouched", async () => {
@@ -365,4 +364,27 @@ test("AAD binding: swapping the sealed key onto a DIFFERENT workspace's row fail
 
   const resolved = await resolveSiteAssistantApiKey(deps, { workspaceId: WORKSPACE });
   assert.equal(resolved, null, "resolveSiteAssistantApiKey never throws — a transplanted ciphertext must resolve to null, not the wrong plaintext");
+});
+
+
+test("BYOK hints use the shared server policy on writes and reads, including short keys and open failures", async () => {
+  const { deps } = makeDeps();
+  const scope = { workspaceId: WORKSPACE };
+  for (const [apiKey, expected] of [
+    ["a".repeat(14) + "a9F2", { length: 18, last4: "a9F2" }],
+    ["tiny", { length: 4, last4: null }],
+  ] as const) {
+    const written = await setSiteAssistantCredential(deps, { ...scope, apiKey });
+    const read = await getSiteAssistantCredential(deps, scope);
+    assert.deepEqual(written.tokenHint, expected);
+    assert.deepEqual(read.tokenHint, expected);
+    assert.equal(JSON.stringify(written).includes(apiKey), false);
+    assert.equal(JSON.stringify(read).includes(apiKey), false);
+    if (expected.last4 === null) assert.equal(read.masked, null);
+  }
+  const unavailable = { ...deps, sealer: { ...deps.sealer, seal: deps.sealer.seal.bind(deps.sealer), open: async () => { throw new Error("unavailable"); } } };
+  const metadata = await getSiteAssistantCredential(unavailable, scope);
+  assert.equal(metadata.isSet, true);
+  assert.equal(metadata.tokenHint, null);
+  assert.equal(metadata.masked, null);
 });

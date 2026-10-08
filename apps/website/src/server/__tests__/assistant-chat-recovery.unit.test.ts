@@ -6,8 +6,8 @@ import type { ChatRunLedger } from "#src/assistant/index";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import { createInMemoryChatHistory } from "#src/assistant/persistence/store-factory";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
-import { createLiveRunTracker, CONCURRENT_RUN_REFUSAL_MESSAGE, failRunBeforeStart } from "../inbound/assistant/agent-run-concurrency.js";
-import { wouldForcedColdStartLoseConversationContext } from "../inbound/assistant/agent-session-resume.js";
+import { createLiveRunTracker, CONCURRENT_RUN_REFUSAL_MESSAGE, failRunBeforeStart } from "../../assistant/agent-session-preset.js";
+import { wouldForcedColdStartLoseConversationContext } from "../../assistant/agent-session-preset.js";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
 import { createAssistantRunFinalizer, createHttpRunDaemonClient, assistantRunFinalizerFor, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
 import type { RouteDeps } from "../routes/types.js";
@@ -19,8 +19,8 @@ import type { RouteDeps } from "../routes/types.js";
  * independent of processes or HTTP listeners. */
 function harness(required: { status: number | null }, optional: { events?: ChatMessage["events"] } = {}) {
   const message: ChatMessage = { id: "answer", role: "assistant", content: "partial", events: optional.events ?? [], runId: "run-old", runStatus: "running" };
-  const tracker = createLiveRunTracker();
-  tracker.register("chat", "run-old");
+  const tracker = createLiveRunTracker({}, {});
+  tracker.register({ conversationId: "chat", runId: "run-old" }, {});
   let stream!: ReadableStreamDefaultController<Uint8Array>;
   const body = new ReadableStream<Uint8Array>({ start(controller) { stream = controller; } });
   const calls: unknown[] = [];
@@ -41,7 +41,7 @@ function harness(required: { status: number | null }, optional: { events?: ChatM
   const finalizer = createAssistantRunFinalizer({ ledger, daemon, now: () => 1234, checkpointIntervalMs: 0, reconnectDelayMs: 0 });
   function finish() {
     // The real daemon releases its tracker on waitForTerminal, independently of the API finalizer.
-    tracker.unregister("chat", "run-old");
+    tracker.unregister({ conversationId: "chat", runId: "run-old" }, {});
     const frames = [
       ["agent", { type: "text_delta", delta: "Recovered answer" }],
       ["end", { status: "succeeded", code: 0 }],
@@ -52,15 +52,15 @@ function harness(required: { status: number | null }, optional: { events?: ChatM
   async function send() {
     const errors: string[] = [];
     let status = "running";
-    tracker.register("chat", "run-next");
+    tracker.register({ conversationId: "chat", runId: "run-next" }, {});
     if (wouldForcedColdStartLoseConversationContext({
       storedSessionId: "session", carriesOwnMemory: true,
-      hasConcurrentLiveRun: tracker.hasConcurrentLiveRun("chat", "run-next"),
-    })) {
-      await failRunBeforeStart({
+      hasConcurrentLiveRun: tracker.hasConcurrentLiveRun({ conversationId: "chat", runId: "run-next" }, {}),
+    }, {})) {
+      await failRunBeforeStart({ lifecycle: {
         emit: async ({ input }) => { errors.push(input.data.message); },
-        finish: async (input) => { status = input.status; tracker.unregister("chat", "run-next"); },
-      }, "run-next", CONCURRENT_RUN_REFUSAL_MESSAGE);
+        finish: async (input) => { status = input.status; tracker.unregister({ conversationId: "chat", runId: "run-next" }, {}); },
+      }, runId: "run-next", message: CONCURRENT_RUN_REFUSAL_MESSAGE }, {});
     }
     return { status, errors };
   }

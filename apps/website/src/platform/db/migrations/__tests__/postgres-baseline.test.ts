@@ -8,7 +8,7 @@ import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import type { StorageKernel } from "../../kernel/port.js";
 import { readSchemaShape, type SchemaShape } from "../../kernel/schema-shape.js";
 import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
-import { migrateContentDatabase } from "../index.js";
+import { CONTENT_MIGRATIONS, migrateContentDatabase } from "../index.js";
 import { LegacyHistoryError } from "../step.js";
 
 /**
@@ -40,13 +40,18 @@ describe("0000_legacy_baseline on Postgres (PGlite)", () => {
   test("applies on an empty database and matches schema.postgres.ts at head", async () => {
     const kernel = pglite();
     const report = await migrateContentDatabase(kernel);
-    assert.deepEqual(report.applied, ["0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables", "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables"]);
+    assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map(step => step.id));
     const reference = pglite(ensurePgContentSchema);
     // `post_search_document` is step 0001's, not the baseline's (`post-search-step.test.ts`).
     const actual = await readSchemaShape(kernel, { exclude: ["tovu_migrations", "post_search_document"] });
     const expected = withoutNotValid(await readSchemaShape(reference));
     assert.deepEqual(Object.keys(actual.tables).sort(), Object.keys(expected.tables).sort());
-    for (const name of Object.keys(expected.tables)) assert.deepEqual(actual.tables[name], expected.tables[name], `table ${name}`);
+    // ALTER TABLE appends columns; their definitions, defaults and constraints must still match.
+    for (const name of Object.keys(expected.tables)) assert.deepEqual(
+      { ...actual.tables[name], columns: [...actual.tables[name].columns].sort() },
+      { ...expected.tables[name], columns: [...expected.tables[name].columns].sort() },
+      `table ${name}`,
+    );
     assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
   });
 

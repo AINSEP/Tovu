@@ -109,15 +109,7 @@ test("markFailed with nextStatus 'failed' re-enters pending; 'dead' stays termin
   assert.equal(row?.nextAttemptAt, "2026-07-10T00:05:00.000Z");
   assert.equal(row?.deadAt, null);
 
-  await repo.markFailed({
-    workspaceId: "workspace-1",
-    id: "d1",
-    error: "still failing",
-    responseStatus: 500,
-    nextStatus: "dead",
-    nextAttemptAt: "2026-07-10T00:05:00.000Z",
-    deadAtIso: "2026-07-10T00:05:00.000Z",
-  });
+  await repo.markFailed({ workspaceId: "workspace-1", id: "d1", error: "still failing", responseStatus: 500, nextStatus: "dead", nextAttemptAt: "2026-07-10T00:05:00.000Z" }, { deadAtIso: "2026-07-10T00:05:00.000Z" });
 
   row = await repo.findById({ workspaceId: "workspace-1", id: "d1" });
   assert.equal(row?.status, "dead");

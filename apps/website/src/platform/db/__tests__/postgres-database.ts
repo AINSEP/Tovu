@@ -1,9 +1,15 @@
-import { psql, recreateDatabase } from "../migration/pg-fixture.js";
+import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";
 import { pgContentSchemaSql } from "./pg-content-schema.js";
+
+const { psql, recreateDatabase, dropDatabase } = createPgFixture({
+  host: process.env.PGHOST ?? "/tmp",
+  user: process.env.PGUSER ?? "la",
+  port: process.env.PGPORT,
+});
 
 // The one door to pg-fixture for tests outside this directory: pg-fixture-import-boundary.test.ts
 // allows its import only here, so a product file can never reach the psql-spawning helpers.
-export { dropDatabase, psql } from "../migration/pg-fixture.js";
+export { dropDatabase, psql };
 
 /**
  * @file A fresh database on the local Postgres server for tests that need REAL connections (two
@@ -13,7 +19,7 @@ export { dropDatabase, psql } from "../migration/pg-fixture.js";
  * fails, it never skips. Host/user follow libpq's env vars, as `pg-fixture.ts` does.
  */
 export function freshPostgresDatabase(name: string): string {
-  recreateDatabase(name);
+  recreateDatabase({ database: name });
   const host = process.env.PGHOST ?? "/tmp";
   const user = process.env.PGUSER ?? "la";
   const port = process.env.PGPORT ? `&port=${process.env.PGPORT}` : "";
@@ -23,7 +29,7 @@ export function freshPostgresDatabase(name: string): string {
 /** {@link freshPostgresDatabase} with the whole content schema created (`pg-content-schema.ts`). */
 export function freshPostgresContentDatabase(name: string): string {
   const url = freshPostgresDatabase(name);
-  const created = psql(name, pgContentSchemaSql());
+  const created = psql({ database: name, sql: pgContentSchemaSql() });
   if (!created.ok) throw new Error(`creating the content schema in "${name}" failed: ${created.stderr}`);
   return url;
 }

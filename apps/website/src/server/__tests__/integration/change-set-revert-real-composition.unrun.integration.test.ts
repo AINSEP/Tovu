@@ -42,10 +42,10 @@ async function changeSets(site: BootedSite): Promise<ChangeSetHeader[]> {
 for (const dialect of SITE_DIALECTS) {
   test(`[unrun] change-set revert [${dialect}]: a post title edit is recorded as an applied change-set and reverting it restores the prior title`, async (t) => {
     const site = await bootSite(t, dialect);
-    const { post } = await expectJson<{ post: { id: string; slug: string } }>(await createPost(site, "Original title"), 201);
+    const { post } = await expectJson<{ post: { id: string; slug: string; bodyJson: unknown } }>(await createPost(site, "Original title"), 201);
 
     const edited = await expectJson<{ post: { title: string } }>(
-      await send(site, "PUT", `${site.ws}/posts/${post.id}`, { title: "Edited title", slug: post.slug, status: "draft" }),
+      await send(site, "PUT", `${site.ws}/posts/${post.id}`, { title: "Edited title", slug: post.slug, bodyJson: post.bodyJson, status: "draft" }),
       200
     );
     assert.equal(edited.post.title, "Edited title");

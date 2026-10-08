@@ -15,7 +15,7 @@ import { scopeToSchema, type StorageKernel } from "@jini-ai/db/kernel";
  * types with host sessions/approvals, exactly as `@jini-ai/chat/store/sqlite`'s `CHAT_HISTORY_DDL`
  * plus `sqlite/chat-db.ts`
  * (SQLite) and chat migration `0000_chat_baseline` (Postgres, schema {@link AI_CHAT_SCHEMA}) create them. Type aliases, not interfaces: Kysely's table
- * typing needs them (see `features/comments/repo.rows.ts`). Times are epoch milliseconds.
+ * typing needs them (see `Jini/packages/cms/src/comments/sql/repo.rows.ts`). Times are epoch milliseconds.
  */
 
 /** Tovu-owned (`sqlite/chat-db.ts`): which agent-CLI session a conversation's agent resumes. */
@@ -78,7 +78,6 @@ export const AI_CHAT_SCHEMA = "ai_chat";
  * The chat kernel over a Postgres/PGlite content database: the same connection, every chat
  * statement addressed to {@link AI_CHAT_SCHEMA} (`@jini-ai/db/kernel`). The tables come from
  * `migrateChatDatabase`.
- * schema-scope.ts (platform/db/kernel/schema-scope.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export function pgChatKernel(kernel: StorageKernel<unknown>): ChatKernel {
   return scopeToSchema(kernel as ChatKernel, AI_CHAT_SCHEMA);

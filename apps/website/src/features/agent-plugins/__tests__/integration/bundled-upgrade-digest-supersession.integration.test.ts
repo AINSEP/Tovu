@@ -10,9 +10,9 @@ import test from "node:test";
 
 
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { listInstalledPlugins, resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
+import { listInstalledPlugins, resolveAgentPluginRefs } from "../../lifecycle.js";
 import { resolveAgentPluginMcpServers } from "../../federate-mcp.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources } from "../../tool-registrations.js";
 
 /**

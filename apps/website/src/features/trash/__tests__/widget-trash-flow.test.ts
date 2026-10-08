@@ -1,3 +1,4 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { bindWidgetRemoval } from "../widget-removal.js";
 import { removeEntityWithoutBlocker } from "../remove-without-blocker.js";
 import assert from "node:assert/strict";
@@ -9,14 +10,8 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
-import { buildWidgetInstanceFieldsJson, parseWidgetInstancePayload } from "#src/features/widgets/entry-payload";
-import {
-  adoptLegacyTrashedWidgets,
-  createWidgetInstance,
-  restoreWidgetPriorStatus,
-  trashWidgetInstance,
-  type WidgetTrashDeps,
-} from "#src/features/widgets/write-service";
+import { buildWidgetInstanceFieldsJson, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
+import { adoptLegacyTrashedWidgets, createWidgetInstance, restoreWidgetPriorStatus, trashWidgetInstance, type WidgetTrashDeps } from "@jini-ai/cms/widgets";
 
 import { createSqliteTrashDb } from "../db-port.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
@@ -80,7 +75,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   const entries = new SqliteEntryRepo(db);
-  const widgetDeps: WidgetTrashDeps = {
+  const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: entries,
     contentTypeRepo: new SqliteContentTypeRepo(db),
     entryRefsRepo: new SqliteEntryRefsRepo(db),
@@ -145,7 +140,7 @@ test("a widget whose payload does not parse can be trashed, and restore brings i
   const { id } = await createTextWidget(h, "Corrupt");
   const corrupt = JSON.stringify({ ext: { widget: { payload: "{not json" } } });
   h.db.$client.prepare(`UPDATE entries SET fields_json = ? WHERE id = ?`).run(corrupt, id);
-  assert.throws(() => parseWidgetInstancePayload(JSON.parse(corrupt)), "precondition: the payload really is unparseable");
+  assert.throws(() => parseWidgetInstancePayload({ fieldsJson: JSON.parse(corrupt) }), "precondition: the payload really is unparseable");
 
   await trashWidgetInstance({ deps: h.deps, input: { workspaceId: WS, actor: ACTOR, widgetInstanceId: id } });
   assert.equal(await h.entries.findById({ workspaceId: WS, id }), null);
@@ -246,7 +241,7 @@ test("creating a widget with the slug a trashed widget holds is refused with a m
 
 /** Rewrites a widget's payload status the way the old delete ladder left it. */
 function setLegacyStatus(h: Harness, id: string, status: "trash" | "purged"): void {
-  const fieldsJson = buildWidgetInstanceFieldsJson({ widgetType: "text", config: { body: "x" }, status });
+  const fieldsJson = buildWidgetInstanceFieldsJson({ payload: { widgetType: "text", config: { body: "x" }, status } });
   h.db.$client.prepare(`UPDATE entries SET fields_json = ? WHERE id = ?`).run(JSON.stringify(fieldsJson), id);
 }
 
@@ -286,7 +281,7 @@ test("adoptLegacyTrashedWidgets moves every old trash/purged widget into the Tra
   ] as const) {
     const row = rawRow(h, id)!;
     assert.equal(row.deleted_at, AT);
-    assert.equal(parseWidgetInstancePayload(JSON.parse(row.fields_json)).status, status);
+    assert.equal(parseWidgetInstancePayload({ fieldsJson: JSON.parse(row.fields_json) }).status, status);
     assert.equal(row.version, versionsBefore.get(id)! + 1, "only the Trash's own version bump");
   }
   assert.ok(await h.entries.findById({ workspaceId: WS, id: live.id }), "a live widget is left alone");
@@ -318,7 +313,7 @@ test("a restored adopted widget comes back active and readable with its outgoing
   const { instance: oldPurged } = await createWidgetInstance({ deps: h.deps, input: {
     workspaceId: WS, actor: ACTOR, widgetType: "menu", title: "Old purged", config: { menuRef: target.id },
   } });
-  const legacy = buildWidgetInstanceFieldsJson({ widgetType: "menu", config: { menuRef: target.id }, status: "purged" });
+  const legacy = buildWidgetInstanceFieldsJson({ payload: { widgetType: "menu", config: { menuRef: target.id }, status: "purged" } });
   h.db.$client.prepare("UPDATE entries SET fields_json = ? WHERE id = ?").run(JSON.stringify(legacy), oldPurged.id);
   h.db.$client.prepare("DELETE FROM entry_refs WHERE source_entry_id = ?").run(oldPurged.id);
   assert.deepEqual(await h.deps.entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: oldPurged.id }), []);
@@ -328,7 +323,7 @@ test("a restored adopted widget comes back active and readable with its outgoing
 
   const restored = await h.entries.findById({ workspaceId: WS, id: oldPurged.id });
   assert.ok(restored, "a restored adopted widget reads again");
-  assert.equal(parseWidgetInstancePayload(restored.fieldsJson).status, "active", "a restored old widget renders");
+  assert.equal(parseWidgetInstancePayload({ fieldsJson: restored.fieldsJson }).status, "active", "a restored old widget renders");
   assert.deepEqual(await h.deps.entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: oldPurged.id }), [
     { workspaceId: WS, sourceEntryId: oldPurged.id, sourceKind: "config-field", fieldPath: "fields.ext.widget.config.menuRef", targetKind: "entry", targetId: target.id },
   ]);

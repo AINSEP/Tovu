@@ -20,15 +20,18 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential } from "../store.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
-import { WRITE_FILES_TOOL_ID } from "../write-files-confirmation-ui.js";
+import { WRITE_FILES_TOOL_ID } from "../agent-tools.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const WORKSPACE_ID = "ws-cred-write-files-network";
 const PRINCIPAL_ID = "principal-under-test";
@@ -94,7 +97,7 @@ async function buildHarness(steps: Step[]) {
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
 
-  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore();
+  const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const openedExchangeIds: string[] = [];
   const observedExchanges: SurfaceExchangeStore = Object.assign(Object.create(surfaceExchanges) as SurfaceExchangeStore, {
     open: (...args: Parameters<SurfaceExchangeStore["open"]>) => {

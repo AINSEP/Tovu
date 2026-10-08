@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 /**
  * @file Task 2 of the publish-content (Publish Content) feature — proves
  * `installFirstPartyPublishContentTypes()` (`../publish-content-manifest.ts`) actually registers the
@@ -39,10 +40,10 @@ import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop
 import { createRawFileSitePort } from "#src/platform/site-dir/publish-backstop-file";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { packThemeFilesEntities } from "#src/features/theme/publish-content";
-import { createRedirect, InMemoryRedirectRepo, redirectMatcher, type RedirectsWriteDeps } from "#src/features/redirects/index";
+import { createRedirect, InMemoryRedirectRepo, redirectMatcher, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import {
   buildPublishContentCatalog,
   listPublishContentContributors,
@@ -272,7 +273,7 @@ test("the registered redirect contributor's apply() is a real write path, not a 
   assert.ok(contributor, "redirect must be registered");
 
   const workspaceId = "workspace-1";
-  const originRepo = new InMemoryOriginSettingRepo([
+  const originRepo = new InMemoryOriginSettingRepo({ seeds: [
     {
       workspaceId,
       origin: createVerifiedOrigin({
@@ -283,7 +284,7 @@ test("the registered redirect contributor's apply() is a real write path, not a 
       }),
       redirectAllowlist: [],
     },
-  ]);
+  ] });
   // `InMemoryRedirectRepo` satisfies both `RedirectRepoPort` (`repo`) and `RedirectDbHandle` (`db`) —
   // ONE instance for both, mirroring every real `RedirectsWriteDeps` composition (that class's own
   // header) — never two independent stores, which would silently split the write.
@@ -295,6 +296,7 @@ test("the registered redirect contributor's apply() is a real write path, not a 
     restore: async () => "not-found",
     db: redirectRepo,
     transaction: async (fn) => fn(),
+    reservedSegments: RESERVED_SEGMENTS,
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
     clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }),

@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/content-duplication.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Maps `agent-tools.ts`'s single `content_duplicate` catalog entry onto every resource
@@ -160,7 +161,7 @@ export function buildContentDuplicationRegistrations(
 
   // No `unwiredToolIds`: this domain has exactly one catalog entry and wires it unconditionally —
   // same tripwire discipline as Post/Forms/Entries/Widgets.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "content-duplication",
     catalogModule: "features/content-duplication/agent-tools.ts",
     catalog: CATALOG_BY_ID as ReadonlyMap<string, ContentDuplicationAgentToolDefinition>,

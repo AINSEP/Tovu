@@ -18,13 +18,16 @@ import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type ByokToolSurface, type DerivedToolContributor, type ToolContributor } from "../../assistant/index.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { formatCustomInstructionsOverlay } from "../../assistant/custom-instructions.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { POST_ENTITY_TYPE } from "../../features/trash/adapters/post.js";
 import { INSTRUCTIONS_NAMESPACE } from "../../features/settings/index.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply, type StubProviderRequest } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
 import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Route-level coverage for `POST /api/admin/v1/assistant/byok-turn` (`modules/assistant-byok.ts`)
@@ -513,7 +516,7 @@ test(`${BYOK_TURN_PATH} sends the bare SYSTEM_PREAMBLE as 'system' when no custo
 function stubByokToolSurface(options: { readonly settled: boolean; readonly refusalPrefix?: string }): ByokToolSurface {
   return {
     metaTools: [],
-    surfaceExchanges: createSurfaceExchangeStore(),
+    surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
     executeMetaTool: async () => ({ content: "" }),
     ready: Promise.resolve(),
     awaitFederation: async () => ({ settled: options.settled }),
@@ -969,7 +972,7 @@ test(`${BYOK_TURN_PATH}: trash_purge_item PARKS via a real emitSurface, and rede
 test(`${BYOK_TURN_PATH}: disconnecting a parked purge aborts the tool, closes its exchange, and prevents deletion`, { timeout: 15_000 }, async (t) => {
   const deps = createRouteDeps();
   await deps.identityReady;
-  const store = createSurfaceExchangeStore({ idleTtlMs: 5_000, maxLifetimeMs: 5_000 });
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 5_000, maxLifetimeMs: 5_000 });
   const surface = createByokToolSurface(deps, { surfaceExchangeStore: store, contributions: firstPartyContributions() });
   const execute = surface.executeMetaTool.bind(surface);
   let toolSignal: AbortSignal | undefined;
@@ -1063,7 +1066,7 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   const deps = createRouteDeps();
   await deps.identityReady;
 
-  const shortTtlStore = createSurfaceExchangeStore({ idleTtlMs: 30, maxLifetimeMs: 60 });
+  const shortTtlStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 30, maxLifetimeMs: 60 });
   const toolSurface = createByokToolSurface(deps, { surfaceExchangeStore: shortTtlStore, contributions: firstPartyContributions() });
 
   const app = express();
@@ -1196,4 +1199,30 @@ test('BYOK removes credential text from every user history message before provid
   const messages = (seen[0] as { messages: Array<{ role: string; content: unknown }> }).messages;
   assert.equal(JSON.stringify(messages[0]!.content).includes('Save [token removed]'), true);
   assert.equal(JSON.stringify(messages[2]!.content).includes('Connect with [token removed]'), true);
+  const note = 'The user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.';
+  assert.equal(messages[0]!.content, `Save [token removed]\n\n${note}`);
+  assert.equal(messages[2]!.content, `Connect with [token removed]\n\n${note}`);
+});
+
+test('BYOK uses the client redaction signal and leaves placeholder prose and assistant text unchanged', async t => {
+  const deps = createRouteDeps();
+  const { baseUrl } = await bootAuthenticated(createApp(deps), t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ['workspace.manage']);
+  const seen: unknown[] = [];
+  const providerUrl = await stubProvider(t, (_count, body) => {
+    seen.push(body);
+    return sseBody(messageStart(), textBlock(0, 'Use the secure card.'), messageDelta('end_turn'), messageStop());
+  });
+  const response = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY,
+    messages: [{ role: 'user', content: 'Explain [token removed]' }, { role: 'assistant', content: 'Which account?', secretRedacted: true }, { role: 'user', content: 'Connect with [token removed]', secretRedacted: true }],
+    byok: { ...BYOK_BODY.byok, baseUrl: providerUrl },
+  });
+  assert.equal(response.status, 200); await response.text();
+  assert.equal(seen.length, 1);
+  const messages = (seen[0] as { messages: Array<{ content: unknown }> }).messages;
+  assert.deepEqual(messages.map(message => message.content), [
+    'Explain [token removed]',
+    'Which account?',
+    'Connect with [token removed]\n\nThe user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.',
+  ]);
 });

@@ -8,7 +8,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import type { KeyringPort, SecretSealerPort } from "../../features/webhooks/ports.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
+import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import {
   createDeviceAuthorizationStore,
   createExternalMcpConnectionGate,
@@ -63,7 +63,7 @@ interface ScriptStep {
   readonly throws?: Error;
 }
 
-function scriptedFetch(script: readonly ScriptStep[]): { fetchFn: OAuthFetch; callCount(): number; requests: { url: string; init: RequestInit | undefined }[] } {
+function scriptedFetch(script: readonly ScriptStep[]): { fetchFn: typeof fetch; callCount(): number; requests: { url: string; init: RequestInit | undefined }[] } {
   let calls = 0;
   const requests: { url: string; init: RequestInit | undefined }[] = [];
   const fetchFn = (async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -75,7 +75,7 @@ function scriptedFetch(script: readonly ScriptStep[]): { fetchFn: OAuthFetch; ca
       status: step.status ?? 200,
       headers: { "content-type": "application/json" },
     });
-  }) as OAuthFetch;
+  }) as typeof fetch;
   return { fetchFn, callCount: () => calls, requests };
 }
 
@@ -964,10 +964,10 @@ function sealerThatStopsOpeningAfter(inner: SecretSealerPort, healthyOpens: numb
   let opens = 0;
   return {
     seal: (input) => inner.seal(input),
-    open: async (input) => {
+    open: async (input, optional) => {
       opens += 1;
       if (opens > healthyOpens) throw new Error("Unsupported state or unable to authenticate data");
-      return inner.open(input);
+      return inner.open(input, optional);
     },
   };
 }

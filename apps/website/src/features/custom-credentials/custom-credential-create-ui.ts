@@ -1,6 +1,6 @@
-import { buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
 
 /**
@@ -14,9 +14,9 @@ import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
  * before ever opening its form) — until this file, there was no way for the assistant to create the
  * ROW itself, so an agent that found no saved credential for a provider had to dead-end the human with
  * "go to Admin -> Access Tokens -> Add custom provider" instead of finishing the job in chat. This
- * surface is `buildSetTokenFormResource`'s sibling for the CREATE case, holding up the SAME property
+ * surface is the rotation card's sibling for the CREATE case, holding up the SAME property
  * that whole mechanism exists for — "a token must never pass through the model's context" — see
- * `custom-credential-set-token-ui.ts`'s own header for the full reasoning (a human typing a token into
+ * the Jini secret-card engine's header for the shared reasoning (a human typing a token into
  * ordinary chat text would land in `ai_chat_messages`, the model's own context, and the CLI's session
  * history; this form is the escape from that). Extended with the two fields a NEW row additionally
  * needs that a rotation does not: `baseUrl` and `category` (a closed enum — the Access Tokens page's
@@ -25,25 +25,22 @@ import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
  * Structurally closer to `deployment_propose_custom_provider_credential`'s own multi-field form
  * (`features/deployments/publish-agent-tools.ts`'s `buildProposeCredentialForm`) than to
  * `custom_credential_set_token`'s single-field one — both collect several non-secret fields alongside
- * one secret. Driven by `askThenReport`, like `custom_credential_set_token` (not `askOnce`, unlike the
- * propose-credential form): the identical defect `custom-credential-set-token-ui.ts`'s header
- * describes applies here too (a submission's `tools/call` round trip resolving the instant the
+ * one secret. Driven by the engine's `askThenReport`, like `custom_credential_set_token`: the shared
+ * engine's documented premature-Done defect applies here too (a submission's `tools/call` round trip resolving the instant the
  * exchange DELIVERS the click, before `createCustomCredential` has actually run), and this tool sits
  * directly beside `custom_credential_set_token` in `tool-registrations.ts`, so it follows that
  * sibling's precedent rather than the cross-feature one.
  *
  * ## Why the URI carries only the exchange id
  *
- * Same reasoning `custom-credential-set-token-ui.ts` and `customProviderCredentialFormUri`
- * (`publish-agent-tools.ts`) both give: a CREATE has no existing row/version to key against at the
- * point the form is raised — the row does not exist until the human submits — so the exchange id is
+ * Same reasoning the rotation card and deployment credential card give: a CREATE has no existing
+ * row/version to key against at the point the form is raised — the row does not exist until the human submits — so the exchange id is
  * the only stable handle a fresh form instance has.
  */
 
-export const CREATE_TOOL_ID = "custom_credential_create";
 
-/** Non-secret pre-fill hints the model-issued call may carry — see `agent-tools.ts`'s
- *  `CREATE_CREDENTIAL_SCHEMA` for the exact three fields this accepts. All three are optional; an
+/** Non-secret pre-fill hints the model-issued call may carry — see `credential-save-tool.ts`'s
+ *  API creation schema for the exact three fields this accepts. All three are optional; an
  *  absent field renders its form control blank rather than pre-filled. */
 export interface CreateCredentialPrefill {
   readonly label?: string;
@@ -54,9 +51,7 @@ export interface CreateCredentialPrefill {
 /** Shared by the form and its later outcome document — see this file's header, "Why the URI carries
  *  only the exchange id". Reusing the SAME uri for both is what makes the outcome REPLACE the form
  *  in the transcript instead of opening a second card. */
-export function createCredentialSurfaceUri(exchangeId: string): UIResourceUri {
-  return `ui://tovu/custom-credential-create/${exchangeId}` as UIResourceUri;
-}
+// The engine now supplies that shared exchange-keyed URI to both projections.
 
 /**
  * Renders the credential-creation form: label, base URL, category (a closed select drawn from
@@ -70,18 +65,15 @@ export function createCredentialSurfaceUri(exchangeId: string): UIResourceUri {
  * @complexity O(1) — a fixed five-field form (`CUSTOM_CREDENTIAL_CATEGORIES.length` is a small,
  *   compile-time-fixed constant, so the category options list is effectively O(1) too).
  */
-export function buildCreateFormResource(spec: { exchangeId: string; prefill: CreateCredentialPrefill }): UIResource {
-  const { exchangeId, prefill } = spec;
-  return buildFormSurface({
-    uri: createCredentialSurfaceUri(exchangeId),
+export function buildCreateForm(spec: { prefill: CreateCredentialPrefill }, _optional = {}): SecretCardForm & { preferredFrameSize: readonly [string, string] } {
+  const { prefill } = spec;
+  return {
     title: "Save a new custom credential",
     description:
       "Fill in the credential's label, base URL, and category, and type its token directly into the field below. " +
       "The token is sealed on the server the moment you submit — the assistant never sees it, and it is never " +
       "written to the chat transcript.",
     submitLabel: "Save credential",
-    toolName: CREATE_TOOL_ID,
-    baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId },
     fields: [
       {
         kind: "string",
@@ -129,37 +121,31 @@ export function buildCreateFormResource(spec: { exchangeId: string; prefill: Cre
         secret: true,
       },
     ],
-    cancel: {
-      label: "Cancel",
-      toolName: CREATE_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true },
-    },
     app: { appName: "tovu-custom-credential-create", appVersion: "1" },
     preferredFrameSize: ["100%", "560px"],
-  });
+  };
 }
 
 /**
- * Renders the RESULT of a submitted create — what replaces the form once `askThenReport`'s `handle`
- * callback (`handleCreateAnswer`, `tool-registrations.ts`) has actually run `createCustomCredential`
+ * Renders the RESULT of a submitted create — what replaces the form once the engine's domain
+ * save port (`saveCreateCard`, `tool-registrations.ts`) has actually run `createCustomCredential`
  * (or refused to, e.g. a duplicate label or an invalid category). See this file's header for the
- * mechanism and why the `uri` MUST equal {@link createCredentialSurfaceUri} for the same exchange id.
+ * mechanism and why the engine supplies the same `uri` to both projections.
  *
  * `message` is caller-controlled and must never carry the token itself — enforced by construction at
  * every call site in `tool-registrations.ts`, never by this function, which only renders what it is
- * given (same division of responsibility `buildSetTokenOutcomeResource`'s own doc states).
+ * given (the same division of responsibility as the rotation card's outcome projection).
  *
  * @complexity O(1) — fixed-size field reads.
  */
-export function buildCreateOutcomeResource(spec: { exchangeId: string; label: string; state: "success" | "failure"; message: string }): UIResource {
-  const { exchangeId, label, state, message } = spec;
-  return buildOutcomeSurface({
-    uri: createCredentialSurfaceUri(exchangeId),
+export function buildCreateOutcome(spec: { label: string; state: "success" | "failure"; message: string }, _optional = {}): SurfaceOutcomeSpec & { preferredFrameSize: readonly [string, string] } {
+  const { label, state, message } = spec;
+  return {
     title: state === "success" ? "Credential saved" : "Credential not saved",
     details: [{ label: "Label", value: label }],
     state,
     message,
     app: { appName: "tovu-custom-credential-create-outcome", appVersion: "1" },
     preferredFrameSize: ["100%", "240px"],
-  });
+  };
 }

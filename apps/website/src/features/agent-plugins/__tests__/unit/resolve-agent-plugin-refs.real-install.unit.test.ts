@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
+import { resolveAgentPluginRefs } from "../../lifecycle.js";
 
 /**
  * @file Proves `resolveAgentPluginRefs()` — the exact function `agent-daemon-server.ts`'s

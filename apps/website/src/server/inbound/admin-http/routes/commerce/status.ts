@@ -1,11 +1,11 @@
 import type { Express } from "express";
 
-import { readCommerceStatus } from "#src/features/commerce/index";
+import { readCommerceStatus } from "@jini-ai/commerce";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /** Dependencies required by the Commerce status transport adapter. */
-export type AdminCommerceStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "lipay">;
+export type AdminCommerceStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & { lipay?: import("@jini-ai/commerce").CommercePaymentRuntimePort };
 
 /**
  * Registers the authenticated, workspace-scoped Commerce operational-status endpoint.
@@ -56,7 +56,7 @@ export function registerAdminCommerceStatusRoute(
         })
       );
     } catch (err) {
-      console.error("[commerce/status] unexpected error", err);
+      // Adapter exceptions may contain secrets; return only the fixed error response.
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });

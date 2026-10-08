@@ -10,7 +10,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
 import { hasStoredAgentPluginCredential } from "../../connect-tool.js";
-import { BUNDLED_DIGESTS_FILENAME } from "../../bundled-digests.js";
+import { BUNDLED_DIGESTS_FILENAME } from "../../lifecycle.js";
 import {
   importAgentPluginAccessToken,
   importAgentPluginAccessTokensFromEnv,
@@ -18,7 +18,7 @@ import {
   type ImportAgentPluginAccessTokensFromEnvDeps,
 } from "../../import-access-token.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../mcp-metadata.js";
 
@@ -196,7 +196,11 @@ test("env import never throws: a failed save is a warning", async (t) => {
   assert.equal(seal.mock.callCount(), 1, "the actual credential save must reach the sealer");
   assert.equal(logs.warn.length, 1);
   assert.match(logs.warn[0] ?? "", /could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin/);
-  assert.match(logs.warn[0] ?? "", /secret store unavailable/);
+  assert.deepEqual(logs.warn, [
+    "[agent-plugins] could not copy TOVU_SUPABASE_MCP_ACCESS_TOKEN onto the 'supabase' plugin: The credential could not be saved or unlocked. Check the site credential store.",
+  ]);
+  assert.equal(JSON.stringify(logs).includes("secret store unavailable"), false, "raw sealer failures stay out of warnings");
+  assert.equal(JSON.stringify(logs).includes(TOKEN), false, "warnings never contain the credential");
   assert.deepEqual(await readRow(), before);
   assert.deepEqual(connected, []);
   assert.deepEqual(logs.info, [], "a failed save must never claim a successful copy");

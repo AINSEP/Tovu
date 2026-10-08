@@ -24,7 +24,7 @@ import {
  * `apps/admin` is a browser bundle and cannot invoke an agent tool. If the tool owned the
  * aggregation, the frontend would need a second implementation — and this codebase has ALREADY
  * produced exactly that divergence once, in settings (`settings_get_effective` is implemented
- * independently in `@jini-ai/cms/settings`'s tool registrations and in
+ * independently in `@jini-ai/core/settings`'s tool registrations and in
  * `server/routes/admin/settings/get-effective.ts`, and the two drifted on principal handling).
  *
  * ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ export type SiteProfileSectionName = (typeof SITE_PROFILE_SECTION_NAMES)[number]
  * - `theme` -> `theme.set` (`features/theme/agent-tools.ts`'s `THEME_READ_PERMISSION`)
  * - `plugins` -> `admin.plugins.read` (`features/plugin-runtime/agent-tools.ts`,
  *   `server/routes/admin/plugins/list.ts`)
- * - `settings` -> `settings.read` (`@jini-ai/cms/settings`'s `settings_get_effective`)
+ * - `settings` -> `settings.read` (`@jini-ai/core/settings`'s `settings_get_effective`)
  * - `contentTypes` -> `admin.collections.read` (`server/routes/admin/content-types/list.ts`)
  *
  * A NEW aggregate permission was deliberately NOT minted: a caller who may not read settings must
@@ -327,17 +327,17 @@ export { DEFAULT_SECTION_TIMEOUT_MS };
  * pairs — never "every registered setting".
  *
  * Two reasons it is an allowlist rather than an enumeration:
- * 1. `@jini-ai/cms/settings` refuses `secret: true` definitions today
+ * 1. `@jini-ai/core/settings` refuses `secret: true` definitions today
  *    ("secret:true definitions are not supported in the core-only subset"), but this boundary must
  *    not depend on that staying true forever. An allowlist stays correct if it changes.
  * 2. A plugin or a future capability can register arbitrary namespaces. Enumerating them would put
  *    third-party configuration into an LLM's context with nobody having decided it belongs there.
  *
  * Every entry below is a first-party, non-credential display/SEO setting registered by this repo's
- * own boot path (`features/settings/migration.ts`, `seo/settings.ts`).
+ * own boot path (`seo/settings.ts`). Theme identity is read live by the theme section,
+ * never from the obsolete core.presentation boot mirror.
  */
 export const INVENTORY_SAFE_SETTINGS: readonly { namespace: string; key: string }[] = [
-  { namespace: "core.presentation", key: "activeThemeId" },
   { namespace: "site.seo", key: "title_template" },
   { namespace: "site.seo", key: "default_description" },
   { namespace: "site.seo", key: "default_og_image" },

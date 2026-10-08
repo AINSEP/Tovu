@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
@@ -46,7 +47,7 @@ function readPreviewInput(input: Record<string, unknown>): { postId: string; ove
 
 /** Builds the read-only preview handler; authorization precedes lookup and any render read. */
 export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, renderer: PostPreviewRenderer): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "post-preview", catalogModule: "features/post/preview-tool.ts", catalog: CATALOG, derivedRisk: postPreviewDerivedRisk, handlers: {
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "post-preview", catalogModule: "features/post/preview-tool.ts", catalog: CATALOG, derivedRisk: postPreviewDerivedRisk, handlers: {
     content_post_preview: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       const { postId, overrides } = readPreviewInput(input);

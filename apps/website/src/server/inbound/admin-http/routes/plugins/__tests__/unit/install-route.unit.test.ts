@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
 import express from "express";
-import { PluginInstallError } from "#src/features/plugin-runtime/install";
+import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
 import { registerPluginInstallRoutes } from "../../install.js";
 import type { PluginsRouteDeps } from "../../deps.js";

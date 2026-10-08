@@ -10,29 +10,20 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildMediaRegistrationsForTovu, type MediaPublicUrlDeps, type MediaToolDeps, type MediaTrashToolDeps } from "#src/features/media/tool-registrations";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Real, non-mocked proof of how `media_trash_asset` meets the MCP-UI callback route a
  * browser's click posts to.
  *
- * ## What this certified until 2026-10-01, and why it changed
- *
- * From 31fdf17d (2026-09-08) `media_trash_asset` raised a confirmation dialog, and this file proved
- * the human's "Trash asset"/"Cancel" click reached `MCP_UI_REDEEMABLE_TOOL_IDS`
- * (`assistant/mcp-ui-tool-calls.ts`). It was written because the tool once shipped missing from that
- * allowlist with every other test green: neither the handler-level tests nor
- * `tool-registrations.media.test.ts` ever go through `registerMcpUiToolCallsRoute`, the only caller
- * of the allowlist check (ADS-memory/reports/2026-09-08-delete-confirmation-build.md).
- *
- * 6eac86229 ("confirm destructive and protected actions only", 2026-10-01) removed that dialog:
- * moving to Trash is reversible, so only permanent deletes still confirm, and the id left the
- * allowlist. `mcp-ui-tool-calls.test.ts` pins the allowlist side of that in isolation (the same
- * commit inverted its `content_post_delete`/static-publish cases to "runs normally and cannot be
- * executed by a surface callback"). This file keeps the route-level, real-handler proof of the
- * same two facts: the tool trashes in one call with no dialog, and this route refuses to run it.
+ * Moving to Trash is reversible and completes in one call without confirmation. The callback
+ * allowlist must therefore refuse this id without reaching its executor. Route-level coverage
+ * exercises that admission boundary, which handler-level tests never visit.
  */
 
 const WORKSPACE_ID = "ws-mcp-ui-media-trash-integration";
@@ -68,7 +59,7 @@ async function seedAsset(toolExecutor: ReturnType<typeof buildRealMediaToolExecu
 }
 
 test("media_trash_asset trashes the asset in one call and emits no dialog", async () => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor } = buildRealMediaToolExecutor(surfaceExchanges);
   const mediaId = await seedAsset(toolExecutor, "logo.png");
 
@@ -86,7 +77,7 @@ test("media_trash_asset trashes the asset in one call and emits no dialog", asyn
 });
 
 test("SECURITY: a surface callback cannot run media_trash_asset — the route refuses it with 403 and never reaches the executor", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { toolExecutor } = buildRealMediaToolExecutor(surfaceExchanges);
   const mediaId = await seedAsset(toolExecutor, "keep-me.png");
 

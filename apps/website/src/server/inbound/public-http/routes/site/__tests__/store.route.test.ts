@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { RouteDeps } from "#src/server/routes/types";
+import type { StoreApi } from "@jini-ai/commerce/store";
 import { registerStoreRoutes } from "../store.js";
 
 /**
@@ -40,7 +40,7 @@ const ATTACK_RETURN_TOS: readonly string[] = [
   "//reserved-path-probe.invalid/x",
 ];
 
-type StoreDep = NonNullable<RouteDeps["store"]>;
+type StoreDep = StoreApi;
 
 const purchasingStore: StoreDep = {
   listProducts: async () => [],

@@ -6,7 +6,7 @@ import test from "node:test";
 import express from "express";
 
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService, saveExternalMcpServer } from "../../assistant/index.js";
-import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
+import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
@@ -54,7 +54,7 @@ interface ScriptStep {
 function scriptedFetch(script: readonly ScriptStep[]) {
   let calls = 0;
   const requests: { url: string; init: RequestInit | undefined }[] = [];
-  const fetchFn: OAuthFetch = async (url, init): Promise<Response> => {
+  const fetchFn: typeof fetch = async (url, init): Promise<Response> => {
     requests.push({ url: String(url), init });
     const step = script[Math.min(calls, script.length - 1)] ?? {};
     calls += 1;

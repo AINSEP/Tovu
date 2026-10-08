@@ -1,4 +1,3 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import { defaultFederationMessages, type FederationMessages } from "@jini-ai/mcp/federation";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 
@@ -7,11 +6,8 @@ import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
  * concrete vendor integration live OUTSIDE `src/assistant/` while still being part of the default
  * boot.
  *
- * Why a registry rather than `bootstrap.ts` calling each preset by name: before 2026-07-30
- * `bootstrap.ts` imported `resolveSupabaseMcpConnection` directly, which made "add a second vendor"
- * an edit to core federation code and made core federation import a specific vendor's module. Both
- * are the wrong direction. With this file the dependency points the other way — a preset imports
- * core and announces itself; core never learns any vendor's name.
+ * Presets announce themselves to core; bootstrap never imports vendors by name. Adding a vendor
+ * therefore changes composition, not federation code, and keeps dependencies pointing into core.
  *
  * The shape is the one this codebase already uses for exactly this problem: a module-level ordered
  * list plus a typed `register*` function, a `reset*ForTests`, and a fold/resolve function —
@@ -83,7 +79,7 @@ export function resetFederatedMcpPresetsForTests(): void {
 /** The desktop/website wire identity stays host-owned; the transport advertises no capabilities. */
 export const TOVU_MCP_CLIENT_INFO = { name: "tovu-assistant", version: "0.1.0" } as const;
 
-/** Persisted approval hash domain: keep these bytes stable across the package migration. */
+/** Persisted approval hash domain: keep these bytes stable for existing stored grants. */
 export const TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN = "g3-approval-v2";
 
 /** Tovu owns settings vocabulary and model-facing refusal copy; protocol behavior lives in Jini.

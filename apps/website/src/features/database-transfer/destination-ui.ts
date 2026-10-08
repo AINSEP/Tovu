@@ -1,6 +1,7 @@
+import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
 import { buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 
 /**
  * @file The private form `database_transfer_set_destination` raises: one masked field for the
@@ -35,7 +36,7 @@ export function buildDestinationForm(exchangeId: string): UIResource {
         label: "Database address",
         hint: "Your database provider shows it as the connection string or URI.",
         required: true,
-        secret: true,
+        ...SECRET_FORM_CARD_DEFINITIONS.database_transfer_set_destination.secretField,
       },
     ],
     cancel: { label: "Cancel", toolName: SET_DESTINATION_TOOL_ID, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, [SURFACE_DISMISSED_PARAM]: true } },

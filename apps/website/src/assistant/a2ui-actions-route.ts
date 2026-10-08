@@ -2,8 +2,8 @@ import type { Express, Request, Response } from "express";
 
 import { parseRendererToAgentMessage, type RendererToAgentMessage } from "@jini-ai/agentic/a2ui";
 
-import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
-import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
+import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
+import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 /**
  * @file The daemon-side inbound half of A2UI (a2ui-project/a2ui v1.0) — where a rendered surface's
@@ -148,12 +148,7 @@ export function deliverA2uiAction(
   store: SurfaceExchangeStore,
   action: { exchangeId: string; principalId: string; message: RendererToAgentMessage },
 ): DeliverResult {
-  return store.deliver({
-    exchangeId: action.exchangeId,
-    principalId: action.principalId,
-    channel: "a2ui",
-    params: { message: action.message },
-  });
+  return store.deliver({ exchangeId: action.exchangeId, principalId: action.principalId, params: { message: action.message } }, { channel: "a2ui" });
 }
 
 /**

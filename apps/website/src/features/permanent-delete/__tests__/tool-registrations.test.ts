@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext } from "@jini-ai/core";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildPermanentDeleteRegistrations, permanentDeleteDerivedRisk, type PermanentDeleteToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /** Owner n01: exercise the real human exchange, including forged model inputs and revocation. */
 const CASES = [
@@ -10,7 +13,7 @@ const CASES = [
   ["trash_purge_item", { trashItemId: "row-1" }, "content.read"],
   ["media_purge_asset", { mediaId: "m-1" }, "media.delete.force"],
   ["comments_purge_comment", { commentId: "c-1" }, "comments.delete.force"],
-  ["identity_user_delete", { principalId: "u-1" }, "*"],
+  ["identity_user_delete", { principalId: "u-1" }, "user.manage"],
   ["external_mcp_delete", { serverId: "s-1" }, "admin.integrations.manage"],
   ["custom_credential_delete", { credentialId: "k-1" }, "custom-credentials.write"],
   ["deployment_delete_provider_credential", { credentialId: "k-1" }, "system.publish"],
@@ -18,7 +21,7 @@ const CASES = [
 ] as const;
 
 function harness(id: string, input: unknown, permission: string) {
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const writes: string[] = [];
   const permissions: string[] = [];
   let allowed = true;
@@ -53,9 +56,9 @@ for (const [id, input, permission] of CASES) {
       const html = JSON.stringify(emission.payload);
       assert.match(html, /Named item/);
       const exchangeId = h.store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!;
-      assert.deepEqual(h.store.deliver({ exchangeId, toolId: id, principalId: "other-user", params: { decision: "confirm" } }), { ok: false, reason: "binding-mismatch" });
-      assert.deepEqual(h.store.deliver({ exchangeId, toolId: "other-tool", principalId: "owner", params: { decision: "confirm" } }), { ok: false, reason: "binding-mismatch" });
-      assert.deepEqual(h.store.deliver({ exchangeId, toolId: id, principalId: "owner", params: { decision: "confirm", credentialId: "different-id" } }), { ok: true });
+      assert.deepEqual(h.store.deliver({ exchangeId, principalId: "other-user", params: { decision: "confirm" } }, { toolId: id }), { ok: false, reason: "binding-mismatch" });
+      assert.deepEqual(h.store.deliver({ exchangeId, principalId: "owner", params: { decision: "confirm" } }, { toolId: "other-tool" }), { ok: false, reason: "binding-mismatch" });
+      assert.deepEqual(h.store.deliver({ exchangeId, principalId: "owner", params: { decision: "confirm", credentialId: "different-id" } }, { toolId: id }), { ok: true });
     };
     assert.deepEqual(await h.registration.handler(h.ctx, h.options), { removed: true, id: "id-1" });
     assert.equal(emitted, true);
@@ -76,7 +79,7 @@ for (const [id, input, permission] of CASES) {
       const h = harness(id, input, permission);
       h.options.emitSurface = async () => {
         const exchangeId = h.store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!;
-        h.store.deliver({ exchangeId, toolId: id, principalId: "owner", params });
+        h.store.deliver({ exchangeId, principalId: "owner", params }, { toolId: id });
       };
       assert.deepEqual(await h.registration.handler(h.ctx, h.options), { removed: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
       assert.deepEqual(h.writes, []);
@@ -104,7 +107,7 @@ for (const [id, input, permission] of CASES) {
     const h = harness(id, input, permission);
     h.options.emitSurface = async () => {
       h.setAllowed(false);
-      h.store.deliver({ exchangeId: h.store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!, principalId: "owner", toolId: id, params: { decision: "confirm" } });
+      h.store.deliver({ exchangeId: h.store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!, principalId: "owner", params: { decision: "confirm" } }, { toolId: id });
     };
     await assert.rejects(h.registration.handler(h.ctx, h.options), { message: `principal 'owner' is not authorized for '${permission}' (test-policy)` });
     assert.deepEqual(h.writes, []);
@@ -127,7 +130,7 @@ for (const [id, input, permission] of CASES) {
 }
 
 test("expired human confirmation returns an explicit refusal without a delete", async () => {
-  const store = createSurfaceExchangeStore({ idleTtlMs: 5, maxLifetimeMs: 20 });
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 5, maxLifetimeMs: 20 });
   let deletes = 0;
   const registration = buildPermanentDeleteRegistrations({
     workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),

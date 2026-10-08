@@ -6,7 +6,7 @@ import { parse as parseToml } from "smol-toml";
 import { load as parseYaml } from "js-yaml";
 
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
-import { packAgentPluginDirectory } from "../../bundled-source-archive.js";
+import { packAgentPluginDirectory } from "../../lifecycle.js";
 
 /**
  * @file The bundled `deploy` Agent Plugin carries the fly.io SERVER deploy procedure that used to be

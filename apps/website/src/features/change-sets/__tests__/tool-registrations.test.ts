@@ -5,6 +5,9 @@ import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -108,14 +111,30 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
   };
 }
 
-function registrationsFor(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+function registrationsFor(deps: RegistryDepsWithoutLimiter, surfaces?: AssistantSurfaceDeps): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), surfaces, { contributions }).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
   const found = registrationsFor(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
+}
+
+/** Exercise the real approval exchange before reaching the revert/domain error assertions. */
+async function confirmedRevert({ deps, changeSetId }: { deps: RegistryDepsWithoutLimiter; changeSetId: string },
+  { decision = "confirm" }: { decision?: "confirm" | "cancel" } = {}): Promise<unknown> {
+  const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
+  const registration = registrationsFor(deps, surfaces).get("change_sets_revert");
+  assert.ok(registration, "expected 'change_sets_revert' to be wired");
+  return registration.handler(executionContext({ changeSetId }), { emitSurface: async emission => {
+    assert.equal(emission.channel, "mcp-ui");
+    const toolId = "change_sets_revert";
+    const exchangeId = surfaces.surfaceExchanges.findTypedAnswerTarget({ principalId: PRINCIPAL_ID, toolId });
+    assert.ok(exchangeId, "confirmation must open a principal-bound exchange");
+    assert.deepEqual(surfaces.surfaceExchanges.deliver({ exchangeId, principalId: "another-principal", params: { decision } }, { toolId }), { ok: false, reason: "binding-mismatch" });
+    assert.deepEqual(surfaces.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision } }, { toolId }), { ok: true });
+  } });
 }
 
 test("change_sets_revert: undoes an agent's own content_post_update, restoring the old title", async () => {
@@ -132,15 +151,28 @@ test("change_sets_revert: undoes an agent's own content_post_update, restoring t
   const applied = listed.changeSets.find((cs) => cs.status === "applied");
   assert.ok(applied, "expected exactly one applied change set from the update");
 
-  const reverted = (await wired("change_sets_revert", deps).handler(
-    executionContext({ changeSetId: applied.id })
-  )) as { reverted: boolean; changeSet: { status: string } };
+  const reverted = (await confirmedRevert({ deps, changeSetId: applied.id })) as { reverted: boolean; changeSet: { status: string } };
 
   assert.equal(reverted.reverted, true);
   assert.equal(reverted.changeSet.status, "reverted");
 
   const afterRevert = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.equal(afterRevert?.title, "Original Title", "the title must be restored to its pre-edit value");
+});
+
+test("change_sets_revert: no channel or a cancelled confirmation leaves the applied edit intact", async () => {
+  const { deps, changeSets } = fakeRouteDeps();
+  await wired("content_post_update", deps).handler(executionContext({ id: "post-1", kind: "post", title: "Edited Title" }));
+  const applied = (await changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID })).find(cs => cs.status === "applied");
+  assert.ok(applied);
+  await assert.rejects(wired("change_sets_revert", deps).handler(executionContext({ changeSetId: applied.id })), {
+    message: "TOOL_APPROVAL_NO_CONFIRMATION_CHANNEL: change_sets_revert: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.",
+  });
+  assert.deepEqual(await confirmedRevert({ deps, changeSetId: applied.id }, { decision: "cancel" }), {
+    executed: false, cancelled: true, note: "The user cancelled. Nothing was changed.",
+  });
+  assert.equal((await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" }))?.title, "Edited Title");
+  assert.equal((await changeSets.findById({ workspaceId: WORKSPACE_ID, id: applied.id }))?.changeSet.status, "applied");
 });
 
 test("change_sets_revert: a newer human save after the agent's edit returns a conflict, and the title is not reverted", async () => {
@@ -161,9 +193,7 @@ test("change_sets_revert: a newer human save after the agent's edit returns a co
   assert.ok(editedByAgent);
   await postRepo.save({ ...editedByAgent, title: "Human Edited Title", version: editedByAgent.version + 1, updatedAt: LATER });
 
-  const reverted = (await wired("change_sets_revert", deps).handler(
-    executionContext({ changeSetId: applied.id })
-  )) as { reverted: boolean; code?: string };
+  const reverted = (await confirmedRevert({ deps, changeSetId: applied.id })) as { reverted: boolean; code?: string };
 
   assert.equal(reverted.reverted, false);
   assert.equal(reverted.code, "REVERT_CONFLICT");
@@ -174,7 +204,7 @@ test("change_sets_revert: a newer human save after the agent's edit returns a co
 
 test("change_sets_revert maps missing, reverted and non-revertible records to ToolInputError", async () => {
   const { deps, changeSets } = fakeRouteDeps();
-  const revert = (changeSetId: string) => wired("change_sets_revert", deps).handler(executionContext({ changeSetId }));
+  const revert = (changeSetId: string) => confirmedRevert({ deps, changeSetId });
   await assert.rejects(() => revert("missing"), (err) => err instanceof ToolInputError && /was not found/.test(err.message));
   await changeSets.insert({ record: { id: "reverted", workspaceId: WORKSPACE_ID, status: "reverted", summary: "already undone", createdAt: NOW }, items: [] });
   await assert.rejects(() => revert("reverted"), (err) => err instanceof ToolInputError && /only 'applied'/.test(err.message));
@@ -193,7 +223,7 @@ test("change-set tools enforce scoped permissions before reading or reverting", 
     const header = { id: "cs-denied", workspaceId: WORKSPACE_ID, status: "applied" as const, summary: "edit", createdAt: NOW };
     await changeSets.insert({ record: header, items: [{ id: "item-denied", changeSetId: header.id, entityType: "post", entityId: "post-1", operation: "update", position: 0, entityVersionAtApply: 1, inversePayload: { ...seededPost(), title: "Reverted Title" } }] });
     const before = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
-    await assert.rejects(() => wired("change_sets_revert", deps).handler(executionContext({ changeSetId: header.id })), ForbiddenError);
+    await assert.rejects(() => confirmedRevert({ deps, changeSetId: header.id }), ForbiddenError);
     assert.deepEqual(authorizationCalls, [{ principalId: PRINCIPAL_ID, permission: "changeset.revert", workspaceId: WORKSPACE_ID, entityType: "change_set", entityId: header.id }]);
     assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" }), before);
     assert.equal((await changeSets.findById({ workspaceId: WORKSPACE_ID, id: header.id }))?.changeSet.status, "applied");

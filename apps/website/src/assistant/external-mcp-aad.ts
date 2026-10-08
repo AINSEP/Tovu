@@ -25,11 +25,9 @@
  * server fails auth-tag verification if presented as any other server's, in the same workspace or
  * any other.
  *
- * This table's rows predate AAD entirely: both `.seal()` call sites in `external-mcp-store.ts`
- * passed no AAD until the 2026-09-02 follow-up gap closure, and the table was not in `ffb5ce44`'s
- * five. See `aad_version`/`oauth_aad_version` in `db/schema.sqlite.ts` and
- * `development/scripts/backfill-external-mcp-aad.ts` for how existing rows migrate without becoming
- * unreadable.
+ * Legacy no-AAD blobs remain readable through `aad_version`/`oauth_aad_version`; see the schema
+ * contract and `development/scripts/backfill-external-mcp-aad.ts`. The discriminators must retain
+ * each blob's sealing mode.
  */
 
 /** The composite primary key an `external_mcp_servers` AAD binds. */

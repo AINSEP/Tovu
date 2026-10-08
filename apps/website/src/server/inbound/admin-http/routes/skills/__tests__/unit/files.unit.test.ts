@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import express from "express";
-import { PLUGIN_PACKAGE_FILE_LIMITS } from "#src/features/plugin-runtime/package-files";
+import { PLUGIN_PACKAGE_FILE_LIMITS } from "@jini-ai/plugins/host/node";
 import { createSkillsModule } from "#src/server/runtime/composition/modules/skills";
 import type { RouteDeps } from "#src/server/routes/types";
 

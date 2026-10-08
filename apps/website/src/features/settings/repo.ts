@@ -12,7 +12,7 @@ import type {
   SettingValueRecord,
   SettingValueSchema,
   ValueState,
-} from "@jini-ai/cms/settings";
+} from "@jini-ai/core/settings";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
@@ -24,7 +24,7 @@ import type {
 /**
  * @file THE `SettingsRepoPort` adapter (SPEC-007, rule-of-two #2): one Kysely query body for every
  * dialect the storage kernel drives (storage plan §4, ADR-066). Satisfies the same port as
- * `@jini-ai/cms/settings`' `InMemorySettingsRepo`; `repo.sqlite.ts` is the thin subclass the call
+ * `@jini-ai/core/settings`' `InMemorySettingsRepo`; `repo.sqlite.ts` is the thin subclass the call
  * sites build from the content db handle.
  *
  * `transaction` is the kernel's: `write-service.ts`'s chokepoint callback awaits repo calls inside
@@ -418,6 +418,3 @@ export class SqlSettingsRepo implements SettingsRepoPort {
     return this.kernel.transaction(fn);
   }
 }
-
-/** The settings repo on `kernel`'s database, whichever dialect. */
-// settingsRepoFor (apps/website/src/features/settings/repo.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.

@@ -17,10 +17,10 @@ import {
   preferBundledAgentPluginDigests,
   readBundledAgentPluginDigests,
   recordBundledAgentPluginDigests,
-} from "../../bundled-digests.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+} from "../../lifecycle.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
+import { resolveAgentPluginRefs } from "../../lifecycle.js";
 import { loadInstalledAgentPluginToolSources } from "../../tool-registrations.js";
 
 /**

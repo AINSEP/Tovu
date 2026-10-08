@@ -3,11 +3,14 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 async function harness(t: test.TestContext, options: { replaces?: string; allowed?: boolean; targetExists?: boolean } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), "n06-transfer-"));
@@ -23,7 +26,7 @@ async function harness(t: test.TestContext, options: { replaces?: string; allowe
     replaces: options.replaces ?? null, site: "ws", schema: "tovu", tableCount: 0, rowCount: 0, leftOut: [],
   }});
   const scripts: string[] = [];
-  const surfaces = createSurfaceExchangeStore({idleTtlMs: 20});
+  const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 20 });
   const deps: DatabaseTransferToolDeps = {
     workspaceId: "ws", authorize: async () => ({allowed: options.allowed ?? true, reason: "test"}),
     dbOps: {} as DatabaseTransferToolDeps["dbOps"], databaseTransferPlanStore: plans,

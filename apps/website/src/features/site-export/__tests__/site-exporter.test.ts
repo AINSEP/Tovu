@@ -10,10 +10,11 @@ import express from "express";
 import type { UUID } from "@jini-ai/core/primitives";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { PostRepoPort, PostRecord } from "#src/features/post/index";
-import type { RedirectRecord } from "#src/features/redirects/index";
+import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
 import { setPublicAssistantSettings } from "#src/assistant/index";
 import { startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
+import { createCommerceSiteTestApp } from "#src/server/inbound/public-http/routes/site/__tests__/commerce-site-app";
 import { ExportOutputNotEmptyError, exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
 import type { ExportReport } from "../site-exporter.js";
 
@@ -142,6 +143,9 @@ function withOneSampleProduct(deps: ReturnType<typeof createRouteDeps>): void {
     listProducts: async () => [{ id: "prod-widget-1", slug: "widget-mug", title: "Widget Mug", price: 1200, stock: 3, version: 1 }],
     checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
   };
+  // Product routes are an opt-in adapter now. Use its existing test composition for both live
+  // requests and the export crawl, so this retained coverage does not re-enable production commerce.
+  deps.createSiteApp = () => createCommerceSiteTestApp(deps);
 }
 
 /**
@@ -161,7 +165,7 @@ test("exportSite: the site-assistant widget is OFF in a static export even when 
   await enablePublicAssistant(deps);
   withOneSampleProduct(deps);
 
-  const app = createApp(deps);
+  const app = deps.createSiteApp();
   const baseUrl = await startTestServer(app, t);
   const liveHome = await (await fetch(`${baseUrl}/`)).text();
   assert.match(liveHome, /\/site-chat\/site-assistant\.js/, "the live server must still ship the widget when the setting is on");
@@ -197,7 +201,7 @@ test("live site: a request carrying the static-export marker gets no widget AND 
   const deps = createRouteDeps();
   await enablePublicAssistant(deps);
   withOneSampleProduct(deps);
-  const baseUrl = await startTestServer(createApp(deps), t);
+  const baseUrl = await startTestServer(deps.createSiteApp(), t);
 
   const slugRoute = (await listPublishedSlugPaths(deps))[0];
   assert.ok(slugRoute, "the seeded fixture must publish at least one /:slug page");
@@ -874,7 +878,7 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
  *
  * A `javascript:` `toTarget` can never survive a REAL redirect rule's own
  * lifecycle: `createRedirect`/`updateRedirect`'s `assertTargetAllowed`
- * chokepoint (`features/redirects/redirects.ts`) and the live read-path
+ * chokepoint (Jini `packages/cms/src/redirects/redirects.ts`) and the live read-path
  * open-redirect oracle (`features/redirects/phase-handler.ts`'s
  * `RedirectPhaseHandlerResolver`) both reject any non-http(s) scheme via the
  * same `OriginRegistry.isAllowedRedirectTarget` — verified empirically: a real

@@ -2,12 +2,7 @@ import type { Response } from "express";
 
 import { EntityNotLiveError } from "@jini-ai/cms/core";
 
-import {
-  RedirectConflictError,
-  RedirectLoopError,
-  RedirectTargetNotAllowedError,
-  RedirectValidationError,
-} from "#src/features/redirects/index";
+import { RedirectConflictError, RedirectLoopError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
 
 /**
  * @file Shared error-response mapping for the `redirects` admin write routes.

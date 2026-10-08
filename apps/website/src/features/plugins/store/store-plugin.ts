@@ -12,165 +12,23 @@
  * statement runs on the storage kernel (`kernel.run`), so the same code serves SQLite and Postgres.
  */
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
-import { declareDataModule, type DataModuleDecl } from "../data-module.js";
+import { declareDataModule } from "../data-module.js";
 import { type PluginStore, pluginKernel } from "../plugin-store.js";
+import { activateStore as activateRuntime, type StoreApi } from "@jini-ai/commerce/store";
+export { STORE_PLUGIN_ID, SEED_PRODUCTS } from "@jini-ai/commerce/store";
+export type { Product, CheckoutResult, StoreApi } from "@jini-ai/commerce/store";
 
-export interface Product {
-  id: string;
-  /** Readable-slugs S7 (2026-09-23): same value as `id` for this sample plugin — its ids are
-   *  already short, readable, non-UUID strings, and there is no separate `slug` DB column to add
-   *  one from. Real Commerce products have their own real, author-set slug (`features/commerce
-   *  /types.ts`); this is just the demo store's stand-in for the same shape. */
-  slug: string;
-  title: string;
-  price: number; // cents
-  stock: number;
-  version: number;
-}
+import { STORE_MANIFEST } from "./manifest.js";
+export { STORE_MANIFEST } from "./manifest.js";
 
-export type CheckoutResult =
-  | { ok: true; orderId: string; remainingStock: number; retries: number }
-  | { ok: false; reason: "not-found" | "out-of-stock" | "conflict" | "invalid-quantity"; retries: number };
-
-export interface StoreApi {
-  listProducts(): Promise<Product[]>;
-  /** Buy `qty` of a product: an OCC-guarded stock decrement plus an order row. */
-  checkout(productId: string, qty: number): Promise<CheckoutResult>;
-}
-
-export const STORE_PLUGIN_ID = "store";
-const PRODUCTS = `p_${STORE_PLUGIN_ID}__products` as const;
-const ORDERS = `p_${STORE_PLUGIN_ID}__orders` as const;
-
-/** The store's two tables, as Kysely sees them. A type alias: `withTables` needs its index signature. */
-type StoreTables = {
-  [PRODUCTS]: { id: string; title: string; price: number; stock: number; version: number };
-  [ORDERS]: { id: string; product_id: string; qty: number; total: number; at: number };
-};
-
-export const STORE_MANIFEST: DataModuleDecl = {
-  pluginId: STORE_PLUGIN_ID,
-  pluginTier: "tier-2",
-  provenance: { sourceUrl: "builtin://store", publisher: "tovu-core" },
-  tables: [
-    {
-      name: "products",
-      columns: [
-        { name: "id", type: "TEXT", primaryKey: true },
-        { name: "title", type: "TEXT", notNull: true },
-        { name: "price", type: "INTEGER", notNull: true },
-        { name: "stock", type: "INTEGER", notNull: true },
-        { name: "version", type: "INTEGER", notNull: true },
-      ],
-    },
-    {
-      name: "orders",
-      columns: [
-        { name: "id", type: "TEXT", primaryKey: true },
-        { name: "product_id", type: "TEXT", notNull: true },
-        { name: "qty", type: "INTEGER", notNull: true },
-        { name: "total", type: "INTEGER", notNull: true },
-        { name: "at", type: "INTEGER", notNull: true },
-      ],
-    },
-  ],
-};
-
-export const SEED_PRODUCTS: Product[] = [
-  { id: "prod-teacup", slug: "prod-teacup", title: "Hand-thrown Teacup", price: 2800, stock: 5, version: 0 },
-  { id: "prod-notebook", slug: "prod-notebook", title: "Linen Notebook", price: 1600, stock: 5, version: 0 },
-  { id: "prod-candle", slug: "prod-candle", title: "Beeswax Candle", price: 1200, stock: 5, version: 0 },
-];
-
-/**
- * Declare the store's tables through core (snapshot→DDL), seed once, and return the store API.
- *
- * `db` is the site's storage kernel (or a SQLite connection, bridged to its kernel); `dbPath` names
- * the SQLite file behind it, for the declaration's snapshot.
- */
-export async function activateStore(
-  required: { db: PluginStore; dbPath: string },
-  _optional: Record<string, never> = {}
-): Promise<StoreApi> {
-  const { dbPath } = required;
+/** CMS adapter, unmounted: preserve the existing declaration's provenance and recovery protocol. */
+export async function activateStore(required: { db: PluginStore; dbPath: string }, optional: Record<string, never> = {}): Promise<StoreApi> {
   const kernel = pluginKernel(required.db);
-  const result = await declareDataModule({ db: kernel, dbPath, decl: STORE_MANIFEST });
-  if (!result.ok) {
-    throw new Error(`store dataModule declaration failed: ${result.error?.code} — ${result.error?.message}`);
-  }
-
-  // Seed once: the count and the inserts share one transaction under a lock, so two boots racing
-  // on Postgres cannot both see an empty table.
-  await kernel.transaction(async () => {
-    await kernel.lockKey(`${PRODUCTS}:seed`);
-    const { n } = await kernel.run((k) =>
-      k.withTables<StoreTables>().selectFrom(PRODUCTS).select((eb) => eb.fn.countAll<number>().as("n")).executeTakeFirstOrThrow()
-    );
-    if (Number(n) > 0) return;
-    const rows = SEED_PRODUCTS.map(({ id, title, price, stock, version }) => ({ id, title, price, stock, version }));
-    await kernel.run((k) => k.withTables<StoreTables>().insertInto(PRODUCTS).values(rows).execute());
-  });
-
-  type Attempt = { done: true; result: CheckoutResult } | { done: false };
-
-  /** One checkout attempt: read, then the OCC-guarded decrement and the order row, as ONE transaction. */
-  function attemptCheckout(productId: string, qty: number, retries: number): Promise<Attempt> {
-    return kernel.transaction(async (): Promise<Attempt> => {
-      await kernel.lockKey(`${PRODUCTS}:${productId}`);
-      const product = await kernel.run((k) =>
-        k.withTables<StoreTables>().selectFrom(PRODUCTS).select(["price", "stock", "version"]).where("id", "=", productId).executeTakeFirst()
-      );
-      if (!product) return { done: true, result: { ok: false, reason: "not-found", retries } };
-      if (product.stock < qty) return { done: true, result: { ok: false, reason: "out-of-stock", retries } };
-
-      // The stock decrement and the order insert are TWO writes. They are atomic here ONLY because
-      // this spike store holds the kernel directly. A real Tier-3 plugin behind the frozen async ABI
-      // (ADR-024 §3) CANNOT hold a transaction across the seam — which is exactly why core must own
-      // an atomic multi-write primitive (see the cowork ABI finding → ADR-026).
-      const dec = await kernel.run((k) =>
-        k
-          .withTables<StoreTables>()
-          .updateTable(PRODUCTS)
-          .set((eb) => ({ stock: eb("stock", "-", qty), version: eb("version", "+", 1) }))
-          .where("id", "=", productId)
-          .where("version", "=", product.version)
-          .executeTakeFirst()
-      );
-      if (Number(dec.numUpdatedRows) === 0) return { done: false }; // OCC conflict — the row moved under us; retry
-      const orderId = `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await kernel.run((k) =>
-        k
-          .withTables<StoreTables>()
-          .insertInto(ORDERS)
-          .values({ id: orderId, product_id: productId, qty, total: product.price * qty, at: Date.now() })
-          .execute()
-      );
-      return { done: true, result: { ok: true, orderId, remainingStock: product.stock - qty, retries } };
-    });
-  }
-
-  async function checkout(productId: string, qty: number): Promise<CheckoutResult> {
-    if (!Number.isSafeInteger(qty) || qty <= 0) return { ok: false, reason: "invalid-quantity", retries: 0 };
-    const maxAttempts = 5;
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const outcome = await attemptCheckout(productId, qty, attempt);
-      if (outcome.done) return outcome.result;
-    }
-    return { ok: false, reason: "conflict", retries: maxAttempts };
-  }
-
-  return {
-    async listProducts(): Promise<Product[]> {
-      const rows = await kernel.run((k) =>
-        k.withTables<StoreTables>().selectFrom(PRODUCTS).select(["id", "title", "price", "stock", "version"]).orderBy("title").execute()
-      );
-      // No DB column for `slug` — see the `Product` interface's own doc for why `id` stands in.
-      return rows.map((row) => ({ ...row, slug: row.id }));
-    },
-    checkout,
-  };
+  return activateRuntime({ kernel: kernel as unknown as Parameters<typeof activateRuntime>[0]["kernel"], prepareStorage: async () => {
+    const result = await declareDataModule({ db: kernel, dbPath: required.dbPath, decl: STORE_MANIFEST });
+    if (!result.ok) throw new Error(`store dataModule declaration failed: ${result.error?.code} — ${result.error?.message}`);
+  } }, optional);
 }
-
 /**
  * Boot helper: activate the store on the site's own content kernel.
  *

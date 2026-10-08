@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { once } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -38,6 +40,57 @@ function fakeStore(kind: SiteStorage["kind"], close: () => Promise<void>) {
   const storage = (kind === "sqlite" ? { kind } : kind === "pglite" ? { kind } : { kind, secretRef: "site" }) as SiteStorage;
   return { storage, close };
 }
+
+test("real signals use the default process, close once across SIGTERM/SIGINT, and run the exit handler after closing", { timeout: 15_000 }, async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shutdown-signals-"));
+  const resultPath = path.join(dir, "result.json");
+  const moduleUrl = new URL("../close-store-on-shutdown.ts", import.meta.url).href;
+  const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", `
+    import { writeFileSync } from 'node:fs';
+    import { closeStoreOnShutdown } from ${JSON.stringify(moduleUrl)};
+    const order = [];
+    let closes = 0;
+    let shutdowns = 0;
+    // Keep beforeExit from starting a normal-exit close before the parent sends SIGTERM.
+    const keepAlive = setInterval(() => {}, 1000);
+    closeStoreOnShutdown({
+      store: { storage: { kind: 'postgres' }, close: async () => {
+        closes++;
+        order.push('close');
+        const released = new Promise(resolve => process.once('message', resolve));
+        process.send('closing');
+        await released;
+        order.push('closed');
+      } },
+      onShutdown: () => {
+        clearInterval(keepAlive);
+        order.push('daemon');
+        if (++shutdowns === 2) process.send('second-signal');
+      },
+    });
+    process.on('exit', () => writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ order, closes })));
+    process.send('ready');
+  `], { stdio: ["ignore", "pipe", "pipe", "ipc"] });
+  const exited = once(child, "exit");
+  try {
+    assert.equal((await once(child, "message"))[0], "ready");
+    const closing = once(child, "message");
+    child.kill("SIGTERM");
+    assert.equal((await closing)[0], "closing");
+    const secondSignal = once(child, "message");
+    child.kill("SIGINT");
+    assert.equal((await secondSignal)[0], "second-signal");
+    child.send("release");
+    assert.deepEqual(await exited, [0, null]);
+    assert.deepEqual(JSON.parse(fs.readFileSync(resultPath, "utf8")), {
+      order: ["daemon", "close", "daemon", "closed", "daemon"], closes: 1,
+    });
+  } finally {
+    if (child.exitCode === null) child.kill("SIGKILL");
+    await exited;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("sqlite: nothing is registered and the caller keeps the daemon's own handlers", () => {
   const proc = new FakeProcess();

@@ -1,5 +1,5 @@
-import { tombstoneRedirect } from "#src/features/redirects/index";
-import { RedirectNotFoundError } from "#src/features/redirects/index";
+import { tombstoneRedirect } from "@jini-ai/cms/redirects";
+import { RedirectNotFoundError } from "@jini-ai/cms/redirects";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 

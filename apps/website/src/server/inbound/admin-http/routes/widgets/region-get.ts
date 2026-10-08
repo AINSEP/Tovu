@@ -1,5 +1,5 @@
-import { parseWidgetAreaPayload, parseWidgetInstancePayload, toWidgetAreaEntry } from "#src/features/widgets/entry-payload";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "#src/features/widgets/types";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload, toWidgetAreaEntry } from "@jini-ai/cms/widgets";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
 
@@ -30,12 +30,12 @@ export const registerAdminWidgetRegionGetRoute: RouteRegistrar = (app, deps) => 
         return;
       }
 
-      const area = toWidgetAreaEntry(areaEntry);
-      const doc = parseWidgetAreaPayload(areaEntry.fieldsJson).doc;
+      const area = toWidgetAreaEntry({ entry: areaEntry });
+      const doc = parseWidgetAreaPayload({ fieldsJson: areaEntry.fieldsJson }).doc;
       const placements = await Promise.all(
         doc.placements.map(async (placement) => {
           const widget = await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: placement.widgetEntryId });
-          const payload = widget && widget.type === WIDGET_CONTENT_TYPE ? parseWidgetInstancePayload(widget.fieldsJson) : null;
+          const payload = widget && widget.type === WIDGET_CONTENT_TYPE ? parseWidgetInstancePayload({ fieldsJson: widget.fieldsJson }) : null;
           return {
             ...placement,
             widgetTitle: widget?.title ?? null,

@@ -1,4 +1,4 @@
-import { updateRedirect, RedirectNotFoundError } from "#src/features/redirects/index";
+import { updateRedirect, RedirectNotFoundError } from "@jini-ai/cms/redirects";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError, type RedirectErrorMapping } from "./shared.js";

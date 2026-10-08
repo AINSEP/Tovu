@@ -5,9 +5,9 @@ import {
   FormFieldValidationError,
   FormSlugConflictError,
   FormSubmissionNotFoundError,
-  type FormDefinitionRecord,
+  type HtmlFormDefinitionRecord as FormDefinitionRecord,
   type FormSubmissionRecord,
-} from "#src/features/forms/index";
+} from "@jini-ai/cms/forms";
 import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
 
 /**

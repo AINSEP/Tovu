@@ -73,6 +73,8 @@ function fakeRouteDeps(): RegistryDepsWithoutLimiter {
       tearDownAllIndexesForContentType: async () => {},
     },
     outbox: { enqueue: async () => {} },
+    // Catalog construction binds the SEO host port; these cases never execute SEO.
+    seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
   };
   return deps as unknown as RegistryDepsWithoutLimiter;
 }
@@ -149,16 +151,16 @@ test("EVERY wired tool's outbound Gemini schema is structurally valid — the wh
 
   // Required first-party inventory, independent of the installer's returned list.
   assert.deepEqual(contributions.contributors.list({}).map(({ domain }) => domain).sort(), [
-    "agent-plugin-connect", "agent-plugin-search", "analytics", "change-sets", "comments",
-    "commerce-get-status", "content-duplication", "content-stats", "content-types", "custom-credentials",
+    "agent-plugin-connect", "agent-plugin-search", "agent-plugins-install", "analytics", "change-sets", "comments",
+    "content-duplication", "content-stats", "content-types", "credential-save", "custom-credentials",
     "database", "database-transfer", "deploy-ops", "deployments", "domain-dns", "entries",
     "external-mcp", "external-mcp-operations", "forms", "fs-files", "identity",
     "identity-policy-list-permissions", "integrations", "media", "media-generation", "media-import",
-    "media-providers", "media-view", "members", "menus", "newsletter", "newsletter-delivery",
-    "pages", "permanent-delete", "plugins", "post", "post-preview", "publish-content",
+    "media-providers", "media-video-view", "media-view", "members", "menus", "newsletter", "newsletter-delivery",
+    "pages", "permanent-delete", "plugins", "plugins-install", "post", "post-preview", "publish-content",
     "publish-content-disconnect", "recovery", "redirects", "seo", "settings", "settings-ui-locales",
-    "site-backup", "site-evidence", "site-inspection", "sites", "sites-list", "source-control",
-    "static-publish", "system-mail", "taxonomy", "theme-set-active", "theme-set-page-published",
+    "site-backup", "site-evidence", "site-inspection", "sites", "sites-list", "skills-install", "source-control",
+    "static-publish", "system-mail", "system-server-logs", "taxonomy", "theme-set-active", "theme-set-page-published",
     "themes", "trash", "widgets", "workspace",
   ].sort());
   assert.deepEqual(contributions.derivedContributors.list({}).map(({ domain }) => domain), ["trash-item"]);

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { SecretSealerPort } from "../../webhooks/index.js";
@@ -13,6 +13,9 @@ import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Certification of `custom_credential_list` — the read-back tool for
@@ -48,9 +51,9 @@ class TrackingSecretSealer implements SecretSealerPort {
     this.sealCalls += 1;
     return this.inner.seal(input);
   }
-  open(input: Parameters<SecretSealerPort["open"]>[0]): ReturnType<SecretSealerPort["open"]> {
+  open(input: Parameters<SecretSealerPort["open"]>[0], optional: Parameters<SecretSealerPort["open"]>[1] = {}): ReturnType<SecretSealerPort["open"]> {
     this.openCalls += 1;
-    return this.inner.open(input);
+    return this.inner.open(input, optional);
   }
 }
 
@@ -140,7 +143,7 @@ test("custom_credential_list has a catalog entry with a parameterless inputSchem
 
 test("custom_credential_list is wired to a real handler", () => {
   const { deps } = fakeRouteDeps();
-  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   tool(registrations, TOOL_ID); // throws if missing
 });
 
@@ -168,7 +171,7 @@ test("returns every saved credential's label, category, baseUrl, additionalHosts
     connection: { token: "namecom-secret-token" },
   });
 
-  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const result = (await call(tool(registrations, TOOL_ID))) as { credentials: unknown[] };
 
   assert.equal(result.credentials.length, 2);
@@ -202,7 +205,7 @@ test("returns every saved credential's label, category, baseUrl, additionalHosts
 
 test("returns an empty list, not an error, when nothing is saved yet", async () => {
   const { deps } = fakeRouteDeps();
-  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID))) as { credentials: unknown[] };
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID))) as { credentials: unknown[] };
   assert.deepEqual(result.credentials, []);
 });
 
@@ -216,7 +219,7 @@ test("is workspace-scoped: a credential saved in a different workspace is never 
     connection: { token: "not-mine" },
   });
 
-  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID))) as { credentials: unknown[] };
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID))) as { credentials: unknown[] };
   assert.deepEqual(result.credentials, []);
 });
 
@@ -235,7 +238,7 @@ test("never exposes the secret value: neither field name nor its plaintext value
   });
   sealer.sealCalls = 0; // ignore the seed's own seal call — only the LIST call is under test below
 
-  const result = await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID));
+  const result = await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID));
   const serialized = JSON.stringify(result);
 
   assert.ok(!serialized.includes("super-secret-flyio-token-do-not-leak"), "the raw token must never appear in the output");
@@ -265,7 +268,7 @@ test("reports a saved username without ever opening the sealer", async () => {
     throw new Error("custom_credential_list must never open the sealer to read a username");
   };
 
-  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID))) as {
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID))) as {
     credentials: Array<{ label: string; username?: string }>;
   };
 
@@ -282,7 +285,7 @@ test("omits `username` entirely for a credential saved without one — never an 
     connection: { token: "namecom-secret-token" },
   });
 
-  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID))) as { credentials: object[] };
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID))) as { credentials: object[] };
   assert.ok(!Object.hasOwn(result.credentials[0]!, "username"), "an absent username must be an absent key, not `username: ''`");
 });
 
@@ -303,7 +306,7 @@ test("a denied principal is refused and the repo is never read", async (t) => {
   const list = t.mock.method(repo, "listByWorkspace", () => { throw new Error("denied call read the repo"); });
   const find = t.mock.method(repo, "findById", () => { throw new Error("denied call read the repo"); });
   await assert.rejects(
-    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID)),
+    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID)),
     /is not authorized for 'custom-credentials\.read'/
   );
   assert.equal(authorizeCalls[0]?.permission, "custom-credentials.read");
@@ -315,7 +318,7 @@ test("a denied principal is refused and the repo is never read", async (t) => {
 test("rejects a non-empty input — this tool takes no arguments", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(
-    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID), { unexpected: "field" }),
+    () => call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID), { unexpected: "field" }),
     /this tool accepts no input — omit 'input' or pass \{\}/
   );
 });
@@ -339,7 +342,7 @@ async function listOneFullRow(): Promise<Record<string, unknown>> {
     additionalHosts: ["https://api.machines.dev"],
     connection: { token: "flyio-secret-token", username: "leona" },
   });
-  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID))) as { credentials: Record<string, unknown>[] };
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TOOL_ID))) as { credentials: Record<string, unknown>[] };
   assert.equal(result.credentials.length, 1);
   return result.credentials[0]!;
 }

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { activateLipay, LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "../lipay-plugin.js";
-import { InMemoryPaymentCredentials } from "../credentials.js";
+import { InMemoryPaymentCredentials } from "@jini-ai/commerce/payments";
 import { declareDataModule } from "../../data-module.js";
 import { cleanup, makeLipay, tempDb, FakeHttpClient, TestClock, testIdGen } from "./support.js";
 

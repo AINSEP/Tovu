@@ -15,10 +15,8 @@ import {
  * (reachable only through the live `page.find_elements` browser bridge), and content types
  * (`collections_content_type_list`).
  *
- * A LIST, not a search, and deliberately not a second index. `capability_search`/`capability_get`
- * were removed on 2026-08-26 because a parallel discovery index confused the agent
- * (`ADS-memory/knowledge/2026-08-26-removed-capability-search.md`). So nothing here is seeded, cached
- * or ranked. Every section is read at call time from the source its own tool reads:
+ * A call-time list keeps capability discovery on the tools' existing sources instead of making
+ * an agent choose between parallel indexes. Nothing here is seeded, cached or ranked:
  * - tools — the composition root's live `ToolRegistry`, injected as `listCatalogTools` (bound to
  *   `assistant/tool-catalog-query.ts`'s `listToolCatalogEntries`; `features/**` may not import
  *   `assistant/**` by value). Same `source` domain and same stripped description `search_tools` and

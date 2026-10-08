@@ -122,6 +122,10 @@ export interface FetchPublishedPageDeps {
    * exactly why `createServer(app)` type-checked before this change and still does.
    */
   createSiteApp(routeDeps: unknown): RequestListener;
+  /** Native server factory; injected fakes can exercise rendering without opening a socket. */
+  readonly createServer?: (listener: RequestListener) => Server;
+  /** HTTP transport; omitted, uses the global fetch read at call time. */
+  readonly fetch?: typeof globalThis.fetch;
   /** Traces the loopback render as one outbound span (method, host/port, status — never the path).
    *  `RouteDeps.observability` in production; omitted, the render is untraced. */
   readonly observability?: ObservabilityPort;
@@ -439,7 +443,7 @@ export async function fetchPublishedPage(
   const maxBytes = resolveMaxBytes(options.maxBytes);
   const timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
 
-  const server = createServer(deps.createSiteApp(deps));
+  const server = (deps.createServer ?? createServer)(deps.createSiteApp(deps));
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address() as AddressInfo;
@@ -451,8 +455,8 @@ export async function fetchPublishedPage(
 
     let response: Response;
     try {
-      // The global `fetch` read per call, so a test that swaps it is still honored.
-      const send = trackFetch({ fetch: (url, init) => fetch(url, init), observability: deps.observability ?? UNTRACED });
+      // The default global `fetch` is read per call, so a test that swaps it is still honored.
+      const send = trackFetch({ fetch: deps.fetch ?? ((url, init) => fetch(url, init)), observability: deps.observability ?? UNTRACED });
       response = await send(`${baseUrl}${path}`, {
         redirect: "manual",
         signal: AbortSignal.timeout(timeoutMs),

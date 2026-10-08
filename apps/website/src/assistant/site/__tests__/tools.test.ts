@@ -8,12 +8,8 @@ import { listPublishedPosts } from "#src/features/post/index";
  * The property under test is a security one: this surface is reachable by anonymous internet
  * traffic, so no tool may return anything that is not `status: "published"` and non-trashed.
  *
- * Unlike the `entries`/`EntryListPort` model this file used to test against, `PostRepoPort.list()`
- * has no `status` parameter at all — it always returns every row in the workspace, drafts and
- * trashed rows included (see `tools.ts`'s file header). So `fakePort` below is not split into an
- * "honest" and a "leaky" variant the way the old entries-based test was: there is only one real
- * shape, and it is the leaky one by contract. Every test here proves the tool's own filter, not the
- * port's.
+ * PostRepoPort.list has no status parameter and returns drafts/trashed rows as well as published
+ * rows. The fake therefore follows that contract; every test proves the tool's own filtering.
  */
 
 interface FakeRow {

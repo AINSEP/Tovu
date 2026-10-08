@@ -9,7 +9,7 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createWidgetsModule } from "../runtime/composition/modules/widgets.js";
 import type { RouteDeps } from "../routes/types.js";
-import { WIDGET_CONTENT_TYPE } from "../../features/widgets/types.js";
+import { WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 
 /**
  * @file Route-level tests for the admin `widgets` HTTP surface (SPEC-043, ADR-047) — instance
@@ -332,7 +332,7 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   // fixtures' own approach) — "article" avoids the "post"/"page" reserved-key collision.
   const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
   const { createEntry } = await import("../../features/entries/index.js");
-  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
+  const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
 
   await deps.identityReady;
   await registerContentType({
@@ -1029,7 +1029,7 @@ test("admin widgets agent tools: widgets.remove removes a region placement (regi
   // every other test in this file only ever targets a region) ---
   const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
   const { createEntry } = await import("../../features/entries/index.js");
-  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
+  const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({
     deps: { repo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: deps.outbox },
     input: { actorId: "system", workspaceId: deps.workspaceId, key: "article", label: "Article", fields: [] },
@@ -1329,7 +1329,7 @@ test("admin widgets embed-remove route: rejects wrong workspace and a missing ba
 
   const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
   const { createEntry } = await import("../../features/entries/index.js");
-  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
+  const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({
     deps: { repo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: deps.outbox },
     input: { actorId: "system", workspaceId: deps.workspaceId, key: "article", label: "Article", fields: [] },
@@ -1443,7 +1443,7 @@ test("admin widgets regions-list/region-get: reject wrong workspace and no-permi
   // region-get's `areaEntry.type !== WIDGET_AREA_CONTENT_TYPE` branch.
   const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
   const { createEntry } = await import("../../features/entries/index.js");
-  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
+  const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({
     deps: { repo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: deps.outbox },
     input: { actorId: "system", workspaceId: deps.workspaceId, key: "article", label: "Article", fields: [] },

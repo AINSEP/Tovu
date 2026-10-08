@@ -6,13 +6,16 @@ import { InMemoryExternalMcpServerRepo } from '../../../assistant/external-mcp-s
 import { saveExternalMcpServer, readEnabledExternalMcpConfigs } from '../../../assistant/external-mcp-store.js';
 import { probeExternalMcpServer } from '../../../server/runtime/services/external-mcp-probe.js';
 import { buildExternalMcpRegistrations } from '../../external-mcp/tool-registrations.js';
-import { createSurfaceExchangeStore } from '../../../contracts/core/tool-surface-exchanges.js';
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { SealedDatabaseDestinationStore, type DatabaseDestinationRecord } from '../../database-transfer/destination-store.js';
 import { createDestinationExchangeReporter } from '../../database-transfer/destination-exchange.js';
 import { buildDestinationForm, SET_DESTINATION_TOOL_ID } from '../../database-transfer/destination-ui.js';
 import { CREDENTIAL_MESSAGES } from '../../../contracts/core/credential-token.js';
 import { McpProtocolError } from '@jini-ai/mcp/federation';
 import type { SurfaceEmission } from '@jini-ai/core';
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const workspaceId = 'credential-probe';
 const clock = { nowMs: () => 0, nowIso: () => '1970-01-01T00:00:00.000Z' };
@@ -40,7 +43,7 @@ test('a successful hosted probe closes its session', async () => {
   assert.equal(result.ok, true); assert.equal(closed, 1);
 });
 async function submitCard({ transport = 'streamable_http', token, code = 'MCP_AUTH_REJECTED' }: { transport?: 'streamable_http' | 'stdio'; token: string; code?: string }) {
-  const crypto = cryptoDeps(); const repo = new InMemoryExternalMcpServerRepo(); const exchanges = createSurfaceExchangeStore(); const emissions: SurfaceEmission[] = []; let probes = 0;
+  const crypto = cryptoDeps(); const repo = new InMemoryExternalMcpServerRepo(); const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const emissions: SurfaceEmission[] = []; let probes = 0;
   const deps = { workspaceId, clock, externalMcpServerRepo: repo, siteAssistantSecretSealer: crypto.sealer, siteAssistantSecretKeyring: crypto.keyring, authorize: async () => ({ allowed: true, reason: 'matched' }), externalMcpProbe: async () => {
     probes++;
     assert.equal((await repo.listByWorkspaceId(workspaceId)).length, 1, 'probe runs only after save');
@@ -52,7 +55,7 @@ async function submitCard({ transport = 'streamable_http', token, code = 'MCP_AU
   assert.equal(emissions.length, 1);
   const html = (emissions[0]!.payload as { resource: { resource: { text: string } } }).resource.resource.text;
   const id = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1]; assert.ok(id);
-  exchanges.deliver({ exchangeId: id, toolId: 'external_mcp_save', principalId: 'owner', params: { id: 'fixture', transport, authMode: 'static_env', enabled: true, command: transport === 'stdio' ? 'node' : '', url: 'https://example.test/mcp', args: '', allowedToolNames: '', accessToken: token, accessTokenEnvName: 'ACCESS_TOKEN' } });
+  exchanges.deliver({ exchangeId: id, principalId: 'owner', params: { id: 'fixture', transport, authMode: 'static_env', enabled: true, command: transport === 'stdio' ? 'node' : '', url: 'https://example.test/mcp', args: '', allowedToolNames: '', accessToken: token, accessTokenEnvName: 'ACCESS_TOKEN' } }, { toolId: 'external_mcp_save' });
   const result = await pending as Record<string, unknown>;
   return { result, probes, emissions, repo, sealer: crypto.sealer };
 }
@@ -88,12 +91,12 @@ test('database destination uses real sealing, keeps blank updates, refuses white
   await store.save(workspaceId, destination(''));
   await assert.rejects(store.save(workspaceId, destination('   ')), (error: unknown) => error instanceof Error && error.message === CREDENTIAL_MESSAGES.blank);
   assert.equal((await store.get(workspaceId))?.connectionString === address, true, 'bad updates do not clear the URI');
-  const exchanges = createSurfaceExchangeStore(); const emitted: SurfaceEmission[] = [];
-  const exchange = exchanges.open({ toolId: SET_DESTINATION_TOOL_ID, principalId: 'owner' }, async emission => { emitted.push(emission); });
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const emitted: SurfaceEmission[] = [];
+  const exchange = exchanges.open({ binding: { toolId: SET_DESTINATION_TOOL_ID, principalId: 'owner' }, emit: async emission => { emitted.push(emission); } });
   const report = createDestinationExchangeReporter({ store, workspaceId });
-  const pending = report(exchange, { channel: 'mcp-ui', payload: { resource: buildDestinationForm(exchange.id) } }, async () => ({ result: { saved: true } }));
+  const pending = report({ exchange, confirmationEmission: { channel: 'mcp-ui', payload: { resource: buildDestinationForm(exchange.id) } }, handle: async () => ({ result: { saved: true } }) });
   await new Promise(resolve => setImmediate(resolve));
-  exchanges.deliver({ exchangeId: exchange.id, toolId: SET_DESTINATION_TOOL_ID, principalId: 'owner', params: {} });
+  exchanges.deliver({ exchangeId: exchange.id, principalId: 'owner', params: {} }, { toolId: SET_DESTINATION_TOOL_ID });
   const result = await pending;
   assert.equal(JSON.stringify(result).includes(address), false);
   assert.equal(emitted.length, 2);

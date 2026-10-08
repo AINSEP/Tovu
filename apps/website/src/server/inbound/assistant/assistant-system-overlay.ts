@@ -13,27 +13,6 @@ import { CREDENTIAL_GUIDANCE } from "#src/assistant/credential-guidance";
  */
 
 /**
- * Original `HEAD` steering text for the Bash slot, restored verbatim — character for character —
- * after a since-corrected change briefly dropped it in favor of an empty string when the
- * prohibition flag was off. This is the product default: it does not forbid Bash, it narrows it to
- * one purpose (reading Tovu's own source for a code-level question) and gives the model two
- * concrete tests for whether a shell command is the wrong move. Do not reword, soften, or otherwise
- * "clean up" this text, and do not collapse this back down to a single block — {@link
- * BASH_PROHIBITION_BLOCK} is a deliberately harsher, opt-in diagnostic variant, not a replacement
- * for this one (see {@link resolveBashProhibitionEnabled}'s doc for why both exist).
- */
-export const BASH_GUIDANCE_BLOCK =
-  "Bash and " +
-  "file access remain available for one narrow purpose: reading Tovu's own source to answer a " +
-  "code-level question about how Tovu itself is implemented. They are not available for anything " +
-  "else — not for calling an external API (use the credentialed-request tools above), not for " +
-  "inspecting or changing this site's data or configuration, and not for reading config files to " +
-  "infer state a tool would report directly. Two tests before you run a shell command: could a " +
-  "registered tool do this, and would this command still work on a deployed Tovu with no source " +
-  "checkout and no CLI on the machine? If the answer to the first is yes, or the second is no, " +
-  "you are about to do it the wrong way — search_tools again instead. ";
-
-/**
  * "ABSOLUTE PROHIBITION" diagnostic instrument, kept verbatim — character for character — from
  * when it was hardcoded directly into the base overlay. Do not reword, soften, or otherwise "clean
  * up" this text: the owner approved this exact wording and it is doing real diagnostic work today
@@ -111,6 +90,33 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "Read(//**/*-key*.hex)",
   "Read(//proc/**)",
 ];
+
+/**
+ * Historical intent: the original `HEAD` steering text for the Bash slot was restored verbatim —
+ * after a since-corrected change briefly dropped it in favor of an empty string when the
+ * prohibition flag was off. This is the product default: it does not forbid Bash, it narrows it to
+ * one purpose (reading Tovu's own source for a code-level question) and gives the model two
+ * concrete tests for whether a shell command is the wrong move. Do not reword, soften, or otherwise
+ * "clean up" this text, and do not collapse this back down to a single block — {@link
+ * BASH_PROHIBITION_BLOCK} is a deliberately harsher, opt-in diagnostic variant, not a replacement
+ * for this one (see {@link resolveBashProhibitionEnabled}'s doc for why both exist).
+ * Todo 21 corrects that old availability claim: the enforced disallow list now owns this wording.
+ */
+
+/** The default guidance shares the actual host-CLI tool grant's source of truth. */
+export const BASH_GUIDANCE_BLOCK = ASSISTANT_DISALLOWED_TOOLS.includes("Bash")
+  ? "Bash is unavailable because it is disabled for this assistant. " +
+    "Read remains available only for reading Tovu's own source to answer a code-level question. " +
+    "Never read config files to infer state a registered tool would report directly; use search_tools instead. "
+  : "Bash and " +
+  "file access remain available for one narrow purpose: reading Tovu's own source to answer a " +
+  "code-level question about how Tovu itself is implemented. They are not available for anything " +
+  "else — not for calling an external API (use the credentialed-request tools above), not for " +
+  "inspecting or changing this site's data or configuration, and not for reading config files to " +
+  "infer state a tool would report directly. Two tests before you run a shell command: could a " +
+  "registered tool do this, and would this command still work on a deployed Tovu with no source " +
+  "checkout and no CLI on the machine? If the answer to the first is yes, or the second is no, " +
+  "you are about to do it the wrong way — search_tools again instead. ";
 
 /**
  * Which of the `claude` CLI's own settings layers an assistant run loads — forwarded to
@@ -268,7 +274,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "exactly ONCE. Report the retry's real outcome truthfully — success only if the retry itself " +
     "actually succeeded, and the provider's own error, unchanged, if it failed again. Never attempt " +
     "a second ask-fix-retry cycle for the same request: if the retry still fails, stop and report the failure plainly. " +
-    "If the ORIGINAL failed call already had 'usernameStored' true, use custom_credential_set_token to rotate the saved token through its secure card and retry once. When a federated external " +
+    "If the ORIGINAL failed call already had 'usernameStored' true, use credential_save with kind 'api' and target set to the exact saved credential label to rotate the saved token through its secure card and retry once. When a federated external " +
     "MCP tool call (its id starts with 'mcp__') fails with an error saying a server 'is " +
     "disconnected: its authorization expired or was revoked', do not just relay that in prose and " +
     "do not keep retrying the same tool. Call external_mcp_reauth_prompt with that connection's id " +

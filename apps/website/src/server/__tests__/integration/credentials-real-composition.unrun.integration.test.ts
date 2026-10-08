@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
 import { resolveDefaultForSourceControl } from "#src/features/source-control/index";
+import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../helpers/unrun-site-boot.js";
 
 /**
@@ -56,7 +57,9 @@ function captureProviderCalls(t: TestContext, site: BootedSite): Array<{ url: st
 for (const dialect of SITE_DIALECTS) {
   test(`[unrun] publish credentials [${dialect}]: the token is sealed into the store and unsealed for verification, never returned, and DELETE removes it`, async (t) => {
     useSiteKey(t);
-    const site = await bootSite(t, dialect);
+    // A fresh site has no enabled deploy Agent Plugin. Inject the real bundled declarations at
+    // the registry port; credential storage, sealing and HTTP behavior remain the real composition.
+    const site = await bootSite(t, dialect, { configureDeps: (deps) => { deps.loadDeployTargets = loadBundledDeployTargets; } });
     const calls = captureProviderCalls(t, site);
     const base = `${site.ws}/system/publish/credentials`;
 
@@ -86,7 +89,7 @@ for (const dialect of SITE_DIALECTS) {
 
   test(`[unrun] publish credentials [${dialect}]: a duplicate (provider, label) is the mapped 409 DUPLICATE_LABEL with the exact detail, and one row remains`, async (t) => {
     useSiteKey(t);
-    const site = await bootSite(t, dialect);
+    const site = await bootSite(t, dialect, { configureDeps: (deps) => { deps.loadDeployTargets = loadBundledDeployTargets; } });
     captureProviderCalls(t, site);
     const base = `${site.ws}/system/publish/credentials`;
 
@@ -102,6 +105,7 @@ for (const dialect of SITE_DIALECTS) {
   test(`[unrun] source-control credentials [${dialect}]: create → rename keeps the sealed token → a duplicate label is 409 → delete`, async (t) => {
     useSiteKey(t);
     const site = await bootSite(t, dialect);
+    captureProviderCalls(t, site);
     const base = `${site.ws}/system/source-control/credentials`;
     const resolveGithub = () =>
       resolveDefaultForSourceControl(

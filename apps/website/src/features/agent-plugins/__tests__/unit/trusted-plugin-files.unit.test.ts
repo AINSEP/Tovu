@@ -10,11 +10,11 @@ import path from "node:path";
 import test from "node:test";
 
 
-import { recordBundledAgentPluginDigests } from "../../bundled-digests.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../install.js";
+import { recordBundledAgentPluginDigests } from "../../lifecycle.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../lifecycle.js";
 import { loadMailAdapterRegistry, MAIL_ADAPTERS_FILENAME } from "../../mail-adapter-registry.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { findTrustedPluginPackages, type TrustedPluginPackage } from "../../trusted-plugin-files.js";
+import { findTrustedPluginPackages, type TrustedPluginPackage } from "../../lifecycle.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 
 /**

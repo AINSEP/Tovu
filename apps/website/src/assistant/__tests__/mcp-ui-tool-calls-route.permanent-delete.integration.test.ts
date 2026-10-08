@@ -5,15 +5,18 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { buildPermanentDeleteRegistrations } from "#src/features/permanent-delete/tool-registrations";
 import { PERMANENT_DELETE_SPECS } from "#src/features/permanent-delete/agent-tools";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /** Port test, not run in Codex sandbox. Every card must reach the existing authenticated exchange
  * callback; a callback without an exchange must never invoke the ToolExecutor. */
 for (const spec of PERMANENT_DELETE_SPECS) {
   test(`${spec.name}: browser callback confirms a parked call; fresh execution and wrong principal are refused`, async t => {
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const app = express();
     app.use(express.json());
     registerMcpUiToolCallsRoute(app, {

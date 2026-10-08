@@ -1,4 +1,3 @@
-// Local federation forks moved to @jini-ai/mcp/federation (+ /stdio, /approvals); see development/DELETED-CODE.md.
 import type { Express, Request, Response } from "express";
 
 import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";

@@ -7,7 +7,7 @@ import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import { ASK_CHOICE_TOOL_ID, buildAskChoiceRegistrations } from "../ask-choice-tool.js";
 import {
@@ -15,26 +15,20 @@ import {
   SURFACE_TYPED_ANSWER_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../contracts/core/tool-surface-exchanges.js";
+} from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
- * @file The regression suite for the 2026-09-18 ask-choice deadlock the owner hit live: the
- * assistant asked a question through `assistant_ask_choice`, the owner typed the answer into the
- * chat composer instead of clicking the rendered form, and the chat sat frozen until the exchange's
- * 5-minute idle deadline — `sites/tovu-com/chat.db` run `2adef4d1-3bf2-496f-9e22-7c53ffcc1503`,
- * `run_status='running'` with `ended_at` NULL 35 minutes later. Owner's words: *"it asked a question
- * and I answered but it's stuck ... it should get messages as I type them, not hold it."*
- *
- * Before this change a typed message could not resolve a parked exchange at all: every param shape
- * the surface posts back is one the FORM produces, so prose had nowhere to go.
- * {@link SURFACE_TYPED_ANSWER_PARAM} is that missing carrier.
+ * @file Composer answers must resolve a parked ask-choice exchange through SURFACE_TYPED_ANSWER_PARAM
+ * instead of leaving the call blocked until its idle deadline.
  *
  * ## Why a typed answer is safe here, where a model-invented one is not
  *
  * `ask-choice-tool.ts`'s own header documents at length why the no-emit-seam fallback needs a
- * single-use, principal-bound ticket: that path RETURNS immediately, leaving the model free to call
- * `assistant_ask_choice` a second time with a `choice` it made up, and a live incident (an unchosen
- * paid `media_generate_asset` spend) is what that ticket exists to prevent.
+ * single-use, principal-bound ticket: that path returns immediately and must reject a later
+ * model-invented choice. See the tool's header for the fallback security boundary.
  *
  * The typed-answer path does not reopen that hole, for a structural reason rather than a policy one:
  * it is reachable ONLY through `SurfaceExchangeStore.deliver`, which is called from
@@ -111,7 +105,7 @@ async function startRoute(
 }
 
 test("a typed chat message resolves a parked assistant_ask_choice instead of leaving it to time out", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
   const { pending, exchangeId } = await openRealDialog(toolExecutor);
   const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
@@ -137,7 +131,7 @@ test("a typed chat message resolves a parked assistant_ask_choice instead of lea
 });
 
 test("a typed answer is reported as the administrator's words, never as one of the options the model offered", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
   const { pending, exchangeId } = await openRealDialog(toolExecutor);
   const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
@@ -173,7 +167,7 @@ test("a typed answer is reported as the administrator's words, never as one of t
 });
 
 test("a typed answer that is not a string is refused rather than delivered as an answer", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
   const { pending, exchangeId } = await openRealDialog(toolExecutor);
   const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
@@ -199,7 +193,7 @@ test("a typed answer that is not a string is refused rather than delivered as an
 });
 
 test("an empty typed answer is not treated as an answer at all", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
   const { pending, exchangeId } = await openRealDialog(toolExecutor);
   const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
@@ -225,13 +219,10 @@ test("an empty typed answer is not treated as an answer at all", async (t) => {
 // input cannot be reported as submitted even in environments that prohibit loopback servers.
 for (const [label, typedAnswer] of [["non-string", { not: "a string" }], ["whitespace", "   "]] as const) {
   test(`a parked ask-choice rejects a ${label} typed answer without inventing a submission`, async () => {
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
     const { pending, exchangeId } = await openRealDialog(toolExecutor);
-    assert.deepEqual(surfaceExchanges.deliver({
-      exchangeId, toolId: ASK_CHOICE_TOOL_ID, principalId: PRINCIPAL,
-      params: { [SURFACE_TYPED_ANSWER_PARAM]: typedAnswer },
-    }), { ok: true });
+    assert.deepEqual(surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { [SURFACE_TYPED_ANSWER_PARAM]: typedAnswer } }, { toolId: ASK_CHOICE_TOOL_ID }), { ok: true });
     const executed = await pending;
     assert.equal(executed.status, "completed");
     const output = executed.output as Record<string, unknown>;
@@ -248,7 +239,7 @@ for (const [label, typedAnswer] of [["non-string", { not: "a string" }], ["white
  * model writes both ends of. The route resolves it from the store instead.
  */
 test("a typed answer that names no exchange still reaches the one question outstanding for that human", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
   const { pending } = await openRealDialog(toolExecutor);
   const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
@@ -271,7 +262,7 @@ test("a typed answer that names no exchange still reaches the one question outst
 });
 
 test("a typed answer with nothing outstanding is refused, not executed as a fresh tool call", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
   const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);
 
@@ -293,7 +284,7 @@ test("a typed answer with nothing outstanding is refused, not executed as a fres
 });
 
 test("a typed answer never reaches another human's open question", async (t) => {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolExecutor = buildRealAskChoiceToolExecutor(surfaceExchanges);
   const { pending } = await openRealDialog(toolExecutor);
   const baseUrl = await startRoute(t, toolExecutor, surfaceExchanges);

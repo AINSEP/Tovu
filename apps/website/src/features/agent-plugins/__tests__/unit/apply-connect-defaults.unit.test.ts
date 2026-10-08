@@ -13,12 +13,12 @@ import {
 } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "#src/platform/oauth/index";
+import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 
 import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
-import { packAgentPluginDirectory, createBundledSourceArchiveReader } from "../../bundled-source-archive.js";
-import { installAgentPlugin } from "../../install.js";
+import { packAgentPluginDirectory, createBundledSourceArchiveReader } from "../../lifecycle.js";
+import { installAgentPlugin } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { agentPluginActivations } from "../../activation-effects.js";
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -59,7 +59,7 @@ const tokenFetch = (async () =>
   new Response(JSON.stringify({ access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }), {
     status: 200,
     headers: { "content-type": "application/json" },
-  })) as OAuthFetch;
+  })) as typeof fetch;
 
 async function makeHarness(row: { allowedToolNames?: string; provisionedByPluginId?: string; url?: string; enableThrows?: boolean; productionBindings?: boolean }) {
   const repo = new InMemoryExternalMcpServerRepo();

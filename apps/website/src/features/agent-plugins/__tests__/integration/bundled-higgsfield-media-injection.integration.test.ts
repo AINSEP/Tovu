@@ -10,8 +10,8 @@ import test from "node:test";
 
 
 import { resolveAgentPluginLayout } from "../../layout.js";
-import { resolveAgentPluginRefs, listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
-import { seedBundledAgentPlugins } from "../../seed-bundled.js";
+import { resolveAgentPluginRefs, listInstalledPlugins } from "../../lifecycle.js";
+import { seedBundledAgentPlugins } from "../../lifecycle.js";
 
 /**
  * @file The `higgsfield-media` bundled plugin seeds like the other two AND its content actually

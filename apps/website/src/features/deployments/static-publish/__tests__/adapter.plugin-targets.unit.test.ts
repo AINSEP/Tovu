@@ -295,8 +295,8 @@ test("a module whose create() throws is reported like a legacy unusable credenti
     { target: "netlify" },
   );
   assert.deepEqual(result, { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: "credential is not usable for netlify", credentialSetup: {
-    setupToolId: "deployment_propose_custom_provider_credential", prefill: { target: "netlify" },
-    remedyToolId: "deployment_propose_custom_provider_credential", hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
+    setupToolId: "credential_save", prefill: { kind: "publish-host", target: "netlify" },
+    remedyToolId: "credential_save", hint: "A missing or rejected credential may be fixed by saving it through the secure card.",
   } });
 });
 

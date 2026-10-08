@@ -6,19 +6,17 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 
 // F3.4/F4.4: only the filesystem reader is faulted. Existing get-chat-attachment-route.test.ts
 // exercises that reader with real staged files; this test owns the handler's unexpected-error shell.
-test("chat attachment handler redacts unexpected read errors while passing the authenticated owner and ref", async (t) => {
+test("chat attachment handler redacts unexpected read errors while passing the authenticated owner and ref", async () => {
   const calls: unknown[] = [];
-  t.mock.module("#src/features/media/read-chat-attachment", {
-    namedExports: {
-      readChatAttachmentForOwner: async (deps: unknown, input: unknown) => {
-        calls.push({ deps, input });
-        throw new Error("filesystem failure /private/uploads with secret sidecar");
-      },
-    },
-  });
   const { registerAdminChatAttachmentReadRoute } = await import("../get-chat-attachment.js");
   const app = express();
-  registerAdminChatAttachmentReadRoute(app, { uploadDirectory: "/test-owned/uploads" });
+  registerAdminChatAttachmentReadRoute(app, {
+    uploadDirectory: "/test-owned/uploads",
+    readChatAttachmentForOwner: async (deps, input) => {
+      calls.push({ deps, input });
+      throw new Error("filesystem failure /private/uploads with secret sidecar");
+    },
+  });
   const handler = extractRouteHandler(app, "get", "/api/attachments/:ref");
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "uploader-7" };

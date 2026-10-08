@@ -60,6 +60,7 @@ test("an admin nobody has configured reads as not-set, with sensible defaults", 
   assert.deepEqual(view, {
     isSet: false,
     masked: null,
+    tokenHint: null,
     protocol: "anthropic",
     providerId: null,
     baseUrl: null,
@@ -312,11 +313,8 @@ test("resolveExecutionCredential returns the key and config together on success"
 });
 
 // ---------------------------------------------------------------------------
-// AAD (2026-09-02 gap closure) — `admin_execution_credentials` used to seal with no additional
-// authenticated data at all, so a ciphertext was transplantable between rows (across principals in
-// the same workspace, or across workspaces for the same principal). New writes must bind
-// `(workspaceId, principalId)` into the seal; existing (`aad_version = 0`) rows must keep opening
-// exactly as before so no live BYOK key goes dark mid-migration.
+// Writes bind workspaceId/principalId into AAD so ciphertext cannot be transplanted across rows.
+// Legacy aad_version=0 rows must keep opening to preserve existing BYOK credentials.
 // ---------------------------------------------------------------------------
 
 test("a freshly saved key is sealed with AAD bound to (workspaceId, principalId) and the row is marked aadVersion 1", async () => {
@@ -327,10 +325,7 @@ test("a freshly saved key is sealed with AAD bound to (workspaceId, principalId)
   assert.equal(row?.aadVersion, 1);
 
   await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));
-  const opened = await sealer.open({
-    sealed: row!.sealed!,
-    aad: buildExecutionCredentialAad({ workspaceId: WORKSPACE, principalId: ADMIN_A }),
-  });
+  const opened = await sealer.open({ sealed: row!.sealed! }, { aad: buildExecutionCredentialAad({ workspaceId: WORKSPACE, principalId: ADMIN_A }) });
   assert.equal(opened, "aad-bound-key-1234");
 });
 
@@ -354,6 +349,7 @@ test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact
 
   const resolved = await resolveExecutionCredential({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
   assert.deepEqual(resolved, { apiKey: "legacy-no-aad-5678", protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null });
+  assert.deepEqual((await getExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A })).tokenHint, { length: 18, last4: "5678" });
 });
 
 test("AAD binding: swapping the sealed key onto a DIFFERENT PRINCIPAL's row in the SAME workspace fails closed (adversarial cross-row transplant)", async () => {
@@ -384,4 +380,27 @@ test("AAD binding rejects a ciphertext transplanted across workspaces for the sa
   await repo.upsert({ ...destination, sealed: source.sealed, masked: source.masked });
   assert.equal(await resolveExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
   assert.equal((await resolveExecutionCredential(deps, { workspaceId: otherWorkspace, principalId: ADMIN_A }))?.apiKey, "workspace-two");
+});
+
+
+test("BYOK hints use the shared server policy on writes and reads, including short keys and open failures", async () => {
+  const { deps } = makeDeps();
+  const scope = { workspaceId: WORKSPACE, principalId: ADMIN_A };
+  for (const [apiKey, expected] of [
+    ["a".repeat(14) + "a9F2", { length: 18, last4: "a9F2" }],
+    ["tiny", { length: 4, last4: null }],
+  ] as const) {
+    const written = await setExecutionCredential(deps, { ...scope, apiKey });
+    const read = await getExecutionCredential(deps, scope);
+    assert.deepEqual(written.tokenHint, expected);
+    assert.deepEqual(read.tokenHint, expected);
+    assert.equal(JSON.stringify(written).includes(apiKey), false);
+    assert.equal(JSON.stringify(read).includes(apiKey), false);
+    if (expected.last4 === null) assert.equal(read.masked, null);
+  }
+  const unavailable = { ...deps, sealer: { ...deps.sealer, seal: deps.sealer.seal.bind(deps.sealer), open: async () => { throw new Error("unavailable"); } } };
+  const metadata = await getExecutionCredential(unavailable, scope);
+  assert.equal(metadata.isSet, true);
+  assert.equal(metadata.tokenHint, null);
+  assert.equal(metadata.masked, null);
 });

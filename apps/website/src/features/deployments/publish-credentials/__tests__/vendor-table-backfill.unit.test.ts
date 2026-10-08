@@ -4,7 +4,7 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
-import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/repo.memory";
+import { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { buildPublishCredentialAad } from "../aad.js";
 import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
@@ -23,7 +23,7 @@ async function makeDeps(): Promise<VendorTableBackfillDeps & { keyring: InMemory
   const keyring = new InMemoryKeyring();
   return {
     legacyRepo: new InMemoryPublishCredentialSetRepo(),
-    vendorRepo: new InMemoryVendorCredentialSetRepo(),
+    vendorRepo: new InMemoryVendorCredentialSetRepo({}),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     registries: [await loadBundledDeployTargets()],
@@ -71,7 +71,7 @@ test("a legacy row is copied under its own id into its host's vendor group, re-s
   assert.equal(row.accountLabel, "octo");
   assert.equal(row.tokenTail, "1234");
   assert.equal(row.createdAt, CREATED);
-  const plaintext = await deps.sealer.open({ sealed: row.sealed, aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: "c-1" }) });
+  const plaintext = await deps.sealer.open({ sealed: row.sealed }, { aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: "c-1" }) });
   assert.deepEqual(JSON.parse(plaintext), { vendorId: "github", token: "ghp_abcd1234" });
   assert.ok(await deps.legacyRepo.findById({ workspaceId: WORKSPACE, id: "c-1" }), "the legacy row is kept");
 });
@@ -175,7 +175,7 @@ for (const failure of ["seal", "mismatch"] as const) {
       t.mock.method(deps.sealer, "seal", async () => { throw new Error("fixture reseal failed"); });
     } else {
       const open = deps.sealer.open.bind(deps.sealer);
-      t.mock.method(deps.sealer, "open", async (args: Parameters<typeof open>[0]) => args.aad === buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "vercel", id: "c-1" }) ? "different plaintext" : open(args));
+      t.mock.method(deps.sealer, "open", async (args: Parameters<typeof open>[0], optional: Parameters<typeof open>[1] = {}) => optional.aad === buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "vercel", id: "c-1" }) ? "different plaintext" : open(args, optional));
     }
     const report = await copyPublishCredentialsToVendorTable(deps, { workspaceId: WORKSPACE });
     assert.deepEqual(report, { copied: [], alreadyCopied: [], skipped: [{ id: "c-1", reason: failure === "seal" ? "the credential could not be re-sealed: fixture reseal failed" : "the re-sealed credential did not open to the same value" }] });

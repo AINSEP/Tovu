@@ -129,7 +129,7 @@ export async function readSealedConnectionString(required: { siteDir: string }, 
   }
   const sealer = optional.sealer ?? siteSecretSealer(required.siteDir).sealer;
   try {
-    return await sealer.open({ sealed, aad: STORAGE_SECRET_AAD });
+    return await sealer.open({ sealed }, { aad: STORAGE_SECRET_AAD });
   } catch {
     // The sealer's own error may describe the key; it is replaced, never passed on.
     throw new StorageSecretError(`${target} does not open with this site's key (a different site key, or the file was changed)`);

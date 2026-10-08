@@ -2,7 +2,7 @@ import path from "node:path";
 
 import type { MailAdapterModule } from "#src/platform/mail/index";
 
-import { findTrustedPluginPackages, importContainedModule, readTrustedPluginFile, type TrustedPluginPackage } from "./trusted-plugin-files.js";
+import { defineExecutablePluginContribution, loadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
 
 /**
  * @file Loads the mail adapters Agent Plugins contribute — the generic seam that lets a plugin (the
@@ -52,10 +52,12 @@ export interface MailAdapterRegistry {
 
 type ParseResult = { readonly ok: true; readonly descriptors: readonly MailAdapterDescriptor[] } | { readonly ok: false; readonly reason: string };
 
-interface PackageLoad {
-  readonly adapters: readonly LoadedMailAdapter[];
-  readonly refusals: readonly string[];
-}
+const adapterContribution = defineExecutablePluginContribution<MailAdapterDescriptor, MailAdapterModule>({
+  filename: MAIL_ADAPTERS_FILENAME, contribution: "mail adapters",
+  parse: ({ raw }) => parseMailAdaptersFile(raw), modulePath: ({ descriptor }) => descriptor.module,
+  validate: ({ exported }) => asAdapterModule(exported),
+  refusal: ({ plugin, descriptor, reason }) => `mail adapter '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
+});
 
 /** The two facts a package load needs: whose it is and where it lives. */
 type AdapterPackage = TrustedPluginPackage;
@@ -67,27 +69,9 @@ type AdapterPackage = TrustedPluginPackage;
  * @throws Nothing for a plugin-level fault; only a filesystem fault listing the package directory itself.
  * @complexity O(p) installed plugins, one small read plus one import per declared adapter.
  */
-export async function loadMailAdapterRegistry(ctx: { readonly workspaceId: string }): Promise<MailAdapterRegistry> {
-  const verdicts = await findTrustedPluginPackages({
-    workspaceId: ctx.workspaceId,
-    filename: MAIL_ADAPTERS_FILENAME,
-    contribution: "mail adapters",
-    requireActive: true,
-    orderByPluginId: true,
-  });
-
-  const adapters: LoadedMailAdapter[] = [];
-  const refusals: string[] = [];
-  for (const verdict of verdicts) {
-    if ("refusal" in verdict) {
-      refusals.push(verdict.refusal);
-      continue;
-    }
-    const load = await loadPackageAdapters(verdict.trusted);
-    adapters.push(...load.adapters);
-    refusals.push(...load.refusals);
-  }
-  return { list: () => adapters, refusals };
+export async function loadMailAdapterRegistry(ctx: { readonly workspaceId: string }, _optional: Record<string, never> = {}): Promise<MailAdapterRegistry> {
+  const load = await loadPluginContributions({ ...ctx, definition: adapterContribution }, { orderByPluginId: true });
+  return { list: () => load.items, refusals: load.refusals };
 }
 
 /**
@@ -96,31 +80,13 @@ export async function loadMailAdapterRegistry(ctx: { readonly workspaceId: strin
  *
  * @complexity O(a) adapters, one import each.
  */
-export async function loadMailAdapterRegistryFromSource(plugin: AdapterPackage): Promise<MailAdapterRegistry> {
-  const load = await loadPackageAdapters(plugin);
-  return { list: () => load.adapters, refusals: load.refusals };
+export async function loadMailAdapterRegistryFromSource(plugin: AdapterPackage, _optional: Record<string, never> = {}): Promise<MailAdapterRegistry> {
+  const load = await loadPluginContributionsFromSource({ plugin, definition: adapterContribution });
+  return { list: () => load.items, refusals: load.refusals };
 }
 
-/** A package's own adapters, trusted by the caller. @complexity O(a) adapters, one import each. */
-async function loadPackageAdapters(plugin: AdapterPackage): Promise<PackageLoad> {
-  const parsed = parseMailAdaptersFile(await readTrustedPluginFile(plugin, MAIL_ADAPTERS_FILENAME));
-  if (!parsed.ok) return { adapters: [], refusals: [`mail adapters from '${plugin.pluginId}' were not loaded: ${MAIL_ADAPTERS_FILENAME} is invalid: ${parsed.reason}`] };
-
-  const adapters: LoadedMailAdapter[] = [];
-  const refusals: string[] = [];
-  for (const descriptor of parsed.descriptors) {
-    const loaded = await loadAdapterModule(plugin, descriptor);
-    if (typeof loaded === "string") refusals.push(`mail adapter '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${loaded}`);
-    else adapters.push({ descriptor, pluginId: plugin.pluginId, module: loaded });
-  }
-  return { adapters, refusals };
-}
-
-/** Imports one module after the containment check; the module, or the refusal reason. @complexity O(1). */
-async function loadAdapterModule(plugin: AdapterPackage, descriptor: MailAdapterDescriptor): Promise<MailAdapterModule | string> {
-  const imported = await importContainedModule(plugin, descriptor.module);
-  if (typeof imported === "string") return imported;
-  const candidate = imported.exported;
+/** Validate the default export after Jini's contained import. @complexity O(1). */
+function asAdapterModule(candidate: unknown): MailAdapterModule | string {
   if (!isPlainObject(candidate) || typeof candidate.create !== "function") return "its module has no create() function";
   return candidate as unknown as MailAdapterModule;
 }

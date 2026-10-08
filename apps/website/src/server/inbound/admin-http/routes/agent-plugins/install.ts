@@ -2,7 +2,7 @@ import type { Response } from "express";
 import { raw } from "express";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
-import { AgentPluginInstallError, maxAgentPluginInstallArchiveBytes } from "#src/features/agent-plugins/install";
+import { AgentPluginInstallError, maxAgentPluginInstallArchiveBytes } from "../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError, installUploadedAgentPlugin } from "#src/features/agent-plugins/install-upload";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";

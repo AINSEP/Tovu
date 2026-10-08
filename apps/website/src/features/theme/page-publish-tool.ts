@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
@@ -31,7 +32,7 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
  * @complexity O(1) wiring; execution follows setThemePagePublished.
  */
 export function buildRegistrations(deps: Deps): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: "theme-set-page-published", catalogModule: "features/theme/page-publish-tool.ts", catalog: indexCatalogById({ catalog: catalog }), derivedRisk,
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: "theme-set-page-published", catalogModule: "features/theme/page-publish-tool.ts", catalog: indexCatalogById({ catalog: catalog }), derivedRisk,
     handlers: { theme_set_page_published: async ctx => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "theme.set" }, { entityType: "presentation" });
       const input = requireInputRecord({ input: ctx.input });

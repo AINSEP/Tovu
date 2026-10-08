@@ -5,7 +5,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { AssistantSurfaceDeps } from "../../../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { publishContentAgentToolCatalog, PUBLISH_CONTENT_CONNECT_TOOL_ID, PUBLISH_CONTENT_STATUS_TOOL_ID } from "../agent-tools.js";
 import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "../peers.js";
 import { createFileProvisioning, COMMITTED_JSON_CODEC } from "../../publish-trust/provisioning.js";

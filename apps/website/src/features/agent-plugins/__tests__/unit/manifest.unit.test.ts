@@ -10,7 +10,7 @@ import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
  * (agent-plugins.org/specification, §5.5 for the name grammar; mcp.json's top-level shape is
  * `{ "$schema": ..., "mcpServers": { "<server-id>": {...} } }`) rather than inferred from example
  * manifests. Deliberately a SEPARATE, smaller validator from
- * `src/features/plugin-runtime/manifest.ts`'s `validateManifest()` — that one is `.tovu-plugin`'s
+ * `Jini/packages/plugins/src/host/manifest.ts`'s `validateManifest()` — that one is `.tovu-plugin`'s
  * own format (`integrity`, `sdkRange`, `tier`, a 3-token capability vocabulary); this one is the
  * open standard's, and the two manifests share no required field at all.
  */

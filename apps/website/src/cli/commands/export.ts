@@ -11,46 +11,19 @@ import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot
 import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../errors.js";
 
 /**
- * @file `tovu export <dir>` — wires a commander action's parsed arguments to the exporter engine
- * (`export/site-exporter.ts`'s `exportSite`), mirroring `cli/commands/serve.ts`'s own shape: same
- * `bootSiteDir` → `createSiteRouteDeps` composition, minus the `app.listen` half (the exporter
- * boots its OWN short-lived in-process listener and closes it before this function returns).
+ * @file `tovu export <dir>` — boot the real site and call the export engine.
+ * The engine owns rendering and its short-lived crawl listener; this command resolves
+ * output, prints every route/asset failure honestly and closes the store.
+ * Errors propagate to `cli/main.ts`; `cli/errors.ts` owns exit-code mapping.
  *
- * Purpose:
- * Resolves the export output directory (BR-EXPORT-01 below), boots the real site the same way
- * `serve` would, runs the export, prints the honest report (route/asset counts, every failure
- * named), and closes the db handle. Never renders anything itself — `exportSite` owns that.
+ * CIC U-002-B1/ADR-005 require the synchronous plugin SDK resolver before composition,
+ * with no preceding await, because a real plugin install dir makes imports reachable.
+ * See `runtime/boot/plugin-sdk-resolver.ts` for the security boundary.
  *
- * Architectural role:
- * `cli` layer. Never maps errors to exit codes itself (`cli/errors.ts`'s job) — lets `bootSiteDir`
- * errors, `ExportOutputNotEmptyError`, and this file's own `ExportIncompleteError` propagate
- * uncaught to `cli/main.ts`.
- *
- * Plugin SDK resolver (2026-09-05 dispatch, CIC U-002/ADR-005, ESCALATE_SECURITY): same gap as
- * `serve.ts` had, same fix — this command builds the SAME `createSiteRouteDeps()` composition
- * root (always wiring a real plugin installDir) and `exportSite()`'s own internal listener runs the
- * SAME `createApp()`-equivalent (`routeDeps.createSiteApp()`), so its crawl is served by a process
- * that mounts the `plugins` module with `registerPluginSdkResolver()` never registered. `tovu export`
- * doesn't itself call the `PLUGIN_SET_ENABLED` route, but the resolver hook is a process-wide,
- * one-time registration (CIC U-002-B1: "before any code path that could reach `loadPlugin()` is
- * wired into the running process") — this process is one such path the instant `createSiteRouteDeps()`
- * wires a real `installDir`, independent of whether this specific command happens to exercise it.
- * Fixed the same way as `serve.ts`: `registerPluginSdkResolver()` called first, before any other
- * boot step, with no `await` ahead of it.
- *
- * Crash-interrupted-migration scan (2026-09-06 composition-root fix): this command built the SAME
- * `createSiteRouteDeps()` composition root `serve.ts` does, and `exportSite()`'s own internal
- * listener runs the real `createApp()`-equivalent (`routeDeps.createSiteApp()`) to crawl it — but
- * unlike `serve.ts`, this command never ran `runBootLifecycle`/`buildBootModules` at all, so the
- * `database-migration-reconciliation` scan (`reconcile-interrupted-migration.ts` — detects a
- * crash-interrupted migration and flips `siteStatusRepo` to `BLOCKED_PENDING_RECOVERY`) never ran
- * before an export. A site left mid-migration by a crash could be exported from possibly-inconsistent
- * data with no warning at all. Fixed by calling that same scan directly (not the full
- * `buildBootModules` bundle — that also seeds bundled agent plugins and other optional boot modules
- * with no relationship to exporting, which this command has never done and should not start doing as
- * a side effect of this fix) right after `createSiteRouteDeps()`, refusing outright
- * (`ExportBlockedPendingRecoveryError`, exit 7) rather than letting the crawl surface the same
- * problem indirectly as N confusing per-route failures.
+ * Run interrupted-migration reconciliation immediately after composition, before crawling
+ * potentially inconsistent data. Refuse with `ExportBlockedPendingRecoveryError` (exit 7)
+ * rather than producing confusing per-route failures. The full boot-module bundle also
+ * seeds optional agent plugins unrelated to export, so only the required scan runs here.
  */
 
 export interface RunExportCommandInput {
@@ -67,10 +40,7 @@ export interface RunExportCommandInput {
  * BR-EXPORT-01: `--out` flag, then `TOVU_EXPORT_DIR` env, then `<dir>/out/export` — first
  * PRESENT value wins, same precedence shape `serve.ts`'s `resolveServePort` already uses for
  * `--port`. The default is under the install dir this command was given, because the composition
- * below is handed that dir as its `siteBinding`. It used to be `<cwd>/infra/export`, kept beside
- * `mediaUploadsDir()`'s `<cwd>/infra/uploads` on one shared `infra/` Docker volume; `infra/` became
- * `sites/<name>/` (2026-08-27) and this command passes `<dir>/uploads` explicitly, so a cwd-relative
- * default only ever wrote into whatever site the operator's shell happened to name.
+ * below is handed that dir as its `siteBinding`; a cwd-relative default could target another site.
  *
  * `exportOutputRootDir` is `RouteDeps.exportOutputRootDir` — this command's own composition root
  * (`createSiteRouteDeps`, below) resolves the `TOVU_EXPORT_DIR`-env-then-default half of this
@@ -117,6 +87,16 @@ function printExportReport(report: ExportReport): void {
   }
 }
 
+export interface RunExportCommandOptional {
+  /** Command effects stay injectable so cleanup can be exercised without replacing modules. */
+  bootSiteDir?: typeof bootSiteDir;
+  closeSiteDirBoot?: typeof closeSiteDirBoot;
+  createSiteRouteDeps?: typeof createSiteRouteDeps;
+  registerPluginSdkResolver?: typeof registerPluginSdkResolver;
+  reconcileInterruptedMigrationOnBoot?: typeof reconcileInterruptedMigrationOnBoot;
+  exportSite?: typeof exportSite;
+}
+
 /**
  * Run `tovu export <dir> [--out] [--workspace] [--clean] [--base-path]`: validate/migrate/stamp the
  * install dir exactly like `serve` does, then export its public site to a folder of static files.
@@ -127,13 +107,13 @@ function printExportReport(report: ExportReport): void {
  *   `cli/main.ts` maps each to the correct exit code.
  * @complexity O(1) beyond `bootSiteDir`'s and `exportSite`'s own bounded costs.
  */
-export async function runExportCommand(input: RunExportCommandInput): Promise<void> {
+export async function runExportCommand(input: RunExportCommandInput, optional: RunExportCommandOptional = {}): Promise<void> {
   // CIC U-002/ADR-005 (ESCALATE_SECURITY) — see this file's header. Placed first, before any other
   // boot step and with no `await` ahead of it, mirroring `index.ts`'s and `serve.ts`'s own ordering.
-  registerPluginSdkResolver();
+  (optional.registerPluginSdkResolver ?? registerPluginSdkResolver)();
 
   const target = resolveInstallDirTarget(input.dir);
-  const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
+  const bootResult = await (optional.bootSiteDir ?? bootSiteDir)({ dir: target }, { workspaceId: input.workspaceId });
   // The composition's store (`onStoreOpened`): closing it stops its guest-chat sweep, then the store.
   let composedStore: SiteStore | undefined;
   // Boot passes the composition (and the crawl's `createSiteApp()`) started and never awaited, which
@@ -144,7 +124,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
   // socket left open would keep this process from exiting).
   try {
     const dbPath = path.join(target, "content.db");
-    const routeDeps = await createSiteRouteDeps(dbPath, {
+    const routeDeps = await (optional.createSiteRouteDeps ?? createSiteRouteDeps)(dbPath, {
       db: bootResult.db,
       store: bootResult.store,
       workspaceId: bootResult.workspaceId,
@@ -166,7 +146,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
     // See this file's header. The same CRITICAL check `tovu serve`'s boot lifecycle runs first,
     // before this command ever crawls a route — a site left mid-migration by a crash must never be
     // exported from possibly-inconsistent data.
-    const reconciliation = await reconcileInterruptedMigrationOnBoot({
+    const reconciliation = await (optional.reconcileInterruptedMigrationOnBoot ?? reconcileInterruptedMigrationOnBoot)({
       siteId: routeDeps.workspaceId,
       migrationRuns: routeDeps.migrationRunsRepo,
       ledger: routeDeps.databaseLedgerRepo,
@@ -178,7 +158,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
       );
     }
 
-    const report = await exportSite({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath });
+    const report = await (optional.exportSite ?? exportSite)({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath });
     printExportReport(report);
     if (report.routes.failed.length > 0) {
       throw new ExportIncompleteError(
@@ -190,6 +170,6 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
     await awaitBootWorkWithinBound({
       work: [...(legacyPublishCredentialsReady ? [legacyPublishCredentialsReady] : []), ...(siteAppBootWork ?? [])],
     });
-    await closeSiteDirBoot(bootResult, composedStore);
+    await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, composedStore);
   }
 }

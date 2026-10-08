@@ -193,7 +193,7 @@ test("execution PUT accepts numeric maxTokens and explicitly clears providerId w
   });
   assert.deepEqual(await invoke(registerAdminAssistantPutExecutionCredentialRoute, deps, "put", "execution-credential", { providerId: null, maxTokens: 4096 }), {
     statusCode: 200, jsonBody: { data: {
-      isSet: false, masked: null, protocol: "openai", providerId: null, baseUrl: "https://example.org/v1", model: "keep-model", maxTokens: 4096, updatedAt: NOW,
+      isSet: false, masked: null, tokenHint: null, protocol: "openai", providerId: null, baseUrl: "https://example.org/v1", model: "keep-model", maxTokens: 4096, updatedAt: NOW,
     } },
   });
   assert.deepEqual(await deps.adminExecutionCredentialRepo.findByWorkspaceAndPrincipal({ workspaceId: "ws-7", principalId: "admin-9" }), {

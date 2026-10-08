@@ -2,16 +2,16 @@ import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/i
 import {
   FormDefinitionNotFoundError,
   type FieldDescriptor,
-  type FormDefinitionRecord,
+  type HtmlFormDefinitionRecord as FormDefinitionRecord,
   type FormDefinitionRepoPort,
   type FormDefinitionStatus,
   type NotifyConfig,
-} from "#src/features/forms/index";
+} from "@jini-ai/cms/forms";
 import {
   setFormDefinitionStatus,
   updateFormDefinition,
   type FormWriteServiceDeps,
-} from "#src/features/forms/write-service";
+} from "#src/features/forms/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { FormsRouteRegistrar } from "./deps.js";

@@ -1,3 +1,4 @@
+import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -10,7 +11,6 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR, themeFileDiffersFromOriginal } from "../../features/theme/index.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
-import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { TOOL_SEARCH_KEYWORDS } from "../tool-search-keywords.js";
 
@@ -131,7 +131,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
-  const found = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === toolId);
+  const found = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
@@ -394,9 +394,7 @@ test("theme_reset_file refreshes the live routeDeps.themes entry, matching theme
 });
 
 /**
- * A v2 live theme over a v1 original, `basic`'s shape on 2026-09-14: `497c9d35` migrated the live
- * copy and never touched `__original-themes__`. Its own root, so the four-theme fixture above is
- * unchanged.
+ * A v2 live theme over a v1 stored original. Its own root keeps the shared theme fixture isolated.
  */
 function layoutDriftRouteDeps(): { deps: RegistryDepsWithoutLimiter; themesDir: string } {
   const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-themes-reset-drift-"));

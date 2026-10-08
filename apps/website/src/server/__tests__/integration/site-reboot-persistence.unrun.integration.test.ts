@@ -53,27 +53,38 @@ async function listen(server: Server): Promise<string> {
 async function serve(siteDir: string): Promise<Running> {
   const boot = await bootSiteDir({ dir: siteDir });
   let composed: SiteStore | undefined;
-  const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
-    db: boot.db,
-    store: boot.store,
-    workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => (composed = store),
-    uploadsDir: path.join(siteDir, "uploads"),
-    themesDir: path.join(siteDir, "themes"),
-    siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-  });
-  await drainBootReadiness(deps);
-  const server = createServer(createApp(deps));
-  const baseUrl = await listen(server);
+  // Boot or app construction can fail before a Running value exists; still release the owner/socket.
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
+  let server: Server | undefined;
+  const appBootWork: Promise<void>[] = [];
   let stopped = false;
   const stop = async () => {
     if (stopped) return;
     stopped = true;
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-    await drainBootReadiness(deps).catch(() => undefined);
-    await closeSiteDirBoot(boot, composed);
+    try {
+      if (server?.listening) {
+        server.closeAllConnections();
+        await new Promise<void>((resolve) => server!.close(() => resolve()));
+      }
+      if (deps) await drainBootReadiness(deps).catch(() => undefined);
+      await Promise.allSettled(appBootWork);
+    } finally {
+      await closeSiteDirBoot(boot, composed);
+    }
   };
   try {
+    deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+      db: boot.db,
+      store: boot.store,
+      workspaceId: boot.workspaceId,
+      onStoreOpened: (store) => (composed = store),
+      uploadsDir: path.join(siteDir, "uploads"),
+      themesDir: path.join(siteDir, "themes"),
+      siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
+    });
+    await drainBootReadiness(deps);
+    server = createServer(createApp(deps, { onBootWork: work => appBootWork.push(work) }));
+    const baseUrl = await listen(server);
     return { baseUrl, cookie: await loginAsOwner(baseUrl), ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, stop };
   } catch (err) {
     await stop();
@@ -105,6 +116,7 @@ interface PostDto {
   slug: string;
   status: string;
   version: number;
+  bodyJson: unknown;
 }
 
 /** A pid that existed a moment ago and has exited — what a crashed owner leaves in its lock. */
@@ -122,7 +134,7 @@ for (const dialect of SITE_DIALECTS) {
     t.after(first.stop);
     const created = (await expectJson<{ post: PostDto }>(await send(first, "POST", `${first.ws}/posts`, { title: "Survives", slug: "survives", status: "published" }), 201)).post;
     const updated = (
-      await expectJson<{ post: PostDto }>(await send(first, "PUT", `${first.ws}/posts/${created.id}`, { title: "Survives a reboot", slug: "survives", expectedVersion: created.version }), 200)
+      await expectJson<{ post: PostDto }>(await send(first, "PUT", `${first.ws}/posts/${created.id}`, { title: "Survives a reboot", slug: "survives", bodyJson: created.bodyJson, status: created.status, expectedVersion: created.version }), 200)
     ).post;
     await first.stop();
 

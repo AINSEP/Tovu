@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { VIDEO_MAX_FRAMES, VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_INPUT_BYTES, VIDEO_MAX_OUTPUT_BYTES, VIDEO_MAX_SHEET_BYTES, VIDEO_MAX_SHEETS, type VideoFrameExtractor } from '@jini-ai/cms/media';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';
@@ -35,7 +36,7 @@ export const MEDIA_VIEW_VIDEO_INPUT_SCHEMA = {
     start: { type: 'number', minimum: 0, default: 0, description: 'Nonnegative finite starting time in seconds for every (default 0), clamped to the clip. Ignored without every or when at is supplied.' },
   },
 } as const;
-const catalog = [{
+export const catalog = [{
   name: MEDIA_VIEW_VIDEO_TOOL_ID,
   description: 'LOOK AT / SEE / VIEW A VIDEO from your media library or chat attachment. Use before describing a clip, answering what is in it, or finding which video shows something. Pass exactly one mediaId or attachmentRef (attachment:<uuid>); never a filesystem path. Default 16 evenly spaced still frames; up to 64 samples. Separate JPEG frames stay at max 768px long edge up to 16 samples and shrink automatically beyond 16 (64 samples: 384px), keeping estimated image tokens bounded. Use layout: sheet to skim long clips cheaply in up to four grids of sixteen tiles; a text map gives each one-based row/column and timestamp in seconds, with no drawn labels. Then use start/every and layout: frames to zoom in on a section. Same frames/every/start/at sampling args work in both layouts. Separate images max 512KiB each, sheets max 2 MiB each, 8 MiB total JPEG bytes. Returns actual JPEG images plus duration, source width/height, codec/container, sizeBytes, hasAudio and timestamps. Use every: 0.5 to see motion, with start in seconds (default 0) and optional frames to control count; omit frames with every to take only fitting samples, up to 64. Requested times clamp to the last seekable time, so an explicit count can repeat end frames. at chooses up to 64 explicit nonnegative finite seconds and overrides frames/start; every with at is refused. Events between samples and audio content are not analyzed. Read-only and owner-scoped. If host codec tools are missing it returns video preview unavailable on this host.',
   sideEffects: 'none' as AgentToolSideEffect,
@@ -82,7 +83,7 @@ async function ownedMediaBytes(
 export function buildMediaViewVideoRegistrations(
   deps: MediaViewVideoToolDeps, _optional: Record<string, never> = {},
 ): ToolRegistration[] {
-  return buildDomainRegistrations({ domain: 'media-video-view', catalogModule: 'features/media/view-video-tool.ts', catalog: catalogById, derivedRisk: mediaViewVideoDerivedRisk,
+  return buildDomainRegistrations({ metadata: toolMetadata, domain: 'media-video-view', catalogModule: 'features/media/view-video-tool.ts', catalog: catalogById, derivedRisk: mediaViewVideoDerivedRisk,
     handlers: { [MEDIA_VIEW_VIDEO_TOOL_ID]: async ctx => {
       const input = readInput({ input: ctx.input }, {});
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'media.read' }, { entityType: 'media' });

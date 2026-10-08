@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { reconcilePluginActivationsOnce, type PluginActivationPollDeps } from "../agent-daemon-deps.js";
-import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 
 /**
  * @file P0b (hooks v2 plan, 2026-09-23) — the agent daemon and the admin process each build their
@@ -19,7 +19,7 @@ function record(pluginId: string, enabled: boolean) {
 }
 
 test("a plugin newly enabled in the durable repo is attached, and its id is added to attachedIds", async () => {
-  const repo = new InMemoryPluginActivationRepo([record("word-count", true)]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [record("word-count", true)] });
   const enabledCalls: string[] = [];
   const deps: PluginActivationPollDeps = {
     workspaceId: WORKSPACE,
@@ -38,7 +38,7 @@ test("a plugin newly enabled in the durable repo is attached, and its id is adde
 });
 
 test("an already-attached plugin is NOT re-attached on a later pass — no redundant reload, no reset quarantine counter", async () => {
-  const repo = new InMemoryPluginActivationRepo([record("word-count", true)]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [record("word-count", true)] });
   let enabledCallCount = 0;
   const deps: PluginActivationPollDeps = {
     workspaceId: WORKSPACE,
@@ -56,7 +56,7 @@ test("an already-attached plugin is NOT re-attached on a later pass — no redun
 });
 
 test("a plugin disabled elsewhere (no longer in the durable enabled set) is detached and dropped from attachedIds", async () => {
-  const repo = new InMemoryPluginActivationRepo([record("word-count", false)]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [record("word-count", false)] });
   const disabledCalls: string[] = [];
   const deps: PluginActivationPollDeps = {
     workspaceId: WORKSPACE,
@@ -75,7 +75,7 @@ test("a plugin disabled elsewhere (no longer in the durable enabled set) is deta
 });
 
 test("a workspace this daemon does not serve is ignored, even if enabled there", async () => {
-  const repo = new InMemoryPluginActivationRepo([{ ...record("word-count", true), workspaceId: "some-other-workspace" }]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [{ ...record("word-count", true), workspaceId: "some-other-workspace" }] });
   const deps: PluginActivationPollDeps = {
     workspaceId: WORKSPACE,
     pluginActivationRepo: repo,
@@ -86,7 +86,7 @@ test("a workspace this daemon does not serve is ignored, even if enabled there",
 });
 
 test("one plugin's attach failure is logged and skipped, never blocking reconciliation of the rest", async () => {
-  const repo = new InMemoryPluginActivationRepo([record("broken-plugin", true), record("word-count", true)]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [record("broken-plugin", true), record("word-count", true)] });
   const enabledCalls: string[] = [];
   const deps: PluginActivationPollDeps = {
     workspaceId: WORKSPACE,

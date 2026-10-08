@@ -25,7 +25,7 @@ import {
   RestorePointDeepLinkLookup,
 } from "../../features/recovery/repo.memory.js";
 import { buildGatewayDeps } from "../../contracts/core/gated-mutations/composition.js";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "@jini-ai/daemon/surface-exchanges";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
@@ -34,6 +34,9 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributeRecoveryTools } from "../../features/recovery/tool-registrations.js";
 import { contributeDatabaseTools } from "../../features/database/tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -41,15 +44,7 @@ const contributions = {
 };
 
 
-// Recovery moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
-// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
-// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
-// installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`. Database was tried in the same batch and reverted, then
-// retried and landed in a later, separate pass the same day (once the one edge closing its 16-module
-// SCC — `getDriftStatus`'s value import — was cut by relocating `drift.ts` into `db/`; see
-// `features/database/tool-registrations.ts`'s own header) — so it now needs the identical explicit
-// install call Recovery does, rather than arriving via `DOMAIN_SLICES`.
+// Explicit contributor installation: see ../tool-contribution-registry.ts.
 contributions.contributors.clear({});
 contributions.contributors.register({ contribution: contributeRecoveryTools() });
 contributions.contributors.register({ contribution: contributeDatabaseTools() });
@@ -697,7 +692,7 @@ test("workflow (Database create -> Recovery list -> Recovery plan): a restore po
  * answer seam. `answer(principalId, decision)` posts a click the way `mcp-ui-tool-calls-route.ts` does.
  */
 async function startExecute(deps: RegistryDepsWithoutLimiter, toolId: string, input: Record<string, unknown>) {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
   assert.ok(tool, `expected '${toolId}' to be wired`);
   const emitted: unknown[] = [];
@@ -708,7 +703,7 @@ async function startExecute(deps: RegistryDepsWithoutLimiter, toolId: string, in
   const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
   assert.ok(match, "the dialog carries its exchange id");
   const answer = (principalId: string, decision: "confirm" | "cancel"): DeliverResult =>
-    surfaceExchanges.deliver({ exchangeId: match[1]!, toolId, principalId, params: { decision } });
+    surfaceExchanges.deliver({ exchangeId: match[1]!, principalId, params: { decision } }, { toolId });
   return { pending, html, answer };
 }
 
@@ -805,7 +800,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
   test(`${toolId}: nothing in the model's input can stand in for the click — a confirm/token key is refused before any dialog`, async () => {
     const { deps, repos } = fakeRouteDeps();
     const seededId = await seedRestorePoint(repos);
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
@@ -841,7 +836,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
   test(`${toolId}: a denied principal is refused before any dialog is shown`, async () => {
     const { deps, repos } = fakeRouteDeps({ allow: false });
     const seededId = await seedRestorePoint(repos);
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 

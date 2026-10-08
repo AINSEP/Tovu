@@ -48,6 +48,8 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
       tearDownAllIndexesForContentType: async () => {},
     },
     outbox: { enqueue: async () => {} },
+    // Catalog construction binds the SEO host port; these cases never execute SEO.
+    seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
   };
   return deps as unknown as ByokToolSurfaceDeps;
 }

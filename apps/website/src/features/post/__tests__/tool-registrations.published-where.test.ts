@@ -3,11 +3,14 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, PUBLISHED_WHERE_LIVE, PUBLISHED_WHERE_LOCAL, type PostToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Demo dry run 2026-10-05: after creating a page with status "published" on the LOCAL site,
@@ -39,7 +42,7 @@ function deps(runtimeMode: "local" | "production") {
 }
 
 function call(d: PostToolDeps, id: string, input: unknown) {
-  const registration = buildPostRegistrations(d, { surfaceExchanges: createSurfaceExchangeStore() }).find((r: ToolRegistration) => r.descriptor.id === id);
+  const registration = buildPostRegistrations(d, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find((r: ToolRegistration) => r.descriptor.id === id);
   assert.ok(registration, `expected '${id}' to be wired`);
   const ctx: ToolExecutionContext = { executionId: "exec-1", principal: { id: "p" }, run: { id: "run-1" }, input, signal: new AbortController().signal };
   return registration.handler(ctx) as Promise<{ post: Record<string, unknown> }>;
