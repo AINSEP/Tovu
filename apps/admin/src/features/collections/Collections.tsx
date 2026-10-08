@@ -116,7 +116,7 @@ function ContentTypeFieldFieldset({
         />
         {t("Required")}
       </label>
-      <label className="form-checkbox-field" title={t("Adds a database index; keep this list small.")}>
+      <label className="form-checkbox-field" title={t("Choose only the fields you need to filter or sort by.")}>
         <input
           type="checkbox"
           checked={f.queryable}
@@ -126,7 +126,7 @@ function ContentTypeFieldFieldset({
             label: "Whether this field gets a database index so entries can be filtered/sorted by it",
           })}
         />
-        {t("Queryable (adds a database index; keep this list small)")}
+        {t("Use for filtering and sorting")}
       </label>
       {showRemoveButton ? (
         <button
@@ -176,6 +176,7 @@ export function NewContentTypeDialog({
           label: "New content type dialog — its label, key, and field schema",
         })}
       >
+        <div className="jini-dialog-body">
         <div className="field">
           <label className="field-label" htmlFor="ct-label">{t("Label")}</label>
           <input
@@ -203,7 +204,7 @@ export function NewContentTypeDialog({
         </div>
 
         <div>
-          <p>{t("Fields")}</p>
+          <h3 className="jini-dialog-section-title">{t("Fields")}</h3>
           {fields.map((f, index) => (
             <ContentTypeFieldFieldset
               key={f._rowId}
@@ -234,14 +235,8 @@ export function NewContentTypeDialog({
           </span>
         ) : null}
 
-        <span className="editor-actions">
-          <button
-            type="submit"
-            disabled={saving}
-            {...agentHandle({ handle: "new-content-type-submit" }, { role: "button", label: "Create this content type" })}
-          >
-            {saving ? t("Saving…") : t("Create content type")}
-          </button>
+        </div>
+        <div className="jini-dialog-footer editor-actions">
           <button
             type="button"
             className="btn-secondary"
@@ -251,7 +246,14 @@ export function NewContentTypeDialog({
           >
             {t("Cancel")}
           </button>
-        </span>
+          <button
+            type="submit"
+            disabled={saving}
+            {...agentHandle({ handle: "new-content-type-submit" }, { role: "button", label: "Create this content type" })}
+          >
+            {saving ? t("Saving…") : t("Create content type")}
+          </button>
+        </div>
       </form>
     </Dialog>
   );
@@ -296,7 +298,9 @@ export function EditFieldsDialog({
           label: "Edit fields dialog — this content type's full field schema",
         })}
       >
+        <div className="jini-dialog-body">
         <div>
+          <h3 className="jini-dialog-section-title">{t("Fields")}</h3>
           {fields.map((f, index) => (
             <ContentTypeFieldFieldset
               key={f._rowId}
@@ -327,14 +331,8 @@ export function EditFieldsDialog({
           </span>
         ) : null}
 
-        <span className="editor-actions">
-          <button
-            type="submit"
-            disabled={saving}
-            {...agentHandle({ handle: "edit-fields-submit" }, { role: "button", label: "Save this content type's field schema" })}
-          >
-            {saving ? t("Saving…") : t("Save fields")}
-          </button>
+        </div>
+        <div className="jini-dialog-footer editor-actions">
           <button
             type="button"
             className="btn-secondary"
@@ -345,7 +343,14 @@ export function EditFieldsDialog({
           >
             {t("Cancel")}
           </button>
-        </span>
+          <button
+            type="submit"
+            disabled={saving}
+            {...agentHandle({ handle: "edit-fields-submit" }, { role: "button", label: "Save this content type's field schema" })}
+          >
+            {saving ? t("Saving…") : t("Save fields")}
+          </button>
+        </div>
       </form>
     </Dialog>
   );
@@ -397,7 +402,7 @@ export function LifecycleConfirmDialog({
                 "Confirm this content type's lifecycle change — Deprecate is reversible, Tombstone is not from this screen",
             })}
           >
-            {op === "deprecate" ? t("Deprecate") : t("Tombstone")}
+            {op === "deprecate" ? t("Deprecate") : t("Delete")}
           </button>
           <button
             type="button"

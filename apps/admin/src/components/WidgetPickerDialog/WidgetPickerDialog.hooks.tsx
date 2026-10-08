@@ -225,8 +225,8 @@ export function useWidgetAddControl(
   const port = deps.port ?? defaultWidgetPickerPort;
   const locale = deps.locale ?? DEFAULT_LOCALE;
   const t: Translate = (key) => sharedComponentsT({ locale: locale, key: key });
-  const [pickerType, setPickerTypeRaw] = useState<AdminWidgetType | null>(null);
-  const [selectedType, setSelectedType] = useState<AdminWidgetType>("text");
+  const [pickerType, setPickerTypeRaw] = useState<AdminWidgetType | null>(props.initialWidgetType ?? null);
+  const [selectedType, setSelectedType] = useState<AdminWidgetType>(props.initialWidgetType ?? "text");
   const [error, setError] = useState<string | null>(null);
 
   // Bug found live 2026-09-03: `error` was previously only ever SET (by `handleCreateNew`'s
@@ -250,10 +250,13 @@ export function useWidgetAddControl(
   // (`WidgetAddControl`), so it stays visible after the close. Never rejects: the dialog's submit
   // handlers discard these promises.
   async function handleCreateNew(title: string, config: Record<string, unknown>) {
-    if (!pickerType) return;
+    // A parent dialog stays mounted after a placement error; its type remains selectable
+    // even though the inline control's close-on-create path has cleared pickerType.
+    const widgetType = pickerType ?? (props.initialWidgetType ? selectedType : null);
+    if (!widgetType) return;
     let widgetId: string;
     try {
-      const { widget } = await port.createWidget({ widgetType: pickerType, title, config });
+      const { widget } = await port.createWidget({ widgetType, title, config });
       widgetId = widget.id;
     } catch (e) {
       setError(describeApiError(e, t("failed to create widget")));

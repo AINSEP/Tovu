@@ -269,7 +269,7 @@ describe("Disable — via RowMenu, still confirm-gated", () => {
     await user.click(within(dialog).getByRole("button", { name: /^disable$/i }));
 
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/disable"))).toBe(true);
-    await screen.findByText("disabled");
+    await screen.findByText("Disabled");
     expect(dialog).not.toHaveAttribute("open");
   });
 
@@ -291,7 +291,7 @@ describe("Disable — via RowMenu, still confirm-gated", () => {
 
     expect(dialog).not.toHaveAttribute("open");
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/disable"))).toBe(false);
-    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
   });
 });
 
@@ -315,7 +315,7 @@ describe("Enable — via RowMenu, immediate (no confirm, matching prior behavior
     // No dialog opened for Enable — the "Disable" dialog stays mounted-but-closed, same as before
     // this interaction even started.
     expect(dialogFor(/disable this user\?/i)).not.toHaveAttribute("open");
-    expect(await screen.findByText("active")).toBeInTheDocument();
+    expect(await screen.findByText("Active")).toBeInTheDocument();
   });
 });
 

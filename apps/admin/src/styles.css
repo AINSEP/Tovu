@@ -1054,7 +1054,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    cannot fit grows and the title merely drifts — it does not overflow the page. */
 .page-header-split {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  /* Bound the title and both rails: long subtitles and multi-action headers must
+     wrap inside their columns instead of consuming the neighbouring rail. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
   align-items: start;
 }
 /* Explicit placement, because the third rail is EMPTY on the toolbar editors (Pages/Posts/Forms —
@@ -1070,7 +1072,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    `justify-items` isn't set to `end`; `justify-self: end` then pins this rail to the column's own
    right edge instead of stretching across it. Bare `.page-actions` (used on the non-split
    `.page-header` elsewhere) needs neither — it is already the grid's last auto-placed child there. */
-.page-header-split .page-header-actions { grid-column: 3; justify-self: end; }
+.page-header-split .page-header-actions { grid-column: 3; justify-self: end; min-width: 0; max-width: 100%; justify-content: flex-end; }
 
 /* CONTAINER query, not `@media (max-width: 900px)` (replaced 2026-09-22 — same swap
    `.agent-plugin-rows` made above, same reason): 900px keyed on the VIEWPORT, and the thing that
@@ -1108,7 +1110,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 
   /* Widgets/Menus keep their header actions (Save, Copy embed…) — as one left-aligned row under
      the title, the same place every list page puts its `.page-actions`. */
-  .page-header-split .page-header-actions { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+  .page-header-split .page-header-actions { grid-column: 1 / -1; grid-row: 2; justify-self: start; justify-content: flex-start; }
 }
 
 /* Second half of the same 2026-09-06 experiment (owner: "put the published save and delete buttons
@@ -4326,6 +4328,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
  * active tab's 2px underline still sits on top of the 1px rule. */
 @media (max-width: 640px) {
   .tab-bar,
+  /* The Jini host sheet loads later; the admin scope keeps this mobile behavior
+     above its desktop wrap rule regardless of stylesheet order. */
+  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar,
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -4334,6 +4339,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     scrollbar-width: none;
   }
   .tab-bar::-webkit-scrollbar,
+  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar::-webkit-scrollbar,
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar { display: none; }
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     padding-inline: 0;
@@ -4342,7 +4348,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   }
   /* Slightly tighter tab padding so the common three-tab strips (Plugins, Agent plugins) still
    * fit 375px whole instead of scrolling by a few pixels. */
-  .tab-bar-item { padding-inline: 0.7rem; }
+  .tab-bar-item,
+  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar-item { padding-inline: 0.7rem; flex-shrink: 0; white-space: nowrap; }
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
     flex-shrink: 0;
     margin-bottom: 0;
@@ -4352,6 +4359,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
      `useInterfacePreferences`): the operator opted back into the wrap, every tab visible at the
      cost of a taller strip. The inset bottom rule above stays, under the last row. */
   .admin-layout.wraps-tabs .tab-bar,
+  .admin-layout.wraps-tabs :is(.jini-page, .jini-dialog) .jini-tab-bar,
   .admin-layout.wraps-tabs .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     flex-wrap: wrap;
     overflow: visible;

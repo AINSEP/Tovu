@@ -6,6 +6,10 @@ import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/cont
 afterEach(resetContentRefreshBus);
 
 describe('comments host ports', () => {
+  it('renders human English labels for each moderation status', () => {
+    const t = createCommentsTranslator({ locale: 'en' });
+    expect(['pending', 'approved', 'spam', 'trash'].map(status => t(status))).toEqual(['Pending', 'Approved', 'Spam', 'Trash']);
+  });
   it('uses the original workspace and auth paths, query order and partial write bodies', async () => {
     const settings = { enabled: true, requireModeration: true, maxDepth: 3, closeAfterDays: null, spamAutoRejectScore: 0.05, maxPerIpPerHour: 10 };
     const calls = vi.fn<(input: { path: string; method: string; body?: unknown }) => unknown>(input => {
@@ -43,7 +47,7 @@ describe('comments host ports', () => {
     expect(t('pending')).toBe('pendiente');
     expect(t('approved')).toBe('aprobado');
     expect(t('trash')).toBe('papelera');
-    expect(t('spam')).toBe('spam');
+    expect(t('spam')).toBe('Spam');
     expect(t('No {status} comments.', { status: t('pending') })).toBe('No hay comentarios "pendiente".');
     expect(t('Unlisted moderation message')).toBe('Unlisted moderation message');
     expect(createCommentsTranslator({ locale: 'unknown-locale' })('Comments')).toBe('Comments');

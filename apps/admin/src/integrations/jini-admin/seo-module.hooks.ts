@@ -1,5 +1,6 @@
 import { createElement, useMemo, type ReactElement } from 'react';
 import { seo, type SeoReactOptions, type SeoMediaPickerSlotProps } from '@jini-ai/admin/seo/react';
+import { formDateDisplay } from '@jini-ai/admin/forms';
 import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import { MediaPickerDialog } from '../../components/MediaPickerDialog/MediaPickerDialog';
 import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
@@ -26,6 +27,8 @@ export function createHostSeoModule(_required: Record<string, never>, { useAdmin
       siteUrl: () => siteUrl(''),
       t: createSeoTranslator({ locale }),
       describeError: describeSeoHostError,
+      // Reuse the admin's compact locale date/time owner; the legacy modal locale prop is 'en'.
+      formatDate: ({ iso }) => formDateDisplay({ iso, locale }).text,
       // SEO defaults publish through the existing site-settings section.
       headerActions: createElement(PublishSectionButton, { section: 'settings' }),
       slots: { MediaPickerDialog: SeoMediaPickerSlot },

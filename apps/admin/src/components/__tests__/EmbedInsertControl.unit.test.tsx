@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -294,16 +294,37 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
 });
 
 describe("EmbedInsertControl — Widget…", () => {
-  it("switches the menu to the full WidgetAddControl flow, with its own type <Select>", async () => {
+  it("opens one native picker with type selection inside it, leaving the toolbar compact", async () => {
     const user = userEvent.setup();
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
     render(<EmbedInsertControl editor={fakeEditor()} />);
 
     await openMenu(user);
     await user.click(screen.getByRole("menuitem", { name: "Widget…" }));
 
     expect(screen.queryByRole("menuitem", { name: "Media" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Insert widget" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Widget type" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Insert widget" });
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(within(dialog).getByRole("combobox", { name: "Widget type" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Insert widget" })).toBeNull();
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByRole("button", { name: "Embed" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("native Escape cancellation collapses the widget flow and restores the Embed trigger", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    const editor = fakeEditor();
+    render(<EmbedInsertControl editor={editor} />);
+    await openMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: "Widget…" }));
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Widget type" })).toBeNull();
+    expect(editor.commands.insertWidgetEmbed).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Embed" })).toHaveFocus();
+    await openMenu(user);
+    expect(screen.getByRole("menuitem", { name: "Widget…" })).toBeInTheDocument();
   });
 
   /**
@@ -322,8 +343,6 @@ describe("EmbedInsertControl — Widget…", () => {
 
     await openMenu(user);
     await user.click(screen.getByRole("menuitem", { name: "Widget…" }));
-    await user.click(screen.getByRole("button", { name: "Insert widget" }));
-
     const combobox = await screen.findByRole("combobox", { name: /existing text widgets/i });
     await user.click(combobox);
     await user.click(screen.getByRole("option", { name: "Hero banner" }));

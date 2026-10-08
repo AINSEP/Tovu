@@ -207,6 +207,47 @@ test("known runtime capabilities retain their memory and tool semantics", async 
   }
 });
 
+test("assistant inventory preserves dynamic catalog and resolved default for the chat picker", async () => {
+  const models = [{ id: "claude-opus-5-5[1m]", label: "claude-opus-5-5[1m]", identityKind: "concrete" as const }];
+  const catalog = {
+    models, source: "rpc" as const, freshness: "fresh" as const, coverage: "account" as const,
+    fetchedAt: "2026-10-08T00:00:00.000Z", expiresAt: "2026-10-08T00:15:00.000Z",
+    launchFingerprint: "fixture", diagnostics: [], defaultSelectionId: models[0].id,
+  };
+  const defaultModelResolution = { status: "resolved" as const, id: models[0].id, source: "rpc" as const, resolvedAt: catalog.fetchedAt, launchFingerprint: "fixture" };
+  setAgentModelProberForTesting(async ({ def }) => def.id === "claude"
+    ? { models, source: "live", catalog, defaultModelResolution }
+    : { models: def.fallbackModels, source: "fallback" });
+  try {
+    const claude = (await rescanAssistantAgents()).find(agent => agent.id === "claude");
+    assert.ok(claude);
+    assert.deepEqual(claude.models, models);
+    assert.deepEqual(claude.modelCatalog, catalog);
+    assert.deepEqual(claude.defaultModelResolution, defaultModelResolution);
+    assert.equal(claude.supportsConcreteModelSelection, AGENT_DEFS.find(def => def.id === "claude")?.supportsConcreteModelSelection);
+  } finally {
+    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+  }
+});
+
+test("assistant rescan forces model discovery and preserves an unresolved default without guessing", async () => {
+  const forces: boolean[] = [];
+  const defaultModelResolution = { status: "unresolved" as const, reason: "Native metadata did not resolve a default; pick a concrete model." };
+  setAgentModelProberForTesting(async ({ def }, options = {}) => {
+    if (def.id === "claude") forces.push(options.force === true);
+    return { models: def.fallbackModels, source: "fallback", defaultModelResolution };
+  });
+  try {
+    const first = (await listAssistantAgents()).find(agent => agent.id === "claude");
+    assert.deepEqual(first?.defaultModelResolution, defaultModelResolution);
+    const rescanned = (await rescanAssistantAgents()).find(agent => agent.id === "claude");
+    assert.deepEqual(rescanned?.defaultModelResolution, defaultModelResolution);
+    assert.deepEqual(forces, [false, true]);
+  } finally {
+    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+  }
+});
+
 /** The credential port is deliberately a transparent fake: these cases prove discovery/cache
  * policy, not encryption. The real saved-secret compatibility suite remains a separate gate.
  */

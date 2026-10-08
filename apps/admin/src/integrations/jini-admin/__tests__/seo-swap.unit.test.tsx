@@ -22,9 +22,9 @@ afterEach(() => {
 });
 
 /** Real module, controllers and memory adapter; only the host locale/API ports are injected. */
-function fixture({ useLocale = () => 'en', tabId = null }: { useLocale?: () => string; tabId?: string | null } = {}) {
+function fixture({ useLocale = () => 'en', tabId = null, sitemapText = '<urlset><url><loc>https://site.test/one</loc></url></urlset>' }: { useLocale?: () => string; tabId?: string | null; sitemapText?: string } = {}) {
   setPublishToLiveAvailable(true);
-  const api = createMemorySeoApi({ sitemapText: '<urlset><url><loc>https://site.test/one</loc></url></urlset>' });
+  const api = createMemorySeoApi({ sitemapText });
   const load = vi.spyOn(api, 'getSeoSettings');
   const subscribe = vi.fn(seoEvents.subscribe);
   const runtime = createHostAdminScope({ permissions: ['*'] }, { seoPorts: { seoApi: api, seoEvents: { subscribe } }, useSeoLocaleHook: useLocale });
@@ -46,7 +46,7 @@ describe('Jini SEO host switch', () => {
     const { runtime, node } = fixture();
     render(node());
     expect(screen.getByText('Loading SEO settings…')).toHaveClass('notice');
-    expect(await screen.findByRole('heading', { name: 'SEO' })).toHaveClass('page-title');
+    expect(await screen.findByRole('heading', { name: 'SEO' })).toHaveClass('jini-page-title');
     expect(document.querySelector('[data-agent-element="publish-section-settings"]')).toHaveClass('btn-secondary');
     expect(screen.getByRole('tab', { name: 'Site defaults' })).toHaveAttribute('aria-selected', 'true');
     expect(Object.keys(runtime.bindings.seo!.pages.settings!.tabs)).toEqual(['defaults', 'sitemap', 'entries']);
@@ -97,6 +97,30 @@ describe('Jini SEO host switch', () => {
     await waitFor(() => expect(xml).toHaveBeenCalledTimes(2));
   });
 
+  it('formats sitemap dates in the live admin locale without remounting or rewriting XML', async () => {
+    let locale = 'en';
+    // Zone-less ISO is local wall time, making exact locale assertions independent of test TZ.
+    const sitemapText = '<urlset><url><loc>https://site.test/one</loc><lastmod>2026-10-08T14:05:00</lastmod></url><url><loc>https://site.test/invalid</loc><lastmod>invalid</lastmod></url><url><loc>https://site.test/missing</loc></url></urlset>';
+    const { api, node } = fixture({ useLocale: () => locale, tabId: 'sitemap', sitemapText });
+    const xml = vi.spyOn(api, 'fetchSitemapXml');
+    const view = render(node());
+    fireEvent.click(await screen.findByRole('button', { name: 'View sitemap' }));
+    expect(await screen.findByText('10/8/26, 2:05 PM')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    for (const url of ['https://site.test/invalid', 'https://site.test/missing']) {
+      expect(screen.getByRole('link', { name: url }).closest('tr')?.lastElementChild?.textContent).toBe('—');
+    }
+    locale = 'es';
+    view.rerender(node());
+    expect(await screen.findByText('8/10/26, 14:05')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    expect(xml).toHaveBeenCalledTimes(1);
+    locale = 'en';
+    view.rerender(node());
+    fireEvent.click(await screen.findByRole('button', { name: 'Raw XML' }));
+    expect(dialog.querySelector('pre')?.textContent).toBe(sitemapText);
+  });
+
   it('refreshes SEO settings only for matching resources and releases its subscription', async () => {
     const { load, subscribe, node } = fixture();
     const view = render(node());
@@ -122,10 +146,11 @@ describe('Jini SEO host switch', () => {
     const fetch = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ media: [{ ...selected, slug: 'cover-slug', status: 'active' }] }), { headers: { 'content-type': 'application/json' } }));
     vi.stubGlobal('fetch', fetch);
     render(node());
-    const input = await screen.findByLabelText('Default Open Graph / Twitter image (media ref)');
+    const input = await screen.findByLabelText('Default Open Graph / Twitter image');
     // Await a browser-style gesture so effect-owned picker state is attached before use.
     await user.click(screen.getByRole('button', { name: 'Choose image' }));
-    await waitFor(() => expect(input).toHaveValue('cover-slug:public'));
+    await waitFor(() => expect(input).toHaveValue('Selected image'));
+    expect(new FormData(input.closest('form')!).getAll('defaultOgImage')).toEqual(['cover-slug:public']);
     expect(pick).toHaveBeenCalledWith({ accept: ['image/*'] }, { signal: expect.any(AbortSignal) });
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/workspaces/workspace-local/media'))).toBe(true);
   });

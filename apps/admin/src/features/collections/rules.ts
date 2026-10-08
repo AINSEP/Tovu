@@ -264,7 +264,7 @@ export const LIFECYCLE_COPY: Record<LifecycleConfirmOp, { title: string; body: s
     body: "Existing entries stay readable; no new entries can be created.",
   },
   tombstone: {
-    title: "Tombstone content type",
+    title: "Delete content type",
     body: "Entries stop being served publicly. This is not reversible from this screen.",
   },
 };
@@ -330,7 +330,7 @@ export function contentTypeMenuItems(
   if (contentType.status !== "tombstone") {
     items.push({
       key: "tombstone",
-      label: t("Tombstone"),
+      label: t("Delete"),
       destructive: true,
       onSelect: () => handlers.onTombstone(contentType),
     });

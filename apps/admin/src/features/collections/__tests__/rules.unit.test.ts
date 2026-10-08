@@ -283,7 +283,7 @@ describe("autoFocusCancelForLifecycleOp", () => {
 describe("LIFECYCLE_COPY", () => {
   it("has distinct title/body copy for deprecate and tombstone", () => {
     expect(LIFECYCLE_COPY.deprecate.title).toBe("Deprecate content type");
-    expect(LIFECYCLE_COPY.tombstone.title).toBe("Tombstone content type");
+    expect(LIFECYCLE_COPY.tombstone.title).toBe("Delete content type");
     expect(LIFECYCLE_COPY.tombstone.body).toContain("not reversible");
   });
 });

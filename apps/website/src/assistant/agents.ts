@@ -61,20 +61,23 @@ export function setAgentModelProberForTesting(prober: AgentModelProber | null): 
  * The actual probe — one PATH check per `AGENT_DEFS` entry, plus one model-listing call per
  * AVAILABLE def (see {@link agentModelProber}). Never called directly by a route; only through
  * {@link listAssistantAgents}/{@link rescanAssistantAgents} below, which own when it re-runs.
+ * `force` bypasses Jini's catalog cache on rescan; structured default evidence travels with
+ * the catalog so the picker can show and dispatch the same concrete model.
  *
  * @complexity Time: O(d) in `AGENT_DEFS.length` (24 today): a PATH walk each, and for installed
  * defs a concurrent model-listing spawn bounded by that def's own timeout. Space: O(d).
  * @overallScore 100
  */
-async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
+async function probeAssistantAgents({ force = false }: { force?: boolean } = {}): Promise<AssistantAgentSummary[]> {
   return Promise.all(
     AGENT_DEFS.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map(async (def): Promise<AssistantAgentSummary> => {
       const launch = resolveAgentLaunch({ def });
       const available = Boolean(launch.launchPath);
       const { failureHints } = def as typeof def & Pick<AssistantAgentSummary, "failureHints">;
-      const { models, source } = available
-        ? await agentModelProber({ def })
+      const modelResult: Awaited<ReturnType<AgentModelProber>> = available
+        ? await agentModelProber({ def }, { force })
         : { models: def.fallbackModels, source: "fallback" as const };
+      const { models, source, catalog, defaultModelResolution } = modelResult;
       return {
         id: def.id,
         name: def.name,
@@ -83,6 +86,9 @@ async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
         supportsCustomModel: def.supportsCustomModel,
         models,
         modelsSource: source,
+        ...(catalog ? { modelCatalog: catalog } : {}),
+        ...(defaultModelResolution ? { defaultModelResolution } : {}),
+        ...(def.supportsConcreteModelSelection !== undefined ? { supportsConcreteModelSelection: def.supportsConcreteModelSelection } : {}),
         // See `runtimeSupportsExternalTools`'s own doc (`@jini-ai/agent-runtime`'s `registry.ts`):
         // the single derivation point for "can this runtime receive Tovu/Jini tools at all,"
         // keyed off the def's own `externalMcpInjection` declaration rather than a hardcoded
@@ -121,8 +127,8 @@ let cachedAgents: Promise<AssistantAgentSummary[]> | null = null;
  * @complexity Time/space: O(1) beyond the O(d) probe itself (see {@link probeAssistantAgents}).
  * @overallScore 100
  */
-function refreshAssistantAgentsCache(): Promise<AssistantAgentSummary[]> {
-  const probe: Promise<AssistantAgentSummary[]> = probeAssistantAgents().catch((error: unknown) => {
+function refreshAssistantAgentsCache({ force = false }: { force?: boolean } = {}): Promise<AssistantAgentSummary[]> {
+  const probe: Promise<AssistantAgentSummary[]> = probeAssistantAgents({ force }).catch((error: unknown) => {
     if (cachedAgents === probe) cachedAgents = null;
     throw error;
   });
@@ -163,5 +169,5 @@ export function listAssistantAgents(): Promise<AssistantAgentSummary[]> {
  * Deliberately NOT `async`, same reasoning as {@link listAssistantAgents}.
  */
 export function rescanAssistantAgents(): Promise<AssistantAgentSummary[]> {
-  return refreshAssistantAgentsCache();
+  return refreshAssistantAgentsCache({ force: true });
 }

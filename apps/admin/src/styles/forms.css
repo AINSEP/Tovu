@@ -25,6 +25,12 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* Labels are authored text; casing belongs to the form author, not the table header style. */
+.form-submission-detail .jini-submission-field-label {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .form-tab {
   background: transparent;
   color: var(--muted);
@@ -281,4 +287,11 @@
 .widget-config-social-link-row legend {
   font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--faint); padding: 0 0.3rem;
+}
+
+/* Detail owns Back to submissions; the editor's Back to forms would otherwise
+   stack above it. Preserve the header rail and restore its link on returning to
+   the list, without a second copy of the submission selection state. */
+.page:has(.form-submission-detail) > .page-header > .page-header-lead {
+  visibility: hidden;
 }

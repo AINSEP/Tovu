@@ -119,6 +119,23 @@ beforeEach(() => {
   lifecycleDialogPropsRef.current = null;
 });
 
+describe('collection dialog presentation', () => {
+  it.each([
+    ['create', 'Create content type'], ['edit', 'Save fields'],
+  ] as const)('keeps %s actions outside the scrolling field body with Cancel first', (mode, action) => {
+    renderCollections(mode === 'create' ? { showNewDialog: true } : { editingFieldsFor: TYPE });
+    const dialog = screen.getByRole('dialog');
+    const body = dialog.querySelector('.jini-dialog-body')!;
+    const footer = dialog.querySelector('.jini-dialog-footer')!;
+    expect(within(body as HTMLElement).getByRole('heading', { name: 'Fields', level: 3 })).toBeInTheDocument();
+    expect(within(body as HTMLElement).getByRole('checkbox', { name: 'Use for filtering and sorting' })).toBeInTheDocument();
+    expect(body.contains(footer)).toBe(false);
+    expect(within(footer as HTMLElement).getAllByRole('button').map(button => button.textContent)).toEqual(['Cancel', action]);
+    expect(within(footer as HTMLElement).getByRole('button', { name: action })).toHaveAttribute('type', 'submit');
+    expect(within(footer as HTMLElement).getByRole('button', { name: 'Cancel' })).toHaveAttribute('type', 'button');
+  });
+});
+
 function renderCollections(overrides: Partial<CollectionsController> = {}) {
   const c = collectionsController(overrides);
   const useCollectionsHook = () => c;
@@ -217,7 +234,7 @@ describe("row menu — status-driven visibility (mirrors contentTypeMenuItems)",
     await user.click(screen.getByRole("button", { name: 'Actions for content type "Recipe"' }));
     expect(screen.getByRole("menuitem", { name: "Deprecate" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Reactivate" })).not.toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Tombstone" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeInTheDocument();
   });
 
   it("deprecated: offers Reactivate and Tombstone, not Deprecate", async () => {
@@ -234,7 +251,7 @@ describe("row menu — status-driven visibility (mirrors contentTypeMenuItems)",
     await user.click(screen.getByRole("button", { name: 'Actions for content type "Gone Type"' }));
     expect(screen.queryByRole("menuitem", { name: "Deprecate" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Reactivate" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Tombstone" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete" })).not.toBeInTheDocument();
   });
 
   it("Edit fields calls setEditingFieldsFor with the row", async () => {
@@ -258,7 +275,7 @@ describe("row menu — status-driven visibility (mirrors contentTypeMenuItems)",
     const user = userEvent.setup();
     const c = renderCollections({ types: [TYPE] });
     await user.click(screen.getByRole("button", { name: 'Actions for content type "Recipe"' }));
-    await user.click(screen.getByRole("menuitem", { name: "Tombstone" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
     expect(c.setPendingLifecycle).toHaveBeenCalledWith({ op: "tombstone", contentType: TYPE });
     expect(c.runLifecycle).not.toHaveBeenCalled();
   });
@@ -346,7 +363,7 @@ describe("NewContentTypeDialog", () => {
     const dlg = newDialogController({ fields: [{ _rowId: 1, name: "n", kind: "text", required: false, queryable: false }] });
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
-    await user.click(screen.getByRole("checkbox", { name: /Queryable/ }));
+    await user.click(screen.getByRole("checkbox", { name: "Use for filtering and sorting" }));
     expect(dlg.updateField).toHaveBeenCalledWith(1, { queryable: true });
   });
 
@@ -500,7 +517,7 @@ describe("EditFieldsDialog", () => {
     const dlg = editDialogController({ fields: [{ _rowId: 1, name: "n", kind: "text", required: false, queryable: false }] });
     editDialogRef.current = dlg;
     renderCollections({ editingFieldsFor: TYPE });
-    await user.click(screen.getByRole("checkbox", { name: /Queryable/ }));
+    await user.click(screen.getByRole("checkbox", { name: "Use for filtering and sorting" }));
     expect(dlg.updateField).toHaveBeenCalledWith(1, { queryable: true });
   });
 
@@ -614,7 +631,7 @@ describe("LifecycleConfirmDialog", () => {
 
   it("uses btn-danger for the tombstone confirm button", () => {
     renderCollections({ pendingLifecycle: { op: "tombstone", contentType: TYPE } });
-    expect(screen.getByRole("button", { name: "Tombstone" })).toHaveClass("btn-danger");
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("btn-danger");
   });
 
   it("confirming calls runLifecycle(contentType, op) then setPendingLifecycle(null)", async () => {
@@ -643,7 +660,7 @@ describe("LifecycleConfirmDialog", () => {
   });
 
   it("autoFocus reflects the hook's autoFocusCancel — cancel focused for tombstone", () => {
-    lifecycleDialogRef.current = lifecycleDialogController({ autoFocusCancel: true, copy: { title: "Tombstone content type", body: "not reversible" } });
+    lifecycleDialogRef.current = lifecycleDialogController({ autoFocusCancel: true, copy: { title: "Delete content type", body: "not reversible" } });
     renderCollections({ pendingLifecycle: { op: "tombstone", contentType: TYPE } });
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancel" }));
   });

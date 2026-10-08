@@ -84,6 +84,8 @@ export interface WidgetPickerDialogProps {
   /** This dialog's own base handle — see this file's "Agent handles" doc for the full scheme. Omit
    *  to leave it untagged. */
   agentHandle?: string;
+  /** Embed the same forms in a parent native dialog, without a nested modal lifecycle. */
+  presentation?: "dialog" | "inline";
 }
 
 export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, agentHandle: base, ...props }: WidgetPickerDialogProps) {
@@ -108,10 +110,8 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
   } = useDialog(props);
   // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
 
-  return (
-    <Dialog open title={interpolate({ template: t("Place a {typeLabel} widget"), vars: { typeLabel } })}
-      onClose={() => props.onCancel()} className="settings-dialog tovu-domain-dialog widget-picker-dialog">
-
+  const content = (
+    <>
         <div className="widget-picker-body">
           {loadError ? <div className="notice error">{loadError}</div> : null}
           {error ? (
@@ -183,6 +183,13 @@ export function WidgetPickerDialog({ useDialog = useWiredWidgetPickerDialog, age
             </button>
           </span>
         </div>
+    </>
+  );
+  if (props.presentation === "inline") return content;
+  return (
+    <Dialog open title={interpolate({ template: t("Place a {typeLabel} widget"), vars: { typeLabel } })}
+      onClose={() => props.onCancel()} className="settings-dialog tovu-domain-dialog widget-picker-dialog">
+      {content}
     </Dialog>
   );
 }
@@ -211,6 +218,13 @@ export interface WidgetAddControlProps {
   /** This control's own base handle — see this file's "Agent handles" doc above. Omit to leave it
    *  (and the dialog it opens) untagged. */
   agentHandle?: string;
+  /** Open directly at this type when the control is mounted inside a picker dialog. */
+  initialWidgetType?: AdminWidgetType;
+}
+
+/** The retained host catalog owns type labels for both inline controls and the native picker. */
+function widgetTypeOptions({ locale }: { locale: string }, _optional: Record<string, never> = {}): SelectOption[] {
+  return WIDGET_TYPE_OPTIONS.map((o) => ({ value: o.value, label: widgetTypeLabel({ widgetType: o.value, types: WIDGET_TYPE_OPTIONS }, { t: key => translateWidgets({ locale, key }) }) }));
 }
 
 export function WidgetAddControl({ useAddControl = useWiredWidgetAddControl, agentHandle: base, ...props }: WidgetAddControlProps) {
@@ -219,7 +233,7 @@ export function WidgetAddControl({ useAddControl = useWiredWidgetAddControl, age
   // `WIDGET_TYPE_OPTIONS`'s own labels are the English source strings; translate them through the
   // same `widgetTypeLabel` lookup `WidgetPickerDialog.hooks.tsx`'s `typeLabel` uses, so this type
   // picker and the dialog it opens agree on one widget type's display name per locale.
-  const typeOptions: SelectOption[] = WIDGET_TYPE_OPTIONS.map((o) => ({ value: o.value, label: widgetTypeLabel({ widgetType: o.value, types: WIDGET_TYPE_OPTIONS }, { t: key => translateWidgets({ locale, key }) }) }));
+  const typeOptions = widgetTypeOptions({ locale });
 
   return (
     <span className="widget-add-control">
@@ -257,3 +271,33 @@ export function WidgetAddControl({ useAddControl = useWiredWidgetAddControl, age
 }
 
 export { useWidgetAddControl };
+
+/** Full widget flow for Embed: one native dialog owns dismissal and focus, while
+ * type changes remount only the forms so drafts and late fetches cannot cross types.
+ * A settled create also refreshes the forms, exposing its new widget under Use existing
+ * if placement fails, as the add-control owner's recovery message promises.
+ * Creation and placement still go through the existing add-control owner. */
+export function WidgetSelectionDialog({ useAddControl = useWiredWidgetAddControl, agentHandle: base, onCancel, ...props }: {
+  onResolved: WidgetAddControlProps["onResolved"];
+  onCancel: () => void;
+  agentHandle?: string | undefined;
+  useAddControl?: typeof useWiredWidgetAddControl;
+  useDialog?: typeof useWiredWidgetPickerDialog;
+}, _optional: Record<string, never> = {}) {
+  const vm = useAddControl({ triggerLabel: "Insert widget", onResolved: props.onResolved, initialWidgetType: "text" });
+  return (
+    <Dialog open title={vm.t("Insert widget")} onClose={() => onCancel()}
+      className="settings-dialog tovu-domain-dialog widget-picker-dialog">
+      <Select value={vm.selectedType}
+        onChange={(value) => { vm.setSelectedType(value as AdminWidgetType); vm.setPickerType(value as AdminWidgetType); }}
+        options={widgetTypeOptions({ locale: vm.locale })} aria-label={vm.t("Widget type")}
+        agentHandle={subHandle(base, "type")} t={vm.t} />
+      {vm.error ? <span className="save-error" role="alert">{vm.error}</span> : null}
+      <WidgetPickerDialog key={`${vm.selectedType}:${vm.pickerType === null ? "settled" : "draft"}`}
+        widgetType={vm.selectedType} presentation="inline"
+        onUseExisting={vm.handleUseExisting} onCreateNew={vm.handleCreateNew} onCancel={onCancel}
+        useDialog={props.useDialog}
+        agentHandle={subHandle(base, "picker")} />
+    </Dialog>
+  );
+}

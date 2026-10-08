@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type SetStateAction } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
@@ -128,8 +128,8 @@ describe("driving the new-user form through page.* verbs", () => {
       const [email, setEmail] = useState("");
       return usersController({
         formOpen: true, username, email,
-        setUsername: (value) => { setUsernameSpy(value); setUsername(value); },
-        setEmail: (value) => { setEmailSpy(value); setEmail(value); },
+        setUsername: (value: SetStateAction<string>) => { setUsernameSpy(value); setUsername(value); },
+        setEmail: (value: SetStateAction<string>) => { setEmailSpy(value); setEmail(value); },
       });
     }
     const { container, rerender } = render(<Users useUsersHook={useStatefulUsers} />);
@@ -278,7 +278,7 @@ describe("account-management controls are agent-drivable, like the rest of the p
   it("publishes the reset-password fields, their show toggles, and the reset confirm", async () => {
     function useResetController() {
       const [newPassword, setNewPassword] = useState("");
-      return usersController({ resetPasswordFor: bob, newPassword, setNewPassword: (value) => {
+      return usersController({ resetPasswordFor: bob, newPassword, setNewPassword: (value: SetStateAction<string>) => {
         setNewPasswordSpy(value); setNewPassword(value);
       }, confirmResetPassword });
     }

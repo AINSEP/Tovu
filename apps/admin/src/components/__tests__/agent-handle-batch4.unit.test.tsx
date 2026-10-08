@@ -75,14 +75,16 @@ describe("EmbedInsertControl agentHandle", () => {
     expect(screen.getByLabelText("Title")).toHaveAttribute(AGENT_ELEMENT, "post-embed-form-dialog-new-title");
   });
 
-  it("forwards <base>-widget-control into WidgetAddControl once Widget… is picked", async () => {
+  it("forwards <base>-widget-control into the native picker once Widget… is picked", async () => {
     const user = userEvent.setup();
+    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
     render(<EmbedInsertControl editor={fakeEditor()} agentHandle="post-embed" />);
 
     await openMenu(user);
     await user.click(screen.getByRole("menuitem", { name: "Widget…" }));
     expect(screen.getByRole("combobox", { name: "Widget type" })).toHaveAttribute(AGENT_ELEMENT, "post-embed-widget-control-type");
-    expect(screen.getByRole("button", { name: "Insert widget" })).toHaveAttribute(AGENT_ELEMENT, "post-embed-widget-control-open");
+    expect(screen.getByRole("dialog", { name: "Insert widget" }).contains(screen.getByRole("combobox", { name: "Widget type" }))).toBe(true);
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveAttribute(AGENT_ELEMENT, "post-embed-widget-control-picker-cancel");
   });
 });
 

@@ -175,6 +175,9 @@ describe("SHARED_COMPONENTS_DICT: cross-locale key parity", () => {
     "exact",
     "prefix",
     "wildcard",
+    "manual",
+    "auto_slug_change",
+    "import",
   ];
 
   it("covers every copy string this commit's wired call sites call t() with, in every locale", () => {

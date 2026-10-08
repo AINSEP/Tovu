@@ -371,4 +371,29 @@ describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl —
     expect(props.onResolved).toHaveBeenCalledWith("w1");
     expect(result.current.error).toBe("region write failed");
   });
+
+  it("a parent picker starts open and can retry creation at its selected type after placement fails", async () => {
+    const port = createFakeWidgetPickerPort();
+    const onResolved = vi.fn().mockRejectedValueOnce(new Error("placement failed")).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useWidgetAddControl(
+      { triggerLabel: "Insert widget", initialWidgetType: "text", onResolved }, { port },
+    ));
+    expect(result.current.pickerType).toBe("text");
+    act(() => {
+      result.current.setSelectedType("social-links");
+      result.current.setPickerType("social-links");
+    });
+    await act(async () => { await result.current.handleCreateNew("Footer", { links: [] }); });
+    expect(result.current.pickerType).toBeNull();
+    expect(result.current.error).toBe(
+      'Widget "Footer" was created but not placed (placement failed). Choose it under Use existing to try again.',
+    );
+    await act(async () => { await result.current.handleCreateNew("Second footer", { links: [] }); });
+    expect(port.widgets.map(({ title, widgetType }) => ({ title, widgetType }))).toEqual([
+      { title: "Footer", widgetType: "social-links" },
+      { title: "Second footer", widgetType: "social-links" },
+    ]);
+    expect(onResolved.mock.calls).toEqual([["fake-1"], ["fake-2"]]);
+    expect(result.current.error).toBeNull();
+  });
 });

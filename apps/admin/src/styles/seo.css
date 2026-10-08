@@ -69,9 +69,9 @@
    field on this screen while still stopping short of the raw viewport. Plain `max-width` rather
    than `min(100%, 76rem)`: a block's width is already 100% of its column below the cap, so it
    shrinks fluidly with the window on its own. */
-.seo-page { max-width: 76rem; }
+.jini-seo-page { max-width: 76rem; }
 
-.seo-panel {
+.jini-seo-panel {
   /* Both the section grid and the un-railed action row measure off these, so the fields and the
      Save button under them cannot drift apart. */
   --seo-rail: 14rem;
@@ -87,13 +87,13 @@
    between the tab strip and the first heading on the Pages & posts tab, against 24px on the other
    two. Neutralized here at (0,2,0) rather than edited there: `styles.css` is contended, and the
    rule may still be load-bearing for a caller this dispatch has not audited. */
-.seo-panel.seo-entry-section {
+.jini-seo-panel.jini-seo-entry-section {
   margin-top: 0;
 }
 
 /* One field group. Grid rather than flex because the two columns must share a baseline row per
    section — a heading and its controls, not a heading floated beside them. */
-.seo-section {
+.jini-seo-section {
   display: grid;
   grid-template-columns: minmax(0, var(--seo-rail)) minmax(0, 1fr);
   gap: var(--space-3) var(--seo-gutter);
@@ -103,15 +103,15 @@
 
 /* The panel's own top edge is already spaced by `.page`'s gap below the tab strip; a second 32px
    band there would push the first heading a third of a screen down. */
-.seo-section:first-child {
+.jini-seo-section:first-child {
   padding-block-start: 0;
 }
 
-.seo-section + .seo-section {
+.jini-seo-section + .jini-seo-section {
   border-top: 1px solid var(--border);
 }
 
-.seo-section-head {
+.jini-seo-section-head {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -122,7 +122,7 @@
    and a card title on the next read as the same tier, one step quieter: 1.05rem against 1.15rem,
    because a title in its own column carries more weight from position than one inline above the
    fields it names, and matching the card size made it compete with the 26.4px page title. */
-.seo-section-title {
+.jini-seo-section-title {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.05rem;
@@ -133,7 +133,7 @@
   text-wrap: balance;
 }
 
-.seo-section-body {
+.jini-seo-section-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -145,7 +145,7 @@
    own paragraph margin, which stacks on top of it — measured on the Sitemap tab: 55px between the
    state line and the sentence under it, against the 16px every other pair of children in this
    column gets. `.card-lead` already zeroes its own; this does the same for the plain ones. */
-.seo-section-body > p {
+.jini-seo-section-body > p {
   margin: 0;
 }
 
@@ -153,10 +153,13 @@
    so it gets the seam and then aligns its buttons to the control column. Indenting it is the
    point: a Save button flush to the page's left edge reads as belonging to the page, not to the
    form whose fields all start 256px in. */
-.seo-actions {
+.jini-seo-actions {
+  margin-top: var(--space-5);
   border-top: 1px solid var(--border);
   padding-block-start: var(--space-6);
-  padding-inline-start: calc(var(--seo-rail) + var(--seo-gutter));
+  /* The rail was retired for every current panel (2026-09-13, below); Save follows
+     the full-width fields and the other admin action rows (desktop 0.1.13). */
+  padding-inline-start: 0;
 }
 
 /* Per-entry drill-down (Pages & posts): the panel that opens under the entry picker. It was a
@@ -165,9 +168,29 @@
    surface, so an eleven-field editing form was wearing the styling of a message. Its own save
    confirmations and errors, which are real notices, keep it and now stand out inside the form
    instead of blending into an identically-boxed parent. */
-.seo-entry-panel {
+.jini-seo-entry-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
   border-top: 1px solid var(--border);
   padding-block-start: var(--space-6);
+}
+
+/* Keep the established form layout when the shared markup uses Jini classes. */
+.jini-seo-entry-panel > label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.jini-seo-page .jini-a11y-label-wrap { display: contents; }
+.jini-seo-page .jini-form-checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+  cursor: pointer;
 }
 
 /* --- Full-width panels: the rail comes off when it has nothing to list -------
@@ -188,7 +211,7 @@
  * content below it at full width — consistency across the tab strip over the rail's scan benefit.
  * All three tabs now carry `seo-panel--full`; nothing here still uses the two-column rail.
  */
-.seo-panel--full .seo-section {
+.jini-seo-panel--full .jini-seo-section {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
@@ -197,7 +220,7 @@
    readable is the opposite of what this tab asked for, and unlike that form this one is mostly
    URLs and media refs (Canonical URL, OG image, Twitter image) that were being truncated inside
    672px. The one field this trades away is Description, whose textarea now runs the page width. */
-.seo-panel--full .seo-section-body {
+.jini-seo-panel--full .jini-seo-section-body {
   max-width: none;
 }
 
@@ -205,7 +228,7 @@
    over entry titles is not a wider control, it is 900px of empty chevron gap. `max-width` because
    at 390 the widest option measures 381px against a 366px column and the page does not scroll
    horizontally, so the overhang was simply unreachable; at 1440 it binds on nothing. */
-.seo-entry-section .seo-section-body select {
+.jini-seo-entry-section .jini-seo-section-body select {
   align-self: start;
   max-width: 100%;
 }
@@ -214,10 +237,10 @@
    `flex-column` with a 0.7rem gap (styles.css L2614), and its bare `<h3>` and lead `<p>` add their
    own block margins on top of it — measured 18.72px and 13.6px, putting 64px between the heading
    and the sentence that explains it. The gap is the rhythm; these two only ever fought it. */
-.seo-entry-panel > h3,
-.seo-entry-panel > p,
-.seo-analyze-panel > h3,
-.seo-analyze-panel > p {
+.jini-seo-entry-panel > h3,
+.jini-seo-entry-panel > p,
+.jini-seo-analyze-panel > h3,
+.jini-seo-analyze-panel > p {
   margin: 0;
 }
 
@@ -226,8 +249,8 @@
    at 16.8px display, an inverted hierarchy that the boxes used to excuse by making each panel look
    like a separate screen. Same face as the rail titles, one step down (0.95rem), so the three tiers
    on this tab now descend: page title 26.4px -> section 16.8px -> subsection 15.2px. */
-.seo-entry-panel > h3,
-.seo-analyze-panel > h3 {
+.jini-seo-entry-panel > h3,
+.jini-seo-analyze-panel > h3 {
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 700;
@@ -242,7 +265,7 @@
    a box; with the box gone it is the most obviously broken thing on the tab. Scoped by `:has()`
    to labels that actually wrap a checkbox (the idiom `styles.css` already uses in three places),
    so the text fields keep their stacked layout. */
-.seo-entry-panel label:has(> input[type="checkbox"]) {
+.jini-seo-entry-panel label:has(> .jini-input[type="checkbox"]) {
   flex-direction: row;
   align-items: center;
   gap: var(--space-2);
@@ -252,21 +275,34 @@
    screen where losing the frame genuinely costs something: it is a RESULT, not more form, and
    nothing but position said so. The seam plus its own heading carries that now — the same two
    devices the sections above use, so it does not become a third kind of separator. */
-.seo-analyze-panel {
+.jini-seo-analyze-panel {
   border-top: 1px solid var(--border);
   padding-block-start: var(--space-5);
+}
+.jini-seo-analyze-panel .jini-status-failure { background: var(--danger-bg); color: var(--danger); }
+.jini-seo-analyze-panel .jini-status-unavailable { background: var(--surface-3); color: var(--muted); }
+.jini-seo-analyze-panel .jini-status-success { background: var(--ok-bg); color: var(--ok); }
+
+/* One label style across the defaults and entry forms also preserves the literal %s token. */
+.jini-seo-page .jini-field-label,
+.jini-seo-page .jini-seo-entry-panel label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--muted);
 }
 
 /* Below ~960px the rail's 224px + 32px gutter leaves the control column narrower than the fields
    need, so the section stacks: title above its group, seam and spacing unchanged. The action row
    loses its indent at the same breakpoint or it would hang off a form whose fields start at 0. */
 @media (max-width: 60rem) {
-  .seo-section {
+  .jini-seo-section {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
   }
 
-  .seo-actions {
+  .jini-seo-actions {
     padding-inline-start: 0;
   }
 }

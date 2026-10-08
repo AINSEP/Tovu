@@ -22,7 +22,7 @@ describe("copy + autoFocusCancel derivation", () => {
 
   it("returns tombstone's copy and focuses Cancel (heavier, less-reversible op)", () => {
     const { result } = renderHook(() => useLifecycleConfirmDialog({ op: "tombstone", onCancel: vi.fn() }));
-    expect(result.current.copy.title).toBe("Tombstone content type");
+    expect(result.current.copy.title).toBe("Delete content type");
     expect(result.current.autoFocusCancel).toBe(true);
   });
 });

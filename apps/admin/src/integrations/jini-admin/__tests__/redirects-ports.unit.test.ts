@@ -8,6 +8,18 @@ import { createRedirectsHostPorts, createRedirectsTranslator, redirectsEvents, r
 afterEach(resetContentRefreshBus);
 
 describe('redirects host ports', () => {
+  it('uses the shared labels for English and localized redirect enums', () => {
+    const en = createRedirectsTranslator({ locale: 'en' });
+    expect(['exact', 'prefix', 'wildcard', 'manual', 'auto_slug_change', 'import', 'active', 'disabled']
+      .map(value => en(value, { serverLabel: value }))).toEqual([
+        'Exact match', 'Starts with', 'Wildcard', 'Manual', 'URL change', 'Imported', 'Active', 'Disabled',
+      ]);
+    const es = createRedirectsTranslator({ locale: 'es' });
+    expect(es('auto_slug_change', { serverLabel: 'auto_slug_change' })).toBe('Cambio de URL');
+    expect(es('manual', { serverLabel: 'manual' })).toBe('Manual');
+    expect(es('import', { serverLabel: 'import' })).toBe('Importado');
+    expect(en('future_source', { serverLabel: 'future_source' })).toBe('future_source');
+  });
   it('keeps HTTP paths, envelopes, encoded ids, regex inputs and partial import outcomes', async () => {
     const row = { id: 'r/1', workspaceId: 'ws1' };
     const partial = { created: [row], failed: [{ index: 1, code: 'INVALID', message: 'invalid target' }] };

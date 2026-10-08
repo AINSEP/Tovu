@@ -1,9 +1,10 @@
+import { useRef } from "react";
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
 import type { AdminWidgetType } from "../../lib/api";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t as sharedComponentsT } from "../shared-components-i18n";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
-import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
+import { WidgetPickerDialog, WidgetSelectionDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.hooks";
 
 /**
@@ -31,6 +32,10 @@ import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.ho
  * shared with `RegionPlacementList`, `CollectionEntryEditor.tsx`, and `WidgetRegionEditor.tsx` (see
  * `widget-embed-extension.tsx` and `WidgetPickerDialog.tsx`'s own file headers), so their existing
  * exported shape has to stay intact for those other call sites.
+ *
+ * Desktop 0.1.13: Widget… now opens `WidgetSelectionDialog`, which reuses the
+ * same picker forms inline inside one native modal. Type selection leaves the
+ * toolbar entirely; the retained inline AddControl still serves region editors.
  *
  * No new design system: plain buttons, matches `PostEditor.tsx`'s `Toolbar` `.tb-btn` idiom.
  *
@@ -84,22 +89,18 @@ function subHandle(base: string | undefined, suffix: string): string | undefined
 
 function EmbedMenu(props: {
   open: boolean;
-  widgetMode: boolean;
   onPickMedia: () => void;
   onPickForm: () => void;
   onPickMenu: () => void;
   onEnterWidgetMode: () => void;
-  onWidgetResolved: (widgetInstanceId: string) => void;
   agentHandle?: string;
   t: (key: string) => string;
 }) {
-  const { open, widgetMode, onPickMedia, onPickForm, onPickMenu, onEnterWidgetMode, onWidgetResolved, agentHandle: base, t } = props;
+  const { open, onPickMedia, onPickForm, onPickMenu, onEnterWidgetMode, agentHandle: base, t } = props;
   if (!open) return null;
 
   return (
     <span className="embed-insert-menu" role="menu" aria-label={t("Insert")}>
-      {!widgetMode ? (
-        <>
           <button
             type="button"
             role="menuitem"
@@ -136,10 +137,6 @@ function EmbedMenu(props: {
           >
             {t("Widget…")}
           </button>
-        </>
-      ) : (
-        <WidgetAddControl triggerLabel={t("Insert widget")} onResolved={onWidgetResolved} agentHandle={subHandle(base, "widget-control")} />
-      )}
     </span>
   );
 }
@@ -192,6 +189,7 @@ function WidgetShortcutPicker(props: {
  * this control's own elements, or any dialog it opens, are tagged.
  */
 export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base, ...props }: EmbedInsertControlProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const locale = useAdminLocale();
   const t = (key: string) => sharedComponentsT({ locale: locale, key: key });
   const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, insertWidget } =
@@ -203,6 +201,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
   return (
     <span className="embed-insert-control">
       <button
+        ref={triggerRef}
         type="button"
         className="tb-btn"
         title={t("Insert media, a form, a menu, or a widget")}
@@ -218,7 +217,6 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
       </button>
       <EmbedMenu
         open={open}
-        widgetMode={widgetMode}
         onPickMedia={() => {
           setMediaPicking(true);
           setOpen(false);
@@ -231,15 +229,24 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
           menuControl.setPickerType("menu");
           setOpen(false);
         }}
-        onEnterWidgetMode={() => setWidgetMode(true)}
-        onWidgetResolved={(widgetInstanceId) => {
-          insertWidget(widgetInstanceId);
+        onEnterWidgetMode={() => {
+          // The menu item unmounts on open; give the native dialog a persistent
+          // opener to restore instead of capturing the removed item's body fallback.
+          triggerRef.current?.focus();
+          setWidgetMode(true);
           setOpen(false);
-          setWidgetMode(false);
         }}
         agentHandle={base}
         t={t}
       />
+
+      {widgetMode ? (
+        <WidgetSelectionDialog
+          onResolved={(widgetInstanceId) => { insertWidget(widgetInstanceId); setWidgetMode(false); }}
+          onCancel={() => setWidgetMode(false)}
+          agentHandle={subHandle(base, "widget-control")}
+        />
+      ) : null}
 
       {mediaPicking ? (
         <MediaPickerDialog

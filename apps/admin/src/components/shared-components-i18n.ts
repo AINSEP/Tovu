@@ -43,6 +43,10 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
  */
 export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "manual": "Manual",
+    "auto_slug_change": "Cambio de URL",
+    "import": "Importado",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Encontramos una clave guardada en este navegador; ¿quieres guardarla en tu cuenta? Se cifrará y almacenará en el servidor, y la copia de este navegador se borrará cuando se complete. Si rechazas, seguirá exactamente igual; no se enviará ni borrará nada sin tu confirmación.",
     "Save to my account": "Guardar en mi cuenta",
     "Not now": "Ahora no",
@@ -140,6 +144,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "comodín",
   },
   id: {
+    "manual": "Manual",
+    "auto_slug_change": "Perubahan URL",
+    "import": "Diimpor",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Kami menemukan kunci tersimpan di browser ini — simpan ke akun Anda? Kunci akan dienkripsi dan disimpan di server, lalu salinan di browser ini akan dihapus setelah berhasil. Menolak tidak mengubah apa pun; tidak ada yang dikirim atau dihapus tanpa konfirmasi Anda.",
     "Save to my account": "Simpan ke akun saya",
     "Not now": "Nanti saja",
@@ -237,6 +245,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "karakter pengganti",
   },
   de: {
+    "manual": "Manuell",
+    "auto_slug_change": "URL-Änderung",
+    "import": "Importiert",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Wir haben einen gespeicherten Schlüssel in diesem Browser gefunden – in Ihrem Konto speichern? Er wird verschlüsselt auf dem Server gespeichert und die Kopie dieses Browsers wird danach gelöscht. Bei Ablehnung bleibt alles unverändert; ohne Ihre Bestätigung wird nichts gesendet oder gelöscht.",
     "Save to my account": "In meinem Konto speichern",
     "Not now": "Jetzt nicht",
@@ -334,6 +346,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "Platzhalter",
   },
   "zh-CN": {
+    "manual": "手动",
+    "auto_slug_change": "URL 更改",
+    "import": "已导入",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "我们在此浏览器中发现了已保存的密钥，要保存到您的帐户吗？它将被加密并存储在服务器上，成功后此浏览器中的副本将被清除。拒绝后将保持原样；未经您确认，不会发送或清除任何内容。",
     "Save to my account": "保存到我的帐户",
     "Not now": "暂不",
@@ -431,6 +447,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "通配符",
   },
   "zh-TW": {
+    "manual": "手動",
+    "auto_slug_change": "URL 變更",
+    "import": "已匯入",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "我們在此瀏覽器中發現了已儲存的金鑰，要儲存到您的帳戶嗎？它會加密並儲存在伺服器上，成功後此瀏覽器中的副本將會清除。拒絕後會維持原樣；未經您確認，不會傳送或清除任何內容。",
     "Save to my account": "儲存到我的帳戶",
     "Not now": "暫不",
@@ -528,6 +548,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "萬用字元",
   },
   "pt-BR": {
+    "manual": "Manual",
+    "auto_slug_change": "Alteração de URL",
+    "import": "Importado",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Encontramos uma chave salva neste navegador — deseja salvá-la na sua conta? Ela será criptografada e armazenada no servidor, e a cópia deste navegador será apagada quando isso der certo. Recusar deixa tudo como está; nada será enviado ou apagado sem sua confirmação.",
     "Save to my account": "Salvar na minha conta",
     "Not now": "Agora não",
@@ -625,6 +649,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "curinga",
   },
   ru: {
+    "manual": "Вручную",
+    "auto_slug_change": "Изменение URL",
+    "import": "Импортировано",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "В этом браузере найден сохранённый ключ — сохранить его в вашей учётной записи? Он будет зашифрован и сохранён на сервере, а копия в браузере будет удалена после успеха. При отказе всё останется как есть; без подтверждения ничего не отправляется и не удаляется.",
     "Save to my account": "Сохранить в моей учётной записи",
     "Not now": "Не сейчас",
@@ -722,6 +750,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "подстановочный знак",
   },
   fa: {
+    "manual": "دستی",
+    "auto_slug_change": "تغییر URL",
+    "import": "واردشده",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "یک کلید ذخیره‌شده در این مرورگر پیدا کردیم؛ آن را در حسابتان ذخیره می‌کنید؟ رمزگذاری و روی سرور ذخیره می‌شود و پس از موفقیت، نسخهٔ این مرورگر پاک می‌شود. با رد کردن، همه‌چیز همان‌طور می‌ماند؛ بدون تأیید شما چیزی ارسال یا پاک نمی‌شود.",
     "Save to my account": "ذخیره در حساب من",
     "Not now": "فعلاً نه",
@@ -819,6 +851,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "نویسهٔ عام",
   },
   ar: {
+    "manual": "يدوي",
+    "auto_slug_change": "تغيير URL",
+    "import": "مستورد",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "عثرنا على مفتاح محفوظ في هذا المتصفح — هل تريد حفظه في حسابك؟ سيُشفّر ويُخزّن على الخادم، وستُمسح نسخة هذا المتصفح بعد نجاح ذلك. الرفض يتركه كما هو تمامًا؛ لا يُرسل أو يُمسح شيء دون تأكيدك.",
     "Save to my account": "حفظ في حسابي",
     "Not now": "ليس الآن",
@@ -916,6 +952,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "حرف بدل",
   },
   ja: {
+    "manual": "手動",
+    "auto_slug_change": "URL変更",
+    "import": "インポート済み",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "このブラウザーに保存済みのキーが見つかりました。アカウントに保存しますか？キーは暗号化してサーバーに保存され、成功後にこのブラウザーのコピーは消去されます。拒否してもそのまま残り、確認なしに送信または消去されることはありません。",
     "Save to my account": "アカウントに保存",
     "Not now": "今はしない",
@@ -1013,6 +1053,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "ワイルドカード",
   },
   ko: {
+    "manual": "수동",
+    "auto_slug_change": "URL 변경",
+    "import": "가져옴",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "이 브라우저에서 저장된 키를 찾았습니다. 계정에 저장할까요? 키는 암호화되어 서버에 저장되며, 성공하면 이 브라우저의 사본은 삭제됩니다. 거절하면 그대로 유지되며, 확인 없이는 아무것도 전송하거나 삭제하지 않습니다.",
     "Save to my account": "내 계정에 저장",
     "Not now": "나중에",
@@ -1110,6 +1154,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "와일드카드",
   },
   pl: {
+    "manual": "Ręcznie",
+    "auto_slug_change": "Zmiana URL",
+    "import": "Zaimportowano",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Znaleźliśmy klucz zapisany w tej przeglądarce — zapisać go na Twoim koncie? Zostanie zaszyfrowany i zapisany na serwerze, a kopia w tej przeglądarce zostanie usunięta po powodzeniu. Odrzucenie nie zmieni niczego; bez potwierdzenia nic nie zostanie wysłane ani usunięte.",
     "Save to my account": "Zapisz na moim koncie",
     "Not now": "Nie teraz",
@@ -1207,6 +1255,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "symbol wieloznaczny",
   },
   hu: {
+    "manual": "Kézi",
+    "auto_slug_change": "URL-változás",
+    "import": "Importált",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Mentett kulcsot találtunk ebben a böngészőben — menti a fiókjába? Titkosítva lesz és a szerveren tároljuk, majd siker esetén a böngészőbeli másolat törlődik. Elutasításkor minden változatlan marad; megerősítés nélkül semmit nem küldünk el vagy törlünk.",
     "Save to my account": "Mentés a fiókomba",
     "Not now": "Most nem",
@@ -1304,6 +1356,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "helyettesítő karakter",
   },
   fr: {
+    "manual": "Manuel",
+    "auto_slug_change": "Changement d’URL",
+    "import": "Importé",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Nous avons trouvé une clé enregistrée dans ce navigateur — l’enregistrer dans votre compte ? Elle sera chiffrée et stockée sur le serveur, puis la copie de ce navigateur sera effacée. Refuser ne change rien ; rien n’est envoyé ni effacé sans votre confirmation.",
     "Save to my account": "Enregistrer dans mon compte",
     "Not now": "Pas maintenant",
@@ -1401,6 +1457,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "caractère générique",
   },
   uk: {
+    "manual": "Вручну",
+    "auto_slug_change": "Зміна URL",
+    "import": "Імпортовано",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "У цьому браузері знайдено збережений ключ — зберегти його у вашому обліковому записі? Його буде зашифровано та збережено на сервері, а копію в браузері очищено після успіху. У разі відмови все лишиться без змін; без підтвердження нічого не надсилається й не очищується.",
     "Save to my account": "Зберегти в моєму обліковому записі",
     "Not now": "Не зараз",
@@ -1498,6 +1558,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "символ підстановки",
   },
   tr: {
+    "manual": "Manuel",
+    "auto_slug_change": "URL değişikliği",
+    "import": "İçe aktarıldı",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Bu tarayıcıda kayıtlı bir anahtar bulduk — hesabınıza kaydedilsin mi? Şifrelenip sunucuda saklanacak ve başarılı olunca bu tarayıcıdaki kopya silinecek. Reddederseniz aynen kalır; onayınız olmadan hiçbir şey gönderilmez veya silinmez.",
     "Save to my account": "Hesabıma kaydet",
     "Not now": "Şimdi değil",
@@ -1595,6 +1659,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "joker karakter",
   },
   th: {
+    "manual": "ด้วยตนเอง",
+    "auto_slug_change": "การเปลี่ยน URL",
+    "import": "นำเข้าแล้ว",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "พบคีย์ที่บันทึกไว้ในเบราว์เซอร์นี้ ต้องการบันทึกลงบัญชีของคุณหรือไม่? คีย์จะถูกเข้ารหัสและเก็บไว้บนเซิร์ฟเวอร์ และสำเนาในเบราว์เซอร์นี้จะถูกล้างเมื่อสำเร็จ หากปฏิเสธทุกอย่างจะเหมือนเดิม โดยจะไม่มีการส่งหรือล้างข้อมูลจนกว่าคุณจะยืนยัน",
     "Save to my account": "บันทึกลงบัญชีของฉัน",
     "Not now": "ไม่ใช่ตอนนี้",
@@ -1692,6 +1760,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "ไวลด์การ์ด",
   },
   it: {
+    "manual": "Manuale",
+    "auto_slug_change": "Modifica URL",
+    "import": "Importato",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "Abbiamo trovato una chiave salvata in questo browser: salvarla nel tuo account? Verrà crittografata e archiviata sul server, e la copia in questo browser verrà eliminata al termine. Rifiutando non cambia nulla; nulla viene inviato o eliminato senza la tua conferma.",
     "Save to my account": "Salva nel mio account",
     "Not now": "Non ora",
@@ -1789,6 +1861,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "carattere jolly",
   },
   hi: {
+    "manual": "मैन्युअल",
+    "auto_slug_change": "URL बदलाव",
+    "import": "आयातित",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "हमें इस ब्राउज़र में सहेजी गई कुंजी मिली है — क्या इसे अपने खाते में सहेजें? यह एन्क्रिप्ट होकर सर्वर पर संग्रहीत होगी और सफल होने पर इस ब्राउज़र की प्रति साफ़ कर दी जाएगी। अस्वीकार करने पर सब कुछ वैसा ही रहेगा; आपकी पुष्टि के बिना कुछ भी भेजा या साफ़ नहीं किया जाएगा।",
     "Save to my account": "मेरे खाते में सहेजें",
     "Not now": "अभी नहीं",
@@ -1886,6 +1962,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "वाइल्डकार्ड",
   },
   ur: {
+    "manual": "دستی",
+    "auto_slug_change": "URL کی تبدیلی",
+    "import": "درآمد شدہ",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "اس براؤزر میں محفوظ کلید ملی ہے — اسے اپنے اکاؤنٹ میں محفوظ کریں؟ اسے رمز بند کرکے سرور پر رکھا جائے گا اور کامیابی کے بعد اس براؤزر کی نقل صاف کر دی جائے گی۔ انکار کرنے پر یہ جوں کا توں رہے گا؛ آپ کی تصدیق کے بغیر کچھ بھی نہیں بھیجا یا صاف کیا جائے گا۔",
     "Save to my account": "میرے اکاؤنٹ میں محفوظ کریں",
     "Not now": "ابھی نہیں",
@@ -1983,6 +2063,10 @@ export const SHARED_COMPONENTS_DICT: Record<string, Record<string, string>> = {
     "wildcard": "وائلڈ کارڈ",
   },
   bn: {
+    "manual": "ম্যানুয়াল",
+    "auto_slug_change": "URL পরিবর্তন",
+    "import": "আমদানি করা",
+
     "We found a saved key in this browser — save it to your account? It will be encrypted and stored on the server, and this browser's copy will be cleared once that succeeds. Declining leaves it exactly as it is; nothing is sent or cleared unless you confirm.": "এই ব্রাউজারে একটি সংরক্ষিত কী পাওয়া গেছে — এটি কি আপনার অ্যাকাউন্টে সংরক্ষণ করবেন? এটি এনক্রিপ্ট করে সার্ভারে রাখা হবে এবং সফল হলে এই ব্রাউজারের কপিটি মুছে ফেলা হবে। প্রত্যাখ্যান করলে সবকিছু যেমন আছে তেমনই থাকবে; আপনার নিশ্চিতকরণ ছাড়া কিছু পাঠানো বা মুছে ফেলা হবে না।",
     "Save to my account": "আমার অ্যাকাউন্টে সংরক্ষণ করুন",
     "Not now": "এখন নয়",

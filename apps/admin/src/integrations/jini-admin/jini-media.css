@@ -1538,3 +1538,8 @@
 :is(.jini-page, .jini-dialog) .jini-field-row {
   align-items: end;
 }
+
+/* A placement list and its Add control share the same vertical rhythm, including
+   the empty state; a bare inline control otherwise touches the empty card. */
+.jini-widget-region-placements { display: flex; flex-direction: column; gap: var(--space-4); }
+.jini-widget-region-placements > .widget-add-control { align-self: flex-start; max-width: 100%; }

@@ -12,6 +12,8 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const FORMS_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Unknown field": "Campo desconocido",
+
     "Created / Updated": "Creado / Actualizado",
     "Created {created} · Updated {updated}": "Creado {created} · Actualizado {updated}",
     "Created {date}": "Creado {date}",
@@ -81,10 +83,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Create form": "Crear formulario",
     // FormEditorHeaderText
     Form: "Formulario",
-    "Configure a new form's fields and email notifications.":
-      "Configura los campos y las notificaciones por correo de este nuevo formulario.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Configura los campos y las notificaciones de este formulario, o revisa sus envíos.",
+    "Configure a new form's fields.": "Configura los campos de este nuevo formulario.",
+    "Configure this form's fields, or review its submissions.": "Configura los campos de este formulario, o revisa sus envíos.",
     // Tab strip (`rules.ts`'s `FORM_TABS`)
     Submissions: "Envíos",
     // FormEditor (main)
@@ -92,6 +92,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "Actions for form \"{name}\"": "Acciones para el formulario \"{name}\"",
   },
   id: {
+    "Unknown field": "Bidang tidak dikenal",
+
     "Created / Updated": "Dibuat / Diperbarui",
     "Created {created} · Updated {updated}": "Dibuat {created} · Diperbarui {updated}",
     "Created {date}": "Dibuat {date}",
@@ -146,14 +148,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Belum ada kiriman.",
     "Create form": "Buat formulir",
     Form: "Formulir",
-    "Configure a new form's fields and email notifications.": "Konfigurasikan bidang dan notifikasi email formulir baru.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Konfigurasikan bidang dan notifikasi formulir ini, atau tinjau kirimannya.",
+    "Configure a new form's fields.": "Konfigurasikan bidang formulir baru.",
+    "Configure this form's fields, or review its submissions.": "Konfigurasikan bidang formulir ini, atau tinjau kirimannya.",
     Submissions: "Kiriman",
     "Back to forms": "Kembali ke formulir",
     "Actions for form \"{name}\"": "Tindakan untuk formulir \"{name}\"",
   },
   de: {
+    "Unknown field": "Unbekanntes Feld",
+
     "Created / Updated": "Erstellt / Aktualisiert",
     "Created {created} · Updated {updated}": "Erstellt {created} · Aktualisiert {updated}",
     "Created {date}": "Erstellt {date}",
@@ -209,15 +212,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Noch keine Einsendungen.",
     "Create form": "Formular erstellen",
     Form: "Formular",
-    "Configure a new form's fields and email notifications.":
-      "Konfigurieren Sie die Felder und E-Mail-Benachrichtigungen eines neuen Formulars.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Konfigurieren Sie die Felder und Benachrichtigungen dieses Formulars, oder sehen Sie sich seine Einsendungen an.",
+    "Configure a new form's fields.": "Konfigurieren Sie die Felder eines neuen Formulars.",
+    "Configure this form's fields, or review its submissions.": "Konfigurieren Sie die Felder dieses Formulars, oder sehen Sie sich seine Einsendungen an.",
     Submissions: "Einsendungen",
     "Back to forms": "Zurück zu den Formularen",
     "Actions for form \"{name}\"": "Aktionen für Formular \"{name}\"",
   },
   "zh-CN": {
+    "Unknown field": "未知字段",
+
     "Created / Updated": "创建 / 更新",
     "Created {created} · Updated {updated}": "创建于 {created} · 更新于 {updated}",
     "Created {date}": "创建于 {date}",
@@ -271,14 +274,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "暂无提交内容。",
     "Create form": "创建表单",
     Form: "表单",
-    "Configure a new form's fields and email notifications.": "配置新表单的字段和电子邮件通知。",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "配置此表单的字段和通知,或查看其提交内容。",
+    "Configure a new form's fields.": "配置新表单的字段。",
+    "Configure this form's fields, or review its submissions.": "配置此表单的字段,或查看其提交内容。",
     Submissions: "提交内容",
     "Back to forms": "返回表单",
     "Actions for form \"{name}\"": "表单\"{name}\"的操作",
   },
   "zh-TW": {
+    "Unknown field": "未知欄位",
+
     "Created / Updated": "建立 / 更新",
     "Created {created} · Updated {updated}": "建立於 {created} · 更新於 {updated}",
     "Created {date}": "建立於 {date}",
@@ -332,14 +336,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "尚無提交內容。",
     "Create form": "建立表單",
     Form: "表單",
-    "Configure a new form's fields and email notifications.": "設定新表單的欄位與電子郵件通知。",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "設定此表單的欄位與通知,或檢視其提交內容。",
+    "Configure a new form's fields.": "設定新表單的欄位。",
+    "Configure this form's fields, or review its submissions.": "設定此表單的欄位,或檢視其提交內容。",
     Submissions: "提交內容",
     "Back to forms": "返回表單",
     "Actions for form \"{name}\"": "表單\"{name}\"的操作",
   },
   "pt-BR": {
+    "Unknown field": "Campo desconhecido",
+
     "Created / Updated": "Criado / Atualizado",
     "Created {created} · Updated {updated}": "Criado {created} · Atualizado {updated}",
     "Created {date}": "Criado {date}",
@@ -394,15 +399,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Ainda não há envios.",
     "Create form": "Criar formulário",
     Form: "Formulário",
-    "Configure a new form's fields and email notifications.":
-      "Configure os campos e as notificações por e-mail de um novo formulário.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Configure os campos e as notificações deste formulário, ou revise seus envios.",
+    "Configure a new form's fields.": "Configure os campos de um novo formulário.",
+    "Configure this form's fields, or review its submissions.": "Configure os campos deste formulário, ou revise seus envios.",
     Submissions: "Envios",
     "Back to forms": "Voltar para os formulários",
     "Actions for form \"{name}\"": "Ações para o formulário \"{name}\"",
   },
   ru: {
+    "Unknown field": "Неизвестное поле",
+
     "Created / Updated": "Создано / Обновлено",
     "Created {created} · Updated {updated}": "Создано {created} · Обновлено {updated}",
     "Created {date}": "Создано {date}",
@@ -457,15 +462,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Пока нет отправок.",
     "Create form": "Создать форму",
     Form: "Форма",
-    "Configure a new form's fields and email notifications.":
-      "Настройте поля и уведомления по эл. почте для новой формы.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Настройте поля и уведомления этой формы или просмотрите её отправки.",
+    "Configure a new form's fields.": "Настройте поля для новой формы.",
+    "Configure this form's fields, or review its submissions.": "Настройте поля этой формы или просмотрите её отправки.",
     Submissions: "Отправки",
     "Back to forms": "Назад к формам",
     "Actions for form \"{name}\"": "Действия для формы \"{name}\"",
   },
   fa: {
+    "Unknown field": "فیلد ناشناخته",
+
     "Created / Updated": "ایجاد / به‌روزرسانی",
     "Created {created} · Updated {updated}": "ایجاد {created} · به‌روزرسانی {updated}",
     "Created {date}": "ایجاد {date}",
@@ -520,14 +525,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "هنوز ارسالی وجود ندارد.",
     "Create form": "ایجاد فرم",
     Form: "فرم",
-    "Configure a new form's fields and email notifications.": "فیلدها و اعلان‌های ایمیل فرم جدید را پیکربندی کنید.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "فیلدها و اعلان‌های این فرم را پیکربندی کنید یا ارسال‌های آن را بررسی کنید.",
+    "Configure a new form's fields.": "فیلدها فرم جدید را پیکربندی کنید.",
+    "Configure this form's fields, or review its submissions.": "فیلدها این فرم را پیکربندی کنید یا ارسال‌های آن را بررسی کنید.",
     Submissions: "ارسال‌ها",
     "Back to forms": "بازگشت به فرم‌ها",
     "Actions for form \"{name}\"": "عملیات مربوط به فرم \"{name}\"",
   },
   ar: {
+    "Unknown field": "حقل غير معروف",
+
     "Created / Updated": "الإنشاء / التحديث",
     "Created {created} · Updated {updated}": "أُنشئ {created} · حُدّث {updated}",
     "Created {date}": "أُنشئ {date}",
@@ -581,14 +587,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "لا توجد إرسالات بعد.",
     "Create form": "إنشاء نموذج",
     Form: "نموذج",
-    "Configure a new form's fields and email notifications.": "اضبط حقول النموذج الجديد وإشعارات البريد الإلكتروني.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "اضبط حقول هذا النموذج وإشعاراته، أو راجع إرسالاته.",
+    "Configure a new form's fields.": "اضبط حقول النموذج الجديد.",
+    "Configure this form's fields, or review its submissions.": "اضبط حقول هذا النموذج، أو راجع إرسالاته.",
     Submissions: "الإرسالات",
     "Back to forms": "العودة إلى النماذج",
     "Actions for form \"{name}\"": "إجراءات لنموذج \"{name}\"",
   },
   ja: {
+    "Unknown field": "不明なフィールド",
+
     "Created / Updated": "作成 / 更新",
     "Created {created} · Updated {updated}": "作成 {created} · 更新 {updated}",
     "Created {date}": "作成 {date}",
@@ -643,14 +650,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "送信内容はまだありません。",
     "Create form": "フォームを作成",
     Form: "フォーム",
-    "Configure a new form's fields and email notifications.": "新規フォームのフィールドとメール通知を設定します。",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "このフォームのフィールドと通知を設定するか、送信内容を確認します。",
+    "Configure a new form's fields.": "新規フォームのフィールドを設定します。",
+    "Configure this form's fields, or review its submissions.": "このフォームのフィールドを設定するか、送信内容を確認します。",
     Submissions: "送信内容",
     "Back to forms": "フォームに戻る",
     "Actions for form \"{name}\"": "フォーム\"{name}\"の操作",
   },
   ko: {
+    "Unknown field": "알 수 없는 필드",
+
     "Created / Updated": "생성 / 수정",
     "Created {created} · Updated {updated}": "생성 {created} · 수정 {updated}",
     "Created {date}": "생성 {date}",
@@ -704,14 +712,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "아직 제출된 내용이 없습니다.",
     "Create form": "양식 만들기",
     Form: "양식",
-    "Configure a new form's fields and email notifications.": "새 양식의 필드와 이메일 알림을 구성하세요.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "이 양식의 필드와 알림을 구성하거나 제출 내용을 검토하세요.",
+    "Configure a new form's fields.": "새 양식의 필드을 구성하세요.",
+    "Configure this form's fields, or review its submissions.": "이 양식의 필드을 구성하거나 제출 내용을 검토하세요.",
     Submissions: "제출 내용",
     "Back to forms": "양식으로 돌아가기",
     "Actions for form \"{name}\"": "양식 \"{name}\" 작업",
   },
   pl: {
+    "Unknown field": "Nieznane pole",
+
     "Created / Updated": "Utworzono / Zaktualizowano",
     "Created {created} · Updated {updated}": "Utworzono {created} · Zaktualizowano {updated}",
     "Created {date}": "Utworzono {date}",
@@ -766,15 +775,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Brak zgłoszeń.",
     "Create form": "Utwórz formularz",
     Form: "Formularz",
-    "Configure a new form's fields and email notifications.":
-      "Skonfiguruj pola i powiadomienia e-mail nowego formularza.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Skonfiguruj pola i powiadomienia tego formularza lub przejrzyj jego zgłoszenia.",
+    "Configure a new form's fields.": "Skonfiguruj pola nowego formularza.",
+    "Configure this form's fields, or review its submissions.": "Skonfiguruj pola tego formularza lub przejrzyj jego zgłoszenia.",
     Submissions: "Zgłoszenia",
     "Back to forms": "Wróć do formularzy",
     "Actions for form \"{name}\"": "Działania dla formularza \"{name}\"",
   },
   hu: {
+    "Unknown field": "Ismeretlen mező",
+
     "Created / Updated": "Létrehozva / Frissítve",
     "Created {created} · Updated {updated}": "Létrehozva {created} · Frissítve {updated}",
     "Created {date}": "Létrehozva {date}",
@@ -830,15 +839,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Még nincs beküldés.",
     "Create form": "Űrlap létrehozása",
     Form: "Űrlap",
-    "Configure a new form's fields and email notifications.":
-      "Konfigurálja az új űrlap mezőit és e-mail-értesítéseit.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Konfigurálja ennek az űrlapnak a mezőit és értesítéseit, vagy tekintse át a beküldéseit.",
+    "Configure a new form's fields.": "Konfigurálja az új űrlap mezőit.",
+    "Configure this form's fields, or review its submissions.": "Konfigurálja ennek az űrlapnak a mezőit, vagy tekintse át a beküldéseit.",
     Submissions: "Beküldések",
     "Back to forms": "Vissza az űrlapokhoz",
     "Actions for form \"{name}\"": "Műveletek: űrlap \"{name}\"",
   },
   fr: {
+    "Unknown field": "Champ inconnu",
+
     "Created / Updated": "Créé / Mis à jour",
     "Created {created} · Updated {updated}": "Créé {created} · Mis à jour {updated}",
     "Created {date}": "Créé {date}",
@@ -894,15 +903,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Aucune soumission pour le moment.",
     "Create form": "Créer le formulaire",
     Form: "Formulaire",
-    "Configure a new form's fields and email notifications.":
-      "Configurez les champs et les notifications par e-mail d'un nouveau formulaire.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Configurez les champs et les notifications de ce formulaire, ou consultez ses soumissions.",
+    "Configure a new form's fields.": "Configurez les champs d'un nouveau formulaire.",
+    "Configure this form's fields, or review its submissions.": "Configurez les champs de ce formulaire, ou consultez ses soumissions.",
     Submissions: "Soumissions",
     "Back to forms": "Retour aux formulaires",
     "Actions for form \"{name}\"": "Actions pour le formulaire \"{name}\"",
   },
   uk: {
+    "Unknown field": "Невідоме поле",
+
     "Created / Updated": "Створено / Оновлено",
     "Created {created} · Updated {updated}": "Створено {created} · Оновлено {updated}",
     "Created {date}": "Створено {date}",
@@ -957,15 +966,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Поки немає надсилань.",
     "Create form": "Створити форму",
     Form: "Форма",
-    "Configure a new form's fields and email notifications.":
-      "Налаштуйте поля та сповіщення електронною поштою для нової форми.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Налаштуйте поля та сповіщення цієї форми або перегляньте її надсилання.",
+    "Configure a new form's fields.": "Налаштуйте поля для нової форми.",
+    "Configure this form's fields, or review its submissions.": "Налаштуйте поля цієї форми або перегляньте її надсилання.",
     Submissions: "Надсилання",
     "Back to forms": "Назад до форм",
     "Actions for form \"{name}\"": "Дії для форми \"{name}\"",
   },
   tr: {
+    "Unknown field": "Bilinmeyen alan",
+
     "Created / Updated": "Oluşturulma / Güncellenme",
     "Created {created} · Updated {updated}": "Oluşturulma {created} · Güncellenme {updated}",
     "Created {date}": "Oluşturulma {date}",
@@ -1020,15 +1029,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Henüz gönderim yok.",
     "Create form": "Form oluştur",
     Form: "Form",
-    "Configure a new form's fields and email notifications.":
-      "Yeni bir formun alanlarını ve e-posta bildirimlerini yapılandırın.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Bu formun alanlarını ve bildirimlerini yapılandırın veya gönderimlerini inceleyin.",
+    "Configure a new form's fields.": "Yeni bir formun alanlarını yapılandırın.",
+    "Configure this form's fields, or review its submissions.": "Bu formun alanlarını yapılandırın veya gönderimlerini inceleyin.",
     Submissions: "Gönderimler",
     "Back to forms": "Formlara dön",
     "Actions for form \"{name}\"": "\"{name}\" formu için işlemler",
   },
   th: {
+    "Unknown field": "ฟิลด์ที่ไม่รู้จัก",
+
     "Created / Updated": "สร้าง / อัปเดต",
     "Created {created} · Updated {updated}": "สร้าง {created} · อัปเดต {updated}",
     "Created {date}": "สร้าง {date}",
@@ -1083,14 +1092,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "ยังไม่มีข้อมูลที่ส่ง",
     "Create form": "สร้างแบบฟอร์ม",
     Form: "แบบฟอร์ม",
-    "Configure a new form's fields and email notifications.": "กำหนดค่าฟิลด์และการแจ้งเตือนทางอีเมลของแบบฟอร์มใหม่",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "กำหนดค่าฟิลด์และการแจ้งเตือนของแบบฟอร์มนี้ หรือตรวจสอบข้อมูลที่ส่ง",
+    "Configure a new form's fields.": "กำหนดค่าฟิลด์ของแบบฟอร์มใหม่",
+    "Configure this form's fields, or review its submissions.": "กำหนดค่าฟิลด์ของแบบฟอร์มนี้ หรือตรวจสอบข้อมูลที่ส่ง",
     Submissions: "ข้อมูลที่ส่ง",
     "Back to forms": "กลับไปที่แบบฟอร์ม",
     "Actions for form \"{name}\"": "การดำเนินการสำหรับแบบฟอร์ม \"{name}\"",
   },
   it: {
+    "Unknown field": "Campo sconosciuto",
+
     "Created / Updated": "Creato / Aggiornato",
     "Created {created} · Updated {updated}": "Creato {created} · Aggiornato {updated}",
     "Created {date}": "Creato {date}",
@@ -1144,15 +1154,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "Ancora nessun invio.",
     "Create form": "Crea modulo",
     Form: "Modulo",
-    "Configure a new form's fields and email notifications.":
-      "Configura i campi e le notifiche e-mail di un nuovo modulo.",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "Configura i campi e le notifiche di questo modulo, oppure controlla i suoi invii.",
+    "Configure a new form's fields.": "Configura i campi di un nuovo modulo.",
+    "Configure this form's fields, or review its submissions.": "Configura i campi di questo modulo, oppure controlla i suoi invii.",
     Submissions: "Invii",
     "Back to forms": "Torna ai moduli",
     "Actions for form \"{name}\"": "Azioni per il modulo \"{name}\"",
   },
   hi: {
+    "Unknown field": "अज्ञात फ़ील्ड",
+
     "Created / Updated": "बनाया गया / अपडेट किया गया",
     "Created {created} · Updated {updated}": "बनाया गया {created} · अपडेट किया गया {updated}",
     "Created {date}": "बनाया गया {date}",
@@ -1217,15 +1227,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "अभी तक कोई सबमिशन नहीं है।",
     "Create form": "फ़ॉर्म बनाएं",
     Form: "फ़ॉर्म",
-    "Configure a new form's fields and email notifications.":
-      "नए फ़ॉर्म के फ़ील्ड और ईमेल सूचनाएं कॉन्फ़िगर करें।",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "इस फ़ॉर्म के फ़ील्ड और सूचनाएं कॉन्फ़िगर करें, या इसके सबमिशन देखें।",
+    "Configure a new form's fields.": "नए फ़ॉर्म के फ़ील्ड कॉन्फ़िगर करें।",
+    "Configure this form's fields, or review its submissions.": "इस फ़ॉर्म के फ़ील्ड कॉन्फ़िगर करें, या इसके सबमिशन देखें।",
     Submissions: "सबमिशन",
     "Back to forms": "फ़ॉर्म पर वापस जाएं",
     "Actions for form \"{name}\"": "फ़ॉर्म \"{name}\" के लिए कार्रवाइयां",
   },
   ur: {
+    "Unknown field": "نامعلوم فیلڈ",
+
     "Created / Updated": "تخلیق / تازہ کاری",
     "Created {created} · Updated {updated}": "تخلیق {created} · تازہ کاری {updated}",
     "Created {date}": "تخلیق {date}",
@@ -1290,15 +1300,15 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "ابھی تک کوئی اندراج نہیں ہے۔",
     "Create form": "فارم بنائیں",
     Form: "فارم",
-    "Configure a new form's fields and email notifications.":
-      "نئے فارم کی فیلڈز اور ای میل اطلاعات کو ترتیب دیں۔",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "اس فارم کی فیلڈز اور اطلاعات کو ترتیب دیں، یا اس کی اندراجات کا جائزہ لیں۔",
+    "Configure a new form's fields.": "نئے فارم کی فیلڈز کو ترتیب دیں۔",
+    "Configure this form's fields, or review its submissions.": "اس فارم کی فیلڈز کو ترتیب دیں، یا اس کی اندراجات کا جائزہ لیں۔",
     Submissions: "اندراجات",
     "Back to forms": "فارمز پر واپس جائیں",
     "Actions for form \"{name}\"": "فارم \"{name}\" کے لیے کارروائیاں",
   },
   bn: {
+    "Unknown field": "অজানা ফিল্ড",
+
     "Created / Updated": "তৈরি / হালনাগাদ",
     "Created {created} · Updated {updated}": "তৈরি {created} · হালনাগাদ {updated}",
     "Created {date}": "তৈরি {date}",
@@ -1363,10 +1373,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     "No submissions yet.": "এখনও কোনো জমা নেই।",
     "Create form": "ফর্ম তৈরি করুন",
     Form: "ফর্ম",
-    "Configure a new form's fields and email notifications.":
-      "নতুন ফর্মের ফিল্ড এবং ইমেইল বিজ্ঞপ্তি কনফিগার করুন।",
-    "Configure this form's fields and notifications, or review its submissions.":
-      "এই ফর্মের ফিল্ড এবং বিজ্ঞপ্তি কনফিগার করুন, অথবা এর জমাগুলো পর্যালোচনা করুন।",
+    "Configure a new form's fields.": "নতুন ফর্মের ফিল্ড কনফিগার করুন।",
+    "Configure this form's fields, or review its submissions.": "এই ফর্মের ফিল্ড কনফিগার করুন, অথবা এর জমাগুলো পর্যালোচনা করুন।",
     Submissions: "জমা",
     "Back to forms": "ফর্মে ফিরে যান",
     "Actions for form \"{name}\"": "ফর্ম \"{name}\" এর জন্য কার্যক্রম",
