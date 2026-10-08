@@ -21,9 +21,35 @@ function jsonResponse(body: unknown, init: { ok?: boolean; status?: number } = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("createInstalledSkillsComposerCapabilitySource", () => {
+  it("silently degrades when navigation cancels installed-skills enumeration", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const cancellation = new DOMException("request cancelled: the page is unloading", "AbortError");
+    const request = vi.fn(async () => { throw cancellation; });
+    const source = createInstalledSkillsComposerCapabilitySource({}, { request });
+
+    await expect(source.list()).resolves.toEqual([]);
+    expect(request).toHaveBeenCalledExactlyOnceWith({ path: "/workspaces/workspace-local/skills", method: "GET" });
+    expect(errorLog).not.toHaveBeenCalled();
+  });
+
+  it("still reports a genuine enumeration failure while preserving the bundled-catalog fallback", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = new TypeError("fetch failed");
+    const source = createInstalledSkillsComposerCapabilitySource({}, {
+      request: async () => { throw failure; },
+    });
+
+    await expect(source.list()).resolves.toEqual([]);
+    expect(errorLog).toHaveBeenCalledExactlyOnceWith(
+      "[installed-skills-composer-source] installed-skills enumeration failed; falling back to the bundled catalog only",
+      failure,
+    );
+  });
+
   it("maps a real installed-skill summary into a capability with an installed-skill: id and a guidance-loading resolve", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({

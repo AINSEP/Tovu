@@ -1,4 +1,5 @@
 import { authenticatedAdminRequest, WORKSPACE_ID } from "../../lib/api";
+import { isAbortError } from "@jini-ai/ui/panel-kit";
 import type { ComposerCapabilitySource, TovuComposerCapability } from "./composer-capabilities";
 
 /** Installed standalone skills are read fresh from the site's workspace skills directory.
@@ -70,18 +71,27 @@ function toCapability(summary: InstalledSkillSummary): TovuComposerCapability {
  * installed skills, an unauthorized session, or a route that 500s on a duplicate-frontmatter-name
  * conflict must cost this one capability — never the rest of the composer.
  *
+ * @param _input - No required inputs; defaults preserve the existing no-argument callers.
+ * @param options.request - Authenticated request port, replaceable for direct failure-path tests.
+ * @returns A source whose list resolves to capabilities or an empty fallback; cancellations are silent.
+ * @example createInstalledSkillsComposerCapabilitySource().list();
  * @complexity O(1) network round trip; O(n) to map n installed skills.
  */
-export function createInstalledSkillsComposerCapabilitySource(): ComposerCapabilitySource {
+export function createInstalledSkillsComposerCapabilitySource(
+  _input: Record<string, never> = {},
+  { request = authenticatedAdminRequest }: { request?: typeof authenticatedAdminRequest } = {},
+): ComposerCapabilitySource {
   return {
     id: "installed-skills",
     list: async () => {
       try {
-        const body = await authenticatedAdminRequest<InstalledSkillsResponse>({ path: INSTALLED_SKILLS_PATH, method: "GET" });
+        const body = await request<InstalledSkillsResponse>({ path: INSTALLED_SKILLS_PATH, method: "GET" });
         if (!Array.isArray(body.skills)) return [];
 
         return body.skills.filter(isInstalledSkillSummary).filter(s => s.enabled !== false).map(toCapability);
       } catch (error) {
+        // Leaving the page cancels the shared transport; it does not mean skill enumeration failed.
+        if (isAbortError({ error })) return [];
         // Network failure, an unreachable server, a malformed body — every case degrades to
         // "nothing to add" rather than breaking the composer. See this function's own doc for
         // why that is required, not merely nice to have.
