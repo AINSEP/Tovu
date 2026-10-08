@@ -1,17 +1,18 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
-import { resolveHtmlPageEmbeds } from "../../resolver-service.js";
+import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 
 /**
  * @file Adversarial verification (peer-dispatched, 2026-09-05) of an externally-reported,
  * never-run finding: a page embedding the SAME `"content"` id twice with DIFFERENT per-occurrence
  * `header` options collapses to one `header` value for both occurrences, because
- * `resolveContentTypeEmbeds` (`resolver-service.ts`) stores exactly one IR entry per `ref.id` in a
+ * `resolveContentTypeEmbeds` (`Jini/packages/cms/src/widgets/resolver-service.ts`) stores exactly one IR entry per `ref.id` in a
  * `Map`, and `renderHtmlPageBody` (`render.ts`) looks that single entry up by id at substitution
  * time — never reading the CURRENT occurrence's own `ref.header`, even though
  * `substituteHtmlEmbeds` rebuilds a full, correct, per-occurrence `PageHtmlEmbedRef` (header
@@ -50,7 +51,7 @@ test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIF
     `<section id="without-header"><main data-embed-config='{"type":"content","id":"entity-1","header":false}'></main></section>`;
 
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { entryRepo, postRepo },
+    deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo },
     input: { workspaceId: WORKSPACE_ID, html },
   });
 

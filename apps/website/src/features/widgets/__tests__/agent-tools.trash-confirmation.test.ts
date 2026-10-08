@@ -3,17 +3,20 @@ import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { PRE_AUTHORIZED } from "../authorize-helper.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 import { memoryWidgetTrash } from "./support/memory-widget-trash.js";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import { InMemoryWidgetRegionBindingRepo } from "../repo.memory.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsDeps } from "../deps.js";
-import { createWidgetInstance } from "../write-service.js";
-import type { WidgetInstanceEntry } from "../types.js";
+import { createWidgetInstance } from "@jini-ai/cms/widgets";
+import type { WidgetInstanceEntry } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /** Owner policy: reversible removal runs immediately; authorization and data integrity remain enforced. */
 
@@ -95,7 +98,7 @@ test("widgets.read is checked before any dialog is raised, and a denied principa
   const seedDeps = makeDeps();
   const instance = await seedWidgetInstance(seedDeps);
   const deps = makeDeps({ allow: false, entryRepo: seedDeps.entryRepo as TrashAwareInMemoryEntryRepo });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   await assert.rejects(() => call(trashTool, { input: { widgetInstanceId: instance.id } }), (error: unknown) => {
@@ -110,7 +113,7 @@ test("widgets.read is checked before any dialog is raised, and a denied principa
 
 test("a nonexistent widget instance id is refused before any dialog is raised", async () => {
   const deps = makeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   await assert.rejects(() => call(trashTool, { input: { widgetInstanceId: "nope" } }), /was not found/);
@@ -120,7 +123,7 @@ test("a nonexistent widget instance id is refused before any dialog is raised", 
 test("n06: reversible removal runs without a confirmation channel", async () => {
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps);
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, store), TRASH_TOOL_ID), {input: {widgetInstanceId: instance.id}}) as {trashed: boolean; cancelled: boolean};
   assert.equal(result.trashed, true);
   assert.equal(result.cancelled, false);
@@ -132,6 +135,6 @@ test("widgets.delete remains required when widgets.read is granted", async () =>
   const deps = makeDeps();
   const instance = await seedWidgetInstance(deps);
   deps.authorize = async ({ permission }) => ({ allowed: permission === "widgets.read", reason: "test permission grant" });
-  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TRASH_TOOL_ID), {input: {widgetInstanceId: instance.id}}), /widgets.delete/);
+  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TRASH_TOOL_ID), {input: {widgetInstanceId: instance.id}}), /widgets.delete/);
   assert.notEqual(await deps.entryRepo.findById({workspaceId: WORKSPACE_ID, id: instance.id}), null);
 });

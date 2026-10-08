@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import type { AuthorizeFn } from "../../settings/index.js";
-import { CommentsSettingsValidationError } from "../errors.js";
+import { CommentsSettingsValidationError } from "@jini-ai/cms/comments";
 import {
   ensureCommentsSettingDefinitions,
   getCommentsSettings,

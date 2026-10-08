@@ -4,7 +4,7 @@
  * (`registerContentType`, behind {@link DeclaredContentTypePorts}). AW-7 Tier 1, 2026-10-04.
  *
  * Why this exists: ADR-024 §1 defines Tier-1 as a manifest-only plugin whose first contribution is
- * "content types & fields", but `manifest.ts` only ever parsed-and-stored `contentTypes` (state.spec
+ * "content types & fields", but `Jini/packages/plugins/src/host/manifest.ts` only ever parsed-and-stored `contentTypes` (state.spec
  * §2: "UNUSED in v1"). This module is the missing half: a bounded, closed declaration grammar
  * (ADR-024 §5 — Tier-1 is only safe while its surface is non-Turing-complete and bounded) and an
  * idempotent provisioner that runs at enable time.
@@ -37,8 +37,8 @@ import {
 } from "#src/features/content-types/index";
 import { SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
 
-import { PluginInvalidError } from "./activation.js";
-import type { PluginManifest, PluginValidationError } from "./manifest.js";
+import { PluginInvalidError } from "@jini-ai/plugins/host";
+import type { PluginManifest, PluginValidationError } from "@jini-ai/plugins/host";
 
 /** ADR-024 §5 bound: how many content types one plugin may declare. */
 export const MAX_DECLARED_CONTENT_TYPES = 20;

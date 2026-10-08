@@ -14,8 +14,8 @@ import {
   validateDeclarativeManifest,
   type DeclaredContentTypePorts,
 } from "../../declarative-content-types.js";
-import { PluginInvalidError } from "../../activation.js";
-import type { PluginManifest } from "../../manifest.js";
+import { PluginInvalidError } from "@jini-ai/plugins/host";
+import type { PluginManifest } from "@jini-ai/plugins/host";
 
 const FAQ = { key: "faq", label: "FAQ", fields: [{ name: "answer", kind: "text", required: true }, { name: "order", kind: "integer" }] };
 

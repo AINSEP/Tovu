@@ -1,8 +1,10 @@
-import { afterEach, expect, it } from "vitest";
-import { buildSeoSettingsPatch, goToSeoTab, resolveSeoTabs, sitemapStateLabel } from "../Seo.hooks";
+import { afterEach, beforeEach, expect, it } from "vitest";
+import { buildSeoSettingsPatch, goToSeoTab, resolveSeoTabs, sitemapStateLabel, mountSeoHost, disposeSeoHost } from "./seo-host.harness";
 import { t } from "../seo-i18n";
 
 const originalUrl = window.location.href;
+beforeEach(mountSeoHost);
+afterEach(disposeSeoHost);
 afterEach(() => window.history.replaceState(null, "", originalUrl));
 
 it("switches SEO tabs using replacement history entries", () => {
@@ -27,9 +29,9 @@ it("resolves the SEO dictionary into Spanish tabs and both sitemap states", () =
   ]);
   expect(sitemapStateLabel("es", true)).toBe("Este sitio publica un mapa del sitio.");
   expect(sitemapStateLabel("es", false)).toBe("Este sitio no publica un mapa del sitio. Actívalo en Valores predeterminados del sitio.");
-  expect(t("es", "failed to save SEO settings")).toBe("no se pudo guardar la configuración de SEO");
-  expect(t("unlisted-locale", "Save settings")).toBe("Save settings");
-  expect(t("es", "future SEO label")).toBe("future SEO label");
+  expect(t({ locale: "es", key: "failed to save SEO settings" })).toBe("no se pudo guardar la configuración de SEO");
+  expect(t({ locale: "unlisted-locale", key: "Save settings" })).toBe("Save settings");
+  expect(t({ locale: "es", key: "future SEO label" })).toBe("future SEO label");
 });
 
 it("uses the absent-title default while preserving an explicitly empty title and clearing optional fields", () => {

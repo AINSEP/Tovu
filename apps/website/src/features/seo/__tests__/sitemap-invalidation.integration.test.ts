@@ -5,10 +5,11 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/
 import { InMemoryPostRepo, createPost, updatePost, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { ensureSeoSettingDefinitions } from "../settings.js";
-import { buildSitemap, createSeoEventSubscriptions, invalidateSitemapCache } from "../sitemap.js";
-import { setEntrySeoOverrides } from "../write-service.js";
+import { createSitemapService } from "@jini-ai/cms/seo";
+import { createSeoDeps } from "../index.js";
+import { setEntrySeoOverrides } from "@jini-ai/cms/seo";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
@@ -57,7 +58,6 @@ function fakeOriginRegistry(): OriginRegistryPort {
 }
 
 async function makeHarness(posts: PostRecord[]) {
-  invalidateSitemapCache({ workspaceId: WORKSPACE });
   const postRepo = new InMemoryPostRepo(posts);
   const settingsRepo = new InMemorySettingsRepo();
   const settingsDeps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: { findById: async () => null } as never };
@@ -76,25 +76,27 @@ async function makeHarness(posts: PostRecord[]) {
 
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
-  const subscriptions = createSeoEventSubscriptions();
+  const seoDeps = createSeoDeps({ deps: { ...deps.media, ...deps, clock } }, {});
+  const sitemapService = createSitemapService({ deps: seoDeps }, {});
+  const subscriptions = sitemapService.createSeoEventSubscriptions({}, {});
   await bus.subscribe({ eventName: "entry.published", handler: (event) => subscriptions.onEntryPublished(event as never) });
   await bus.subscribe({ eventName: "entry.updated", handler: (event) => subscriptions.onEntryUpdated(event as never) });
   await bus.subscribe({ eventName: "entry.unpublished", handler: (event) => subscriptions.onEntryUnpublished(event as never) });
 
-  return { deps, postRepo, outbox, bus };
+  return { deps, seoDeps, sitemapService, postRepo, outbox, bus };
 }
 
 /** Primes the sitemap cache, then mutates the underlying repo directly (bypassing any chokepoint)
  * so a subsequent `buildSitemap` call only reflects the mutation if the cache was truly cleared. */
 async function primeCacheThenMutateDirectly(harness: Awaited<ReturnType<typeof makeHarness>>) {
-  await buildSitemap(harness.deps, { workspaceId: WORKSPACE });
+  await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {});
   const existing = await harness.postRepo.findById({ workspaceId: WORKSPACE, id: "post-1" });
   await harness.postRepo.save({ ...existing!, id: "post-2", slug: "second-entry", status: "published" });
 }
 
 test("SEO writes rebuild the sitemap when noindex is disabled or cleared and canonical is changed or cleared", async () => {
   const harness = await makeHarness([seedPost({ status: "published" })]);
-  assert.deepEqual((await buildSitemap(harness.deps, { workspaceId: WORKSPACE })).map((e) => e.loc), ["/hello"]);
+  assert.deepEqual((await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {})).map((e) => e.loc), ["/hello"]);
   const cases = [
     { patch: { noindex: true }, locations: [] },
     { patch: { noindex: false }, locations: ["/hello"] },
@@ -104,9 +106,9 @@ test("SEO writes rebuild the sitemap when noindex is disabled or cleared and can
     { patch: { canonical: null }, locations: ["/hello"] },
   ];
   for (const { patch, locations } of cases) {
-    await setEntrySeoOverrides({ deps: { postRepo: harness.postRepo, authorize: alwaysAllow, invalidateSitemapCache, clock },
+    await setEntrySeoOverrides({ deps: { postRepo: harness.seoDeps.postRepo, media: harness.seoDeps.media, authorize: alwaysAllow, invalidateSitemapCache: harness.sitemapService.invalidateSitemapCache, clock },
       input: { workspaceId: WORKSPACE, entryId: "post-1", callerPrincipalId: "editor", patch } });
-    assert.deepEqual((await buildSitemap(harness.deps, { workspaceId: WORKSPACE })).map((e) => e.loc), locations);
+    assert.deepEqual((await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {})).map((e) => e.loc), locations);
   }
 });
 
@@ -114,16 +116,19 @@ test("the production app registers sitemap invalidation for each entry lifecycle
   const { createApp, createRouteDeps } = await import("#src/server/runtime/composition/app");
   const runtime = createRouteDeps();
   await runtime.seoReady;
-  createApp(runtime);
   const harness = await makeHarness([seedPost({ status: "published" })]);
+  runtime.postRepo = harness.postRepo;
+  runtime.seoDeps = harness.seoDeps;
+  runtime.sitemapService = harness.sitemapService;
+  createApp(runtime);
   for (const name of ["entry.published", "entry.updated", "entry.unpublished"]) {
-    invalidateSitemapCache({ workspaceId: WORKSPACE });
+    runtime.sitemapService.invalidateSitemapCache({ workspaceId: WORKSPACE }, {});
     await harness.postRepo.save(seedPost({ status: "published", slug: "before-event" }));
-    assert.deepEqual((await buildSitemap(harness.deps, { workspaceId: WORKSPACE })).map((e) => e.loc), ["/before-event"]);
+    assert.deepEqual((await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {})).map((e) => e.loc), ["/before-event"]);
     await harness.postRepo.save(seedPost({ status: "published", slug: "after-event" }));
     await runtime.bus.publish({ id: `test-${name}`, name, workspaceId: WORKSPACE, aggregateId: "post-1",
       occurredAt: clock.nowIso(), payload: { workspaceId: WORKSPACE, entryId: "post-1" } });
-    assert.deepEqual((await buildSitemap(harness.deps, { workspaceId: WORKSPACE })).map((e) => e.loc), ["/after-event"], name);
+    assert.deepEqual((await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {})).map((e) => e.loc), ["/after-event"], name);
   }
 });
 
@@ -137,7 +142,7 @@ test("publish -> entry.published -> sitemap cache invalidated", async () => {
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
 
-  const entries = await buildSitemap(harness.deps, { workspaceId: WORKSPACE });
+  const entries = await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {});
   assert.equal(entries.length, 2, "cache must have been invalidated and rebuilt to include the directly-mutated second entry");
 });
 
@@ -151,7 +156,7 @@ test("unpublish -> entry.unpublished -> sitemap cache invalidated", async () => 
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
 
-  const entries = await buildSitemap(harness.deps, { workspaceId: WORKSPACE });
+  const entries = await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {});
   assert.equal(entries.length, 1, "cache must have been invalidated and rebuilt (post-1 unpublished, post-2 published-and-visible)");
   assert.deepEqual(entries.map((entry) => entry.loc), ["/second-entry"]);
 });
@@ -166,7 +171,7 @@ test("published -> published edit -> entry.updated -> sitemap cache invalidated"
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
 
-  const entries = await buildSitemap(harness.deps, { workspaceId: WORKSPACE });
+  const entries = await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {});
   assert.equal(entries.length, 2, "an entry.updated delivery (published -> published) must invalidate the cache too, not only the published/unpublished transitions");
 });
 
@@ -184,7 +189,7 @@ test("create directly as published -> entry.published -> sitemap cache invalidat
   // Warms the cache against the current (zero-published-posts) state — mirrors
   // `primeCacheThenMutateDirectly`'s own "prime the cache, then mutate" shape, except the mutation
   // under test here is the create path itself, not a direct repo write.
-  const before = await buildSitemap(harness.deps, { workspaceId: WORKSPACE });
+  const before = await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {});
   assert.equal(before.length, 0, "sanity: no published post exists yet");
 
   await createPost({
@@ -193,7 +198,7 @@ test("create directly as published -> entry.published -> sitemap cache invalidat
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
 
-  const entries = await buildSitemap(harness.deps, { workspaceId: WORKSPACE });
+  const entries = await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {});
   assert.equal(entries.length, 1, "a post created directly as published must invalidate the sitemap cache so it appears immediately, not stay absent until an unrelated later update");
   assert.ok(
     entries.some((e) => e.loc.includes("published-at-creation")),
@@ -211,6 +216,6 @@ test("draft -> draft edit emits no event and the cache stays untouched", async (
   });
   await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
 
-  const entries = await buildSitemap(harness.deps, { workspaceId: WORKSPACE });
+  const entries = await harness.sitemapService.buildSitemap({ workspaceId: WORKSPACE }, {});
   assert.equal(entries.length, 0, "cache must still be the stale primed value (empty) — no event, no invalidation");
 });

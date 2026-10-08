@@ -1,10 +1,12 @@
+import { createSeoFeaturedImagePort, createSeoPostPort } from "../index.js";
+import { InMemoryMediaRepo } from "../../media/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SqlitePostRepo } from "../../post/index.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SeoEntryNotFoundError } from "../errors.js";
-import { setEntrySeoOverrides } from "../write-service.js";
+import { SeoEntryNotFoundError } from "@jini-ai/cms/seo";
+import { setEntrySeoOverrides } from "@jini-ai/cms/seo";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
@@ -13,6 +15,8 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
  * (Contract Test requirement, tasks.md Constraints): PUT-then-GET round trip
  * persists into `posts.seo_ext_json`; entry-not-found -> `SeoEntryNotFoundError`.
  */
+
+const media = { featuredImage: createSeoFeaturedImagePort({ deps: { mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }) } }, {}) };
 
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 const clock = { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") };
@@ -41,7 +45,7 @@ test("setEntrySeoOverrides: PUT-then-GET round trip persists into posts.seo_ext_
   assert.ok(entry, "fixture post was inserted");
 
   const result = await setEntrySeoOverrides({
-    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
+    deps: { postRepo: createSeoPostPort({ postRepo: repo }, {}), media, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
     input: {
       workspaceId: "workspace-local",
       entryId: entry.id,
@@ -66,7 +70,7 @@ test("setEntrySeoOverrides: entry-not-found against the real SQLite adapter reje
   await assert.rejects(
     () =>
       setEntrySeoOverrides({
-        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
+        deps: { postRepo: createSeoPostPort({ postRepo: repo }, {}), media, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
         input: {
           workspaceId: "workspace-local",
           entryId: "does-not-exist",
@@ -95,7 +99,7 @@ test("setEntrySeoOverrides: SQLite retries a stale read and preserves the compet
     }
     return stale;
   };
-  await setEntrySeoOverrides({ deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
+  await setEntrySeoOverrides({ deps: { postRepo: createSeoPostPort({ postRepo: repo }, {}), media, authorize: alwaysAllow, invalidateSitemapCache: () => {}, clock },
     input: { workspaceId: "workspace-local", entryId: "post-race", patch: { title: "SEO title" }, callerPrincipalId: "seo-editor" } });
   const landed = await read({ workspaceId: "workspace-local", id: "post-race" });
   assert.equal(landed?.title, "Concurrent content title");

@@ -12,8 +12,8 @@
 import { REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
 import { createRecordStoreTrashAdapter } from "@jini-ai/cms/trash";
 
-import type { RedirectsWriteDeps, RemoveRedirectFn } from "../redirects.js";
-import type { RedirectRecord } from "../types.js";
+import type { RedirectsWriteDeps, RemoveRedirectFn } from "@jini-ai/cms/redirects";
+import type { RedirectRecord } from "@jini-ai/cms/redirects";
 
 interface MinimalRedirectStore {
   findById(required: { workspaceId: string; id: string }): Promise<RedirectRecord | null>;

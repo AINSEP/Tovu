@@ -1,11 +1,14 @@
+import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
+import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
-import { InMemoryFormDefinitionRepo } from "#src/features/forms/repo.memory";
+import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import type { NavMenuEntry, NavMenuReadModel } from "#src/features/navigation/index";
-import { createCoreResolvers } from "../../resolvers/create-core-resolvers.js";
-import type { ContentTypeLookup } from "../../resolvers/recent-entries.js";
+import { createCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
+import type { CoreResolverDeps } from "@jini-ai/cms/widgets/resolvers";
+type ContentTypeLookup = CoreResolverDeps["contentTypes"];
 
 /**
  * @file `createCoreResolvers` — the pure assembly step `resolvers/index.ts`'s `wireCoreResolvers`
@@ -45,7 +48,7 @@ function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
 }
 
 test("createCoreResolvers: returns exactly the 3 v1 dynamic resolver type keys, each with a callable resolveMany", () => {
-  const resolvers = createCoreResolvers({
+  const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
     entryList: new TrashAwareInMemoryEntryRepo(),
     navMenuReadModel: fakeMenuReadModel(null),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
@@ -102,7 +105,7 @@ test("createCoreResolvers: each assembled resolver is wired to the deps it was g
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     });
-    const resolvers = createCoreResolvers({
+    const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
       entryList,
       navMenuReadModel: fakeMenuReadModel(menu),
       formDefinitionRepo,

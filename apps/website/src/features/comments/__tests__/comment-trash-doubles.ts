@@ -9,7 +9,7 @@
  * comments: the moderation write has already flipped the status by then, so the adapter's marker
  * flip is a no-op that reports the row's current version.
  */
-import type { CommentTransactionRunner, ForgetRemovedCommentFn, RemoveCommentFn } from "../write-service.js";
+import type { CommentTransactionRunner, ForgetRemovedCommentFn, RemoveCommentFn } from "@jini-ai/cms/comments";
 
 export interface CommentTrashDoubles {
   remove: RemoveCommentFn;

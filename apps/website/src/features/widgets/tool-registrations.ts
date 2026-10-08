@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/widgets.js';
 /**
  * @file Widgets' half of ADR-049 Decision 4 (SPEC-043/ADR-047): maps `agent-tools.ts`'s twelve
  * catalog entries onto the read/write/region/embed services, as `ToolRegistration`s. The entire
@@ -22,42 +23,23 @@ import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, 
 // redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
-import { toWhereUsedResponse } from "./where-used.js";
+import { toWhereUsedResponse } from "@jini-ai/cms/widgets";
 import { widgetsAgentToolCatalog } from "./agent-tools.js";
-import { requireWidgetPermission } from "./authorize-helper.js";
+import { requireWidgetPermission } from "@jini-ai/cms/widgets";
 import { buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "./deps.js";
-import {
-  insertWidgetEmbed,
-  removeWidgetEmbed,
-  reorderWidgetEmbeds,
-  WidgetEmbedReorderCountMismatchError,
-} from "./embed-service.js";
-import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
-import {
-  WidgetAreaConflictError,
-  WidgetAreaNotFoundError,
-  WidgetConfigValidationError,
-  WidgetEmbedGuardrailError,
-  WidgetEmbedHostNotFoundError,
-  WidgetEmbedHostUnsupportedError,
-  WidgetEmbedPlacementNotFoundError,
-  WidgetForbiddenError,
-  WidgetInstanceNotFoundError,
-  WidgetTypeUnregisteredError,
-  WidgetVersionConflictError,
-} from "./errors.js";
-import { getWidgetInstance, listWidgetInstances } from "./read-service.js";
-import { bindWidgetArea, mutateWidgetAreaPlacements } from "./region-area-service.js";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types.js";
-import type {
-  WidgetAreaEntry,
-  WidgetInstanceEntry,
-  WidgetPlacementNode,
-  WidgetTypeKey,
-} from "./types.js";
-import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "./write-service.js";
+import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, WidgetEmbedReorderCountMismatchError } from "@jini-ai/cms/widgets";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
+import { WidgetAreaConflictError, WidgetAreaNotFoundError, WidgetConfigValidationError, WidgetEmbedGuardrailError, WidgetEmbedHostNotFoundError, WidgetEmbedHostUnsupportedError, WidgetEmbedPlacementNotFoundError, WidgetForbiddenError, WidgetInstanceNotFoundError, WidgetTypeUnregisteredError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";
+import { getWidgetInstance, listWidgetInstances } from "@jini-ai/cms/widgets";
+import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
+import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetPlacementNode, WidgetTypeKey } from "@jini-ai/cms/widgets";
+import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "@jini-ai/cms/widgets";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: widgetsAgentToolCatalog });
 
@@ -73,30 +55,30 @@ export type WidgetsToolDeps = WidgetsRouteDeps;
  * `sideEffects` declaration.
  */
 export const widgetsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> listWidgetInstances (read-service.ts): entryRepo.listByWorkspace only, no write.
+  // -> listWidgetInstances (Jini/packages/cms/src/widgets/read-service.ts): entryRepo.listByWorkspace only, no write.
   ["widgets_list_instances", "none"],
-  // -> getWidgetInstance (read-service.ts) + entryRefsRepo.findByTarget: reads only.
+  // -> getWidgetInstance (Jini/packages/cms/src/widgets/read-service.ts) + entryRefsRepo.findByTarget: reads only.
   ["widgets_get_instance", "none"],
   // -> widgetBindingRepo.listByWorkspace + entryRepo.findById: reads only.
   ["widgets_list_regions", "none"],
   // -> widgetBindingRepo.findByRegion + entryRepo.findById (+ per-placement resolution): reads only.
   ["widgets_get_region", "none"],
-  // -> createWidgetInstance (write-service.ts): createEntry + entry_refs extraction in one tx.
+  // -> createWidgetInstance (Jini/packages/cms/src/widgets/write-service.ts): createEntry + entry_refs extraction in one tx.
   ["widgets_create_instance", "mutates-durable-state"],
-  // -> updateWidgetInstance (write-service.ts): updateEntry + entry_refs extraction.
+  // -> updateWidgetInstance (Jini/packages/cms/src/widgets/write-service.ts): updateEntry + entry_refs extraction.
   ["widgets_update_instance", "mutates-durable-state"],
-  // -> trashWidgetInstance (write-service.ts): moves it to the Trash (restorable). Never a purge:
+  // -> trashWidgetInstance (Jini/packages/cms/src/widgets/write-service.ts): moves it to the Trash (restorable). Never a purge:
   //    a permanent delete exists only as the Trash screen's purge.
   ["widgets_trash_instance", "mutates-durable-state"],
-  // -> bindWidgetArea (region-area-service.ts): createEntry (maybe) + bindingRepo.upsert.
+  // -> bindWidgetArea (Jini/packages/cms/src/widgets/region-area-service.ts): createEntry (maybe) + bindingRepo.upsert.
   ["widgets_bind_region", "mutates-durable-state"],
-  // -> mutateWidgetAreaPlacements (region-area-service.ts): updateEntry + bindingRepo.upsert.
+  // -> mutateWidgetAreaPlacements (Jini/packages/cms/src/widgets/region-area-service.ts): updateEntry + bindingRepo.upsert.
   ["widgets_set_region_placements", "mutates-durable-state"],
-  // -> insertWidgetEmbed (embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
+  // -> insertWidgetEmbed (Jini/packages/cms/src/widgets/embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
   ["widgets_insert_embed", "mutates-durable-state"],
-  // -> removeWidgetEmbed (embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
+  // -> removeWidgetEmbed (Jini/packages/cms/src/widgets/embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
   ["widgets_remove_embed", "mutates-durable-state"],
-  // -> reorderWidgetEmbeds (embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
+  // -> reorderWidgetEmbeds (Jini/packages/cms/src/widgets/embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
   ["widgets_reorder_embeds", "mutates-durable-state"],
 ]);
 
@@ -123,7 +105,7 @@ function isWidgetsShapeRejection(error: unknown): boolean {
  * from "the server broke" — both surfaced as the same redacted `INTERNAL_ERROR` — and the owner's
  * 2026-09-15 ruling ("always say the real reason ... so I can improve it or people can see the
  * errors") overrides that theory: the message already names the missing permission and the reason
- * (`requireWidgetPermission` in `authorize-helper.ts` builds it), so there is real, actionable
+ * (`requireWidgetPermission` in `Jini/packages/cms/src/widgets/authorize-helper.ts` builds it), so there is real, actionable
  * signal here worth letting through, same as every other case below.
  *
  * Same reasoning as `post/tool-registrations.ts`'s `toModelFacingUpdateError` (lines 222-244
@@ -139,7 +121,7 @@ function isWidgetsShapeRejection(error: unknown): boolean {
  * `mapWidgetErrorToResponse` returns, without this layer importing that HTTP-only module.
  *
  * `WIDGETS_FORBIDDEN` now has full HTTP-side parity too: `widgets.ts`'s `widgetForbiddenToResponse`
- * returns HTTP `code: "WIDGETS_FORBIDDEN"`, matching `errors.ts`'s own class doc and every sibling
+ * returns HTTP `code: "WIDGETS_FORBIDDEN"`, matching `Jini/packages/cms/src/widgets/errors.ts`'s own class doc and every sibling
  * prefix in this function (which all match their class doc verbatim). It used to return the generic
  * `FORBIDDEN` instead — a drift fixed once `widgets-error-code-parity.test.ts` was extended to cover
  * this class too.
@@ -221,7 +203,7 @@ function toWidgetAreaToolView(area: Pick<WidgetAreaEntry, "id" | "regionKey" | "
 /** Resolves one region placement's admin-facing view (widget title/type + broken flag) — mirrors `server/routes/admin/widgets/region-get.ts`'s identical resolution. */
 async function resolveWidgetPlacementView(routeDeps: WidgetsToolDeps, placement: WidgetPlacementNode) {
   const widget = await routeDeps.entryRepo.findById({ workspaceId: routeDeps.workspaceId, id: placement.widgetEntryId });
-  const payload = widget && widget.type === WIDGET_CONTENT_TYPE ? parseWidgetInstancePayload(widget.fieldsJson) : null;
+  const payload = widget && widget.type === WIDGET_CONTENT_TYPE ? parseWidgetInstancePayload({ fieldsJson: widget.fieldsJson }) : null;
   return {
     placementId: placement.placementId,
     widgetEntryId: placement.widgetEntryId,
@@ -234,7 +216,7 @@ async function resolveWidgetPlacementView(routeDeps: WidgetsToolDeps, placement:
 
 export function buildWidgetsRegistrations(
   routeDeps: WidgetsToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     widgets_list_instances: async (ctx) => {
@@ -259,7 +241,7 @@ export function buildWidgetsRegistrations(
         input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId },
       });
       const refs = await routeDeps.entryRefsRepo.findByTarget({ workspaceId: routeDeps.workspaceId, targetKind: "entry", targetId: instance.id });
-      return { instance: toWidgetInstanceToolView(instance), whereUsed: toWhereUsedResponse(refs) };
+      return { instance: toWidgetInstanceToolView(instance), whereUsed: toWhereUsedResponse({ refs: refs }) };
     },
 
     widgets_list_regions: async (ctx) => {
@@ -268,7 +250,7 @@ export function buildWidgetsRegistrations(
       const regions = await Promise.all(
         bindings.map(async (binding) => {
           const areaEntry = await routeDeps.entryRepo.findById({ workspaceId: routeDeps.workspaceId, id: binding.areaEntryId });
-          const placementCount = areaEntry ? parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements.length : 0;
+          const placementCount = areaEntry ? parseWidgetAreaPayload({ fieldsJson: areaEntry.fieldsJson }).doc.placements.length : 0;
           return { regionKey: binding.regionKey, areaEntryId: binding.areaEntryId, updatedAt: binding.updatedAt, placementCount };
         }),
       );
@@ -280,12 +262,12 @@ export function buildWidgetsRegistrations(
       await requireWidgetPermission({ authorize: routeDeps.authorize, actor: { principalId: ctx.principal.id }, workspaceId: routeDeps.workspaceId, permission: "widgets.read" });
 
       const binding = await routeDeps.widgetBindingRepo.findByRegion({ workspaceId: routeDeps.workspaceId, regionKey });
-      if (!binding) throw new WidgetAreaNotFoundError(`region '${regionKey}' is not bound`);
+      if (!binding) throw new WidgetAreaNotFoundError({ message: `region '${regionKey}' is not bound` });
       const areaEntry = await routeDeps.entryRepo.findById({ workspaceId: routeDeps.workspaceId, id: binding.areaEntryId });
       if (!areaEntry || areaEntry.type !== WIDGET_AREA_CONTENT_TYPE) {
-        throw new WidgetAreaNotFoundError(`region area entry for '${regionKey}' was not found`);
+        throw new WidgetAreaNotFoundError({ message: `region area entry for '${regionKey}' was not found` });
       }
-      const doc = parseWidgetAreaPayload(areaEntry.fieldsJson).doc;
+      const doc = parseWidgetAreaPayload({ fieldsJson: areaEntry.fieldsJson }).doc;
       const placements = await Promise.all(doc.placements.map((placement) => resolveWidgetPlacementView(routeDeps, placement)));
       return { area: toWidgetAreaToolView({ id: areaEntry.id, regionKey, version: areaEntry.version, updatedAt: areaEntry.updatedAt }), placements };
     },
@@ -339,7 +321,7 @@ export function buildWidgetsRegistrations(
      * payload is corrupt (e.g. `fields_json = "{not json"`) threw here before the confirmation
      * dialog ever rendered, making exactly the rows a user most wants gone untrashable. Reads the
      * raw `EntryRecord` (`title`/`slug`/`version`/`type`) instead, the same column-only rule
-     * `TrashAdapter` implementations already follow (see `ports.ts`'s file header) — the dialog now
+     * `TrashAdapter` implementations already follow (see `Jini/packages/cms/src/widgets/ports.ts`'s file header) — the dialog now
      * shows Title/Slug (both raw columns) rather than widget type/status (both payload fields).
      */
     widgets_trash_instance: async (ctx) => {
@@ -353,7 +335,7 @@ export function buildWidgetsRegistrations(
       });
       const entry = await routeDeps.entryRepo.findById({ workspaceId: routeDeps.workspaceId, id: widgetInstanceId });
       if (!entry || entry.type !== WIDGET_CONTENT_TYPE) {
-        throw new WidgetInstanceNotFoundError(`widget instance '${widgetInstanceId}' was not found`);
+        throw new WidgetInstanceNotFoundError({ message: `widget instance '${widgetInstanceId}' was not found` });
       }
 
       const { version } = await trashWidgetInstance({
@@ -403,7 +385,7 @@ export function buildWidgetsRegistrations(
       });
 
       const binding = await routeDeps.widgetBindingRepo.findByRegion({ workspaceId: routeDeps.workspaceId, regionKey });
-      if (!binding) throw new WidgetAreaNotFoundError(`region '${regionKey}' is not bound`);
+      if (!binding) throw new WidgetAreaNotFoundError({ message: `region '${regionKey}' is not bound` });
 
       const { areaEntry } = await mutateWidgetAreaPlacements({
         deps: buildWidgetsRegionDeps(routeDeps),
@@ -491,7 +473,7 @@ export function buildWidgetsRegistrations(
   );
 
   // No `unwiredToolIds`: Widgets wires its ENTIRE catalog, same tripwire discipline as Forms.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "widgets",
     catalogModule: "widgets/agent-tools.ts",
     catalog: CATALOG_BY_ID,

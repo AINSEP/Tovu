@@ -2,8 +2,8 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import type { BuiltInPluginSource } from "../../discovery.js";
-import type { PluginManifest } from "../../manifest.js";
+import type { BuiltInPluginSource } from "@jini-ai/plugins/host/node";
+import type { PluginManifest } from "@jini-ai/plugins/host";
 
 /**
  * @file The shared "AC-11 fixture" — built-in `word-count` plus one valid and one invalid site

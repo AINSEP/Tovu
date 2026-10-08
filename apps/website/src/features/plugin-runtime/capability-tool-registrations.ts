@@ -1,12 +1,13 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, ToolInputError, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import type { PluginActivationRepoPort } from "./activation.js";
-import type { PluginDiscoveryRecord } from "./discovery.js";
-import type { HookRegistry } from "./hook-registry.js";
-import type { PluginManifest, PluginManifestFieldDecl } from "./manifest.js";
-import { capabilityToolIdFor } from "./plugin-claims.js";
+import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
+import type { PluginManifest, PluginManifestFieldDecl } from "@jini-ai/plugins/host";
+import { capabilityToolIdFor } from "@jini-ai/plugins/host";
 // Disclosed cross-domain read, same shape `agent-tools.ts`'s header already accepts for this
 // package: `ext.{pluginId}.*` is written ONLY on a `posts` row (see `post.ts`'s own `ext` field
 // doc — "content.entry.beforeSave hook-merge step... immediately before the single
@@ -28,7 +29,7 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
  * Why THIS shape and not the other two the dispatch offered
  * ---------------------------------------------------------------------------
  * (1) "Plugins declare invocable tools" was rejected as the bigger, contract-changing option: v1's
- * entire capability vocabulary (`manifest.ts`'s `VALID_CAPABILITIES`/`VALID_HOOKS`) has no notion of
+ * entire capability vocabulary (`Jini/packages/plugins/src/host/manifest.ts`'s `VALID_CAPABILITIES`/`VALID_HOOKS`) has no notion of
  * "expose a callable function" at all, and inventing one — arbitrary handler code a plugin author
  * supplies, executed inside the agent's tool-call path — is a real security/sandboxing question this
  * dispatch's time-box cannot responsibly answer.
@@ -57,7 +58,7 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
  *
  * ---------------------------------------------------------------------------
  * The description text IS the fix — folds each field's own manifest-declared, action-oriented
- * `description` (see `manifest.ts`'s `PluginManifestFieldDecl.description`, added alongside this
+ * `description` (see `Jini/packages/plugins/src/host/manifest.ts`'s `PluginManifestFieldDecl.description`, added alongside this
  * file) into one tool description. A plugin with no authored field description still gets a tool —
  * degraded to a generic, weaker description ({@link genericFieldDescription}) rather than no tool at
  * all, the same graceful-degradation shape `agent-plugins/tool-registrations.ts`'s
@@ -70,7 +71,7 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
  * implies consent"). Plugin-runtime's own projection (`admin-response.ts`: `enabled: activation?.
  * enabled ?? false`) is the opposite: absent means DISABLED. This loader follows plugin-runtime's own
  * convention, not the Agent Plugins one it sits next to — a disabled plugin's `content.entry.
- * beforeSave` hook never fires (`hook-registry.ts`), so its `ext` data (if any survives from when it
+ * beforeSave` hook never fires (`Jini/packages/plugins/src/host/hook-registry.ts`), so its `ext` data (if any survives from when it
  * was last enabled, INV-03) is not being kept fresh. Advertising that as a live capability would be a
  * new bug this file exists to avoid, not fix. Only `status: "valid"` AND `activation.enabled === true`
  * plugins are ever projected into a tool source — verified by both an enabled-plugin test and a
@@ -114,8 +115,7 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
  */
 
 /** `plugin_capability_<pluginId>` — see this file's header, "Tool id scheme". The derivation lives in
- *  `plugin-claims.ts` (2026-10-04) so the conflict detector claims exactly the id registered here. */
-const toCapabilityToolId = capabilityToolIdFor;
+ *  `Jini/packages/plugins/src/host/plugin-claims.ts` (2026-10-04) so the conflict detector claims exactly the id registered here. */
 
 /** The ONE definition of "this plugin's capability tool may exist / may run": this workspace's activation
  *  row says `enabled: true`. Absent, disabled, quarantined (saved `enabled: false`) and uninstalled (every
@@ -132,7 +132,7 @@ export interface PluginCapabilityFieldSource {
   readonly path: string;
   /** The key this field is stored under inside `post.ext[pluginId]` — `path` with the
    *  `ext.{pluginId}.` prefix stripped (e.g. `"count"`). Namespacing is already enforced by
-   *  `manifest.ts`'s `validateField` before a record can ever reach `status: "valid"`, so this is a
+   *  `Jini/packages/plugins/src/host/manifest.ts`'s `validateField` before a record can ever reach `status: "valid"`, so this is a
    *  plain slice, not a re-validation. */
   readonly fieldKey: string;
   readonly type: PluginManifestFieldDecl["type"];
@@ -240,7 +240,7 @@ export async function loadEnabledPluginCapabilityToolSources(deps: {
     if (fields.length === 0) continue;
 
     sources.push({
-      id: toCapabilityToolId(record.id),
+      id: capabilityToolIdFor({ pluginId: record.id }),
       pluginId: record.id,
       pluginName: record.manifest.name,
       description: buildCapabilityToolDescription(record.manifest, fields),
@@ -338,7 +338,7 @@ export interface PluginCapabilityToolDeps {
   /** Runs ONE attached plugin's beforeSave filter on a draft without saving — the composition
    *  root's `previewPluginBeforeSave` binding (`HookRegistry.previewBeforeSave`). Omitted ⇒ every
    *  tool reads stored values. See this file's header, "Fresh results for Tier-2 plugins". */
-  readonly previewPluginBeforeSave?: HookRegistry["previewBeforeSave"];
+  readonly previewPluginBeforeSave?: PluginBeforeSavePreview;
 }
 
 /** The field bag one call answers with: a fresh preview for a {@link PluginCapabilityToolSource.runsFresh}
@@ -454,7 +454,7 @@ export function buildPluginCapabilityToolRegistrations(
   deps: PluginCapabilityToolDeps,
 ): ToolRegistration[] {
   return sources.flatMap((source) =>
-    buildDomainRegistrations({
+    buildDomainRegistrations({ metadata: toolMetadata,
       domain: "plugin-capability",
       catalogModule: "features/plugin-runtime/capability-tool-registrations.ts",
       catalog: indexCatalogById({ catalog: [capabilityCatalogEntry(source)] }),

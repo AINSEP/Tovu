@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 /**
  * @file RED->GREEN for wm S16 (redirects half): the redirects tool handlers threw the plain-`Error`
  * `Redirect*Error` classes and the kit's `ForbiddenError` with no `withModelFacingErrors` wrap, so
@@ -14,11 +15,11 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin/index.js";
-import { redirectMatcher } from "../matcher.js";
-import type { RedirectDbHandle } from "../ports.internal.js";
-import { InMemoryRedirectRepo } from "../repo.memory.js";
-import type { RedirectsWriteDeps } from "../redirects.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import { redirectMatcher } from "@jini-ai/cms/redirects";
+import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
+import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
+import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "../tool-registrations.js";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
@@ -30,9 +31,9 @@ const INTERNAL_DETAIL = "SQLITE_IOERR: disk I/O error at /var/data/site.db";
 function makeDeps(options: { allow?: boolean } = {}): { deps: RedirectsToolDeps; redirectRepo: InMemoryRedirectRepo } {
   const allow = options.allow ?? true;
   const redirectRepo = new InMemoryRedirectRepo();
-  const originRepo = new InMemoryOriginSettingRepo([
+  const originRepo = new InMemoryOriginSettingRepo({ seeds: [
     { workspaceId: WORKSPACE_ID, origin: createVerifiedOrigin({ scheme: "https", host: "trusted.example", verifiedAt: NOW, source: "workspace-setting" }), redirectAllowlist: [] },
-  ]);
+  ] });
   let clockTick = 0;
   let idTick = 0;
   const redirectsWriteDeps: RedirectsWriteDeps = {
@@ -42,6 +43,7 @@ function makeDeps(options: { allow?: boolean } = {}): { deps: RedirectsToolDeps;
     restore: restoreVia(redirectRepo as unknown as Parameters<typeof removeVia>[0]),
     db: redirectRepo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
+    reservedSegments: RESERVED_SEGMENTS,
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
     clock: { nowMs: () => Date.parse(`2026-07-29T00:00:${String(clockTick++).padStart(2, "0")}.000Z`) },

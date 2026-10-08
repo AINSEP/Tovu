@@ -20,7 +20,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
-import { setPluginEnabled } from "../../activation.js";
+import { setPluginEnabled } from "@jini-ai/plugins/host";
 
 const SAMPLE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../samples/testimonials-faq");
 const NOW = "2026-10-04T00:00:00.000Z";

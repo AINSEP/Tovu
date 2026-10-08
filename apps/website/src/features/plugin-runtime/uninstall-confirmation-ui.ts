@@ -1,8 +1,6 @@
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
 
-import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
-import type { PluginUninstallPreview } from "./uninstall.js";
-import { rearmConfirmationDwell } from "./confirmation-dwell-compat.js";
+import type { PluginUninstallPreview } from "@jini-ai/plugins/host";
 
 /**
  * @file The dialog `plugins_uninstall` raises before it removes anything.
@@ -24,51 +22,22 @@ import { rearmConfirmationDwell } from "./confirmation-dwell-compat.js";
 /** The tool id the dialog asks the Host to call back. Single source of truth for both halves. */
 export const PLUGINS_UNINSTALL_TOOL_ID = "plugins_uninstall";
 
-/** Keyed by plugin id; a URI is an identifier a host may log, and nothing here is sensitive. */
-function uninstallConfirmationUri(pluginId: string): UIResourceUri {
-  return `ui://tovu/plugins-uninstall/${encodeURIComponent(pluginId)}` as UIResourceUri;
-}
-
 /**
- * Renders the uninstall-confirmation dialog as a self-contained MCP-UI resource.
+ * Describes the uninstall-confirmation dialog for the shared approval transport.
  *
  * @param spec.preview - What would be removed. The plugin is NAMED, because "uninstall this plugin?"
  * without saying which one is not consent.
- * @param spec.exchangeId - The held-open call's correlation handle (`SurfaceExchange.id`). This is
- * the only place it may go — see this file's header.
- * @param spec.expiresAtMs - The exchange's deadline (`SurfaceExchange.expiresAtMs()`, read right
- * before rendering), so the chat counts the card down and closes it — as `requireHumanConfirm` does.
  * @complexity O(n) in the rendered field lengths.
  */
-export function buildUninstallConfirmationResource(spec: { preview: PluginUninstallPreview; exchangeId: string; expiresAtMs: number }): UIResource {
-  const { preview, exchangeId, expiresAtMs } = spec;
-
-  return rearmConfirmationDwell({ resource: buildConfirmationSurface({
-    uri: uninstallConfirmationUri(preview.pluginId),
+export function describeUninstallApproval({ preview }: { preview: PluginUninstallPreview }, _optional = {}): HumanConfirmSpec {
+  return {
+    toolId: PLUGINS_UNINSTALL_TOOL_ID, errorCode: "PLUGINS",
     title: `Move ${preview.name} to trash?`,
     description: `This moves the site plugin "${preview.pluginId}" (version ${preview.version}) to the Trash for 60 days.`,
-    details: [
-      { label: "Plugin", value: preview.pluginId },
-      { label: "Version", value: preview.version },
-    ],
-    warning:
-      "This removes it for all workspaces on this site. You can restore it from Admin → Trash for 60 days; " +
-      "only a human can delete it permanently.",
-    danger: true,
-    confirm: {
-      label: "Move to trash",
-      toolName: PLUGINS_UNINSTALL_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    // A tool action, not a bare dismiss: cancelling posts back and resolves the parked call at once,
-    // rather than stranding the agent's call open until the idle deadline.
-    cancel: {
-      label: "Cancel",
-      toolName: PLUGINS_UNINSTALL_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-plugins-uninstall", appVersion: "1" },
-    preferredFrameSize: ["100%", "340px"],
-    expiresAtMs,
-  }) });
+    details: [{ label: "Plugin", value: preview.pluginId }, { label: "Version", value: preview.version }],
+    warning: "This removes it for all workspaces on this site. You can restore it from Admin → Trash for 60 days; " +
+      "only a human can delete it permanently.", danger: true, confirmLabel: "Move to trash",
+    // A tool action resolves the parked call at once, rather than stranding it until the deadline.
+    cancelLabel: "Cancel",
+  };
 }

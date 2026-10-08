@@ -1,18 +1,22 @@
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin/index.js";
-import { redirectMatcher } from "../matcher.js";
-import type { RedirectDbHandle } from "../ports.internal.js";
-import { InMemoryRedirectRepo } from "../repo.memory.js";
-import type { RedirectsWriteDeps } from "../redirects.js";
-import { createRedirect, updateRedirect } from "../redirects.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import { redirectMatcher } from "@jini-ai/cms/redirects";
+import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
+import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
+import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { createRedirect, updateRedirect } from "@jini-ai/cms/redirects";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "../tool-registrations.js";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /** Owner policy: reversible removal runs immediately; authorization and data integrity remain enforced. */
 
@@ -24,9 +28,9 @@ const TOMBSTONE_TOOL_ID = "redirects_tombstone";
 function makeDeps(options: { allow?: boolean } = {}): RedirectsToolDeps {
   const allow = options.allow ?? true;
   const redirectRepo = new InMemoryRedirectRepo();
-  const originRepo = new InMemoryOriginSettingRepo([
+  const originRepo = new InMemoryOriginSettingRepo({ seeds: [
     { workspaceId: WORKSPACE_ID, origin: createVerifiedOrigin({ scheme: "https", host: "trusted.example", verifiedAt: NOW, source: "workspace-setting" }), redirectAllowlist: [] },
-  ]);
+  ] });
   let clockTick = 0;
   let idTick = 0;
   const redirectsWriteDeps: RedirectsWriteDeps = {
@@ -36,6 +40,7 @@ function makeDeps(options: { allow?: boolean } = {}): RedirectsToolDeps {
     restore: restoreVia(redirectRepo as unknown as Parameters<typeof removeVia>[0]),
     db: redirectRepo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
+    reservedSegments: RESERVED_SEGMENTS,
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
     clock: { nowMs: () => Date.parse(`2026-07-29T00:00:${String(clockTick++).padStart(2, "0")}.000Z`) },
@@ -101,7 +106,7 @@ test("admin.redirects.manage is checked before any dialog is raised, and a denie
     authorizeCalls.push(input);
     return { allowed: input.permission === "admin.redirects.read", reason: "insufficient_permission" };
   };
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tombstoneTool = tool(buildRegistrations(deps, surfaceExchanges), TOMBSTONE_TOOL_ID);
 
   await assert.rejects(() => call(tombstoneTool, { input: { id: "whatever" } }), /not authorized/);
@@ -111,7 +116,7 @@ test("admin.redirects.manage is checked before any dialog is raised, and a denie
 
 test("a nonexistent redirect id is refused before any dialog is raised", async () => {
   const deps = makeDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tombstoneTool = tool(buildRegistrations(deps, surfaceExchanges), TOMBSTONE_TOOL_ID);
 
   await assert.rejects(() => call(tombstoneTool, { input: { id: "nope" } }), /was not found/);
@@ -121,7 +126,7 @@ test("a nonexistent redirect id is refused before any dialog is raised", async (
 test("list/get/hits registrations forward filters and rule identity and return stored data", async () => {
   const deps = makeDeps();
   const rule = await seedRule(deps, { fromPattern: "/read-source", toTarget: "/read-target" });
-  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const listCalls: unknown[] = [];
   const originalList = deps.redirectRepo.list.bind(deps.redirectRepo);
   deps.redirectRepo.list = async (input) => { listCalls.push(input); return originalList(input); };
@@ -145,7 +150,7 @@ test("list/get/hits registrations forward filters and rule identity and return s
 
 test("create/update/import registrations persist the supplied fields and actor", async () => {
   const deps = makeDeps();
-  const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+  const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const created = await call(tool(registrations, "redirects_create"), { input: {
     matchType: "prefix", fromPattern: "/tool-old", toTarget: "/tool-new", statusCode: 307, override: true, priority: 17,
   } }) as { rule: { id: string } };
@@ -189,7 +194,7 @@ for (const toolId of ["redirects_list", "redirects_get", "redirects_get_hits", "
     const before = await deps.redirectRepo.list({ workspaceId: WORKSPACE_ID });
     const authorizeCalls: unknown[] = [];
     deps.authorize = async (input) => { authorizeCalls.push(input); return { allowed: false, reason: "insufficient_permission" }; };
-    const registrations = buildRegistrations(deps, createSurfaceExchangeStore());
+    const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
     const hasId = ["redirects_get", "redirects_get_hits", "redirects_update"].includes(toolId);
     await assert.rejects(() => call(tool(registrations, toolId), { input: hasId ? { id: rule.id } : {} }), /not authorized/);
     assert.deepEqual(authorizeCalls, [{ principalId: PRINCIPAL_ID, permission: "admin.redirects.manage", workspaceId: WORKSPACE_ID, entityType: "redirect", ...(hasId ? { entityId: rule.id } : {}) }]);
@@ -200,7 +205,7 @@ for (const toolId of ["redirects_list", "redirects_get", "redirects_get_hits", "
  test("n06: reversible removal runs without a confirmation channel", async () => {
   const deps = makeDeps();
   const rule = await seedRule(deps);
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, store), TOMBSTONE_TOOL_ID), {input: {id: rule.id}}) as {tombstoned: boolean; rule: {status: string}};
   assert.equal(result.tombstoned, true);
   assert.equal(result.rule.status, "disabled");

@@ -1,4 +1,4 @@
-import type { PluginInstallPreview } from "./install.js";
+import type { PluginInstallPreview } from "@jini-ai/plugins/host/node";
 
 /** What installing does to this computer, in one sentence. The CLI prompt shows it before the human
  *  approves; the assistant's `plugins_install` returns it as its result's `warning`. */

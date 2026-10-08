@@ -1,3 +1,4 @@
+import { toSlug } from "#src/platform/html/slug";
 /**
  * @file `analyzeContent` — the generic, pure SEO / readability scorer behind the `content-analyzer`
  * built-in (AW-7 Tier 2).
@@ -9,7 +10,7 @@
  * checks whose `params` carry the numbers a UI or i18n layer interpolates.
  *
  * Architectural role:
- * Deliberately ZERO Tovu, TipTap or Node imports — no I/O, no globals, no clock. It is shaped to
+ * No I/O, no globals, no clock. Heading slugs share the renderer's platform helper. It is shaped to
  * move UNCHANGED into Jini's `@jini-ai/visibility/seo` later (development/todos.md "visibility"
  * package): the TipTap adapter lives in `./tiptap-blocks.ts` and the plugin wiring in `./plugin.ts`,
  * so only this file (and `./summary.ts`) travel.
@@ -265,21 +266,14 @@ function scoreChecks(checks: readonly ContentCheck[]): number {
 }
 
 /**
- * Slugifies heading text into a URL fragment: NFKD + strip combining marks, lowercase, collapse
- * every run of non `[a-z0-9]` into one `-`, trim dashes; `"section"` when nothing is left.
+ * Uses the renderer's slug function so transliteration and empty headings match emitted ids.
  *
  * @param text - The heading's visible text.
- * @returns A non-empty anchor slug (not yet de-duplicated).
+ * @returns The anchor slug (not yet de-duplicated), or empty when the renderer emits no id.
  * @complexity O(text.length).
  */
 export function slugifyHeading(text: string): string {
-  const slug = text
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug === "" ? "section" : slug;
+  return toSlug(text);
 }
 
 function buildToc(headings: ReadonlyArray<{ level: HeadingLevel; text: string }>): TocEntry[] {
@@ -289,6 +283,7 @@ function buildToc(headings: ReadonlyArray<{ level: HeadingLevel; text: string }>
     const text = heading.text.trim();
     if (text === "") continue;
     const base = slugifyHeading(text);
+    if (base === "") continue;
     let anchor = base;
     // Keep counting past a suffix a LITERAL heading already took ("Foo-2" then a second "Foo").
     for (let n = 2; used.has(anchor); n += 1) anchor = `${base}-${n}`;

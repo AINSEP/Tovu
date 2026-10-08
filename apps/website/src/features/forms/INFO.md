@@ -1,3 +1,22 @@
+# Forms — Tovu host wiring
+
+The forms domain lives in `@jini-ai/cms/forms` (`Jini/packages/cms/src/forms/**`).
+The universal entry owns rules, records, services, attempts and rendering; `/html` owns authoring
+and the submission view, `/sql` owns queries, and `/express` owns the public HTTP handler.
+Tovu imports those owners directly. The original architecture notes below are historical.
+
+| Tovu file | Host responsibility |
+| --- | --- |
+| `index.ts` | Permission/reserved-slug binding, authoring, email validation, SHA-256 attempts and background dispatch. |
+| `repo.sqlite.ts` | Site connection and unchanged definition/submission table names. |
+| `rate-limit-profile.ts` | Anonymous forms submission rate profile. |
+| `submission-ip-expiry-sweep.ts` | Boot pass, daily timer and shutdown. |
+| `publish-content.ts` | Tovu publication resource registration. |
+| `tool-registrations.ts`, `agent-tools.ts` | Tovu tool IDs, policy and model-facing catalog. |
+
+Routes, permission strings, stored fields_json (including mode/html), cookie/query names and the
+_attempt 60-second window are unchanged. No schema or migration changes are part of this switch.
+
 # forms Overview
 
 Owns the Contact Form — AW-7's Tier-1 ("declarative, zero-code") sample plugin (SPEC-010,

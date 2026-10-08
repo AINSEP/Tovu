@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/seo.js';
 /**
  * @file SEO's half of ADR-049 Decision 4: maps `agent-tools.ts`'s 6 catalog entries onto the
  * per-entry meta/analyze/override and site-wide settings/sitemap operations `server/routes/admin/
@@ -30,18 +31,16 @@ import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { AssetRenditionRepoPort, MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
-import type { OriginRegistryPort } from "../origin/index.js";
+import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { getSeoAgentToolCatalog } from "./agent-tools.js";
 import {
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
   SeoSettingsValidationError,
-} from "./errors.js";
-import { getEntryMeta, analyzeEntry } from "./seo.js";
+} from "@jini-ai/cms/seo";
+import { getEntryMeta, analyzeEntry, setEntrySeoOverrides, type createSitemapService, type SeoExtFieldsPatch, type SeoSettings } from "@jini-ai/cms/seo";
 import { getSeoSettings, setSeoSettings } from "./settings.js";
-import { regenerateSitemapCache, requestSitemapInvalidation } from "./sitemap.js";
-import type { SeoExtFieldsPatch, SeoSettings } from "./types.js";
-import { setEntrySeoOverrides } from "./write-service.js";
+import type { SeoHostBindings } from "./index.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: getSeoAgentToolCatalog() });
 
@@ -51,9 +50,9 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: getSeoAgentToolCatalog() });
  * composition root. `server/routes/*` satisfies this structurally by passing its existing
  * `RouteDeps` object; nothing there changes.
  *
- * Also satisfies `./media.ts`'s `ResolveSeoImageRefDeps` structurally (via the three media fields
- * below) — every handler that calls `getEntryMeta`/`analyzeEntry`/`regenerateSitemapCache` passes
- * this same object as their `media` dependency, exactly as `RouteDeps` does today.
+ * `seoDeps` binds Jini/packages/cms/src/seo/media.ts's narrow media port to the same host repos
+ * that routes use. `sitemapService` is shared with those routes and their bus subscriptions so
+ * a tool invalidates the serving app's workspace cache, not a disconnected second cache.
  */
 export interface SeoToolDeps {
   outbox: import("@jini-ai/cms/core").OutboxPort;
@@ -63,6 +62,8 @@ export interface SeoToolDeps {
   clock: { nowIso(): string };
   idGen: { newId(): string };
   seoReady: Promise<void>;
+  seoDeps: SeoHostBindings;
+  sitemapService: ReturnType<typeof createSitemapService>;
   postRepo: PostRepoPort;
   settingsRepo: SettingsRepoPort;
   principalRepo: PrincipalRepoPort;
@@ -78,7 +79,7 @@ export interface SeoToolDeps {
  * Builds `setEntrySeoOverrides`'s `patch` from `ctx.input` by dropping only `entryId` (the one key
  * that is NOT part of the patch itself). Deliberately NOT an allowlist of known `SeoExtFields`
  * keys: `setEntrySeoOverrides`'s own `validateSeoExtFieldsPatch` already rejects any key outside
- * its `REGISTERED_KEYS` set (`SeoFieldValidationError`, decorated with the published schema by
+ * its `REGISTERED_KEYS` array (`SeoFieldValidationError`, decorated with the published schema by
  * `withSchemaOnRejection` below) — silently DROPPING an unrecognized key here instead of letting
  * the chokepoint reject it would teach a model that a field it sent was applied when it silently
  * wasn't, the same failure mode `tool-registration-kit.ts`'s `requireNoInput` doc comment warns
@@ -130,16 +131,20 @@ export const seoDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSide
 ]);
 
 export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[] {
+  // Bind delivery to the existing outbox owner; the same service handles local invalidation.
+  const invalidationDeps = {
+    outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock,
+    idGen: routeDeps.idGen, dispatch: routeDeps.seoDeps.dispatch,
+  };
+  const requestInvalidation = (input: { workspaceId: string }) =>
+    routeDeps.sitemapService.requestSitemapInvalidation({ deps: invalidationDeps, input }, {});
   const handlers: Record<string, ToolHandler> = {
     seo_get_entry_meta: async (ctx) => {
       const entryId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "entryId" });
       await routeDeps.seoReady;
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.seo.manage" }, { entityType: "seo-entry", entityId: entryId });
 
-      const meta = await getEntryMeta(
-        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
-        { workspaceId: routeDeps.workspaceId, entryId },
-      );
+      const meta = await getEntryMeta({ deps: routeDeps.seoDeps, input: { workspaceId: routeDeps.workspaceId, entryId } }, {});
       return { meta };
     },
 
@@ -148,10 +153,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
       await routeDeps.seoReady;
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.seo.manage" }, { entityType: "seo-entry", entityId: entryId });
 
-      const analysis = await analyzeEntry(
-        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
-        { workspaceId: routeDeps.workspaceId, entryId },
-      );
+      const analysis = await analyzeEntry({ deps: routeDeps.seoDeps, input: { workspaceId: routeDeps.workspaceId, entryId } }, {});
       return { analysis };
     },
 
@@ -167,7 +169,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
           isShapeRejection: ({ error }) => error instanceof SeoFieldValidationError || error instanceof SeoInvalidCanonicalUrlError,
           fn: () =>
           setEntrySeoOverrides({
-            deps: { postRepo: routeDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache: input => requestSitemapInvalidation(routeDeps, input), clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) }, media: routeDeps },
+            deps: { postRepo: routeDeps.seoDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache: requestInvalidation, clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) }, media: routeDeps.seoDeps.media },
             input: {
               workspaceId: routeDeps.workspaceId,
               entryId,
@@ -204,8 +206,8 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
               ids: routeDeps.idGen,
               authorize: routeDeps.authorize,
               principals: routeDeps.principalRepo,
-              invalidateSitemap: input => requestSitemapInvalidation(routeDeps, input),
-              media: routeDeps,
+              invalidateSitemap: requestInvalidation,
+              media: routeDeps.seoDeps.media,
             },
             { workspaceId: routeDeps.workspaceId, patch: seoSettingsPatchFromInput(input), callerPrincipalId: ctx.principal.id },
           ) });
@@ -217,16 +219,13 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
       await routeDeps.seoReady;
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.seo.manage" }, { entityType: "seo-sitemap" });
 
-      await regenerateSitemapCache(
-        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
-        { workspaceId: routeDeps.workspaceId },
-      );
-      await requestSitemapInvalidation(routeDeps, { workspaceId: routeDeps.workspaceId });
+      await routeDeps.sitemapService.regenerateSitemapCache({ workspaceId: routeDeps.workspaceId }, {});
+      await requestInvalidation({ workspaceId: routeDeps.workspaceId });
       return { accepted: true };
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "seo",
     catalogModule: "seo/agent-tools.ts",
     catalog: CATALOG_BY_ID,

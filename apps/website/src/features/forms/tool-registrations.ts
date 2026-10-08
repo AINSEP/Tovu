@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/forms.js';
 /**
  * @file Forms' half of ADR-049 Decision 4 (SPEC-010): maps `agent-tools.ts`'s five catalog entries
  * onto the three `write-service.ts` operations plus the two submission reads, as `ToolRegistration`s.
@@ -21,7 +22,8 @@ import { ToolInputError } from "@jini-ai/core";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { formsAgentToolCatalog } from "./agent-tools.js";
-import { deriveAvailableFormSlug } from "./duplicate-slug.js";
+import { deriveAvailableFormSlug } from "@jini-ai/cms/forms";
+import { formSlugPolicy } from "./index.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 import {
   FormDefinitionNotFoundError,
@@ -30,21 +32,21 @@ import {
   FormSlugConflictError,
   FormSubmissionNotFoundError,
   FormSubmissionValidationError,
-} from "@jini-ai/cms-forms";
-import type { FormDefinitionRepoPort, FormCommandExecutorPort } from "@jini-ai/cms-forms";
-import { adaptFormSubmissionRepo, type FormSubmissionRepoPort } from "./ports.js";
+} from "@jini-ai/cms/forms";
+import type { FormDefinitionRepoPort, FormCommandExecutorPort } from "@jini-ai/cms/forms";
+import { type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type {
   FieldDescriptor,
   FormDefinitionRecord,
   FormDefinitionStatus,
   FormSubmissionRecord,
   NotifyConfig,
-} from "@jini-ai/cms-forms";
+} from "@jini-ai/cms/forms";
 import {
   createFormDefinition,
   setFormDefinitionStatus,
   updateFormDefinition,
-} from "./write-service.js";
+} from "#src/features/forms/index";
 
 const SUBMISSIONS_DEFAULT_LIMIT = 50;
 const SUBMISSIONS_MIN_LIMIT = 1;
@@ -367,7 +369,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
       const limit = requireSubmissionsLimit(input);
       // A non-string cursor is refused, not read as "no cursor" and page 1 (the HTTP route already refuses it).
       const cursor = optionalString({ input, key: "cursor" });
-      const page = await adaptFormSubmissionRepo({ repo: routeDeps.formSubmissionRepo }).listByDefinition({
+      const page = await routeDeps.formSubmissionRepo.listByDefinition({
         workspaceId: routeDeps.workspaceId,
         formDefinitionId: formId,
         limit,
@@ -400,7 +402,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
 
   // No `unwiredToolIds`: Forms wires its ENTIRE catalog, which makes a new catalog entry added
   // without a handler a build failure rather than a silently missing tool.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "forms",
     catalogModule: "forms/agent-tools.ts",
     catalog: CATALOG_BY_ID,
@@ -482,14 +484,13 @@ async function duplicateFormDefinition(
   const slug =
     input.overrides.slug ??
     (await deriveAvailableFormSlug(
-      { name },
-      {
+      { name, ...formSlugPolicy,
         // `isSlugTaken`, not `findBySlug` — trash-blind, so a trashed form's slug is correctly
         // reported as taken instead of offered to the copy and then colliding on the DB unique
         // index (decision 3, ADS-memory/reports/2026-09-21-t8f-trash-forms-plan.md §B).
         isTaken: async (candidate) =>
           routeDeps.formDefinitionRepo.isSlugTaken({ workspaceId: routeDeps.workspaceId, slug: candidate }),
-      }
+      }, {}
     ));
 
   const actor = { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND };
@@ -553,7 +554,7 @@ export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerCont
  * module. `assistant/tool-registrations.ts` no longer imports `buildFormsRegistrations`/
  * `formsDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2). Like
  * `content-types`, this converts AFTER `widgets` (this batch's first conversion) specifically because
- * `widgets/resolvers/{contact-form,create-core-resolvers}.ts` import `forms` internally — with
+ * the former Tovu copies of `Jini/packages/cms/src/widgets/resolvers/{contact-form,create-core-resolvers}.ts` imported `forms` internally — with
  * `widgets` off the static `DOMAIN_SLICES` array first, `assistant -> widgets -> forms -> assistant`
  * cannot close.
  */

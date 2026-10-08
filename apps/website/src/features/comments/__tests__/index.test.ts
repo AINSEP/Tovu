@@ -4,12 +4,13 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { EntryRecord, EntryStatus } from "../../entries/index.js";
-import { createCommentsModule, DEFAULT_COMMENTS_SETTINGS, ensureCommentsSettingDefinitions, setCommentsSettings } from "../index.js";
+import { createCommentsModule } from "@jini-ai/cms/comments";
+import { createCommentsHostPorts, DEFAULT_COMMENTS_SETTINGS, ensureCommentsSettingDefinitions, setCommentsSettings } from "../index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
-import { InMemoryCommentRepo } from "../repo.memory.js";
-import { HeuristicSpamCheck } from "../spam.heuristic.js";
-import type { CommentSubmission, SpamVerdict } from "../types.js";
-import type { SpamCheckPort } from "../ports.js";
+import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+import { HeuristicSpamCheck } from "@jini-ai/cms/comments";
+import type { CommentSubmission, SpamVerdict } from "@jini-ai/cms/comments";
+import type { SpamCheckPort } from "@jini-ai/cms/comments";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -18,7 +19,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
  * internally — `createCommentsModule` silently ignored any other `SpamCheckPort` adapter a caller
  * might want to inject. Proves the injected adapter is the one actually consulted.
  *
- * Also covers the BUG REGRESSION documented in `index.ts`'s own header: an entry that is `draft`
+ * Also covers the BUG REGRESSION documented in `Jini/packages/cms/src/comments/module.ts`'s own header: an entry that is `draft`
  * (never published) or `unpublished` (deliberately retracted, `publishedAt` intentionally left
  * stale by `unpublishEntry`) must not accept a new public comment, even though nothing about a
  * bare `publishedAt` value alone would tell the two states apart.
@@ -41,7 +42,7 @@ function makeSubmission(overrides: Partial<CommentSubmission> = {}): CommentSubm
   };
 }
 
-/** `entryLookup`/`isEntryOpenForComments` (`index.ts`) only read `id`/`status`/`publishedAt`; the
+/** `entryLookup`/`isEntryOpenForComments` (`Jini/packages/cms/src/comments/module.ts`) only read `id`/`status`/`publishedAt`; the
  *  rest is filler so the fixture satisfies the real `EntryRepoPort.findById` return type. */
 function makeEntry(status: EntryStatus, publishedAt: string | null): EntryRecord {
   return {
@@ -69,18 +70,20 @@ test("createCommentsModule uses the injected spamCheck, not a hardcoded Heuristi
     },
   };
 
+  const clock = createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" });
   const commentsModule = createCommentsModule({
     commentRepo: new InMemoryCommentRepo(),
-    // status: "published" is required — a bug fix in `index.ts` (see its header) now rejects a
+    // status: "published" is required — a bug fix in Jini's `comments/module.ts` (see its header) now rejects a
     // non-published entry before this spamCheck is ever consulted; this fixture's entry must be
     // published for THIS test to still be exercising spamCheck injection, not the open-gate.
-    entryRepo: { findById: async () => makeEntry("published", null) },
+    entryLookup: async () => makeEntry("published", null),
     outbox: new InMemoryOutbox(),
-    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
+    clock,
+    ...createCommentsHostPorts({ clock }, {}),
     idGen: { newId: () => "comment-1" },
     spamCheck: spyingSpamCheck,
     ...commentTrashDoubles(),
-  });
+  }, {});
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());
 
@@ -92,15 +95,17 @@ test("createCommentsModule uses the injected spamCheck, not a hardcoded Heuristi
 });
 
 test("BUG REGRESSION: a draft entry (never published) rejects a public comment as entry-closed", async () => {
+  const clock = createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" });
   const commentsModule = createCommentsModule({
     commentRepo: new InMemoryCommentRepo(),
-    entryRepo: { findById: async () => makeEntry("draft", null) },
+    entryLookup: async () => makeEntry("draft", null),
     outbox: new InMemoryOutbox(),
-    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
+    clock,
+    ...createCommentsHostPorts({ clock }, {}),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
-  });
+  }, {});
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());
   assert.equal(result.ok, false, "a draft entry must reject the submission, not accept it");
@@ -108,18 +113,20 @@ test("BUG REGRESSION: a draft entry (never published) rejects a public comment a
 });
 
 test("BUG REGRESSION: an unpublished (retracted) entry rejects a public comment as entry-closed, even though publishedAt is still set", async () => {
+  const clock = createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" });
   const commentsModule = createCommentsModule({
     commentRepo: new InMemoryCommentRepo(),
     // publishedAt intentionally stale/non-null here, mirroring unpublishEntry's own real behavior
     // (it does not clear publishedAt on retraction) — the point of this test is that `status`
     // alone, not `publishedAt`, must decide this.
-    entryRepo: { findById: async () => makeEntry("unpublished", "2020-01-01T00:00:00.000Z") },
+    entryLookup: async () => makeEntry("unpublished", "2020-01-01T00:00:00.000Z"),
     outbox: new InMemoryOutbox(),
-    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
+    clock,
+    ...createCommentsHostPorts({ clock }, {}),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
-  });
+  }, {});
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());
   assert.equal(result.ok, false, "an unpublished entry must reject the submission, not accept it");
@@ -127,15 +134,17 @@ test("BUG REGRESSION: an unpublished (retracted) entry rejects a public comment 
 });
 
 test("a published entry with no closeAfterDays cap still accepts a public comment (positive control)", async () => {
+  const clock = createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" });
   const commentsModule = createCommentsModule({
     commentRepo: new InMemoryCommentRepo(),
-    entryRepo: { findById: async () => makeEntry("published", "2026-01-01T00:00:00.000Z") },
+    entryLookup: async () => makeEntry("published", "2026-01-01T00:00:00.000Z"),
     outbox: new InMemoryOutbox(),
-    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
+    clock,
+    ...createCommentsHostPorts({ clock }, {}),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
-  });
+  }, {});
 
   const result = await commentsModule.ingressPolicy.submit(makeSubmission());
   assert.equal(result.ok, true, `a published, open entry must accept the submission: ${JSON.stringify(result)}`);
@@ -146,16 +155,17 @@ for (const ageDays of [6, 7, 7 + 1 / 86400, 8]) {
     const nowIso = "2026-08-29T00:00:00.000Z";
     const commentRepo = new InMemoryCommentRepo();
     const publishedAt = new Date(Date.parse(nowIso) - ageDays * 86400_000).toISOString();
+    const clock = createFakeClock({ startIso: nowIso });
     const commentsModule = createCommentsModule({
       commentRepo,
-      entryRepo: { findById: async () => makeEntry("published", publishedAt) },
+      entryLookup: async () => makeEntry("published", publishedAt),
       outbox: new InMemoryOutbox(),
-      clock: createFakeClock({ startIso: nowIso }),
+      clock,
+      ...createCommentsHostPorts({ clock }, { settings: { ...DEFAULT_COMMENTS_SETTINGS, closeAfterDays: 7 } }),
       idGen: { newId: () => "comment-1" },
       spamCheck: new HeuristicSpamCheck(),
-      settings: { ...DEFAULT_COMMENTS_SETTINGS, closeAfterDays: 7 },
       ...commentTrashDoubles(),
-    });
+    }, {});
     const result = await commentsModule.ingressPolicy.submit(makeSubmission());
     assert.equal(result.ok, ageDays <= 7, JSON.stringify(result));
     if (!result.ok) assert.equal(result.reason, "entry-closed");
@@ -172,13 +182,12 @@ test("one composed module reads ledger changes live for both ingress and the ent
   await ensureCommentsSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-comments" });
   const commentsModule = createCommentsModule({
     commentRepo: new InMemoryCommentRepo(),
-    entryRepo: { findById: async () => makeEntry("published", "2026-08-21T00:00:00.000Z") },
+    entryLookup: async () => makeEntry("published", "2026-08-21T00:00:00.000Z"),
     outbox: new InMemoryOutbox(), clock, idGen: ids, spamCheck: new HeuristicSpamCheck(),
-    settingsRepo,
     // The ledger takes precedence over this deliberately conflicting fixed fallback.
-    settings: { ...DEFAULT_COMMENTS_SETTINGS, enabled: false },
+    ...createCommentsHostPorts({ clock, settingsRepo }, { settings: { ...DEFAULT_COMMENTS_SETTINGS, enabled: false } }),
     ...commentTrashDoubles(),
-  });
+  }, {});
   const patch = (values: Parameters<typeof setCommentsSettings>[1]["patch"]) => setCommentsSettings(settingsDeps, {
     workspaceId: WORKSPACE_ID, callerPrincipalId: "operator", patch: values,
   });
@@ -198,16 +207,18 @@ test("the composed writeService forwards removal, restore, and transaction depen
   const trash = commentTrashDoubles();
   let transactions = 0;
   let sequence = 0;
+  const clock = createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" });
   const commentsModule = createCommentsModule({
     commentRepo,
-    entryRepo: { findById: async () => makeEntry("published", null) },
+    entryLookup: async () => makeEntry("published", null),
     outbox: new InMemoryOutbox(),
-    clock: createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" }),
+    clock,
+    ...createCommentsHostPorts({ clock }, {}),
     idGen: { newId: () => `composed-comment-${++sequence}` },
     spamCheck: new HeuristicSpamCheck(),
     ...trash,
     runInTransaction: async (fn) => { transactions += 1; return fn(); },
-  });
+  }, {});
   const submitted = await commentsModule.ingressPolicy.submit(makeSubmission());
   assert.equal(submitted.ok, true);
   if (!submitted.ok) return;

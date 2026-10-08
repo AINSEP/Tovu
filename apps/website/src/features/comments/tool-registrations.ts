@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/comments.js';
 /**
  * @file Comments' half of ADR-049 Decision 4 (ADR-031/SPEC-033/SPEC-035): maps `agent-tools.ts`'s
  * seven catalog entries onto the moderation queue, the four moderation transitions, and the two
@@ -22,19 +23,17 @@ import { ToolInputError } from "@jini-ai/core";
 import { ForbiddenError as SettingsForbiddenError, type SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { ToolContributor } from "#src/assistant/index";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { commentsAgentToolCatalog } from "./agent-tools.js";
-import type { CommentRepoPort } from "./ports.js";
-import { CommentNotFoundError, CommentsSettingsValidationError, CommentVersionConflictError } from "./errors.js";
+import type { CommentRepoPort } from "@jini-ai/cms/comments";
+import { CommentNotFoundError, CommentsSettingsValidationError, CommentVersionConflictError } from "@jini-ai/cms/comments";
 import { getCommentsSettings, setCommentsSettings } from "./settings.js";
-import { COMMENT_STATUSES } from "./types.js";
-import type {
-  CommentsSettings,
-  CommentStatus,
-  ModerationAction,
-  ModerationQueuePage,
-} from "./types.js";
-import type { CommentWriteService } from "./write-service.js";
+import { COMMENT_STATUSES } from "@jini-ai/cms/comments";
+import type { CommentsSettings, CommentStatus, ModerationAction, ModerationQueuePage } from "@jini-ai/cms/comments";
+import type { CommentWriteService } from "@jini-ai/cms/comments";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: commentsAgentToolCatalog });
 
@@ -202,7 +201,7 @@ function requireCommentsSettingsPatch(input: Record<string, unknown>): Partial<C
 
 export function buildCommentsRegistrations(
   routeDeps: CommentsToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     comments_list_moderation_queue: async (ctx) => {
@@ -295,7 +294,7 @@ export function buildCommentsRegistrations(
   };
 
   // No `unwiredToolIds`: Comments wires its ENTIRE catalog, same tripwire discipline as Forms.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "comments",
     catalogModule: "comments/agent-tools.ts",
     catalog: CATALOG_BY_ID,

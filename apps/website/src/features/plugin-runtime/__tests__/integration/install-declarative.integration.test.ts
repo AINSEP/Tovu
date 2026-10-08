@@ -1,3 +1,4 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /** AW-7 Tier 1 (2026-10-04): a manifest-only (tier-1) package installs with no code, and only that. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -8,9 +9,9 @@ import { createHash } from "node:crypto";
 
 import { pluginInstallConsent } from "#src/cli/commands/plugin/install";
 
-import { installSitePlugin, previewSitePluginInstall } from "../../install.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
-import { discoverPlugins } from "../../discovery.js";
+import { installSitePlugin, previewSitePluginInstall } from "@jini-ai/plugins/host/node";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { discoverPlugins } from "@jini-ai/plugins/host/node";
 
 const sha = (text: string) => `sha256-${createHash("sha256").update(text).digest("hex")}`;
 
@@ -42,7 +43,7 @@ async function fixture(files: Record<string, string> = { "README.md": "# Testimo
     await writeFile(path.join(sourceDir, "tovu.plugin.json"), JSON.stringify({ ...manifest, integrity }));
   };
   await writeAll();
-  const deps = { installDir, builtInIds: ["word-count"], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
+  const deps = { ...pluginHostBinding, installDir, builtInIds: ["word-count"], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
   return { root, sourceDir, installDir, manifest, files, writeAll, deps };
 }
 
@@ -53,7 +54,7 @@ test("a tier-1 package previews as code-free with its content types, installs, a
   assert.equal(preview.hasCode, false);
   assert.deepEqual(preview.contentTypes, ["faq"]);
   await installSitePlugin({ sourceDir: f.sourceDir, expectedDigest: preview.digest, deps: f.deps });
-  const [listed] = await discoverPlugins({ builtIns: [], installDir: f.installDir });
+  const [listed] = await discoverPlugins({ ...pluginHostBinding, builtIns: [], installDir: f.installDir });
   assert.equal(listed?.status, "valid");
   assert.equal(listed?.tier, "tier-1");
 });

@@ -104,6 +104,6 @@ describe("WIDGETS_DICT: cross-locale key parity", () => {
 describe("WIDGETS_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Save' in German even though WIDGETS_DICT.de never carries it", () => {
     expect(WIDGETS_DICT.de.Save).toBeUndefined();
-    expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
+    expect(t({ locale: "de", key: "Save" })).toBe(COMMON_I18N.de.Save);
   });
 });

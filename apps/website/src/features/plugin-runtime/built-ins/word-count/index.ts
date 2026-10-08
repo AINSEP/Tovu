@@ -20,8 +20,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { BuiltInPluginSource } from "../../discovery.js";
-import type { PluginManifest } from "../../manifest.js";
+import type { BuiltInPluginSource } from "@jini-ai/plugins/host/node";
+import type { PluginManifest } from "@jini-ai/plugins/host";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
 /** The built-in's in-code manifest-equivalent (ADR Decision item 4). */

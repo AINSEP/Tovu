@@ -13,7 +13,7 @@
  * projection over this module's own `PluginDiscoveryRecord`/`PluginActivationRecord` types, and
  * `tool-registrations.ts` (this same module) reuses it verbatim for the agent-tool response — a
  * feature reaching into its host's HTTP layer for its own domain's DTO, the same "domain importing
- * its host's transport module" misplacement `widgets/where-used.ts` was relocated for.
+ * its host's transport module" misplacement `Jini/packages/cms/src/widgets/where-used.ts` was relocated for.
  * `server/http/admin/plugins.ts` re-exports this symbol so its own consumers
  * (`routes/admin/plugins/list.ts`/`set-enabled.ts`) keep their existing import site.
  *
@@ -23,9 +23,9 @@
  * `tier`/`status`/`errors` with activation's `enabled`/quarantine fields into the wire envelope.
  * Verified against `server/http/admin/__tests__/unit/plugins-dto.unit.test.ts`.
  */
-import type { PluginActivationRecord } from "./activation.js";
-import type { PluginDiscoveryRecord } from "./discovery.js";
-import type { PluginConflict } from "./plugin-claims.js";
+import type { PluginActivationRecord } from "@jini-ai/plugins/host";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginConflict } from "@jini-ai/plugins/host";
 
 /** api.spec.md §5 `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
 export interface AdminPluginEnvelope {

@@ -8,15 +8,15 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { PRE_AUTHORIZED } from "../../authorize-helper.js";
-import { areaDocWithPlacements, buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson, parseWidgetAreaPayload, parseWidgetInstancePayload } from "../../entry-payload.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { areaDocWithPlacements, buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson, parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
-import { WIDGET_AREA_CONTENT_TYPE } from "../../types.js";
+import { WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 
 /**
  * @file Closes the region/placement request-shape and defensive-lookup gaps that are unique to
- * `tool-registrations.ts` itself — logic that does not live in `region-area-service.ts` or the
+ * `tool-registrations.ts` itself — logic that does not live in `Jini/packages/cms/src/widgets/region-area-service.ts` or the
  * admin HTTP routes, so it is not exercised by `region-area-service.integration.test.ts` or
  * `admin-widgets-routes.test.ts` even though both touch adjacent code:
  *
@@ -116,11 +116,11 @@ async function injectPlacementDirectly(
 ): Promise<void> {
   const areaEntry = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: areaEntryId });
   assert.ok(areaEntry, "expected the area entry to already exist");
-  const payload = parseWidgetAreaPayload(areaEntry.fieldsJson);
+  const payload = parseWidgetAreaPayload({ fieldsJson: areaEntry.fieldsJson });
   const nextDoc = areaDocWithPlacements({ doc: payload.doc, placements: [placement] });
   await deps.entryRepo.save({
     ...areaEntry,
-    fieldsJson: buildWidgetAreaFieldsJson({ regionKey: payload.regionKey, doc: nextDoc }),
+    fieldsJson: buildWidgetAreaFieldsJson({ payload: { regionKey: payload.regionKey, doc: nextDoc } }),
     version: areaEntry.version + 1,
   });
 }
@@ -196,7 +196,7 @@ test("widgets_set_region_placements: an omitted placementId is auto-assigned via
   assert.equal(out.area.version, region.version + 1);
   const stored = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: region.areaEntryId });
   assert.ok(stored);
-  assert.deepEqual(parseWidgetAreaPayload(stored.fieldsJson).doc.placements, [
+  assert.deepEqual(parseWidgetAreaPayload({ fieldsJson: stored.fieldsJson }).doc.placements, [
     { placementId: "generated-placement-1", widgetEntryId: widget.id, enabled: true },
     { placementId: "generated-placement-2", widgetEntryId: widget.id, enabled: false },
   ]);
@@ -329,8 +329,8 @@ test("widgets_get_region: a widget whose payload still carries a legacy non-acti
   // What an older build's "delete permanently" left behind: the row stays, its payload says purged.
   const entry = await deps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: widget.id });
   assert.ok(entry);
-  const payload = parseWidgetInstancePayload(entry.fieldsJson);
-  await deps.entryRepo.save({ ...entry, fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "purged" }), version: entry.version + 1 });
+  const payload = parseWidgetInstancePayload({ fieldsJson: entry.fieldsJson });
+  await deps.entryRepo.save({ ...entry, fieldsJson: buildWidgetInstanceFieldsJson({ payload: { ...payload, status: "purged" } }), version: entry.version + 1 });
 
   const out = (await wired("widgets_get_region", deps).handler(executionContext({ regionKey: "footer" }))) as {
     placements: Array<{ broken: boolean; widgetTitle: string | null; widgetType: string | null }>;

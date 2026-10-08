@@ -7,7 +7,7 @@ import { readDefinedPlugin } from "../../plugin-export.js";
 
 /**
  * @file `readDefinedPlugin()` — only a `definePlugin()` default export is a valid plugin module
- * (shared by `loader.ts` step 4 and the Tier-2 worker).
+ * (shared by `Jini/packages/plugins/src/host/node/loader.ts` step 4 and the Tier-2 worker).
  */
 
 test("accepts a definePlugin() default export and returns it", () => {

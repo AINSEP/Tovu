@@ -1,5 +1,5 @@
-import { MAX_IMPORT_BATCH_SIZE, MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID_STATUS_CODES } from "./redirects.js";
-import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES } from "./types.js";
+import { MAX_IMPORT_BATCH_SIZE, MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID_STATUS_CODES } from "@jini-ai/cms/redirects";
+import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES } from "@jini-ai/cms/redirects";
 
 /**
  * @file The Redirects domain's agent-tool catalog, instantiating SPEC-016 REQ-22's
@@ -37,7 +37,7 @@ import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES } from "./typ
  *
  * Architectural role:
  * `redirects` domain logic. Imports only the constants its own domain already enforces
- * (`redirects.ts`'s length/priority/status-code/batch-size bounds), so the published JSON Schemas
+ * (Jini `packages/cms/src/redirects/redirects.ts`'s length/priority/status-code/batch-size bounds), so the published JSON Schemas
  * cannot drift from the validators — same discipline `seo/agent-tools.ts` uses for
  * `write-service.ts`'s constants.
  */

@@ -5,10 +5,10 @@ import { createToolRegistry, ToolInputError } from "@jini-ai/core";
 
 import { CONTENT_ANALYZER_MANIFEST } from "../../built-ins/content-analyzer/index.js";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
-import type { PluginActivationRecord } from "../../activation.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
-import type { PluginDiscoveryRecord } from "../../discovery.js";
-import type { PluginManifest } from "../../manifest.js";
+import type { PluginActivationRecord } from "@jini-ai/plugins/host";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import type { PluginManifest } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
 import {
@@ -64,7 +64,7 @@ function discoveryRecord(manifest: PluginManifest, status: PluginDiscoveryRecord
 }
 
 function activationRepoWith(records: PluginActivationRecord[]): InMemoryPluginActivationRepo {
-  return new InMemoryPluginActivationRepo(records);
+  return new InMemoryPluginActivationRepo({ initialRows: records });
 }
 
 function enabledActivation(pluginId: string): PluginActivationRecord {

@@ -1,3 +1,4 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -12,28 +13,22 @@ import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerConte
 import { createEntry } from "#src/features/entries/index";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { PRE_AUTHORIZED } from "../../authorize-helper.js";
-import {
-  insertWidgetEmbed,
-  removeWidgetEmbed,
-  reorderWidgetEmbeds,
-  WidgetEmbedReorderCountMismatchError,
-  type EmbedServiceDeps,
-} from "../../embed-service.js";
-import { WidgetEmbedGuardrailError, WidgetEmbedPlacementNotFoundError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors.js";
-import { createWidgetInstance, trashWidgetInstance, type WidgetTrashDeps } from "../../write-service.js";
-import { buildWidgetInstanceFieldsJson, buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload.js";
-import { WIDGET_AREA_CONTENT_TYPE } from "../../types.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, WidgetEmbedReorderCountMismatchError, type EmbedServiceDeps } from "@jini-ai/cms/widgets";
+import { WidgetEmbedGuardrailError, WidgetEmbedPlacementNotFoundError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";
+import { createWidgetInstance, trashWidgetInstance, type WidgetTrashDeps } from "@jini-ai/cms/widgets";
+import { buildWidgetInstanceFieldsJson, buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "@jini-ai/cms/widgets";
+import { WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
- * @file C-007 `embed-service.ts` — SPEC-043 REQ-44/45, ADR-047 Debate Fold-In Amendment 6.
+ * @file C-007 `Jini/packages/cms/src/widgets/embed-service.ts` — SPEC-043 REQ-44/45, ADR-047 Debate Fold-In Amendment 6.
  *
  * Real in-memory adapters throughout (`InMemoryEntryRepo`, `InMemoryContentTypeRepo`,
  * `InMemoryEntryRefsRepo`) — no mocking of the chokepoint, per Constitution Article V. Proves the
  * server-side embed-mutation path composes the SAME `updateEntry` chokepoint (with its new,
  * additive `bodyJson` parameter) and the SAME `validateWidgetEmbedMutation` guardrail
- * (`embed-validation.ts`, already certified) the live-editor path is documented to call — this
+ * (`Jini/packages/cms/src/widgets/embed-validation.ts`, already certified) the live-editor path is documented to call — this
  * suite is the concrete evidence that path exists and behaves per REQ-44/45/INV-04.
  */
 
@@ -140,7 +135,7 @@ function makeSharedRepos() {
 
 let idCounter = 0;
 function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<EmbedServiceDeps> = {}): EmbedServiceDeps {
-  return {
+  return { host: buildWidgetHostPorts({}, {}),
     ...repos,
     // Required by `rollback`'s `restorePostForward`; nothing here trashes a post, so it never fires.
     forgetRemovedPost: async () => {},
@@ -153,7 +148,7 @@ function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<
 }
 
 function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetTrashDeps {
-  return {
+  return { host: buildWidgetHostPorts({}, {}),
     ...repos,
     remove: repos.trash.remove,
     clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") },
@@ -257,7 +252,7 @@ test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-17): a widget_area
   const host = await makeHostEntry(repos);
 
   await ensureWidgetContentTypesRegistered({
-    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
+    deps: { host: buildWidgetHostPorts({}, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({
@@ -268,7 +263,7 @@ test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-17): a widget_area
       type: WIDGET_AREA_CONTENT_TYPE,
       slug: `widget-area-footer-${idCounter}`,
       title: "Footer area",
-      fieldsJson: buildWidgetAreaFieldsJson({ regionKey: "footer", doc: emptyWidgetAreaDoc() }),
+      fieldsJson: buildWidgetAreaFieldsJson({ payload: { regionKey: "footer", doc: emptyWidgetAreaDoc({}) } }),
     },
   });
   if (!areaCreated.ok) throw areaCreated.error;
@@ -497,7 +492,7 @@ test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reo
   const inserted = await insertWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: w1 } });
 
   await ensureWidgetContentTypesRegistered({
-    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
+    deps: { host: buildWidgetHostPorts({}, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse("2026-07-21T00:00:00.000Z") }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({
@@ -508,7 +503,7 @@ test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reo
       type: WIDGET_AREA_CONTENT_TYPE,
       slug: `widget-area-reorder-${idCounter}`,
       title: "Footer area",
-      fieldsJson: buildWidgetAreaFieldsJson({ regionKey: "footer", doc: emptyWidgetAreaDoc() }),
+      fieldsJson: buildWidgetAreaFieldsJson({ payload: { regionKey: "footer", doc: emptyWidgetAreaDoc({}) } }),
     },
   });
   if (!areaCreated.ok) throw areaCreated.error;
@@ -572,7 +567,7 @@ test("insertWidgetEmbed rolls back document, version, refs and revision when ref
   db.$client.prepare(`INSERT INTO entries (id, workspace_id, type, slug, status, title, fields_json, body_json, created_at, updated_at, version)
     VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, 1)`).run("host-atomic", WORKSPACE_ID, HOST_CONTENT_TYPE, "host-atomic", "Host", '{"ext":{"site":{}}}', JSON.stringify(body), "2026-07-21T00:00:00.000Z", "2026-07-21T00:00:00.000Z");
   db.$client.prepare(`INSERT INTO entries (id, workspace_id, type, slug, status, title, fields_json, created_at, updated_at, version)
-    VALUES (?, ?, 'widget', ?, 'draft', ?, ?, ?, ?, 1)`).run("widget-atomic", WORKSPACE_ID, "widget-atomic", "Widget", JSON.stringify(buildWidgetInstanceFieldsJson({ widgetType: "text", config: { body: "hello" }, status: "active" })), "2026-07-21T00:00:00.000Z", "2026-07-21T00:00:00.000Z");
+    VALUES (?, ?, 'widget', ?, 'draft', ?, ?, ?, ?, 1)`).run("widget-atomic", WORKSPACE_ID, "widget-atomic", "Widget", JSON.stringify(buildWidgetInstanceFieldsJson({ payload: { widgetType: "text", config: { body: "hello" }, status: "active" } })), "2026-07-21T00:00:00.000Z", "2026-07-21T00:00:00.000Z");
   await entryRefsRepo.replaceForSource({ workspaceId: WORKSPACE_ID, sourceEntryId: "host-atomic", refs: [
     { workspaceId: WORKSPACE_ID, sourceEntryId: "host-atomic", sourceKind: "widget-embed", fieldPath: "bodyJson.content[1]", targetKind: "entry", targetId: "widget-atomic" },
   ] });
@@ -590,7 +585,7 @@ test("insertWidgetEmbed rolls back document, version, refs and revision when ref
       throw failure;
     }
   }
-  await assert.rejects(insertWidgetEmbed({ deps: { ...deps, entryRefsRepo: new FailingRefs(db) },
+  await assert.rejects(insertWidgetEmbed({ deps: { host: buildWidgetHostPorts({}, {}), ...deps, entryRefsRepo: new FailingRefs(db) },
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: "host-atomic", baseVersion: 1, widgetEntryId: "widget-atomic" } }), (error) => error === failure);
   assert.equal(refWrites, 1, "failure follows a real ref write");
   assert.deepEqual(await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: "host-atomic" }), before);

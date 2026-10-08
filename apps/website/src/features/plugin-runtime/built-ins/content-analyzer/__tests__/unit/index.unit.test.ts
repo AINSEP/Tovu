@@ -1,10 +1,11 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { validateManifest } from "../../../../manifest.js";
+import { validateManifest } from "@jini-ai/plugins/host";
 import {
   CONTENT_ANALYZER_BUILT_IN,
   CONTENT_ANALYZER_MANIFEST,
@@ -27,7 +28,7 @@ test("manifest: tier-2, fixed identity, one beforeSave hook, passes the one shar
   assert.equal(CONTENT_ANALYZER_MANIFEST.sdkRange, "^0.1.0 || ^0.2.0");
   assert.equal(CONTENT_ANALYZER_MANIFEST.engine, 1);
   assert.deepEqual(CONTENT_ANALYZER_MANIFEST.hooks, ["content.entry.beforeSave"]);
-  assert.deepEqual(validateManifest({ manifest: CONTENT_ANALYZER_MANIFEST, folderName: "content-analyzer", builtInIds: [] }).errors, []);
+  assert.deepEqual(validateManifest({ ...pluginHostBinding, manifest: CONTENT_ANALYZER_MANIFEST, folderName: "content-analyzer", builtInIds: [] }).errors, []);
   assert.equal(CONTENT_ANALYZER_BUILT_IN.manifest, CONTENT_ANALYZER_MANIFEST);
 });
 

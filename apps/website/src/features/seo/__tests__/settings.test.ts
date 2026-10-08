@@ -1,10 +1,12 @@
+import { createSeoFeaturedImagePort } from "../index.js";
+import { InMemoryMediaRepo } from "../../media/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, ForbiddenError } from "../../settings/index.js";
 import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings, type SeoSettingsPatch } from "../settings.js";
-import { SeoSettingsValidationError } from "../errors.js";
+import { SeoSettingsValidationError } from "@jini-ai/cms/seo";
 
 /**
  * @file T019 — failing-first unit certification of `getSeoSettings`/
@@ -31,6 +33,7 @@ function makeDeps(authorize = alwaysAllow) {
     ids,
     authorize,
     principals: new InMemoryPrincipalRepo({}, { initialRows: [] }),
+    media: { featuredImage: createSeoFeaturedImagePort({ deps: { mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }) } }, {}) },
   };
 }
 

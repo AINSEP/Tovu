@@ -4,7 +4,7 @@
 import * as yauzl from "yauzl";
 import { createYauzlAgentPluginArchiveReader, type YauzlPort } from "@jini-ai/agent-plugins/lifecycle/yauzl";
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
-import { PluginInstallError } from "./install.js";
+import { PluginInstallError } from "@jini-ai/plugins/host/node";
 
 export const MAX_PLUGIN_ARCHIVE_BYTES = 32 * 1024 * 1024;
 // Compatibility guard for published Jini readers that classify a trailing slash before Unix mode.

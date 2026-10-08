@@ -10,8 +10,8 @@
  *
  * Deliberate absences (the point of a catalog, not an oversight):
  * - There is NO `forms_delete_definition`, and no description here may imply one. A form
- *   definition is removed permanently only by a Trash purge (owner ruling 2026-09-21, superseding
- *   the original INV-08 "never deleted" wording) — never through this catalog's tools — and
+ *   definition is removed permanently only by a Trash purge under the owner's policy, never
+ *   through this catalog's tools, and
  *   `FormDefinitionRepoPort` enforces that structurally by exposing no `delete` method at all.
  *   "Delete this form" must therefore route an agent to `forms_set_definition_status` (to disable
  *   it) or to the Trash's own tools — never to a lever that does not exist here. This mirrors
@@ -43,7 +43,7 @@
  * `forms` domain declaration. Imports only the constants its own domain already enforces, so the
  * published JSON Schemas cannot drift from the validators. Deliberately does NOT import
  * `./manifest` (ADR-PIPE-010 Enforcement: the manifest is read BY activation code, never BY domain
- * code) — the field-type list is taken from `@jini-ai/cms-forms`, which now owns the validators
+ * code) — the field-type list is taken from `@jini-ai/cms/forms`, which now owns the validators
  * and their rationale.
  */
 
@@ -58,8 +58,8 @@ import {
   MAX_LABEL_LENGTH,
   MAX_MAX_LENGTH,
   MIN_MAX_LENGTH,
-} from "@jini-ai/cms-forms";
-import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "@jini-ai/cms-forms";
+} from "@jini-ai/cms/forms";
+import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "@jini-ai/cms/forms";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
@@ -187,7 +187,6 @@ const NO_INPUT_SCHEMA = {
  * The two submission tools are gated on the SEPARATE `admin.forms.submissions.read` permission —
  * exactly what `routes/admin/forms/{list,get}-submissions.ts` check, since submissions are visitor
  * data with their own permission tier, not form-configuration state.
- * FORMS_CAPABILITIES (features/forms/manifest.ts) was deleted 2026-10-03: unused; see development/DELETED-CODE.md.
  */
 export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {

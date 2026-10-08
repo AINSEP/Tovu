@@ -25,8 +25,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { BuiltInPluginSource } from "../../discovery.js";
-import type { PluginManifest } from "../../manifest.js";
+import type { BuiltInPluginSource } from "@jini-ai/plugins/host/node";
+import type { PluginManifest } from "@jini-ai/plugins/host";
 
 /** The built-in's in-code manifest-equivalent (ADR Decision item 4). Field descriptions become the
  * agent's `search_tools` text, so each names the words an owner would actually ask with. */

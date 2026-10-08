@@ -1,3 +1,4 @@
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -10,7 +11,7 @@ import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/r
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import type { RedirectRecord, RedirectRevision } from "../types.js";
+import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
 
 /**
  * @file The multi-site lifecycle contract for `registerRedirectsPhaseHandlers` — a phase handler
@@ -227,9 +228,10 @@ test("the disposer registerRedirectsPhaseHandlers returns revokes the live regis
   // Re-registering the same feature returns a disposer for the slot it now owns. A host that tears
   // a site down WITHOUT immediately composing the next one needs this: supersede-on-registration
   // alone would leave the last site's handler live until something else booted.
-  const { RedirectPhaseHandlerResolver, registerRedirectsPhaseHandlers } = await import("../phase-handler.js");
+  const { registerRedirectsPhaseHandlers } = await import("../phase-handler.js");
+  const { RedirectPhaseHandlerResolver } = await import("@jini-ai/cms/redirects");
   const dispose = registerRedirectsPhaseHandlers({
-    resolver: new RedirectPhaseHandlerResolver({
+    resolver: new RedirectPhaseHandlerResolver({ reservedSegments: RESERVED_SEGMENTS,
       repo: site.deps.redirectRepo,
       matcher: site.deps.redirectsWriteDeps.matcher,
       originRegistry: site.deps.originRegistry,

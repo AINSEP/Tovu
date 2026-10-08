@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolRegistration } from "@jini-ai/core";
 
-import { PluginInstallError, type PluginInstallInput, type PluginInstallerPort, type PluginInstallPreview } from "../../install.js";
+import { PluginInstallError, type PluginInstallInput, type PluginInstallerPort, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
 import { buildRegistrations, catalog, type PluginsInstallToolDeps } from "../../install-tool.js";
 
 const PRINCIPAL = "principal-1";

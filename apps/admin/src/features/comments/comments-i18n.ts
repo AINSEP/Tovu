@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Dictionary for the Comments feature, covering all 18 target locales. Covers `rules.ts`'s
  * moderation-queue row-menu labels (`commentRowMenuItems`: Approve/Spam/Trash/Restore/Purge), the
@@ -8,7 +9,7 @@
  * `redirects-i18n.tsx`/`integrations-i18n.tsx`/`recovery-i18n.tsx`'s matching notes for that
  * earlier pass), now closed.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const COMMENTS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -939,4 +940,4 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(COMMENTS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: COMMENTS_DICT }, { commonDictionary: COMMON_I18N });

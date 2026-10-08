@@ -7,9 +7,12 @@ import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
-import { createSurfaceExchangeStore } from "../../../../contracts/core/tool-surface-exchanges.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file RED test for row 31 (S14): `plugins_list`'s own file header has claimed since 2026-08-23
@@ -51,7 +54,7 @@ test("plugins_list reports agentPlugins: [] with an empty Agent Plugins dir, and
   const priorDir = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = tmpDir;
   try {
-    const surfaceExchanges = createSurfaceExchangeStore();
+    const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
     const registration = buildPluginsRegistrations(fakeDeps(), { surfaceExchanges }).find((r) => r.descriptor.id === "plugins_list");
     assert.ok(registration, "expected 'plugins_list' to be wired inside buildPluginsRegistrations");
 

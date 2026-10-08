@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { registerRedirectsPhaseHandlers } from "../phase-handler.js";
+import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
 import { resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/routing";
 import type { RouteResolveContext } from "#src/platform/routing/types";
 

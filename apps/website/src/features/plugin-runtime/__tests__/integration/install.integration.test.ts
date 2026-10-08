@@ -1,3 +1,4 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /** Local plugin install plan (2026-09-22), decisions 2–7: real filesystem, never imports code. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -5,9 +6,9 @@ import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink, link, open }
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { installSitePlugin, previewSitePluginInstall } from "../../install.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
-import { discoverPlugins } from "../../discovery.js";
+import { installSitePlugin, previewSitePluginInstall } from "@jini-ai/plugins/host/node";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { discoverPlugins } from "@jini-ai/plugins/host/node";
 import { composePluginRuntime } from "#src/server/runtime/composition/plugin-runtime";
 
 async function fixture() {
@@ -23,7 +24,7 @@ async function fixture() {
   manifest.integrity["server/index.mjs"] = `sha256-${createHash("sha256").update(code).digest("hex")}`;
   const save = () => writeFile(path.join(sourceDir, "tovu.plugin.json"), JSON.stringify(manifest));
   await save();
-  const deps = { installDir, builtInIds: ["word-count"], repo, conflicts: async () => [] };
+  const deps = { ...pluginHostBinding, installDir, builtInIds: ["word-count"], repo, conflicts: async () => [] };
   return { root, sourceDir, installDir, manifest, save, deps, repo };
 }
 
@@ -35,7 +36,7 @@ test("folder preview -> install publishes valid bytes, stays off everywhere and 
   await installSitePlugin({ sourceDir: f.sourceDir, expectedDigest: preview.digest, deps: f.deps });
   assert.equal(await readFile(path.join(f.installDir, "local-test/1.0.0/server/index.mjs"), "utf8"), "throw new Error('INSTALL EXECUTED PLUGIN');");
   assert.deepEqual(await f.repo.listAll(), []);
-  const listed = await discoverPlugins({ builtIns: [], installDir: f.installDir });
+  const listed = await discoverPlugins({ ...pluginHostBinding, builtIns: [], installDir: f.installDir });
   assert.equal(listed[0]?.status, "valid");
   assert.deepEqual(await readdir(path.join(f.root, "plugins-staging")), []);
 });

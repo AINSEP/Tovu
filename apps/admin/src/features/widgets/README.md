@@ -3,13 +3,14 @@
 Widget instances and the regions they're placed into — four screens behind the sidebar's
 **Content → Widgets** entry.
 
-| file | what it is |
-|---|---|
-| `WidgetsLibrary.tsx` | List of all widget instances, create/delete. |
-| `WidgetInstanceEditor.tsx` | Per-widget config editor, plus "where used" (which regions reference it). |
-| `WidgetRegions.tsx` | List of widget regions (areas a theme exposes). |
-| `WidgetRegionEditor.tsx` | Per-region placement editor — add/remove/reorder widget instances within a region. |
-| `index.ts` | The only surface `panels.tsx` may import. |
+Screens live in `@jini-ai/admin/widgets`; React pages are mounted through
+`@jini-ai/admin/widgets/react`. `index.ts` keeps the four public exports and route props, so
+`panels.tsx` remains the route and agent-page owner. Jini owns library/editor/regions/region
+controllers and rules; `widgets-i18n.ts` retains this host's dictionaries and common fallback.
+
+`integrations/jini-admin/widgets-ports.ts` binds authenticated HTTP, refresh and navigation.
+`widgets-module.hooks.ts` binds live locale, catalog/default config, slug replacement, status
+labels, shared component slots and the widgets publish contribution.
 
 ## What this feature does not own
 
@@ -18,6 +19,8 @@ Widget instances and the regions they're placed into — four screens behind the
 
 ## Notes for anyone editing here
 
-`WidgetsLibrary.tsx` and `WidgetInstanceEditor.tsx` have unit tests (`__tests__/`).
-`WidgetRegions.tsx` and `WidgetRegionEditor.tsx` do not — treat changes there as unverified until
-driven in a browser.
+Screen/rule/hook suites moved with their subjects to Jini's `widgets/{react/,}__tests__/`.
+Host dictionary coverage stays in `__tests__/widgets-i18n.unit.test.ts`; actual locale, nested
+config translation, picker/placement and route wiring stay in
+`integrations/jini-admin/__tests__/widgets-swap.unit.test.tsx`. Coordinator runs these and the
+unchanged shared-component suites, then checks all four screens in Chrome before release.

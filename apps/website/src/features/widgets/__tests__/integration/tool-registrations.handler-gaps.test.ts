@@ -8,8 +8,8 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
-import { PRE_AUTHORIZED } from "../../authorize-helper.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
 
 /**

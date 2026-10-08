@@ -27,6 +27,8 @@
  * Implementation Outline slice 3 (ADR-057, Implementation Outline). Depends on slice 1's frozen
  * `manifest.ts`/`ports.ts` contracts.
  */
+import { mergeGlueToolRegistrations as mergeJiniGlueToolRegistrations } from "@jini-ai/plugins/glue";
+
 import type { GlueHostPort, GlueToolRegistration } from "../ports.js";
 
 /** One glue module's own tool-registration contribution, not yet built. `build()` may throw —
@@ -88,49 +90,29 @@ export function mergeGlueToolRegistrations(
   _optional: MergeGlueToolRegistrationsOptional = {}
 ): MergeGlueToolRegistrationsResult {
   const { coreToolIds, glueModules, hostPort } = required;
-  const claimedToolIds = new Set<string>(coreToolIds);
-  const registeredModuleIds: string[] = [];
-  const quarantined: GlueToolQuarantineEntry[] = [];
-
-  const quarantine = (moduleId: string, reason: GlueToolQuarantineReason, detail: string): void => {
-    quarantined.push({ moduleId, reason, detail });
+  const result = mergeJiniGlueToolRegistrations({
+    coreToolIds,
+    // Invoke the original method with no arguments and its original receiver, inside Jini's
+    // per-module catch; adapting the ABI must not move a build failure outside containment.
+    glueModules: glueModules.map((module) => ({
+      // Read the ID when Jini uses it, as the former merge loop did, rather than before build().
+      get moduleId() { return module.moduleId; },
+      build: () => module.build(),
+    })),
+    hostPort: {
+      registerTools: ({ moduleId, registrations }) => {
+        // Jini passes the original Tovu registrations through untouched. Recover the broader
+        // host handler type here without wrapping handlers or changing registration identity.
+        hostPort.registerTools(moduleId, registrations as readonly GlueToolRegistration[]);
+      },
+    },
+  });
+  return {
+    registeredModuleIds: result.registeredModuleIds,
+    quarantined: result.quarantined.map((entry) => entry.reason === "DUPLICATE_TOOL_ID" ? {
+      ...entry,
+      // Preserve Tovu's exact diagnostic, including collisions within one module's own batch.
+      detail: entry.detail.replace(/by core or an earlier glue module$/, "by core, an earlier glue module, or this module"),
+    } : entry),
   };
-  const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
-
-  for (const module of glueModules) {
-    let registrations: readonly GlueToolRegistration[];
-    try {
-      registrations = module.build();
-    } catch (error) {
-      quarantine(module.moduleId, "THROW", `registration build failed: ${messageOf(error)}`);
-      continue;
-    }
-
-    const moduleToolIds = new Set<string>();
-    const duplicate = registrations.find((registration) => {
-      if (claimedToolIds.has(registration.toolId) || moduleToolIds.has(registration.toolId)) return true;
-      moduleToolIds.add(registration.toolId);
-      return false;
-    });
-    if (duplicate) {
-      quarantine(
-        module.moduleId,
-        "DUPLICATE_TOOL_ID",
-        `tool id '${duplicate.toolId}' is already registered by core, an earlier glue module, or this module`
-      );
-      continue;
-    }
-
-    try {
-      hostPort.registerTools(module.moduleId, registrations);
-    } catch (error) {
-      quarantine(module.moduleId, "THROW", `host port registration failed: ${messageOf(error)}`);
-      continue;
-    }
-
-    for (const registration of registrations) claimedToolIds.add(registration.toolId);
-    registeredModuleIds.push(module.moduleId);
-  }
-
-  return { registeredModuleIds, quarantined };
 }

@@ -1,3 +1,4 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -6,12 +7,12 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
 import { InMemoryEntryRepo, createEntry } from "#src/features/entries/index";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
-import { PRE_AUTHORIZED } from "../../authorize-helper.js";
-import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, type EmbedServiceDeps } from "../../embed-service.js";
-import { WidgetInstanceNotFoundError } from "../../errors.js";
-import { createWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service.js";
-import { buildWidgetAreaFieldsJson, emptyWidgetAreaDoc, ensureWidgetContentTypesRegistered } from "../../entry-payload.js";
-import { WIDGET_AREA_CONTENT_TYPE } from "../../types.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, type EmbedServiceDeps } from "@jini-ai/cms/widgets";
+import { WidgetInstanceNotFoundError } from "@jini-ai/cms/widgets";
+import { createWidgetInstance, type WidgetWriteServiceDeps } from "@jini-ai/cms/widgets";
+import { buildWidgetAreaFieldsJson, emptyWidgetAreaDoc, ensureWidgetContentTypesRegistered } from "@jini-ai/cms/widgets";
+import { WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
@@ -48,10 +49,12 @@ let idCounter = 0;
 
 function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<EmbedServiceDeps> = {}): EmbedServiceDeps {
   return {
+    host: buildWidgetHostPorts({ postRepo: repos.postRepo }, {}),
     entryRepo: repos.entryRepo,
     contentTypeRepo: repos.contentTypeRepo,
     entryRefsRepo: repos.entryRefsRepo,
     postRepo: repos.postRepo,
+    forgetRemovedPost: async () => assert.fail("embedding and compensation never remove a post"),
     changeSets: repos.changeSets,
     clock: { nowMs: () => Date.parse(NOW) },
     ids: { newId: () => `id-${++idCounter}` },
@@ -62,7 +65,7 @@ function makeDeps(repos: ReturnType<typeof makeSharedRepos>, overrides: Partial<
 }
 
 function widgetWriteDeps(repos: ReturnType<typeof makeSharedRepos>): WidgetWriteServiceDeps {
-  return {
+  return { host: buildWidgetHostPorts({}, {}),
     entryRepo: repos.entryRepo,
     contentTypeRepo: repos.contentTypeRepo,
     entryRefsRepo: repos.entryRefsRepo,
@@ -112,7 +115,7 @@ function embedsIn(bodyJson: unknown): Array<{ placementId: string; widgetEntryId
 
 async function makeWidgetAreaHost(repos: ReturnType<typeof makeSharedRepos>): Promise<string> {
   await ensureWidgetContentTypesRegistered({
-    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
+    deps: { host: buildWidgetHostPorts({}, {}), contentTypeRepo: repos.contentTypeRepo, clock: { nowMs: () => Date.parse(NOW) }, ids: { newId: () => `ct-${++idCounter}` }, outbox: new InMemoryOutbox() },
     workspaceId: WORKSPACE_ID,
   });
   const areaCreated = await createEntry({
@@ -123,7 +126,7 @@ async function makeWidgetAreaHost(repos: ReturnType<typeof makeSharedRepos>): Pr
       type: WIDGET_AREA_CONTENT_TYPE,
       slug: `widget-area-${idCounter}`,
       title: "Footer area",
-      fieldsJson: buildWidgetAreaFieldsJson({ regionKey: `footer-${idCounter}`, doc: emptyWidgetAreaDoc() }),
+      fieldsJson: buildWidgetAreaFieldsJson({ payload: { regionKey: `footer-${idCounter}`, doc: emptyWidgetAreaDoc({}) } }),
     },
   });
   if (!areaCreated.ok) throw areaCreated.error;
@@ -158,7 +161,7 @@ test("REQ-44 post-host fix: insertWidgetEmbed against a kind:'post' doc host suc
 });
 
 /**
- * 2026-09-18 post_revisions ledger addition — `writePostHostBody` (`embed-service.ts`) was flagged
+ * 2026-09-18 post_revisions ledger addition — `writePostHostBody` (`Jini/packages/cms/src/widgets/embed-service.ts`) was flagged
  * as a call site worth checking carefully: it calls `updatePost(...)` from inside `executeCommand`'s
  * `mutation.execute`, not as a bare top-level call, so it was unclear whether it was a genuine
  * command-gateway write or a bypass of it. It is the former — this proves the post_revisions ledger

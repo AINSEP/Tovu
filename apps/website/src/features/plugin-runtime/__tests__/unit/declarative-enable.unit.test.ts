@@ -1,12 +1,14 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /** AW-7 Tier 1 (2026-10-04): enabling a declarative plugin applies its manifest instead of importing code. */
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 
-import { PluginInvalidError } from "../../activation.js";
-import { createDeclaredContentTypePorts, deferDeclaredContentTypePorts, enableDeclaredPlugin } from "../../declarative-enable.js";
-import type { PluginManifest } from "../../manifest.js";
+import { PluginInvalidError } from "@jini-ai/plugins/host";
+import { createDeclaredContentTypePorts } from "../../declarative-enable.js";
+import { deferDeclaredContentTypePorts, enableDeclaredPlugin } from "@jini-ai/plugins/host";
+import type { PluginManifest } from "@jini-ai/plugins/host";
 
 const WS = "ws-1";
 const FAQ = { key: "faq", label: "FAQ", fields: [{ name: "answer", kind: "text", required: true }] };
@@ -38,7 +40,7 @@ function harness(withPorts = true) {
   const order: string[] = [];
   const enable = (m: PluginManifest) =>
     enableDeclaredPlugin(
-      {
+      { ...pluginHostBinding,
         pluginId: "testimonials-faq",
         workspaceId: WS,
         manifest: m,
@@ -148,7 +150,7 @@ test("a type registration that fails after the code loaded detaches the code and
   const failing = { ...h.ports, register: async (input: Parameters<typeof h.ports.register>[0]) => (input.key === "fresh" ? { ok: false as const, error: boom } : h.ports.register(input)) };
   await assert.rejects(
     enableDeclaredPlugin(
-      { pluginId: "testimonials-faq", workspaceId: WS, manifest: manifest({ tier: "tier-3", contentTypes: [FAQ, fresh] }), loadCode: async () => { h.order.push("code"); }, unloadCode: () => { h.order.push("unload"); } },
+      { ...pluginHostBinding, pluginId: "testimonials-faq", workspaceId: WS, manifest: manifest({ tier: "tier-3", contentTypes: [FAQ, fresh] }), loadCode: async () => { h.order.push("code"); }, unloadCode: () => { h.order.push("unload"); } },
       { contentTypes: failing },
     ),
     (error: unknown) => error === boom,

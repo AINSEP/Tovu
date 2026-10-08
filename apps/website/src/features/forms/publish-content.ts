@@ -3,9 +3,10 @@ import { trashedAtDestination } from "#src/features/publish-content/precheck-rea
 import { createRepoPublishHandler, gatewayDeps, type FieldDisposition } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
 
-import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError } from "@jini-ai/cms-forms";
-import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, NotifyConfig } from "@jini-ai/cms-forms";
-import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "./write-service.js";
+import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError } from "@jini-ai/cms/forms";
+import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, NotifyConfig } from "@jini-ai/cms/forms";
+import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
+import { FORMS_TABLES } from "./repo.sqlite.js";
 
 /**
  * @file `form` on the publish factory (`features/publish-content/repo-handler.ts`). Carries the form's
@@ -23,7 +24,7 @@ const NOTIFY: FieldDisposition = "transferred";
 export const contributeFormPublish = (): PublishContentContributor =>
   createRepoPublishHandler<FormDefinitionRecord, PublishContentPorts["form"]>({
     entityType: "form",
-    coversTables: ["form_definitions"],
+    coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",
     ports: (deps) => deps.ports.form,
     list: (p, workspaceId) => p.repo.list({ workspaceId }),

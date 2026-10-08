@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import {
@@ -10,7 +11,8 @@ import {
 } from "@jini-ai/core";
 
 import type { ToolContributor } from "#src/assistant/index";
-import { PluginInstallError, sitePluginLocalInstallEnabled, type PluginInstallInput, type PluginInstallPreview } from "./install.js";
+import { PluginInstallError, type PluginInstallInput, type PluginInstallPreview } from "@jini-ai/plugins/host/node";
+import { sitePluginLocalInstallEnabled } from "./install.js";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "./install-archive.js";
 import { pluginInstallRiskSentence } from "./install-consent.js";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "./install-source.js";
@@ -85,7 +87,7 @@ function refusedResult(error: PluginInstallError, pluginId: string): unknown {
  * @complexity O(package bytes) twice (preview and install each inspect).
  */
 export function buildRegistrations(deps: PluginsInstallToolDeps, _optional: Record<string, never> = {}): ToolRegistration[] {
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "plugins-install",
     catalogModule: "features/plugin-runtime/install-tool.ts",
     catalog: indexCatalogById({ catalog }),

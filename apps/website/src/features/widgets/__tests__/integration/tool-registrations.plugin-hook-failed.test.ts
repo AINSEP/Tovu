@@ -1,3 +1,4 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,10 +9,10 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { createHookRegistry } from "#src/features/plugin-runtime/hook-registry";
+import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo, type BeforeSaveHookPort, type PostRecord } from "#src/features/post/index";
-import { PRE_AUTHORIZED } from "../../authorize-helper.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 
@@ -41,11 +42,11 @@ const RAW_PLUGIN_TEXT = "SQLITE_CORRUPT reading /Users/owner/site/.tovu/data.sql
 const REFUSAL = `PLUGIN_HOOK_FAILED: a site plugin (${PLUGIN_ID}) refused this save; the content was not saved`;
 
 function refusingHook(): BeforeSaveHookPort {
-  const registry = createHookRegistry();
-  registry.attach(PLUGIN_ID, "site", async () => {
+  const registry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
+  registry.attach({ pluginId: PLUGIN_ID, source: "site", filter: async () => {
     throw new Error(RAW_PLUGIN_TEXT);
-  }, []);
-  return registry.runBeforeSave;
+  }, declaredFields: [] });
+  return (entry) => registry.runBeforeSave({ entry });
 }
 
 /** A hook port whose behavior a case swaps mid-test; starts as "no plugin contributes a patch". */

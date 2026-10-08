@@ -5,16 +5,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { getActivation, setPluginEnabled, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError } from "../../activation.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
-import type { PluginDiscoveryRecord } from "../../discovery.js";
-import { PluginLoadError } from "../../loader.js";
+import { getActivation, setPluginEnabled, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError } from "@jini-ai/plugins/host";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import { PluginLoadError } from "@jini-ai/plugins/host/node";
 import { buildAc11FixtureInstallDir } from "../fixtures/ac11-fixture.js";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
-import { PluginHookFailedError } from "../../hook-registry.js";
+import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo, createPost } from "#src/features/post/index";
 import { toAdminPluginResponse } from "#src/features/plugin-runtime/admin-response";
 
@@ -139,7 +139,7 @@ test("REQ-07: a failed enable side effect restores the prior activation and reth
     enabled: false,
     updatedAt: "2026-07-27T00:00:00.000Z",
   } as const;
-  const repo = new InMemoryPluginActivationRepo([prior]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [prior] });
   const originalError = new Error("enable side effect failed");
 
   await assert.rejects(
@@ -191,7 +191,7 @@ test("REQ-07: a failed first enable removes the newly-created activation and ret
 });
 
 test("REQ-07: a compensation failure never masks the original enable side-effect error", async () => {
-  const backing = new InMemoryPluginActivationRepo([
+  const backing = new InMemoryPluginActivationRepo({ initialRows: [
     {
       pluginId: "word-count",
       workspaceId: WORKSPACE,
@@ -199,7 +199,7 @@ test("REQ-07: a compensation failure never masks the original enable side-effect
       enabled: false,
       updatedAt: "2026-07-27T00:00:00.000Z",
     },
-  ]);
+  ] });
   let saveCalls = 0;
   const repo = {
     getActivation: backing.getActivation.bind(backing),
@@ -261,7 +261,7 @@ test("REQ-07: a failed disable side effect restores the prior activation and ret
     enabled: true,
     updatedAt: "2026-07-28T00:00:00.000Z",
   } as const;
-  const repo = new InMemoryPluginActivationRepo([prior]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [prior] });
   const originalError = new Error("disable side effect failed");
 
   await assert.rejects(
@@ -313,7 +313,7 @@ test("REQ-07: a failed first-time disable removes the newly-created activation a
 });
 
 test("REQ-07: a compensation failure never masks the original disable side-effect error", async () => {
-  const backing = new InMemoryPluginActivationRepo([
+  const backing = new InMemoryPluginActivationRepo({ initialRows: [
     {
       pluginId: "word-count",
       workspaceId: WORKSPACE,
@@ -321,7 +321,7 @@ test("REQ-07: a compensation failure never masks the original disable side-effec
       enabled: true,
       updatedAt: "2026-07-28T00:00:00.000Z",
     },
-  ]);
+  ] });
   let saveCalls = 0;
   const repo = {
     getActivation: backing.getActivation.bind(backing),

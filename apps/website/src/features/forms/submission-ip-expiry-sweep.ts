@@ -1,7 +1,7 @@
-import * as forms from "@jini-ai/cms-forms";
+import * as forms from "@jini-ai/cms/forms";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { createSubmissionIpRetentionRepo } from "./submission-ip-retention-repo.js";
-import type { SubmissionIpSweep } from "./submission-ip-retention-port.js";
+import { createSubmissionIpRetentionRepo } from "#src/features/forms/repo.sqlite";
+type SubmissionIpSweep = typeof import("@jini-ai/cms/forms").sweepExpiredSubmissionIps;
 
 /** Daily after the boot pass; the 90-day policy constant belongs solely to Jini. */
 export const SUBMISSION_IP_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;

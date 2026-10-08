@@ -26,9 +26,10 @@
  * Design-frozen contract for the extension-glue-tier work (ADR-057, Implementation Outline slice
  * 1). No host-specific dependencies; blocks every other slice. Depends on `core/`'s
  * `SharedExtensionCapability` for the three-member overlap with the sibling plugin mechanism's own
- * vocabulary (below both features, not a sibling-to-sibling import — 2026-08-20 swarm-consensus
- * synthesis, Result 1).
+ * vocabulary (below both features, avoiding a sibling-to-sibling dependency).
  */
+
+import { validateGlueManifest as validateJiniGlueManifest, resolveCallSiteDispatch as resolveJiniCallSiteDispatch } from "@jini-ai/plugins/glue";
 
 import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../contracts/core/extension-capability-vocabulary.js";
 
@@ -105,34 +106,28 @@ export interface ValidateGlueManifestResult {
   readonly errors: readonly GlueManifestValidationError[];
 }
 
-const REQUIRED_KEYS = ["id", "version", "sdkRange", "capabilities", "attachments"] as const;
-const ALLOWED_KEYS = new Set<string>(REQUIRED_KEYS);
-
-const VALID_CAPABILITIES = new Set<GlueCapability>([
+const VALID_CAPABILITIES: readonly GlueCapability[] = [
   ...SHARED_EXTENSION_CAPABILITIES,
   "tools.register",
   "events.subscribe",
   "admin.nav.register",
   "render.contribute",
   "http.route.register",
-]);
+];
 
-const VALID_CALL_SITES = new Set<GlueCallSite>([
+const VALID_CALL_SITES: readonly GlueCallSite[] = [
   "content.entry.beforeSave",
   "assistant.tools",
   "events.subscribe",
   "admin.nav",
   "render.contribute",
   "http.routes",
-]);
+];
 
 /** The three call sites with a real adapter in v1 (ADR-057 Decision 2's dispatch table — three
  * real entries, three typed placeholders). Wiring a fourth is "add one member here," never a
  * manifest-schema change. */
-const WIRED_CALL_SITES = new Set<GlueCallSite>(["content.entry.beforeSave", "assistant.tools", "events.subscribe"]);
-
-const ID_PATTERN = /^[a-z0-9-]+$/;
-const MAX_ID_LENGTH = 50;
+const WIRED_CALL_SITES: readonly GlueCallSite[] = ["content.entry.beforeSave", "assistant.tools", "events.subscribe"];
 
 /**
  * Auto-quarantine threshold (SPEC-048 REQ-17, ADR-057 Decision 5 / Open #1) — a placeholder the
@@ -146,105 +141,10 @@ export const AUTO_QUARANTINE_THRESHOLD_PLACEHOLDER = Object.freeze({
   windowMs: 5 * 60 * 1000,
 });
 
-function malformed(message: string): GlueManifestValidationError {
-  return { code: "MANIFEST_MALFORMED", file: null, message };
-}
-
-/** Unknown-key and missing-required-key checks. */
-function validateKeys(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
-  const errors: GlueManifestValidationError[] = [];
-  for (const key of Object.keys(raw)) {
-    if (!ALLOWED_KEYS.has(key)) {
-      errors.push(malformed(`unknown manifest key '${key}'`));
-    }
-  }
-  for (const key of REQUIRED_KEYS) {
-    if (raw[key] === undefined) {
-      errors.push(malformed(`missing required manifest field '${key}'`));
-    }
-  }
-  return errors;
-}
-
-/** id: format only (no folder-match/shadow check — those are the loader's on-disk concern, a
- * later slice; this manifest's closed contract carries no folderName/builtInIds input). */
-function validateId(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
-  const errors: GlueManifestValidationError[] = [];
-  const id = typeof raw.id === "string" ? raw.id : undefined;
-  if (raw.id !== undefined && id === undefined) {
-    errors.push(malformed("'id' must be a string"));
-  }
-  if (id !== undefined && (!ID_PATTERN.test(id) || id.length < 1 || id.length > MAX_ID_LENGTH)) {
-    errors.push(malformed(`id '${id}' must match ${ID_PATTERN} and be 1-${MAX_ID_LENGTH} characters`));
-  }
-  return errors;
-}
-
-/** version / sdkRange: presence-checked only, same as the sibling validator's own choice not to
- * format-check these two fields (sdkRange's actual compatibility check is a load-time, not a
- * validation-time, concern). */
-function validateVersionAndSdkRange(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
-  const errors: GlueManifestValidationError[] = [];
-  if (raw.version !== undefined && typeof raw.version !== "string") {
-    errors.push(malformed("'version' must be a string"));
-  }
-  if (raw.sdkRange !== undefined && typeof raw.sdkRange !== "string") {
-    errors.push(malformed("'sdkRange' must be a string"));
-  }
-  return errors;
-}
-
-/** capabilities (REQ-1). */
-function validateCapabilities(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
-  const errors: GlueManifestValidationError[] = [];
-  const capabilities = Array.isArray(raw.capabilities) ? raw.capabilities : [];
-  if (raw.capabilities !== undefined && !Array.isArray(raw.capabilities)) {
-    errors.push(malformed("'capabilities' must be an array"));
-  }
-  for (const capability of capabilities) {
-    if (typeof capability !== "string" || !VALID_CAPABILITIES.has(capability as GlueCapability)) {
-      errors.push({
-        code: "CAPABILITY_UNKNOWN",
-        file: null,
-        message: `capability '${String(capability)}' is outside the v1 vocabulary`,
-      });
-    }
-  }
-  return errors;
-}
-
-/** One `attachments[]` entry (ADR-057 Decision 2: all six call sites accepted here; only three
- * are wired for DISPATCH — that distinction is {@link resolveCallSiteDispatch}'s job, not this
- * one's). */
-function validateAttachment(attachment: unknown): GlueManifestValidationError[] {
-  if (typeof attachment !== "object" || attachment === null || Array.isArray(attachment)) {
-    return [malformed("each 'attachments' entry must be an object")];
-  }
-  const callSite = (attachment as Readonly<Record<string, unknown>>).callSite;
-  if (typeof callSite !== "string" || !VALID_CALL_SITES.has(callSite as GlueCallSite)) {
-    return [
-      {
-        code: "CALL_SITE_UNKNOWN",
-        file: null,
-        message: `call site '${String(callSite)}' is outside the closed six-member vocabulary`,
-      },
-    ];
-  }
-  return [];
-}
-
-/** attachments (REQ-1/ADR-057 Decision 2). */
-function validateAttachments(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
-  const errors: GlueManifestValidationError[] = [];
-  const attachments = Array.isArray(raw.attachments) ? raw.attachments : [];
-  if (raw.attachments !== undefined && !Array.isArray(raw.attachments)) {
-    errors.push(malformed("'attachments' must be an array"));
-  }
-  for (const attachment of attachments) {
-    errors.push(...validateAttachment(attachment));
-  }
-  return errors;
-}
+// Canonical validation: Jini/packages/plugins/src/glue/manifest.ts.
+// IDs receive format checks only; folder-match/shadow checks belong to the on-disk loader.
+// version/sdkRange are presence/type-checked; actual compatibility is a load-time concern.
+// Manifest validation accepts all six call sites; dispatch separately rejects unwired adapters.
 
 /**
  * Validates one already-parsed glue manifest, collecting every applicable error rather than
@@ -260,24 +160,19 @@ export function validateGlueManifest(
   required: ValidateGlueManifestRequired,
   _optional: ValidateGlueManifestOptional = {}
 ): ValidateGlueManifestResult {
-  const { manifest } = required;
-
-  if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
-    return { errors: [malformed("glue manifest must be a JSON object")] };
-  }
-
-  // Treat the input as a read-only bag of unknown values — never assigned back into.
-  const raw = manifest as Readonly<Record<string, unknown>>;
-
-  const errors: GlueManifestValidationError[] = [
-    ...validateKeys(raw),
-    ...validateId(raw),
-    ...validateVersionAndSdkRange(raw),
-    ...validateCapabilities(raw),
-    ...validateAttachments(raw),
-  ];
-
-  return { errors };
+  const result = validateJiniGlueManifest({
+    manifest: required.manifest,
+    vocabulary: { capabilities: VALID_CAPABILITIES, callSites: VALID_CALL_SITES },
+  });
+  // Error codes/order and host wording are the existing Tovu contract; Jini owns validation.
+  return { errors: result.errors.map((error) => ({
+    ...error,
+    message: error.code === "CAPABILITY_UNKNOWN"
+      ? error.message.replace(/outside the supplied capability vocabulary$/, "outside the v1 vocabulary")
+      : error.code === "CALL_SITE_UNKNOWN"
+        ? error.message.replace(/outside the supplied call-site vocabulary$/, "outside the closed six-member vocabulary")
+        : error.message,
+  })) };
 }
 
 /** The result of checking whether a (schema-valid) call site has a real adapter wired in v1. */
@@ -297,5 +192,5 @@ export type GlueCallSiteDispatchStatus =
  * @overallScore 100/100
  */
 export function resolveCallSiteDispatch(callSite: GlueCallSite): GlueCallSiteDispatchStatus {
-  return WIRED_CALL_SITES.has(callSite) ? { wired: true } : { wired: false, code: "UNWIRED_CALL_SITE" };
+  return resolveJiniCallSiteDispatch({ callSite, wiredCallSites: WIRED_CALL_SITES });
 }

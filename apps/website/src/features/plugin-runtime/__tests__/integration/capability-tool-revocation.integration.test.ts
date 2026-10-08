@@ -4,12 +4,12 @@ import test from "node:test";
 import { createToolRegistry, type Principal, type ToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "../../activation.js";
+import { setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { registerEnabledPluginCapabilityTools } from "../../capability-tool-registrations.js";
-import type { PluginDiscoveryRecord } from "../../discovery.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
-import { uninstallPlugin } from "../../uninstall.js";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { uninstallPlugin } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
 
@@ -85,7 +85,7 @@ async function callCapabilityTool(registry: ToolRegistry) {
 }
 
 test("a site plugin disabled through setPluginEnabled — the composition both the admin route and plugins_set_enabled use — is refused in the already-running daemon, with no restart", async () => {
-  const repo = new InMemoryPluginActivationRepo([activation(true)]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [activation(true)] });
   const registry = await bootDaemonToolSurface(repo);
 
   const before = await callCapabilityTool(registry);
@@ -103,7 +103,7 @@ test("a site plugin disabled through setPluginEnabled — the composition both t
 });
 
 test("any writer of the activation row revokes the tool, and re-enabling restores the already-registered tool", async () => {
-  const repo = new InMemoryPluginActivationRepo([activation(true)]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [activation(true)] });
   const registry = await bootDaemonToolSurface(repo);
 
   await repo.save(activation(false));
@@ -116,7 +116,7 @@ test("any writer of the activation row revokes the tool, and re-enabling restore
 });
 
 test("moving a plugin to Trash retains its disabled activation and leaves the tool refused", async () => {
-  const repo = new InMemoryPluginActivationRepo([activation(true)]);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [activation(true)] });
   const registry = await bootDaemonToolSurface(repo);
 
   await repo.save(activation(false));
@@ -136,7 +136,7 @@ test("moving a plugin to Trash retains its disabled activation and leaves the to
 });
 
 test("an activation read that throws DENIES and says why in the server log — it never completes", async (t) => {
-  const inner = new InMemoryPluginActivationRepo([activation(true)]);
+  const inner = new InMemoryPluginActivationRepo({ initialRows: [activation(true)] });
   let failReads = false;
   const flaky: PluginActivationRepoPort = {
     getActivation: async (required) => {

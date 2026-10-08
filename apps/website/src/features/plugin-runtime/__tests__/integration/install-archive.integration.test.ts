@@ -1,3 +1,4 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 /** Owner-approved ZIP install: adversarial real archives and streamed-byte caps. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,14 +7,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { buildZipFixture } from "../../../agent-plugins/__tests__/fixtures/build-zip.js";
 import { readSitePluginArchive, MAX_PLUGIN_ARCHIVE_BYTES } from "../../install-archive.js";
-import { previewSitePluginInstall, installSitePlugin } from "../../install.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
+import { previewSitePluginInstall, installSitePlugin } from "@jini-ai/plugins/host/node";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { sitePluginZip } from "../fixtures/site-plugin-zip.js";
 
 test("ZIP review and install reuse folder validation and stay off without executing code", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "site-plugin-zip-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const deps = { installDir: path.join(root, "plugins"), builtInIds: [], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
+  const deps = { ...pluginHostBinding, installDir: path.join(root, "plugins"), builtInIds: [], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
   const archive = await sitePluginZip();
   const preview = await previewSitePluginInstall({ archive, deps });
   await assert.rejects(installSitePlugin({ archive, deps, expectedDigest: "sha256-" + "a".repeat(64) }), { code: "PLUGIN_CHANGED_SINCE_PREVIEW" });
@@ -72,7 +73,7 @@ test("ZIP caps compressed bytes, entry count and real expanded bytes", async () 
 
 test("invalid ZIP and invalid CMS manifests never publish", async () => {
   await assert.rejects(readSitePluginArchive({ archive: Buffer.from("not a zip") }), { code: "PLUGIN_ARCHIVE_INVALID" });
-  const deps = { installDir: "/unused", builtInIds: [], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
+  const deps = { ...pluginHostBinding, installDir: "/unused", builtInIds: [], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
   const archive = await buildZipFixture([{ path: "tovu.plugin.json", content: "{}" }]);
   await assert.rejects(previewSitePluginInstall({ archive, deps }), { code: "PLUGIN_MANIFEST_INVALID" });
 });

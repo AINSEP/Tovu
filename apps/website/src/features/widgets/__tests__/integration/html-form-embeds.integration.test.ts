@@ -1,15 +1,16 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
-import { InMemoryFormDefinitionRepo } from "#src/features/forms/repo.memory";
+import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { renderHtmlPageBody, renderWidgetIr } from "#src/server/inbound/public-http/http/site/render";
 import { FORM_BASELINE_STYLE, injectFormSubmissionResultIntoHtml } from "#src/server/inbound/public-http/http/site/form-render";
-import { renderHtmlForm } from "#src/features/forms/html-render";
+import { renderHtmlForm } from "@jini-ai/cms/forms";
 import { checkMarkupFile } from "#src/features/theme/validation/markup";
-import { resolveHtmlPageEmbeds } from "../../resolver-service.js";
-import { registerCoreResolver, createContactFormResolver } from "../../resolvers/index.js";
-import { WIDGET_PAYLOAD_FIELD } from "../../entry-payload.js";
-import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "../../types.js";
+import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
+import { registerCoreResolver, createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
+import { WIDGET_PAYLOAD_FIELD } from "@jini-ai/cms/widgets";
+import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "@jini-ai/cms/widgets";
 
 /** Owner acceptance 2026-10-04: one renderer, two marker spellings, occurrence-specific HTML mode. */
 async function harness() {
@@ -33,7 +34,7 @@ async function harness() {
 test("form slug, form id and widget spellings resolve identically and fill plain POST actions", async () => {
   const deps = await harness();
   const html = ['{"type":"form","id":"contact","mode":"html"}', '{"type":"form","id":"form-1","mode":"html"}', '{"type":"widget","id":"widget-1","mode":"html"}'].map((config) => `<div data-embed-config='${config}'></div>`).join("");
-  const resolved = await resolveHtmlPageEmbeds({ deps, input: { workspaceId: "ws", html } });
+  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html } });
   assert.deepEqual(resolved.get("form")?.get("contact"), resolved.get("widget")?.get("widget-1"));
   const rendered = renderHtmlPageBody(html, resolved);
   assert.equal((rendered.match(/<form /g) ?? []).length, 3);
@@ -51,13 +52,13 @@ test("form slug, form id and widget spellings resolve identically and fill plain
 test("HTML mode is per occurrence, and native POST results reveal plain confirmation/error slots", async () => {
   const deps = await harness();
   const html = `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div><div data-embed-config='{"type":"widget","id":"widget-1","mode":"html"}'></div>`;
-  const resolved = await resolveHtmlPageEmbeds({ deps, input: { workspaceId: "ws", html } });
+  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html } });
   const rendered = renderHtmlPageBody(html, resolved);
   assert.match(rendered, /class="widget tovu-form widget-contact-form"/);
   assert.match(rendered, /<form class="tovu-form" data-tovu-form="contact"/);
   assert.equal(resolved.get("widget")?.get("widget-1")?.props.mode, undefined);
   const plainHtml = `<div data-embed-config='{"type":"form","id":"contact","mode":"html"}'></div>`;
-  const plain = renderHtmlPageBody(plainHtml, await resolveHtmlPageEmbeds({ deps, input: { workspaceId: "ws", html: plainHtml } }));
+  const plain = renderHtmlPageBody(plainHtml, await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html: plainHtml } }));
   const success = injectFormSubmissionResultIntoHtml(plain, { kind: "success", slug: "contact" });
   assert.match(success, /data-tovu-form-success data-form-slug="contact" role="status">Thanks — your message has been sent\.<\/div>/);
   assert.match(success, /<form hidden class="tovu-form" data-tovu-form/);
@@ -79,9 +80,9 @@ test("HTML-mode forms carry the tovu-form hook and baseline style so they inheri
 });
 
 test("renderHtmlForm merges a host class with any extra classes instead of replacing them", () => {
-  const html = renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] }, { className: "tovu-form  author-form " });
+  const html = renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } }, { className: "tovu-form  author-form " });
   assert.match(html, /<form class="tovu-form author-form" data-tovu-form="contact"/);
-  assert.match(renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] }), /<form data-tovu-form="contact"/);
+  assert.match(renderHtmlForm({ slug: "contact", action: "/forms/contact/submit", fields: [] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } }), /<form data-tovu-form="contact"/);
 });
 
 test("theme validator accepts restored form vocabulary and mode key", () => {

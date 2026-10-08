@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/redirects.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
  * @file Redirects' half of ADR-049 Decision 4 (SPEC-009): maps `agent-tools.ts`'s 7 catalog entries
@@ -6,7 +7,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * joined the other 6 — see `agent-tools.ts`'s own file header for why).
  *
  * Authorization shape: none of `createRedirect`/`updateRedirect`/`tombstoneRedirect`
- * (`redirects.ts`) accept an `authorize` dependency at all — `RedirectsWriteDeps` has no such field,
+ * (Jini `packages/cms/src/redirects/redirects.ts`) accept an `authorize` dependency at all — `RedirectsWriteDeps` has no such field,
  * so the chokepoint itself never gates. Every admin route therefore calls `authorize()` inline as
  * its own first line, and every handler below does the same via the kit's `requireToolPermission`,
  * mirroring those routes' identical check (ADR-021 §2's single evaluator, located at the handler
@@ -15,37 +16,19 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalOneOf, optionalString, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolContributor } from "#src/assistant/index";
-import { forbiddenRule, type ModelFacingErrorRule } from "#src/contracts/core/model-facing-tool-errors";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
+import { forbiddenRule, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { getRedirectsAgentToolCatalog } from "./agent-tools.js";
-import type { RedirectHitSink, RedirectRepoPort } from "./ports.js";
-import {
-  createRedirect,
-  importRedirects,
-  tombstoneRedirect,
-  updateRedirect,
-  MAX_IMPORT_BATCH_SIZE,
-  type RedirectsWriteDeps,
-} from "./redirects.js";
-import {
-  REDIRECT_MATCH_TYPES,
-  REDIRECT_SOURCES,
-  REDIRECT_STATUSES,
-  RedirectConflictError,
-  RedirectLoopError,
-  RedirectNotFoundError,
-  RedirectTargetNotAllowedError,
-  RedirectValidationError,
-} from "./types.js";
-import type {
-  CreateRedirectInput,
-  RedirectMatchType,
-  RedirectRecord,
-  RedirectStatus,
-  RedirectStatusCode,
-} from "./types.js";
+import type { RedirectHitSink, RedirectRepoPort } from "@jini-ai/cms/redirects";
+import { createRedirect, importRedirects, tombstoneRedirect, updateRedirect, MAX_IMPORT_BATCH_SIZE, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES, RedirectConflictError, RedirectLoopError, RedirectNotFoundError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
+import type { CreateRedirectInput, RedirectMatchType, RedirectRecord, RedirectStatus, RedirectStatusCode } from "@jini-ai/cms/redirects";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: getRedirectsAgentToolCatalog() });
 
@@ -121,7 +104,7 @@ export const redirectsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
  * as `internal` and the model saw only a redacted INTERNAL_ERROR — it could not tell "that id does
  * not exist" or "that would loop" from a crash, and could not correct its call.
  *
- * Message safety, checked against every construction site in `redirects.ts`/`matcher.ts`/this
+ * Message safety, checked against every construction site in Jini `packages/cms/src/redirects/{redirects,matcher}.ts`/this
  * file: each message is fixed text plus the caller's own input (id, pattern, target, numbers) or a
  * fixed `siteRelativeTargetReason`/`siteRelativeRefusalReason` phrase — no paths, SQL, or other
  * tenants' data. `RedirectTargetNotAllowedError` names only the caller's `toTarget` and a fixed
@@ -130,7 +113,7 @@ export const redirectsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
  * stays redacted.
  */
 const REDIRECTS_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("REDIRECTS"),
+  forbiddenRule({ domainPrefix: "REDIRECTS", error: ForbiddenError }),
   { error: RedirectNotFoundError, code: "REDIRECTS_NOT_FOUND" },
   { error: RedirectValidationError, code: "REDIRECTS_VALIDATION" },
   { error: RedirectLoopError, code: "REDIRECTS_LOOP" },
@@ -140,7 +123,7 @@ const REDIRECTS_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
 
 export function buildRedirectsRegistrations(
   routeDeps: RedirectsToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     redirects_list: async (ctx) => {
@@ -270,7 +253,7 @@ export function buildRedirectsRegistrations(
     },
   };
 
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "redirects",
     catalogModule: "redirects/agent-tools.ts",
     catalog: CATALOG_BY_ID,

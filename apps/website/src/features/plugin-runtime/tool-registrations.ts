@@ -1,3 +1,4 @@
+import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../agent-plugins/activation-effects.js";
@@ -67,27 +68,18 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  */
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission, type OutboxPort } from "@jini-ai/cms/core";
-import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
+import { ToolInputError, type RememberedApprovalPort } from "@jini-ai/core";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
-import {
-  resolveConfirmationDecision,
-  type AssistantSurfaceDeps,
-  type ConfirmationOutcome,
-} from "../../contracts/core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
+import { federatedToolApprovalFingerprint } from "@jini-ai/mcp/federation";
 import type { ExternalMcpStoreDeps, ToolContributor } from "#src/assistant/index";
-// Now sourced from this same module — `toAdminPluginResponse` moved to
-// `features/plugin-runtime/admin-response.ts` (this domain's own projection), closing the back-edge
-// into `server/http/admin` this file used to carry. `server/http/admin/plugins.ts` re-exports the
-// same symbol so its own HTTP-route consumers are unaffected.
+// Keep the domain projection local: importing it from server/admin would invert the composition boundary.
 import { toAdminPluginResponse } from "./admin-response.js";
-import {
-  setPluginEnabled,
-  type PluginActivationRecord,
-  type PluginActivationRepoPort,
-} from "./activation.js";
+import { setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import { pluginAgentToolCatalog } from "./agent-tools.js";
-import type { PluginDiscoveryRecord } from "./discovery.js";
-import { PluginConflictError, type PluginConflict } from "./plugin-claims.js";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import { PluginConflictError, type PluginConflict } from "@jini-ai/plugins/host";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 // `plugins_uninstall` — mirrors `routes/admin/plugins/uninstall.ts`'s own composition exactly (same
 // business-rule module, same deps shape). See `agent-tools.ts`'s header for why this is NOT wrapped
@@ -99,26 +91,19 @@ import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/
 // exception is `PluginChangedSincePreviewError`, which `uninstallConfirmedPlugin` turns into a
 // not-removed result: it is not a refusal of the caller's input but a change while the confirmation
 // dialog was open (t91 F2.2).
-import {
-  PluginChangedSincePreviewError,
-  previewUninstallPlugin,
-  uninstallPlugin,
-  type PluginUninstallPreview,
-  type RemovePluginFn,
-  type UninstallPluginRequired,
-} from "./uninstall.js";
+import { PluginChangedSincePreviewError, previewUninstallPlugin, uninstallPlugin, type PluginUninstallPreview, type RemovePluginFn, type UninstallPluginRequired } from "@jini-ai/plugins/host";
 // The Agent Plugins half of `plugins_list` (see this file's header) — a deliberate, disclosed
 // cross-domain read. `resolve-agent-plugin-refs.ts`/`layout.ts` only, never
 // `features/agent-plugins/tool-registrations.ts` (a separate workstream's file; not touched here).
 import { resolveAgentPluginLayout } from "../agent-plugins/layout.js";
-import { listInstalledPlugins } from "../agent-plugins/resolve-agent-plugin-refs.js";
-import type { InstalledAgentPlugin } from "../agent-plugins/install.js";
+import { listInstalledPlugins } from "../agent-plugins/lifecycle.js";
+import type { InstalledAgentPlugin } from "../agent-plugins/lifecycle.js";
 // The Agent Plugin half of `plugins_set_enabled` (2026-09-09). `set-enabled.ts` is that feature's own
 // business rule — a DOMAIN module, deliberately not `agent-plugins/tool-registrations.ts` — so this
 // adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
 // "one tool, two families" section below.
 import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-plugins/set-enabled.js";
-// t91 F1.1/R2 (2026-09-16). `activation.ts` is the domain module that already defines these errors;
+// t91 F1.1/R2 (2026-09-16). `Jini/packages/plugins/src/host/activation.ts` is the domain module that already defines these errors;
 // importing it here adds no `plugin-runtime -> agent-plugins/tool-registrations` edge (same
 // reasoning as the `set-enabled.js` import above).
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
@@ -126,15 +111,15 @@ import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError 
 // enable path calls these same two primitives; see `applyAgentPluginDecision` below for why the
 // in-chat enable must not skip them.
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "../agent-plugins/federate-mcp.js";
-import { buildEnableConfirmationResource, PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./set-enabled-confirmation-ui.js";
-import { buildUninstallConfirmationResource, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstall-confirmation-ui.js";
+import { describeEnableApproval, PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./set-enabled-confirmation-ui.js";
+import { describeUninstallApproval, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstall-confirmation-ui.js";
 // The Agent Plugin branch of `plugins_uninstall` (S4, 2026-09-24) — the deleted standalone
 // `agent_plugins_uninstall` tool's own logic, moved rather than duplicated. `uninstall-tool.ts` is
 // this domain's entry point into that logic, deliberately not `agent-plugins/tool-registrations.ts`
 // (a separate workstream's file; not touched here, same reasoning as the `set-enabled.js` import
 // above). See that file's header for the merge.
-import { runAgentPluginUninstall } from "../agent-plugins/uninstall-tool.js";
-import type { PluginInstallerPort } from "./install.js";
+import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from "../agent-plugins/uninstall-tool.js";
+import type { PluginInstallerPort } from "@jini-ai/plugins/host/node";
 import type { OperatorLocaleDeps } from "../agent-plugins/operator-locale.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: pluginAgentToolCatalog });
@@ -156,9 +141,9 @@ function toAgentPluginListRow(p: InstalledAgentPlugin): AgentPluginListRow {
 /** Reads every installed Agent Plugin for `plugins_list`'s Agent Plugin half. Degrades to `[]` on
  *  any failure (see this file's header, "Failure isolation") rather than failing the whole tool
  *  call over the newer, less-exercised half of this tool. */
-async function listAgentPluginsForResponse(workspaceId: string): Promise<readonly AgentPluginListRow[]> {
+async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<readonly AgentPluginListRow[]> {
   try {
-    const installed = await listInstalledPlugins(resolveAgentPluginLayout().forWorkspace(workspaceId).root);
+    const installed = await (routeDeps.listInstalledAgentPlugins ?? listInstalledPlugins)(resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root);
     return installed.map(toAgentPluginListRow);
   } catch {
     return [];
@@ -182,6 +167,14 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   outbox: OutboxPort;
   pluginActivationRepo: PluginActivationRepoPort;
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+  /** Uses the existing activation owner; injection lets callers model lock failures without module replacement. */
+  assertAgentPluginActivationsWritable?: typeof assertAgentPluginActivationsWritable;
+  /** Bind the same lifecycle owner with host effects; no module replacement is needed for failures. */
+  setAgentPluginEnabled?: typeof setAgentPluginEnabled;
+  listInstalledAgentPlugins?: typeof listInstalledPlugins;
+  /** Bound to the existing remembered-approval store; only enable escalations get reusable keys. */
+  nativeApprovalMemory?: RememberedApprovalPort;
+  uninstallAgentPlugin?: AgentPluginUninstallToolDeps["uninstallAgentPlugin"];
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
   /** 2026-10-04 — see `routes/types.ts`'s `PluginRuntimeDeps.listPluginConflicts`. */
@@ -228,7 +221,7 @@ export const pluginsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
  * Tovu has two unrelated plugin systems that share the word "plugin":
  *
  * - `.tovu-plugin` SITE/RUNTIME plugins — this feature. Discovered by `discoverPlugins()`, activated
- *   as a database row through `activation.ts`'s `setPluginEnabled`, enable-hook may run ADR-023 DDL.
+ *   as a database row through `Jini/packages/plugins/src/host/activation.ts`'s `setPluginEnabled`, enable-hook may run ADR-023 DDL.
  * - AGENT PLUGINS — `features/agent-plugins/`. agent-plugins.org packages on disk, activated as a
  *   JSON record through `agent-plugins/set-enabled.ts`, whose `SKILL.md` is injected into a run's
  *   prompt and whose `agent_plugin_<id>` tool only exists while it is active.
@@ -283,126 +276,45 @@ function readSetEnabledRequest(rawInput: unknown): SetEnabledRequest {
   return { family, pluginId, enabled: input["enabled"] };
 }
 
-/**
- * Raises the enable-confirmation dialog and parks on the human's answer.
- *
- * Fails CLOSED when the execution context cannot hold a call open, exactly like
- * `content_post_delete`: degrading to "enable it and mention that we could not ask" would make the
- * confirmation decorative in precisely the contexts that most need it. Disabling is unaffected —
- * it never reaches here.
- *
- * @throws {Error} When there is no `emitSurface` to raise a dialog through.
- * @complexity O(1) plus the human's own latency, bounded by the exchange store's TTLs.
- */
-async function confirmEnable(
-  surfaces: AssistantSurfaceDeps,
-  ctx: Pick<ToolExecutionContext, "principal" | "signal">,
-  request: SetEnabledRequest,
-  optional: ToolExecutionOptions = {},
-): Promise<ConfirmationOutcome> {
-  const emitSurface = optional.emitSurface;
-  if (!emitSurface) {
-    throw new Error(
-      "plugins_set_enabled: this execution context has no interactive confirmation channel (no emitSurface), so a plugin " +
-        "cannot be enabled from here — enabling changes what the assistant itself can do and is not the model's to grant. " +
-        "Nothing was changed. Ask the operator to enable it from the admin, or disable (which needs no confirmation).",
-    );
+/** Fails CLOSED without an interactive transport: degrading to "remove it and mention we could
+ * not ask" would make confirmation decorative in precisely the contexts that most need it.
+ * A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
+ * handler open until the idle deadline. Core/host approval ports now own that abort lifecycle.
+ * ADR-055 Decision 6: a no-answer is a RESULT, not an exception. Nothing was changed or removed
+ * either way, and the model is still alive to read this and say something sensible. */
+/** Identity/version binding before and after consent. The existing MCP fingerprint owner
+ * hashes the version/digest metadata; no second hashing or approval store is introduced.
+ * Disabling removes capability, so it needs no identity grant and never raises a dialog.
+ * @complexity One family discovery scan, bounded by the installed package count. */
+export async function pluginApprovalIdentity(
+  { deps: routeDeps, request }: { deps: PluginsToolDeps; request: Pick<SetEnabledRequest, "family" | "pluginId"> }, _optional = {},
+): Promise<{ key: string; version?: string; label: string; discovery?: readonly PluginDiscoveryRecord[] }> {
+  let revision: string;
+  let version: string | undefined;
+  let label: string | undefined;
+  let discovery: readonly PluginDiscoveryRecord[] | undefined;
+  let schema: Readonly<Record<string, unknown>> = {};
+  if (request.family === "agent-plugin") {
+    const plugins = await (routeDeps.listInstalledAgentPlugins ?? listInstalledPlugins)(resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root);
+    const installed = plugins.filter(plugin => plugin.pluginId === request.pluginId);
+    if (installed.length === 0) throw new ToolInputError({ message: `Agent Plugin '${request.pluginId}' is not installed` });
+    // Every installed digest participates, independent of discovery ordering.
+    revision = JSON.stringify(installed.map(plugin => [plugin.version ?? null, plugin.archiveDigest]).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
+    version = installed.map(plugin => plugin.version).filter((value): value is string => value !== undefined).sort().join(", ");
+  } else {
+    discovery = structuredClone(await routeDeps.discoverPlugins());
+    const plugin = discovery.find(plugin => plugin.id === request.pluginId);
+    if (!plugin) throw new ToolInputError({ message: `plugin '${request.pluginId}' was not found in the current discovery snapshot` });
+    revision = plugin.version;
+    schema = { ...plugin.manifest };
+    version = plugin.version; label = plugin.name;
   }
-
-  const exchange = surfaces.surfaceExchanges.open({ toolId: PLUGINS_SET_ENABLED_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const ui = buildEnableConfirmationResource({
-    subject: { family: request.family, pluginId: request.pluginId },
-    exchangeId: exchange.id,
-    expiresAtMs: exchange.expiresAtMs(),
+  const fingerprint = federatedToolApprovalFingerprint({ fingerprintDomain: "tovu.native-escalation.v1",
+    identity: { connectionId: JSON.stringify([routeDeps.workspaceId, request.family, request.pluginId]),
+      remoteName: PLUGINS_SET_ENABLED_TOOL_ID, origin: { kind: "roster", admissionRevision: revision },
+      declaredAnnotations: undefined, description: "Enable this plugin identity", inputSchema: schema },
   });
-
-  // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
-  // handler open until the idle deadline — mirrors `content_post_delete`'s identical guard.
-  const closeOnAbort = () => exchange.close();
-  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-  try {
-    return await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-  } finally {
-    ctx.signal.removeEventListener("abort", closeOnAbort);
-  }
-}
-
-/** ADR-055 Decision 6: a no-answer is a RESULT, not an exception. Nothing was changed either way,
- *  and the model is still alive to read this and say something sensible. @complexity O(1). */
-function notConfirmedResult(outcome: ConfirmationOutcome, request: SetEnabledRequest): unknown {
-  const base = { changed: false, family: request.family, pluginId: request.pluginId, restartRequired: false };
-  if (outcome.confirmed) return base; // unreachable; keeps the return type honest for callers
-  if (outcome.reason === "declined") {
-    return { ...base, cancelled: true, note: `The user declined. '${request.pluginId}' was NOT enabled and nothing changed.` };
-  }
-  return {
-    ...base,
-    cancelled: false,
-    reason: outcome.reason,
-    note:
-      outcome.reason === "expired"
-        ? `The user did not answer the confirmation before it expired. '${request.pluginId}' was NOT enabled.`
-        : `The confirmation was closed because the run ended. '${request.pluginId}' was NOT enabled.`,
-  };
-}
-
-/**
- * Raises the uninstall-confirmation dialog and parks on the human's answer.
- *
- * Fails CLOSED when the execution context cannot hold a call open, exactly like
- * `content_post_delete`/`plugins_set_enabled`/`agent_plugins_uninstall`: degrading to "remove it and
- * mention we could not ask" would make the confirmation decorative in precisely the contexts that
- * most need it — deleting bytes has no meaningful undo, so this is the one point where the human's
- * answer actually matters.
- *
- * @throws {Error} When there is no `emitSurface` to raise a dialog through.
- * @complexity O(1) plus the human's own latency, bounded by the exchange store's TTLs.
- */
-async function confirmUninstall(
-  surfaces: AssistantSurfaceDeps,
-  ctx: Pick<ToolExecutionContext, "principal" | "signal">,
-  preview: PluginUninstallPreview,
-  optional: ToolExecutionOptions = {},
-): Promise<ConfirmationOutcome> {
-  const emitSurface = optional.emitSurface;
-  if (!emitSurface) {
-    throw new Error(
-      "plugins_uninstall: this execution context has no interactive confirmation channel (no emitSurface), so a " +
-        "permanent uninstall cannot be gated here. Nothing was removed.",
-    );
-  }
-
-  const exchange = surfaces.surfaceExchanges.open({ toolId: PLUGINS_UNINSTALL_TOOL_ID, principalId: ctx.principal.id }, emitSurface);
-  const ui = buildUninstallConfirmationResource({ preview, exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs() });
-
-  // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
-  // handler open until the idle deadline — mirrors `confirmEnable`'s identical guard above.
-  const closeOnAbort = () => exchange.close();
-  ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-  try {
-    return await resolveConfirmationDecision(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-  } finally {
-    ctx.signal.removeEventListener("abort", closeOnAbort);
-  }
-}
-
-/** ADR-055 Decision 6: a no-answer is a RESULT, not an exception. Nothing was removed either way,
- *  and the model is still alive to read this and say something sensible. @complexity O(1). */
-function notConfirmedUninstallResult(outcome: ConfirmationOutcome, pluginId: string): unknown {
-  const base = { pluginId, uninstalled: false };
-  if (outcome.confirmed) return base; // unreachable; keeps the return type honest for callers
-  if (outcome.reason === "declined") {
-    return { ...base, cancelled: true, note: `The user declined. '${pluginId}' was NOT uninstalled and nothing changed.` };
-  }
-  return {
-    ...base,
-    cancelled: false,
-    reason: outcome.reason,
-    note:
-      outcome.reason === "expired"
-        ? `The user did not answer the confirmation before it expired. '${pluginId}' was NOT uninstalled.`
-        : `The confirmation was closed because the run ended. '${pluginId}' was NOT uninstalled.`,
-  };
+  return { key: fingerprint, version, label: label ?? request.pluginId, discovery };
 }
 
 /** A fresh `uninstallPlugin` request. Discovery is re-read on every call, so the post-confirmation write never resolves
@@ -543,7 +455,7 @@ async function provisionAgentPluginMcpServersBestEffort(
  */
 async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId: string, request: SetEnabledRequest): Promise<unknown> {
   try {
-    const result = await setAgentPluginEnabled({
+    const result = await (routeDeps.setAgentPluginEnabled ?? setAgentPluginEnabled)({
       workspaceId: routeDeps.workspaceId,
       pluginId: request.pluginId,
       enabled: request.enabled,
@@ -594,7 +506,7 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
  */
 async function unwritableAgentPluginActivationsResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
   try {
-    await assertAgentPluginActivationsWritable({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root });
+    await (routeDeps.assertAgentPluginActivationsWritable ?? assertAgentPluginActivationsWritable)({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root });
     return undefined;
   } catch (error) {
     const refusal = activationsRefusalResult(request, error);
@@ -663,9 +575,11 @@ function activationsRefusalResult(request: SetEnabledRequest, error: unknown): u
  * with the same `captureInverse`/`rollback` pair.
  * @complexity O(p) in discovered-plugin count, plus the command gateway's own writes.
  */
-async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId: string, request: SetEnabledRequest): Promise<unknown> {
+async function applySiteRuntimeDecision(routeDeps: PluginsToolDeps, principalId: string, request: SetEnabledRequest, optional: { discovery?: readonly PluginDiscoveryRecord[] } = {}): Promise<unknown> {
   const { pluginId, enabled } = request;
-  const discovery = await routeDeps.discoverPlugins();
+  // Reuse the manifest that passed the post-approval identity check, avoiding another discovery
+  // read between checking the approved version/digest and the activation owner loading it.
+  const discovery = optional.discovery ?? await routeDeps.discoverPlugins();
   // Captured by `captureInverse` below, reused verbatim by `rollback` — mirrors
   // `routes/admin/plugins/set-enabled.ts`'s identical `priorActivation` shape exactly, since this
   // handler IS that route's own `executeCommand` composition.
@@ -761,7 +675,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
           return toAdminPluginResponse(record, activation, { conflicts: conflicts.get(record.id) ?? [] });
         }),
       );
-      const agentPlugins = await listAgentPluginsForResponse(routeDeps.workspaceId);
+      const agentPlugins = await listAgentPluginsForResponse(routeDeps);
       return { plugins, agentPlugins };
     },
 
@@ -777,21 +691,31 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      * `admin.plugins.enable` grant must not be able to make a confirmation prompt appear in a human's
      * chat naming a plugin, let alone reach the write behind it.
      */
-    plugins_set_enabled: async (ctx, optional = {}) => {
+    plugins_set_enabled: approvalToolHandler({ surfaces, prepare: async ({ ctx }) => {
       const request = readSetEnabledRequest(ctx.input);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin", entityId: request.pluginId });
-
-      if (request.enabled) {
-        const refused = request.family === "agent-plugin" ? await unwritableAgentPluginActivationsResult(routeDeps, request) : undefined;
-        if (refused !== undefined) return refused;
-        const outcome = await confirmEnable(surfaces, ctx, request, optional);
-        if (!outcome.confirmed) return notConfirmedResult(outcome, request);
-      }
-
+      let refusal: unknown;
+      if (request.enabled && request.family === "agent-plugin") refusal = await unwritableAgentPluginActivationsResult(routeDeps, request);
+      const identity = request.enabled && refusal === undefined ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
+      return { request, identity, refusal };
+    }, describe: ({ prepared: { request, identity } }) => describeEnableApproval({
+      subject: { family: request.family, pluginId: request.pluginId, version: identity?.version, label: identity?.label },
+    }), run: async ({ ctx, prepared: { request, identity, refusal } }) => {
+      if (refusal !== undefined) return refusal;
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin", entityId: request.pluginId });
+      const currentIdentity = request.enabled ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
+      if (request.enabled && currentIdentity?.key !== identity?.key) throw new ToolInputError({ message: "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed." });
+      // A cancelled run must neither keep a card open until the deadline nor grant capability.
+      if (ctx.signal.aborted) return { changed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
       return request.family === "agent-plugin"
         ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request)
-        : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request);
-    },
+        : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request, { discovery: currentIdentity?.discovery });
+    } }, { flag: "changed", ask: ({ prepared }) => prepared.request.enabled && prepared.refusal === undefined,
+      rememberKey: ({ prepared }) => prepared.request.enabled ? prepared.identity?.key : undefined,
+      remembered: routeDeps.nativeApprovalMemory,
+      declined: ({ reason, prepared }) => ({ changed: false, family: prepared?.request.family,
+        pluginId: prepared?.request.pluginId, restartRequired: false, ...notConfirmedResult({ confirmed: false, reason }) }),
+    }),
 
     /**
      * ONE tool, BOTH plugin families (S4, 2026-09-24) — the same merge `plugins_set_enabled` above
@@ -803,7 +727,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      * The 'site-runtime' branch is UNCHANGED: mirrors `routes/admin/plugins/uninstall.ts`'s own
      * business rules exactly — same permission, same `uninstallPlugin()` module, same pre-bound Trash
      * removal binding. NOT wrapped in `executeCommand` — matching that route's own deliberate choice
-     * (`uninstall.ts`'s header: "there is no meaningful 'restore the prior state' for deleted bytes"),
+     * (`Jini/packages/plugins/src/host/uninstall.ts`'s header: "there is no meaningful 'restore the prior state' for deleted bytes"),
      * so there is nothing here for a `captureInverse`/`rollback` pair to capture. That is a statement
      * about revertability, not about consent — the two are orthogonal, and this DOES now confirm
      * (2026-09-16, see `agent-tools.ts`'s header). Order is load-bearing: parse -> authorize -> preview
@@ -820,6 +744,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
      * `plugins_uninstall` id — see `PLUGINS_UNINSTALL_TOOL_ID` in each.
      */
     plugins_uninstall: async (ctx, optional = {}) => {
+      ctx = { ...ctx, input: structuredClone(ctx.input), principal: { ...ctx.principal }, run: { ...ctx.run } };
       const input = requireInputRecord({ input: ctx.input });
       const family = readFamily(input);
       const pluginId = requireString({ input: input, key: "pluginId" });
@@ -830,15 +755,20 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
 
       const preview = await previewUninstallPlugin(await uninstallRequestFor(routeDeps, pluginId, ctx.principal.id)); // throws PluginNotFoundError/NotUninstallableError/EnabledError BEFORE any dialog
 
-      const outcome = await confirmUninstall(surfaces, ctx, preview, optional);
-      if (!outcome.confirmed) return notConfirmedUninstallResult(outcome, pluginId);
-
-      return uninstallConfirmedPlugin(routeDeps, preview, ctx.principal.id);
+      return approvalToolHandler({ surfaces,
+        prepare: async () => preview,
+        describe: ({ prepared }) => describeUninstallApproval({ preview: prepared }),
+        run: async ({ ctx: approvedCtx, prepared }) => {
+          await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: approvedCtx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin", entityId: pluginId });
+          if (approvedCtx.signal.aborted) return { uninstalled: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
+          return uninstallConfirmedPlugin(routeDeps, prepared, approvedCtx.principal.id);
+        },
+      }, { flag: "uninstalled", declined: ({ reason }) => ({ pluginId, uninstalled: false, ...notConfirmedResult({ confirmed: false, reason }) }) })(ctx, optional);
     },
   };
 
   // No `unwiredToolIds`: Plugins wires its ENTIRE catalog, same tripwire discipline as Forms.
-  return buildDomainRegistrations({
+  return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "plugins",
     catalogModule: "features/plugin-runtime/agent-tools.ts",
     catalog: CATALOG_BY_ID,
@@ -853,8 +783,8 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
  * module. `assistant/tool-registrations.ts` no longer imports `buildPluginsRegistrations`/
  * `pluginsDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2).
  * Unlike `database` (tried and reverted earlier in this batch), this domain's own imports are all
- * `core/commands` plus its own sibling files (`admin-response.ts`, `activation.ts`, `agent-tools.ts`,
- * `discovery.ts`) — it does not reach `features/database`/`db` at all, so it does not carry that
+ * `core/commands` plus its own sibling files (`admin-response.ts`, `Jini/packages/plugins/src/host/activation.ts`, `agent-tools.ts`,
+ * `Jini/packages/plugins/src/host/node/discovery.ts`) — it does not reach `features/database`/`db` at all, so it does not carry that
  * domain's round-trip risk. Every importer outside `server/*` is none — nothing else imports this
  * domain by name.
  */

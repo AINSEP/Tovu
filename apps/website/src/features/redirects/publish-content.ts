@@ -2,16 +2,12 @@ import { malformedKey } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
 
-import type { RedirectRepoPort } from "./ports.js";
-import { checkRedirectFieldsWouldWrite, createRedirect, updateRedirect } from "./redirects.js";
-import type { RedirectsWriteDeps } from "./redirects.js";
-import {
-  RedirectConflictError,
-  RedirectLoopError,
-  RedirectTargetNotAllowedError,
-  RedirectValidationError,
-} from "./types.js";
-import type { RedirectMatchType, RedirectRecord, RedirectStatus, RedirectStatusCode } from "./types.js";
+import type { RedirectRepoPort } from "@jini-ai/cms/redirects";
+import { checkRedirectFieldsWouldWrite, createRedirect, updateRedirect } from "@jini-ai/cms/redirects";
+import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { RedirectConflictError, RedirectLoopError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
+import type { RedirectMatchType, RedirectRecord, RedirectStatus, RedirectStatusCode } from "@jini-ai/cms/redirects";
+import { REDIRECT_TABLES } from "./repo.sqlite.js";
 
 /**
  * @file `redirect`'s publish-content contribution, built on `createRepoPublishHandler`
@@ -103,7 +99,7 @@ function redirectFields(workspaceId: string, state: Record<string, unknown>) {
 export const contributeRedirectPublish = (): PublishContentContributor =>
   createRepoPublishHandler<RedirectRow, RedirectsWriteDeps>({
     entityType: "redirect",
-    coversTables: ["redirects"],
+    coversTables: [REDIRECT_TABLES.redirects],
     permission: "admin.redirects.manage",
     ports: (deps) => deps.ports.redirect,
     list: async (p, workspaceId) => (await p.repo.list({ workspaceId })).map(withTitle),
@@ -138,7 +134,7 @@ export const contributeRedirectPublish = (): PublishContentContributor =>
     // The same ruleset `createRedirect`/`updateRedirect` run, so preview and apply cannot drift.
     validate: async ({ ports, workspaceId, entity, existing }) =>
       parseRedirectNaturalKey(entity.id)
-        ? checkRedirectFieldsWouldWrite(ports, redirectFields(workspaceId, entity.state), existing?.id)
+        ? checkRedirectFieldsWouldWrite({ deps: ports, fields: redirectFields(workspaceId, entity.state) }, { excludeId: existing?.id })
         : malformedKey("redirect", entity.id, "matchType:fromPattern"),
     write: async ({ ports, workspaceId, id, state, existing, principalId }) => {
       if (!parseRedirectNaturalKey(id)) throw new Error(`publish-content: redirect.apply() received a malformed natural key '${id}'`);

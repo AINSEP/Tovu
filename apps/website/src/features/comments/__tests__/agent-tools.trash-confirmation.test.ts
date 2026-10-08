@@ -3,16 +3,19 @@ import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
-import { createCommentHookRegistry } from "../hooks.js";
-import { InMemoryCommentRepo } from "../repo.memory.js";
-import { createCommentWriteService } from "../write-service.js";
-import type { CommentRecord } from "../types.js";
+import { createCommentHookRegistry } from "@jini-ai/cms/comments";
+import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+import { createCommentWriteService } from "@jini-ai/cms/comments";
+import type { CommentRecord } from "@jini-ai/cms/comments";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /** Owner policy: reversible removal runs immediately; authorization and data integrity remain enforced. */
 
@@ -41,7 +44,7 @@ async function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const commentWriteService = createCommentWriteService({
     repo: commentRepo,
     outbox: new InMemoryOutbox(),
-    hooks: createCommentHookRegistry(),
+    hooks: createCommentHookRegistry({}, {}),
     clock,
     idGen,
     ...commentTrashDoubles(),
@@ -124,8 +127,8 @@ function call(registration: ToolRegistration, options: CallOptions = {}) {
 
 test("comments.delete is checked before any dialog is raised, and a denied principal never sees one", async () => {
   const { deps, commentRepo, authorizeCalls } = await fakeRouteDeps({ allow: false });
-  await commentRepo.create(seedComment());
-  const surfaceExchanges = createSurfaceExchangeStore();
+  await commentRepo.create({ record: seedComment() }, {});
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   await assert.rejects(() => call(trashTool), (error: unknown) => {
@@ -140,7 +143,7 @@ test("comments.delete is checked before any dialog is raised, and a denied princ
 
 test("a nonexistent comment id is refused before any dialog is raised", async () => {
   const { deps } = await fakeRouteDeps();
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const trashTool = tool(buildRegistrations(deps, surfaceExchanges), TRASH_TOOL_ID);
 
   await assert.rejects(() => call(trashTool, { input: { commentId: "nope", expectedVersion: 1 } }), /was not found/);
@@ -150,7 +153,7 @@ test("a nonexistent comment id is refused before any dialog is raised", async ()
 test("n06: reversible removal runs without a confirmation channel", async () => {
   const { deps, commentRepo } = await fakeRouteDeps();
   await commentRepo.save(seedComment());
-  const store = createSurfaceExchangeStore();
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const result = await call(tool(buildRegistrations(deps, store), TRASH_TOOL_ID)) as {trashed: boolean; cancelled: boolean};
   assert.equal(result.trashed, true);
   assert.equal(result.cancelled, false);
@@ -161,6 +164,6 @@ test("n06: reversible removal runs without a confirmation channel", async () => 
 test("a stale expectedVersion still refuses the trash", async () => {
   const {deps, commentRepo} = await fakeRouteDeps();
   await commentRepo.save(seedComment({version: 2}));
-  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TRASH_TOOL_ID)), { message: "COMMENTS_VERSION_CONFLICT: comment 'comment-1' was modified concurrently (current version is 2). Re-read it with comments_list_moderation_queue and retry with the fresh version" });
+  await assert.rejects(call(tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })), TRASH_TOOL_ID)), { message: "COMMENTS_VERSION_CONFLICT: comment 'comment-1' was modified concurrently (current version is 2). Re-read it with comments_list_moderation_queue and retry with the fresh version" });
   assert.equal((await commentRepo.findById({workspaceId: WORKSPACE_ID, id: "comment-1"}))?.status, "pending");
 });

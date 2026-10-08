@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
-import { SqlitePluginActivationRepo } from "../../repo.sqlite.js";
-import type { PluginActivationRecord, PluginActivationRepoPort } from "../../activation.js";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import { sqlitePluginActivationRepoFor } from "../../repo.sqlite.js";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/plugins/host";
 
 /**
  * @file C-013 shared contract-test suite for `PluginActivationRepoPort`, run against both
- * `repo.memory.ts` and `repo.sqlite.ts` — mirrors `src/widgets/__tests__/repo.contract.test.ts`'s
+ * `Jini/packages/plugins/src/host/repo.memory.ts` and `repo.sqlite.ts` — mirrors `src/widgets/__tests__/repo.contract.test.ts`'s
  * shape (that file's own header cites the same convention, itself following
  * `src/identity/__tests__/repo.contract.test.ts`). REQ-07; INV-05.
  *
@@ -120,11 +120,11 @@ function runSuite(adapterName: string, makeRepo: () => PluginActivationRepoPort)
 }
 
 runSuite("InMemoryPluginActivationRepo", () => new InMemoryPluginActivationRepo());
-runSuite("SqlitePluginActivationRepo", () => new SqlitePluginActivationRepo(openContentDb(":memory:")));
+runSuite("SqlitePluginActivationRepo", () => sqlitePluginActivationRepoFor({ store: openContentDb(":memory:") }));
 
 test("InMemoryPluginActivationRepo initializes with pre-existing rows", async () => {
   const init = [record({ pluginId: "pre-existing" })];
-  const repo = new InMemoryPluginActivationRepo(init);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: init });
   assert.deepEqual(await repo.listAll(), init);
 });
 

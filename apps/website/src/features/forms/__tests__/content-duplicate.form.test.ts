@@ -7,9 +7,9 @@ import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registration
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
-import { InMemoryFormDefinitionRepo } from "../repo.memory.js";
+import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { contributeFormsDuplicateHandlers, type FormsToolDeps } from "../tool-registrations.js";
-import { SLUG_PATTERN } from "@jini-ai/cms-forms";
+import { SLUG_PATTERN } from "@jini-ai/cms/forms";
 
 /**
  * @file Certifies this domain's `"form"` contribution to the cross-resource `content_duplicate`

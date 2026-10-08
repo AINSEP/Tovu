@@ -1,16 +1,17 @@
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
-import { redirectMatcher } from "../matcher.js";
-import type { RedirectDbHandle } from "../ports.internal.js";
+import { redirectMatcher } from "@jini-ai/cms/redirects";
+import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { contributeRedirectPublish } from "../publish-content.js";
-import { createRedirect, tombstoneRedirect, updateRedirect, type RedirectsWriteDeps } from "../redirects.js";
-import { InMemoryRedirectRepo } from "../repo.memory.js";
+import { createRedirect, tombstoneRedirect, updateRedirect, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 
 /**
@@ -26,7 +27,7 @@ const ACTOR_ID = "user-1";
 
 function makeWriteDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWriteDeps {
   const repo = new InMemoryRedirectRepo();
-  const originRepo = new InMemoryOriginSettingRepo([
+  const originRepo = new InMemoryOriginSettingRepo({ seeds: [
     {
       workspaceId: WORKSPACE_ID,
       origin: createVerifiedOrigin({
@@ -37,7 +38,7 @@ function makeWriteDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWr
       }),
       redirectAllowlist: opts.redirectAllowlist ?? [],
     },
-  ]);
+  ] });
   let clockTick = 0;
   let idTick = 0;
   return {
@@ -47,6 +48,7 @@ function makeWriteDeps(opts: { redirectAllowlist?: string[] } = {}): RedirectsWr
     restore: restoreVia(repo as unknown as Parameters<typeof removeVia>[0]),
     db: repo as unknown as RedirectDbHandle,
     transaction: async (fn) => fn(),
+    reservedSegments: RESERVED_SEGMENTS,
     matcher: redirectMatcher,
     originRegistry: new OriginRegistry({ repo: originRepo }),
     clock: { nowMs: () => Date.parse(`2026-09-24T00:00:${String(clockTick++).padStart(2, "0")}.000Z`) },

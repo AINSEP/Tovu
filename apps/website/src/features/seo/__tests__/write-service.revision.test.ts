@@ -1,9 +1,11 @@
+import { createSeoFeaturedImagePort, createSeoPostPort } from "../index.js";
+import { InMemoryMediaRepo } from "../../media/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo, SqlitePostRepo, type PostRecord } from "../../post/index.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { setEntrySeoOverrides } from "../write-service.js";
+import { setEntrySeoOverrides } from "@jini-ai/cms/seo";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
@@ -22,6 +24,8 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 const WORKSPACE = "workspace-1";
 const ENTRY_ID = "post-1";
 const NOW = "2026-09-18T00:00:00.000Z";
+
+const media = { featuredImage: createSeoFeaturedImagePort({ deps: { mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }) } }, {}) };
 
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 const noopInvalidate = () => {};
@@ -47,7 +51,7 @@ test("setEntrySeoOverrides appends a post_revisions row, attributed to the real 
   const postRepo = new InMemoryPostRepo([seedPost()]);
 
   const { overrides } = await setEntrySeoOverrides({
-    deps: { postRepo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
+    deps: { postRepo: createSeoPostPort({ postRepo }, {}), media, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: {
       workspaceId: WORKSPACE,
       entryId: ENTRY_ID,
@@ -86,7 +90,7 @@ test("setEntrySeoOverrides's revision chains after a prior revision, like any ot
   };
 
   await setEntrySeoOverrides({
-    deps: { postRepo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
+    deps: { postRepo: createSeoPostPort({ postRepo }, {}), media, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
     input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { description: "chained" }, callerPrincipalId: "seo-editor-2" },
   });
 
@@ -113,7 +117,7 @@ for (const adapter of ["memory", "sqlite"] as const) {
       throw new Error("revision storage failed");
     };
     await assert.rejects(() => setEntrySeoOverrides({
-      deps: { postRepo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
+      deps: { postRepo: createSeoPostPort({ postRepo }, {}), media, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
       input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title: "Uncommitted SEO title" }, callerPrincipalId: "editor" },
     }), /revision storage failed/);
     assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID }), before);

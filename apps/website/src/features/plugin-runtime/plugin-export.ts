@@ -1,7 +1,7 @@
 /**
  * @file `readDefinedPlugin()` — the one check that a plugin module's default export is a real
- * `definePlugin()` value. Shared by `loader.ts` (step 4, in-process) and the Tier-2 worker
- * (`tier2/run-call.ts`), and kept in its own dependency-free module so the worker does not have to
+ * `definePlugin()` value. Shared by `Jini/packages/plugins/src/host/node/loader.ts` (step 4, in-process) and the Tier-2 worker
+ * (`Jini/packages/plugins/src/host/worker/run-call.ts`), and kept in its own dependency-free module so the worker does not have to
  * load the loader's install/snapshot/hashing graph just to validate an export.
  */
 import type { Plugin } from "@tovu/sdk";

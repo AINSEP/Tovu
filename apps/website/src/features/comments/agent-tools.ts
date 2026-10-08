@@ -44,7 +44,7 @@
  */
 
 import { MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "./settings.js";
-import { COMMENT_STATUSES } from "./types.js";
+import { COMMENT_STATUSES } from "@jini-ai/cms/comments";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 

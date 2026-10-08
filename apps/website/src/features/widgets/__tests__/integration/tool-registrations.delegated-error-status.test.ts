@@ -9,9 +9,9 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
-import { PRE_AUTHORIZED } from "../../authorize-helper.js";
-import { parseWidgetAreaPayload } from "../../entry-payload.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 
@@ -154,7 +154,7 @@ test("a stale region write returns an intact BAD_REQUEST conflict and keeps the 
   const before = structuredClone(await routeDeps.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: area.id }));
   assert.ok(before);
   assert.equal(before.version, area.version + 1);
-  assert.deepEqual(parseWidgetAreaPayload(before.fieldsJson).doc.placements, placements);
+  assert.deepEqual(parseWidgetAreaPayload({ fieldsJson: before.fieldsJson }).doc.placements, placements);
   const result = await call(harness, "widgets_set_region_placements", { regionKey: "footer", baseVersion: area.version, placements: [] });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("expected region conflict");

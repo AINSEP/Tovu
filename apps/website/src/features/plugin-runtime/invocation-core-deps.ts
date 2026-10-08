@@ -2,7 +2,7 @@
  * @file `createPluginInvocationCoreDeps()` — the per-load backing for a plugin's capability-scoped
  * SDK (`content.read`, `content.extend`, `addFilter`), shared by every place that runs a plugin's
  * `setup()`: the in-process Tier-3 enable path (`server/runtime/composition/plugin-runtime.ts`) and
- * the Tier-2 worker (`tier2/run-call.ts`). One implementation, so a Tier-2 plugin sees exactly the
+ * the Tier-2 worker (`Jini/packages/plugins/src/host/worker/run-call.ts`). One implementation, so a Tier-2 plugin sees exactly the
  * SDK semantics a Tier-3 plugin does (ADR-024 §3: the ABI is the same; only where the code runs
  * differs).
  *
@@ -14,7 +14,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import { HOOK_CONTENT_ENTRY_BEFORE_SAVE, type BeforeSaveFilter, type ContentEntryDraft } from "@tovu/sdk";
 
-import type { CapabilityScopedSdkCoreDeps } from "./capability-sdk.js";
+import type { CapabilityScopedSdkCoreDeps } from "@jini-ai/plugins/host";
 
 interface InvocationState {
   readonly entry: Readonly<ContentEntryDraft>;

@@ -6,8 +6,8 @@
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
  * permission each carries. Every entry maps 1:1 onto a real exported function of
- * `widgets/write-service.ts`, `widgets/region-area-service.ts`, or `widgets/embed-service.ts` (plus
- * two pure reads over `widgets/read-service.ts` and `widgetBindingRepo`) — this catalog never names
+ * `Jini/packages/cms/src/widgets/write-service.ts`, `Jini/packages/cms/src/widgets/region-area-service.ts`, or `Jini/packages/cms/src/widgets/embed-service.ts` (plus
+ * two pure reads over `Jini/packages/cms/src/widgets/read-service.ts` and `widgetBindingRepo`) — this catalog never names
  * an operation the domain cannot perform.
  *
  * Precedent already in this repo: ADR-047 §5 (REQ-35/44) ships its OWN bespoke "AI tool surface" as
@@ -23,7 +23,7 @@
  * - There is NO `widgets_purge_instance`. A permanent delete exists only as the Trash screen's purge
  *   (a human action); the old `purgeWidgetInstance` rung was retired with the generic Trash
  *   (2026-09-21).
- * - There is NO widget-type "delete"/"unregister" tool. `widgets/registry.ts`'s
+ * - There is NO widget-type "delete"/"unregister" tool. `Jini/packages/cms/src/widgets/registry.ts`'s
  *   `WIDGET_TYPE_REGISTRATIONS` is core-declared, static data with no admin HTTP surface at all —
  *   wrapping it would invent capability beyond what the human admin UI exposes.
  *
@@ -51,7 +51,7 @@
  * accepts.
  */
 
-import { WIDGET_TYPE_REGISTRATIONS } from "./registry.js";
+import { WIDGET_TYPE_REGISTRATIONS } from "@jini-ai/cms/widgets";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 

@@ -306,14 +306,13 @@ test("toc: every heading with text, in order, with slug anchors de-duplicated -2
     { level: 2, text: "Getting Started-2", anchor: "getting-started-2-2" },
     { level: 2, text: "Getting Started", anchor: "getting-started-3" },
     { level: 2, text: "Café & Crème", anchor: "cafe-creme" },
-    { level: 2, text: "???", anchor: "section" },
   ]);
 });
 
-test("slugifyHeading: lowercases, strips diacritics, collapses non-alphanumerics, falls back to 'section'", () => {
+test("slugifyHeading: uses the renderer transliteration and leaves unanchorable headings empty", () => {
   assert.equal(slugifyHeading("  Hello,  World!  "), "hello-world");
-  assert.equal(slugifyHeading("Ünïcödé"), "unicode");
-  assert.equal(slugifyHeading("—"), "section");
+  assert.equal(slugifyHeading("Ünïcödé"), "uenicoede");
+  assert.equal(slugifyHeading("—"), "");
 });
 
 test("countSyllables: vowel groups, silent trailing e, consonant+le keeps its syllable, min 1", () => {
@@ -326,4 +325,14 @@ test("countSyllables: vowel groups, silent trailing e, consonant+le keeps its sy
   assert.equal(countSyllables("42"), 1);
   assert.equal(countSyllables("University,"), 5);
   assert.equal(countSyllables("be"), 1);
+});
+
+// Todo 21: the TOC must link to ids emitted by the actual renderer.
+test("non-ASCII TOC anchors exist in the rendered document; unanchorable headings are omitted", async () => {
+  const { renderDocNode } = await import("#src/server/inbound/public-http/http/site/render");
+  const texts = ["Café Münster", "Привет", "—", "日本語"];
+  const report = analyzeContent({ title: OK_TITLE, blocks: texts.map(text => ({ kind: "heading" as const, level: 2 as const, text })) });
+  const html = renderDocNode({ type: "doc", content: texts.map(text => ({ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text }] })) });
+  assert.deepEqual(report.toc.map(row => row.anchor), ["cafe-muenster", "privet"]);
+  for (const row of report.toc) assert.ok(html.includes(`id="${row.anchor}"`));
 });

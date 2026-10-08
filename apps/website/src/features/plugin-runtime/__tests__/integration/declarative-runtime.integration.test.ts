@@ -11,11 +11,11 @@ import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 
-import { PluginInvalidError, setPluginEnabled } from "../../activation.js";
+import { PluginInvalidError, setPluginEnabled } from "@jini-ai/plugins/host";
 import { createDeclaredContentTypePorts } from "../../declarative-enable.js";
-import type { PluginManifest } from "../../manifest.js";
-import { PluginConflictError } from "../../plugin-claims.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
+import type { PluginManifest } from "@jini-ai/plugins/host";
+import { PluginConflictError } from "@jini-ai/plugins/host";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 
 const WORKSPACE = "ws-1";
 const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") };

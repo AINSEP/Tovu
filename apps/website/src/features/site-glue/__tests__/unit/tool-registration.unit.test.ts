@@ -161,6 +161,25 @@ test("duplicate ids inside one module quarantine the whole module and leave its 
   assert.equal(result.quarantined.length, 1);
   assert.equal(result.quarantined[0].moduleId, "duplicate");
   assert.equal(result.quarantined[0].reason, "DUPLICATE_TOOL_ID");
-  assert.match(result.quarantined[0].detail, /same/);
+  assert.equal(result.quarantined[0].detail, "tool id 'same' is already registered by core, an earlier glue module, or this module");
   assert.deepEqual(calls.map((call) => call.moduleId), ["good"]);
+});
+
+test("Jini delegation preserves the builder receiver, zero arguments and positional host mounting", () => {
+  const { hostPort, calls } = fakeHostPort();
+  const registrations = [registration("glue_tool_a")];
+  let moduleId = "before-build";
+  const module: GlueToolModuleContribution = {
+    get moduleId() { return moduleId; },
+    build() {
+      assert.equal(this, module);
+      assert.equal(arguments.length, 0);
+      moduleId = "m1";
+      return registrations;
+    },
+  };
+  const result = mergeGlueToolRegistrations({ coreToolIds: [], glueModules: [module], hostPort });
+  assert.deepEqual(result, { registeredModuleIds: ["m1"], quarantined: [] });
+  assert.equal(calls[0].moduleId, "m1");
+  assert.equal(calls[0].registrations, registrations);
 });

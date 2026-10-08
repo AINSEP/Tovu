@@ -75,6 +75,17 @@ test("a manifest declaring a capability outside the v1 vocabulary is CAPABILITY_
   assert.ok(codesOf(result).includes("CAPABILITY_UNKNOWN"));
 });
 
+test("Jini delegation preserves Tovu's exact vocabulary diagnostics and collect-all order", () => {
+  const result = validateGlueManifest(required(validManifest({
+    capabilities: ["fs.write" as never],
+    attachments: [{ callSite: "not.a.real.call.site" as never }],
+  })));
+  assert.deepEqual(result.errors, [
+    { code: "CAPABILITY_UNKNOWN", file: null, message: "capability 'fs.write' is outside the v1 vocabulary" },
+    { code: "CALL_SITE_UNKNOWN", file: null, message: "call site 'not.a.real.call.site' is outside the closed six-member vocabulary" },
+  ]);
+});
+
 test("every one of the eight glue capability strings is independently accepted", () => {
   const capabilities = [
     "content.read",

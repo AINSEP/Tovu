@@ -1,3 +1,4 @@
+import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,8 +6,9 @@ import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/conte
 import type { EntryRecord } from "#src/features/entries/index";
 import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 import { SYSTEM_CONTENT_TYPES, type CollectionListQuery, type EntryDisplayListPort, type EntryListExcludingTypesPort } from "#src/features/entries/public-list";
-import { createRecentEntriesResolver, type ContentTypeLookup } from "../../resolvers/recent-entries.js";
-import type { WidgetInstanceView, WidgetResolveContext } from "../../types.js";
+import { createRecentEntriesResolver, type CoreResolverDeps } from "@jini-ai/cms/widgets/resolvers";
+type ContentTypeLookup = CoreResolverDeps["contentTypes"];
+import type { WidgetInstanceView, WidgetResolveContext } from "@jini-ai/cms/widgets";
 
 /**
  * @file `recent-entries` widget resolver — SPEC-043 REQ-24/REQ-25's bounded-query contract, plus
@@ -84,7 +86,7 @@ test("REQ-25: never returns more than the registered clamp, even with far more p
     );
   }
 
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-1")], CTX);
 
   const result = results.get("w-1");
@@ -99,7 +101,7 @@ test("REQ-25/D7: newest-updated-first, draft excluded, and an old {maxItems:5} c
   await repo.save(entryRow({ id: "old-1", type: "post", slug: "old", title: "Old Post", updatedAt: "2026-01-01T00:00:01.000Z" }));
   await repo.save(entryRow({ id: "new-1", type: "post", slug: "new", title: "New Post", updatedAt: "2026-01-01T00:00:02.000Z" }));
 
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-1", { maxItems: 5 })], CTX);
 
   const result = results.get("w-1");
@@ -114,7 +116,7 @@ test("REQ-25: each legacy instance applies its own maxItems below the shared reg
   for (let i = 0; i < 6; i++) {
     await repo.save(entryRow({ id: `entry-${i}`, type: "post", slug: `post-${i}`, title: `Post ${i}`, updatedAt: `2026-01-01T00:00:0${i}.000Z` }));
   }
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-three", { maxItems: 3 }), instance("w-one", { maxItems: 1 })], CTX);
   for (const [id, titles] of [["w-three", ["Post 5", "Post 4", "Post 3"]], ["w-one", ["Post 5"]]] as const) {
     const result = results.get(id);
@@ -128,7 +130,7 @@ test("D1/D7: every legacy-path item's href is null (entry pages are off) — nev
   const repo = new TrashAwareInMemoryEntryRepo();
   await repo.save(entryRow({ id: "e-1", type: "post", slug: "post-1", title: "Post 1" }));
 
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-1")], CTX);
   const result = results.get("w-1");
   assert.ok(result?.ok);
@@ -148,7 +150,7 @@ test("D8: system content types (widget/widget_area/nav-menu) never appear when n
     );
   }
 
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-1")], CTX);
   const result = results.get("w-1");
   assert.ok(result?.ok);
@@ -172,7 +174,7 @@ test("REQ-25/3b: the legacy-path query itself is bounded/sorted/filtered — not
     },
   };
 
-  const resolver = createRecentEntriesResolver({ entryList: spyEntryList, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: spyEntryList, contentTypes: noContentTypes() });
   await resolver.resolveMany([instance("w-1")], CTX);
 
   assert.equal(calls.length, 1, "exactly one query for the whole batch (REQ-24)");
@@ -195,7 +197,7 @@ test("3b: 20+ newer system-type rows cannot crowd a real entry out of the legacy
     );
   }
 
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-1")], CTX);
   const result = results.get("w-1");
   assert.ok(result?.ok);
@@ -219,7 +221,7 @@ test("collection filter: only entries of the named content type are returned, vi
   await repo.save(entryRow({ id: "p-1", type: "post", slug: "p-1", title: "Unrelated Post" }));
 
   const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes });
   const results = await resolver.resolveMany([instance("w-1", { maxItems: 10, collection: "recipe" })], CTX);
 
   const result = results.get("w-1");
@@ -248,7 +250,7 @@ test("collection filter: valid where and newest sort return only ordered live pu
   assert.ok(trashed);
   await repo.saveAny({ ...trashed, deletedAt: "2026-01-07T00:00:00.000Z" });
 
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: fixedContentTypeLookup({ recipe: [field("cuisine")] }) });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: fixedContentTypeLookup({ recipe: [field("cuisine")] }) });
   // "newest" is the supported published-date descending keyword; "-published" names a custom field.
   const results = await resolver.resolveMany([instance("w-filtered", { collection: "recipe", maxItems: 10, where: { cuisine: "Italian" }, sort: "newest" })], CTX);
   const result = results.get("w-filtered");
@@ -261,7 +263,7 @@ test("collection filter: valid where and newest sort return only ordered live pu
 test("D7: legacy columns clamp to 1..6 and dependency keys match the resolved entries", async () => {
   const repo = new TrashAwareInMemoryEntryRepo();
   await repo.save(entryRow({ id: "e-1", type: "post", slug: "post-1", title: "Post 1" }));
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-high", { columns: 99 }), instance("w-low", { columns: 0 })], CTX);
   for (const [id, columns] of [["w-high", 6], ["w-low", 1]] as const) {
     const result = results.get(id);
@@ -279,7 +281,7 @@ test("collection settings preserve filtering, title order and an explicit field 
     entryRow({ id: "alpha", type: "recipe", slug: "alpha", title: "Alpha", updatedAt: "2026-01-01T00:00:00.000Z", fieldsJson: { ext: { site: { cuisine: "Italian", rating: 3, notes: "omit alpha notes" } } } }),
     entryRow({ id: "ramen", type: "recipe", slug: "ramen", title: "Ramen", updatedAt: "2026-01-04T00:00:00.000Z", fieldsJson: { ext: { site: { cuisine: "Japanese", rating: 7, notes: "omit ramen notes" } } } }),
   ]) await repo.save(row);
-  const resolver = createRecentEntriesResolver({
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
     entryList: repo,
     contentTypes: fixedContentTypeLookup({ recipe: [field("cuisine"), field("rating", "integer"), field("notes")] }),
   });
@@ -300,7 +302,7 @@ test("collection settings preserve filtering, title order and an explicit field 
 
 test("collection filter: an unknown content type key resolves as target-disabled, not a crash or an unfiltered list", async () => {
   const repo = new TrashAwareInMemoryEntryRepo();
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes: noContentTypes() });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-1", { maxItems: 5, collection: "does-not-exist" })], CTX);
   assert.deepEqual(results.get("w-1"), { ok: false, reason: "target-disabled" });
 });
@@ -309,7 +311,7 @@ test("collection filter: an invalid config (unknown where field) resolves as inv
   const repo = new TrashAwareInMemoryEntryRepo();
   await repo.save(entryRow({ id: "r-1", type: "recipe", slug: "r-1", title: "Pasta" }));
   const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes });
   const results = await resolver.resolveMany(
     [instance("w-1", { maxItems: 5, collection: "recipe", where: { notARealField: "x" } })],
     CTX
@@ -321,7 +323,7 @@ test("D1: a collection-path item's href is also null (entry pages are off)", asy
   const repo = new TrashAwareInMemoryEntryRepo();
   await repo.save(entryRow({ id: "r-1", type: "recipe", slug: "r-1", title: "Pasta" }));
   const contentTypes = fixedContentTypeLookup({ recipe: [] });
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes });
   const results = await resolver.resolveMany([instance("w-1", { maxItems: 5, collection: "recipe" })], CTX);
   const result = results.get("w-1");
   assert.ok(result?.ok);
@@ -344,7 +346,7 @@ test("REQ-25: the registered clamp (20) still wins over a collection instance's 
     },
   };
   const contentTypes = fixedContentTypeLookup({ recipe: [] });
-  const resolver = createRecentEntriesResolver({ entryList: spyEntryList, contentTypes });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: spyEntryList, contentTypes });
   // 24 is within parseCollectionListConfig's own 1-24 bound but above the registry's 20 clamp.
   await resolver.resolveMany([instance("w-1", { maxItems: 24, collection: "recipe" })], CTX);
 
@@ -356,7 +358,7 @@ test("D7: a collection-configured instance with no `layout` key defaults to the 
   const repo = new TrashAwareInMemoryEntryRepo();
   await repo.save(entryRow({ id: "r-1", type: "recipe", slug: "r-1", title: "Pasta" }));
   const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes });
   const results = await resolver.resolveMany(
     [instance("w-default", { maxItems: 5, collection: "recipe" }), instance("w-cards", { maxItems: 5, collection: "recipe", layout: "cards" })],
     CTX
@@ -374,7 +376,7 @@ test("AW-7: a collection instance carries any known layout and opt-in faq-page s
   const repo = new TrashAwareInMemoryEntryRepo();
   await repo.save(entryRow({ id: "q-1", type: "recipe", slug: "q-1", title: "Can I freeze it?" }));
   const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
-  const resolver = createRecentEntriesResolver({ entryList: repo, contentTypes });
+  const resolver = createRecentEntriesResolver({ collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES }, entryList: repo, contentTypes });
   const results = await resolver.resolveMany(
     [
       instance("w-faq", { maxItems: 5, collection: "recipe", layout: "accordion", structuredData: "faq-page" }),

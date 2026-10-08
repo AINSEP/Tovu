@@ -18,7 +18,7 @@ import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
-import { CommentsSettingsValidationError } from "../errors.js";
+import { CommentsSettingsValidationError } from "@jini-ai/cms/comments";
 import {
   ensureCommentsSettingDefinitions,
   getCommentsSettings,
@@ -26,7 +26,7 @@ import {
   MAX_PER_IP_PER_HOUR_CEILING,
   setCommentsSettings,
 } from "../settings.js";
-import type { CommentsSettings } from "../types.js";
+import type { CommentsSettings } from "@jini-ai/cms/comments";
 
 const WORKSPACE = "workspace-1";
 const clock = { nowIso: () => "2026-07-16T00:00:00.000Z", nowMs: () => Date.parse("2026-07-16T00:00:00.000Z") };

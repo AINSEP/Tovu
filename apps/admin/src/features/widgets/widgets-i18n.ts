@@ -1,10 +1,12 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
- * @file Spanish dictionary for the four widget screens: `WidgetRegions.tsx` (region list),
+ * @file Host dictionary for the four screens now in `@jini-ai/admin/widgets/react`:
+ * `WidgetRegions.tsx` (region list),
  * `WidgetsLibrary.tsx` (widget list), `WidgetRegionEditor.tsx` (per-region placement list), and
  * `WidgetInstanceEditor.tsx` (create/edit one widget). `t()` falls back to `COMMON_I18N` via
  * `createDictionaryTranslator`, same as `trash-i18n.ts`.
  *
- * Also covers `rules.ts`'s `widgetTypeLabel` — the five v1 widget type display names
+ * Also covers `@jini-ai/admin/widgets`'s `widgetTypeLabel` — the five v1 widget type display names
  * ("Text"/"Social Links"/"Collection list"/"Menu"/"Contact Form", read off `WIDGET_TYPE_OPTIONS` in
  * `components/WidgetConfigFields/WidgetConfigFields.tsx`). That constant itself stays untouched
  * (shared with the config-form dispatch, out of this pass's scope) — `widgetTypeLabel` resolves
@@ -17,7 +19,7 @@
  * literally say "recent entries" in each language), a known gap left for a real localization pass,
  * not invented English-only copy in the meantime.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
@@ -1403,7 +1405,7 @@ export const WIDGETS_DICT: Record<string, Record<string, string>> = Object.fromE
 
 /** `WIDGETS_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via `createDictionaryTranslator`
  *  (same fallback `trash-i18n.ts` uses) — a shared word this dict doesn't carry for a locale still
- *  renders translated instead of falling straight to English. Exported so the feature's
- *  `.hooks.ts` files (which have no JSX and build their own `t` closure the way the `.tsx` screens
- *  in this feature do) can call it directly instead of duplicating the lookup. */
-export const t = createDictionaryTranslator(WIDGETS_DICT);
+ *  renders translated instead of falling straight to English. Exported so the surviving
+ *  `integrations/jini-admin/widgets-ports.ts` translator and shared picker bindings can call it
+ *  directly instead of duplicating the lookup. */
+export const t = createDictionaryTranslator({ featureDictionary: WIDGETS_DICT }, { commonDictionary: COMMON_I18N });

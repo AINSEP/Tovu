@@ -1,5 +1,5 @@
 import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
-import type { RemoveWidgetFn } from "../../ports.js";
+import type { RemoveWidgetFn } from "@jini-ai/cms/widgets";
 
 /**
  * @file Test support: the widget Trash over an in-memory entries store, the way the hermetic

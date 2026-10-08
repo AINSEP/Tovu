@@ -1,14 +1,16 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
-import { interpolate, localeEntry } from "../../lib/template-i18n";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Spanish translation for the Redirects screen (`/admin/redirects`) — the create form, the
  * bulk-import affordance, table headers, and the delete-confirm dialog.
  *
- * Also covers `rules.ts`'s `redirectRowMenuItems` row-menu labels (Disable/Enable/Delete) — the
+ * Also covers Jini `redirects/rules.ts`'s `redirectRowMenuItems` labels (Disable/Enable/Delete) — the
  * earlier pass's `.tsx`-only scope left these untranslated (same gap `integrations-i18n.tsx`'s file
- * header documented); `rules.ts` imports `t` from here directly.
+ * header documented). The host's `integrations/jini-admin/redirects-ports.ts` supplies this
+ * translator to the extracted rules; the package never imports the host dictionary.
  */
 
 const REDIRECTS_TRANSLATIONS: Record<string, Record<string, string>> = {
@@ -719,7 +721,7 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = Object.fromEntrie
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */
-export const t = createDictionaryTranslator(REDIRECTS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: REDIRECTS_DICT }, { commonDictionary: COMMON_I18N });
 
 const IMPORT_RULES_LABEL_FRAGMENTS: Record<string, { before: string; after: string }> = {
   en: { before: "Paste a JSON array of ", after: " rule objects (1-500 items)" },
@@ -785,10 +787,10 @@ const IMPORT_RESULT_SUMMARY_TEMPLATE: Record<string, string> = {
 
 /** The import result summary — "{created} created, {failed} failed." */
 export function importResultSummary(locale: string, created: number, failed: number): string {
-  return interpolate(localeEntry({ table: IMPORT_RESULT_SUMMARY_TEMPLATE, locale }), {
+  return interpolate({ template: localeEntry({ table: IMPORT_RESULT_SUMMARY_TEMPLATE, locale }), vars: {
     created,
     failed,
-  });
+  } });
 }
 
 const CREATED_LABEL: Record<string, string> = {
@@ -849,7 +851,7 @@ const FAILED_ITEM_LABEL_TEMPLATE: Record<string, string> = {
 
 /** One failed-item line: "Item {index} ({code})". */
 export function failedItemLabel(locale: string, index: number, code: string): string {
-  return interpolate(localeEntry({ table: FAILED_ITEM_LABEL_TEMPLATE, locale }), { index, code });
+  return interpolate({ template: localeEntry({ table: FAILED_ITEM_LABEL_TEMPLATE, locale }), vars: { index, code } });
 }
 
 const DELETE_REDIRECT_BODY_FRAGMENTS: Record<string, { before: string; after: string }> = {
@@ -916,5 +918,5 @@ const ACTIONS_FOR_REDIRECT_TEMPLATE: Record<string, string> = {
 
 /** The row-menu trigger's accessible name embeds the rule's own `fromPattern`. */
 export function actionsForRedirectLabel(locale: string, fromPattern: string): string {
-  return interpolate(localeEntry({ table: ACTIONS_FOR_REDIRECT_TEMPLATE, locale }), { fromPattern });
+  return interpolate({ template: localeEntry({ table: ACTIONS_FOR_REDIRECT_TEMPLATE, locale }), vars: { fromPattern } });
 }

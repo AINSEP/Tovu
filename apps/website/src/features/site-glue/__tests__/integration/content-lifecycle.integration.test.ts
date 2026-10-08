@@ -1,10 +1,11 @@
+import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { attachGlueContentLifecycle } from "../../attachment-points/content-lifecycle.js";
 import type { GlueContentLifecycleFilter, GlueFieldDecl, GlueHostPort } from "../../ports.js";
-import { attachLoadedPlugin } from "#src/features/plugin-runtime/loader";
-import { createHookRegistry } from "#src/features/plugin-runtime/hook-registry";
+import { attachLoadedPlugin } from "@jini-ai/plugins/host";
+import { createHookRegistry } from "@jini-ai/plugins/host";
 import type { ContentEntryDraft } from "@tovu/sdk";
 
 /**
@@ -47,7 +48,7 @@ function makeRealHostPort(hookRegistry: ReturnType<typeof createHookRegistry>): 
         // Adapt the glue-vocabulary filter (ctx.moduleId) to hook-registry's own ctx shape
         // (ctx.pluginId) — this translation is real, host-specific glue, deliberately not owned by
         // site-glue's own product-neutral `content-lifecycle.ts`.
-        filter: (entry, ctx) => filter(entry, { moduleId: ctx.pluginId, workspaceId: ctx.workspaceId }),
+        filter: (entry, ctx) => filter(entry as Parameters<GlueContentLifecycleFilter>[0], { moduleId: ctx.pluginId, workspaceId: ctx.workspaceId }),
         declaredFields: declaredFields.map((f) => ({ path: `ext.${moduleId}.${f.path}`, type: f.type })),
       });
     },
@@ -55,7 +56,7 @@ function makeRealHostPort(hookRegistry: ReturnType<typeof createHookRegistry>): 
 }
 
 test("ADR-057 Decision 2.1: a glue module's filter actually fires through attachLoadedPlugin and a real hook-registry — its returned patch is merged exactly like a built-in/site plugin's", async () => {
-  const hookRegistry = createHookRegistry();
+  const hookRegistry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
   const hostPort = makeRealHostPort(hookRegistry);
 
   const glueFilter: GlueContentLifecycleFilter = async (_entry, ctx) => ({ greeted: ctx.moduleId });
@@ -63,12 +64,12 @@ test("ADR-057 Decision 2.1: a glue module's filter actually fires through attach
 
   attachGlueContentLifecycle({ moduleId: "site-glue-example", filter: glueFilter, declaredFields, hostPort });
 
-  const result = await hookRegistry.runBeforeSave(draft());
+  const result = await hookRegistry.runBeforeSave({ entry: draft() });
   assert.deepEqual(result, { "site-glue-example": { greeted: "site-glue-example" } });
 });
 
 test("ADR-057 Decision 4: this category stays fail-closed end to end — a throwing glue filter rejects runBeforeSave entirely, exactly like a built-in/site plugin's throw", async () => {
-  const hookRegistry = createHookRegistry();
+  const hookRegistry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
   const hostPort = makeRealHostPort(hookRegistry);
 
   const throwingFilter: GlueContentLifecycleFilter = async () => {
@@ -77,31 +78,23 @@ test("ADR-057 Decision 4: this category stays fail-closed end to end — a throw
 
   attachGlueContentLifecycle({ moduleId: "broken-glue", filter: throwingFilter, declaredFields: [], hostPort });
 
-  await assert.rejects(() => hookRegistry.runBeforeSave(draft()), /broken-glue/);
+  await assert.rejects(() => hookRegistry.runBeforeSave({ entry: draft() }), /broken-glue/);
 });
 
 test("ADR-057 Decision 3: a glue module's filter composes AFTER a built-in and a site plugin attached to the SAME registry", async () => {
-  const hookRegistry = createHookRegistry();
+  const hookRegistry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
   const hostPort = makeRealHostPort(hookRegistry);
   const callOrder: string[] = [];
 
-  hookRegistry.attach(
-    "a-built-in",
-    "built-in",
-    async () => {
+  hookRegistry.attach({ pluginId: "a-built-in", source: "built-in", filter: async () => {
       callOrder.push("a-built-in");
       return { marker: "built-in" };
-    },
-    [{ path: "ext.a-built-in.marker", type: "string" }]
+    }, declaredFields: [{ path: "ext.a-built-in.marker", type: "string" }] }
   );
-  hookRegistry.attach(
-    "z-site",
-    "site",
-    async () => {
+  hookRegistry.attach({ pluginId: "z-site", source: "site", filter: async () => {
       callOrder.push("z-site");
       return { marker: "site" };
-    },
-    [{ path: "ext.z-site.marker", type: "string" }]
+    }, declaredFields: [{ path: "ext.z-site.marker", type: "string" }] }
   );
 
   const glueFilter: GlueContentLifecycleFilter = async () => {
@@ -115,7 +108,7 @@ test("ADR-057 Decision 3: a glue module's filter composes AFTER a built-in and a
     hostPort,
   });
 
-  await hookRegistry.runBeforeSave(draft());
+  await hookRegistry.runBeforeSave({ entry: draft() });
   assert.deepEqual(callOrder, ["a-built-in", "z-site", "glue-module"]);
 });
 
@@ -127,10 +120,10 @@ for (const [label, patch, error] of [
   ["wrong declared type", { greeted: 7 }, /FIELD_TYPE_MISMATCH/],
 ] as const) {
   test(`glue before-save rejects ${label} without returning a partial merge`, async () => {
-    const registry = createHookRegistry();
-    registry.attach("good", "built-in", async () => ({ marker: "before" }), [
+    const registry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
+    registry.attach({ pluginId: "good", source: "built-in", filter: async () => ({ marker: "before" }), declaredFields: [
       { path: "ext.good.marker", type: "string" },
-    ]);
+    ] });
     attachGlueContentLifecycle({
       moduleId: "invalid-glue",
       filter: async () => patch as never,
@@ -138,7 +131,7 @@ for (const [label, patch, error] of [
       hostPort: makeRealHostPort(registry),
     });
     const input = draft();
-    await assert.rejects(() => registry.runBeforeSave(input), error);
+    await assert.rejects(() => registry.runBeforeSave({ entry: input }), error);
     assert.deepEqual(input.ext, {});
   });
 }

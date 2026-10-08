@@ -4,17 +4,12 @@ import {
   createSettingsPrincipalLookup,
   type SettingsRepoPort,
   getEffective,
-  resolveDefinitionRaw,
-  SCOPE_BIT,
-  type SettingValueSchema,
-  registerDefinitions,
+  ensureSettingDefinitions,
+  type SettingDefinitionSpec,
   set,
   type AuthorizeFn,
 } from "../settings/index.js";
-import type { FeaturedImageDeps } from "../post/index.js";
-import { SeoSettingsValidationError } from "./errors.js";
-import { seoImageRefRefusal } from "./media.js";
-import type { RobotsDirective, RobotsRule, SeoSettingKey, SeoSettings } from "./types.js";
+import { SeoSettingsValidationError, seoImageRefRefusal, type SeoFeaturedImagePort, type RobotsDirective, type RobotsRule, type SeoSettingKey, type SeoSettings } from "@jini-ai/cms/seo";
 
 /**
  * @file `getSeoSettings`/`setSeoSettings`/`ensureSeoSettingDefinitions`
@@ -37,14 +32,8 @@ import type { RobotsDirective, RobotsRule, SeoSettingKey, SeoSettings } from "./
 
 const SEO_NAMESPACE = "site.seo";
 
-interface SeoDefinitionSpec {
-  key: SeoSettingKey;
-  schema: SettingValueSchema;
-  defaultValue: JsonValue;
-}
-
 /** The 8 registered `site.seo.*` definitions (Decision §3's mapping table). */
-const SEO_DEFINITIONS: readonly SeoDefinitionSpec[] = [
+const SEO_DEFINITIONS: readonly SettingDefinitionSpec<SeoSettingKey>[] = [
   { key: "title_template", schema: { type: "string" }, defaultValue: "%s" },
   // Nullable-on-write, but every non-secret definition needs a non-null default (ledger totality,
   // `validateDefinitionInput`) — "" is this file's own "absent" sentinel, unwrapped to `undefined`
@@ -71,24 +60,6 @@ export interface EnsureSeoSettingDefinitionsInput {
   systemPrincipalId: UUID;
 }
 
-/**
- * Boot-time infra work is trusted by construction (mirrors `migration.ts`'s
- * identical shim) — `ensureSeoSettingDefinitions` ALWAYS uses this, never a
- * caller-supplied `authorize`, since it runs before any request-scoped
- * principal exists to authorize against.
- */
-const alwaysAllowBoot: AuthorizeFn = async () => ({ allowed: true, reason: "system_boot" });
-
-function bootWriteServiceDeps(deps: EnsureSeoSettingDefinitionsDeps) {
-  return {
-    repo: deps.settingsRepo,
-    clock: jiniClock(deps.clock),
-    ids: deps.ids,
-    authorize: alwaysAllowBoot,
-    principals: createSettingsPrincipalLookup({ repo: deps.principals }),
-  };
-}
-
 function callerWriteServiceDeps(deps: SeoSettingsWriteDeps) {
   return {
     repo: deps.settingsRepo,
@@ -103,6 +74,9 @@ function callerWriteServiceDeps(deps: SeoSettingsWriteDeps) {
  * REQ-11 — idempotently registers the 8 `site.seo.*` definitions (skip if
  * already registered, mirrors `migration.ts`'s `ensureCoreDefinition`/
  * `ensureThemeDefinitions` pattern exactly). Safe to call on every boot.
+ * Boot-time infra work is trusted by construction: the shared registrar uses
+ * boot trust rather than caller-supplied authorization, since no request-scoped
+ * principal exists yet.
  *
  * @complexity O(1) — 8 fixed definitions.
  */
@@ -110,33 +84,10 @@ export async function ensureSeoSettingDefinitions(
   deps: EnsureSeoSettingDefinitionsDeps,
   input: EnsureSeoSettingDefinitionsInput
 ): Promise<void> {
-  for (const def of SEO_DEFINITIONS) {
-    const existing = await resolveDefinitionRaw(
-      { repo: deps.settingsRepo },
-      { namespace: SEO_NAMESPACE, key: def.key, workspaceId: input.workspaceId }
-    );
-    if (existing) continue;
-
-    await registerDefinitions({
-      deps: bootWriteServiceDeps(deps),
-      input: {
-        callerPrincipalId: input.systemPrincipalId,
-        authWorkspaceId: input.workspaceId,
-        definitions: [
-          {
-            namespace: SEO_NAMESPACE,
-            key: def.key,
-            ownerKind: "site",
-            workspaceId: input.workspaceId,
-            schema: def.schema,
-            defaultValue: def.defaultValue,
-            scopes: SCOPE_BIT.workspace,
-            secret: false,
-          },
-        ],
-      },
-    });
-  }
+  await ensureSettingDefinitions(
+    { ...deps, clock: jiniClock(deps.clock), principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
+    { namespace: SEO_NAMESPACE, definitions: SEO_DEFINITIONS, ownerKind: "site", ...input },
+  );
 }
 
 async function readKey(
@@ -158,6 +109,24 @@ function undefinedIfEmpty(value: JsonValue | null): string | undefined {
 
 export interface GetSeoSettingsDeps {
   settingsRepo: SettingsRepoPort;
+}
+
+/**
+ * Draft-safety applies only when the noindex key has no explicit owner setting. Its registered
+ * default is false, which must not erase the derived noindex for a draft/trashed/scheduled row.
+ * No equivalent distinction is needed for nofollow: its default and derived outcomes are false.
+ * @example isDefaultRobotsNoindexExplicitlySet({ deps: { settingsRepo }, input: { workspaceId } }, {})
+ * @complexity O(1) effective-setting lookup; repository failures propagate.
+ */
+export async function isDefaultRobotsNoindexExplicitlySet(
+  { deps, input }: { deps: GetSeoSettingsDeps; input: { workspaceId: UUID } },
+  _optional: Record<string, never> = {},
+): Promise<boolean> {
+  const resolved = await getEffective(
+    { repo: deps.settingsRepo },
+    { namespace: SEO_NAMESPACE, key: "default_robots_noindex", scopeContext: { workspaceId: input.workspaceId } },
+  );
+  return resolved !== null && resolved.sourceLayer !== "default";
 }
 
 /** REQ-11/12 — reads all 8 `site.seo.*` values via `getEffective`, recomposes `defaultRobots`. */
@@ -196,7 +165,7 @@ export interface SeoSettingsWriteDeps extends GetSeoSettingsDeps {
   principals: PrincipalRepoPort;
   /** Media lookups for the `defaultOgImage` image check (2026-10-05, see `seoImageRefRefusal`).
    *  Required so no write path can skip it by not wiring it. */
-  media: FeaturedImageDeps;
+  media: { featuredImage: SeoFeaturedImagePort };
 }
 
 /**

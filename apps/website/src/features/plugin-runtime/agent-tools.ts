@@ -9,7 +9,7 @@
  * permission each one carries. Every entry maps 1:1 onto a real, already-shipped admin surface:
  * `content_read.plugin` mirrors `routes/admin/plugins/list.ts` (`PLUGINS_LIST`) and `plugins_set_enabled`
  * mirrors `routes/admin/plugins/set-enabled.ts` (`PLUGIN_SET_ENABLED`) exactly — same permissions,
- * same underlying `features/plugin-runtime/activation.ts` functions.
+ * same underlying `Jini/packages/plugins/src/host/activation.ts` functions.
  *
  * Deliberate absences (the point of a catalog, not an oversight):
  * - There is no install/upload tool. `features/plugin-runtime` has no admin ROUTE for either
@@ -28,13 +28,13 @@
  *   (`routes/plugins/install.ts`, plugin-install-plan M1a) shipped, and `plugins_install` wraps the
  *   same installer. It lives in its own module and domain (`install-tool.ts`), not this catalog —
  *   see the "install stays separate" reasoning below.
- * - `plugins_uninstall` mirrors the route it wires (`uninstall.ts`) exactly: same
+ * - `plugins_uninstall` mirrors the route it wires (`Jini/packages/plugins/src/host/uninstall.ts`) exactly: same
  *   `admin.plugins.enable` permission (no new grant introduced), same two hard preconditions
  *   (`uninstallPlugin()`'s own — the plugin must be a site-installed, non-built-in record, and must
  *   be disabled in every workspace first), same files-first-then-activation-rows ordering. NOT
  *   wrapped in a confirmation dialog the way `content_post_delete`/`deployment_execute_static_publish`
  *   are: this route itself is deliberately NOT wrapped in the change-set/revert gateway either
- *   (`uninstall.ts`'s own header — "there is no meaningful 'restore the prior state' for deleted
+ *   (`Jini/packages/plugins/src/host/uninstall.ts`'s own header — "there is no meaningful 'restore the prior state' for deleted
  *   bytes"). The description below states the irreversibility in plain language instead.
  *   CORRECTED 2026-09-09: this bullet used to justify that with "there is no existing
  *   human-confirmation transport this tool could reuse without inventing one" — already false when

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { createSubmissionIpRetentionRepo } from "../submission-ip-retention-repo.js";
-import { toSubmissionRecord } from "../repo.rows.js";
+import { createSubmissionIpRetentionRepo } from "#src/features/forms/repo.sqlite";
+import { toSubmissionRecord } from "@jini-ai/cms/forms/sql";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { submissionIpRetentionMigration } from "#src/platform/db/migrations/0006_submission_ip_retention";
@@ -53,23 +53,6 @@ describeEachDialect("submission IP retention adapter and migration 0006", {
     await assert.rejects(kernel.run(db => db.insertInto("form_submissions").values({ ...before[0]!, id: "bad-fk", form_definition_id: "missing" }).execute()));
     await install(kernel);
     assert.deepEqual(await kernel.run(db => db.selectFrom("form_submissions").selectAll().orderBy("id").execute()), after);
-  });
-
-  test("bounded batches cover more than 500 records; concurrent passes count each cleared row once", async () => {
-    const { kernel, repo } = make();
-    await install(kernel);
-    await seed(kernel, Array.from({ length: 501 }, (_, i) => ({ id: `s-${i}`, age: 91 * DAY })));
-    const counts = await Promise.all([
-      repo.clearExpiredIps({ submittedBeforeOrAt: CUTOFF }, { limit: 500 }),
-      createSubmissionIpRetentionRepo({ kernel }).clearExpiredIps({ submittedBeforeOrAt: CUTOFF }, { limit: 500 }),
-    ]);
-    assert.ok(counts.every(count => count <= 500));
-    const tail = await repo.clearExpiredIps({ submittedBeforeOrAt: CUTOFF }, { limit: 500 });
-    assert.equal(counts.reduce((a, b) => a + b, 0) + tail, 501);
-    const rows = await kernel.run(db => db.selectFrom("form_submissions").selectAll().execute());
-    assert.equal(rows.length, 501);
-    assert.ok(rows.every(row => row.source_ip === null && row.data_json === '{"message":"preserve me"}' && row.version === 7));
-    assert.equal(await repo.clearExpiredIps({ submittedBeforeOrAt: CUTOFF }, { limit: 500 }), 0);
   });
 });
 

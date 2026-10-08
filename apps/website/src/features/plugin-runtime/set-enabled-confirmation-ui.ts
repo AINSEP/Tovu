@@ -1,6 +1,5 @@
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { HumanConfirmSpec } from "../../contracts/core/human-confirm.js";
 
-import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The dialog `plugins_set_enabled` raises before it turns a plugin ON, for either plugin
@@ -78,55 +77,22 @@ const FAMILY_COPY: Record<PluginFamily, { readonly noun: string; readonly warnin
 };
 
 /**
- * Builds the `ui://` URI for one confirmation instance.
- *
- * Keyed by family and plugin id — the two values that together identify what is being switched on.
- * A URI is an identifier a host may log or cache, so nothing sensitive goes in it; there is nothing
- * sensitive here to begin with.
- */
-export function enableConfirmationUri(subject: EnableConfirmationSubject): UIResourceUri {
-  return `ui://tovu/plugins-set-enabled/${subject.family}/${encodeURIComponent(subject.pluginId)}` as UIResourceUri;
-}
-
-/**
- * Renders the enable-confirmation dialog as a self-contained MCP-UI resource.
+ * Describes the enable-confirmation dialog for the shared approval transport.
  *
  * @param spec.subject - What the human is being asked about. The plugin is NAMED, because a dialog
  * that says "enable this plugin?" without saying which one is not consent.
- * @param spec.exchangeId - The held-open call's correlation handle (`SurfaceExchange.id`). This is
- * the only place it may go — see this file's header.
- * @param spec.expiresAtMs - The exchange's deadline (`SurfaceExchange.expiresAtMs()`, read right
- * before rendering), so the chat counts the card down and closes it — as `requireHumanConfirm` does.
  * @complexity O(n) in the rendered field lengths.
  */
-export function buildEnableConfirmationResource(spec: { subject: EnableConfirmationSubject; exchangeId: string; expiresAtMs: number }): UIResource {
-  const { subject, exchangeId, expiresAtMs } = spec;
+export function describeEnableApproval({ subject }: { subject: EnableConfirmationSubject }, _optional = {}): HumanConfirmSpec {
   const copy = FAMILY_COPY[subject.family];
-
-  return buildConfirmationSurface({
-    uri: enableConfirmationUri(subject),
+  return {
+    toolId: PLUGINS_SET_ENABLED_TOOL_ID, errorCode: "PLUGINS",
     title: `Enable ${subject.label ?? subject.pluginId}?`,
     description: `This turns on the ${copy.noun} "${subject.pluginId}" for this workspace.`,
-    details: [
-      { label: "Plugin", value: subject.pluginId },
-      { label: "Kind", value: copy.noun },
-      ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }]),
-    ],
-    warning: copy.warning,
-    confirm: {
-      label: "Enable",
-      toolName: PLUGINS_SET_ENABLED_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
-    },
-    // A tool action, not a bare dismiss: cancelling posts back and resolves the parked call
-    // immediately, rather than stranding the agent's call open until the idle deadline.
-    cancel: {
-      label: "Cancel",
-      toolName: PLUGINS_SET_ENABLED_TOOL_ID,
-      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
-    },
-    app: { appName: "tovu-plugins-set-enabled", appVersion: "1" },
-    preferredFrameSize: ["100%", "320px"],
-    expiresAtMs,
-  });
+    details: [{ label: "Plugin", value: subject.pluginId }, { label: "Kind", value: copy.noun },
+      ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }])],
+    warning: copy.warning + " This escalation approval is saved for this plugin identity, version and digest. It also covers the six assistant execution settings; every action still checks its current permissions.", confirmLabel: "Enable",
+    // Cancelling posts back and resolves the parked call immediately, rather than stranding it.
+    cancelLabel: "Cancel",
+  };
 }

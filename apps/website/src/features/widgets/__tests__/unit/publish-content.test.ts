@@ -1,17 +1,18 @@
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryFormDefinitionRepo } from "#src/features/forms/repo.memory";
+import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "../../publish-content.js";
-import { bindWidgetArea, mutateWidgetAreaPlacements } from "../../region-area-service.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
-import { createWidgetInstance } from "../../write-service.js";
-import { parseWidgetAreaPayload } from "../../entry-payload.js";
+import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
+import { createWidgetInstance } from "@jini-ai/cms/widgets";
+import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
 
 function instance(name: string) {
   const ports = {
@@ -41,15 +42,15 @@ async function sites() {
   const dst = instance("dst");
   const actor = { principalId: "owner" };
   const text = (title: string, body: string) =>
-    createWidgetInstance({ deps: src.service, input: { workspaceId: WORKSPACE_ID, actor, widgetType: "text", title, config: { body }, slug: title.toLowerCase() } });
+    createWidgetInstance({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor, widgetType: "text", title, config: { body }, slug: title.toLowerCase() } });
   const a = (await text("About", "Hello")).instance;
   const b = (await text("Hours", "9-5")).instance;
-  const { areaEntry } = await bindWidgetArea({ deps: src.service, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
+  const { areaEntry } = await bindWidgetArea({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
   const placements = [
     { placementId: "p-1", widgetEntryId: b.id, enabled: true },
     { placementId: "p-2", widgetEntryId: a.id, enabled: false },
   ];
-  await mutateWidgetAreaPlacements({ deps: src.service, input: { workspaceId: WORKSPACE_ID, actor, areaEntryId: areaEntry.id, baseVersion: areaEntry.version, placements } });
+  await mutateWidgetAreaPlacements({ deps: { host: buildWidgetHostPorts({}, {}), ...src.service }, input: { workspaceId: WORKSPACE_ID, actor, areaEntryId: areaEntry.id, baseVersion: areaEntry.version, placements } });
   return { src, dst, a, b, placements };
 }
 
@@ -70,7 +71,7 @@ test("widget + widget-area round trip: widgets first with their ids, the region'
   const area = await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: binding.areaEntryId });
     assert.match(JSON.stringify(area?.fieldsJson), new RegExp(placements.map((p) => p.placementId).join(".*")));
     assert.ok(area);
-    assert.deepEqual(parseWidgetAreaPayload(area.fieldsJson).doc.placements, placements);
+    assert.deepEqual(parseWidgetAreaPayload({ fieldsJson: area.fieldsJson }).doc.placements, placements);
   assert.equal((await dst.ports.entries.findById({ workspaceId: WORKSPACE_ID, id: a.id }))?.slug, "about");
 });
 
@@ -104,7 +105,7 @@ test("widget: a trashed destination widget with the same id is refused at preche
 test("widget: a trashed destination widget holding the same slug under another id is refused at precheck", async () => {
   const { src, dst, a } = await sites();
   const { instance: old } = await createWidgetInstance({
-    deps: dst.service,
+    deps: { host: buildWidgetHostPorts({}, {}), ...dst.service },
     input: { workspaceId: WORKSPACE_ID, actor: { principalId: "owner" }, widgetType: "text", title: "Old", config: { body: "x" }, slug: "about" },
   });
   const row = await dst.ports.entries.findAnyById({ workspaceId: WORKSPACE_ID, id: old.id });
@@ -120,7 +121,7 @@ test("widget-area: a region the destination binds after the plan is a conflict",
   const { src, dst } = await sites();
   const entities = await packAll(src.site);
   const report = await plan(entities, dst.site);
-  await bindWidgetArea({ deps: dst.service, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
+  await bindWidgetArea({ deps: { host: buildWidgetHostPorts({}, {}), ...dst.service }, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
   await assert.rejects(applyReport(report, entities, dst.site), (err: Error & { rowOutcome?: string }) => err.rowOutcome === "conflict");
 });
 

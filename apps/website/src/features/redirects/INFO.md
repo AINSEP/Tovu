@@ -1,44 +1,30 @@
 # `redirects`
 
-Tier-2 core library implementing SPEC-009 (Redirects admin section), per
-ADR-033 (design), ADR-PIPE-009 (implementation architecture).
+Tovu wiring for SPEC-009 (ADR-033 and ADR-PIPE-009). The redirect domain lives in
+Jini `packages/cms/src/redirects/`, consumed through `@jini-ai/cms/redirects`
+and its `/sql` entry. Jini owns matching, interpolation, ordering, the write
+chokepoint, required open-redirect checks, hit aggregation, capture, memory
+storage, SQL query bodies and row codecs. Tovu imports these owners directly.
 
-## Purpose
+## Retained product wiring
 
-Redirect rule lifecycle (manual CRUD + import), bounded exact/prefix/wildcard
-matching, hit-count telemetry, and the `SlugChangeCapture` auto-capture
-implementation that keeps a renamed entry's old URL alive as a 301 the moment
-the rename commits (never-break-links).
+- `phase-handler.ts`: registers Jini resolution in Tovu's routing phases, with
+  owner-scoped replacement/disposal and `onError: "skip"`. Composition injects
+  the repo, matcher, existing Phase 19 verified-origin oracle and host policy;
+  optional hit recording remains independent of serving. Jini's
+  `target-gate.ts` checks every fully interpolated Location (INV-03).
+- `repo.sqlite.ts`: binds the site's `ContentKernel`/`ContentDb` to Jini's SQL
+  factory. Tovu owns the unchanged `redirects`, `redirect_revisions` and
+  `redirect_hits` names. There are no schema or migration changes.
+- `publish-content.ts`: Tovu publishing contribution and natural-key policy.
+- `tool-registrations.ts` and `agent-tools.ts`: Tovu tool/permission integration.
+- `index.ts`: product connection and phase-binding exports only.
+- `__tests__/`: the eight retained product suites and the shared Trash test
+  double. The 14 generic suites live in Jini.
 
-## Module map
-
-- `types.ts` — `RedirectRecord`/`RedirectRevision`/`RedirectHitStats` and the
-  command envelopes + typed errors (unchanged from the pre-existing stub,
-  except this feature's deletion of the stale `SlugChangeCapture` shape and
-  addition of `RedirectTargetNotAllowedError`).
-- `ports.ts` — `RedirectRepoPort` (a genuine ADR-006 port, two adapters),
-  `RedirectMatcher`/`RedirectHitSink`/`RedirectResolver` (internal seams).
-- `ports.internal.ts` — package-private shared insert helper
-  (`insertRedirectAndRevision`), the sole path INV-01 depends on. Imported
-  only by `redirects.ts` and `capture.ts`.
-- `redirects.ts` — THE write chokepoint: `createRedirect`/`updateRedirect`/
-  `tombstoneRedirect`/`importRedirects`.
-- `capture.ts` — `RedirectSlugChangeCapture`, the routing-owned
-  `SlugChangeCapture` implementer. Performs NO transaction control of its own
-  (Decision A) — relies on the caller's already-open ambient transaction.
-- `phase-handler.ts` — `RedirectPhaseHandlerResolver` (read-path resolution,
-  owns the open-redirect oracle gate, INV-03) + `registerRedirectsPhaseHandlers`
-  (routing-chain registration).
-- `reserved-destination.ts` — the one "same-origin destination lands on /admin or /api" verdict,
-  shared by the read gate (`phase-handler.ts`) and the write gate (`redirects.ts`).
-- `referrer-alias.ts` — the exact `Location` value `back`, which Express's `res.redirect` sends as
-  the visitor's `Referer`; refused by both gates.
-- `matcher.ts` — pure, bounded exact/prefix/wildcard matching + write-time
-  pattern validation. No I/O.
-- `hit-sink.ts` — off-hot-path hit aggregation + its outbox subscriber.
-- `repo.memory.ts` / `repo.sqlite.ts` — the rule-of-two `RedirectRepoPort`
-  adapters.
-- `index.ts` — public barrel. `ports.internal.ts` is NOT re-exported.
+The reserved segment policy still has one owner:
+`platform/routing/reserved-paths.ts` exports the existing admin/api set. Jini
+receives that set explicitly, with no allow-all oracle or default host policy.
 
 ## Known scope boundary
 
@@ -51,5 +37,7 @@ rename-through-the-admin-UI.
 
 ## Dependencies
 
-`core` (ports/types), `routing` (phase registration + capture slot),
-`origin` (open-redirect oracle), `identity` (`authorize()`).
+Jini redirects domain and SQL entries, CMS core ports, Tovu routing registry
+and capture slot, verified-origin oracle, identity authorization, Trash and
+publish-content product contracts. Dependency ports flow into Jini; Jini never
+imports Tovu. Domain-only package peers remain optional.

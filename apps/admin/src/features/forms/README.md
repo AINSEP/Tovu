@@ -1,18 +1,9 @@
 # features/forms
 
-Form definitions and submissions — the two screens behind the sidebar's **Content → Forms** entry.
+Screens live in `@jini-ai/admin/forms` (`@jini-ai/admin/forms/react` for React views).
 
-| file | what it is |
-|---|---|
-| `FormsList.tsx` | List view of form definitions, create/delete. |
-| `FormEditor.tsx` | Per-form field builder plus the submissions table (`DataTable`) and notify settings. Pulls in `styles/form-field-attrs.css`. |
-| `index.ts` | The only surface `panels.tsx` may import. |
+`index.ts` retains `FormsList` and `FormEditor({ formId, tab })` for `panels.tsx`, mounts the Jini pages through the host module scope, and imports the native-dialog/field-attribute styles. The form identity stays mounted across Fields/Submissions routes so unsaved drafts survive tab changes.
 
-## What this feature does not own
+`forms-i18n.ts` remains the Tovu dictionary. `integrations/jini-admin/forms-ports.ts` supplies authenticated workspace HTTP, filtered content refresh and navigation; `forms-module.hooks.ts` supplies live locale, RecipientLabel and list publication actions. Form/submission removal uses the existing generic Trash POST; scoped submission DELETE also means reversible Trash.
 
-- The public-facing form-rendering/submission runtime — this feature only edits the definition and
-  reads submissions already recorded.
-
-## Notes for anyone editing here
-
-Both `FormsList.tsx` and `FormEditor.tsx` have unit tests (`__tests__/`).
+Host-only locale/dictionary tests remain in `__tests__/`; transferred screen/hook/rule tests and API conformance live in Jini's forms source. Public rendering/submission runtime belongs to the CMS, outside these admin screens.

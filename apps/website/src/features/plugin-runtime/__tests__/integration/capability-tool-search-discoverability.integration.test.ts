@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { buildEvalToolRegistry, fakeEvalRouteDeps, MIN_EXPECTED_TOOL_COUNT } from "../../../../../../../development/evals/tool-search-eval-registry.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
-import type { PluginActivationRecord } from "../../activation.js";
-import type { PluginDiscoveryRecord } from "../../discovery.js";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
+import type { PluginActivationRecord } from "@jini-ai/plugins/host";
+import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { buildPluginCapabilityToolRegistrations, loadEnabledPluginCapabilityToolSources, type PluginCapabilityToolSource } from "../../capability-tool-registrations.js";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
@@ -40,13 +40,13 @@ async function buildCatalogDescriptors(withRegistration: boolean, suppliedSource
     const sources = suppliedSources ?? await loadEnabledPluginCapabilityToolSources({
       workspaceId: WORKSPACE,
       discoverPlugins: async () => [discoveryRecord()],
-      pluginActivationRepo: new InMemoryPluginActivationRepo([enabledActivation()]),
+      pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [enabledActivation()] }),
     });
     const registrations = buildPluginCapabilityToolRegistrations(sources, {
       authorize: async () => ({ allowed: true }) as never,
       workspaceId: WORKSPACE,
       postRepo: new InMemoryPostRepo(),
-      pluginActivationRepo: new InMemoryPluginActivationRepo([enabledActivation()]),
+      pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [enabledActivation()] }),
     });
     for (const registration of registrations) registry.register(registration);
   }
@@ -89,7 +89,7 @@ test("a disabled word-count plugin contributes no capability registration or sea
   const sources = await loadEnabledPluginCapabilityToolSources({
     workspaceId: WORKSPACE,
     discoverPlugins: async () => [discoveryRecord()],
-    pluginActivationRepo: new InMemoryPluginActivationRepo([{ ...enabledActivation(), enabled: false }]),
+    pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [{ ...enabledActivation(), enabled: false }] }),
   });
   assert.deepEqual(sources, [], "a disabled plugin must yield no capability-tool source at all");
 

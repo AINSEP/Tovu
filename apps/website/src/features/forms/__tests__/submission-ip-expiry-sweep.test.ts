@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { startSubmissionIpExpirySweep, SUBMISSION_IP_SWEEP_INTERVAL_MS } from "../submission-ip-expiry-sweep.js";
-import type { SubmissionIpSweep } from "../submission-ip-retention-port.js";
+type SubmissionIpSweep = typeof import("@jini-ai/cms/forms").sweepExpiredSubmissionIps;
 
 /** Owner retention decision 2026-10-04 / DR-002: prove boot, daily ticks and shutdown behavior. */
 // Supplied sweeps here never use their repo: database effects have a separate dialect suite.

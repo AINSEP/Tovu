@@ -1,32 +1,29 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { resolveAgentPluginLayout } from "../../../../features/agent-plugins/layout.js";
-import { mock, test } from "node:test";
+import { test } from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file S14 review: `plugins_list`'s `agentPlugins` rows carry exactly the four promised fields —
  * never `packageRoot`, `files` or a skill's `skillPath` (absolute host paths) — and a failing Agent
  * Plugin read degrades to `agentPlugins: []` instead of failing the whole call. The sibling
  * `plugins-list.agent-plugins.test.ts` only covers an empty directory, which neither guard touches.
- * `listInstalledPlugins` is swapped via `mock.module()` (real exports spread through) before
- * `tool-registrations.js` is imported, the idiom `tool-registrations.plugins-set-enabled-busy.test.ts`
- * uses.
+ * `listInstalledPlugins` is injected through its existing owner contract, so the real registration
+ * can assert row projection and read failure without replacing modules.
  */
 
-const real = await import("#src/features/agent-plugins/resolve-agent-plugin-refs");
-
+const real = await import("../../../agent-plugins/lifecycle.js");
 let listBehavior: typeof real.listInstalledPlugins = real.listInstalledPlugins;
 
-mock.module("#src/features/agent-plugins/resolve-agent-plugin-refs", {
-  namedExports: { ...real, listInstalledPlugins: (dir: string) => listBehavior(dir) },
-});
-
 const { buildPluginsRegistrations } = await import("#src/features/plugin-runtime/tool-registrations");
-const { InMemoryPluginActivationRepo } = await import("#src/features/plugin-runtime/repo.memory");
+const { InMemoryPluginActivationRepo } = await import("@jini-ai/plugins/host");
 const { InMemoryChangeSetRepo } = await import("#src/contracts/core/commands/index");
-const { createSurfaceExchangeStore } = await import("#src/contracts/core/tool-surface-exchanges");
+const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 
 type Deps = Parameters<typeof buildPluginsRegistrations>[0];
 
@@ -40,6 +37,7 @@ function fakeDeps(overrides: Partial<Deps> = {}): Deps {
     outbox: { enqueue: async () => {} },
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => [],
+    listInstalledAgentPlugins: dir => listBehavior(dir),
     onPluginEnabled: async () => {},
     onPluginDisabled: () => {},
     removePlugin: async () => ({ ok: true as const, version: null }),
@@ -51,7 +49,7 @@ function fakeDeps(overrides: Partial<Deps> = {}): Deps {
 }
 
 async function callPluginsList(deps = fakeDeps()): Promise<{ plugins: unknown[]; agentPlugins: unknown[] }> {
-  const registration = buildPluginsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
+  const registration = buildPluginsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find(
     (r) => r.descriptor.id === "plugins_list",
   );
   assert.ok(registration);
@@ -72,10 +70,10 @@ function runtimeDeps(): Deps {
       id: "word-count", name: "Word Count", version: "1.0.0", source: "site", tier: "tier-3",
       status: "valid", errors: [], sourceDir: "/abs/host/path/runtime/word-count",
     }],
-    pluginActivationRepo: new InMemoryPluginActivationRepo([{
+    pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [{
       pluginId: "word-count", workspaceId: "ws-tools", version: "1.0.0", enabled: true,
       updatedAt: "2026-09-24T00:00:00.000Z",
-    }]),
+    }] }),
   });
 }
 

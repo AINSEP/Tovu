@@ -1,10 +1,11 @@
+import { renderHumanApproval } from "../../../../__tests__/support/render-human-approval.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildUninstallConfirmationResource } from "../../uninstall-confirmation-ui.js";
+import { describeUninstallApproval } from "../../uninstall-confirmation-ui.js";
 
-test("site plugin uninstall surface encodes both decisions for plugins_uninstall with the exact exchange", () => {
-  const resource = buildUninstallConfirmationResource({ preview: { pluginId: "site/x", name: "Site Plugin", version: "3.2.1" }, exchangeId: "uninstall-42", expiresAtMs: 1_300_000 });
-  assert.equal(resource.resource.uri, "ui://tovu/plugins-uninstall/site%2Fx");
+test("site plugin uninstall surface encodes both decisions for plugins_uninstall with the exact exchange", async () => {
+  const resource = await renderHumanApproval({ spec: describeUninstallApproval({ preview: { pluginId: "site/x", name: "Site Plugin", version: "3.2.1" } }), exchangeId: "uninstall-42" });
+  assert.equal(resource.resource.uri, "ui://tovu/plugins-uninstall/uninstall-42");
   const html = resource.resource.text;
   assert.ok(html);
   assert.equal(html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1], "Move Site Plugin to trash?");

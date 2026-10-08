@@ -7,7 +7,7 @@
  * — data-mutation call sites are never fail-isolated). This module owns none of that containment
  * logic itself: it delegates straight to {@link GlueHostPort.attachContentLifecycleFilter}, whose
  * real, host-specific implementation is expected to attach the given filter to a live
- * `hook-registry.ts` instance via `plugin-runtime/loader.ts`'s `attachLoadedPlugin()` — the shared
+ * `hook-registry.ts` instance via `Jini/packages/plugins/src/host/node/loader.ts`'s `attachLoadedPlugin()` — the shared
  * extraction ADR-057 Decision 2.1 introduced, with the `"glue"` source. That composition (a real
  * `HookRegistry` plus `attachLoadedPlugin`) is host-specific wiring and does not belong in this
  * product-neutral module; see `__tests__/integration/content-lifecycle.integration.test.ts` for a

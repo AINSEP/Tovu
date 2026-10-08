@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api";
 import { t } from "../comments-i18n";
-import { describeModerationError } from "../rules";
+import { describeModerationError as describeJiniModerationError } from "@jini-ai/admin/comments";
+import { createCommentsTranslator } from "../../../integrations/jini-admin/comments-ports";
+
+// Keep the host's original assertions while adapting to the package's injected translator.
+const describeModerationError = (e: unknown, locale: string) =>
+  describeJiniModerationError({ e }, { t: createCommentsTranslator({ locale }) });
 
 // Author Checklist F4.3/F4.4/F6.2: Spanish menu labels already have coverage; the
 // missing contract is localized errors and templates. Real rules/translator, no mocks/state.
@@ -26,15 +31,15 @@ describe("comment moderation translation gaps", () => {
     ['Permanently delete this comment by "{author}"? This cannot be undone.', '¿Eliminar permanentemente este comentario de "{author}"? Esta acción no se puede deshacer.'],
     ['Actions for the comment by "{author}"', 'Acciones para el comentario de "{author}"'],
   ])("returns Spanish copy with template tokens intact: %s", (key, expected) => {
-    expect(t("es", key)).toBe(expected);
+    expect(t({ locale: "es", key: key })).toBe(expected);
   });
 
   it("resolves each locale independently and inherits shared copy", () => {
-    expect(t("de", "Purge")).toBe("Endgültig löschen");
-    expect(t("es", "Purge")).toBe("Eliminar permanentemente");
-    expect(t("es", "Trash")).toBe("Papelera");
-    expect(t("en", "Comments enabled")).toBe("Comments enabled");
-    expect(t("unknown-locale", "Comments enabled")).toBe("Comments enabled");
-    expect(t("es", "Unlisted moderation message")).toBe("Unlisted moderation message");
+    expect(t({ locale: "de", key: "Purge" })).toBe("Endgültig löschen");
+    expect(t({ locale: "es", key: "Purge" })).toBe("Eliminar permanentemente");
+    expect(t({ locale: "es", key: "Trash" })).toBe("Papelera");
+    expect(t({ locale: "en", key: "Comments enabled" })).toBe("Comments enabled");
+    expect(t({ locale: "unknown-locale", key: "Comments enabled" })).toBe("Comments enabled");
+    expect(t({ locale: "es", key: "Unlisted moderation message" })).toBe("Unlisted moderation message");
   });
 });

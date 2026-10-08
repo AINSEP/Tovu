@@ -1,13 +1,14 @@
+import { FORMS_TABLES } from "#src/features/forms/repo.sqlite";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
-import { FormSlugConflictError, type FormDefinitionRecord } from "@jini-ai/cms-forms";
+import { FormSlugConflictError, type FormDefinitionRecord } from "@jini-ai/cms/forms";
 
 import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { freshPostgresContentDatabase } from "#src/platform/db/__tests__/postgres-database";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { formDefinitionRepoFor } from "../repo.js";
+import { formDefinitionRepoFor } from "@jini-ai/cms/forms/sql";
 
 /**
  * @file F0938 — two writers creating one slug in one workspace, on a real Postgres server with two
@@ -80,10 +81,10 @@ test("postgres: racing creates of one slug persist one winner and give the loser
   // With the lock the second writer waits in lockKey and never checks, so only the bound ends the pause.
   const resume = Promise.race([secondCheck, new Promise<void>((resolve) => setTimeout(resolve, 2_000))]);
 
-  const winner = formDefinitionRepoFor(pausedAfterCheck(first, resume)).create(definition("def-a", "contact"));
+  const winner = formDefinitionRepoFor({ kernel: pausedAfterCheck(first, resume), tables: FORMS_TABLES }, {}).create(definition("def-a", "contact"));
   // Let the first writer take its lock and run its check before the second starts.
   await new Promise((resolve) => setTimeout(resolve, 200));
-  const loser = formDefinitionRepoFor(reportingCheck(second, secondChecked)).create(definition("def-b", "contact"));
+  const loser = formDefinitionRepoFor({ kernel: reportingCheck(second, secondChecked), tables: FORMS_TABLES }, {}).create(definition("def-b", "contact"));
 
   const [won, lost] = await Promise.allSettled([winner, loser]);
   assert.equal(won.status, "fulfilled");

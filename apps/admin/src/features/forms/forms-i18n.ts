@@ -1,5 +1,6 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
- * @file Spanish dictionary for `FormsList.tsx` (list) and `FormEditor.tsx` (field editor, field
+ * @file Spanish dictionary for `@jini-ai/admin/forms/react` FormsList (list) and FormEditor (field editor, field
  * attributes modal, submissions list/detail). Same `DICT[locale]?.[key] ?? key` shape
  * `SettingsUi.tsx`'s own `const t` uses.
  *
@@ -7,7 +8,7 @@
  * classes / HTML attribute allowlist copy) — mixed prose-and-`<code>` content, lower priority than
  * this pass's field labels/buttons/headers, left English for a follow-up pass.
  */
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const FORMS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1407,9 +1408,9 @@ function mergeDictionaryTranslations(
 
 mergeDictionaryTranslations(FORMS_DICT, FORMS_AUDIT_I18N);
 
-/** `FORMS_DICT` had no exported `t` at all before this fix — both `use-form-editor.hooks.ts` and
- *  `use-forms-list.hooks.ts` built their own no-fallback `FORMS_DICT[locale]?.[key] ?? key` inline,
+/** `FORMS_DICT` had no exported `t` at all before this fix — both `Jini forms/react/hooks/use-form-editor.hooks.ts` and
+ *  `Jini forms/react/hooks/use-forms-list.hooks.ts` built their own no-fallback `FORMS_DICT[locale]?.[key] ?? key` inline,
  *  which is why the delete-confirm BUTTON ("Delete permanently", absent from `FORMS_DICT` in every
  *  locale) rendered English everywhere. `createDictionaryTranslator` falls through to `COMMON_I18N`
  *  before the raw English key, same as `trash-i18n.ts`. */
-export const t = createDictionaryTranslator(FORMS_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: FORMS_DICT }, { commonDictionary: COMMON_I18N });

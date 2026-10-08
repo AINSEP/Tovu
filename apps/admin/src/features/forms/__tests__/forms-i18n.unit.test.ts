@@ -29,7 +29,7 @@ describe("FORMS_DICT: cross-locale key parity", () => {
         expect(FORMS_DICT[locale][key], `${locale} ${key}`).not.toBe(key);
       }
     }
-    expect(t("en", "Created / Updated")).toBe("Created / Updated");
+    expect(t({ locale: "en", key: "Created / Updated" })).toBe("Created / Updated");
   });
 
   it("covers the same 21 locales the rest of this app's feature dictionaries ship", () => {
@@ -114,11 +114,11 @@ describe("FORMS_DICT: cross-locale key parity", () => {
 describe("FORMS_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Delete permanently' in German even though FORMS_DICT.de never carries it", () => {
     expect(FORMS_DICT.de["Delete permanently"]).toBeUndefined();
-    expect(t("de", "Delete permanently")).toBe(COMMON_I18N.de["Delete permanently"]);
+    expect(t({ locale: "de", key: "Delete permanently" })).toBe(COMMON_I18N.de["Delete permanently"]);
   });
 
   it("translates 'Save' in German even though FORMS_DICT.de never carries it", () => {
     expect(FORMS_DICT.de.Save).toBeUndefined();
-    expect(t("de", "Save")).toBe(COMMON_I18N.de.Save);
+    expect(t({ locale: "de", key: "Save" })).toBe(COMMON_I18N.de.Save);
   });
 });

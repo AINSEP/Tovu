@@ -5,12 +5,12 @@ import { actionsForRedirectLabel, createdLabel, deleteRedirectBody, failedItemLa
 // Author Checklist F1.1/F4.3/F6.2: different created/failed numbers and literal
 // translated/fallback output; no self-derived oracle or mocked subject.
 it("binds the redirects dictionary and preserves untranslated labels", () => {
-  expect(t("es", "Bulk import")).toBe("Importación masiva");
-  expect(t("es", "exact")).toBe("exacta");
-  expect(t("es", "prefix")).toBe("prefijo");
-  expect(t("es", "wildcard")).toBe("comodín");
-  expect(t("unlisted-locale", "Bulk import")).toBe("Bulk import");
-  expect(t("es", "unknown future redirect label")).toBe("unknown future redirect label");
+  expect(t({ locale: "es", key: "Bulk import" })).toBe("Importación masiva");
+  expect(t({ locale: "es", key: "exact" })).toBe("exacta");
+  expect(t({ locale: "es", key: "prefix" })).toBe("prefijo");
+  expect(t({ locale: "es", key: "wildcard" })).toBe("comodín");
+  expect(t({ locale: "unlisted-locale", key: "Bulk import" })).toBe("Bulk import");
+  expect(t({ locale: "es", key: "unknown future redirect label" })).toBe("unknown future redirect label");
 });
 
 it.each([

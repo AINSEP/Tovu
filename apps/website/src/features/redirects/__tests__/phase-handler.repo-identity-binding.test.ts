@@ -4,8 +4,8 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resetRoutingRegistrationsForTests, runPostContentPhase } from "#src/platform/routing/routing";
-import { InMemoryRedirectRepo } from "../repo.memory.js";
-import type { RedirectRecord, RedirectRevision } from "../types.js";
+import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
+import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
 
 /**
  * @file Composition-root WIRING characterization test — NOT a security test, despite this file's

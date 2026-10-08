@@ -6,13 +6,16 @@ import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { ensureCommentsSettingDefinitions, getCommentsSettings } from "../settings.js";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
-import { createCommentHookRegistry } from "../hooks.js";
-import { InMemoryCommentRepo } from "../repo.memory.js";
-import { createCommentWriteService } from "../write-service.js";
+import { createCommentHookRegistry } from "@jini-ai/cms/comments";
+import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+import { createCommentWriteService } from "@jini-ai/cms/comments";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file RED->GREEN for the 500-redact defect: `comments_update_settings`'s `requireCommentsSettingsPatch`
@@ -38,7 +41,7 @@ async function makeDeps(): Promise<CommentsToolDeps> {
   const commentWriteService = createCommentWriteService({
     repo: commentRepo,
     outbox: new InMemoryOutbox(),
-    hooks: createCommentHookRegistry(),
+    hooks: createCommentHookRegistry({}, {}),
     clock,
     idGen,
     ...commentTrashDoubles(),
@@ -55,7 +58,7 @@ async function makeDeps(): Promise<CommentsToolDeps> {
 
 test("comments_update_settings: an empty patch is a ToolInputError (400), not a bare Error (redacted 500)", async () => {
   const deps = await makeDeps();
-  const registration = buildCommentsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore() }).find(
+  const registration = buildCommentsRegistrations(deps, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).find(
     (r) => r.descriptor.id === "comments_update_settings",
   );
   assert.ok(registration, "expected comments_update_settings to be wired");

@@ -1,3 +1,4 @@
+import { COMMON_I18N } from "../../lib/i18n-common";
 /**
  * @file Spanish translation for the SEO & Metadata screen (`/admin/seo`) — the site-wide defaults
  * form, the sitemap action, and the per-entry override panel + analyzer.
@@ -11,7 +12,7 @@
  * metadata explicitly documented as "Never live text," not user-visible or screen-reader content.
  */
 
-import { createDictionaryTranslator } from "../../lib/dictionary-translator";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const SEO_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1390,4 +1391,4 @@ const SEO_DICT: Record<string, Record<string, string>> = {
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */
-export const t = createDictionaryTranslator(SEO_DICT);
+export const t = createDictionaryTranslator({ featureDictionary: SEO_DICT }, { commonDictionary: COMMON_I18N });

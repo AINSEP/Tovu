@@ -6,10 +6,10 @@ import test from "node:test";
 
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
-import { setPluginEnabled } from "../../activation.js";
-import { PluginConflictError } from "../../plugin-claims.js";
-import type { PluginManifest } from "../../manifest.js";
-import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
+import { setPluginEnabled } from "@jini-ai/plugins/host";
+import { PluginConflictError } from "@jini-ai/plugins/host";
+import type { PluginManifest } from "@jini-ai/plugins/host";
+import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 
 /**

@@ -8,10 +8,13 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
-import { PRE_AUTHORIZED } from "../../authorize-helper.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
+import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
 
 /**
  * @file Closes two gaps neither `region-gaps.test.ts` nor `write-service.integration.test.ts`
@@ -71,7 +74,7 @@ function wired(toolId: string, deps: WidgetsToolDeps): ToolRegistration {
  * themselves certifying the trash tool (that is `widgets/__tests__/agent-tools.trash-confirmation.test.ts`'s job).
  */
 async function trashInstance(deps: WidgetsToolDeps, widgetInstanceId: string): Promise<unknown> {
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const trashTool = buildWidgetsRegistrations(deps, { surfaceExchanges }).find((r) => r.descriptor.id === "widgets_trash_instance");
   assert.ok(trashTool, "expected 'widgets_trash_instance' to be wired");
   const result = (await trashTool.handler(executionContext({ widgetInstanceId }))) as { trashed: boolean };
@@ -117,7 +120,7 @@ test("widgets_create_instance: a config missing a required field is a shape reje
   await assert.rejects(
     () =>
       wired("widgets_create_instance", deps).handler(
-        // `text` requires `body` (registry.ts) — omitted here on purpose.
+        // `text` requires `body` (Jini/packages/cms/src/widgets/registry.ts) — omitted here on purpose.
         executionContext({ widgetType: "text", title: "Missing body", config: {} })
       ),
     (error: unknown) => {

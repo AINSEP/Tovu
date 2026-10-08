@@ -4,15 +4,15 @@ import {
   createSettingsPrincipalLookup,
   type SettingsRepoPort,
   getEffective,
-  resolveDefinitionRaw,
-  SCOPE_BIT,
-  type SettingValueSchema,
-  registerDefinitions,
+  ensureSettingDefinitions,
+  type SettingDefinitionSpec,
   set,
   type AuthorizeFn,
 } from "../settings/index.js";
-import { CommentsSettingsValidationError } from "./errors.js";
-import type { CommentsSettings } from "./types.js";
+import { CommentsSettingsValidationError } from "@jini-ai/cms/comments";
+import type { CommentsSettings } from "@jini-ai/cms/comments";
+
+export { CommentsSettingsValidationError };
 
 /**
  * @file `getCommentsSettings`/`setCommentsSettings`/`ensureCommentsSettingDefinitions` — the
@@ -44,12 +44,6 @@ type CommentsSettingKey =
   | "spam_auto_reject_score"
   | "max_per_ip_per_hour";
 
-interface CommentsDefinitionSpec {
-  key: CommentsSettingKey;
-  schema: SettingValueSchema;
-  defaultValue: JsonValue;
-}
-
 /** Sentinel for `closeAfterDays: null` ("never closes") — every non-secret definition needs a
  * non-null `default_json` (ledger totality, `validateDefinitionInput`'s INV-02), so a literal
  * `null` default is rejected at registration. Mirrors `seo/settings.ts`'s own `""`-means-absent
@@ -61,7 +55,7 @@ const CLOSE_AFTER_DAYS_NEVER_SENTINEL = -1;
 /** The 6 registered `comments.*` definitions, defaults matching the pre-ledger
  * `DEFAULT_COMMENTS_SETTINGS` constant byte-for-byte, so migrating to the ledger changes no
  * workspace's effective settings on day one. */
-const COMMENTS_DEFINITIONS: readonly CommentsDefinitionSpec[] = [
+const COMMENTS_DEFINITIONS: readonly SettingDefinitionSpec<CommentsSettingKey>[] = [
   { key: "enabled", schema: { type: "boolean" }, defaultValue: true },
   { key: "require_moderation", schema: { type: "boolean" }, defaultValue: true },
   { key: "max_depth", schema: { type: "number" }, defaultValue: 5 },
@@ -85,52 +79,18 @@ export interface EnsureCommentsSettingDefinitionsInput {
   systemPrincipalId: UUID;
 }
 
-/** Boot-time infra work is trusted by construction (mirrors `seo/settings.ts`'s identical shim). */
-const alwaysAllowBoot: AuthorizeFn = async () => ({ allowed: true, reason: "system_boot" });
-
-function bootWriteServiceDeps(deps: EnsureCommentsSettingDefinitionsDeps) {
-  return {
-    repo: deps.settingsRepo,
-    clock: jiniClock(deps.clock),
-    ids: deps.ids,
-    authorize: alwaysAllowBoot,
-    principals: createSettingsPrincipalLookup({ repo: deps.principals }),
-  };
-}
-
 /** Idempotently registers the 6 `comments.*` definitions (skip if already registered, mirrors
- * `ensureSeoSettingDefinitions`'s identical pattern). Safe to call on every boot. */
+ * `ensureSeoSettingDefinitions`'s identical pattern). Safe to call on every boot.
+ * Boot-time infra work is trusted by construction; the shared registrar owns that shim.
+ * @complexity O(1) time and auxiliary space — six sequential definition lookups/writes. */
 export async function ensureCommentsSettingDefinitions(
   deps: EnsureCommentsSettingDefinitionsDeps,
   input: EnsureCommentsSettingDefinitionsInput
 ): Promise<void> {
-  for (const def of COMMENTS_DEFINITIONS) {
-    const existing = await resolveDefinitionRaw(
-      { repo: deps.settingsRepo },
-      { namespace: COMMENTS_NAMESPACE, key: def.key, workspaceId: input.workspaceId }
-    );
-    if (existing) continue;
-
-    await registerDefinitions({
-      deps: bootWriteServiceDeps(deps),
-      input: {
-        callerPrincipalId: input.systemPrincipalId,
-        authWorkspaceId: input.workspaceId,
-        definitions: [
-          {
-            namespace: COMMENTS_NAMESPACE,
-            key: def.key,
-            ownerKind: "site",
-            workspaceId: input.workspaceId,
-            schema: def.schema,
-            defaultValue: def.defaultValue,
-            scopes: SCOPE_BIT.workspace,
-            secret: false,
-          },
-        ],
-      },
-    });
-  }
+  await ensureSettingDefinitions(
+    { ...deps, clock: jiniClock(deps.clock), principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
+    { namespace: COMMENTS_NAMESPACE, definitions: COMMENTS_DEFINITIONS, ownerKind: "site", ...input },
+  );
 }
 
 async function readKey(
@@ -239,54 +199,45 @@ function assertNumberInRange(value: unknown, spec: { minimum: number; maximum: n
   }
 }
 
+/** Domain-owned field mapping and validation in observable first-error/write order.
+ * Each rule accepts unknown because parsed request bodies must be checked at runtime.
+ * The declaration also owns sentinel normalization, so validation and writes use the same keys. */
+const COMMENTS_PATCH_FIELDS: ReadonlyArray<{
+  field: keyof CommentsSettings;
+  key: CommentsSettingKey;
+  validate: (value: unknown) => void;
+  normalize?: (value: JsonValue) => JsonValue;
+}> = [
+  { field: "enabled", key: "enabled", validate: (value) => assertBoolean(value, "enabled") },
+  { field: "requireModeration", key: "require_moderation", validate: (value) => assertBoolean(value, "requireModeration") },
+  { field: "maxDepth", key: "max_depth", validate: (value) => assertBoundedInteger(value, {
+    field: "maxDepth", minimum: 0, maximum: MAX_DEPTH_CEILING, shapeMessage: "maxDepth must be a non-negative integer",
+  }) },
+  // `null` is legal ("never closes"), so it skips the number rules entirely.
+  // Wraps the sentinel only on write; see `CLOSE_AFTER_DAYS_NEVER_SENTINEL` for why it cannot collide.
+  { field: "closeAfterDays", key: "close_after_days", validate: (value) => {
+    if (value !== null) assertBoundedInteger(value, {
+      field: "closeAfterDays", minimum: 0, shapeMessage: "closeAfterDays must be a non-negative integer or null",
+    });
+  }, normalize: (value) => value ?? CLOSE_AFTER_DAYS_NEVER_SENTINEL },
+  { field: "spamAutoRejectScore", key: "spam_auto_reject_score", validate: (value) => assertNumberInRange(value, {
+    minimum: 0, maximum: 1, message: "spamAutoRejectScore must be a number in [0,1]",
+  }) },
+  { field: "maxPerIpPerHour", key: "max_per_ip_per_hour", validate: (value) => assertBoundedInteger(value, {
+    field: "maxPerIpPerHour", minimum: 1, maximum: MAX_PER_IP_PER_HOUR_CEILING, shapeMessage: "maxPerIpPerHour must be a positive integer",
+  }) },
+];
+
 /**
- * All-or-nothing gate for a settings patch: throws on the FIRST invalid field in the declaration
- * order below, before `setCommentsSettings` issues any ledger write, so a patch mixing valid and
- * invalid fields persists none of them.
- *
- * Field order is therefore observable — it decides which message a multi-error patch reports —
- * and is pinned by `settings.validation.characterization.test.ts`.
- *
- * @complexity O(1) — a fixed six-field check, independent of workspace size.
+ * All-or-nothing gate: throws on the FIRST invalid field in declaration order before ANY write,
+ * so a patch mixing valid and invalid fields persists none of them. Field order decides which
+ * message a multi-error patch reports and is pinned by `settings.validation.characterization.test.ts`.
+ * @complexity O(1) time and auxiliary space — six fixed fields, independent of workspace size.
  */
 function validateCommentsSettingsPatch(patch: Partial<CommentsSettings>): void {
-  if (patch.enabled !== undefined) {
-    assertBoolean(patch.enabled, "enabled");
-  }
-  if (patch.requireModeration !== undefined) {
-    assertBoolean(patch.requireModeration, "requireModeration");
-  }
-  if (patch.maxDepth !== undefined) {
-    assertBoundedInteger(patch.maxDepth, {
-      field: "maxDepth",
-      minimum: 0,
-      maximum: MAX_DEPTH_CEILING,
-      shapeMessage: "maxDepth must be a non-negative integer",
-    });
-  }
-  // `null` is a legal value here ("never closes"), so it skips the number rules entirely rather
-  // than being validated against them — see `CLOSE_AFTER_DAYS_NEVER_SENTINEL` for how it is stored.
-  if (patch.closeAfterDays !== undefined && patch.closeAfterDays !== null) {
-    assertBoundedInteger(patch.closeAfterDays, {
-      field: "closeAfterDays",
-      minimum: 0,
-      shapeMessage: "closeAfterDays must be a non-negative integer or null",
-    });
-  }
-  if (patch.spamAutoRejectScore !== undefined) {
-    assertNumberInRange(patch.spamAutoRejectScore, {
-      minimum: 0,
-      maximum: 1,
-      message: "spamAutoRejectScore must be a number in [0,1]",
-    });
-  }
-  if (patch.maxPerIpPerHour !== undefined) {
-    assertBoundedInteger(patch.maxPerIpPerHour, {
-      field: "maxPerIpPerHour",
-      minimum: 1,
-      maximum: MAX_PER_IP_PER_HOUR_CEILING,
-      shapeMessage: "maxPerIpPerHour must be a positive integer",
-    });
+  for (const spec of COMMENTS_PATCH_FIELDS) {
+    const value = patch[spec.field];
+    if (value !== undefined) spec.validate(value);
   }
 }
 
@@ -298,15 +249,10 @@ export async function setCommentsSettings(
   validateCommentsSettingsPatch(input.patch);
 
   const writes: Array<{ key: CommentsSettingKey; value: JsonValue }> = [];
-  if (input.patch.enabled !== undefined) writes.push({ key: "enabled", value: input.patch.enabled });
-  if (input.patch.requireModeration !== undefined) writes.push({ key: "require_moderation", value: input.patch.requireModeration });
-  if (input.patch.maxDepth !== undefined) writes.push({ key: "max_depth", value: input.patch.maxDepth });
-  if (input.patch.closeAfterDays !== undefined) {
-    // Wraps this file's own sentinel on write (see `CLOSE_AFTER_DAYS_NEVER_SENTINEL`'s doc comment).
-    writes.push({ key: "close_after_days", value: input.patch.closeAfterDays ?? CLOSE_AFTER_DAYS_NEVER_SENTINEL });
+  for (const spec of COMMENTS_PATCH_FIELDS) {
+    const value = input.patch[spec.field];
+    if (value !== undefined) writes.push({ key: spec.key, value: spec.normalize ? spec.normalize(value) : value });
   }
-  if (input.patch.spamAutoRejectScore !== undefined) writes.push({ key: "spam_auto_reject_score", value: input.patch.spamAutoRejectScore });
-  if (input.patch.maxPerIpPerHour !== undefined) writes.push({ key: "max_per_ip_per_hour", value: input.patch.maxPerIpPerHour });
 
   for (const write of writes) {
     await set({
