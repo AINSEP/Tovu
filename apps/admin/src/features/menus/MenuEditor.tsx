@@ -1,6 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
+import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
-import type { AdminMenuItem, AdminMenuItemAttrs } from "../../lib/api";
+import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "../../lib/api";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
 import { useMenuItemRemove } from "./MenuEditor.hooks";
@@ -316,6 +317,39 @@ function ItemRow(props: {
   );
 }
 
+/** The "Options" | "HTML" tabs, keyed by the {@link AdminMenuMode} each one saves. `id` is what the
+ *  `@jini-ai/ui/tab-strip` keyboard helpers key on — the same `.segmented` tablist PageEditor uses. */
+const MODE_TABS: ReadonlyArray<{ id: AdminMenuMode; label: string }> = [{ id: "items", label: "Options" }, { id: "html", label: "HTML" }];
+
+/**
+ * The authoring-mode tablist — PageEditor's `.page-editor-toolbar` > `.segmented role=tablist` row,
+ * with the shared arrow/Home/End keys and roving tab stop from `useTabBarKeyboard`.
+ */
+function MenuModeTabs({ mode, onChange, t }: { mode: AdminMenuMode; onChange: (mode: AdminMenuMode) => void; t: Translate }) {
+  const { onKeyDown } = useTabBarKeyboard({ tabs: MODE_TABS, activeId: mode, onChange: (id) => onChange(id as AdminMenuMode) });
+  return (
+    <div className="page-editor-toolbar">
+      <div className="segmented" role="tablist" aria-label={t("Menu editor mode")} onKeyDown={onKeyDown}>
+        {MODE_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={mode === tab.id}
+            className={mode === tab.id ? "is-active" : undefined}
+            tabIndex={resolveTabBarTabIndex({ tabs: MODE_TABS, activeId: mode, tab })}
+            onClick={() => onChange(tab.id)}
+            {...agentHandle({ handle: `menu-mode-${tab.id}` }, { role: "button", label: `Switch to the ${tab.label} tab` })}
+          >
+            {/* Literal keys, not `t(tab.label)`: the i18n parity test resolves every key statically. */}
+            {t(tab.id === "html" ? "HTML" : "Options")}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export interface MenuEditorProps {
   menuId: string | null;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
@@ -336,6 +370,10 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
     slug,
     setSlug,
     items,
+    mode,
+    changeMode,
+    html,
+    setHtml,
     message,
     error,
     loading,
@@ -406,58 +444,82 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           {menu ? <button type="button" className="btn-secondary" onClick={copyHtmlEmbed}>{t("Copy HTML embed")}</button> : null}
           {copyFeedback ? <span role="status">{copyFeedback}</span> : null}
           {message ? <span className="save-ok">{message}</span> : null}
-          {error ? <span className="save-error">{error}</span> : null}
+          {/* In HTML mode the refusal (permission, size cap, unbalanced markup) shows under the
+              source it is about instead — see the HTML tab below. */}
+          {error && mode !== "html" ? <span className="save-error">{error}</span> : null}
           <button onClick={save} disabled={saving} {...agentHandle({ handle: "menu-editor-save" }, { role: "button", label: "Save this menu" })}>
             {t("Save")}
           </button>
         </div>
       </div>
-      {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title/slug
-          (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
-      <label className="a11y-label-wrap">
-          <span className="visually-hidden">{t("Menu title")}</span>
-        <input
-          className="editor-title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t("Menu title")}
-        />
-      </label>
-      <div className="editor-slug">
-        /{" "}
+      {/* Title and slug share one row — PostEditor's `.editor-title-row` (`styles.css` stacks it at
+          narrow widths). Audit finding: both were placeholder-only, no `<label>` — same fix as
+          `PostEditor.tsx`'s title/slug (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
+      <div className="editor-title-row">
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">{t("Menu slug")}</span>
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
-        </label>
-        {/* The internal id used to be surfaced here as a read-only field (2026-08-09). Removed
-            2026-08-11 alongside PostEditor's, and this one had the stronger case for going: a menu's
-            id is minted by `idGen.newId()`, so it is random per install and a theme can never
-            reference it — which is exactly why `ffc0f44` made theme menu markers resolve by SLUG
-            first. Showing the id next to the slug invited an author to paste the one handle that
-            provably cannot work in a shipped theme. */}
-      </div>
-      <div className="menu-tree">
-        {items.map((item, i) => (
-          <ItemRow
-            key={item.id}
-            item={item}
-            path={[i]}
-            onChange={changeAt}
-            onRemove={removeAt}
-            onAddChild={addChildAt}
-            onMove={moveAt}
-            t={t}
-            pages={pageChoices}
+          <span className="visually-hidden">{t("Menu title")}</span>
+          <input
+            className="editor-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("Menu title")}
           />
-        ))}
-        {/* Secondary, not bare/primary — Save in the header is this screen's one primary action;
-            an equally-loud "+ Add item" here would be the same two-primaries flatness problem
-            `styles.css`'s button-hierarchy comment describes for row actions, just at the
-            page level instead of a table row. */}
-        <button type="button" className="btn-secondary" onClick={addRootItem}>
-          {t("+ Add item")}
-        </button>
+        </label>
+        <div className="editor-slug">
+          /{" "}
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">{t("Menu slug")}</span>
+            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
+          </label>
+          {/* The internal id used to be surfaced here as a read-only field (2026-08-09). Removed
+              2026-08-11 alongside PostEditor's, and this one had the stronger case for going: a menu's
+              id is minted by `idGen.newId()`, so it is random per install and a theme can never
+              reference it — which is exactly why `ffc0f44` made theme menu markers resolve by SLUG
+              first. Showing the id next to the slug invited an author to paste the one handle that
+              provably cannot work in a shipped theme. */}
+        </div>
       </div>
+      <MenuModeTabs mode={mode} onChange={changeMode} t={t} />
+      {/* HTML mode: the author's own markup, rendered inside the theme's menu element so theme
+          CSS still applies — forms' HTML editor class and trust model (`pages.edit_html`). */}
+      {mode === "html" ? (
+        <>
+          {/* Above the source, not below: the textarea is 512px tall, so an error under it sat
+              below the fold at desktop height. */}
+          {error ? <p className="save-error" role="alert">{error}</p> : null}
+          <textarea
+            className="page-html-source"
+            value={html}
+            onChange={(e) => setHtml(e.target.value)}
+            spellCheck={false}
+            aria-label={t("Menu HTML")}
+            {...agentHandle({ handle: "menu-html-source" }, { role: "field", label: "This menu's raw HTML" })}
+          />
+        </>
+      ) : (
+        <div className="menu-tree">
+          {items.map((item, i) => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              path={[i]}
+              onChange={changeAt}
+              onRemove={removeAt}
+              onAddChild={addChildAt}
+              onMove={moveAt}
+              t={t}
+              pages={pageChoices}
+            />
+          ))}
+          {/* Secondary, not bare/primary — Save in the header is this screen's one primary action;
+              an equally-loud "+ Add item" here would be the same two-primaries flatness problem
+              `styles.css`'s button-hierarchy comment describes for row actions, just at the
+              page level instead of a table row. */}
+          <button type="button" className="btn-secondary" onClick={addRootItem}>
+            {t("+ Add item")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

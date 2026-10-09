@@ -1422,6 +1422,19 @@ export interface AdminMenu {
   locations: string[];
   updatedAt: string;
   version: number;
+  /** Authoring mode (Jini `NavMenuDoc.mode`): `"html"` renders {@link AdminMenu.html} at the theme's
+   *  menu marker instead of the item tree. Absent on a menu never switched, which means `"items"`. */
+  mode?: AdminMenuMode;
+  /** The author's own menu markup, stored parse5-balanced; kept while the menu is in items mode. */
+  html?: string;
+}
+
+export type AdminMenuMode = "items" | "html";
+
+/** The optional authoring fields a menu create/update sends — omitted fields keep the stored value. */
+export interface AdminMenuAuthoring {
+  mode?: AdminMenuMode;
+  html?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -2953,19 +2966,19 @@ export const api = {
     request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}`),
   createMenu: (
     { title, slug }: { title: string; slug: string },
-    options: { items?: AdminMenuItem[] } = {}
+    options: { items?: AdminMenuItem[] } & AdminMenuAuthoring = {}
   ) =>
     request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus`, {
       method: "POST",
-      body: JSON.stringify({ title, slug, items: options.items }),
+      body: JSON.stringify({ title, slug, items: options.items, mode: options.mode, html: options.html }),
     }),
   updateMenuTree: (
     { id, expectedVersion, items }: { id: string; expectedVersion: number; items: AdminMenuItem[] },
-    options: { title?: string; slug?: string } = {}
+    options: { title?: string; slug?: string } & AdminMenuAuthoring = {}
   ) =>
     request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}`, {
       method: "PUT",
-      body: JSON.stringify({ expectedVersion, items, title: options.title, slug: options.slug }),
+      body: JSON.stringify({ expectedVersion, items, title: options.title, slug: options.slug, mode: options.mode, html: options.html }),
     }),
   listIntegrationSubscriptions: () =>
     request<{ subscriptions: AdminWebhookSubscription[] }>(

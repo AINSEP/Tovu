@@ -1,4 +1,4 @@
-import type { AdminMenu, AdminMenuItem } from "@/lib/api";
+import type { AdminMenu, AdminMenuAuthoring, AdminMenuItem } from "@/lib/api";
 import type { MenuPageChoice } from "../page-link-rules";
 
 /**
@@ -25,10 +25,12 @@ export interface MenusPort {
   listPages?: (required: Record<string, never>, optional?: Record<string, never>) => Promise<{ pages: MenuPageChoice[] }>;
   listMenus(): Promise<{ menus: AdminMenu[] }>;
   getMenu(id: string): Promise<{ menu: AdminMenu }>;
-  createMenu(input: { title: string; slug: string }, options: { items?: AdminMenuItem[] }): Promise<{ menu: AdminMenu }>;
+  /** `options.mode`/`options.html` author an HTML-mode menu; omitted, the server keeps its default. */
+  createMenu(input: { title: string; slug: string }, options: { items?: AdminMenuItem[] } & AdminMenuAuthoring): Promise<{ menu: AdminMenu }>;
+  /** `options.mode`/`options.html` omitted keep the stored values, so an items save never drops HTML. */
   updateMenuTree(
     target: { id: string; expectedVersion: number; items: AdminMenuItem[] },
-    options: { title?: string; slug?: string }
+    options: { title?: string; slug?: string } & AdminMenuAuthoring
   ): Promise<{ menu: AdminMenu }>;
   /** Moves a menu to the Trash via the generic single-item route (`POST .../trash/items`,
    *  `api.trash({ type: "menu", id })`) — the same route every other admin delete button now goes

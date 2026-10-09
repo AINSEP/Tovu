@@ -60,6 +60,8 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
         title: input.title,
         status: "draft",
         items: createOptions.items ?? [],
+        ...(createOptions.mode ? { mode: createOptions.mode } : {}),
+        ...(createOptions.html !== undefined ? { html: createOptions.html } : {}),
         locations: [],
         updatedAt: new Date(0).toISOString(),
         version: 1,
@@ -76,6 +78,9 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
         items,
         title: updateOptions.title ?? menus[index]!.title,
         slug: updateOptions.slug ?? menus[index]!.slug,
+        // Same keep-when-omitted rule as the server's `updateMenuTree`.
+        mode: updateOptions.mode ?? menus[index]!.mode,
+        html: updateOptions.html ?? menus[index]!.html,
         version: menus[index]!.version + 1,
       };
       menus[index] = updated;

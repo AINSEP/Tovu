@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { type AdminMenu, type AdminMenuItem } from "@/lib/api";
+import { type AdminMenu, type AdminMenuItem, type AdminMenuMode } from "@/lib/api";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
 import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { menuHtmlEmbed } from "../html-rules";
+import { menuAuthoringForSave, menuHtmlEmbed, menuHtmlStarter } from "../html-rules";
 import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
@@ -128,6 +128,8 @@ interface MenuFormState {
   title: string;
   slug: string;
   items: AdminMenuItem[];
+  mode: AdminMenuMode;
+  html: string;
 }
 
 export interface MenuEditorController {
@@ -141,6 +143,14 @@ export interface MenuEditorController {
   slug: string;
   setSlug: (slug: string) => void;
   items: AdminMenuItem[];
+  /** The active tab: `"items"` ("Options", the tree editor) or `"html"` (raw menu markup). Save
+   *  saves this mode; a menu stored in HTML mode opens on the HTML tab. */
+  mode: AdminMenuMode;
+  /** Switches tabs. The first switch to HTML with no markup yet seeds {@link menuHtmlStarter} from
+   *  the current items (forms' `changeMode` rule); the other mode's data is never cleared. */
+  changeMode: (mode: AdminMenuMode) => void;
+  html: string;
+  setHtml: (html: string) => void;
   message: string | null;
   error: string | null;
   loading: boolean;
@@ -174,6 +184,8 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [items, setItems] = useState<AdminMenuItem[]>([]);
+  const [mode, setMode] = useState<AdminMenuMode>("items");
+  const [html, setHtml] = useState("");
   const [pageChoices, setPageChoices] = useState<MenuPageChoice[] | undefined>();
   const needsPages = hasPageLinks({ items });
   useEffect(() => {
@@ -212,7 +224,9 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       setTitle("");
       setSlug("");
       setItems([]);
-      setOriginal({ title: "", slug: "", items: [] });
+      setMode("items");
+      setHtml("");
+      setOriginal({ title: "", slug: "", items: [], mode: "items", html: "" });
       setLoading(false);
       return;
     }
@@ -226,7 +240,9 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
         setTitle(menu.title);
         setSlug(menu.slug);
         setItems(menu.items);
-        setOriginal({ title: menu.title, slug: menu.slug, items: menu.items });
+        setMode(menu.mode ?? "items");
+        setHtml(menu.html ?? "");
+        setOriginal({ title: menu.title, slug: menu.slug, items: menu.items, mode: menu.mode ?? "items", html: menu.html ?? "" });
         // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
         // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets already apply.
         const redirectPath = slugRedirectPath("/menus", menuId as string, menu);
@@ -245,7 +261,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
     };
   }, [menuId, isNew]);
 
-  const { confirmLeave } = useDirtyGuard<MenuFormState>({ current: { title, slug, items }, original }, { host: window, translate: (key) => key });
+  const { confirmLeave } = useDirtyGuard<MenuFormState>({ current: { title, slug, items, mode, html }, original }, { host: window, translate: (key) => key });
 
   // Stale-response guard, save() half (2026-08-12 audit finding): the load effect's `cancelled`
   // flag above is scoped to a single effect run and flipped by that SAME effect's own cleanup — but
@@ -282,6 +298,12 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   function addRootItem() {
     setItems((prev) => [...prev, newItem()]);
   }
+  function changeMode(next: AdminMenuMode) {
+    // `pageItemsForSave` fills each page link's public path from the catalogue, so the starter
+    // links to real URLs rather than `#`.
+    if (next === "html" && html === "") setHtml(menuHtmlStarter({ items: pageItemsForSave({ items, pages: pageChoices }) }));
+    setMode(next);
+  }
 
   async function copyHtmlEmbed() {
     if (!menu) return;
@@ -306,22 +328,26 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
     setError(null);
     try {
       const saveItems = pageItemsForSave({ items, pages: pageChoices });
+      const authoring = menuAuthoringForSave({ mode, html, storedMode: menu?.mode });
       if (isNew) {
-        const { menu: created } = await port.createMenu({ title, slug }, { items: saveItems });
+        const { menu: created } = await port.createMenu({ title, slug }, { items: saveItems, ...authoring });
         navigate(`/menus/${created.slug}`);
         return;
       }
       if (!menu) return;
       const { menu: saved } = await port.updateMenuTree(
         { id: menu.id, expectedVersion: menu.version, items: saveItems },
-        { title, slug }
+        { title, slug, ...authoring }
       );
       if (activeMenuIdRef.current !== savingForMenuId) return;
       setMenu(saved);
       setItems(saved.items);
+      // The server stores HTML parse5-balanced, so show (and baseline on) what it actually kept.
+      const savedHtml = saved.html ?? html;
+      setHtml(savedHtml);
       // A saved edit is no longer "unsaved" — re-baseline what the dirty check compares against,
       // or the guard would keep firing for a change the operator just persisted.
-      setOriginal({ title, slug, items: saved.items });
+      setOriginal({ title, slug, items: saved.items, mode, html: savedHtml });
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {
       if (activeMenuIdRef.current !== savingForMenuId) return;
@@ -350,6 +376,10 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
     slug,
     setSlug,
     items,
+    mode,
+    changeMode,
+    html,
+    setHtml,
     message,
     error,
     loading,
