@@ -244,6 +244,25 @@ describe("openMcpUiLink", () => {
     expect(() => openMcpUiLink("not a url")).not.toThrow();
     expect(openSpy).not.toHaveBeenCalled();
   });
+
+  // Owner 2026-10-08: every chat link opens a new tab, in-app links included. A View's `<a href="/admin/…">`
+  // reaches this handler unresolved (the sandbox proxy is an opaque `data:` document with no base to
+  // resolve against), so a root-relative path means this admin's own page.
+  it("opens a root-relative in-app path from a View against this admin's own origin", () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+    openMcpUiLink("/admin/pages/x");
+
+    expect(openSpy).toHaveBeenCalledExactlyOnceWith(`${window.location.origin}/admin/pages/x`, "_blank", "noopener,noreferrer");
+  });
+
+  it("refuses a protocol-relative URL — it names another host, not an in-app path", () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+    openMcpUiLink("//evil.example.com/x");
+
+    expect(openSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe("extractResumeCapableAgentIds", () => {

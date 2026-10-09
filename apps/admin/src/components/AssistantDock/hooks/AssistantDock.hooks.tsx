@@ -1670,6 +1670,12 @@ export function buildAssistantMcpUiSandboxProxyUrl(hostOrigin: string): URL {
  * not a denylist of the schemes seen so far. A URL that fails to parse at all (`new URL` throwing)
  * is treated the same as a wrong scheme — refused, not surfaced as an error to the View.
  *
+ * One exception, a root-relative path (`/admin/…`, never protocol-relative `//host`): owner
+ * 2026-10-08, every chat link opens a new tab, in-app links included. A View's `<a href>` reaches
+ * here unresolved — Jini's sandbox proxy forwards link clicks as `ui/open-link`, and its opaque
+ * `data:` document has no base to resolve a path against — so the path is resolved against this
+ * admin's own origin, the only page it can mean. That opens this app itself, whatever its scheme.
+ *
  * `noopener,noreferrer` on the `window.open` call itself closes `window.opener` back-reference
  * access (the tab-nabbing vector `rel="noopener"` exists for on a plain `<a>`) and withholds the
  * `Referer` header, matching how this app already opens every other off-site link — see memory
@@ -1680,6 +1686,10 @@ export function buildAssistantMcpUiSandboxProxyUrl(hostOrigin: string): URL {
  * @complexity O(1) — one `URL` parse, at most one `window.open` call.
  */
 export function openMcpUiLink(url: string): void {
+  if (/^\/(?!\/)/.test(url)) {
+    window.open(new URL(url, window.location.origin).href, "_blank", "noopener,noreferrer");
+    return;
+  }
   let parsed: URL;
   try {
     parsed = new URL(url);
