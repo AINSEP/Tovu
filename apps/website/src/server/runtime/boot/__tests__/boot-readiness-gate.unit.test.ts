@@ -96,3 +96,31 @@ test("production boot reads only TOVU_SITE_KEY: the removed pre-rename env name 
     } else assert.match(child.stdout, /gate-passed/);
   }
 });
+
+// REGRESSION (2026-10-08 hardwiring audit #4/#5): fails if the shared boot gate stops printing the
+// readiness warnings, or prints them only in production (where the deployed-but-local case never is).
+test("the boot gate warns, without refusing, for a deployed local-mode boot and for production without COMMENTS_IP_SALT", (t) => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "boot-gate-warn-"));
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  const gateUrl = pathToFileURL(path.join(import.meta.dirname, "..", "boot-readiness-gate.ts")).href;
+  const script = `process.chdir(process.env.TEST_GATE_CWD); const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(gateUrl)}); await runProductionReadinessGateOrExit(); console.log("gate-passed");`;
+  const run = (overrides: NodeJS.ProcessEnv) => {
+    const env: NodeJS.ProcessEnv = { ...process.env, TEST_GATE_CWD: cwd, HOME: cwd, ...overrides };
+    for (const name of ["TOVU_RUNTIME_MODE", "TOVU_AGENT_PERMISSION_MODE", "COMMENTS_IP_SALT", "KUBERNETES_SERVICE_HOST", "FLY_APP_NAME"]) if (!(name in overrides)) delete env[name];
+    return spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { env, encoding: "utf8", timeout: 30000 });
+  };
+
+  const deployedLocal = run({ NODE_ENV: "production" });
+  assert.equal(deployedLocal.error, undefined);
+  assert.equal(deployedLocal.status, 0, deployedLocal.stderr);
+  assert.match(deployedLocal.stdout, /gate-passed/);
+  assert.match(deployedLocal.stderr, /\[boot-readiness\] WARNING: this server looks deployed \(NODE_ENV=production.*?\) but TOVU_RUNTIME_MODE is not "production": production boot checks are off and the assistant agent runs with permission mode "bypass"\./);
+
+  const production = run({ TOVU_RUNTIME_MODE: "production", TOVU_ADMIN_PASSWORD: "nondefault-test-password", ANALYTICS_ROOT_KEY_SEED: "test-analytics-seed", TOVU_SITE_KEY: "7a".repeat(32) });
+  assert.equal(production.error, undefined);
+  assert.equal(production.status, 0, production.stderr);
+  assert.match(production.stdout, /gate-passed/);
+  assert.match(production.stderr, /\[boot-readiness\] WARNING: COMMENTS_IP_SALT is not set: comment IP hashes are salted with a value derived from the site key/);
+  assert.doesNotMatch(production.stderr, /looks deployed/);
+  assert.doesNotMatch(production.stderr, /7a7a7a/);
+});

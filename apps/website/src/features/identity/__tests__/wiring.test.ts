@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -7,7 +7,7 @@ import test from "node:test";
 import { openContentDb, openContentDbReadOnly } from "#src/platform/db/sqlite/content-db";
 import { type IdentityRepos } from "@jini-ai/user-management";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
-import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
+import { DEFAULT_OWNER_CREDENTIALS, DEFAULT_OWNER_PASSWORD, createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps, resolveOwnerCredentials, type IdentityRouteDepsSlice } from "../wiring.js";
 // Every wiring call below passes the app's real, explicit grant registry: the library's built-in
 // pairs (navigation.manage -> admin.menus.*, integration.manage -> admin.integrations.manage) plus
 // this repo's OWN pairs and grants (theme.edit -> pages.edit_html, `features/pages/permissions.ts`),
@@ -17,9 +17,51 @@ import { createAppPermissionGrants } from "#src/server/runtime/composition/app-p
 const WORKSPACE = "workspace-1";
 const fixedClock = { nowIso: () => "2026-07-14T00:00:00.000Z", nowMs: () => Date.parse("2026-07-14T00:00:00.000Z") };
 
+// REGRESSION (2026-10-08 hardwiring audit #21): fails if the wiring reads the owner login from
+// `process.env` again instead of seeding exactly what its composition root injected.
+test("first-boot seeding uses the injected owner credentials, never the ambient TOVU_ADMIN_* env", async () => {
+  const previous = { user: process.env.TOVU_ADMIN_USER, password: process.env.TOVU_ADMIN_PASSWORD };
+  process.env.TOVU_ADMIN_USER = "ambient-owner";
+  process.env.TOVU_ADMIN_PASSWORD = "ambient-env-password-fixture";
+  try {
+    const injected = { username: "injected-owner", password: "fly-first-boot-password-fixture" };
+    const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: injected, permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    await deps.identityReady;
+    const owner = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE, principalId: await deps.ownerPrincipalId });
+    assert.ok(owner);
+    assert.equal(owner.username, "injected-owner");
+    assert.equal(await deps.passwordHasher.verify({ password: injected.password, hash: owner.passwordHash }), true);
+    assert.equal(await deps.passwordHasher.verify({ password: "ambient-env-password-fixture", hash: owner.passwordHash }), false);
+  } finally {
+    for (const [name, value] of [["TOVU_ADMIN_USER", previous.user], ["TOVU_ADMIN_PASSWORD", previous.password]] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+// REGRESSION: fails if a caller that forgets ownerCredentials silently gets a shared default login.
+test("identity wiring refuses to build without injected owner credentials", () => {
+  const base = { permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() };
+  const message = "identity wiring requires ownerCredentials { username, password } from its composition root (see resolveOwnerCredentials)";
+  assert.throws(() => createInMemoryIdentityRouteDeps(base as unknown as Parameters<typeof createInMemoryIdentityRouteDeps>[0]), { name: "TypeError", message });
+  assert.throws(() => createInMemoryIdentityRouteDeps({ ...base, ownerCredentials: { username: "admin" } as unknown as { username: string; password: string } }), { name: "TypeError", message });
+});
+
+test("resolveOwnerCredentials maps only the env it is given, with the unchanged admin / DEFAULT_OWNER_PASSWORD defaults", () => {
+  assert.deepEqual(resolveOwnerCredentials({ env: {} }), { username: "admin", password: DEFAULT_OWNER_PASSWORD });
+  assert.deepEqual(resolveOwnerCredentials({ env: { TOVU_ADMIN_USER: "Configured-Owner", TOVU_ADMIN_PASSWORD: "configured-password-fixture" } }), { username: "Configured-Owner", password: "configured-password-fixture" });
+  assert.deepEqual(DEFAULT_OWNER_CREDENTIALS, { username: "admin", password: DEFAULT_OWNER_PASSWORD });
+});
+
+test("wiring.ts never reads process.env itself: the owner login reaches it only through injection", () => {
+  const source = readFileSync(join(import.meta.dirname, "..", "wiring.ts"), "utf8");
+  assert.deepEqual(source.match(/process\.env(?:\.|\[)/g), null);
+});
+
 // REGRESSION: fails if the in-memory wiring returns raw repositories without its shared transaction port.
 test("identity wiring rolls back a failed unit and serializes an ordinary writer behind it", async () => {
-  const deps = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await deps.identityReady;
   let release!: () => void;
   const hold = new Promise<void>((resolve) => { release = resolve; });
@@ -48,19 +90,12 @@ test("identity wiring rolls back a failed unit and serializes an ordinary writer
   assert.equal((await deps.roleRepo.findById({ workspaceId: WORKSPACE, id: "committed-role" }))?.name, row.name);
 });
 
-// REGRESSION: fails if seed input appends ownerUsername: "admin" after reading TOVU_ADMIN_USER.
+// REGRESSION: fails if seed input appends ownerUsername: "admin" after the host's configured username.
 test("identity wiring preserves the host's configured owner username", async () => {
-  const previous = process.env.TOVU_ADMIN_USER;
-  process.env.TOVU_ADMIN_USER = "Configured-Owner";
-  try {
-    const deps = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
-    await deps.identityReady;
-    const owner = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE, principalId: await deps.ownerPrincipalId });
-    assert.equal(owner?.username, "configured-owner");
-  } finally {
-    if (previous === undefined) delete process.env.TOVU_ADMIN_USER;
-    else process.env.TOVU_ADMIN_USER = previous;
-  }
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: resolveOwnerCredentials({ env: { TOVU_ADMIN_USER: "Configured-Owner" } }), permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  await deps.identityReady;
+  const owner = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE, principalId: await deps.ownerPrincipalId });
+  assert.equal(owner?.username, "configured-owner");
 });
 
 function counterIdGen() {
@@ -69,7 +104,7 @@ function counterIdGen() {
 }
 
 test("createInMemoryIdentityRouteDeps: identityReady also runs migrateDeprecatedPermissionGrants against real registered pairs (ADR-PIPE-012 T013)", async () => {
-  const deps = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}),
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     workspaceId: WORKSPACE,
     clock: fixedClock,
     idGen: counterIdGen(),
@@ -128,7 +163,7 @@ test("createInMemoryIdentityRouteDeps: identityReady also runs migrateDeprecated
  * both the allow and the fail-closed-deny outcome.
  */
 test("createInMemoryIdentityRouteDeps: the wired authorize() closure grants the seeded owner's wildcard and fails closed for an unknown principal", async () => {
-  const deps = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}),
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     workspaceId: WORKSPACE,
     clock: fixedClock,
     idGen: counterIdGen(),
@@ -164,7 +199,7 @@ test("createInMemoryIdentityRouteDeps: the wired authorize() closure grants the 
 });
 
 test("createInMemoryIdentityRouteDeps: identityReady resolves even with no pre-existing legacy grants (no-op case)", async () => {
-  const deps = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}),
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     workspaceId: "workspace-2",
     clock: fixedClock,
     idGen: counterIdGen(),
@@ -181,7 +216,7 @@ test("createSqliteIdentityRouteDeps: a session survives a simulated restart (fre
 
     // "First boot."
     const db1 = openContentDb(dbPath);
-    const first = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db: db1, workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
+    const first = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: db1, workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
     await first.identityReady;
 
     const ownerBefore = await first.userRepo.findByUsername({ workspaceId: ws, username: "admin" });
@@ -199,7 +234,7 @@ test("createSqliteIdentityRouteDeps: a session survives a simulated restart (fre
     // "Restart": a brand-new content.db handle + a brand-new createSqliteIdentityRouteDeps call
     // against the SAME on-disk file — this is exactly what `tsx watch` does to the real process.
     const db2 = openContentDb(dbPath);
-    const second = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db: db2, workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
+    const second = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: db2, workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
     await second.identityReady;
 
     const ownerAfter = await second.userRepo.findByUsername({ workspaceId: ws, username: "admin" });
@@ -239,7 +274,7 @@ test("createSqliteIdentityRouteDeps: a session survives a simulated restart (fre
  */
 test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to a policy holding theme.edit (SPEC-047 REQ-9, a host-registered pair)", async () => {
   const workspaceId = "workspace-pages-edit-html";
-  const deps = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}),
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     workspaceId,
     clock: fixedClock,
     idGen: counterIdGen(),
@@ -315,7 +350,7 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to a
  */
 test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to the built-in admin policy and to no other built-in policy (SPEC-047 REQ-9)", async () => {
   const workspaceId = "workspace-builtin-role-grant";
-  const deps = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}),
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     workspaceId,
     clock: fixedClock,
     idGen: counterIdGen(),
@@ -386,7 +421,7 @@ test("createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to adm
   const setupDb = openContentDb(dbPath);
   let bootDb: ReturnType<typeof openContentDb> | undefined;
   try {
-    const setup = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db: setupDb, workspaceId, clock: fixedClock, idGen, reconcileGrantsOnBoot: false });
+    const setup = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: setupDb, workspaceId, clock: fixedClock, idGen, reconcileGrantsOnBoot: false });
     await setup.identityReady;
     await dropAdminThemeEdit({ policies: setup.policyRepo, policyPermissions: setup.policyPermissionRepo }, workspaceId);
     const admin = await setup.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
@@ -396,7 +431,7 @@ test("createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to adm
     setupDb.$client.close();
 
     bootDb = openContentDb(dbPath);
-    const boot = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db: bootDb, workspaceId, clock: fixedClock, idGen });
+    const boot = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: bootDb, workspaceId, clock: fixedClock, idGen });
     await boot.identityReady;
     const permissionsOfPolicyNamed = async (name: string) => {
       const policy = await boot.policyRepo.findByName({ workspaceId, name });
@@ -426,7 +461,7 @@ test("createSqliteIdentityRouteDeps: a second identityReady adds no duplicate pa
   const firstDb = openContentDb(dbPath);
   let secondDb: ReturnType<typeof openContentDb> | undefined;
   try {
-    const first = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db: firstDb, workspaceId, clock: fixedClock, idGen });
+    const first = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: firstDb, workspaceId, clock: fixedClock, idGen });
     await first.identityReady;
     const policy = await first.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
     assert.ok(policy);
@@ -435,7 +470,7 @@ test("createSqliteIdentityRouteDeps: a second identityReady adds no duplicate pa
     firstDb.$client.close();
 
     secondDb = openContentDb(dbPath);
-    const second = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db: secondDb, workspaceId, clock: fixedClock, idGen });
+    const second = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: secondDb, workspaceId, clock: fixedClock, idGen });
     await second.identityReady;
     const after = await second.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id });
     assert.equal(after.filter((row) => row.permission === PAGES_EDIT_HTML_PERMISSION).length, 1, "re-running identityReady must not append a second grant row");
@@ -456,7 +491,7 @@ test("createSqliteIdentityRouteDeps: a second identityReady adds no duplicate pa
  */
 test("createInMemoryIdentityRouteDeps: reconcileGrantsOnBoot: false skips the pages.edit_html backfill the default path performs", async () => {
   const workspaceId = "workspace-reconcile-flag-inmemory";
-  const deps = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}),
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     workspaceId,
     clock: fixedClock,
     idGen: counterIdGen(),
@@ -513,13 +548,13 @@ test("createSqliteIdentityRouteDeps: reconcileGrantsOnBoot: false avoids the rea
   const workspaceId = "workspace-reconcile-flag-sqlite-readonly";
   try {
     const setupDb = openContentDb(dbPath);
-    const setup = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db: setupDb, workspaceId, clock: fixedClock, idGen: counterIdGen() });
+    const setup = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: setupDb, workspaceId, clock: fixedClock, idGen: counterIdGen() });
     await setup.identityReady;
     await dropAdminPagesEditHtml(setup, workspaceId);
     setupDb.$client.close();
 
     const roForFlagOff = openContentDbReadOnly(dbPath);
-    const flagOff = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}),
+    const flagOff = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
       db: roForFlagOff,
       workspaceId,
       clock: fixedClock,
@@ -533,7 +568,7 @@ test("createSqliteIdentityRouteDeps: reconcileGrantsOnBoot: false avoids the rea
     roForFlagOff.$client.close();
 
     const roForFlagDefault = openContentDbReadOnly(dbPath);
-    const flagDefault = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}),
+    const flagDefault = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
       db: roForFlagDefault,
       workspaceId,
       clock: fixedClock,

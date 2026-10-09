@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createUser } from "@jini-ai/user-management/server";
-import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
 import { registerAdminUserCreateRoute } from "../create.js";
@@ -23,7 +23,7 @@ async function setup() {
   let n = 0;
   const idGen = { newId: () => `guard-${++n}` };
   const clock = { nowIso: () => "2026-10-03T00:00:00.000Z", nowMs: () => Date.parse("2026-10-03T00:00:00.000Z") };
-  const wiring = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), workspaceId, clock, idGen });
+  const wiring = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), workspaceId, clock, idGen });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
   // `RouteDeps.principalRepo` also carries the active/workspace-scoped settings lookup, composed the

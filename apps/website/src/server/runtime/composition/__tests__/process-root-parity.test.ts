@@ -334,8 +334,11 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
   assert.ok(runCall);
   assert.ok(permissionFunction?.body);
   const env = {};
-  const resolvePermissionMode = new Function("process", "resolveRuntimeMode", permissionFunction.body.getText(daemonSource));
-  const mode = resolvePermissionMode({ env }, () => "development");
+  // The daemon's own function delegates to the shared resolver (hardwiring audit #5); evaluate its
+  // real body against that real resolver with an empty env, i.e. local mode.
+  const { resolveAgentPermissionMode } = await import("#src/contracts/core/agent-permission-mode");
+  const resolvePermissionMode = new Function("process", "resolveAgentPermissionMode", permissionFunction.body.getText(daemonSource));
+  const mode = resolvePermissionMode({ env }, resolveAgentPermissionMode);
   assert.equal(mode, "bypass");
   const captured = evaluateDaemonExpression<Promise<{ required: Record<string, unknown>; optional: Record<string, unknown> }>>(runCall, {
     agentExecutor: { run: async (required: Record<string, unknown>, optional: Record<string, unknown> = {}) => ({ required, optional }) },

@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 import { createUser, assignRole } from "@jini-ai/user-management/server";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { buildGatedIdentityRegistrations } from "#src/features/identity/tool-registrations";
@@ -27,7 +27,7 @@ async function setup() {
   let n = 0;
   const idGen = { newId: () => `protection-${++n}` };
   const clock = { nowMs: () => Date.parse("2026-10-07T00:00:00Z"), nowIso: () => "2026-10-07T00:00:00Z" };
-  const wiring = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), workspaceId, clock, idGen });
+  const wiring = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), workspaceId, clock, idGen });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
   const trashed = new Set<string>();

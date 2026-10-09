@@ -65,3 +65,4 @@ export function createCommentsHostPorts(
 }
 
 export { ensureCommentsSettingDefinitions, getCommentsSettings, setCommentsSettings, CommentsSettingsValidationError } from "./settings.js";
+export { COMMENTS_IP_SALT_ENV_VAR, DEV_COMMENTS_IP_SALT, resolveCommentsIpHashSalt, type CommentsIpHashSaltSource, type CommentsIpSaltKeyring } from "./ip-hash-salt.js";

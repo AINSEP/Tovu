@@ -129,7 +129,7 @@ import { siteDir } from "../../runtime/composition/deps.js";
 import { registerInstalledExtensionTools } from "../../runtime/composition/installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import {
   listAssistantAgents,
@@ -367,24 +367,13 @@ const ATTACHMENT_MAX_BATCH_BYTES = TOVU_MAX_UPLOAD_BYTES * 2;
 const bashProhibitionEnabled = resolveBashProhibitionEnabled();
 
 /**
- * A spawned agent CLI has no TTY to answer an interactive permission prompt, so "restricted"
- * here means every permission-gated action (including MCP tool use) silently stalls rather than
- * executing — confirmed live (2026-07-30) that `identity_user_create` and every other agent-tool
- * call hangs on an unanswerable "requested permission... but you haven't granted it yet" prompt
- * without an explicit bypass.
- *
- * `TOVU_AGENT_PERMISSION_MODE` still wins when set explicitly, either direction. With no
- * override, this follows `resolveRuntimeMode()`'s own safe-default philosophy (SPEC-022 INV-04:
- * anything not explicitly `TOVU_RUNTIME_MODE=production` resolves to the permissive/local case) —
- * bypass unless running in production. A fresh clone with no env vars at all (`git clone && npm
- * install && npm run dev`) gets a working assistant with no setup step to discover, regardless of
- * which script or command actually launches this process; a real production deployment stays
- * restricted-by-default unless an operator explicitly opts into bypass.
+ * The agent CLI's permission mode for this daemon process. The rule and its full "why" (no TTY to
+ * answer a prompt; bypass unless `TOVU_RUNTIME_MODE=production`; explicit
+ * `TOVU_AGENT_PERMISSION_MODE` wins) live in `contracts/core/agent-permission-mode.ts`, shared with
+ * the boot-readiness warning so both always agree on the mode this daemon actually runs in.
  */
 function resolvePermissionMode(): "bypass" | "restricted" {
-  if (process.env.TOVU_AGENT_PERMISSION_MODE === "bypass") return "bypass";
-  if (process.env.TOVU_AGENT_PERMISSION_MODE === "restricted") return "restricted";
-  return resolveRuntimeMode() === "production" ? "restricted" : "bypass";
+  return resolveAgentPermissionMode({ env: process.env });
 }
 
 // Mirrors `src/index.ts`'s own `useMemory` branch exactly — see this file's module doc on why

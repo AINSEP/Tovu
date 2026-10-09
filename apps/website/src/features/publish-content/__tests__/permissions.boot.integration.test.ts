@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 // The app's explicit grant registry (`registerPublishContentPermissionGrants` registers the Task 9
 // grants under test) — reached without the `publish-content` server module, which would drag in
 // every route's Express wiring just for this.
@@ -29,7 +29,7 @@ async function createSeededContentDb(): Promise<{ dir: string; dbPath: string }>
   const dbPath = path.join(dir, "content.db");
   const db = openContentDb(dbPath);
   try {
-    const setup = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID,
+    const setup = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID,
       clock: fixedClock, idGen: counterIdGen("seed"), reconcileGrantsOnBoot: false });
     await setup.identityReady;
     const admin = await setup.policyRepo.findByName({ workspaceId: WORKSPACE_ID, name: "admin-builtin-policy" });
@@ -54,7 +54,7 @@ async function createSeededContentDb(): Promise<{ dir: string; dbPath: string }>
 
 async function bootSeededContentDb(dbPath: string, idPrefix: string) {
   const db = openContentDb(dbPath);
-  const deps = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID,
+  const deps = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID,
     clock: fixedClock, idGen: counterIdGen(idPrefix) });
   try {
     await deps.identityReady;

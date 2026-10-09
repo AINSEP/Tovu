@@ -3,7 +3,7 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createUserTrashAdapter } from "../adapters/user.js";
 import { SelfDeleteError, assertUserAccountAction } from "#src/features/identity/delete-user-service";
-import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { identityServiceDepsFrom } from "#src/server/inbound/admin-http/routes/users/deps";
@@ -21,7 +21,7 @@ for (const action of ["hide", "purge"] as const) test(`user adapter ${action}: i
     } as Parameters<typeof createUserTrashAdapter>[0]);
     await assert.rejects(adapter[action]({ workspaceId: "w", entityId: "u", at: "2026-10-07T00:00:00Z", expectedVersion: null }, { actor: { principalId: "u" } }), { name: "Error", message: "you cannot delete your own account" });
     assert.equal(purged, false);
-    assert.equal(db.$client.prepare("SELECT status FROM principals WHERE id='u'").get()?.status, "disabled");
+    assert.equal(db.$client.prepare<[], { status: string }>("SELECT status FROM principals WHERE id='u'").get()?.status, "disabled");
   } finally { db.$client.close(); }
 });
 
@@ -30,10 +30,10 @@ for (const action of ["trash", "purge", "disable"] as const) test(`${action}: in
   const workspaceId = `floor-${action}`;
   const clock = { nowMs: () => Date.parse("2026-10-07T00:00:00Z"), nowIso: () => "2026-10-07T00:00:00Z" };
   const idGen = { newId: () => `floor-${++n}` };
-  const wiring = createInMemoryIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), workspaceId, clock, idGen });
+  const wiring = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), workspaceId, clock, idGen });
   await wiring.identityReady;
   const seeded = await wiring.ownerPrincipalId;
-  const deps = identityServiceDepsFrom({ ...wiring, workspaceId, clock, idGen, principalRepo: Object.assign(wiring.principalRepo, createSettingsPrincipalLookup({ repo: wiring.principalRepo })) });
+  const deps = identityServiceDepsFrom({ ...wiring, clock, idGen, principalRepo: Object.assign(wiring.principalRepo, createSettingsPrincipalLookup({ repo: wiring.principalRepo })) });
   const { principal } = await createUser({ deps, input: { workspaceId, callerPrincipalId: seeded, username: "last-owner", password: "correct-horse-battery" } });
   const owner = await wiring.roleRepo.findByName({ workspaceId, name: "owner" });
   assert.ok(owner);

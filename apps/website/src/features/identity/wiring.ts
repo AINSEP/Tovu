@@ -58,6 +58,48 @@ import { createIdentityTransactions } from "./repo.js";
  */
 export const DEFAULT_OWNER_PASSWORD = "tovu-dev";
 
+/** The first-boot owner login `seedIdentity` creates when no owner exists yet. */
+export interface OwnerCredentials {
+  readonly username: string;
+  readonly password: string;
+}
+
+/** The public development owner login: what a server with no `TOVU_ADMIN_*` env seeds. */
+export const DEFAULT_OWNER_CREDENTIALS: OwnerCredentials = Object.freeze({ username: "admin", password: DEFAULT_OWNER_PASSWORD });
+
+/**
+ * Maps a composition root's environment to the serving site's first-boot owner credentials.
+ *
+ * Pure: the caller passes the env it read (`process.env` at a real root). This module never reads
+ * `process.env` itself — the 2026-10-08 production-password leak travelled through exactly such
+ * an in-feature read, where any caller of the identity wiring silently inherited whatever owner
+ * password happened to be in its process environment. Only composition roots (`deps.ts`,
+ * `app.ts`, the backfill script) call this; init and tests inject credentials explicitly.
+ *
+ * These two env vars and their defaults are exactly what `seedIdentity` itself used to read before
+ * the `@jini-ai/user-management` extraction, so first-boot behavior is unchanged.
+ *
+ * @complexity O(1).
+ */
+export function resolveOwnerCredentials(
+  required: { env: Readonly<Record<string, string | undefined>> },
+  _optional: Record<string, never> = {}
+): OwnerCredentials {
+  return {
+    username: required.env.TOVU_ADMIN_USER ?? DEFAULT_OWNER_CREDENTIALS.username,
+    password: required.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_CREDENTIALS.password,
+  };
+}
+
+/** Fail fast: a missing owner credential must never silently fall back to a shared default.
+ *  Shape only — value policy (an empty `TOVU_ADMIN_PASSWORD`, say) stays `seedIdentity`'s, as before. */
+function assertOwnerCredentials(value: unknown): asserts value is OwnerCredentials {
+  const candidate = value as Partial<OwnerCredentials> | undefined;
+  if (typeof candidate?.username !== "string" || typeof candidate.password !== "string") {
+    throw new TypeError("identity wiring requires ownerCredentials { username, password } from its composition root (see resolveOwnerCredentials)");
+  }
+}
+
 /** The identity-owned slice of `RouteDeps` (see that file's fields of the same names). */
 export interface IdentityRouteDepsSlice {
   /** Every route/tool writer shares these ports; see Jini user-management's transaction contract. */
@@ -126,19 +168,21 @@ export interface IdentityRouteDepsSlice {
 function buildIdentityRouteDeps(
   repos: IdentityRepos,
   apiKeyRepo: ApiKeyRepoPort,
-  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean }
+  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials }
 ): IdentityRouteDepsSlice {
+  assertOwnerCredentials(required.ownerCredentials);
   const passwordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
   const apiKeySecretHasher = new ScryptApiKeySecretHasher();
   const hostClock = required.clock;
   const clock: ClockPort = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
 
-  const seedResult = seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Read here, not in the library. `@jini-ai/user-management` deliberately requires `ownerPassword` with no
-      // default: a library fallback would mean every host that forgot to pass one shipped the same
-      // owner credential. These two env vars and their defaults are exactly what `seedIdentity`
-      // itself used to read before the extraction, so first-boot behavior is unchanged — the
-      // decision simply moved to the host that owns the deployment model.
-      ownerUsername: process.env.TOVU_ADMIN_USER ?? "admin", ownerPassword: process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD } });
+  const seedResult = seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Supplied by the host, not the library. `@jini-ai/user-management` deliberately requires `ownerPassword`
+      // with no default: a library fallback would mean every host that forgot to pass one shipped
+      // the same owner credential. The env mapping (with its unchanged defaults) now lives in
+      // `resolveOwnerCredentials`, called only by composition roots — see its doc.
+      // Init supplies BOTH explicitly. Only this server's own first-boot seed retains the env
+      // contract (including Fly's secret); a new site cannot inherit that deployment credential.
+      ownerUsername: required.ownerCredentials.username, ownerPassword: required.ownerCredentials.password } });
 
   // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can
   // await just the owner id without waiting on the permission-migration fan-out below.
@@ -235,6 +279,8 @@ function buildIdentityRouteDeps(
  * @overallScore 100
  */
 export function createInMemoryIdentityRouteDeps(required: {
+  /** The first-boot owner login. Roots pass `resolveOwnerCredentials({ env: process.env })`. */
+  ownerCredentials: OwnerCredentials;
   workspaceId: UUID;
   clock: ClockPort | { nowIso(): string };
   idGen: IdGeneratorPort;
@@ -245,7 +291,7 @@ export function createInMemoryIdentityRouteDeps(required: {
    *  write, so no in-memory caller needs this — kept here only for signature parity with the
    *  SQLite constructor below. */
   reconcileGrantsOnBoot?: boolean;
-}): IdentityRouteDepsSlice {
+}, _optional: Record<string, never> = {}): IdentityRouteDepsSlice {
   const repos = createTransactionalInMemoryIdentityRepos({ repos: {
     principals: new InMemoryPrincipalRepo({}),
     users: new InMemoryUserRepo({}),
@@ -273,6 +319,9 @@ export function createInMemoryIdentityRouteDeps(required: {
  */
 export function createSqliteIdentityRouteDeps(
   required: {
+    /** The first-boot owner login: explicit for init; the serving site's root passes
+     *  `resolveOwnerCredentials({ env: process.env })` (its existing env contract). */
+    ownerCredentials: OwnerCredentials;
     /** The content kernel, or the SQLite handle it is derived from. */
     db: ContentKernel | ContentDb;
     workspaceId: UUID;
@@ -285,7 +334,8 @@ export function createSqliteIdentityRouteDeps(
      *  a real `.save()` against it and throws, instead of the intended no-op. Omit (default `true`)
      *  for a writable connection to keep today's behavior. */
     reconcileGrantsOnBoot?: boolean;
-  }
+  },
+  _optional: Record<string, never> = {},
 ): IdentityRouteDepsSlice {
   const { db, ...seedRequired } = required;
   const kernel = contentKernel(db);

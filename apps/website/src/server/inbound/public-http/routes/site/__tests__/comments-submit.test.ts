@@ -27,7 +27,8 @@ import { registerCommentsSubmitRoute } from "../comments-submit.js";
 const WORKSPACE_ID = "workspace-1";
 
 function buildApp(
-  submitImpl: CommentIngressPolicy["submit"]
+  submitImpl: CommentIngressPolicy["submit"],
+  ipHashSalt: Promise<string> = Promise.resolve("fixed-audit-salt")
 ): { app: express.Express; calls: CommentSubmission[] } {
   const calls: CommentSubmission[] = [];
   const ingressPolicy: CommentIngressPolicy = {
@@ -42,6 +43,7 @@ function buildApp(
     ingressPolicy, workspaceId: WORKSPACE_ID,
     // Normalization tests isolate ingress behavior from the separately owned HTTP budget.
     rateLimiter: { check: async () => ({ allowed: true }) },
+    ipHashSalt,
   });
   return { app, calls };
 }
@@ -96,13 +98,7 @@ test("comments-submit: parentId/authorEmail/authorUrl present and entryId/author
   assert.equal(submitted.ingressContext.honeypotValue, "bot-filled-this", "a string `website` field is captured as the honeypot value -- the ternary's TRUE arm");
 });
 
-test("comments-submit: `req.ip ?? req.socket.remoteAddress ?? \"unknown\"` double fallback, forced via a direct handler call with both left undefined -- still succeeds and hashes \"unknown\"", async (t) => {
-  const previousSalt = process.env.COMMENTS_IP_SALT;
-  process.env.COMMENTS_IP_SALT = "fixed-audit-salt";
-  t.after(() => {
-    if (previousSalt === undefined) delete process.env.COMMENTS_IP_SALT;
-    else process.env.COMMENTS_IP_SALT = previousSalt;
-  });
+test("comments-submit: `req.ip ?? req.socket.remoteAddress ?? \"unknown\"` double fallback, forced via a direct handler call with both left undefined -- still succeeds and hashes \"unknown\"", async () => {
   // Only `id`/`status` are read by the route on the success path (see `registerCommentsSubmitRoute`'s
   // `res.status(201).json({ id: result.comment.id, status: result.comment.status })`) -- a minimal
   // stand-in cast to the full `CommentRecord` shape is deliberate, matching this suite's stub-policy
@@ -164,4 +160,51 @@ test("comments-submit: unexpected ingress and body-conversion failures finish wi
   assert.equal(malformed.status, 500);
   assert.deepEqual(await malformed.json(), { error: "internal error", code: "INTERNAL_ERROR" });
   assert.deepEqual(calls, []);
+});
+
+// REGRESSION (2026-10-08 hardwiring audit #4): fails if the route reads COMMENTS_IP_SALT (or its old
+// public fallback) itself instead of hashing with the salt its composition root injected.
+test("comments-submit: authorIpHash uses the injected salt, never COMMENTS_IP_SALT from the environment", async (t) => {
+  const previousSalt = process.env.COMMENTS_IP_SALT;
+  process.env.COMMENTS_IP_SALT = "ambient-env-salt";
+  t.after(() => {
+    if (previousSalt === undefined) delete process.env.COMMENTS_IP_SALT;
+    else process.env.COMMENTS_IP_SALT = previousSalt;
+  });
+  const okResult = { ok: true, comment: { id: "c1", status: "approved" }, autoClassified: "approved" } as unknown as CommentIngressResult;
+  const hashFor = async (salt: string) => {
+    const { app, calls } = buildApp(async () => okResult, Promise.resolve(salt));
+    const handler = extractHandler(app, "/api/site/comments");
+    const res = { status() { return res; }, json() { return res; } };
+    await handler({ body: { entryId: "entry-1", authorName: "Visitor", body: "hi" }, ip: "203.0.113.7", socket: {} }, res);
+    return calls[0].ingressContext.authorIpHash;
+  };
+  const injected = await hashFor("fixed-audit-salt");
+  assert.ok(typeof injected === "string");
+  assert.match(injected, /^[0-9a-f]{64}$/);
+  assert.notEqual(injected, await hashFor("ambient-env-salt"), "a different injected salt must change the hash");
+  assert.notEqual(injected, await hashFor("dev-only-insecure-salt"), "the injected salt, not the old public constant, decides the hash");
+});
+
+test("comments-submit: a salt that never resolves to a usable value fails the request through next(error), not at registration", async () => {
+  const { app } = buildApp(async () => { throw new Error("unreachable"); }, Promise.reject(new Error("salt resolution failed")));
+  const handler = extractHandler(app, "/api/site/comments") as (req: unknown, res: unknown, next: (error?: unknown) => void) => Promise<unknown>;
+  let forwarded: unknown;
+  await handler({ body: {} }, {}, (error) => { forwarded = error; });
+  assert.ok(forwarded instanceof Error);
+  assert.equal((forwarded as Error).message, "salt resolution failed");
+});
+
+// REGRESSION (2026-10-08 dev-server boot): a caller missing ipHashSalt crashed boot with an opaque
+// "Cannot read properties of undefined (reading 'then')"; it must be a named TypeError instead.
+test("comments-submit: registering without ipHashSalt refuses with a named TypeError", () => {
+  const app = express();
+  assert.throws(
+    () => registerCommentsSubmitRoute(app, {
+      ingressPolicy: { submit: async () => ({ ok: false, reason: "entry-not-found" }) },
+      workspaceId: WORKSPACE_ID,
+      rateLimiter: { check: async () => ({ allowed: true }) },
+    } as unknown as Parameters<typeof registerCommentsSubmitRoute>[1]),
+    { name: "TypeError", message: "registerCommentsSubmitRoute requires deps.ipHashSalt (a Promise<string> from resolveCommentsIpHashSalt at the composition root)" }
+  );
 });

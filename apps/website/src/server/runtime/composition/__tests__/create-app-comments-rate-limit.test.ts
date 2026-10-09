@@ -4,6 +4,7 @@ import { test } from "node:test";
 import type { CommentSubmission } from "@jini-ai/cms/comments";
 import { COMMENTS_SUBMIT_PROFILE } from "#src/features/comments/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { createApp, createRouteDeps } from "../app.js";
 
 /**
@@ -81,4 +82,29 @@ test("createApp with default dependencies mounts the required comment handler", 
   assert.deepEqual(await submitComment({ baseUrl, forwardedFor: "203.0.113.1" }), {
     error: "comment was not accepted", reason: "entry-not-found",
   });
+});
+
+// REGRESSION (2026-10-08 hardwiring audit #4): fails if createApp's comment route salts with
+// `COMMENTS_IP_SALT ?? "dev-only-insecure-salt"` again instead of the root's site-key keyring.
+test("createApp salts comment IP hashes from its site-key keyring when COMMENTS_IP_SALT is unset", async (t) => {
+  const previous = process.env.COMMENTS_IP_SALT;
+  delete process.env.COMMENTS_IP_SALT;
+  t.after(() => {
+    if (previous !== undefined) process.env.COMMENTS_IP_SALT = previous;
+  });
+  const hashWithSiteKey = async (siteKeyHex: string) => {
+    const deps = createRouteDeps();
+    deps.siteAssistantSecretKeyring = new FixedSiteKeyKeyring(siteKeyHex);
+    const calls: CommentSubmission[] = [];
+    deps.commentIngressPolicy = { submit: async (submission) => { calls.push(submission); return { ok: false, reason: "entry-not-found" }; } };
+    const app = createApp(deps);
+    app.set("trust proxy", false);
+    await submitComment({ baseUrl: await startTestServer(app, t), forwardedFor: "203.0.113.9" });
+    assert.equal(calls.length, 1);
+    return String(calls[0].ingressContext.authorIpHash);
+  };
+  const first = await hashWithSiteKey("11".repeat(32));
+  assert.match(first, /^[a-f0-9]{64}$/);
+  assert.equal(await hashWithSiteKey("11".repeat(32)), first, "the same site key must give the same salt across app builds (restarts)");
+  assert.notEqual(await hashWithSiteKey("22".repeat(32)), first, "a different install's site key must give a different salt");
 });

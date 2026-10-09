@@ -40,8 +40,9 @@ export interface DeploymentSecret {
   readonly name: string;
   /**
    * "boot-blocking" — the production readiness gate refuses to start without a real value.
-   * "recommended" — boot succeeds either way, but a real production feature fails closed
-   * (`503 SECRET_STORE_UNCONFIGURED`) until it's set.
+   * "recommended" — boot succeeds either way (the boot gate at most warns); without it a real
+   * production feature fails closed (`503 SECRET_STORE_UNCONFIGURED`) or runs on a weaker derived
+   * default until it's set. Each entry's own note in {@link REQUIRED_SECRETS}'s doc says which.
    */
   readonly requirement: "boot-blocking" | "recommended";
 }
@@ -196,6 +197,13 @@ export function createDeployConfigKit(): DeployConfigKit {
  *   `TOVU_ADMIN_PASSWORD` already used there, since it would otherwise now describe a boot that
  *   fails with a compose file that told the operator it wouldn't.
  *
+ * - `COMMENTS_IP_SALT` — "recommended" (2026-10-08 hardwiring audit #4). The public comment route
+ *   used to fall back to the literal `"dev-only-insecure-salt"` when this was unset, with nothing
+ *   asking for it. It now falls back to a salt derived from the site key
+ *   (`features/comments/ip-hash-salt.ts`), so boot stays safe without it and the boot gate only
+ *   WARNS (`boot-readiness-warnings.ts`). Declared so a deployer pins it: rotating the site key
+ *   otherwise changes every commenter's IP hash.
+ *
  * Deliberately EXCLUDED, both checked against the same code rather than assumed:
  * - `TOVU_ADMIN_USER` — `docker-compose.yml` sets it inline as `${TOVU_ADMIN_USER:-admin}`, a plain
  *   default with no `:?` gate; `production-readiness-gate.ts` never reads it. A username, not a
@@ -213,6 +221,7 @@ const REQUIRED_SECRETS: readonly DeploymentSecret[] = [
   { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
   { name: "ANALYTICS_ROOT_KEY_SEED", requirement: "boot-blocking" },
   { name: "TOVU_SITE_KEY", requirement: "boot-blocking" },
+  { name: "COMMENTS_IP_SALT", requirement: "recommended" },
 ];
 
 /**

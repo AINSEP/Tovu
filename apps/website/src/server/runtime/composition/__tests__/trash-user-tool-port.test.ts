@@ -6,7 +6,7 @@ import { createTrashService, type TrashPort } from "@jini-ai/cms/trash";
 import { assignRole, createUser } from "@jini-ai/user-management/server";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import {
@@ -50,7 +50,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WORKSPACE_ID, WORKSPACE_ID, WORKSPACE_ID, "2026-01-01T00:00:00.000Z");
   const nextId = counter("id");
-  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID, clock, idGen: { newId: nextId } });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID, clock, idGen: { newId: nextId } });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
 

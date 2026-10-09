@@ -149,7 +149,7 @@ import {
   type MediaRecord,
   InMemoryTransformDefinitionRepo,
 } from "#src/features/media/index";
-import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
+import { createInMemoryIdentityRouteDeps, resolveOwnerCredentials } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
@@ -205,7 +205,7 @@ import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { COMMENTS_SUBMIT_PROFILE, createCommentsHostPorts, ensureCommentsSettingDefinitions } from "#src/features/comments/index";
+import { COMMENTS_SUBMIT_PROFILE, createCommentsHostPorts, ensureCommentsSettingDefinitions, resolveCommentsIpHashSalt } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
 import {
   ensureSiteTitleSettingDefinition,
@@ -400,7 +400,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       ? {}
       : { failureThreshold: options.pluginFailureThreshold }),
   });
-  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
+  // Composition root: the in-memory root keeps the same env-driven owner login as `deps.ts`.
+  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: process.env }) });
   // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
   const settingsPrincipals = {
     ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),
@@ -2148,6 +2149,11 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     workspaceId: routeDeps.workspaceId,
     // HTTP requests and accepted submissions consume separate budgets, never the same counter twice.
     rateLimiter: createRateLimiter({ profile: COMMENTS_SUBMIT_PROFILE, clock: routeDeps.clock }),
+    // Resolved here, once, from the root's env and its site-key keyring — the route never reads env.
+    // No public-constant fallback in production: see `features/comments/ip-hash-salt.ts`.
+    ipHashSalt: resolveCommentsIpHashSalt({
+      env: process.env, mode: resolveRuntimeMode(), workspaceId: routeDeps.workspaceId, keyring: routeDeps.siteAssistantSecretKeyring,
+    }).then(({ salt }) => salt),
   });
 
   // Public analytics beacon (ADR-035 §5) — unauthenticated by design; must precede the site

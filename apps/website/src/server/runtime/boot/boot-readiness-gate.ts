@@ -5,6 +5,7 @@ import { CAPABILITY_INVENTORY } from "../configuration/capability-inventory.js";
 import { DEFAULT_OWNER_PASSWORD } from "../../../features/identity/wiring.js";
 import { inspectSiteKeyMaterial } from "#src/features/webhooks/keyring.env";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import { warnOnBootReadinessGaps } from "./boot-readiness-warnings.js";
 
 /**
  * @file Shared production-readiness wiring for `index.ts` and `tovu serve`
@@ -19,6 +20,9 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * snapshot checks document the shared containment policy.
  */
 export async function runProductionReadinessGateOrExit(): Promise<void> {
+  // Warnings first and in EVERY mode: the "deployed but not in production mode" warning exists
+  // precisely for the boots the refusal gate below returns early on. Never refuses or throws.
+  warnOnBootReadinessGaps();
   const mode = resolveRuntimeMode();
   if (mode !== "production") return;
 

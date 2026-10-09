@@ -4,7 +4,7 @@ import test from "node:test";
 
 import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
@@ -49,7 +49,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(workspaceId, workspaceId, workspaceId, "2026-01-01T00:00:00.000Z");
   const clock = { nowIso: () => AT, nowMs: () => Date.parse(AT) };
-  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGenNew() });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGenNew() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 

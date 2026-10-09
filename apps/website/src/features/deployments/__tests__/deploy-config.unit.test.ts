@@ -39,6 +39,8 @@ test("buildDeploymentDescriptor: secrets are declared by name only, with the boo
     { name: "TOVU_ADMIN_PASSWORD", requirement: "boot-blocking" },
     { name: "ANALYTICS_ROOT_KEY_SEED", requirement: "boot-blocking" },
     { name: "TOVU_SITE_KEY", requirement: "boot-blocking" },
+    // 2026-10-08 hardwiring audit #4: declared, but only a boot WARNING (site-key-derived fallback).
+    { name: "COMMENTS_IP_SALT", requirement: "recommended" },
   ]);
   // Deliberately excluded — see deploy-config.ts's own REQUIRED_SECRETS doc for why.
   const names = descriptor.secrets.map((s) => s.name);

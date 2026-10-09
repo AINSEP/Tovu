@@ -5,9 +5,10 @@ import { PERMANENT_DELETE_SPECS } from "#src/features/permanent-delete/agent-too
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { assertUserAccountAction } from "#src/features/identity/delete-user-service";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
+import { contentKernel } from "#src/platform/db/content-kernel";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createTrashService, bindRemoveEntity } from "@jini-ai/cms/trash";
 import { createUserTrashAdapter, SqliteTrashRepo, createContentDbTransactionRunner } from "#src/features/trash/index";
@@ -29,7 +30,7 @@ async function setup() {
   let n = 0;
   const idGen = { newId: () => `purge-${++n}` };
   db.$client.prepare("INSERT INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)").run(workspaceId, workspaceId, workspaceId, clock.nowIso());
-  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
+  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, db, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
   await identity.identityReady;
   const ownerId = await identity.ownerPrincipalId;
   const service = identityServiceDepsFrom({ ...identity, clock, idGen });
@@ -40,7 +41,7 @@ async function setup() {
   const trash = createTrashService({ repo: trashRepo, adapters: new Map([["user", adapter]]), idGen,
     transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work), entityPolicy: ({ entityType }) => entityType === "user" });
   const authorize = withUserTrashAdminOverride({ base: async () => ({ allowed: true, reason: "grant" }), identity: service, workspaceId, seededOwnerPrincipalId: ownerId });
-  const routeDeps = { ...identity, workspaceId, clock, idGen, trash, registry: new Map(), db: db.$client, authorize };
+  const routeDeps = { ...identity, workspaceId, clock, idGen, trash, registry: new Map(), db: contentKernel(db), authorize };
   const permanent = buildPermanentDeleteDeps(routeDeps as unknown as Parameters<typeof buildPermanentDeleteDeps>[0]);
   const app = express();
   registerAdminTrashPurgeRoute(app, routeDeps);
@@ -138,7 +139,7 @@ for (const path of ["http", "identity_user_delete", "trash_purge_item", "trash_e
     if (path === "http") {
       assert.deepEqual(await f.invoke(f.ownerId, [id]), { statusCode: 200, jsonBody: { purged: 0, results: [{ id, outcome: "forbidden" }] } });
     } else if (path === "retention") {
-      await assert.rejects(f.adapter.purge({ workspaceId: f.workspaceId, entityId: lastOwner, at: "2026-10-07T00:00:00Z", expectedVersion: null }), { message: "the workspace must keep at least one active owner-`*` principal" });
+      await assert.rejects(f.adapter.purge({ workspaceId: f.workspaceId, entityId: lastOwner, expectedVersion: null }), { message: "the workspace must keep at least one active owner-`*` principal" });
     } else {
       await assert.rejects(f.permanent.prepare(path, path === "identity_user_delete" ? lastOwner : path === "trash_empty" ? null : id, f.ownerId), { message: `${path}: permission denied for a selected Trash item. Nothing was deleted.` });
     }

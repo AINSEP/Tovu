@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { assignRole, createUser, NodeSessionTokens, type AuthServiceDeps } from "@jini-ai/user-management/server";
-import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { POST_ENTITY_TYPE, USER_ENTITY_TYPE } from "#src/features/trash/index";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
@@ -28,7 +28,7 @@ function counterIdGen() {
 
 async function buildIdentity(workspaceId: string): Promise<{ identity: AuthServiceDeps; ownerPrincipalId: string }> {
   const db = openContentDb(":memory:");
-  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGen() });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
   const identity: AuthServiceDeps = {

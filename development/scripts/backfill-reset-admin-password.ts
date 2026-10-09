@@ -69,7 +69,7 @@ import { openContentDb, openContentDbReadOnly } from "../../apps/website/src/pla
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
 import { resolveWorkspace } from "../../apps/website/src/platform/site-dir/resolve-workspace.js";
-import { createSqliteIdentityRouteDeps } from "../../apps/website/src/features/identity/wiring.js";
+import { createSqliteIdentityRouteDeps, resolveOwnerCredentials } from "../../apps/website/src/features/identity/wiring.js";
 import {
   resetAdminPasswordSelfVerified,
   AdminPasswordResetVerificationFailedError,
@@ -147,7 +147,9 @@ async function main(): Promise<void> {
   // anything is outstanding — against a read-only connection that throws instead of no-op'ing (see
   // wiring.ts's own comment on this). `--apply`'s writable connection reconciles exactly like every
   // real server boot does.
-  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), reconcileGrantsOnBoot: args.apply });
+  // This script is its own composition root, so it reads the owner env exactly as a server boot does
+  // (the seeder only creates an owner when none exists; an existing install is untouched).
+  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), reconcileGrantsOnBoot: args.apply, ownerCredentials: resolveOwnerCredentials({ env: process.env }) });
   await identity.identityReady;
 
   const target = await identity.userRepo.findByUsername({ workspaceId, username: args.username });

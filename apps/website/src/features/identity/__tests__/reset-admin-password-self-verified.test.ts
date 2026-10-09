@@ -11,7 +11,7 @@ import { AuthInvalidCredentialsError, type IdentityRepos } from "@jini-ai/user-m
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
 import { identityUsers } from "#src/platform/db/schema.sqlite";
-import { createSqliteIdentityRouteDeps } from "../wiring.js";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "../wiring.js";
 import {
   resetAdminPasswordSelfVerified,
   AdminPasswordResetVerificationFailedError,
@@ -60,7 +60,7 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-happy-");
   try {
     const db = await openPreparedContentDb(dbPath);
-    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
 
     const repos: IdentityRepos = {
@@ -108,7 +108,7 @@ test("resetAdminPasswordSelfVerified: a write that does not verify is caught bef
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-corrupt-");
   try {
     const db = await openPreparedContentDb(dbPath);
-    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
 
     const repos: IdentityRepos = {

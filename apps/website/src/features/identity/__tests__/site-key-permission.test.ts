@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createSqliteIdentityRouteDeps } from "../wiring.js";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "../wiring.js";
 
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 import { type IdentityRepos } from "@jini-ai/user-management";
@@ -236,7 +236,7 @@ test("real identityReady boot restores token-management access in a workspace la
   const db = openContentDb(join(dir, "content.db"));
   t.after(() => { db.$client.close(); rmSync(dir, { recursive: true, force: true }); });
   const idGen = counterIdGen("boot");
-  const setup = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE, clock, idGen, reconcileGrantsOnBoot: false });
+  const setup = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE, clock, idGen, reconcileGrantsOnBoot: false });
   await setup.identityReady;
   const policy = await setup.policyRepo.findByName({ workspaceId: WORKSPACE, name: "admin-builtin-policy" });
   const role = await setup.roleRepo.findByName({ workspaceId: WORKSPACE, name: "admin" });
@@ -251,7 +251,7 @@ test("real identityReady boot restores token-management access in a workspace la
   await setup.principalRoleRepo.save({ id: "vintage-role", workspaceId: WORKSPACE, principalId: "vintage-admin", roleId: role.id });
   const request = { workspaceId: WORKSPACE, principalId: "vintage-admin", permission: "admin.security.site-key.manage" };
   assert.deepEqual(await setup.authorize(request), { allowed: false, reason: "no_grant" });
-  const boot = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE, clock, idGen });
+  const boot = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE, clock, idGen });
   await boot.identityReady;
   assert.deepEqual(await boot.authorize(request), { allowed: true, reason: "matched" });
   const grants = await boot.policyPermissionRepo.listByPolicyId({ workspaceId: WORKSPACE, policyId: policy.id });

@@ -12,7 +12,7 @@ import { login, type AuthServiceDeps } from "@jini-ai/user-management/server";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { workspaces } from "../../../apps/website/src/platform/db/schema.sqlite.js";
-import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_PASSWORD } from "../../../apps/website/src/features/identity/wiring.js";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "../../../apps/website/src/features/identity/wiring.js";
 import { missingDbPathMessage } from "../backfill-db-path.js";
 // Every identity built directly by this file uses a registry holding NO host grants: the script under
 // test must bring the app's own grants itself (`createAppPermissionGrants`), so these fixtures start
@@ -113,7 +113,7 @@ function runScriptDbEquals(dbPath: string, extraArgs: string[] = [], envOverride
 async function seedWorkspaceAndIdentity(dbPath: string): Promise<void> {
   const seedDb = openContentDb(dbPath);
   seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
-  const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db: seedDb, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: seedDb, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   seedDb.$client.close();
 }
@@ -129,7 +129,7 @@ test("backfill-reset-admin-password: dry run reports the target user and writes 
   assert.doesNotMatch(dryRunOutput, /RESTORE POINT CAPTURED/);
   const db = openContentDb(dbPath);
   try {
-    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     const repos: IdentityRepos = {
       transactions: identity.transactions, principals: identity.principalRepo, users: identity.userRepo,
@@ -138,7 +138,7 @@ test("backfill-reset-admin-password: dry run reports the target user and writes 
       principalRoles: identity.principalRoleRepo, principalPolicies: identity.principalPolicyRepo,
     };
     const auth: AuthServiceDeps = { tokens: new NodeSessionTokens({}), repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
-    const seedPassword = process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD;
+    const seedPassword = DEFAULT_OWNER_CREDENTIALS.password;
     const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: seedPassword } }, { sessionTtlMs: 60_000 });
     assert.ok(principal.id, "a dry run with a supplied new password must preserve the seed password");
   } finally {
@@ -183,7 +183,7 @@ test("backfill-reset-admin-password: --apply with a whitespace-only password ref
   // THE MANDATORY PROOF: assert on real state, not just the log line — the seed-default password
   // must still authenticate, confirming nothing was actually written.
   const db = openContentDb(dbPath);
-  const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   const repos: IdentityRepos = {
       transactions: identity.transactions,
@@ -199,12 +199,12 @@ test("backfill-reset-admin-password: --apply with a whitespace-only password ref
   };
   const auth: AuthServiceDeps = {
     tokens: new NodeSessionTokens({}), repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
-  // Not hardcoded "tovu-dev": `createSqliteIdentityRouteDeps` seeds with
-  // `process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD` (`wiring.ts`), and this ambient
-  // override IS set in some environments (see the repo's own test-running notes on this exact env
-  // var) — asserting the literal default here would falsely pass or fail depending on the
-  // environment this test happens to run in, independent of whether the refusal actually worked.
-  const seedPassword = process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD;
+  // The seed password used to follow the ambient `TOVU_ADMIN_PASSWORD` (`wiring.ts` read it
+  // directly), which IS set in some environments, so this read the same env to stay in step.
+  // Since the 2026-10-08 owner-credential injection the seed above passes
+  // `DEFAULT_OWNER_CREDENTIALS` explicitly, so the expected password is that constant — the
+  // environment this test runs in no longer changes what it asserts.
+  const seedPassword = DEFAULT_OWNER_CREDENTIALS.password;
   const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: seedPassword } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 });
   assert.ok(principal.id, "the seed-default password must still authenticate — the refused apply must not have written anything");
   db.$client.close();
@@ -224,7 +224,7 @@ test("backfill-reset-admin-password: --apply resets the seeded owner's password 
 
   // Independent confirmation through the real login() path, not just the script's own claim.
   const db = openContentDb(dbPath);
-  const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   const repos: IdentityRepos = {
       transactions: identity.transactions,
@@ -245,7 +245,7 @@ test("backfill-reset-admin-password: --apply resets the seeded owner's password 
   assert.ok(principal.id);
 
   await assert.rejects(
-    () => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 }),
+    () => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: DEFAULT_OWNER_CREDENTIALS.password } }, { sessionTtlMs: 30 * 24 * 60 * 60 * 1000 }),
     AuthInvalidCredentialsError,
     "the old seed-default password must no longer authenticate"
   );
@@ -263,7 +263,7 @@ test("backfill-reset-admin-password: failed fresh verification exits nonzero and
   const prepared = openContentDb(dbPath);
   let wrongHash: string;
   try {
-    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db: prepared, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: prepared, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     wrongHash = await identity.passwordHasher.hash({ password: "fixture-substituted-password" });
   } finally {
@@ -315,7 +315,7 @@ test("backfill-reset-admin-password: failed fresh verification exits nonzero and
   }
   const db = openContentDb(dbPath);
   try {
-    const identity = createSqliteIdentityRouteDeps({ permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     const repos: IdentityRepos = {
       transactions: identity.transactions, principals: identity.principalRepo, users: identity.userRepo,
@@ -324,7 +324,7 @@ test("backfill-reset-admin-password: failed fresh verification exits nonzero and
       principalRoles: identity.principalRoleRepo, principalPolicies: identity.principalPolicyRepo,
     };
     const auth: AuthServiceDeps = { tokens: new NodeSessionTokens({}), repos, hasher: identity.passwordHasher, clock: fixedClock, idGen: counterIdGen() };
-    const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD } }, { sessionTtlMs: 60_000 });
+    const { principal } = await login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: DEFAULT_OWNER_CREDENTIALS.password } }, { sessionTtlMs: 60_000 });
     assert.ok(principal.id, "the restored password must still authenticate");
     await assert.rejects(() => login({ deps: auth, input: { workspaceId: WORKSPACE, username: "admin", password: newPassword } }, { sessionTtlMs: 60_000 }), AuthInvalidCredentialsError);
   } finally {

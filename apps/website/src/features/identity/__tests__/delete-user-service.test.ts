@@ -8,7 +8,7 @@ import { bindRemoveEntity, createTrashService, type TrashAdapter, type TrashPort
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-management/server";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
-import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
+import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "../wiring.js";
 import { trashUser, SelfDeleteError, type DeleteUserDeps } from "../delete-user-service.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
@@ -51,7 +51,7 @@ async function setup(workspaceId: string): Promise<Fixture> {
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(workspaceId, workspaceId, workspaceId, "2026-01-01T00:00:00.000Z");
-  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGen() });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 

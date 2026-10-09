@@ -4,7 +4,7 @@ import test from "node:test";
 import { createPermissionMigrationRegistry } from "@jini-ai/user-management/server";
 
 import { createPermissionGrantRegistry } from "#src/features/identity/permission-grants";
-import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
+import { DEFAULT_OWNER_CREDENTIALS, createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 
 /**
@@ -36,7 +36,7 @@ async function adminBuiltinPermissions(
   workspaceId: string,
   permissionGrants: ReturnType<typeof createPermissionGrantRegistry>
 ): Promise<string[]> {
-  const deps = createInMemoryIdentityRouteDeps({ permissionGrants, workspaceId, clock: fixedClock, idGen: counterIdGen() });
+  const deps = createInMemoryIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants, workspaceId, clock: fixedClock, idGen: counterIdGen() });
   await deps.identityReady;
   const policy = await deps.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
   assert.ok(policy, "seedIdentity must have created the built-in admin policy");

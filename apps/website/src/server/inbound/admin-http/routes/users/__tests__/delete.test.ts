@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import {
+  DEFAULT_OWNER_CREDENTIALS,
   createSqliteIdentityRouteDeps,
   type IdentityRouteDepsSlice,
 } from "#src/features/identity/wiring";
@@ -79,7 +80,7 @@ async function buildApp(
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WORKSPACE_ID, WORKSPACE_ID, WORKSPACE_ID, "2026-01-01T00:00:00.000Z");
-  const wiring = createSqliteIdentityRouteDeps({ permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID, clock, idGen: counterIdGen() });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId: WORKSPACE_ID, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
   const callerId = principalId ?? ownerId;
