@@ -64,7 +64,10 @@ import { MAX_THEME_FILE_BYTES } from "./theme-files.js";
  *   than editing a FILE inside one theme, and one no per-file containment check constrains. Left
  *   out this pass on the same basis. (`theme_rename_file`, below, only ever touches a file inside an
  *   already-discovered theme's own folder — a different, narrower operation from renaming the
- *   folder itself, and not what this bullet excludes.)
+ *   folder itself, and not what this bullet excludes.) `theme_duplicate` (owner-approved
+ *   2026-10-08, `duplicate-theme-tool.ts`) is not a `theme_create` either: it only ADDS a copy under
+ *   a fresh id nothing references yet and never writes, renames, or removes an existing folder, so
+ *   none of the active-theme blast radius above applies.
  *
  *   `theme_delete` stays unwired, but a whole theme CAN now be removed reversibly: `theme_trash`
  *   (owner-approved 2026-10-08, `trash-theme-tool.ts`) moves the folder to the Trash (restorable via

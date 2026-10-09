@@ -23,6 +23,18 @@ export {
   type DiscoveredTheme,
 } from "./theme.js";
 
+// 2026-10-08 — the one "make a new theme" service: the admin Themes screen's Duplicate route and the
+// `theme_duplicate` agent tool both call `duplicateDiscoveredTheme`, so neither can drift.
+export {
+  duplicateDiscoveredTheme,
+  duplicateTheme,
+  themeIdFromName,
+  DuplicateThemeError,
+  MAX_DUPLICATE_THEME_BYTES,
+  type DuplicateThemeErrorCode,
+  type DuplicateThemeResult,
+} from "./duplicate-theme.js";
+
 // ADR-020 §5 (2026-08-12) — the install-time conformance gate a `build.source: "compiled"` theme must
 // pass. Re-exported so a consumer checking `theme.manifest.build` can also reach the exact gate
 // `loadTheme()` itself runs, without a second import path into `build-conformance.ts` directly.

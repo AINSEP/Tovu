@@ -53,6 +53,8 @@ import { contributeRecoveryTools } from "#src/features/recovery/tool-registratio
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools } from "#src/features/theme/tool-registrations";
 import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
+import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-theme-tool";
+import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
 import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
@@ -445,6 +447,10 @@ export function installFirstPartyToolContributors(
   // (`"theme-set-active"`), because re-registering under `contributeThemesTools()`'s own `"theme"`
   // key would replace that domain's four file-operation tools instead of adding a fifth.
   contributions.contributors.register({ contribution: contributeSetActiveThemeTools() });
+  // `theme_duplicate` (2026-10-08) — own domain key (`"theme-duplicate"`) for the same reason.
+  contributions.contributors.register({ contribution: contributeDuplicateThemeTools() });
+  // `theme_import_file_from_url` (2026-10-08) — own domain key (`"theme-import-file"`) for the same reason.
+  contributions.contributors.register({ contribution: contributeImportThemeFileTools() });
   // `change_sets_list`/`change_sets_revert` (F7b option A, S6, 2026-09-24) — own domain key
   // (`"change-sets"`), sharing no key with any other contributor above.
   contributions.contributors.register({ contribution: contributeChangeSetsTools() });

@@ -16,6 +16,8 @@ import {
 import { writableThemeIds } from "./active-theme.js";
 import { requestThemePreviewRefresh } from "./preview-refresh.js";
 import type { DiscoveredTheme } from "./theme.js";
+import { syncThemeRoster } from "./theme-roster-sync.js";
+import { verifyActiveThemeResolves } from "./verify-active-theme.js";
 
 /**
  * @file `theme_set_active` (F7a, 2026-09-24) — the agent-callable half of "which theme does the
@@ -81,6 +83,55 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: setActiveThemeAgentToolCatalog
  *  `presentation_settings.active_theme_id`, a real, disk-affecting durable-state mutation. */
 export const setActiveThemeDerivedRisk: DerivedRiskByToolId = new Map([["theme_set_active", "mutates-durable-state"]]);
 
+/**
+ * Switch the active theme and report the previous one — `theme_set_active`'s body after its
+ * permission check, exported so `theme_duplicate`'s `activate: true` (`duplicate-theme-tool.ts`)
+ * switches through the exact same validation, preview refresh, and error shape instead of a copy.
+ * Callers check `theme.set` first; this function performs no authorization.
+ *
+ * With `themesDir` (the real site), the roster is synced with the folder first — a theme another
+ * process created since boot is activatable — and the switch is verified afterwards
+ * (`verifyActiveThemeResolves`): success is reported only when the public render will resolve the
+ * theme itself rather than fall back.
+ * @throws {ToolInputError} When `themeId` is not a writable theme id (valid ids appended), or when
+ *   the saved id would not resolve on the public render (the previous theme is restored first).
+ * @complexity O(t) in the discovered theme count (the writable-id allowlist), plus one settings write
+ *   and up to two roster syncs.
+ */
+export async function applyActiveTheme(
+  required: { routeDeps: SetActiveThemeToolDeps; themeId: string },
+  _optional: Record<string, never> = {}
+): Promise<{ previousThemeId: string; activeThemeId: string }> {
+  const { routeDeps, themeId } = required;
+  if (routeDeps.themesDir) syncThemeRoster({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+  const previousThemeId = await resolveActiveThemeId(routeDeps);
+
+  let activeThemeId: string;
+  try {
+    const result = await setActiveTheme({
+      deps: {
+        repo: routeDeps.presentationRepo,
+        clock: routeDeps.clock,
+        availableThemeIds: writableThemeIds(routeDeps),
+      },
+      input: { workspaceId: routeDeps.workspaceId, activeThemeId: themeId },
+    });
+    activeThemeId = result.settings.activeThemeId;
+  } catch (err) {
+    // Re-thrown as a `ToolInputError` (a DIFFERENT themeId would fix this) with the valid ids
+    // appended to the SAME message `setActiveTheme` raised — see this file's own header.
+    if (err instanceof PresentationSettingsValidationError) {
+      throw new ToolInputError({ message: `${err.message} (valid ids: ${writableThemeIds(routeDeps).join(", ")})` });
+    }
+    throw err;
+  }
+  if (routeDeps.themesDir) {
+    requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
+    await verifyActiveThemeResolves({ deps: { ...routeDeps, themesDir: routeDeps.themesDir }, activeThemeId, previousThemeId });
+  }
+  return { previousThemeId, activeThemeId };
+}
+
 function buildSetActiveThemeHandlers(routeDeps: SetActiveThemeToolDeps): Record<string, ToolHandler> {
   return {
     theme_set_active: async (ctx) => {
@@ -89,27 +140,7 @@ function buildSetActiveThemeHandlers(routeDeps: SetActiveThemeToolDeps): Record<
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "theme.set" }, { entityType: "presentation" });
 
-      const previousThemeId = await resolveActiveThemeId(routeDeps);
-
-      try {
-        const result = await setActiveTheme({
-          deps: {
-            repo: routeDeps.presentationRepo,
-            clock: routeDeps.clock,
-            availableThemeIds: writableThemeIds(routeDeps),
-          },
-          input: { workspaceId: routeDeps.workspaceId, activeThemeId: themeId },
-        });
-        if (routeDeps.themesDir) requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
-        return { previousThemeId, activeThemeId: result.settings.activeThemeId };
-      } catch (err) {
-        // Re-thrown as a `ToolInputError` (a DIFFERENT themeId would fix this) with the valid ids
-        // appended to the SAME message `setActiveTheme` raised — see this file's own header.
-        if (err instanceof PresentationSettingsValidationError) {
-          throw new ToolInputError({ message: `${err.message} (valid ids: ${writableThemeIds(routeDeps).join(", ")})` });
-        }
-        throw err;
-      }
+      return applyActiveTheme({ routeDeps, themeId });
     },
   };
 }

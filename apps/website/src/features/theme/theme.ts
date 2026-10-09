@@ -1198,6 +1198,11 @@ export const THEME_CATALOG_DIR = "__original-themes__";
  * instead. ARCH-001 (2026-08-19): two such directories were swept into a commit by a broad `git add`
  * and discovered as three "basic"-id themes (the real one plus both scratch copies, which retain the
  * migrated manifest's `id`) before this constant existed to filter them out.
+ *
+ * `duplicate-theme.ts` stages a whole-theme copy under this same prefix (`<prefix>duplicate-<id>-<hex>`)
+ * before renaming it into place, so every reader that already skips migration scratch (discovery,
+ * `publish-content.ts`, `theme-static-assets.ts`) skips a half-written duplicate too, with no new rule.
+ * Unlike a migration's, that scratch is removed on failure.
  */
 export const MIGRATION_STAGING_DIR_PREFIX = ".tovu-migrate-staging-";
 
@@ -1258,17 +1263,23 @@ export function discoverAllBuiltInThemes(
  * @param required.desiredId - The id to try first (typically the source theme's own `theme.json` id).
  * @param required.themesRoot - The themes root both the tier folder and the catalog live under.
  * @param required.tier - Which {@link ENGINE_SUBFOLDERS} tier's folder to check.
+ * @param optional.alsoTaken - Extra "taken" rule ORed with the two folder checks. `duplicate-theme.ts`
+ * passes every discovered id (ids must stay unique across tiers too — {@link duplicateThemeIds}) and
+ * the source theme's own parent folder (a legacy top-level theme's copy lands beside it, not under
+ * `<tier>/`). Omitted, only the two folder checks apply — the CLI's original behavior.
  * @returns `desiredId` if free, else `desiredId-1`, `desiredId-2`, … — the first free suffix.
  * @complexity O(n) filesystem existence checks, where n is the number of prior collisions on
- * `desiredId` (2 checks each); O(1) (2 checks) in the common, no-collision case.
+ * `desiredId` (2 checks each, plus one `alsoTaken` call); O(1) in the common, no-collision case.
  */
 export function nextAvailableThemeId(
   required: { desiredId: string; themesRoot: string; tier: ThemeTier },
-  _optional: Record<string, never> = {}
+  optional: { alsoTaken?: (id: string) => boolean } = {}
 ): string {
   const { desiredId, themesRoot, tier } = required;
   const isTaken = (id: string): boolean =>
-    existsSync(join(themesRoot, tier, id)) || existsSync(join(themesRoot, THEME_CATALOG_DIR, tier, id));
+    existsSync(join(themesRoot, tier, id)) ||
+    existsSync(join(themesRoot, THEME_CATALOG_DIR, tier, id)) ||
+    optional.alsoTaken?.(id) === true;
 
   if (!isTaken(desiredId)) return desiredId;
 

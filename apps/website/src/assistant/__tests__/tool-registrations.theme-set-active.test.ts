@@ -9,7 +9,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
 
 
-import { discoverAllBuiltInThemes, NO_THEME_ID } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, NO_THEME_ID, syncThemeRoster } from "#src/features/theme/index";
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import {
   buildSetActiveThemeRegistrations,
@@ -170,3 +170,55 @@ test("theme_set_active: checks exactly the theme.set permission", async () => {
   await handlerFor(routeDeps)(ctxFor({ themeId: "aurora" }));
   assert.deepEqual(asked, ["theme.set"]);
 });
+
+/** {@link fakeDeps} with `themesDir` wired, the way the real site composes it — the roster then
+ *  follows the folder (`syncThemeRoster`) and the public-render check has a folder to check. */
+function fakeDepsOnDisk(): SetActiveThemeToolDeps & { themesDir: string } {
+  const base = fakeDeps();
+  const themesDir = path.dirname(base.themes[0]!.dir);
+  return { ...base, themesDir };
+}
+
+test("theme_set_active: activates a theme another process created after this one booted (2026-10-08 luvira)", async () => {
+  const routeDeps = fakeDepsOnDisk();
+  syncRoster(routeDeps);
+  // Another process (the web server's admin Duplicate, or a second daemon) adds a folder; this
+  // process's roster was never told.
+  writeThemeFolder(path.join(routeDeps.themesDir, "editorial-rose"), "editorial-rose");
+
+  const result = await handlerFor(routeDeps)(ctxFor({ themeId: "editorial-rose" }));
+
+  assert.deepEqual(result, { previousThemeId: "basic", activeThemeId: "editorial-rose" });
+});
+
+test("theme_set_active: fails loudly — and restores the previous theme — when the public render of / would not resolve the theme", async () => {
+  const routeDeps = fakeDepsOnDisk();
+  syncRoster(routeDeps);
+  // Broken on disk without anything telling this roster: still listed as valid in memory, but the
+  // site's next render (which re-reads the folder) cannot use it and would fall back.
+  fs.writeFileSync(path.join(routeDeps.themesDir, "aurora", "theme.json"), "{ not json", "utf8");
+
+  await assert.rejects(
+    () => handlerFor(routeDeps)(ctxFor({ themeId: "aurora" })),
+    (err: unknown) =>
+      err instanceof Error &&
+      err.message.includes("'aurora'") &&
+      err.message.includes("fall back") &&
+      err.message.includes("'basic'")
+  );
+  assert.equal(await resolveActiveThemeId(routeDeps), "basic", "the previous theme must be restored, not left pointing at a fallback");
+});
+
+function writeThemeFolder(dir: string, id: string): void {
+  fs.mkdirSync(path.join(dir, "templates"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "theme.json"), themeManifest(id), "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.json"), '{"--ink":"#000"}', "utf8");
+  fs.writeFileSync(path.join(dir, "styles.css"), "body{margin:0}", "utf8");
+  fs.writeFileSync(path.join(dir, "templates", "home.json"), '{"type":"doc","content":[]}', "utf8");
+  fs.writeFileSync(path.join(dir, "templates", "entry.json"), '{"type":"doc","content":[]}', "utf8");
+}
+
+/** What `deps.ts` does right after boot discovery. */
+function syncRoster(routeDeps: { themes: SetActiveThemeToolDeps["themes"]; themesDir: string }): void {
+  syncThemeRoster({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+}

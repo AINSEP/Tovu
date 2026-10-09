@@ -184,7 +184,7 @@ class ThemeFileIdentityLockedError extends Error {
 /** Errors a DIFFERENT input would fix, and therefore worth publishing the schema back with. A
  * genuine I/O failure (a permission-denied disk, a full volume) is not one of these and propagates
  * undecorated, because retrying with different arguments would not help. */
-function isShapeRejection(error: unknown): boolean {
+export function isShapeRejection(error: unknown): boolean {
   return (
     error instanceof ThemePathError ||
     error instanceof ThemeNotFoundError ||
@@ -235,7 +235,7 @@ function toThemeToolView(theme: DiscoveredTheme) {
   };
 }
 
-function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): DiscoveredTheme {
+export function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): DiscoveredTheme {
   const theme = routeDeps.themes.find((t) => t.manifest.id === themeId);
   if (!theme) {
     const known = routeDeps.themes.map((t) => t.manifest.id).join(", ") || "(none discovered)";
@@ -256,7 +256,7 @@ function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): Discovered
  * would have a second, unaudited way to mutate what is supposed to be inert, already-soft-deleted
  * content.
  */
-function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): void {
+export function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): void {
   const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
   if (writeScope.kind === "generated-readonly") {
     throw new ThemeFileReadOnlyError(`'${relativePath}' is read-only: ${writeScope.reason}`);
@@ -360,7 +360,7 @@ function resetFromOriginalForTool(
  * page view). Returns the reloaded theme so the caller can report its `status`/`errors` in the same
  * turn.
  */
-function reloadThemeInPlace(routeDeps: ThemeToolDeps, theme: DiscoveredTheme, themeId: string): DiscoveredTheme {
+export function reloadThemeInPlace(routeDeps: ThemeToolDeps, theme: DiscoveredTheme, themeId: string): DiscoveredTheme {
   const reloaded = loadTheme({ themeDir: theme.dir, id: themeId, source: theme.source });
   const index = routeDeps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index >= 0) routeDeps.themes[index] = reloaded;

@@ -1281,6 +1281,11 @@
         "theme_edit_file"
       ]
     },
+    "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/duplicate": {
+      "tools": [
+        "theme_duplicate"
+      ]
+    },
     "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/copy": {
       "tools": [
         "theme_copy_file"

@@ -78,10 +78,10 @@ export class ThemePathError extends Error {
 export const MAX_THEME_FILE_BYTES = 1_000_000;
 
 /** Ceiling on one `theme_list_files` walk, so a pathological folder cannot produce an unbounded response. */
-const MAX_LISTED_FILES = 2_000;
+export const MAX_LISTED_FILES = 2_000;
 
 /** Depth ceiling on the same walk — a symlink loop inside a theme folder cannot spin forever. */
-const MAX_WALK_DEPTH = 12;
+export const MAX_WALK_DEPTH = 12;
 
 /**
  * Directories whose contents are GENERATED build output inside a theme-shaped folder — never real
@@ -666,6 +666,30 @@ export function writeThemeFile(
   assertOverwritableTarget(existing, required.relativePath, optional.overwriteOversized === true);
   mkdirSync(dirname(target), { recursive: true });
   writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat);
+  return target;
+}
+
+/**
+ * Write (create or replace) one BINARY file inside a theme's folder, byte for byte — the
+ * `theme_import_file_from_url` half of {@link writeThemeFile}. Same containment, same
+ * not-a-regular-file refusal, same atomic temp-and-rename; never decodes. No
+ * {@link MAX_THEME_FILE_BYTES} check: that bounds text an agent reads or writes, and the caller
+ * has already bounded these bytes (its fetch cap). Replacing an existing file past that limit is
+ * allowed for the same reason — a font or image swap is not an edit of unread text.
+ *
+ * @returns The absolute path written.
+ * @throws {ThemePathError} On any containment failure, or a target that exists and is not a regular file.
+ * @complexity O(s) in the byte count.
+ */
+export function writeThemeBinaryFile(
+  required: { themeDir: string; themesRoot: string; relativePath: string; bytes: Uint8Array },
+  _optional: Record<string, never> = {}
+): string {
+  const target = resolveThemeFilePath(required);
+  const existing = statOrThemePathError(target, required.relativePath, undefined);
+  assertOverwritableTarget(existing, required.relativePath, true);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.bytes), undefined);
   return target;
 }
 

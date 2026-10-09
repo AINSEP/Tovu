@@ -9,9 +9,36 @@ export const toolMetadata = {
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },
+  // The only tool that creates a theme: copies one into a new folder (owner-approved 2026-10-08).
+  "theme_duplicate": {
+    search: {
+      keywords: "theme duplicate copy clone fork new theme from existing create make start redesign variant based on scaffold",
+      queries: [
+        "Duplicate this theme.",
+        "Copy the active theme into a new theme.",
+        "Make a new theme from an existing one.",
+        "Create a new theme based on tovu-theme called Roastery.",
+        "Start a redesign without touching the live theme.",
+      ],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
   "theme_edit_file": {
     search: {
       keywords: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section font fonts typography color colors colour primary brand palette style styles look",
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
+  // The only tool that puts a new binary (font, image) into a theme folder (2026-10-08).
+  "theme_import_file_from_url": {
+    search: {
+      keywords: "theme import download fetch font fonts woff woff2 ttf otf typeface webfont self-host image logo icon favicon binary asset file from url into theme folder",
+      queries: [
+        "Download the source site's font files into the new theme.",
+        "Self-host this woff2 font in the theme.",
+        "Save this logo image into the theme's assets folder.",
+        "Import the favicon from that URL into the theme.",
+      ],
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },

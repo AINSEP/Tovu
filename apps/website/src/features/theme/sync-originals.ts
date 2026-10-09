@@ -70,9 +70,11 @@ const STAGING_DIR_PREFIX = ".theme-original-sync-staging-";
  * `targetDir` — regeneration must mirror `liveDir` exactly, including a file `liveDir` no longer has,
  * so a plain merge-copy onto a pre-existing target would leave a stale file behind. The replace itself
  * (`rmSync` old target, then `renameSync` staging into place) is not one atomic syscall — a crash
- * between those two lines could leave `targetDir` briefly absent — but this only ever runs against
- * `content/themes/` on a dev/release machine, never a live site, so the failure mode is a dirty `git
- * status` to re-run, not a user-facing loss (see this file's own header).
+ * between those two lines could leave `targetDir` briefly absent — but {@link syncThemeOriginals} only
+ * ever runs it against `content/themes/` on a dev/release machine, never a live site, so the failure
+ * mode is a dirty `git status` to re-run, not a user-facing loss (see this file's own header). Its one
+ * live-site caller, `duplicate-theme.ts` (a theme copy's stored original, 2026-10-08), only ever
+ * targets a folder id assignment already proved absent, so that replace never happens there.
  *
  * @param required.liveDir - Absolute path to the shipped theme's live folder to copy from.
  * @param required.targetDir - Absolute path to the original-catalog folder to (re)write.

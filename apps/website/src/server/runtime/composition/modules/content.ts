@@ -18,6 +18,7 @@ import { registerAdminPresentationGetRoute } from "#src/server/inbound/admin-htt
 import { registerAdminPresentationPatchRoute } from "#src/server/inbound/admin-http/routes/presentation/patch-active-theme";
 import { registerAdminThemeRescanRoute } from "#src/server/inbound/admin-http/routes/presentation/rescan-themes";
 import { registerAdminThemesListRoute } from "#src/server/inbound/admin-http/routes/themes/list";
+import { registerAdminThemeDuplicateRoute } from "#src/server/inbound/admin-http/routes/themes/duplicate";
 import {
   registerAdminThemeDetailRoute,
   registerAdminThemeFileCopyRoute,
@@ -103,6 +104,7 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminPresentationPatchRoute(app, deps);
       registerAdminThemeRescanRoute(app, deps);
       registerAdminThemesListRoute(app, deps);
+      registerAdminThemeDuplicateRoute(app, deps);
       // Explore screen. `/themes/:themeId/file` is registered BEFORE `/themes/:themeId` would
       // shadow it — Express matches in registration order, and while `/themes/:themeId` has no
       // trailing segment today, the ordering is the guarantee rather than the current path shapes
