@@ -153,6 +153,20 @@ describe("ChatFab useFab injection", () => {
     };
   }
 
+  it("keeps the drag handler active while the assistant dock is open", () => {
+    const onPointerDown = vi.fn();
+    const useFab = vi.fn(() => fakeFab({ onPointerDown }));
+    render(<ChatFab open={true} onToggle={vi.fn()} avoidBottomPx={240} avoidRightPx={360} useFab={useFab} />);
+    const button = screen.getByRole("button", { name: "Close assistant" });
+
+    fireEvent.pointerDown(button, { button: 0, pointerId: 1, clientX: 520, clientY: 520 });
+
+    expect(useFab).toHaveBeenCalledWith({ dockOpen: true, avoidBottomPx: 240, avoidRightPx: 360 });
+    // Regression: onPointerDown={open ? undefined : fab.onPointerDown} swallowed this event.
+    expect(onPointerDown).toHaveBeenCalledTimes(1);
+    expect(onPointerDown.mock.calls[0]![0].target).toBe(button);
+  });
+
   it("renders at the injected fake's position, not the real hook's clamped default", () => {
     render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} useFab={() => fakeFab()} />);
     const button = screen.getByRole("button", { name: "Open assistant" });

@@ -68,4 +68,14 @@ describe("chat pane horizontal-overflow fix", () => {
     expect(wrapperRule).toMatch(/max-width\s*:\s*100%/);
     expect(lastDeclaration(wrapperRule, "max-width")).toBe("100%");
   });
+
+  it("keeps an MCP-UI surface's iframe at exactly the card's width whatever px width the View reported", () => {
+    // Owner bug 2026-10-08: `@mcp-ui/client`'s AppFrame writes a View's reported width onto the
+    // iframe as inline `style.width = Npx`. Mounted in a hidden pane after a reload, the ask-choice
+    // card reported its min-content width and stayed pinned at 192px in a ~540px panel. Inline
+    // `width` loses to `min-width`/`max-width`, so these two declarations clamp it back to 100%.
+    const rule = ruleFor(".mcpui-surface-card iframe");
+    expect(lastDeclaration(rule, "min-width")).toBe("100%");
+    expect(lastDeclaration(rule, "max-width")).toBe("100%");
+  });
 });

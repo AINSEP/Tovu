@@ -586,6 +586,18 @@
   min-width: 0;
 }
 
+/* The width `McpUiHost` gives its iframe is NOT guaranteed: `@mcp-ui/client`'s AppFrame overwrites
+   it with inline `style.width = Npx` whenever a View reports a width. A card that mounted in a hidden
+   or narrow pane (a reload mid-run) reported its min-content width and stayed pinned there -- owner
+   bug 2026-10-08, an ask-choice card stuck at 192px in a ~540px panel with its title spilling out.
+   Jini's own surfaces no longer report a width (`surfaces/bridge.ts`), but surfaces already stored in
+   a transcript carry the old script, and a third-party View may still report one; inline `width`
+   loses to `min-width`/`max-width`, so this clamps every one of them to the card's width. */
+.mcpui-surface-card iframe {
+  min-width: 100%;
+  max-width: 100%;
+}
+
 /* A question card nobody can answer any more (answered, expired, or its run ended): Jini's
    `McpUiSurfaceCard` swaps the live frame for one plain status line. Muted and compact so it reads
    as a record, not as something waiting on the user. */
