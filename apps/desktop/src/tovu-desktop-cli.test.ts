@@ -79,7 +79,9 @@ test('the real CLI entry propagates success, refusal, and usage exit codes', () 
   const userDataDir = tempDir();
   for (const args of [ ['--help'], ['add-site', tempDir(), '--user-data-dir', userDataDir], ['add-site'] ]) {
     const expected = runTovuDesktopCli(args, capture().io);
-    const child = spawnSync(process.execPath, ['--import', 'tsx', entry, ...args], { encoding: 'utf8', timeout: 5000 });
+    // Plain node, as the entry's `#!/usr/bin/env node` runs it. A tsx child also wrote its
+    // esbuild-transformed image into the coverage run under the source paths, at the wrong lines.
+    const child = spawnSync(process.execPath, [entry, ...args], { encoding: 'utf8', timeout: 5000 });
     assert.equal(child.error, undefined);
     assert.equal(child.status, expected, child.stderr);
   }

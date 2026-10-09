@@ -1,6 +1,36 @@
 {
-  "_comment": "Grandfathered apps/desktop complexity violations, keyed PER VIOLATION (rule, file, message) rather than per file: ESLint's flat config can only ever relax a whole FILE, and a per-file list lets every other function in that file drift unnoticed. Regenerate with `node scripts/check-complexity.ts --update` ONLY to record a deliberate, reviewed addition — never to turn a red gate green. Shrink this list; do not grow it.",
+  "_comment": "Grandfathered apps/desktop complexity violations, keyed PER VIOLATION (rule, file, message) rather than per file: ESLint's flat config can only ever relax a whole FILE, and a per-file list lets every other function in that file drift unnoticed. Regenerate with `node scripts/check-complexity.ts --update` ONLY to record a deliberate, reviewed addition \u2014 never to turn a red gate green. Shrink this list; do not grow it.",
   "violations": [
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/project-ipc.ts",
+      "reason": "Async function 'handleCreate' has a complexity of 15. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "sonarjs/cognitive-complexity",
+      "file": "apps/desktop/src/project-ipc.ts",
+      "reason": "Refactor this function to reduce its Cognitive Complexity from 11 to the 9 allowed.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/project-ipc.ts",
+      "reason": "Async function 'deleteProject' has a complexity of 13. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "sonarjs/cognitive-complexity",
+      "file": "apps/desktop/src/project-ipc.ts",
+      "reason": "Refactor this function to reduce its Cognitive Complexity from 14 to the 9 allowed.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/project-ipc.ts",
+      "reason": "Function 'handleRename' has a complexity of 12. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
     {
       "rule": "sonarjs/cognitive-complexity",
       "file": "apps/desktop/src/renderer/App.hooks.ts",
@@ -9,7 +39,57 @@
     {
       "rule": "complexity",
       "file": "apps/desktop/src/renderer/App.tsx",
-      "reason": "Function 'App' has a complexity of 12. Maximum allowed is 9."
+      "reason": "Function 'App' has a complexity of 15. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/renderer/SiteGrid.tsx",
+      "reason": "Function 'SiteCard' has a complexity of 10. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/renderer/site-shell-policy.ts",
+      "reason": "Function 'siteOperationError' has a complexity of 12. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "sonarjs/cognitive-complexity",
+      "file": "apps/desktop/src/renderer/site-shell-policy.ts",
+      "reason": "Refactor this function to reduce its Cognitive Complexity from 12 to the 9 allowed.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/renderer/site-theme-preview.hooks.ts",
+      "reason": "Method 'listener' has a complexity of 12. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/renderer/use-tab-strip.hooks.ts",
+      "reason": "Function 'navigateTabStrip' has a complexity of 11. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/site-dir-store.ts",
+      "reason": "Function 'initSiteDir' has a complexity of 10. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/site-theme-preview-ipc.ts",
+      "reason": "Arrow function has a complexity of 10. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/desktop/src/site-theme-preview.ts",
+      "reason": "Arrow function has a complexity of 11. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 for 0.1.13, 2026-10-09"
     }
-  ]
+  ],
+  "_comment_accepted": "Entries carrying `accepted` were recorded on the owner's decision (2026-10-09): complexity up to 15 is acceptable for the 0.1.13 release, not refactored. The key is still (rule, file, reason); `accepted` is not part of it, and a later --update drops it."
 }

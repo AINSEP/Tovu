@@ -71,3 +71,17 @@ test('stream uses injected authenticated fetch, passes the live revision on reco
   events.get('theme-preview-refresh')!({ data: '{"revision":"late"}' });
   assert.equal(received.length, 1);
 });
+
+test('a stream reconnect resumes from the last revision it delivered, not one it skipped', () => {
+  const target = { port: 4000, workspaceId: 'ws', partition: 'own', lifecycle: {} };
+  let getRevision!: () => string | undefined, onFrame!: (frame: { revision: string }) => void;
+  const manager = createSiteThemePreviewSubscriptions({ ports: {
+    current: () => target,
+    open: (input) => { ({ getRevision, onFrame } = input); return () => {}; },
+  } });
+  const off = manager.watch({ siteDir: '/a', listener: () => {} });
+  assert.equal(getRevision(), undefined);
+  onFrame({ revision: 'one' });
+  assert.equal(getRevision(), 'one');
+  off(); manager.dispose();
+});

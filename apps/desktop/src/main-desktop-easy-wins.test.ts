@@ -111,18 +111,20 @@ test('reopening a macOS site window reuses its server and cookie partition', asy
   const server = { adminUrl: 'http://127.0.0.1:4100/admin', port: 4100 };
   const sites = new Map([['/site', { server }]]);
   let creations = 0;
+  const previewSyncs: string[] = [];
   const window = { on: () => {}, isDestroyed: () => false, show: () => {}, focus: () => {} };
-  const reopen = new Function('openSites', 'sitePartition', 'startSiteBackend', 'createWindow', 'readSiteName', 'scheduleSitePreview',
+  const reopen = new Function('openSites', 'sitePartition', 'startSiteBackend', 'createWindow', 'readSiteName', 'scheduleSitePreview', 'siteThemePreviews',
     `${declaration('openSiteWindow')}; return openSiteWindow;`)(sites, () => 'persist:site',
       () => assert.fail('must not start a second server'),
       (url: string, title: string, partition: string) => {
         assert.equal(url, server.adminUrl); assert.equal(title, 'Site'); assert.equal(partition, 'persist:site');
         creations++; return window;
-      }, () => 'Site', () => {});
+      }, () => 'Site', () => {}, { sync: ({ siteDir }: { siteDir: string }) => previewSyncs.push(siteDir) });
   assert.equal(await reopen('/site', {}), window);
   assert.equal(sites.get('/site')?.server, server);
   assert.equal(await reopen('/site', {}), window);
   assert.equal(creations, 1);
+  assert.deepEqual(previewSyncs, ['/site']);
 });
 
 test('Dock activation restores retained site windows even if their recent-site entries were cleared', () => {

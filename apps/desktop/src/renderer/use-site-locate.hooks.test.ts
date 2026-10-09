@@ -23,13 +23,13 @@ test('a located folder resolves with main\'s record at its new id', async () => 
   assert.deepEqual(result, { record: FOUND });
 });
 
-test('main\'s refusal comes back verbatim as the card\'s error', async () => {
+test('a refusal containing a filesystem path becomes the card\'s recovery instruction', async () => {
   const result = await performLocate('/sites/x', {
     locateSite: async () => {
       throw new Error('/tmp/y is not a complete Tovu site (empty). Pick the folder that holds this website.');
     },
   });
-  assert.deepEqual(result, { error: '/tmp/y is not a complete Tovu site (empty). Pick the folder that holds this website.' });
+  assert.deepEqual(result, { error: 'Could not add this website. Check the folder and try again.' });
 });
 
 test('a cancelled picker is not an error to show', async () => {

@@ -115,7 +115,7 @@ test("initSiteDir hands tokens to tovu init on stdin with the flag, never on arg
   await initSiteDir({
     repoRoot: fakeRepoRoot(),
     dir: "/new/site",
-    baseEnv: {},
+    baseEnv: { TOVU_ADMIN_PASSWORD: "inherited-test-password", TOVU_ADMIN_USER: "inherited-test-user" },
     agentPluginTokens: { supabase: TOKEN },
     onInitOutput: (output) => (reported = output),
     spawnFn: (_command, spawnArgs, options) => {
@@ -127,15 +127,17 @@ test("initSiteDir hands tokens to tovu init on stdin with the flag, never on arg
       return child;
     },
   });
-  assert.deepEqual(args.slice(1), ["init", "/new/site", "--agent-plugin-tokens-stdin"]);
+  assert.deepEqual(args.slice(1), ["init", "/new/site", "--admin-password", "tovu-dev", "--agent-plugin-tokens-stdin"]);
   assert.deepEqual(stdio, ["pipe", "pipe", "pipe"]);
   assert.deepEqual(JSON.parse(stdinText), { supabase: TOKEN });
   assert.ok(!args.join(" ").includes(TOKEN), "a token must never be on argv");
   assert.ok(!JSON.stringify(env).includes(TOKEN), "a token must never be in env");
+  assert.equal(env.TOVU_ADMIN_PASSWORD, undefined);
+  assert.equal(env.TOVU_ADMIN_USER, undefined);
   assert.match(reported, /agent-plugin-tokens: saved supabase/);
 });
 
-test("initSiteDir without tokens runs exactly the old command: no flag, stdin ignored", async () => {
+test("initSiteDir without tokens selects the default create password: no token flag, stdin ignored", async () => {
   let args: string[] = [];
   let stdio: unknown;
   await initSiteDir({
@@ -149,7 +151,7 @@ test("initSiteDir without tokens runs exactly the old command: no flag, stdin ig
       return fakeChild(0);
     },
   });
-  assert.deepEqual(args.slice(1), ["init", "/new/site"]);
+  assert.deepEqual(args.slice(1), ["init", "/new/site", "--admin-password", "tovu-dev"]);
   assert.deepEqual(stdio, ["ignore", "pipe", "pipe"]);
 });
 

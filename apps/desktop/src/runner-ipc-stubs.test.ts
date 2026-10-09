@@ -51,6 +51,7 @@ function declaredChannels(): Set<string> {
   found.delete("runner:find:toggle");
   found.delete("runner:find:result");
   found.delete("runner:zoom:command");
+  found.delete("runner:sites:theme-preview:event");
   return found;
 }
 
@@ -75,6 +76,9 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:preview",
   "runner:sites:locate",
   "runner:sites:token-sign-in-plugins",
+  // Real subscription handlers in site-theme-preview-ipc.ts; its event is push-only.
+  "runner:sites:theme-preview:watch",
+  "runner:sites:theme-preview:unwatch",
   // Real handlers in `find-in-page-ipc.ts` (`registerFindInPageIpc`, called from `main.ts`) — the
   // sites home window's OWN top-level find target. `runner:find:toggle`/`runner:find:result` are
   // push-only and excluded in `declaredChannels()` instead; see that function's own comment.
