@@ -9,7 +9,7 @@ import {
   type ThemePageRow,
   type ThemePageSlugCollision,
 } from "./hooks/use-theme-pages.hooks";
-import { themePagePublishState } from "./lib/theme-page-publish-state";
+import { themePageCollisionMessage, themePagePublishState } from "./lib/theme-page-publish-state";
 import { useThemePageDetailsModal } from "./ThemePageDetailsModal.hooks";
 
 /**
@@ -205,11 +205,7 @@ function ThemePageDetailsCollisionWarning({
     <div className="notice warning theme-page-details-collision">
       <div className="theme-page-details-collision-body">
         <ThemePageCollisionIcon />
-        <p>
-          {t(
-            "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone."
-          ).replace("{title}", collision.title)}
-        </p>
+        <p>{themePageCollisionMessage(collision, t)}</p>
       </div>
       <a
         className="btn-warning"

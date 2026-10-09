@@ -1,6 +1,7 @@
 import { adminHref } from "../../../lib/router";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
+import type { ThemePageSlugCollision } from "../hooks/theme-pages-port.hooks";
 
 /**
  * @file Pure publish-state logic for a Theme Pages row — pulled out of `ThemePagesTab.tsx` (2026-08-31
@@ -80,9 +81,49 @@ export type ThemePagePublishState =
  * @complexity O(1).
  */
 export function lockedPublishReason(pageId: string, t: Translate): { on: boolean; reason: string } {
-  if (pageId === "index") return { on: true, reason: t("Always published — theme home page") };
+  if (pageId === "index") return homeFallbackPublishReason(null, t);
   if (pageId === "404") return { on: true, reason: t("Always published — error page") };
   return { on: false, reason: t("Not a standalone page — used as a content template") };
+}
+
+/**
+ * The locked switch for the theme's `index` page — the site's home FALLBACK, never a page that owns
+ * `/` (owner, 2026-10-08: "The theme has an index page with a forward slash, which is not correct.").
+ * `GET /` serves a published Page at the root slug ahead of `index` (`pages.ts`'s
+ * `resolveHomePageContent`); the detail route reports that Page as `index`'s `collidingContent`.
+ * With one, `index` is OFF and names it; without one, `index` is ON as the fallback, worded so it
+ * never reads as a page the theme owns at `/`. Shared with Theme Studio's Explore
+ * (`use-theme-explore.hooks.ts`) so both screens state the fact identically.
+ *
+ * @complexity O(1).
+ */
+export function homeFallbackPublishReason(
+  homePage: ThemePageSlugCollision | null,
+  t: Translate
+): { on: boolean; reason: string } {
+  if (homePage) return { on: false, reason: t("Not shown — {title} is your home page").replace("{title}", homePage.title) };
+  return { on: true, reason: t("Home page fallback — shown at / until one of your pages is set as the home page") };
+}
+
+/**
+ * The slug-collision notice copy for a theme page — shared by the Theme Pages details modal and
+ * Theme Studio's Explore warning. A Page at the root slug `/` ALWAYS wins over the theme's `index`
+ * (see {@link homeFallbackPublishReason}), so that case is stated plainly; every other collision
+ * keeps the non-committal wording, because who wins there depends on publish state and the
+ * record's own override (`pages.ts`'s `resolveMarketingPageOrOverride`).
+ *
+ * @complexity O(1).
+ */
+export function themePageCollisionMessage(collision: ThemePageSlugCollision, t: Translate): string {
+  const message =
+    collision.slug === "/"
+      ? t(
+          "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page."
+        )
+      : t(
+          "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone."
+        );
+  return message.replace("{title}", collision.title);
 }
 
 /**
@@ -95,32 +136,33 @@ export function lockedPublishReason(pageId: string, t: Translate): { on: boolean
  */
 export function themePagePublishState(row: ThemePageRow, t: Translate): ThemePagePublishState {
   if (row.published !== null) return { kind: "toggle", published: row.published };
+  if (row.pageId === "index") return { kind: "locked", ...homeFallbackPublishReason(row.collidingContent, t) };
   return { kind: "locked", ...lockedPublishReason(row.pageId, t) };
 }
 
-/** The three shapes the public-site URL column can render for one row — replaces the single path-
+/** The shapes the public-site URL column can render for one row — replaces the single path-
  *  or-"No direct URL" string the column used before it was a real `<a>` (`ThemePagesTab.tsx`'s own
  *  file header, PART 1 of the 2026-08-31 review pass, covers why the column split from the
  *  Theme-Studio one below it). `"live"` is the only shape a caller should ever render as a working
- *  link — `"not-live"`/`"none"` both mean "there is text here, not a link", so an address that
+ *  link — `"not-live"`/`"none"`/`"replaced"` all mean "there is text here, not a link", so an address that
  *  currently 404s (theme pages ship unpublished by default) or genuinely doesn't exist (`404`, a
  *  template shell) is never presented as though clicking it works. */
 export type ThemePagePublicLinkState =
   | { kind: "live"; path: string }
   | { kind: "not-live"; path: string }
-  | { kind: "none" };
+  | { kind: "none" }
+  /** `index` while a content Page is the home page — `/` serves that Page, so this row has no
+   *  address; `reason` names the Page (see {@link homeFallbackPublishReason}). */
+  | { kind: "replaced"; reason: string };
 
 /**
  * The public-site URL column's state for one row — three cases, not the two `themePagePublishState`
  * itself distinguishes:
  *
- * - `index` is checked FIRST, ahead of the locked/toggle split below: `lockedPublishReason` reports
- *   it `on: true` for the same reason `404` is (`theme.ts`'s `NON_ROUTABLE_THEME_PAGE_IDS` names
- *   both), but unlike `404` it genuinely IS reachable — at `/`, not `/index` (`pages.ts`'s
- *   static-page branch excludes that slug; the home route is served by `render.ts`'s own
- *   `route === "home"` branch instead). Falling through to the generic locked branch below would
- *   have reported it `"none"`, which would be wrong — `index` is the one locked row with a real
- *   address.
+ * - `index` is checked FIRST, ahead of the locked/toggle split below: unlike `404` it can be
+ *   reachable — at `/`, not `/index` (`pages.ts`'s static-page branch excludes that slug) — but only
+ *   as the home FALLBACK. While a content Page is the home page (`row.collidingContent`), `/` serves
+ *   that Page instead and this row is `"replaced"`, never a link claiming `/` (2026-10-08).
  * - Every OTHER locked row (`404`, a declared template shell) has no address of its own at all —
  *   `"none"`, never a link that happens to 404.
  * - A real candidate page's address always exists (`/pageId`); whether it currently resolves is
@@ -130,7 +172,11 @@ export type ThemePagePublicLinkState =
  * @complexity O(1).
  */
 export function themePagePublicLinkState(row: ThemePageRow, t: Translate): ThemePagePublicLinkState {
-  if (row.pageId === "index") return { kind: "live", path: "/" };
+  if (row.pageId === "index") {
+    return row.collidingContent
+      ? { kind: "replaced", reason: homeFallbackPublishReason(row.collidingContent, t).reason }
+      : { kind: "live", path: "/" };
+  }
   const state = themePagePublishState(row, t);
   if (state.kind === "locked") return { kind: "none" };
   return { kind: state.published ? "live" : "not-live", path: themePagePath(row.pageId) };

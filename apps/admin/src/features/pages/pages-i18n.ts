@@ -54,7 +54,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Página",
     "URL": "URL",
     "Theme Studio": "Estudio de temas",
-    "Always published — theme home page": "Siempre publicada — página de inicio del tema",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Página de inicio de respaldo — se muestra en / hasta que una de tus páginas se establezca como página de inicio",
+    "Not shown — {title} is your home page": "No se muestra — {title} es tu página de inicio",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} es la página de inicio de este sitio, así que los visitantes la ven en / en lugar de esta página del tema. Esta página del tema solo se muestra cuando ninguna página está establecida como página de inicio.",
     "Always published — error page": "Siempre publicada — página de error",
     "Not a standalone page — used as a content template":
       "No es una página independiente — se usa como plantilla de contenido",
@@ -111,7 +115,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Halaman",
     "URL": "URL",
     "Theme Studio": "Studio Tema",
-    "Always published — theme home page": "Selalu dipublikasikan — halaman beranda tema",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Beranda cadangan — ditampilkan di / sampai salah satu halaman Anda ditetapkan sebagai beranda",
+    "Not shown — {title} is your home page": "Tidak ditampilkan — {title} adalah beranda Anda",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} adalah beranda situs ini, jadi pengunjung melihatnya di / alih-alih halaman tema ini. Halaman tema ini hanya ditampilkan jika tidak ada halaman yang ditetapkan sebagai beranda.",
     "Always published — error page": "Selalu dipublikasikan — halaman kesalahan",
     "Not a standalone page — used as a content template":
       "Bukan halaman mandiri — digunakan sebagai templat konten",
@@ -168,7 +176,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Seite",
     "URL": "URL",
     "Theme Studio": "Design-Studio",
-    "Always published — theme home page": "Immer veröffentlicht — Startseite des Themes",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Ersatz-Startseite — wird unter / angezeigt, bis eine deiner Seiten als Startseite festgelegt ist",
+    "Not shown — {title} is your home page": "Nicht angezeigt — {title} ist deine Startseite",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} ist die Startseite dieser Website, daher sehen Besucher sie unter / statt dieser Theme-Seite. Diese Theme-Seite wird nur angezeigt, wenn keine Seite als Startseite festgelegt ist.",
     "Always published — error page": "Immer veröffentlicht — Fehlerseite",
     "Not a standalone page — used as a content template":
       "Keine eigenständige Seite — wird als Inhaltsvorlage verwendet",
@@ -225,7 +237,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "页面",
     "URL": "URL",
     "Theme Studio": "主题工作室",
-    "Always published — theme home page": "始终已发布 — 主题首页",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "备用首页 — 在 / 显示，直到你的某个页面被设为首页",
+    "Not shown — {title} is your home page": "未显示 — {title} 是你的首页",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} 是本站的首页，因此访客在 / 看到的是它，而不是这个主题页面。只有在没有页面被设为首页时，才会显示这个主题页面。",
     "Always published — error page": "始终已发布 — 错误页面",
     "Not a standalone page — used as a content template":
       "不是独立页面 — 用作内容模板",
@@ -282,7 +298,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "頁面",
     "URL": "URL",
     "Theme Studio": "佈景主題工作室",
-    "Always published — theme home page": "永遠已發布 — 主題首頁",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "備用首頁 — 在 / 顯示，直到你的某個頁面被設為首頁",
+    "Not shown — {title} is your home page": "未顯示 — {title} 是你的首頁",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} 是本站的首頁，因此訪客在 / 看到的是它，而不是這個主題頁面。只有在沒有頁面被設為首頁時，才會顯示這個主題頁面。",
     "Always published — error page": "永遠已發布 — 錯誤頁面",
     "Not a standalone page — used as a content template":
       "不是獨立頁面 — 用作內容範本",
@@ -339,7 +359,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Página",
     "URL": "URL",
     "Theme Studio": "Estúdio de Temas",
-    "Always published — theme home page": "Sempre publicada — página inicial do tema",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Página inicial reserva — exibida em / até que uma das suas páginas seja definida como página inicial",
+    "Not shown — {title} is your home page": "Não exibida — {title} é a sua página inicial",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} é a página inicial deste site, então os visitantes a veem em / em vez desta página do tema. Esta página do tema só é exibida quando nenhuma página está definida como página inicial.",
     "Always published — error page": "Sempre publicada — página de erro",
     "Not a standalone page — used as a content template":
       "Não é uma página independente — usada como modelo de conteúdo",
@@ -396,7 +420,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Страница",
     "URL": "URL",
     "Theme Studio": "Студия тем",
-    "Always published — theme home page": "Всегда опубликована — главная страница темы",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Резервная главная страница — показывается по адресу /, пока одна из ваших страниц не назначена главной",
+    "Not shown — {title} is your home page": "Не показывается — {title} является вашей главной страницей",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} — главная страница этого сайта, поэтому посетители видят её по адресу / вместо этой страницы темы. Эта страница темы показывается, только если ни одна страница не назначена главной.",
     "Always published — error page": "Всегда опубликована — страница ошибки",
     "Not a standalone page — used as a content template":
       "Не отдельная страница — используется как шаблон содержимого",
@@ -453,7 +481,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "صفحه",
     "URL": "URL",
     "Theme Studio": "استودیوی پوسته",
-    "Always published — theme home page": "همیشه منتشرشده — صفحهٔ اصلی پوسته",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "صفحهٔ اصلی جایگزین — تا زمانی که یکی از صفحه‌های شما به‌عنوان صفحهٔ اصلی تنظیم نشده، در / نمایش داده می‌شود",
+    "Not shown — {title} is your home page": "نمایش داده نمی‌شود — {title} صفحهٔ اصلی شماست",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} صفحهٔ اصلی این سایت است، بنابراین بازدیدکنندگان به‌جای این صفحهٔ پوسته، آن را در / می‌بینند. این صفحهٔ پوسته فقط وقتی نمایش داده می‌شود که هیچ صفحه‌ای به‌عنوان صفحهٔ اصلی تنظیم نشده باشد.",
     "Always published — error page": "همیشه منتشرشده — صفحهٔ خطا",
     "Not a standalone page — used as a content template":
       "صفحه‌ای مستقل نیست — به‌عنوان قالب محتوا استفاده می‌شود",
@@ -510,7 +542,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "صفحة",
     "URL": "URL",
     "Theme Studio": "استوديو القوالب",
-    "Always published — theme home page": "منشورة دائمًا — الصفحة الرئيسية للقالب",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "صفحة رئيسية احتياطية — تُعرض في / إلى أن تُعيَّن إحدى صفحاتك كصفحة رئيسية",
+    "Not shown — {title} is your home page": "غير معروضة — {title} هي صفحتك الرئيسية",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} هي الصفحة الرئيسية لهذا الموقع، لذا يراها الزوار في / بدلًا من صفحة القالب هذه. لا تُعرض صفحة القالب هذه إلا عندما لا تكون أي صفحة معيّنة كصفحة رئيسية.",
     "Always published — error page": "منشورة دائمًا — صفحة الخطأ",
     "Not a standalone page — used as a content template":
       "ليست صفحة مستقلة — تُستخدم كقالب محتوى",
@@ -567,7 +603,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "ページ",
     "URL": "URL",
     "Theme Studio": "テーマスタジオ",
-    "Always published — theme home page": "常に公開 — テーマのホームページ",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "代替ホームページ — いずれかのページがホームページに設定されるまで / に表示されます",
+    "Not shown — {title} is your home page": "表示されません — {title} がホームページです",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} はこのサイトのホームページのため、訪問者には / でこのテーマページの代わりにそれが表示されます。このテーマページは、ホームページに設定されたページがない場合にのみ表示されます。",
     "Always published — error page": "常に公開 — エラーページ",
     "Not a standalone page — used as a content template":
       "独立したページではありません — コンテンツテンプレートとして使用",
@@ -624,7 +664,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "페이지",
     "URL": "URL",
     "Theme Studio": "테마 스튜디오",
-    "Always published — theme home page": "항상 게시됨 — 테마 홈 페이지",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "대체 홈페이지 — 페이지 중 하나가 홈페이지로 설정될 때까지 /에 표시됩니다",
+    "Not shown — {title} is your home page": "표시되지 않음 — {title}이(가) 홈페이지입니다",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title}이(가) 이 사이트의 홈페이지이므로 방문자는 / 에서 이 테마 페이지 대신 그것을 봅니다. 이 테마 페이지는 홈페이지로 설정된 페이지가 없을 때만 표시됩니다.",
     "Always published — error page": "항상 게시됨 — 오류 페이지",
     "Not a standalone page — used as a content template":
       "독립 페이지가 아님 — 콘텐츠 템플릿으로 사용됨",
@@ -681,7 +725,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Strona",
     "URL": "URL",
     "Theme Studio": "Studio motywów",
-    "Always published — theme home page": "Zawsze opublikowana — strona główna motywu",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Zastępcza strona główna — wyświetlana pod /, dopóki jedna z Twoich stron nie zostanie ustawiona jako strona główna",
+    "Not shown — {title} is your home page": "Niewyświetlana — {title} jest Twoją stroną główną",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} jest stroną główną tej witryny, więc odwiedzający widzą ją pod / zamiast tej strony motywu. Ta strona motywu jest wyświetlana tylko wtedy, gdy żadna strona nie jest ustawiona jako strona główna.",
     "Always published — error page": "Zawsze opublikowana — strona błędu",
     "Not a standalone page — used as a content template":
       "Nie jest samodzielną stroną — używana jako szablon treści",
@@ -738,7 +786,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Oldal",
     "URL": "URL",
     "Theme Studio": "Téma stúdió",
-    "Always published — theme home page": "Mindig közzétéve — a sablon kezdőlapja",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Tartalék kezdőlap — a / címen jelenik meg, amíg valamelyik oldalad nincs kezdőlapként beállítva",
+    "Not shown — {title} is your home page": "Nem jelenik meg — {title} a kezdőlapod",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} ennek a webhelynek a kezdőlapja, ezért a látogatók a / címen azt látják e témaoldal helyett. Ez a témaoldal csak akkor jelenik meg, ha egyetlen oldal sincs kezdőlapként beállítva.",
     "Always published — error page": "Mindig közzétéve — hibaoldal",
     "Not a standalone page — used as a content template":
       "Nem önálló oldal — tartalomsablonként használva",
@@ -795,7 +847,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Page",
     "URL": "URL",
     "Theme Studio": "Studio de thèmes",
-    "Always published — theme home page": "Toujours publiée — page d'accueil du thème",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Page d’accueil de secours — affichée à / jusqu’à ce qu’une de vos pages soit définie comme page d’accueil",
+    "Not shown — {title} is your home page": "Non affichée — {title} est votre page d’accueil",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} est la page d’accueil de ce site : les visiteurs la voient à / au lieu de cette page du thème. Cette page du thème ne s’affiche que lorsqu’aucune page n’est définie comme page d’accueil.",
     "Always published — error page": "Toujours publiée — page d'erreur",
     "Not a standalone page — used as a content template":
       "Pas une page autonome — utilisée comme modèle de contenu",
@@ -852,7 +908,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Сторінка",
     "URL": "URL",
     "Theme Studio": "Студія тем",
-    "Always published — theme home page": "Завжди опублікована — головна сторінка теми",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Резервна головна сторінка — показується за адресою /, доки одну з ваших сторінок не призначено головною",
+    "Not shown — {title} is your home page": "Не показується — {title} є вашою головною сторінкою",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} — головна сторінка цього сайту, тому відвідувачі бачать її за адресою / замість цієї сторінки теми. Ця сторінка теми показується, лише якщо жодну сторінку не призначено головною.",
     "Always published — error page": "Завжди опублікована — сторінка помилки",
     "Not a standalone page — used as a content template":
       "Не окрема сторінка — використовується як шаблон вмісту",
@@ -909,7 +969,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Sayfa",
     "URL": "URL",
     "Theme Studio": "Tema Stüdyosu",
-    "Always published — theme home page": "Her zaman yayınlanır — temanın ana sayfası",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Yedek ana sayfa — sayfalarınızdan biri ana sayfa olarak ayarlanana kadar / adresinde gösterilir",
+    "Not shown — {title} is your home page": "Gösterilmiyor — {title} ana sayfanız",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} bu sitenin ana sayfası olduğundan ziyaretçiler / adresinde bu tema sayfası yerine onu görür. Bu tema sayfası yalnızca hiçbir sayfa ana sayfa olarak ayarlanmadığında gösterilir.",
     "Always published — error page": "Her zaman yayınlanır — hata sayfası",
     "Not a standalone page — used as a content template":
       "Bağımsız bir sayfa değil — içerik şablonu olarak kullanılıyor",
@@ -966,7 +1030,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "หน้า",
     "URL": "URL",
     "Theme Studio": "สตูดิโอธีม",
-    "Always published — theme home page": "เผยแพร่เสมอ — หน้าแรกของธีม",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "หน้าแรกสำรอง — แสดงที่ / จนกว่าจะตั้งหน้าใดหน้าหนึ่งของคุณเป็นหน้าแรก",
+    "Not shown — {title} is your home page": "ไม่แสดง — {title} คือหน้าแรกของคุณ",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} คือหน้าแรกของเว็บไซต์นี้ ผู้เข้าชมจึงเห็นหน้านั้นที่ / แทนหน้าธีมนี้ หน้าธีมนี้จะแสดงเฉพาะเมื่อไม่มีหน้าใดถูกตั้งเป็นหน้าแรก",
     "Always published — error page": "เผยแพร่เสมอ — หน้าข้อผิดพลาด",
     "Not a standalone page — used as a content template":
       "ไม่ใช่หน้าแบบสแตนด์อโลน — ใช้เป็นเทมเพลตเนื้อหา",
@@ -1023,7 +1091,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "Pagina",
     "URL": "URL",
     "Theme Studio": "Studio dei temi",
-    "Always published — theme home page": "Sempre pubblicata — home page del tema",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "Home page di riserva — mostrata in / finché una delle tue pagine non viene impostata come home page",
+    "Not shown — {title} is your home page": "Non mostrata — {title} è la tua home page",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} è la home page di questo sito, quindi i visitatori la vedono in / al posto di questa pagina del tema. Questa pagina del tema viene mostrata solo quando nessuna pagina è impostata come home page.",
     "Always published — error page": "Sempre pubblicata — pagina di errore",
     "Not a standalone page — used as a content template":
       "Non è una pagina autonoma — usata come modello di contenuto",
@@ -1080,7 +1152,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "पेज",
     "URL": "URL",
     "Theme Studio": "थीम स्टूडियो",
-    "Always published — theme home page": "हमेशा प्रकाशित — थीम का होम पेज",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "बैकअप होम पेज — / पर तब तक दिखाया जाता है जब तक आपका कोई पेज होम पेज के रूप में सेट न हो",
+    "Not shown — {title} is your home page": "नहीं दिखाया गया — {title} आपका होम पेज है",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} इस साइट का होम पेज है, इसलिए विज़िटर / पर इस थीम पेज के बजाय उसे देखते हैं। यह थीम पेज केवल तब दिखाया जाता है जब कोई पेज होम पेज के रूप में सेट न हो।",
     "Always published — error page": "हमेशा प्रकाशित — एरर पेज",
     "Not a standalone page — used as a content template":
       "स्वतंत्र पेज नहीं है — कंटेंट टेम्पलेट के रूप में उपयोग होता है",
@@ -1137,7 +1213,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "صفحہ",
     "URL": "URL",
     "Theme Studio": "تھیم اسٹوڈیو",
-    "Always published — theme home page": "ہمیشہ شائع شدہ — تھیم کا ہوم پیج",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "متبادل ہوم پیج — / پر اس وقت تک دکھایا جاتا ہے جب تک آپ کا کوئی صفحہ ہوم پیج کے طور پر سیٹ نہ ہو",
+    "Not shown — {title} is your home page": "نہیں دکھایا گیا — {title} آپ کا ہوم پیج ہے",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} اس سائٹ کا ہوم پیج ہے، اس لیے وزیٹرز / پر اس تھیم صفحے کے بجائے اسے دیکھتے ہیں۔ یہ تھیم صفحہ صرف تب دکھایا جاتا ہے جب کوئی صفحہ ہوم پیج کے طور پر سیٹ نہ ہو۔",
     "Always published — error page": "ہمیشہ شائع شدہ — ایرر پیج",
     "Not a standalone page — used as a content template":
       "آزاد صفحہ نہیں ہے — مواد کے سانچے کے طور پر استعمال ہوتا ہے",
@@ -1194,7 +1274,11 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Page: "পেজ",
     "URL": "URL",
     "Theme Studio": "থিম স্টুডিও",
-    "Always published — theme home page": "সর্বদা প্রকাশিত — থিমের হোম পেজ",
+    "Home page fallback — shown at / until one of your pages is set as the home page":
+      "বিকল্প হোম পেজ — আপনার কোনো পেজ হোম পেজ হিসেবে সেট না হওয়া পর্যন্ত / এ দেখানো হয়",
+    "Not shown — {title} is your home page": "দেখানো হচ্ছে না — {title} আপনার হোম পেজ",
+    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
+      "{title} এই সাইটের হোম পেজ, তাই দর্শকেরা / এ এই থিম পেজের বদলে সেটি দেখেন। কোনো পেজ হোম পেজ হিসেবে সেট না থাকলেই কেবল এই থিম পেজ দেখানো হয়।",
     "Always published — error page": "সর্বদা প্রকাশিত — এরর পেজ",
     "Not a standalone page — used as a content template":
       "স্বতন্ত্র পেজ নয় — কনটেন্ট টেমপ্লেট হিসেবে ব্যবহৃত হয়",

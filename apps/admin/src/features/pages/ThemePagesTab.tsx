@@ -243,6 +243,8 @@ function ThemePagePublishCell({
  *   `.theme-page-details-muted` already uses (`styles.css`), just scoped to this table cell.
  * - `"none"` — no address at all (`404`, a declared template shell): also plain text, and
  *   specifically NOT "a link that happens to 404" — there is nothing to link to.
+ * - `"replaced"` — `index` while a content Page is the home page: muted text naming that Page,
+ *   never a `/` link (`/` serves the Page, not this theme file).
  *
  * @complexity O(1) — one derived state, three mutually exclusive branches, no iteration.
  */
@@ -253,6 +255,9 @@ function ThemePagePublicUrlCell({ row, handle, t }: { row: ThemePageRow; handle:
   }
   if (link.kind === "not-live") {
     return <span className="theme-page-url-not-live">{link.path}</span>;
+  }
+  if (link.kind === "replaced") {
+    return <span className="theme-page-url-not-live">{link.reason}</span>;
   }
   return (
     <a

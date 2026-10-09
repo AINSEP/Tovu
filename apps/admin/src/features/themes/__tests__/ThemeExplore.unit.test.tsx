@@ -1011,7 +1011,7 @@ describe("publish toggle — the selected page's publish state", () => {
       const toggle = screen.getByRole("switch", { name: "Publish index" });
       expect(toggle).toHaveAttribute("aria-checked", "true");
       expect(toggle).toBeDisabled();
-      expect(screen.getByText("Always published — theme home page")).toBeInTheDocument();
+      expect(screen.getByText("Home page fallback — shown at / until one of your pages is set as the home page")).toBeInTheDocument();
     });
 
     it("shows a disabled, ON switch with a reason for the site's error page (404) — regression for the exact bug reported: selecting 404 showed no control at all", () => {

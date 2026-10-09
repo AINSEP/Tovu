@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard, type DirtyGuard, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { homeFallbackPublishReason } from "../../pages/lib/theme-page-publish-state";
 import { THEME_FILES_RESOURCE } from "../rules";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
@@ -363,7 +364,9 @@ export type ThemeExplorePublishState =
  * reaching this function is, by construction, the remaining case.
  *
  * `index`/`404` show ON: both are genuinely live and rendered whenever a visitor reaches them (via
- * `/` and the 404 document respectively) regardless of any publish decision — the switch's fixed
+ * `/` and the 404 document respectively) regardless of any publish decision — except `index` once a
+ * content Page is the home page, which {@link selectedFilePublishState} shows OFF (see
+ * `homeFallbackPublishReason`, `features/pages/lib/theme-page-publish-state.ts`) — the switch's fixed
  * position reflects a true fact, same as everywhere else it appears. A declared template shell shows
  * OFF instead, for the opposite reason: it has NO independent public route of its own at all (nobody
  * ever reaches `/blog-post` directly), so showing it "on" would claim a reachability it never has —
@@ -372,7 +375,7 @@ export type ThemeExplorePublishState =
  * @complexity O(1).
  */
 export function lockedPublishReason(pageLabel: string, t: Translate): { on: boolean; reason: string } {
-  if (pageLabel === "index") return { on: true, reason: t("Always published — theme home page") };
+  if (pageLabel === "index") return homeFallbackPublishReason(null, t);
   if (pageLabel === "404") return { on: true, reason: t("Always published — error page") };
   return { on: false, reason: t("Not a standalone page — used as a content template") };
 }
@@ -400,6 +403,9 @@ export function selectedFilePublishState(
   if (!file) return null;
   if (file.published !== null) return { kind: "toggle", published: file.published };
   if (file.kind !== "page") return null;
+  // `index` is the home fallback: OFF once a content Page is the home page — see
+  // `homeFallbackPublishReason` (`features/pages/lib/theme-page-publish-state.ts`).
+  if (file.label === "index") return { kind: "locked", ...homeFallbackPublishReason(file.collidingContent, t) };
   return { kind: "locked", ...lockedPublishReason(file.label, t) };
 }
 

@@ -50,7 +50,7 @@ import {
 // re-exported for the identical reason: `integration/explore.integration.test.ts` still imports it
 // directly from this module.
 export { fileExtension, nextAvailableFileName };
-import { isTrashed, type PostKind, type PostRecord } from "#src/features/post/index";
+import { isTrashed, ROOT_SLUG, type PostKind, type PostRecord } from "#src/features/post/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteDeps } from "../content/deps.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -418,10 +418,8 @@ function fileModifiedFromOriginal(
  * `published: false` and still resolve to someone ELSE's content — because `resolveMarketingPageOrOverride`
  * (`pages.ts`) lets a live Post/Page row at the same slug win independent of this toggle (see that
  * function's own doc for the exact precedence, which this field only OBSERVES and never changes).
- * Gated on the SAME `isPublishableThemePageCandidate` check as `published` — deliberately NOT
- * combined into one shared local (would need `pageId` re-narrowed past a `boolean` intermediate,
- * trading a one-line duplicate condition for a cast) — so the two fields can never drift on which
- * files the question applies to.
+ * Gated on the SAME `isPublishableThemePageCandidate` check as `published`, plus `index` — see
+ * {@link themePageCollidingContent} for why the home fallback is the one non-candidate it applies to.
  *
  * `modified` (2026-09-12, owner decision) is whether the live file's bytes differ from its catalog
  * original — see {@link fileModifiedFromOriginal}. It is `null` exactly when `resettable` is false:
@@ -468,11 +466,31 @@ function describeThemeFile(
       pageId !== null && isPublishableThemePageCandidate(options.theme, pageId)
         ? isStandaloneThemePage(options.theme, pageId)
         : null,
-    collidingContent:
-      pageId !== null && isPublishableThemePageCandidate(options.theme, pageId)
-        ? options.contentBySlug.get(pageId) ?? null
-        : null,
+    collidingContent: themePageCollidingContent(options.theme, pageId, options.contentBySlug),
   };
+}
+
+/**
+ * {@link describeThemeFile}'s `collidingContent` for one page id: the live content record at the
+ * slug that page would be served at, or `null`.
+ *
+ * `index` is the one non-candidate page asked this question (owner, 2026-10-08: the theme's `index`
+ * read as a page owning `/`). It is the HOME FALLBACK, not a page with an address of its own:
+ * `GET /` serves a published Page claiming {@link ROOT_SLUG} ahead of it (`pages.ts`'s
+ * `resolveHomePageContent`), so that Page is reported here and the admin can show `index` as
+ * replaced rather than live at `/`. `404` and declared template shells still report `null` — they
+ * have no address for anything to collide with.
+ *
+ * @complexity O(1) — one `Map` lookup.
+ */
+function themePageCollidingContent(
+  theme: DiscoveredTheme,
+  pageId: string | null,
+  contentBySlug: ReadonlyMap<string, ThemeFileContentCollision>
+): ThemeFileContentCollision | null {
+  if (pageId === "index") return contentBySlug.get(ROOT_SLUG) ?? null;
+  if (pageId === null || !isPublishableThemePageCandidate(theme, pageId)) return null;
+  return contentBySlug.get(pageId) ?? null;
 }
 
 /** A JSON request body coerced to a plain object — `{}` for a missing/`null`/non-object body,

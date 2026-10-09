@@ -297,7 +297,7 @@ describe("themePagePublishSummary", () => {
 
   it("reports the locked reason for index, verbatim", () => {
     expect(themePagePublishSummary(row({ pageId: "index", published: null }), t)).toBe(
-      "Always published — theme home page",
+      "Home page fallback — shown at / until one of your pages is set as the home page",
     );
   });
 

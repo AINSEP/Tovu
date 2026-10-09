@@ -447,8 +447,8 @@ describe("Theme Pages tab", () => {
       expect(toggle).toHaveAttribute("aria-checked", "true");
       expect(toggle).toHaveClass("is-on");
       // The reason is no longer inline text sprawling the row — it lives on the info icon's tooltip.
-      expect(screen.queryByText("Always published — theme home page")).not.toBeInTheDocument();
-      expect(screen.getByLabelText("Always published — theme home page")).toBeInTheDocument();
+      expect(screen.queryByText("Home page fallback — shown at / until one of your pages is set as the home page")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Home page fallback — shown at / until one of your pages is set as the home page")).toBeInTheDocument();
     });
 
     it("disables the switch, renders it ON, and carries the reason on an info icon for 404", async () => {
@@ -508,7 +508,7 @@ describe("Theme Pages tab", () => {
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about", published: false })] });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       expect(screen.queryByLabelText("Not a standalone page — used as a content template")).not.toBeInTheDocument();
-      expect(screen.queryByLabelText("Always published — theme home page")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Home page fallback — shown at / until one of your pages is set as the home page")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Always published — error page")).not.toBeInTheDocument();
     });
 
@@ -554,6 +554,23 @@ describe("Theme Pages tab", () => {
       const text = screen.getByText("/about");
       expect(text.tagName).toBe("SPAN");
       expect(text).toHaveClass("theme-page-url-not-live");
+    });
+
+    /**
+     * Owner, 2026-10-08: the theme's `index` must not present itself as a page at `/` once one of
+     * the site's own Pages is the home page — `/` serves that Page, so no `/` link, switch OFF, and
+     * the row names the Page that replaced it.
+     */
+    it("shows index as replaced — no '/' link, switch OFF — when a content Page is the home page", async () => {
+      const user = userEvent.setup();
+      const home = { id: "home-1", slug: "/", title: "Home", kind: "page" as const };
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null, collidingContent: home })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      expect(screen.queryByRole("link", { name: "/" })).not.toBeInTheDocument();
+      expect(screen.getByText("Not shown — Home is your home page")).toHaveClass("theme-page-url-not-live");
+      const toggle = screen.getByRole("switch");
+      expect(toggle).toBeDisabled();
+      expect(toggle).toHaveAttribute("aria-checked", "false");
     });
 
     /** `index` is genuinely live at `/`, not at `/index` — the one locked row with a real address. */
@@ -705,7 +722,7 @@ describe("Theme Pages tab", () => {
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       await openDetails(user, "index");
       const dialog = document.querySelector<HTMLElement>("dialog.theme-page-details-dialog")!;
-      expect(within(dialog).getByText("Always published — theme home page")).toBeInTheDocument();
+      expect(within(dialog).getByText("Home page fallback — shown at / until one of your pages is set as the home page")).toBeInTheDocument();
     });
 
     it("is available for a locked row too — the row's own detail did not disappear when the inline reason moved onto the info icon", async () => {
@@ -778,6 +795,21 @@ describe("Theme Pages tab", () => {
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       await openDetails(user, "about");
       expect(screen.getByRole("link", { name: "Open Home" })).toHaveAttribute("href", "/admin/pages/home-1");
+    });
+
+    it("states plainly that the home Page wins over index — not the 'whichever wins' wording", async () => {
+      const user = userEvent.setup();
+      const home = { id: "home-1", slug: "/", title: "Home", kind: "page" as const };
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null, collidingContent: home })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "index");
+      const dialog = document.querySelector<HTMLElement>("dialog.theme-page-details-dialog")!;
+      expect(
+        within(dialog).getByText(
+          "Home is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page."
+        )
+      ).toBeInTheDocument();
+      expect(within(dialog).queryByText(/Whichever one wins/)).not.toBeInTheDocument();
     });
 
     it("shows no collision warning when the row has no colliding content", async () => {

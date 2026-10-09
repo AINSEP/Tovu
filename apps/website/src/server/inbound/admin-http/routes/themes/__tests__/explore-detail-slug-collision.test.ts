@@ -287,3 +287,60 @@ test("postRepo.list() is called exactly once per request, not once per theme pag
   assert.ok(body.files.length > 5, "sanity: this fixture lists more than one file");
   assert.equal(listCalls(), 1, "one postRepo.list() call for the WHOLE listing, never one per file");
 });
+
+/**
+ * The theme's `index` page is the HOME FALLBACK, not a page that owns `/` (owner, 2026-10-08: "The
+ * theme has an index page with a forward slash, which is not correct."). `GET /` serves a published
+ * Page claiming the root slug `"/"` ahead of the theme's own `index` (`pages.ts`'s
+ * `resolveHomePageContent`), so the detail route must report that Page as `index`'s
+ * `collidingContent` — the fact the admin needs to stop presenting `index` as live at `/`.
+ */
+test("a published Page at the root slug \"/\" is reported as the index page's collidingContent", async (t) => {
+  const themesDir = makeThemeWithCandidatePages();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
+  const { repo } = countingPostRepo([
+    seedPost({ id: "page-home", slug: "/", title: "Home", kind: "page", status: "published" }),
+  ]);
+  const deps = {
+    workspaceId: WORKSPACE_ID,
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+    themes,
+    themesDir,
+    postRepo: repo,
+  } as unknown as ContentRouteDeps;
+
+  const app = buildTestApp(deps);
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}${BASE}`);
+  const body = (await res.json()) as { files: FileEntry[] };
+  const index = body.files.find((f) => f.path === "pages/index.html");
+  assert.ok(index, "fixture must list pages/index.html");
+  assert.deepEqual(index.collidingContent, { id: "page-home", slug: "/", title: "Home", kind: "page" });
+  assert.equal(index.published, null, "index still has no publish toggle of its own");
+});
+
+test("index reports no collidingContent when no Page claims \"/\" — it is the live home fallback", async (t) => {
+  const themesDir = makeThemeWithCandidatePages();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "site" });
+  const { repo } = countingPostRepo([
+    seedPost({ id: "page-index-slug", slug: "index", title: "A page slugged index", kind: "page", status: "published" }),
+    seedPost({ id: "page-draft-home", slug: "/", title: "Draft home", kind: "page", status: "draft" }),
+  ]);
+  const deps = {
+    workspaceId: WORKSPACE_ID,
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+    themes,
+    themesDir,
+    postRepo: repo,
+  } as unknown as ContentRouteDeps;
+
+  const app = buildTestApp(deps);
+  const baseUrl = await startTestServer(app, t);
+  const res = await fetch(`${baseUrl}${BASE}`);
+  const body = (await res.json()) as { files: FileEntry[] };
+  const index = body.files.find((f) => f.path === "pages/index.html");
+  assert.ok(index);
+  assert.equal(index.collidingContent, null, "a draft at \"/\" never serves /; a page slugged \"index\" lives at /index, not /");
+});

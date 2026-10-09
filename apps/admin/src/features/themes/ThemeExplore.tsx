@@ -16,6 +16,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { themePageCollisionAdminPath } from "../pages/hooks/use-theme-pages.hooks";
+import { themePageCollisionMessage } from "../pages/lib/theme-page-publish-state";
 import {
   THEME_FILE_GROUPS,
   canResetThemeFile,
@@ -981,11 +982,7 @@ function ThemeExploreSlugCollisionWarning({
         label: "This theme page's URL is also claimed by a content record — see which one actually wins",
       })}
     >
-      <p>
-        {t(
-          "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone."
-        ).replace("{title}", collidingContent.title)}
-      </p>
+      <p>{themePageCollisionMessage(collidingContent, t)}</p>
       <a
         href={`/admin${adminPath}`}
         onClick={(e) => {

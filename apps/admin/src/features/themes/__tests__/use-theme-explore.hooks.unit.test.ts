@@ -2780,8 +2780,8 @@ describe("readOnlyReason", () => {
 });
 
 describe("lockedPublishReason", () => {
-  it("reports index as always-on", () => {
-    expect(lockedPublishReason("index", t)).toEqual({ on: true, reason: "Always published — theme home page" });
+  it("reports index as the ON home fallback", () => {
+    expect(lockedPublishReason("index", t)).toEqual({ on: true, reason: "Home page fallback — shown at / until one of your pages is set as the home page" });
   });
 
   it("reports 404 as always-on", () => {
@@ -2809,11 +2809,20 @@ describe("selectedFilePublishState", () => {
     expect(selectedFilePublishState(file({ kind: "style", published: null }), t)).toBeNull();
   });
 
+  it("returns index locked OFF, naming the page, once a content Page is the home page", () => {
+    const home = { id: "page-home", slug: "/", title: "Home", kind: "page" as const };
+    expect(selectedFilePublishState(file({ label: "index", published: null, collidingContent: home }), t)).toEqual({
+      kind: "locked",
+      on: false,
+      reason: "Not shown — Home is your home page",
+    });
+  });
+
   it("returns a locked state for index/404/a declared template shell", () => {
     expect(selectedFilePublishState(file({ label: "index", published: null }), t)).toEqual({
       kind: "locked",
       on: true,
-      reason: "Always published — theme home page",
+      reason: "Home page fallback — shown at / until one of your pages is set as the home page",
     });
   });
 });
