@@ -28,6 +28,23 @@ test("search respects the limit argument", () => {
   assert.equal(hits.length, 1);
 });
 
+test("tabular searches prefer the styled table and retain the native fallback", () => {
+  const catalog = buildComponentCatalogQuery();
+  for (const query of ["table", "tabular data", "spreadsheet", "list of records"]) {
+    const hits = catalog.search({ query });
+    assert.equal(hits[0]?.id, "shadcn.data-table", query);
+    assert.ok(hits.some((hit) => hit.id === "native.data-table"), query);
+    assert.equal(catalog.search({ query }, { limit: 1 })[0]?.id, "shadcn.data-table", query);
+  }
+  assert.equal(catalog.search({ query: "native" }, { limit: 1 })[0]?.id, "native.data-table");
+});
+
+test("describe steers tabular data to shadcn and documents native as the styled fallback", () => {
+  const catalog = buildComponentCatalogQuery();
+  assert.match(catalog.describe({ id: "shadcn.data-table" })?.description ?? "", /Preferred styled table/);
+  assert.match(catalog.describe({ id: "native.data-table" })?.description ?? "", /Styled HTML table fallback/);
+});
+
 test("describe returns null for an unknown id", () => {
   const catalog = buildComponentCatalogQuery();
   assert.equal(catalog.describe({ id: "no.such.component" }), null);

@@ -1,5 +1,7 @@
 import { createPortal } from "react-dom";
 import { A2uiSurfaceCard, useT, type A2uiSurfaceCardProps } from "@jini-ai/chat/react";
+// This boundary renders both inline and into the Playground portal; styles must follow both paths.
+import "@jini-ai/ui/interactive-ui.css";
 
 import { useRoutedA2uiSurfaceCard } from "./hooks/use-routed-a2ui-surface-card.hooks";
 

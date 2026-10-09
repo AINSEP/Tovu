@@ -1,4 +1,4 @@
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { createLabCatalog } from "@jini-ai/agentic/a2ui";
 
@@ -8,6 +8,33 @@ import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@/lib
 afterEach(() => {
   cleanup();
   resetPlaygroundRenderTargetBus();
+});
+
+it.each(["shadcn", "native"])("renders the real %s table with its styling frame on canvas and inline", async (provider) => {
+  const target = document.createElement("div");
+  document.body.appendChild(target);
+  setPlaygroundRenderTarget(target);
+  try {
+    const { container } = render(<RoutedA2uiSurfaceCard
+      name="a2ui" runId="run-table" runStreaming={false} runSucceeded={true}
+      events={[{
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "surface-table", catalogId: createLabCatalog({}).catalogId,
+          components: [{ id: "root", component: `${provider}.data-table`,
+            columns: [{ key: "name", label: "Name" }], rows: [{ name: "Ada" }] }],
+        },
+      }]}
+    />);
+    await waitFor(() => expect(target.querySelector(".jini-data-table")).toHaveTextContent("Ada"));
+    expect(target.querySelector(".jini-data-table-frame")).toHaveAttribute("data-table-provider", provider);
+    expect(container.querySelector(".jini-data-table")).toBeNull();
+    act(() => setPlaygroundRenderTarget(null));
+    await waitFor(() => expect(container.querySelector(".jini-data-table")).toHaveTextContent("Ada"));
+    expect(target.querySelector(".jini-data-table")).toBeNull();
+  } finally {
+    target.remove();
+  }
 });
 
 it("routes a real A2uiSurfaceCard catalog refusal inline and relays its error.surfaceId exactly once", async () => {
