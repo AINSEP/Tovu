@@ -313,6 +313,10 @@ export function installFirstPartyToolContributors(
     observability?: ObservabilityPort;
     createHttpClient?: typeof createDefaultHttpClient;
     fetchAdmissions?: typeof fetchDaemonAdmissions;
+    /** The booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, which the two default
+     *  attachment readers below read from. Both production callers pass it; omitted (hermetic
+     *  tests), those readers refuse every ref instead of resolving a directory from env. */
+    chatAttachmentsDir?: string;
     mediaVideoPorts?: MediaVideoToolPorts;
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
@@ -322,10 +326,6 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeMailStatusTools() });
   contributions.contributors.register({ contribution: contributeServerLogsTools() });
   // `search_agent_plugin_local` — a STATIC tool (id/schema known at module load); the DYNAMIC
-    /** The booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, which the two default
-     *  attachment readers below read from. Both production callers pass it; omitted (hermetic
-     *  tests), those readers refuse every ref instead of resolving a directory from env. */
-    chatAttachmentsDir?: string;
   // `agent_plugin_<pluginId>` tools this same domain also owns are registered separately, directly
   // onto the `ToolRegistry`, by `agent-daemon-server.ts`'s own `registerInstalledAgentPluginTools`
   // call — see `features/agent-plugins/tool-registrations.ts`'s "search_agent_plugin_local" section

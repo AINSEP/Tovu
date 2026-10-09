@@ -1345,11 +1345,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   siteBinding: SiteBinding;
   /**
-   * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
-   * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process
-   * serves them from, plus the Tovu version stamped into the backup's manifest. Resolved once by
-   * `server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`.
-  /**
    * The served site's on-disk storage paths, resolved ONCE at boot from the same values the
    * composition root actually opened (`createSiteRouteDeps`'s `dbPath` and its blob store's uploads
    * root), so a request handler never re-derives them from `TOVU_CONTENT_DB`/`siteDir()` — which
@@ -1357,6 +1352,11 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * {@link SiteStoragePaths}.
    */
   siteStoragePaths: SiteStoragePaths;
+  /**
+   * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
+   * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process
+   * serves them from, plus the Tovu version stamped into the backup's manifest. Resolved once by
+   * `server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`.
    *
    * Optional because the in-memory `server/app.ts` runtime has no site folder on disk; both
    * site-backup tools then answer `UNAVAILABLE` instead of backing up nothing.
