@@ -13,7 +13,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
-import { CompassIcon } from "./themes-visuals";
+import { CompassIcon, DuplicateIcon } from "./themes-visuals";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -185,6 +185,8 @@ function withThemeDefaults(controller: ThemesController) {
     themePreviewImages: controller.themePreviewImages ?? {},
     rescanning: controller.rescanning ?? false,
     rescanNotice: controller.rescanNotice ?? null,
+    duplicatingTheme: controller.duplicatingTheme ?? null,
+    duplicateNotice: controller.duplicateNotice ?? null,
   };
 }
 
@@ -220,6 +222,50 @@ function RescanToast({
       ttlMs={5000}
       onDismiss={onDismiss}
     />
+  );
+}
+
+/** "Duplicated as …" — always a success: a refused duplicate reports through the error banner. */
+function DuplicateToast({ notice, onDismiss }: { notice: string | null; onDismiss: (() => void) | undefined }) {
+  if (!notice) return null;
+  return <Toast message={notice} role="status" tone="success" ttlMs={5000} onDismiss={onDismiss} />;
+}
+
+/**
+ * A card's Duplicate button — copies the theme into a new one at once (see the hook's `duplicate`
+ * doc for why there is no name prompt). Hidden when the controller has no `duplicate` (an older test
+ * double), and disabled while any duplicate is in flight so two clicks cannot race two copies.
+ */
+function DuplicateThemeButton({
+  themeId,
+  name,
+  handleBase,
+  duplicatingTheme,
+  duplicate,
+  t,
+}: {
+  themeId: string;
+  name: string;
+  handleBase: string;
+  duplicatingTheme: string | null;
+  duplicate: ThemesController["duplicate"];
+  t: Translate;
+}) {
+  if (!duplicate) return null;
+  const busy = duplicatingTheme === themeId;
+  return (
+    <button
+      type="button"
+      className="theme-card-icon-btn"
+      disabled={duplicatingTheme !== null}
+      onClick={() => void duplicate(themeId)}
+      aria-label={actionButtonAriaLabel(t("Duplicate"), t("Duplicating…"), busy, name)}
+      aria-busy={busy}
+      title={busy ? t("Duplicating…") : t("Duplicate")}
+      {...agentHandle({ handle: `${handleBase}-duplicate` }, { role: "button", label: `Duplicate the "${themeId}" theme into a new theme` })}
+    >
+      <DuplicateIcon />
+    </button>
   );
 }
 
@@ -326,6 +372,8 @@ function ThemeGrid({
   settings,
   busyTheme,
   activate,
+  duplicatingTheme,
+  duplicate,
   t,
 }: {
   visibleThemes: string[];
@@ -334,6 +382,8 @@ function ThemeGrid({
   settings: PresentationSettings;
   busyTheme: string | null;
   activate: (themeId: string) => Promise<void>;
+  duplicatingTheme: string | null;
+  duplicate: ThemesController["duplicate"];
   t: Translate;
 }) {
   if (visibleThemes.length === 0) {
@@ -363,8 +413,8 @@ function ThemeGrid({
             <h3>{name}</h3>
             <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
             {/* Icons, not words (owner 2026-10-08): the Activate switch stays left, the Explore
-                (compass) icon button sits in the icon group on the right. Each keeps its old verb as
-                its accessible name and its tooltip. */}
+                (compass) and Duplicate (copy) icon buttons sit together on the right. Each keeps its
+                old verb as its accessible name and its tooltip. */}
             <div className="theme-card-actions">
               <ThemeActivateSwitch themeId={themeId} name={name} handleBase={handleBase} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
               <span className="theme-card-icon-actions">
@@ -378,6 +428,7 @@ function ThemeGrid({
                 >
                   <CompassIcon />
                 </button>
+                <DuplicateThemeButton themeId={themeId} name={name} handleBase={handleBase} duplicatingTheme={duplicatingTheme} duplicate={duplicate} t={t} />
               </span>
             </div>
           </div>
@@ -470,6 +521,10 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     rescanNotice,
     rescan,
     dismissRescanNotice,
+    duplicatingTheme,
+    duplicate,
+    duplicateNotice,
+    dismissDuplicateNotice,
     t,
   } = withThemeDefaults(useThemesHook());
 
@@ -519,6 +574,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
         t={t}
       />
       <RescanToast rescanNotice={rescanNotice} onDismiss={dismissRescanNotice} />
+      <DuplicateToast notice={duplicateNotice} onDismiss={dismissDuplicateNotice} />
       {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no
           longer resolves, so no card below can ever show its switch on and nothing else said why —
           see `ThemesBanners`'s own doc. */}
@@ -535,7 +591,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           navigate(`${basePath}?tab=${id}`, { replace: true });
         }}
       />
-      <ThemeGrid themePreviewImages={themePreviewImages} visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
+      <ThemeGrid themePreviewImages={themePreviewImages} visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} duplicatingTheme={duplicatingTheme} duplicate={duplicate} t={t} />
     </div>
   );
 }

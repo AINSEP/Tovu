@@ -1,4 +1,5 @@
 import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
+import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Pure logic for the `appearance` feature — everything that computes a value rather than
@@ -176,6 +177,16 @@ export function themeNamesById(themes: ReadonlyArray<{ id: string; name?: string
  */
 export function themeDisplayName(themeId: string, themeNames: Record<string, string>): string {
   return themeNames[themeId] || themeId;
+}
+
+/**
+ * The name a duplicated theme gets — "<name> copy", translated (the Themes screen's Duplicate
+ * button).
+ *
+ * @complexity Time/space: O(name length).
+ */
+export function themeCopyName(required: { name: string; t: Translate }): string {
+  return interpolate({ template: required.t("{name} copy"), vars: { name: required.name } });
 }
 
 /**

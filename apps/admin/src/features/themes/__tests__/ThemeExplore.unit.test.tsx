@@ -7,7 +7,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { ThemeExplore } from "../ThemeExplore";
 import { api } from "@/lib/api";
-import type { ThemeExploreController, ThemeExploreFile } from "../hooks/use-theme-explore.hooks";
+import type { ThemeExploreController, ThemeExploreDetail, ThemeExploreFile } from "../hooks/use-theme-explore.hooks";
 
 /**
  * @file `ThemeExplore` (the Explore screen, `ThemeExplore.tsx`) had no test file at all before this
@@ -98,6 +98,8 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
     openResetConfirm: vi.fn(),
     closeResetConfirm: vi.fn(),
     reset: vi.fn(),
+    savingOriginal: false,
+    saveOriginal: vi.fn(),
     previewNonce: 0,
     renamingPath: null,
     renameDraft: "",
@@ -1259,24 +1261,38 @@ describe("editable HTML source textarea", () => {
 });
 
 describe("ThemeExploreDirectionsNotice — no stored original", () => {
+  const noOriginal: ThemeExploreDetail = {
+    id: "novice",
+    name: "Novice",
+    tier: "static",
+    apiVersion: undefined,
+    status: "valid",
+    errors: [],
+    hasOriginal: false,
+  };
+
   it("shows nothing when the theme has a stored original (the default)", () => {
     renderExplore();
-    expect(screen.queryByText(/cannot be reset/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nothing can be reset/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save as original" })).not.toBeInTheDocument();
   });
 
-  it("warns that edits cannot be reset when the theme has no stored original", () => {
-    renderExplore({
-      detail: {
-        id: "novice",
-        name: "Novice",
-        tier: "static",
-        apiVersion: undefined,
-        status: "valid",
-        errors: [],
-        hasOriginal: false,
-      },
-    });
-    expect(screen.getByText(/cannot be reset/)).toBeInTheDocument();
+  it("warns that nothing can be reset and offers to save the theme as its original", async () => {
+    const user = userEvent.setup();
+    const saveOriginal = vi.fn(async () => {});
+    renderExplore({ detail: noOriginal, saveOriginal });
+
+    expect(screen.getByText("This theme has no stored original, so nothing can be reset.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save as original" }));
+    expect(saveOriginal).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
+  });
+
+  it("disables the button and says Saving… while the save is in flight", () => {
+    renderExplore({ detail: noOriginal, savingOriginal: true });
+    const button = screen.getByRole("button", { name: "Saving…" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-busy", "true");
   });
 });
 

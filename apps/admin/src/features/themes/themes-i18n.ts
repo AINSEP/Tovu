@@ -77,8 +77,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Móvil",
     "More actions for {file}": "Más acciones para {file}",
     "New name for {file}": "Nuevo nombre para {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "No hay un original guardado para este tema, así que los cambios aquí no se pueden restablecer. Cópialo primero si quieres tener una copia de respaldo.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "No hay ningún tema activo. Tu sitio se muestra sin estilos para que puedas aportar tu propio CSS; las entradas, páginas y productos se siguen publicando con normalidad. Activa un tema a continuación para volver atrás cuando quieras — no se eliminó nada.",
     "No themes in this tier yet.": "Todavía no hay temas en esta categoría.",
@@ -158,6 +156,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Este tema no tiene un original guardado, así que no se puede restablecer nada.",
     "failed to switch theme": "No se pudo cambiar de tema",
+    "Duplicate": "Duplicar",
+    "Duplicating…": "Duplicando…",
+    "{name} copy": "Copia de {name}",
+    "Duplicated as \"{name}\"": "Duplicado como \"{name}\"",
+    "failed to duplicate theme": "No se pudo duplicar el tema",
+    "Save as original": "Guardar como original",
+    "Saved as this theme's original": "Guardado como original de este tema",
+    "failed to save the original": "No se pudo guardar el original",
   },
   id: {
     "Reload preview": "Muat ulang pratinjau",
@@ -227,8 +233,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Seluler",
     "More actions for {file}": "Tindakan lain untuk {file}",
     "New name for {file}": "Nama baru untuk {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Tidak ada salinan asli yang tersimpan untuk tema ini, jadi perubahan di sini tidak dapat dikembalikan. Salin dulu jika Anda ingin punya cadangan.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Tidak ada tema yang aktif. Situs Anda ditampilkan tanpa gaya agar Anda dapat memakai CSS sendiri; entri, halaman, dan produk tetap dipublikasikan seperti biasa. Aktifkan tema di bawah untuk kembali kapan saja — tidak ada yang dihapus.",
     "No themes in this tier yet.": "Belum ada tema di tingkat ini.",
@@ -308,6 +312,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Tema ini tidak memiliki salinan asli yang tersimpan, jadi tidak ada yang dapat diatur ulang.",
     "failed to switch theme": "Gagal mengganti tema",
+    "Duplicate": "Duplikat",
+    "Duplicating…": "Menduplikasi…",
+    "{name} copy": "Salinan {name}",
+    "Duplicated as \"{name}\"": "Diduplikasi sebagai \"{name}\"",
+    "failed to duplicate theme": "Gagal menduplikasi tema",
+    "Save as original": "Simpan sebagai asli",
+    "Saved as this theme's original": "Disimpan sebagai asli tema ini",
+    "failed to save the original": "Gagal menyimpan salinan asli",
   },
   de: {
     "Reload preview": "Vorschau neu laden",
@@ -377,8 +389,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Mobil",
     "More actions for {file}": "Weitere Aktionen für {file}",
     "New name for {file}": "Neuer Name für {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Für dieses Design ist kein gespeichertes Original vorhanden, daher können Änderungen hier nicht zurückgesetzt werden. Kopiere es zuerst, wenn du eine Rückfalloption möchtest.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Es ist kein Design aktiv. Deine Website wird ohne Formatierung dargestellt, sodass du eigenes CSS einbinden kannst; Beiträge, Seiten und Produkte werden weiterhin normal veröffentlicht. Aktiviere unten jederzeit wieder ein Design — es wurde nichts gelöscht.",
     "No themes in this tier yet.": "In dieser Kategorie gibt es noch keine Designs.",
@@ -458,6 +468,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Dieses Design hat kein gespeichertes Original, daher kann nichts zurückgesetzt werden.",
     "failed to switch theme": "Design konnte nicht gewechselt werden",
+    "Duplicate": "Duplizieren",
+    "Duplicating…": "Wird dupliziert…",
+    "{name} copy": "{name} (Kopie)",
+    "Duplicated as \"{name}\"": "Dupliziert als „{name}“",
+    "failed to duplicate theme": "Design konnte nicht dupliziert werden",
+    "Save as original": "Als Original speichern",
+    "Saved as this theme's original": "Als Original dieses Designs gespeichert",
+    "failed to save the original": "Original konnte nicht gespeichert werden",
   },
   "zh-CN": {
     "Reload preview": "重新加载预览",
@@ -526,8 +544,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "移动端",
     "More actions for {file}": "{file} 的更多操作",
     "New name for {file}": "{file} 的新名称",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "此主题没有保存的原始文件，因此这里的修改无法重置。如果你想保留备份，请先复制一份。",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "当前没有启用任何主题。你的网站会以无样式的形式呈现，方便你自行提供 CSS；文章、页面和产品仍会照常发布。随时可以在下方启用某个主题恢复正常显示——没有任何内容被删除。",
     "No themes in this tier yet.": "此分类下暂时还没有主题。",
@@ -601,6 +617,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此主题的原始版本中，因此没有可重置到的内容。",
     "This theme has no stored original, so nothing can be reset.": "此主题没有保存的原始版本，因此无法重置任何内容。",
     "failed to switch theme": "切换主题失败",
+    "Duplicate": "复制",
+    "Duplicating…": "正在复制…",
+    "{name} copy": "{name} 副本",
+    "Duplicated as \"{name}\"": "已复制为“{name}”",
+    "failed to duplicate theme": "无法复制主题",
+    "Save as original": "保存为原始版本",
+    "Saved as this theme's original": "已保存为此主题的原始版本",
+    "failed to save the original": "无法保存原始版本",
   },
   "zh-TW": {
     "Reload preview": "重新載入預覽",
@@ -669,8 +693,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "行動裝置",
     "More actions for {file}": "{file} 的更多操作",
     "New name for {file}": "{file} 的新名稱",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "此佈景主題沒有儲存的原始檔案，因此這裡的修改無法重設。如果你想保留備份，請先複製一份。",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "目前沒有啟用任何佈景主題。你的網站會以無樣式的形式呈現，方便你自行提供 CSS；文章、頁面和產品仍會照常發布。隨時可以在下方啟用某個佈景主題恢復正常顯示——沒有任何內容被刪除。",
     "No themes in this tier yet.": "此分類下暫時還沒有佈景主題。",
@@ -748,6 +770,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{file} isn't in this theme's original, so there's nothing to reset it to.": "{file} 不在此佈景主題的原始版本中，因此沒有可重設的內容。",
     "This theme has no stored original, so nothing can be reset.": "此佈景主題沒有儲存的原始版本，因此無法重設任何內容。",
     "failed to switch theme": "切換佈景主題失敗",
+    "Duplicate": "複製",
+    "Duplicating…": "正在複製…",
+    "{name} copy": "{name} 副本",
+    "Duplicated as \"{name}\"": "已複製為「{name}」",
+    "failed to duplicate theme": "無法複製主題",
+    "Save as original": "儲存為原始版本",
+    "Saved as this theme's original": "已儲存為此佈景主題的原始版本",
+    "failed to save the original": "無法儲存原始版本",
   },
   "pt-BR": {
     "Reload preview": "Recarregar prévia",
@@ -817,8 +847,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Celular",
     "More actions for {file}": "Mais ações para {file}",
     "New name for {file}": "Novo nome para {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Não há um original salvo para este tema, então as edições aqui não podem ser revertidas. Copie-o antes se quiser ter um backup.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Nenhum tema está ativo. Seu site é exibido sem estilo para que você possa fornecer seu próprio CSS; posts, páginas e produtos continuam sendo publicados normalmente. Ative um tema abaixo para voltar quando quiser — nada foi excluído.",
     "No themes in this tier yet.": "Ainda não há temas nesta categoria.",
@@ -898,6 +926,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Este tema não tem um original salvo, então nada pode ser redefinido.",
     "failed to switch theme": "Não foi possível trocar de tema",
+    "Duplicate": "Duplicar",
+    "Duplicating…": "Duplicando…",
+    "{name} copy": "Cópia de {name}",
+    "Duplicated as \"{name}\"": "Duplicado como \"{name}\"",
+    "failed to duplicate theme": "Não foi possível duplicar o tema",
+    "Save as original": "Salvar como original",
+    "Saved as this theme's original": "Salvo como original deste tema",
+    "failed to save the original": "Não foi possível salvar o original",
   },
   ru: {
     "Reload preview": "Перезагрузить предпросмотр",
@@ -967,8 +1003,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Мобильный",
     "More actions for {file}": "Другие действия для {file}",
     "New name for {file}": "Новое имя для {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Для этой темы не сохранён оригинал, поэтому изменения здесь нельзя отменить. Сначала скопируйте её, если хотите иметь запасной вариант.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Ни одна тема не активна. Ваш сайт отображается без оформления, чтобы вы могли подключить собственный CSS; записи, страницы и товары по-прежнему публикуются как обычно. Активируйте тему ниже, чтобы вернуться в любой момент — ничего не было удалено.",
     "No themes in this tier yet.": "В этой категории пока нет тем.",
@@ -1048,6 +1082,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "У этой темы нет сохранённого оригинала, поэтому сбросить ничего нельзя.",
     "failed to switch theme": "Не удалось переключить тему",
+    "Duplicate": "Дублировать",
+    "Duplicating…": "Дублирование…",
+    "{name} copy": "{name} (копия)",
+    "Duplicated as \"{name}\"": "Создана копия «{name}»",
+    "failed to duplicate theme": "Не удалось дублировать тему",
+    "Save as original": "Сохранить как оригинал",
+    "Saved as this theme's original": "Сохранено как оригинал этой темы",
+    "failed to save the original": "Не удалось сохранить оригинал",
   },
   fa: {
     "Reload preview": "بارگذاری مجدد پیش‌نمایش",
@@ -1117,8 +1159,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "موبایل",
     "More actions for {file}": "اقدامات بیشتر برای {file}",
     "New name for {file}": "نام جدید برای {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "برای این پوسته نسخه اصلی ذخیره‌شده‌ای وجود ندارد، بنابراین ویرایش‌های اینجا قابل بازنشانی نیستند. اگر می‌خواهید نسخه پشتیبان داشته باشید، ابتدا آن را کپی کنید.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "هیچ پوسته‌ای فعال نیست. سایت شما بدون استایل نمایش داده می‌شود تا بتوانید CSS خودتان را ارائه دهید؛ نوشته‌ها، صفحات و محصولات همچنان به‌طور عادی منتشر می‌شوند. هر زمان خواستید یک پوسته را از پایین فعال کنید تا برگردید — چیزی حذف نشده است.",
     "No themes in this tier yet.": "هنوز پوسته‌ای در این رده وجود ندارد.",
@@ -1198,6 +1238,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "این پوسته نسخه اصلی ذخیره‌شده‌ای ندارد، بنابراین چیزی قابل بازنشانی نیست.",
     "failed to switch theme": "تغییر پوسته ناموفق بود",
+    "Duplicate": "تکثیر",
+    "Duplicating…": "در حال تکثیر…",
+    "{name} copy": "رونوشت {name}",
+    "Duplicated as \"{name}\"": "با نام «{name}» تکثیر شد",
+    "failed to duplicate theme": "تکثیر پوسته انجام نشد",
+    "Save as original": "ذخیره به‌عنوان نسخهٔ اصلی",
+    "Saved as this theme's original": "به‌عنوان نسخهٔ اصلی این پوسته ذخیره شد",
+    "failed to save the original": "ذخیرهٔ نسخهٔ اصلی انجام نشد",
   },
   ar: {
     "Reload preview": "إعادة تحميل المعاينة",
@@ -1267,8 +1315,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "الجوال",
     "More actions for {file}": "إجراءات إضافية لـ {file}",
     "New name for {file}": "اسم جديد لـ {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "لا توجد نسخة أصلية محفوظة لهذا القالب، لذا لا يمكن التراجع عن التعديلات هنا. انسخه أولًا إذا أردت الاحتفاظ بنسخة احتياطية.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "لا يوجد قالب مفعّل. يظهر موقعك بلا تنسيق حتى تتمكن من إضافة CSS خاص بك؛ تستمر المقالات والصفحات والمنتجات في النشر بشكل طبيعي. فعّل قالبًا أدناه للعودة في أي وقت — لم يُحذف أي شيء.",
     "No themes in this tier yet.": "لا توجد قوالب في هذه الفئة بعد.",
@@ -1348,6 +1394,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "لا توجد نسخة أصلية محفوظة لهذا القالب، لذا لا يمكن إعادة تعيين أي شيء.",
     "failed to switch theme": "تعذّر تبديل القالب",
+    "Duplicate": "تكرار",
+    "Duplicating…": "جارٍ التكرار…",
+    "{name} copy": "نسخة من {name}",
+    "Duplicated as \"{name}\"": "تم التكرار باسم \"{name}\"",
+    "failed to duplicate theme": "تعذّر تكرار القالب",
+    "Save as original": "حفظ كنسخة أصلية",
+    "Saved as this theme's original": "تم الحفظ كنسخة أصلية لهذا القالب",
+    "failed to save the original": "تعذّر حفظ النسخة الأصلية",
   },
   ja: {
     "Reload preview": "プレビューを再読み込み",
@@ -1417,8 +1471,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "モバイル",
     "More actions for {file}": "{file} のその他の操作",
     "New name for {file}": "{file} の新しい名前",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "このテーマには保存されたオリジナルがないため、ここでの変更はリセットできません。バックアップが必要な場合は、先にコピーしてください。",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "有効なテーマがありません。サイトはスタイルなしで表示され、独自のCSSを指定できます。投稿・固定ページ・商品は通常どおり公開され続けます。下から好きなときにテーマを有効化して戻せます — 何も削除されていません。",
     "No themes in this tier yet.": "このカテゴリにはまだテーマがありません。",
@@ -1497,6 +1549,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} はこのテーマのオリジナルに含まれていないため、リセットできません。",
     "This theme has no stored original, so nothing can be reset.": "このテーマには保存されたオリジナルがないため、リセットできるものはありません。",
     "failed to switch theme": "テーマを切り替えられませんでした",
+    "Duplicate": "複製",
+    "Duplicating…": "複製中…",
+    "{name} copy": "{name} のコピー",
+    "Duplicated as \"{name}\"": "「{name}」として複製しました",
+    "failed to duplicate theme": "テーマを複製できませんでした",
+    "Save as original": "オリジナルとして保存",
+    "Saved as this theme's original": "このテーマのオリジナルとして保存しました",
+    "failed to save the original": "オリジナルを保存できませんでした",
   },
   ko: {
     "Reload preview": "미리보기 새로고침",
@@ -1566,8 +1626,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "모바일",
     "More actions for {file}": "{file}에 대한 추가 작업",
     "New name for {file}": "{file}의 새 이름",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "이 테마에는 저장된 원본이 없어 여기서의 편집을 되돌릴 수 없습니다. 백업이 필요하면 먼저 복사하세요.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "활성화된 테마가 없습니다. 직접 CSS를 적용할 수 있도록 사이트가 스타일 없이 표시됩니다. 게시물, 페이지, 상품은 계속 정상적으로 게시됩니다. 언제든 아래에서 테마를 활성화하면 다시 전환할 수 있습니다 — 삭제된 것은 없습니다.",
     "No themes in this tier yet.": "이 등급에는 아직 테마가 없습니다.",
@@ -1646,6 +1704,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file}은(는) 이 테마의 원본에 없어 초기화할 대상이 없습니다.",
     "This theme has no stored original, so nothing can be reset.": "이 테마에는 저장된 원본이 없어 초기화할 수 있는 항목이 없습니다.",
     "failed to switch theme": "테마를 전환하지 못했습니다",
+    "Duplicate": "복제",
+    "Duplicating…": "복제 중…",
+    "{name} copy": "{name} 사본",
+    "Duplicated as \"{name}\"": "\"{name}\"(으)로 복제됨",
+    "failed to duplicate theme": "테마를 복제하지 못했습니다",
+    "Save as original": "원본으로 저장",
+    "Saved as this theme's original": "이 테마의 원본으로 저장했습니다",
+    "failed to save the original": "원본을 저장하지 못했습니다",
   },
   pl: {
     "Reload preview": "Odśwież podgląd",
@@ -1715,8 +1781,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Mobilny",
     "More actions for {file}": "Więcej działań dla {file}",
     "New name for {file}": "Nowa nazwa dla {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Brak zapisanego oryginału dla tego motywu, więc zmian tutaj nie można cofnąć. Skopiuj go najpierw, jeśli chcesz mieć wersję zapasową.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Żaden motyw nie jest aktywny. Twoja witryna wyświetla się bez stylów, dzięki czemu możesz dodać własny CSS; wpisy, strony i produkty nadal publikują się normalnie. Aktywuj motyw poniżej, aby w dowolnej chwili wrócić — nic nie zostało usunięte.",
     "No themes in this tier yet.": "W tej kategorii nie ma jeszcze motywów.",
@@ -1796,6 +1860,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Ten motyw nie ma zapisanego oryginału, więc nie można niczego zresetować.",
     "failed to switch theme": "Nie udało się przełączyć motywu",
+    "Duplicate": "Duplikuj",
+    "Duplicating…": "Duplikowanie…",
+    "{name} copy": "{name} (kopia)",
+    "Duplicated as \"{name}\"": "Zduplikowano jako „{name}”",
+    "failed to duplicate theme": "Nie udało się zduplikować motywu",
+    "Save as original": "Zapisz jako oryginał",
+    "Saved as this theme's original": "Zapisano jako oryginał tego motywu",
+    "failed to save the original": "Nie udało się zapisać oryginału",
   },
   hu: {
     "Reload preview": "Előnézet újratöltése",
@@ -1865,8 +1937,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Mobil",
     "More actions for {file}": "További műveletek: {file}",
     "New name for {file}": "Új név ehhez: {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Ehhez a sablonhoz nincs mentett eredeti, ezért az itt végzett szerkesztések nem visszaállíthatók. Másold le először, ha biztonsági mentést szeretnél.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Nincs aktív sablon. A webhelyed stílus nélkül jelenik meg, hogy saját CSS-t adhass hozzá; a bejegyzések, oldalak és termékek továbbra is a szokásos módon jelennek meg. Aktiválj alább egy sablont, hogy bármikor visszaválthass — semmi nem törlődött.",
     "No themes in this tier yet.": "Ebben a kategóriában még nincsenek sablonok.",
@@ -1946,6 +2016,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Ennek a sablonnak nincs mentett eredetije, ezért semmi sem állítható vissza.",
     "failed to switch theme": "Nem sikerült témát váltani",
+    "Duplicate": "Másolat készítése",
+    "Duplicating…": "Másolás…",
+    "{name} copy": "{name} másolata",
+    "Duplicated as \"{name}\"": "Másolat létrehozva: „{name}”",
+    "failed to duplicate theme": "Nem sikerült másolatot készíteni a témáról",
+    "Save as original": "Mentés eredetiként",
+    "Saved as this theme's original": "Elmentve a téma eredetijeként",
+    "failed to save the original": "Nem sikerült menteni az eredetit",
   },
   fr: {
     "Reload preview": "Recharger l’aperçu",
@@ -2015,8 +2093,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Mobile",
     "More actions for {file}": "Autres actions pour {file}",
     "New name for {file}": "Nouveau nom pour {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Aucun original enregistré pour ce thème, les modifications ici ne peuvent donc pas être annulées. Copiez-le d'abord si vous souhaitez avoir une solution de repli.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Aucun thème n'est actif. Votre site s'affiche sans style afin que vous puissiez fournir votre propre CSS ; les articles, pages et produits continuent d'être publiés normalement. Activez un thème ci-dessous pour revenir en arrière à tout moment — rien n'a été supprimé.",
     "No themes in this tier yet.": "Il n'y a pas encore de thèmes dans cette catégorie.",
@@ -2096,6 +2172,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Ce thème n'a pas d'original enregistré, rien ne peut donc être réinitialisé.",
     "failed to switch theme": "Impossible de changer de thème",
+    "Duplicate": "Dupliquer",
+    "Duplicating…": "Duplication…",
+    "{name} copy": "Copie de {name}",
+    "Duplicated as \"{name}\"": "Dupliqué sous le nom « {name} »",
+    "failed to duplicate theme": "Impossible de dupliquer le thème",
+    "Save as original": "Enregistrer comme original",
+    "Saved as this theme's original": "Enregistré comme original de ce thème",
+    "failed to save the original": "Impossible d’enregistrer l’original",
   },
   uk: {
     "Reload preview": "Перезавантажити попередній перегляд",
@@ -2165,8 +2249,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Мобільний",
     "More actions for {file}": "Інші дії для {file}",
     "New name for {file}": "Нова назва для {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Для цієї теми не збережено оригінал, тому зміни тут неможливо скасувати. Спочатку скопіюйте її, якщо хочете мати запасний варіант.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Жодна тема не активна. Ваш сайт відображається без оформлення, щоб ви могли підключити власний CSS; записи, сторінки та товари, як і раніше, публікуються звично. Активуйте тему нижче, щоб повернутися в будь-який момент — нічого не було видалено.",
     "No themes in this tier yet.": "У цій категорії поки немає тем.",
@@ -2246,6 +2328,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Ця тема не має збереженого оригіналу, тому нічого не можна скинути.",
     "failed to switch theme": "Не вдалося змінити тему",
+    "Duplicate": "Дублювати",
+    "Duplicating…": "Дублювання…",
+    "{name} copy": "{name} (копія)",
+    "Duplicated as \"{name}\"": "Створено копію «{name}»",
+    "failed to duplicate theme": "Не вдалося дублювати тему",
+    "Save as original": "Зберегти як оригінал",
+    "Saved as this theme's original": "Збережено як оригінал цієї теми",
+    "failed to save the original": "Не вдалося зберегти оригінал",
   },
   tr: {
     "Reload preview": "Önizlemeyi yeniden yükle",
@@ -2315,8 +2405,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Mobil",
     "More actions for {file}": "{file} için diğer eylemler",
     "New name for {file}": "{file} için yeni ad",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Bu tema için kaydedilmiş bir orijinal yok, bu yüzden buradaki düzenlemeler sıfırlanamaz. Yedek istiyorsanız önce kopyalayın.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Etkin bir tema yok. Kendi CSS'inizi sağlayabilmeniz için siteniz stilsiz görüntüleniyor; gönderiler, sayfalar ve ürünler normal şekilde yayınlanmaya devam ediyor. İstediğiniz zaman geri dönmek için aşağıdan bir tema etkinleştirin — hiçbir şey silinmedi.",
     "No themes in this tier yet.": "Bu katmanda henüz tema yok.",
@@ -2396,6 +2484,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Bu temanın kaydedilmiş bir orijinali yok, bu yüzden hiçbir şey sıfırlanamaz.",
     "failed to switch theme": "Tema değiştirilemedi",
+    "Duplicate": "Çoğalt",
+    "Duplicating…": "Çoğaltılıyor…",
+    "{name} copy": "{name} kopyası",
+    "Duplicated as \"{name}\"": "\"{name}\" olarak çoğaltıldı",
+    "failed to duplicate theme": "Tema çoğaltılamadı",
+    "Save as original": "Orijinal olarak kaydet",
+    "Saved as this theme's original": "Bu temanın orijinali olarak kaydedildi",
+    "failed to save the original": "Orijinal kaydedilemedi",
   },
   th: {
     "Reload preview": "โหลดตัวอย่างใหม่",
@@ -2465,8 +2561,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "มือถือ",
     "More actions for {file}": "การดำเนินการอื่นสำหรับ {file}",
     "New name for {file}": "ชื่อใหม่สำหรับ {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "ไม่มีต้นฉบับที่บันทึกไว้สำหรับธีมนี้ ดังนั้นการแก้ไขในที่นี้จะรีเซ็ตไม่ได้ โปรดคัดลอกไว้ก่อนหากต้องการสำรองข้อมูล",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "ไม่มีธีมที่เปิดใช้งานอยู่ เว็บไซต์ของคุณจะแสดงโดยไม่มีสไตล์ เพื่อให้คุณใส่ CSS ของตัวเองได้ โพสต์ หน้า และสินค้ายังคงเผยแพร่ตามปกติ เปิดใช้งานธีมด้านล่างเพื่อกลับมาได้ทุกเมื่อ — ไม่มีอะไรถูกลบ",
     "No themes in this tier yet.": "ยังไม่มีธีมในหมวดหมู่นี้",
@@ -2545,6 +2639,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} ไม่มีอยู่ในต้นฉบับของธีมนี้ จึงไม่มีอะไรให้รีเซ็ตกลับไป",
     "This theme has no stored original, so nothing can be reset.": "ธีมนี้ไม่มีต้นฉบับที่บันทึกไว้ จึงรีเซ็ตอะไรไม่ได้",
     "failed to switch theme": "เปลี่ยนธีมไม่สำเร็จ",
+    "Duplicate": "ทำสำเนา",
+    "Duplicating…": "กำลังทำสำเนา…",
+    "{name} copy": "สำเนาของ {name}",
+    "Duplicated as \"{name}\"": "ทำสำเนาเป็น \"{name}\" แล้ว",
+    "failed to duplicate theme": "ทำสำเนาธีมไม่สำเร็จ",
+    "Save as original": "บันทึกเป็นต้นฉบับ",
+    "Saved as this theme's original": "บันทึกเป็นต้นฉบับของธีมนี้แล้ว",
+    "failed to save the original": "บันทึกต้นฉบับไม่สำเร็จ",
   },
   it: {
     "Reload preview": "Ricarica anteprima",
@@ -2614,8 +2716,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "Cellulare",
     "More actions for {file}": "Altre azioni per {file}",
     "New name for {file}": "Nuovo nome per {file}",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "Non è presente un originale salvato per questo tema, quindi le modifiche qui non possono essere ripristinate. Copialo prima se vuoi avere un fallback.",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "Nessun tema è attivo. Il tuo sito viene mostrato senza stile, così puoi fornire il tuo CSS; articoli, pagine e prodotti continuano a essere pubblicati normalmente. Attiva un tema qui sotto per tornare indietro in qualsiasi momento — non è stato eliminato nulla.",
     "No themes in this tier yet.": "Non ci sono ancora temi in questa categoria.",
@@ -2695,6 +2795,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "Questo tema non ha un originale salvato, quindi non è possibile ripristinare nulla.",
     "failed to switch theme": "Impossibile cambiare tema",
+    "Duplicate": "Duplica",
+    "Duplicating…": "Duplicazione…",
+    "{name} copy": "Copia di {name}",
+    "Duplicated as \"{name}\"": "Duplicato come \"{name}\"",
+    "failed to duplicate theme": "Impossibile duplicare il tema",
+    "Save as original": "Salva come originale",
+    "Saved as this theme's original": "Salvato come originale di questo tema",
+    "failed to save the original": "Impossibile salvare l’originale",
   },
   hi: {
     "Reload preview": "पूर्वावलोकन फिर से लोड करें",
@@ -2764,8 +2872,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "मोबाइल",
     "More actions for {file}": "{file} के लिए अन्य कार्य",
     "New name for {file}": "{file} के लिए नया नाम",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "इस थीम के लिए कोई सहेजा हुआ मूल संस्करण नहीं है, इसलिए यहाँ किए गए बदलावों को रीसेट नहीं किया जा सकता। यदि आप बैकअप चाहते हैं तो पहले इसे कॉपी करें।",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "कोई थीम सक्रिय नहीं है। आपकी साइट बिना स्टाइल के दिखाई देती है ताकि आप अपना खुद का CSS दे सकें; पोस्ट, पेज और उत्पाद हमेशा की तरह प्रकाशित होते रहते हैं। वापस लौटने के लिए नीचे से किसी भी समय कोई थीम सक्रिय करें — कुछ भी हटाया नहीं गया।",
     "No themes in this tier yet.": "इस श्रेणी में अभी तक कोई थीम नहीं है।",
@@ -2845,6 +2951,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "इस थीम का कोई सहेजा हुआ मूल संस्करण नहीं है, इसलिए कुछ भी रीसेट नहीं किया जा सकता।",
     "failed to switch theme": "थीम बदली नहीं जा सकी",
+    "Duplicate": "डुप्लिकेट करें",
+    "Duplicating…": "डुप्लिकेट हो रहा है…",
+    "{name} copy": "{name} की कॉपी",
+    "Duplicated as \"{name}\"": "\"{name}\" के रूप में डुप्लिकेट किया गया",
+    "failed to duplicate theme": "थीम डुप्लिकेट नहीं हो सकी",
+    "Save as original": "मूल के रूप में सहेजें",
+    "Saved as this theme's original": "इस थीम के मूल के रूप में सहेजा गया",
+    "failed to save the original": "मूल सहेजा नहीं जा सका",
   },
   ur: {
     "Reload preview": "پیش منظر دوبارہ لوڈ کریں",
@@ -2914,8 +3028,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "موبائل",
     "More actions for {file}": "{file} کے لیے مزید اقدامات",
     "New name for {file}": "{file} کے لیے نیا نام",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "اس تھیم کے لیے کوئی محفوظ شدہ اصل نسخہ نہیں ہے، اس لیے یہاں کی ترامیم کو دوبارہ ترتیب نہیں دیا جا سکتا۔ اگر آپ بیک اپ چاہتے ہیں تو پہلے اسے کاپی کریں۔",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "کوئی تھیم فعال نہیں ہے۔ آپ کی سائٹ بغیر اسٹائل کے دکھائی دیتی ہے تاکہ آپ اپنا CSS فراہم کر سکیں؛ پوسٹس، صفحات اور پروڈکٹس معمول کے مطابق شائع ہوتے رہتے ہیں۔ واپس جانے کے لیے نیچے سے کسی بھی وقت کوئی تھیم فعال کریں — کچھ بھی حذف نہیں کیا گیا۔",
     "No themes in this tier yet.": "اس زمرے میں ابھی تک کوئی تھیم نہیں ہے۔",
@@ -2995,6 +3107,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "اس تھیم کا کوئی محفوظ شدہ اصل نسخہ نہیں ہے، اس لیے کچھ بھی ری سیٹ نہیں کیا جا سکتا۔",
     "failed to switch theme": "تھیم تبدیل نہیں ہو سکی",
+    "Duplicate": "نقل بنائیں",
+    "Duplicating…": "نقل بن رہی ہے…",
+    "{name} copy": "{name} کی نقل",
+    "Duplicated as \"{name}\"": "\"{name}\" کے نام سے نقل بنائی گئی",
+    "failed to duplicate theme": "تھیم کی نقل نہیں بن سکی",
+    "Save as original": "اصل کے طور پر محفوظ کریں",
+    "Saved as this theme's original": "اس تھیم کے اصل کے طور پر محفوظ کیا گیا",
+    "failed to save the original": "اصل محفوظ نہیں ہو سکا",
   },
   bn: {
     "Reload preview": "প্রিভিউ আবার লোড করুন",
@@ -3064,8 +3184,6 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     Mobile: "মোবাইল",
     "More actions for {file}": "{file} এর জন্য আরও কার্যক্রম",
     "New name for {file}": "{file} এর জন্য নতুন নাম",
-    "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback.":
-      "এই থিমের জন্য কোনো সংরক্ষিত মূল সংস্করণ নেই, তাই এখানে করা পরিবর্তনগুলো রিসেট করা যাবে না। ব্যাকআপ চাইলে প্রথমে এটি কপি করুন।",
     "No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.":
       "কোনো থিম সক্রিয় নেই। আপনার সাইট স্টাইল ছাড়াই প্রদর্শিত হয় যাতে আপনি নিজের CSS সরবরাহ করতে পারেন; পোস্ট, পৃষ্ঠা এবং পণ্য যথারীতি প্রকাশিত হতে থাকে। ফিরে যেতে নিচে থেকে যেকোনো সময় একটি থিম সক্রিয় করুন — কিছুই মুছে ফেলা হয়নি।",
     "No themes in this tier yet.": "এই স্তরে এখনো কোনো থিম নেই।",
@@ -3145,6 +3263,14 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "This theme has no stored original, so nothing can be reset.":
       "এই থিমের কোনো সংরক্ষিত মূল সংস্করণ নেই, তাই কিছুই রিসেট করা যাবে না।",
     "failed to switch theme": "থিম পরিবর্তন করা যায়নি",
+    "Duplicate": "ডুপ্লিকেট করুন",
+    "Duplicating…": "ডুপ্লিকেট হচ্ছে…",
+    "{name} copy": "{name}-এর কপি",
+    "Duplicated as \"{name}\"": "\"{name}\" নামে ডুপ্লিকেট করা হয়েছে",
+    "failed to duplicate theme": "থিম ডুপ্লিকেট করা যায়নি",
+    "Save as original": "মূল হিসেবে সংরক্ষণ করুন",
+    "Saved as this theme's original": "এই থিমের মূল হিসেবে সংরক্ষিত হয়েছে",
+    "failed to save the original": "মূল সংরক্ষণ করা যায়নি",
   },
 };
 

@@ -185,16 +185,19 @@ describe("theme grid", () => {
     expect(unknownCard.querySelector("p")).toBeEmptyDOMElement();
   });
 
-  it("renders Explore as an icon-only button with a tooltip (owner 2026-10-08: compass)", () => {
-    render(<Themes useThemesHook={() => baseController()} />);
+  it("renders Explore and Duplicate as icon-only buttons with a tooltip (owner 2026-10-08: compass, copy)", () => {
+    render(<Themes useThemesHook={() => baseController({ duplicate: vi.fn(async () => {}) })} />);
     const columnCard = screen.getByText("column").closest(".theme-card") as HTMLElement;
     const explore = within(columnCard).getByRole("button", { name: "Explore column" });
+    const duplicate = within(columnCard).getByRole("button", { name: "Duplicate column" });
     expect(explore).toHaveAttribute("title", "Explore");
-    for (const control of [explore, within(columnCard).getByRole("switch")]) {
+    expect(duplicate).toHaveAttribute("title", "Duplicate");
+    for (const control of [explore, duplicate, within(columnCard).getByRole("switch")]) {
       // No visible label text — the glyph (or the switch knob) is the whole control.
       expect(control.textContent).toBe("");
     }
     expect(explore.querySelector("svg")).not.toBeNull();
+    expect(duplicate.querySelector("svg")).not.toBeNull();
   });
 });
 

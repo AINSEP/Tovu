@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
-import { themeNamesById } from "../rules";
+import { interpolate, useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { themeCopyName, themeNamesById } from "../rules";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
@@ -73,6 +73,18 @@ export interface ThemesController {
   rescan?: () => Promise<void>;
   /** Clears `rescanNotice`. The toast auto-dismisses on a timer and calls this when it does. */
   dismissRescanNotice?: () => void;
+  /** The theme id currently being duplicated, or `null`. Optional for the same reason `rescanning` is. */
+  duplicatingTheme?: string | null;
+  /**
+   * Copy a theme into a new one named "<name> copy" — no name prompt, by design: the copy is cheap,
+   * appears as its own card at once, and can be renamed in Explore (`theme.json`), so asking first
+   * would only add a step. The server picks a free id.
+   */
+  duplicate?: (themeId: string) => Promise<void>;
+  /** "Duplicated as …" after a successful copy, or `null`. Its own field, not `rescanNotice`:
+   *  `RescanToast` styles any message containing "Duplicate" as an error. */
+  duplicateNotice?: string | null;
+  dismissDuplicateNotice?: () => void;
   /** Bound translator — `Themes.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
 }
@@ -90,6 +102,8 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);
+  const [duplicatingTheme, setDuplicatingTheme] = useState<string | null>(null);
+  const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
 
   // Monotonic per-call ids (extracted into `useSettlementGeneration` 2026-09-06, same shape as
   // `use-sites.hooks.ts`'s own `activateSettlement`): `activate` takes a theme id and races an
@@ -104,6 +118,17 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   // activations in flight at once could leave the server on an earlier choice than the one this
   // screen reports.
   const activateWrites = useSerialWrites();
+
+  /** One `getPresentation()` answer into every piece of screen state it feeds — shared by `rescan`
+   *  and `duplicate`, so the two can never refresh different subsets. (The mount effect below keeps
+   *  its own inline copy: calling a per-render function from it would trip exhaustive-deps.) */
+  function applyPresentation(r: Awaited<ReturnType<ThemesPort["getPresentation"]>>) {
+    setSettings(r.settings);
+    setThemes(r.availableThemeIds);
+    setThemeTiers(Object.fromEntries(r.availableThemes.map((t) => [t.id, t.tier])));
+    setThemeNames(themeNamesById(r.availableThemes));
+    setThemePreviewImages(Object.fromEntries(r.availableThemes.map((theme) => [theme.id, theme.previewImageUrl])));
+  }
 
   useEffect(() => {
     port
@@ -132,17 +157,33 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     setRescanNotice(null);
     try {
       const r = await port.rescanThemes();
-      const fresh = await port.getPresentation();
-      setSettings(fresh.settings);
-      setThemes(fresh.availableThemeIds);
-      setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
-      setThemeNames(themeNamesById(fresh.availableThemes));
-      setThemePreviewImages(Object.fromEntries(fresh.availableThemes.map((theme) => [theme.id, theme.previewImageUrl])));
+      applyPresentation(await port.getPresentation());
       setRescanNotice(describeRescan(r));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to rescan themes");
     } finally {
       setRescanning(false);
+    }
+  }
+
+  /**
+   * Duplicate `themeId` server-side, then reload the screen's data so the copy's card appears. The
+   * server already rescanned; re-fetching (rather than splicing the response into state) keeps
+   * `getPresentation` the one source of truth, same as {@link rescan}.
+   */
+  async function duplicate(themeId: string) {
+    setDuplicatingTheme(themeId);
+    setError(null);
+    setDuplicateNotice(null);
+    try {
+      const sourceName = themeNames[themeId] ?? themeId;
+      const r = await port.duplicateTheme(themeId, themeCopyName({ name: sourceName, t }));
+      applyPresentation(await port.getPresentation());
+      setDuplicateNotice(interpolate({ template: t("Duplicated as \"{name}\""), vars: { name: r.theme.name } }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("failed to duplicate theme"));
+    } finally {
+      setDuplicatingTheme(null);
     }
   }
 
@@ -184,6 +225,10 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     rescanNotice,
     rescan,
     dismissRescanNotice: () => setRescanNotice(null),
+    duplicatingTheme,
+    duplicate,
+    duplicateNotice,
+    dismissDuplicateNotice: () => setDuplicateNotice(null),
     t,
   };
 }

@@ -63,6 +63,12 @@ describe("defaultThemeExplorePort — real api wiring", () => {
     expect(spy).toHaveBeenCalledWith("basic", "pages/index.html");
   });
 
+  it("saveThemeOriginal delegates to api.saveThemeOriginal with the theme id", async () => {
+    const spy = vi.spyOn(api, "saveThemeOriginal").mockResolvedValue({ themeId: "basic", saved: true });
+    await expect(defaultThemeExplorePort.saveThemeOriginal("basic")).resolves.toMatchObject({ saved: true });
+    expect(spy).toHaveBeenCalledWith("basic");
+  });
+
   it("renameThemeFile delegates to api.renameThemeFile with the theme id, path, and new name", async () => {
     const spy = vi.spyOn(api, "renameThemeFile").mockResolvedValue({
       path: "pages/about.html",
@@ -210,5 +216,12 @@ describe("createFakeThemeExplorePort — setPagePublished", () => {
   it("rejects when no page file matches the given page id", async () => {
     const port = createFakeThemeExplorePort({ files: [] });
     await expect(port.setPagePublished("basic", "ghost", true)).rejects.toThrow("fake theme page not found: ghost");
+  });
+});
+
+describe("createFakeThemeExplorePort — saveThemeOriginal", () => {
+  it("refuses a theme that already has an original, like the server", async () => {
+    const port = createFakeThemeExplorePort();
+    await expect(port.saveThemeOriginal("basic")).rejects.toThrow("theme 'basic' already has a stored original");
   });
 });

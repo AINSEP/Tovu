@@ -2873,6 +2873,16 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/reset`,
       { method: "POST", body: JSON.stringify({ path }) }
     ),
+  /**
+   * Save the theme's CURRENT files as its stored original, in the server's hidden originals catalog
+   * (never a visible theme), so Reset has something to restore from. 409 `ORIGINAL_EXISTS` when the
+   * theme already has one.
+   */
+  saveThemeOriginal: (themeId: string) =>
+    request<{ themeId: string; saved: true }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/original`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
   /** Raw source of one file inside a theme, relative to the theme root (`pages/about.html`). */
   getThemeFile: (themeId: string, path: string) =>
     request<{ path: string; content: string }>(
@@ -2960,6 +2970,22 @@ export const api = {
       availableThemeIds: string[];
       duplicateIds: string[];
     }>(`/workspaces/${WORKSPACE_ID}/themes/rescan`, { method: "POST" }),
+  /**
+   * Copy one theme into a new theme folder (the Themes screen's Duplicate action) — the same
+   * server service the `theme_duplicate` agent tool calls. `newId` omitted ⇒ derived from `newName`
+   * and suffixed until free. The server rescans before answering, so `availableThemeIds` already
+   * includes the copy. Refusals carry `ApiError.code` (`ID_TAKEN`, `SYMLINK`, `TOO_LARGE`, …).
+   */
+  duplicateTheme: (themeId: string, newName: string, newId?: string) =>
+    request<{
+      theme: { id: string; name: string; tier: ThemeTier; status: string; errors: string[] };
+      sourceThemeId: string;
+      files: number;
+      availableThemeIds: string[];
+    }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/duplicate`, {
+      method: "POST",
+      body: JSON.stringify(newId === undefined ? { newName } : { newName, newId }),
+    }),
   setActiveTheme: (activeThemeId: string) =>
     request<{ settings: PresentationSettings; availableThemeIds: string[] }>(
       `/workspaces/${WORKSPACE_ID}/presentation`,

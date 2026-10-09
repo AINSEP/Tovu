@@ -13,6 +13,7 @@ export const defaultThemeExplorePort: ThemeExplorePort = {
   getThemeFile: (themeId, path) => api.getThemeFile(themeId, path),
   putThemeFile: (themeId, path, content) => api.putThemeFile(themeId, path, content),
   resetThemeFile: (themeId, path) => api.resetThemeFile(themeId, path),
+  saveThemeOriginal: (themeId) => api.saveThemeOriginal(themeId),
   renameThemeFile: (themeId, path, name) => api.renameThemeFile(themeId, path, name),
   copyThemeFile: (themeId, path) => api.copyThemeFile(themeId, path),
   deleteThemeFile: (themeId, path) => api.deleteThemeFile(themeId, path),
@@ -42,7 +43,7 @@ export interface FakeThemeExplorePortOptions {
  * fake" rule.
  */
 export function createFakeThemeExplorePort(options: FakeThemeExplorePortOptions = {}): ThemeExplorePort {
-  const detail = options.detail ?? { id: "basic", name: "Basic", tier: "declarative", status: "active", errors: [], hasOriginal: true };
+  let detail = options.detail ?? { id: "basic", name: "Basic", tier: "declarative", status: "active", errors: [], hasOriginal: true };
   let files = [...(options.files ?? [{ path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true }])];
   const contents = new Map(Object.entries(options.contents ?? { "pages/index.html": "<html></html>" }));
 
@@ -65,6 +66,14 @@ export function createFakeThemeExplorePort(options: FakeThemeExplorePortOptions 
     async resetThemeFile(_themeId, path) {
       const original = contents.get(path) ?? "";
       return { content: original };
+    },
+
+    /** Like the server: refused when there already is one; afterwards every file is resettable. */
+    async saveThemeOriginal(themeId) {
+      if (detail.hasOriginal) throw new Error(`theme '${themeId}' already has a stored original`);
+      detail = { ...detail, hasOriginal: true };
+      files = files.map((f) => ({ ...f, resettable: true }));
+      return { saved: true };
     },
 
     async renameThemeFile(_themeId, path, name) {

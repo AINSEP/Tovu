@@ -517,17 +517,37 @@ function ThemeExploreFileList({
  */
 function ThemeExploreDirectionsNotice({
   detail,
+  savingOriginal,
+  saveOriginal,
   t,
 }: {
   detail: ThemeExploreDetail;
+  savingOriginal: boolean;
+  saveOriginal: () => Promise<void>;
   t: Translate;
 }) {
   if (detail.hasOriginal) return null;
+  // The action saves the theme's CURRENT files as its hidden original (owner 2026-10-08: "hidden away
+  // somewhere where it can't be touched ... then you can just reload each template page from the
+  // original") — not a visible copy. No confirm: it overwrites nothing.
   return (
-    <div className="notice warning">
-      {t(
-        "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback."
-      )}
+    <div className="notice warning theme-explore-no-original">
+      <span>{t("This theme has no stored original, so nothing can be reset.")}</span>
+      <span className="theme-explore-no-original-action">
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={savingOriginal}
+          aria-busy={savingOriginal}
+          onClick={() => void saveOriginal()}
+          {...agentHandle(
+            { handle: "theme-explore-save-original" },
+            { role: "button", label: "Save this theme's current files as its stored original, so Reset can restore from it" }
+          )}
+        >
+          {savingOriginal ? t("Saving…") : t("Save as original")}
+        </button>
+      </span>
     </div>
   );
 }
@@ -1147,6 +1167,8 @@ function ThemeExploreContent({
     openResetConfirm,
     closeResetConfirm,
     reset,
+    savingOriginal,
+    saveOriginal,
     previewNonce,
     renamingPath,
     renameDraft,
@@ -1264,7 +1286,7 @@ function ThemeExploreContent({
         </div>
       </div>
 
-      <ThemeExploreDirectionsNotice detail={detail} t={t} />
+      <ThemeExploreDirectionsNotice detail={detail} savingOriginal={savingOriginal} saveOriginal={saveOriginal} t={t} />
       <ThemeExploreStatusNotice detail={detail} t={t} />
       {/* Every error on this screen shares one presentation now — a rename refusal, a name
           collision, a containment rejection, a save/reset failure — rather than the full-width pink

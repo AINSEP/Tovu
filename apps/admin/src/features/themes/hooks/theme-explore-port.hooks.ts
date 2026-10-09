@@ -79,6 +79,8 @@ export interface ThemeExplorePort {
   getThemeFile(themeId: string, path: string): Promise<{ content: string }>;
   putThemeFile(themeId: string, path: string, content: string): Promise<{ path: string; bytes: number }>;
   resetThemeFile(themeId: string, path: string): Promise<{ content: string | null }>;
+  /** Save the theme's current files as its stored original (refused when it already has one). */
+  saveThemeOriginal(themeId: string): Promise<{ saved: true }>;
   renameThemeFile(themeId: string, path: string, name: string): Promise<{ path: string }>;
   copyThemeFile(themeId: string, path: string): Promise<{ path: string }>;
   /** Delete one file inside a theme, permanently — see `use-theme-explore.hooks.ts`'s `confirmDelete`

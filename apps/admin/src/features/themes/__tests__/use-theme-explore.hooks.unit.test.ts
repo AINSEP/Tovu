@@ -4037,3 +4037,77 @@ describe("themes-i18n — Theme Explore toast keys", () => {
     expect(LOCALES.filter((locale) => translateThemes({ locale: locale, key: key }) === key)).toEqual([]);
   });
 });
+
+describe("useThemeExplore — save as original (owner 2026-10-08)", () => {
+  const noOriginal = { id: "rose", name: "Rose", tier: "static", status: "valid", errors: [], hasOriginal: false };
+
+  it("saves through the port once, then re-reads the detail: hasOriginal flips and files become resettable", async () => {
+    const port = createFakeThemeExplorePort({
+      detail: noOriginal,
+      files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: false }],
+    });
+    const spy = vi.spyOn(port, "saveThemeOriginal");
+    const { result } = renderHook(() => useThemeExplore("rose", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.detail?.hasOriginal).toBe(false));
+
+    await act(async () => {
+      const first = result.current.saveOriginal();
+      void result.current.saveOriginal();
+      await first;
+    });
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith("rose");
+    expect(result.current.detail?.hasOriginal).toBe(true);
+    expect(result.current.files.every((f) => f.resettable)).toBe(true);
+    expect(result.current.notice).toBe("Saved as this theme's original");
+    expect(result.current.savingOriginal).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("shows the server's refusal and keeps the banner state", async () => {
+    const port = createFakeThemeExplorePort({ detail: noOriginal });
+    port.saveThemeOriginal = async () => {
+      throw new Error("theme 'rose' already has a stored original");
+    };
+    const { result } = renderHook(() => useThemeExplore("rose", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+
+    await act(async () => {
+      await result.current.saveOriginal();
+    });
+
+    expect(result.current.error).toBe("theme 'rose' already has a stored original");
+    expect(result.current.detail?.hasOriginal).toBe(false);
+    expect(result.current.savingOriginal).toBe(false);
+  });
+
+  it("falls back to its own message for a non-Error refusal", async () => {
+    const port = createFakeThemeExplorePort({ detail: noOriginal });
+    port.saveThemeOriginal = async () => {
+      throw "boom";
+    };
+    const { result } = renderHook(() => useThemeExplore("rose", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+    await act(async () => {
+      await result.current.saveOriginal();
+    });
+    expect(result.current.error).toBe("failed to save the original");
+  });
+
+  it("reports a failed re-read without calling the save a failure", async () => {
+    const port = createFakeThemeExplorePort({ detail: noOriginal });
+    const { result } = renderHook(() => useThemeExplore("rose", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+    port.getThemeDetail = async () => {
+      throw new Error("network down");
+    };
+
+    await act(async () => {
+      await result.current.saveOriginal();
+    });
+
+    expect(result.current.notice).toBe("Saved as this theme's original");
+    expect(result.current.error).toBe("network down");
+  });
+});

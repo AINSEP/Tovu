@@ -11,6 +11,7 @@ export const defaultThemesPort: ThemesPort = {
   getPresentation: () => api.getPresentation(),
   rescanThemes: () => api.rescanThemes(),
   setActiveTheme: (activeThemeId) => api.setActiveTheme(activeThemeId),
+  duplicateTheme: (themeId, newName) => api.duplicateTheme(themeId, newName),
 };
 
 /** Seed state for {@link createFakeThemesPort}. */
@@ -46,6 +47,17 @@ export function createFakeThemesPort(options: FakeThemesPortOptions = {}): Theme
     async setActiveTheme(activeThemeId) {
       settings = { ...settings, activeThemeId };
       return { settings, availableThemeIds: [...availableThemeIds] };
+    },
+
+    /** Adds the copy to the installed list under a name-derived id, the way the server would —
+     *  minus the server's collision suffixing, which a test scripts with distinct names. */
+    async duplicateTheme(themeId, newName) {
+      const source = availableThemes.find((theme) => theme.id === themeId);
+      if (!source) throw new Error(`theme '${themeId}' was not found`);
+      const id = newName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      availableThemeIds.push(id);
+      availableThemes.push({ id, name: newName, tier: source.tier });
+      return { theme: { id, name: newName } };
     },
   };
 }

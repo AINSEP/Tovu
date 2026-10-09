@@ -22,4 +22,6 @@ export interface ThemesPort {
   }>;
   rescanThemes(): Promise<{ added: string[]; removed: string[]; total: number; availableThemeIds: string[]; duplicateIds: string[] }>;
   setActiveTheme(activeThemeId: string): Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>;
+  /** Copy a theme into a new one named `newName` (server derives the id). Resolves with the copy's id and name. */
+  duplicateTheme(themeId: string, newName: string): Promise<{ theme: { id: string; name: string } }>;
 }

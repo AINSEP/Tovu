@@ -254,6 +254,14 @@ export interface ThemeExploreController {
   openResetConfirm: () => void;
   closeResetConfirm: () => void;
   reset: () => Promise<void>;
+  /** True while {@link ThemeExploreController.saveOriginal} is in flight. */
+  savingOriginal: boolean;
+  /**
+   * Save the theme's current files as its stored original — the no-stored-original banner's button
+   * (owner 2026-10-08). The original lives in the server's hidden catalog, never as a visible theme;
+   * afterwards the detail is re-read, so the banner goes and Reset works on every file.
+   */
+  saveOriginal: () => Promise<void>;
   /**
    * Bumped after every successful save. The preview iframe keys off this to force a reload — the
    * rendered page lives on the site server, not in this app's state, so re-rendering the component
@@ -911,6 +919,9 @@ export function useThemeExplore(
   const [previewNonce, setPreviewNonce] = useState(0);
   const [resetting, setResetting] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [savingOriginal, setSavingOriginal] = useState(false);
+  // A ref, not `savingOriginal`: two clicks in the same tick both read the stale `false` from state.
+  const savingOriginalRef = useRef(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [renaming, setRenaming] = useState(false);
@@ -1204,6 +1215,34 @@ export function useThemeExplore(
     }
     await refreshModifiedState();
   }, [themeId, selected, port, refreshModifiedState]);
+
+  /**
+   * Save the theme's current files as its stored original, then re-read the detail (same contract as
+   * {@link copyFile}: the save is done whatever the re-read says — see `refetchAfterMutation`). No
+   * confirmation: it overwrites nothing, and the server refuses a theme that already has an original.
+   */
+  const saveOriginal = useCallback(async () => {
+    if (savingOriginalRef.current) return;
+    savingOriginalRef.current = true;
+    setSavingOriginal(true);
+    setError(null);
+    try {
+      await port.saveThemeOriginal(themeId);
+      setNotice(tRef.current("Saved as this theme's original"));
+      const refetched = await refetchAfterMutation(themeId, port, tRef.current);
+      if (!refetched.ok) {
+        setError(refetched.message);
+        return;
+      }
+      setDetail(refetched.detail);
+      setFiles(refetched.files);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tRef.current("failed to save the original"));
+    } finally {
+      setSavingOriginal(false);
+      savingOriginalRef.current = false;
+    }
+  }, [themeId, port]);
 
   /**
    * Actually perform a rename against the server and reconcile local state — the one place both the
@@ -1543,6 +1582,8 @@ export function useThemeExplore(
     openResetConfirm: () => setResetConfirmOpen(true),
     closeResetConfirm: () => setResetConfirmOpen(false),
     reset,
+    savingOriginal,
+    saveOriginal,
     previewNonce,
     renamingPath,
     renameDraft,
