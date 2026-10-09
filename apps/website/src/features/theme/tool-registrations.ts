@@ -33,6 +33,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { resolve } from "node:path";
 import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
 import { syncThemeRoster } from "./theme-roster-sync.js";
+import { describeHardcodedLinkList } from "./hardcoded-link-lists.js";
 import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -700,6 +701,9 @@ export function buildThemesRegistrations(
         // human-authored one, so re-running the real loader (rather than a bespoke "check what we
         // just wrote" path) is what makes that true rather than merely claimed.
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        // A warning, not a refusal: a hard-coded link list in a header/footer partial is a fixable
+        // mistake, but plain links can be deliberate (see `hardcoded-link-lists.ts`).
+        const warning = describeHardcodedLinkList({ path: relativePath, content });
 
         return {
           themeId,
@@ -708,6 +712,7 @@ export function buildThemesRegistrations(
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
+          ...(warning ? { warning } : {}),
         };
       } });
     },
@@ -736,6 +741,8 @@ export function buildThemesRegistrations(
         assertCompiledWriteBoundaryUnchanged(theme, relativePath, nextContent);
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: nextContent });
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        // Checked against the whole file after the edit, the same warning `theme_write_file` returns.
+        const warning = describeHardcodedLinkList({ path: relativePath, content: nextContent });
 
         return {
           themeId,
@@ -745,6 +752,7 @@ export function buildThemesRegistrations(
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),
+          ...(warning ? { warning } : {}),
         };
       } });
     },
