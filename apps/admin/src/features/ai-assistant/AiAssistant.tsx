@@ -1,6 +1,8 @@
 import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
+import { isDesktopAdmin, localCliScopeCopy } from '../settings/ai-agent-presentation';
+import { t as tExecution } from '../settings/settings-execution-i18n';
 import {
   ByokProviderForm,
   DEFAULT_PROVIDER_PRESETS,
@@ -296,7 +298,8 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook(props.useAdminExecutionCredentialHook);
   const t = resolveT(props.t);
   const { port, execution } = useAdminExecutionModeHook();
-  const executionPolicy = useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale: useAdminLocale() }, { usePolicy: props.useExecutionPolicy });
+  const locale = useAdminLocale();
+  const executionPolicy = useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale }, { usePolicy: props.useExecutionPolicy });
 
   // Called unconditionally, ahead of the `execution.value === null` gate below (rules of hooks) —
   // same reasoning `SettingsUi.tsx`'s identical call documents: the credential hook's own effects
@@ -322,11 +325,10 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         onConfigChange={executionPolicy.onConfigChange}
         localCliUnavailableReason={executionPolicy.unavailableReason}
         port={port.current}
-        // Detection runs wherever the Tovu SERVER runs, not on the browser's machine. For a deployed
-        // CMS those are different computers, so the component's own default ("on this machine") would
-        // be a false claim about whose CLIs these are. Same string as the Settings mount — if one
-        // changes, both must.
-        localCliScopeLabel={t("Detected on the Tovu server, not on your own computer.")}
+        // Detection runs wherever the Tovu SERVER runs. On desktop that is this computer;
+        // on a deployed CMS it is a different one. Share Settings' bridge-based scope copy
+        // so neither mount makes a false claim about whose CLIs these are.
+        localCliScopeLabel={tExecution({ locale, key: localCliScopeCopy({ desktop: isDesktopAdmin({}) }) })}
         // The admin's own BYOK credential is encrypted server-side and write-only (2026-08-05) —
         // same six pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
         // disagree" reason this file's own header already documents for `useStoredCredential`. The

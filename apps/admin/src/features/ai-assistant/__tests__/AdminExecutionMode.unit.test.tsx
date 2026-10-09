@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ByokConfig, ExecutionConfig } from "@jini-ai/ui";
 
 import { AdminExecutionMode as RealAdminExecutionMode } from "../AiAssistant";
@@ -83,6 +83,30 @@ function fakeAdminExecutionCredentialController(
     ...overrides,
   };
 }
+
+describe("D-21 execution detection scope", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([true, false])("uses the existing desktop bridge for scope copy (desktop=%s)", (desktop) => {
+    vi.stubGlobal("tovuFiles", desktop ? { getPathForFile: () => "" } : undefined);
+    vi.stubGlobal("tovuVoice", undefined);
+    render(
+      <AdminExecutionMode
+        useAdminExecutionModeHook={() => fakeExecutionModeController({
+          port: { current: {
+            detectLocalAgents: async () => [],
+            testConnection: async () => ({ ok: true }),
+          } },
+        })}
+        useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()}
+      />,
+    );
+    const expected = desktop ? "Detected on this computer." : "Detected on the Tovu server, not on your own computer.";
+    const other = desktop ? "Detected on the Tovu server, not on your own computer." : "Detected on this computer.";
+    expect(screen.getByText(expected)).toBeInTheDocument();
+    expect(screen.queryByText(other)).not.toBeInTheDocument();
+  });
+});
 
 describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () => {
   it("renders the migration prompt from the injected fake, not from a real credential round trip", () => {
