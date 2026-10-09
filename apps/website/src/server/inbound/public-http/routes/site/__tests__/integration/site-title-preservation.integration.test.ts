@@ -19,7 +19,7 @@ import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
 import type { CommerceSiteAdapterDeps } from "../../products.js";
-import { createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
+import { builtInThemesDir, createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { seedSite } from "../../../../../../../../../../development/scripts/seed-site.mjs";
@@ -68,6 +68,9 @@ async function createNewSite(t: TestContext): Promise<string> {
  */
 async function createPreExistingSite(t: TestContext): Promise<string> {
   const dir = await createNewSite(t);
+  // Sites created before 2026-10-08 were seeded with every stock theme; a new one gets only
+  // tovu-starter, so put back the theme this pre-existing site renders on.
+  fs.cpSync(path.join(builtInThemesDir(), "static", "tovu-theme"), path.join(dir, "themes", "static", "tovu-theme"), { recursive: true });
   const dbPath = path.join(dir, "content.db");
   for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${dbPath}${suffix}`, { force: true });
 
@@ -108,10 +111,13 @@ async function drainBootReadiness(deps: RouteDeps): Promise<void> {
   ]).catch(() => undefined);
 }
 
-/** `/pricing` ships unpublished; flip it on in memory only, as `site-title.integration.test.ts` does. */
+/**
+ * `/pricing` ships unpublished; flip it on in memory only, as `site-title.integration.test.ts` does.
+ * Only a pre-existing site holds `tovu-theme`; a new site has tovu-starter alone, which has no `/pricing`.
+ */
 function publishPricingPage(deps: RouteDeps): void {
   const basic = deps.themes.find((theme) => theme.manifest.id === "tovu-theme");
-  if (!basic) throw new Error("expected the site's 'tovu-theme' theme to be discovered");
+  if (!basic) return;
   basic.manifest.publishedPages = [...(basic.manifest.publishedPages ?? []), "pricing"];
 }
 

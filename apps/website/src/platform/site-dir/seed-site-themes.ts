@@ -1,5 +1,5 @@
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { seedStarterTitle } from "./seed-starter-title.js";
 
 /**
@@ -17,15 +17,17 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  * (`RouteDeps.themesDir`), so an upgrade can replace the package tree freely.
  *
  * ---------------------------------------------------------------------------
- * Why it copies the WHOLE tree (~19MB), rather than filling in on demand
+ * Why it copies ONLY {@link SEEDED_STOCK_THEME_IDS} (owner, 2026-10-08)
  * ---------------------------------------------------------------------------
- * Accepted tradeoff, agreed with the owner. There is no "install a stock theme" flow in the
- * product today — discovery of `themesDir` IS the site's theme list (`discoverAllBuiltInThemes`),
- * so a theme that is not on disk under the site simply does not exist to the admin UI. Copying
- * lazily would therefore require inventing an install flow nobody asked for. `__original-themes__/`
- * comes along for the same reason: `theme-files.ts` resolves "reset to original" at
- * `join(themesRoot, THEME_CATALOG_DIR, ...)` off the SITE's themes root — omit it and "reset to
- * original" silently has nothing to restore from.
+ * It used to copy the whole stock tree (~19MB), so every new site started with every stock theme
+ * (basic-2, Meridian, Northbound, the templated demos, ...). The owner wants a new site to hold
+ * only `tovu-starter`. The other stock themes stay in the package; they are just not copied.
+ * Discovery of `themesDir` IS the site's theme list (`discoverAllBuiltInThemes`), so a theme left
+ * out here does not exist to that site's admin UI. The seeded theme's `__original-themes__/` entry
+ * comes along: `theme-files.ts` resolves "reset to original" at `join(themesRoot,
+ * THEME_CATALOG_DIR, ...)` off the SITE's themes root — omit it and "reset to original" silently
+ * has nothing to restore from. Originals of themes not seeded are left out too, so the catalog
+ * never claims a theme the site does not have.
  *
  * Cost is paid once per site, and only on a boot where `<site>/themes/` is absent.
  *
@@ -38,7 +40,7 @@ import { seedStarterTitle } from "./seed-starter-title.js";
 
 /** What a seed attempt did. Every outcome is a normal, non-exceptional boot state. */
 export type SeedSiteThemesStatus =
-  /** `<site>/themes/` was absent and now holds a full copy of the stock tree. */
+  /** `<site>/themes/` was absent and now holds the seeded stock themes ({@link SEEDED_STOCK_THEME_IDS}). */
   | "seeded"
   /** `<site>/themes/` already existed and was left exactly as it was. */
   | "already-present"
@@ -59,6 +61,39 @@ export interface SeedSiteThemesRequired {
 }
 
 /**
+ * The stock themes a new site is seeded with — `features/theme/active-theme.ts`'s `DEFAULT_THEME_ID`
+ * (owner, 2026-10-08: "the only theme I want is Tovu starter"). Spelled out rather than imported
+ * because `platform` must not import `features/theme` (see the file header); the test pins the two
+ * equal so they cannot drift.
+ */
+export const SEEDED_STOCK_THEME_IDS: readonly string[] = ["tovu-starter"];
+
+/** `features/theme/theme.ts`'s `THEME_CATALOG_DIR`, the "reset to original" copies — same cycle reason. */
+const CATALOG_DIR_NAME = "__original-themes__";
+
+/**
+ * Whether one path of the stock tree belongs in a new site: root files, tier folders, and anything
+ * inside a seeded theme's folder (live or catalog). A top-level folder holding a `theme.json` is a
+ * legacy top-level theme, named by that folder; any other top-level folder is a tier whose children
+ * are themes. Theme folders are named by their id (`theme-trash.ts` relies on the same rule).
+ *
+ * @complexity O(depth) per path, plus one `existsSync` for a path under a top-level folder.
+ */
+function isSeededStockPath(required: { stockDir: string; path: string }): boolean {
+  const rel = relative(required.stockDir, required.path);
+  if (rel === "") return true;
+  const parts = rel.split(sep);
+  const inCatalog = parts[0] === CATALOG_DIR_NAME;
+  const scoped = inCatalog ? parts.slice(1) : parts;
+  if (scoped.length === 0) return true;
+  const topLevelTheme = existsSync(join(required.stockDir, ...(inCatalog ? [CATALOG_DIR_NAME] : []), scoped[0]!, "theme.json"));
+  const themeId = topLevelTheme ? scoped[0] : scoped[1];
+  // A tier folder itself, or a file at the root/catalog root.
+  if (themeId === undefined) return true;
+  return SEEDED_STOCK_THEME_IDS.includes(themeId);
+}
+
+/**
  * Name of the sibling directory the copy lands in before being renamed into place. A fixed name,
  * not a pid/random suffix: a crash mid-copy must leave exactly ONE recoverable path to clean up on
  * the next boot, not an accumulating pile of orphans.
@@ -66,8 +101,9 @@ export interface SeedSiteThemesRequired {
 const STAGING_DIR_NAME = ".themes-seed-staging";
 
 /**
- * Copies the stock themes tree into a site's own themes directory, once, if that directory does
- * not exist yet.
+ * Copies the seeded stock themes ({@link SEEDED_STOCK_THEME_IDS}, plus their originals and the
+ * tier folders around them) into a site's own themes directory, once, if that directory does not
+ * exist yet.
  *
  * Presence of `<site>/themes/` — not its contents — is the "already seeded" signal. An existing but
  * empty directory is therefore left empty: an operator who deliberately cleared or mounted that
@@ -76,7 +112,7 @@ const STAGING_DIR_NAME = ".themes-seed-staging";
  *
  * The copy is written to a sibling staging directory and then renamed into place, so an interrupted
  * boot can never leave a HALF-copied `themes/` that the next boot reads as already seeded — the
- * failure mode that would silently ship a site with three of its seven themes.
+ * failure mode that would silently ship a site with half of a theme.
  *
  * @param required.stockDir - The package's read-only stock themes tree.
  * @param required.siteThemesDir - The site's themes root.
@@ -84,7 +120,8 @@ const STAGING_DIR_NAME = ".themes-seed-staging";
  * @throws Whatever `node:fs` throws on an unwritable site directory or a failed copy — a site whose
  *   themes cannot be written has no working Theme Studio, so this is a real boot failure, not
  *   something to swallow. An absent stock tree is NOT such a case and returns `no-stock-source`.
- * @complexity O(bytes in the stock tree) on a seeding boot; O(1) on every boot after.
+ * @complexity O(bytes in the seeded themes) plus one filter call per stock path on a seeding boot;
+ *   O(1) on every boot after.
  */
 export function seedSiteThemes(required: SeedSiteThemesRequired, optional: { siteName?: string } = {}): SeedSiteThemesResult {
   const { stockDir, siteThemesDir } = required;
@@ -101,7 +138,7 @@ export function seedSiteThemes(required: SeedSiteThemesRequired, optional: { sit
   // than two.
   rmSync(stagingDir, { recursive: true, force: true });
 
-  cpSync(stockDir, stagingDir, { recursive: true });
+  cpSync(stockDir, stagingDir, { recursive: true, filter: (path) => isSeededStockPath({ stockDir, path }) });
   // Creation owns the name; subsequent boots must preserve the site's Theme Studio edits.
   if (optional.siteName !== undefined) seedStarterTitle({ themesDir: stagingDir, siteName: optional.siteName });
   // Same parent directory, so this is a same-filesystem rename: atomic, and the moment it returns

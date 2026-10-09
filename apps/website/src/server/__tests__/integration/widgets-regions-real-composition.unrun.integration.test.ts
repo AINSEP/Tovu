@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { builtInThemesDir } from "../../runtime/composition/deps.js";
 import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../helpers/unrun-site-boot.js";
 
 /**
@@ -20,7 +21,7 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * `public-http/routes/site/pages.ts` `resolveWidgetsForRender`).
  *
  * No stock theme declares `regions` (`content/themes/*\/*\/theme.json`), so the region render test
- * copies the seeded `basic-declarative` theme inside the site folder as `unrun-regions`, declares one
+ * copies the package's stock `basic-declarative` theme into the site folder as `unrun-regions`, declares one
  * region, puts a `{"type":"region"}` block on its home template, and picks it up through
  * `POST .../themes/rescan` — the route that exists for exactly a theme dropped in after boot. It
  * re-activates the original theme before it ends.
@@ -74,11 +75,15 @@ async function visit(site: BootedSite, pathname: string): Promise<string> {
   return html;
 }
 
-/** Copies the seeded declarative theme as `unrun-regions` with one declared region on its home. */
+/**
+ * Copies the package's stock declarative theme into the site as `unrun-regions` with one declared
+ * region on its home. Read from the package, not the site: a new site is seeded with `tovu-starter`
+ * only (owner, 2026-10-08).
+ */
 function writeRegionTheme(site: BootedSite): void {
-  const source = path.join(site.siteDir, "themes", "declarative", "basic-declarative");
+  const source = path.join(builtInThemesDir(), "declarative", "basic-declarative");
   const target = path.join(site.siteDir, "themes", "declarative", "unrun-regions");
-  assert.ok(fs.existsSync(path.join(source, "theme.json")), `initSite seeds the stock declarative theme at ${source}`);
+  assert.ok(fs.existsSync(path.join(source, "theme.json")), `the package ships the stock declarative theme at ${source}`);
   fs.cpSync(source, target, { recursive: true });
   const manifest = JSON.parse(fs.readFileSync(path.join(target, "theme.json"), "utf8")) as Record<string, unknown>;
   fs.writeFileSync(path.join(target, "theme.json"), JSON.stringify({ ...manifest, id: "unrun-regions", name: "Unrun Regions", regions: [REGION] }, null, 2));

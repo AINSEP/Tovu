@@ -6,7 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 
-import { seedSiteThemes } from "../seed-site-themes.js";
+import { DEFAULT_THEME_ID } from "#src/features/theme/active-theme";
+
+import { SEEDED_STOCK_THEME_IDS, seedSiteThemes } from "../seed-site-themes.js";
 
 /**
  * @file `seedSiteThemes()` — the first-boot copy that gets a site's themes OUT of the package.
@@ -25,18 +27,46 @@ after(() => {
   for (const dir of tempRoots) rmSync(dir, { recursive: true, force: true });
 });
 
-/** A throwaway stock themes tree shaped like the real one: tiers and catalog. */
+/**
+ * A throwaway stock themes tree shaped like the real one: tiers, catalog, a root README, the seeded
+ * `tovu-starter`, and stock themes a new site must NOT get (`basic`, `storefront`, a legacy top-level
+ * `meridian`).
+ */
 function makeStockTree(): string {
   const root = mkdtempSync(join(tmpdir(), "tovu-stock-themes-"));
   tempRoots.push(root);
+  writeFileSync(join(root, "README.md"), "stock");
+  mkdirSync(join(root, "static", "tovu-starter", "css"), { recursive: true });
+  writeFileSync(join(root, "static", "tovu-starter", "theme.json"), "{}");
+  writeFileSync(join(root, "static", "tovu-starter", "css", "theme.css"), "body{color:stock}");
   mkdirSync(join(root, "static", "basic", "css"), { recursive: true });
-  writeFileSync(join(root, "static", "basic", "css", "theme.css"), "body{color:stock}");
+  writeFileSync(join(root, "static", "basic", "css", "theme.css"), "body{color:other}");
   mkdirSync(join(root, "templated", "storefront"), { recursive: true });
   writeFileSync(join(root, "templated", "storefront", "theme.json"), "{}");
+  mkdirSync(join(root, "meridian"), { recursive: true });
+  writeFileSync(join(root, "meridian", "theme.json"), "{}");
+  mkdirSync(join(root, "__original-themes__", "static", "tovu-starter", "css"), { recursive: true });
+  writeFileSync(join(root, "__original-themes__", "static", "tovu-starter", "css", "theme.css"), "body{color:stock}");
   mkdirSync(join(root, "__original-themes__", "static", "basic", "css"), { recursive: true });
-  writeFileSync(join(root, "__original-themes__", "static", "basic", "css", "theme.css"), "body{color:stock}");
+  writeFileSync(join(root, "__original-themes__", "static", "basic", "css", "theme.css"), "body{color:other}");
   return root;
 }
+
+/** Every path a seeded site must hold for {@link makeStockTree}: the starter, its original, and the folders around them. */
+const EXPECTED_SEEDED_ENTRIES = [
+  "README.md",
+  "__original-themes__",
+  join("__original-themes__", "static"),
+  join("__original-themes__", "static", "tovu-starter"),
+  join("__original-themes__", "static", "tovu-starter", "css"),
+  join("__original-themes__", "static", "tovu-starter", "css", "theme.css"),
+  "static",
+  join("static", "tovu-starter"),
+  join("static", "tovu-starter", "css"),
+  join("static", "tovu-starter", "css", "theme.css"),
+  join("static", "tovu-starter", "theme.json"),
+  "templated",
+].sort();
 
 /** A throwaway site root whose `themes/` subdirectory does NOT yet exist. */
 function makeEmptySiteRoot(): string {
@@ -45,7 +75,7 @@ function makeEmptySiteRoot(): string {
   return root;
 }
 
-test("seeds the whole stock tree into a site that has no themes/ yet", () => {
+test("seeds tovu-starter into a site that has no themes/ yet", () => {
   const stockDir = makeStockTree();
   const siteThemesDir = join(makeEmptySiteRoot(), "themes");
 
@@ -53,8 +83,21 @@ test("seeds the whole stock tree into a site that has no themes/ yet", () => {
 
   assert.equal(result.status, "seeded");
   assert.equal(result.siteThemesDir, siteThemesDir);
-  assert.equal(readFileSync(join(siteThemesDir, "static", "basic", "css", "theme.css"), "utf8"), "body{color:stock}");
-  assert.ok(existsSync(join(siteThemesDir, "templated", "storefront", "theme.json")));
+  assert.equal(readFileSync(join(siteThemesDir, "static", "tovu-starter", "css", "theme.css"), "utf8"), "body{color:stock}");
+});
+
+test("a new site gets ONLY tovu-starter — every other stock theme, and its original, stays in the package (owner 2026-10-08)", () => {
+  const stockDir = makeStockTree();
+  const siteThemesDir = join(makeEmptySiteRoot(), "themes");
+
+  assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
+
+  assert.deepEqual(readdirSync(siteThemesDir, { recursive: true }).map(String).sort(), EXPECTED_SEEDED_ENTRIES);
+  assert.ok(existsSync(join(stockDir, "static", "basic", "css", "theme.css")), "the package's own stock tree is never touched");
+});
+
+test("seeds exactly the default theme — the seeded list and the render fallback cannot disagree", () => {
+  assert.deepEqual(SEEDED_STOCK_THEME_IDS, [DEFAULT_THEME_ID]);
 });
 
 test("copies __original-themes__ — without it the site loses every theme's 'reset to original' source", () => {
@@ -64,7 +107,7 @@ test("copies __original-themes__ — without it the site loses every theme's 're
   seedSiteThemes({ stockDir, siteThemesDir });
 
   assert.equal(
-    readFileSync(join(siteThemesDir, "__original-themes__", "static", "basic", "css", "theme.css"), "utf8"),
+    readFileSync(join(siteThemesDir, "__original-themes__", "static", "tovu-starter", "css", "theme.css"), "utf8"),
     "body{color:stock}"
   );
 });
@@ -109,10 +152,10 @@ test("is idempotent: a second call after a successful seed is a no-op", () => {
   const siteThemesDir = join(makeEmptySiteRoot(), "themes");
 
   assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
-  writeFileSync(join(siteThemesDir, "static", "basic", "css", "theme.css"), "body{color:EDITED}");
+  writeFileSync(join(siteThemesDir, "static", "tovu-starter", "css", "theme.css"), "body{color:EDITED}");
 
   assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "already-present");
-  assert.equal(readFileSync(join(siteThemesDir, "static", "basic", "css", "theme.css"), "utf8"), "body{color:EDITED}");
+  assert.equal(readFileSync(join(siteThemesDir, "static", "tovu-starter", "css", "theme.css"), "utf8"), "body{color:EDITED}");
 });
 
 test("creates missing parent directories of the site themes dir", () => {
@@ -120,7 +163,7 @@ test("creates missing parent directories of the site themes dir", () => {
   const siteThemesDir = join(makeEmptySiteRoot(), "nested", "deeper", "themes");
 
   assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
-  assert.ok(existsSync(join(siteThemesDir, "static", "basic", "css", "theme.css")));
+  assert.ok(existsSync(join(siteThemesDir, "static", "tovu-starter", "css", "theme.css")));
 });
 
 test("leaves no staging directory behind after a successful seed", () => {
@@ -137,7 +180,7 @@ test("leaves no staging directory behind after a successful seed", () => {
   );
 });
 
-test("a mid-copy failure leaves themes absent, and a retry copies the complete stock tree", (t) => {
+test("a mid-copy failure leaves themes absent, and a retry copies the complete seeded tree", (t) => {
   const stockDir = makeStockTree();
   const siteRoot = makeEmptySiteRoot();
   const siteThemesDir = join(siteRoot, "themes");
@@ -147,7 +190,7 @@ test("a mid-copy failure leaves themes absent, and a retry copies the complete s
   const copyMock = t.mock.method(fs, "cpSync", (from: string | URL, to: string | URL) => {
     assert.equal(from, stockDir);
     originalCopy(join(stockDir, "static"), join(String(to), "static"), { recursive: true });
-    assert.equal(readFileSync(join(String(to), "static", "basic", "css", "theme.css"), "utf8"), "body{color:stock}");
+    assert.equal(readFileSync(join(String(to), "static", "tovu-starter", "css", "theme.css"), "utf8"), "body{color:stock}");
     partialCopyObserved = true;
     throw failure;
   });
@@ -164,9 +207,8 @@ test("a mid-copy failure leaves themes absent, and a retry copies the complete s
 
   assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
   assert.equal(existsSync(join(siteRoot, ".themes-seed-staging")), false);
-  const stockEntries = readdirSync(stockDir, { recursive: true }).sort();
-  assert.deepEqual(readdirSync(siteThemesDir, { recursive: true }).sort(), stockEntries);
-  for (const relative of stockEntries) {
+  assert.deepEqual(readdirSync(siteThemesDir, { recursive: true }).map(String).sort(), EXPECTED_SEEDED_ENTRIES);
+  for (const relative of EXPECTED_SEEDED_ENTRIES) {
     if (fs.statSync(join(stockDir, String(relative))).isFile()) {
       assert.deepEqual(readFileSync(join(siteThemesDir, String(relative))), readFileSync(join(stockDir, String(relative))));
     }
@@ -180,6 +222,6 @@ test("a leftover staging directory from an interrupted boot does not block the n
   mkdirSync(join(siteRoot, ".themes-seed-staging", "junk"), { recursive: true });
 
   assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
-  assert.ok(existsSync(join(siteThemesDir, "static", "basic", "css", "theme.css")));
+  assert.ok(existsSync(join(siteThemesDir, "static", "tovu-starter", "css", "theme.css")));
   assert.equal(existsSync(join(siteRoot, ".themes-seed-staging")), false);
 });
