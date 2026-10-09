@@ -10,6 +10,7 @@ import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
 import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "../page-link-rules";
+import { toSlug } from "../../../../../website/src/platform/html/slug";
 
 /**
  * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.
@@ -183,6 +184,8 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   const [menu, setMenu] = useState<AdminMenu | null>(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
+  // A cleared slug is still an explicit edit. Track intent rather than testing whether it is empty.
+  const slugEdited = useRef(false);
   const [items, setItems] = useState<AdminMenuItem[]>([]);
   const [mode, setMode] = useState<AdminMenuMode>("items");
   const [html, setHtml] = useState("");
@@ -219,6 +222,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   useEffect(() => {
     let cancelled = false;
     setCopyFeedback(null);
+    slugEdited.current = false;
     if (isNew) {
       setMenu(null);
       setTitle("");
@@ -282,6 +286,18 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   // tick (a double click) both observe the first one's claim.
   const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
+
+  /** New-menu titles derive through the same browser-safe slug owner as pages/forms; persisted URLs stay stable. */
+  function changeTitle(next: string): void {
+    setTitle(next);
+    if (isNew && !slugEdited.current) setSlug(toSlug(next));
+  }
+
+  /** Any explicit slug edit ends automatic derivation for this menu, including an intentionally empty value. */
+  function changeSlug(next: string): void {
+    slugEdited.current = true;
+    setSlug(next);
+  }
 
   function changeAt(path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) {
     setItems((prev) => mapAtPath(prev, path, fn));
@@ -372,9 +388,9 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
     isNew,
     menu,
     title,
-    setTitle,
+    setTitle: changeTitle,
     slug,
-    setSlug,
+    setSlug: changeSlug,
     items,
     mode,
     changeMode,

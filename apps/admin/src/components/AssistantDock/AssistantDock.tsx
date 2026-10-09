@@ -1,4 +1,5 @@
 import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
+import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
@@ -453,6 +454,7 @@ export function AssistantDock({
   // {@link useAssistantDockChrome}'s own doc for why `locale`/`t`/`chatI18n` are one hook rather
   // than three separate calls.
   const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
+  const conversationDelete = useConfirmRequest({});
 
   const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
@@ -640,6 +642,13 @@ export function AssistantDock({
                 onSelect={chats.select}
                 onCreate={chats.create}
                 onDelete={chats.remove}
+                // Keep the permanent-delete gate, using the admin dialog's shared focus lifecycle.
+                confirmDelete={(item) => conversationDelete.confirm({ dialog: {
+                  title: chatI18n.t("Delete conversation"),
+                  body: chatI18n.t('Delete "{title}"? This cannot be undone.', { title: item.title ?? chatI18n.t("Untitled") }),
+                  confirmLabel: chatI18n.t("Delete conversation"),
+                  tone: "danger",
+                } })}
                 onRename={chats.rename}
               />
             </div>
@@ -770,6 +779,7 @@ export function AssistantDock({
         //   "Which admin sections exist, and what does each one manage?",
         // ]}
       />
+      <ConfirmDialog {...conversationDelete.dialog} />
       </div>
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>

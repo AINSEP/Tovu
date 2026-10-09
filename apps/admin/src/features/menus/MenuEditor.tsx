@@ -444,14 +444,16 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           {menu ? <button type="button" className="btn-secondary" onClick={copyHtmlEmbed}>{t("Copy HTML embed")}</button> : null}
           {copyFeedback ? <span role="status">{copyFeedback}</span> : null}
           {message ? <span className="save-ok">{message}</span> : null}
-          {/* In HTML mode the refusal (permission, size cap, unbalanced markup) shows under the
-              source it is about instead — see the HTML tab below. */}
-          {error && mode !== "html" ? <span className="save-error">{error}</span> : null}
           <button onClick={save} disabled={saving} {...agentHandle({ handle: "menu-editor-save" }, { role: "button", label: "Save this menu" })}>
             {t("Save")}
           </button>
         </div>
       </div>
+      {/* Forms' full-width notice keeps save refusals (permission, size cap, unbalanced markup)
+          readable outside the narrow header rail in both authoring modes.
+          Above the source, not below: the textarea is 512px tall, so an error under it sat
+          below the fold at desktop height. */}
+      {error ? <div className="notice error" role="alert">{error}</div> : null}
       {/* Title and slug share one row — PostEditor's `.editor-title-row` (`styles.css` stacks it at
           narrow widths). Audit finding: both were placeholder-only, no `<label>` — same fix as
           `PostEditor.tsx`'s title/slug (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
@@ -484,9 +486,6 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           CSS still applies — forms' HTML editor class and trust model (`pages.edit_html`). */}
       {mode === "html" ? (
         <>
-          {/* Above the source, not below: the textarea is 512px tall, so an error under it sat
-              below the fold at desktop height. */}
-          {error ? <p className="save-error" role="alert">{error}</p> : null}
           <textarea
             className="page-html-source"
             value={html}

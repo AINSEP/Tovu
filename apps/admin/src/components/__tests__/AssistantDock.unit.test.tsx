@@ -1,4 +1,4 @@
-import { act, fireEvent, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { isValidElement, type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -932,5 +932,72 @@ describe("AssistantDock — pane title reads the active conversation's own title
     renderedHeader();
 
     expect(screen.getByRole("heading", { level: 2, name: "Tovu assistant" })).toBeInTheDocument();
+  });
+});
+
+describe("AssistantDock — permanent conversation deletion", () => {
+  /** Renders the real host header and switcher, while the streaming pane is a DI fake. */
+  function HeaderPane(props: ComponentProps<typeof RealChatPane>) {
+    return <section>{props.header}</section>;
+  }
+
+  function deleteChats(title: string | null = "Find my posts") {
+    return fakeChats({
+      conversations: [{ id: "conv-delete", title, titleSource: "manual", messageCount: 1, createdAt: 0, updatedAt: 0 }],
+      activeId: "conv-delete",
+    });
+  }
+
+  it("waits for the in-app dialog, cancels without deletion, then deletes exactly once on confirmation", async () => {
+    const nativeConfirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const chats = deleteChats();
+    try {
+      render(<AssistantDock ChatPane={HeaderPane} useChats={() => chats} />);
+      fireEvent.click(screen.getByTestId("conversation-trigger"));
+      fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
+      const dialog = screen.getByRole("dialog", { name: "Delete conversation" });
+      expect(dialog).toHaveClass("confirm-dialog");
+      expect(within(dialog).getByText('Delete "Find my posts"? This cannot be undone.')).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+      expect(chats.remove).not.toHaveBeenCalled();
+      expect(nativeConfirm).not.toHaveBeenCalled();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await act(async () => { await Promise.resolve(); });
+      expect(chats.remove).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
+      fireEvent.click(within(screen.getByRole("dialog", { name: "Delete conversation" })).getByRole("button", { name: "Delete conversation" }));
+      await waitFor(() => expect(chats.remove).toHaveBeenCalledExactlyOnceWith("conv-delete"));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(nativeConfirm).not.toHaveBeenCalled();
+    } finally {
+      nativeConfirm.mockRestore();
+    }
+  });
+
+  it("does not delete when the dock unmounts with its permanent-delete dialog unanswered", async () => {
+    const chats = deleteChats();
+    const dock = render(<AssistantDock ChatPane={HeaderPane} useChats={() => chats} />);
+    fireEvent.click(screen.getByTestId("conversation-trigger"));
+    fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
+    expect(screen.getByRole("dialog", { name: "Delete conversation" })).toBeInTheDocument();
+    expect(chats.remove).not.toHaveBeenCalled();
+
+    dock.unmount();
+    await act(async () => { await Promise.resolve(); });
+    expect(chats.remove).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("names an untitled conversation and denies deletion on native dialog cancellation", async () => {
+    const chats = deleteChats(null);
+    render(<AssistantDock ChatPane={HeaderPane} useChats={() => chats} />);
+    fireEvent.click(screen.getByTestId("conversation-trigger"));
+    fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
+    const dialog = screen.getByRole("dialog", { name: "Delete conversation" });
+    expect(within(dialog).getByText('Delete "Untitled"? This cannot be undone.')).toBeInTheDocument();
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    await act(async () => { await Promise.resolve(); });
+    expect(chats.remove).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
