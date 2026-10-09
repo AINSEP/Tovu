@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FetchQueryProvider } from '@jini-ai/ui/fetch-query';
+import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import { KitProvider } from '@jini-ai/ui-kit/react';
 import { createMemorySeoApi } from '@jini-ai/admin/seo/adapters/memory';
 import { Seo } from '../../../features/seo';

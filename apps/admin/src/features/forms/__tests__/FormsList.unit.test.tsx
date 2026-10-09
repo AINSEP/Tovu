@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { FormsList } from "../index";
 import { AdminModulesContext, createHostAdminScope } from "../../../integrations/jini-admin/modules.hooks";
 

@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { EditFieldsDialog } from "../Collections";
 import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";

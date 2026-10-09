@@ -1,7 +1,7 @@
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useWiredRedirects } from "./redirects-harness";
 import { Media } from "../features/media/Media";
 import type { AdminFormDefinition } from "../lib/api";

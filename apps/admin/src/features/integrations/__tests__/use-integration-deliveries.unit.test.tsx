@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useIntegrationDeliveries } from "../hooks/use-integration-deliveries.hooks";
 import { createFakeIntegrationDeliveriesPort } from "../hooks/integration-deliveries-dependencies.hooks";
 import type { AdminWebhookDelivery } from "@/lib/api";

@@ -1,7 +1,8 @@
 /** Quick wins A: visible URL-import action, retryable errors, and media-list invalidation. */
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { FetchQueryProvider, useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { RemoteImageImport } from "../RemoteImageImport";
 import { useRemoteImageImport } from "../hooks/use-remote-image-import.hooks";
 import { KEYS } from "../rules";
@@ -30,7 +31,9 @@ describe("remote media import", () => {
     await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
     act(() => { result.current.setUrl("https://cdn.example/fox.png"); });
     await act(() => result.current.submit());
-    expect(result.current.error).toContain("Target is not public");
+    // The mutation's error state reaches observers on the adapter's notify batch, after the
+    // rejected promise `submit` awaited, so wait for it rather than reading it synchronously.
+    await waitFor(() => expect(result.current.error).toContain("Target is not public"));
     expect(result.current.url).toBe("https://cdn.example/fox.png");
     await act(() => result.current.submit());
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2));

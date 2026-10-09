@@ -8,7 +8,7 @@ import { fireEvent, render, waitFor } from "@testing-library/react";
 import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField } from "@jini-ai/ui";
 import { Users as JiniUsers } from "@jini-ai/user-management/react";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
  * @file Guard: every credential-shaped `<input>` in the admin says what the browser may autofill.

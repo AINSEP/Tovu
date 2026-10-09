@@ -9,7 +9,7 @@ import {
   withoutSiteSection,
   type SiteSectionAvailability,
 } from "../../App.hooks";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { api, ApiError, type AdminUser } from "../../lib/api";
 
 /**

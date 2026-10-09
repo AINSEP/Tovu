@@ -1,7 +1,7 @@
 import { render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminExternalMcpServer } from "../../../lib/api";
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 import { useOtherCredentials } from "../../security/hooks/use-other-credentials.hooks";

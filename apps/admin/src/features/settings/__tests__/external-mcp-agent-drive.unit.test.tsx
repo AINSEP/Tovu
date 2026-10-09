@@ -5,7 +5,7 @@ import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminRemoteToolSurfaceEntry } from "@/lib/api";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";

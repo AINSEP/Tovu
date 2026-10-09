@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type AdminPolicyPermission } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeRolesPort } from "../hooks/roles-dependencies.hooks";
 import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
 

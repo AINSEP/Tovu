@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
 import { createFakeSchemaStateSectionPort } from "../hooks/schema-state-section-dependencies.hooks";
 

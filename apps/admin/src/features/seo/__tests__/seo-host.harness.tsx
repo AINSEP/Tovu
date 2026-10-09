@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { FetchQueryProvider } from '@jini-ai/ui/fetch-query';
+import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import { buildSeoSettingsPatch as buildPatch } from '@jini-ai/admin/seo';
 import { resolveSeoTabs as resolveTabs, sitemapStateLabel as stateLabel } from '@jini-ai/admin/seo/react';
 import { createMemorySeoApi } from '@jini-ai/admin/seo/adapters/memory';

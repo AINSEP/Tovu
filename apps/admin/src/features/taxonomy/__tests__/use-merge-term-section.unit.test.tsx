@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useMergeTermSection, useWiredMergeTermSection } from "../hooks/use-merge-term-section.hooks";
 import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
 import type { AdminTerm, GatedPlanResult, MergeTermPlanDetails } from "@/lib/api";

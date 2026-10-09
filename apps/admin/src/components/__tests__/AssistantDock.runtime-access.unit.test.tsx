@@ -48,7 +48,7 @@ function AssistantDock(props: ComponentProps<typeof RealAssistantDock>) {
     {...props} />;
 }
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /** Every render sits under the app's query-cache provider, as `main.tsx` mounts the real dock:
  *  `useRuntimeAccess`/`useAgentsPlaceholder` read the agents list through that cache. */

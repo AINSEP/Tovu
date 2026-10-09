@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useNewTaxonomyForm, useWiredNewTaxonomyForm } from "../hooks/use-new-taxonomy-form.hooks";
 import { createFakeNewTaxonomyFormPort } from "../hooks/new-taxonomy-form-dependencies.hooks";
 

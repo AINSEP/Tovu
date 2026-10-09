@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminContentType } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { NewContentTypeDialog } from "../Collections";
 import { createFakeNewContentTypeDialogPort } from "../hooks/new-content-type-dialog-dependencies.hooks";
 import { useNewContentTypeDialog, useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
@@ -182,15 +182,17 @@ describe("submit — success", () => {
 
     // `useFetchMutation` (Jini's `useMutation`) flips `saving` to `true` synchronously on
     // `mutate()`, same as the pre-migration `setSaving(true)` did — but unlike that direct call, it
-    // defers actually INVOKING `run` (and therefore this `fetch`) by one microtask, so
-    // `resolveCreate` is not assigned yet at this exact point. `await Promise.resolve()` lets that
-    // deferred call land before this reaches for it.
+    // defers actually INVOKING `run` (and therefore this `fetch`), so `resolveCreate` is not
+    // assigned yet at this exact point. How many microtasks that takes is the adapter's business
+    // (TanStack's mutation awaits several hooks first), so wait for the call to land rather than
+    // counting ticks — resolving too early leaves this `act` pending forever.
+    await waitFor(() => expect(resolveCreate).toBeTypeOf("function"));
     await act(async () => {
-      await Promise.resolve();
-      resolveCreate?.(jsonResponse({ contentType: {} }));
+      resolveCreate!(jsonResponse({ contentType: {} }));
       await promise;
     });
-    expect(view.result.current.saving).toBe(false);
+    // `saving` is the mutation's status, which reaches observers on the adapter's notify batch.
+    await waitFor(() => expect(view.result.current.saving).toBe(false));
   });
 });
 

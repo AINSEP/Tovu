@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type AdminSiteActivation, type AdminSitesSnapshot } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "../rules";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
 
@@ -82,9 +82,9 @@ describe("useSites — create", () => {
     });
 
     await waitFor(() => expect(result.current.createdName).toBe("gamma"));
-    expect(createSite).toHaveBeenCalledWith({ name: "gamma" });
+    expect(createSite).toHaveBeenCalledWith({ name: "gamma", adminPassword: "tovu-dev" });
     // Hidden creation (R1f): the admin never sends a storage choice; only `tovu init --storage` sets one.
-    expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name"]);
+    expect(Object.keys(createSite.mock.calls[0][0] as object)).toEqual(["name", "adminPassword"]);
     expect(result.current.createName).toBe("");
     await waitFor(() => expect(result.current.sites).toEqual([...snapshotFixture().sites, gamma]));
   });

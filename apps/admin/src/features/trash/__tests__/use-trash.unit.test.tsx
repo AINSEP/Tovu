@@ -2,7 +2,8 @@ import { act, render, renderHook, screen, waitFor } from "@testing-library/react
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser, AdminTrashItem, AdminTrashPage, AdminTrashRestoreReport } from "@/lib/api";
-import { FetchQueryProvider, useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useInvalidate, useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
 import { useTrash } from "../hooks/use-trash.hooks";

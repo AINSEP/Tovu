@@ -2,7 +2,7 @@ import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Redirects } from "./redirects-harness";
 import { useWiredTaxonomy } from "../features/taxonomy/hooks/use-taxonomy.hooks";
 

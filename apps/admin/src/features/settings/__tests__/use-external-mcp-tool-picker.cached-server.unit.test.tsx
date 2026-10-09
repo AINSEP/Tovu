@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
 import type { AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useExternalMcpToolPicker } from "../hooks/use-external-mcp-tool-picker.hooks";
 
 function wrapper({ children }: { children: ReactNode }) {

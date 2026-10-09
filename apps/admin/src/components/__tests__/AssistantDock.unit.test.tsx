@@ -57,7 +57,7 @@ function AssistantDock(props: ComponentProps<typeof RealAssistantDock>) {
     useByokRuntime={useTestByokRuntime} useLocalCliSelection={useTestLocalCliSelection} {...props} />;
 }
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 
 /** Every render sits under the app's query-cache provider, as `main.tsx` mounts the real dock:

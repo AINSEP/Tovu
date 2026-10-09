@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { ContentAnalysisCard } from "../ContentAnalysisCard";
 import { createFakeContentAnalysisPort } from "../hooks/content-analysis-dependencies.hooks";
 import { useContentAnalysis, type ContentAnalysisController, type ContentAnalysisTarget } from "../hooks/use-content-analysis.hooks";

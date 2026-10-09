@@ -24,7 +24,7 @@ import {
   useComposerCapabilities,
   useRuntimeAccess,
 } from "../hooks/AssistantDock.hooks";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import {
   createBundledComposerCapabilitySource,
   emptyComposerCapabilityProjection,

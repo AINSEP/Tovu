@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render as renderWithoutProvider, waitFor } from "@testing-library/react";
 import { useState, type ReactElement } from "react";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { DragEvent } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 

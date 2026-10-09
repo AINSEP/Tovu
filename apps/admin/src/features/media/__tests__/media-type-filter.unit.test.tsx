@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Media } from "../Media";
 import { filterMediaByTab, hasUntypedMedia } from "../rules";
 import type { AdminMedia } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
  * @file The Media screen's "Images"/"Videos" type filter — the UI half of the `contentType` field

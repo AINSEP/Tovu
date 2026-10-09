@@ -3,7 +3,8 @@ import { act, render, renderHook, screen, waitFor } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
-import { FetchQueryProvider, useCachedLoader, useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useCachedLoader, useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
  * @file Admin behavioral contract for the published `@jini-ai/ui/fetch-query` owner.
@@ -94,7 +95,9 @@ describe("useFetchQuery", () => {
       expect(result.current.status).toBe("error");
       expect(result.current.error?.message).toBe("denied");
 
-      await act(async () => { result.current.refetch(); });
+      // Advance (fake) timers by zero too: an adapter may deliver observer updates on a timer
+      // batch (TanStack's notifyManager uses setTimeout(0)), which a microtask flush never reaches.
+      await act(async () => { result.current.refetch(); await vi.advanceTimersByTimeAsync(0); });
       expect(fetch).toHaveBeenCalledTimes(2);
       expect(result.current.data).toBe("recovered");
     } finally {

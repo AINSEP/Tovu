@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useEditMediaPanel } from "../hooks/use-edit-media-panel.hooks";
 

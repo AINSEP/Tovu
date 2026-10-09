@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
 import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
 
@@ -482,12 +482,14 @@ describe("openResetPassword / confirmResetPassword", () => {
 
     // `useFetchMutation` flips `passwordSaving` to `true` synchronously
     // on `mutate()`, same as the pre-migration `setSaving(true)` did — but defers actually INVOKING
-    // `run` (and therefore this `fetch`) by one microtask, so `d.resolve` is not assigned yet
-    // at this exact point. `await Promise.resolve()` lets that deferred call land before reaching
-    // for it — see `use-new-content-type-dialog.unit.test.tsx`'s identical note in `collections`.
+    // `run` (and therefore this `fetch`), so `d.resolve` is not assigned yet at this exact point.
+    // How many microtasks that takes is the adapter's business (TanStack's mutation awaits several
+    // hooks first), so wait for the call to land rather than counting ticks — resolving too early
+    // leaves this `act` pending forever — see `use-new-content-type-dialog.unit.test.tsx`'s
+    // identical note in `collections`.
+    await waitFor(() => expect(d.resolve).toBeTypeOf("function"));
     await act(async () => {
-      await Promise.resolve();
-      d.resolve?.();
+      d.resolve!();
       await confirmPromise;
     });
   });

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { ExternalMcpToolPicker } from "../ExternalMcpToolPicker";
 import { useToolRowHandles } from "../ExternalMcpToolPicker.hooks";
 import { ExternalMcpToolsModal } from "../ExternalMcpToolsModal";

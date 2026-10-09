@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FetchQueryProvider } from '@jini-ai/ui/fetch-query';
+import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import { createMemoryRedirectsApi } from '@jini-ai/admin/redirects/adapters/memory';
 import { Redirects } from '../../../features/redirects';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';

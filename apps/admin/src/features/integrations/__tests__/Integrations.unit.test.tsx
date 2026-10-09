@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Integrations } from "../Integrations";
 
 /**
@@ -113,8 +113,8 @@ describe("row actions menu", () => {
     expect(url).toBe("/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/sub1/pause");
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body)).toEqual({ paused: true });
-    await waitFor(() => expect(within(screen.getByRole("link", { name: "My webhook" }).closest("tr")!).getByText("paused")).toBeInTheDocument());
-    expect(within(screen.getByRole("link", { name: "Other webhook" }).closest("tr")!).getByText("active")).toBeInTheDocument();
+    await waitFor(() => expect(within(screen.getByRole("link", { name: "My webhook" }).closest("tr")!).getByText("Paused")).toBeInTheDocument());
+    expect(within(screen.getByRole("link", { name: "Other webhook" }).closest("tr")!).getByText("Active")).toBeInTheDocument();
   });
 
   it("withholds the menu entirely for a disabled subscription, rather than an unusable empty dropdown", async () => {

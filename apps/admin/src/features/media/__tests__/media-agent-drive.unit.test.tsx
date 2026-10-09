@@ -6,7 +6,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { Media } from "../Media";
 import type { MediaController } from "../hooks/use-media.hooks";
 import type { AdminMedia } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
  * @file Regression test for this batch's agent-control tagging on `Media.tsx` — same shape as

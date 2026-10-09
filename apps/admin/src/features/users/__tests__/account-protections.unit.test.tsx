@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Users } from "../UsersPanel";
 import { useUsers } from "../hooks/users-controller.hooks";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";

@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType, AdminEntry } from "@/lib/api";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeCollectionEntriesPort } from "../hooks/collection-entries-dependencies.hooks";
 import { useCollectionEntries } from "../hooks/use-collection-entries.hooks";
 

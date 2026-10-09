@@ -7,7 +7,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { UserManagePanel, Users, type UserManageController } from "../UsersPanel";
 import { useUsers, type UsersController } from "../hooks/users-controller.hooks";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import userEvent from "@testing-library/user-event";
 import type { AdminIdentityUser } from "@/lib/api";
 

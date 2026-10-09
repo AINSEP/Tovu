@@ -6,7 +6,7 @@ import type { AdminTrashItem } from "@/lib/api";
 import { Trash } from "../Trash";
 import { useTrash, type TrashController } from "../hooks/use-trash.hooks";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
  * @file The Trash screen's markup, mounted over a stub controller through its `useTrashHook` seam.

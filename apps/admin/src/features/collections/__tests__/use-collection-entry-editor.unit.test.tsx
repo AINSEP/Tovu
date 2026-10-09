@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type AdminContentType, type AdminEntry } from "@/lib/api";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
-import { FetchQueryProvider } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { navigate } from "@/lib/router";
 import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
 import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
@@ -239,11 +239,13 @@ describe("save — new entry", () => {
 
     // `useFetchMutation` flips `saving` to `true` synchronously on `mutate()`, same as the
     // pre-migration `setSaving(true)` did — but defers actually INVOKING `run` (and
-    // therefore this `fetch`) by one microtask, so `resolveCreate` is not assigned yet at this
-    // exact point. `await Promise.resolve()` lets that deferred call land before reaching for it.
+    // therefore this `fetch`), so `resolveCreate` is not assigned yet at this exact point. How
+    // many microtasks that takes is the adapter's business (TanStack's mutation awaits several
+    // hooks first), so wait for the call to land rather than counting ticks — resolving too early
+    // leaves this `act` pending forever.
+    await waitFor(() => expect(resolveCreate).toBeTypeOf("function"));
     await act(async () => {
-      await Promise.resolve();
-      resolveCreate?.(jsonResponse({ entry: ENTRY }));
+      resolveCreate!(jsonResponse({ entry: ENTRY }));
       await promise;
     });
     expect(view.result.current.saving).toBe(false);
@@ -742,9 +744,11 @@ describe("stale-response race (2026-08-12 regression test)", () => {
       pendingListEntries[0]!.resolve([ENTRY_1]);
     });
     // Give any (incorrect) pending state update a chance to land before asserting it didn't.
+    // Macrotask turns, not microtasks: the TanStack adapter notifies observers on a
+    // `setTimeout(0)` batch, so a microtask-only wait would make this check vacuous.
     await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     // The stale e1 response must NOT have clobbered the already-loaded e2 state.

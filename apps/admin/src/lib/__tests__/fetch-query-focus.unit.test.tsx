@@ -2,7 +2,8 @@
 import { act, render, waitFor, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider, useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
  * @file The `refetchOnWindowFocus` per-query passthrough (2026-09-21, forms plan §C) — additive, and
