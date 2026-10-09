@@ -23,6 +23,9 @@ apps/admin/coverage/
 # from `apps/admin/.certs*/` so one directory serves both servers; the toggle is still a single
 # rename: `mv .certs .certs.disabled` / `mv .certs.disabled .certs`, now from the repo root.
 /.certs*/
+# The old per-app location still exists on disk (a private key was committed from it once, scrubbed
+# from unpushed history 2026-10-08); the root-anchored rule above does not reach it.
+apps/admin/.certs*/
 *.log
 .DS_Store
 .env
@@ -108,6 +111,19 @@ sites/*/themes/.preview-refresh.json.*.tmp
 # local run with TOVU_RUNTIME_MODE=production set for testing. Ignored wholesale, not just the
 # key file itself, in case this directory ever grows a second file.
 sites/.tovu/
+# 2026-10-08: the restructure put a site under `apps/website/sites/`, which none of the `sites/*`
+# rules above reach (a slash in the middle anchors them to the repo root), so the live tovu-com
+# content.db + sidecars got committed and had to be scrubbed from unpushed history. Same runtime
+# classes as above; `content.seed.db` itself stays trackable.
+apps/website/sites/*/content.db*
+apps/website/sites/*/content.seed.db-wal
+apps/website/sites/*/content.seed.db-shm
+apps/website/sites/*/chat.db*
+apps/website/sites/*/*.bak
+apps/website/sites/*/restore-point-*.db*
+apps/website/sites/*/ops/*.db*
+apps/website/sites/*/out/
+apps/website/sites/.tovu/
 
 # R1f (ADR-067, owner decision O3): a Postgres site's connection string, sealed with the site key
 # in its own folder (`storage-secret.ts`). Ciphertext, but it is the database password and names the
