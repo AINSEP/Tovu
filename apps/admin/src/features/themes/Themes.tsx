@@ -13,6 +13,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
+import { CompassIcon } from "./themes-visuals";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -21,6 +22,7 @@ import {
   defaultThemeTabGroup,
   themeDisplayName,
   sortThemesForDisplay,
+  themeCardSwitch,
   THEME_TAB_GROUPS,
   type ThemeTabGroup,
 } from "./rules";
@@ -221,6 +223,55 @@ function RescanToast({
   );
 }
 
+/**
+ * A card's Activate switch (owner 2026-10-08). OFF activates this theme; the active theme's switch is
+ * ON and turning it off is the toolbar's "Turn the theme off" — see {@link themeCardSwitch} for the
+ * derivation. The accessible name stays "Activate {name}" in both states (a switch's name says what
+ * it controls; `aria-checked` says which way it is), so the active card is still found by the same
+ * name. ARIA `switch`, driver `checkbox` — the same split `AgentPluginRow.tsx` documents, because
+ * `AgentElementRole` has no `switch`. Same `-activate` handle as the button it replaced.
+ */
+function ThemeActivateSwitch({
+  themeId,
+  name,
+  handleBase,
+  settings,
+  busyTheme,
+  activate,
+  t,
+}: {
+  themeId: string;
+  name: string;
+  handleBase: string;
+  settings: PresentationSettings;
+  busyTheme: string | null;
+  activate: (themeId: string) => Promise<void>;
+  t: Translate;
+}) {
+  const control = themeCardSwitch({ settings, themeId, busyTheme });
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={control.checked}
+      aria-busy={control.busy}
+      className="agent-plugin-switch theme-card-switch"
+      disabled={control.disabled}
+      onClick={() => void activate(control.target)}
+      aria-label={actionButtonAriaLabel(t("Activate"), t(control.busyKey), control.busy, name)}
+      title={t(control.titleKey)}
+      {...agentHandle({ handle: `${handleBase}-activate` }, {
+        role: "checkbox",
+        label: control.checked
+          ? `Turn the "${themeId}" theme off and render the site unstyled`
+          : `Activate the "${themeId}" theme`,
+      })}
+    >
+      <span className="agent-plugin-switch-knob" aria-hidden="true" />
+    </button>
+  );
+}
+
 /** The two banners below the toolbar — a failed fetch/save, and independently, "the site's active
  *  theme no longer resolves" (`.notice.warning` — same visual language `PostEditor.tsx`'s
  *  slug-collision banner already established for "the admin needs to know this, but nothing was
@@ -251,9 +302,9 @@ function ThemesBanners({
       {/* Deliberately a plain `.notice`, NOT `.notice warning` — the operator chose this, and
           styling a choice as a fault trains them to ignore the banner. It is persistent rather than
           a toast because "no theme" is a standing state of the site, not an event: an operator
-          arriving at this screen later needs to know why every card shows Activate and none shows
-          Active, and that is the same question the stranded-theme warning above answers for a
-          different cause. */}
+          arriving at this screen later needs to know why every card's Activate switch is off, and
+          that is the same question the stranded-theme warning above answers for a different
+          cause. */}
       {isThemeDisabled(settings) ? (
         <div className="notice">
           {t(
@@ -311,35 +362,23 @@ function ThemeGrid({
             <ThemeCardPreview themeId={themeId} previewImageUrl={themePreviewImages[themeId]} agentHandleBase={handleBase} t={t} />
             <h3>{name}</h3>
             <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
-            {/* Activate stays left, Explore is pushed right. Explore takes the app's existing
-                secondary/outline shape (white surface, bordered — see `.btn-explore` in styles.css)
-                rather than a second filled button: the burnt-orange fill marks the one action with a
-                site-wide consequence, and exploring changes nothing, so it should not compete with
-                Activate for primary attention — but it still reads as a real, clickable destination,
-                not plain text on the card. */}
+            {/* Icons, not words (owner 2026-10-08): the Activate switch stays left, the Explore
+                (compass) icon button sits in the icon group on the right. Each keeps its old verb as
+                its accessible name and its tooltip. */}
             <div className="theme-card-actions">
-              {active ? (
-                <span className="theme-active-tag">{t("Active")}</span>
-              ) : (
+              <ThemeActivateSwitch themeId={themeId} name={name} handleBase={handleBase} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
+              <span className="theme-card-icon-actions">
                 <button
-                  className="btn-primary"
-                  disabled={busyTheme !== null}
-                  onClick={() => activate(themeId)}
-                  aria-label={actionButtonAriaLabel(t("Activate"), t("Activating…"), busyTheme === themeId, name)}
-                  {...agentHandle({ handle: `${handleBase}-activate` }, { role: "button", label: `Activate the "${themeId}" theme` })}
+                  type="button"
+                  className="theme-card-icon-btn"
+                  onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
+                  aria-label={`${t("Explore")} ${name}`}
+                  title={t("Explore")}
+                  {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
                 >
-                  {busyTheme === themeId ? t("Activating…") : t("Activate")}
+                  <CompassIcon />
                 </button>
-              )}
-              <button
-                type="button"
-                className="btn-explore"
-                onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
-                aria-label={`${t("Explore")} ${name}`}
-                {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
-              >
-                {t("Explore")}
-              </button>
+              </span>
             </div>
           </div>
         );
@@ -391,9 +430,9 @@ function ThemesToolbar({
       </button>
       {/* Hidden once the theme is already off — a control whose only effect is to re-send the
           state you are already in reads as broken when nothing changes. Getting back is the
-          Activate button on any card, which is always present. A toolbar control rather than a
-          card in the grid: the grid is split across tier tabs, so a card would be visible in only
-          one of them and invisible in the rest. */}
+          Activate switch on any card, which is always present (the active card's switch is a second
+          way off). A toolbar control rather than a card in the grid: the grid is split across tier
+          tabs, so a card would be visible in only one of them and invisible in the rest. */}
       {isThemeDisabled(settings) ? null : (
         <button
           type="button"
@@ -481,7 +520,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
       />
       <RescanToast rescanNotice={rescanNotice} onDismiss={dismissRescanNotice} />
       {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no
-          longer resolves, so no card below can ever show the Active tag and nothing else said why —
+          longer resolves, so no card below can ever show its switch on and nothing else said why —
           see `ThemesBanners`'s own doc. */}
       <ThemesBanners error={error} settings={settings} themes={themes} t={t} />
       <TabBar

@@ -8,7 +8,7 @@ import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../li
 
 /**
  * Whether `themeId` is the site's currently active theme — the status derivation that drives both
- * a theme card's `.active` class and whether it renders the "Active" tag or the Activate button.
+ * a theme card's `.active` class and whether its Activate switch is on (see {@link themeCardSwitch}).
  *
  * @complexity Time/space: O(1).
  */
@@ -41,8 +41,7 @@ export function isThemeDisabled(settings: PresentationSettings): boolean {
  * there is nothing left to substitute. What an operator actually gets is subtler and still worth a
  * banner — the public site renders, but under a theme nobody chose (as of 2026-09-12, the named
  * default `basic`), which is exactly the kind of drift that goes unnoticed precisely because the
- * site looks fine. Nothing else on this screen says so: every card shows Activate and none shows
- * Active. {@link Themes} renders the warning off this.
+ * site looks fine. Nothing else on this screen says so: every card's Activate switch is off. {@link Themes} renders the warning off this.
  *
  * Excludes {@link isThemeDisabled}: the no-theme sentinel is never in `themes` either, so without
  * that guard every deliberately-themeless site would be reported as broken. The pre-existing
@@ -197,4 +196,47 @@ export function sortThemesForDisplay(
       sensitivity: "base",
     }) || a.localeCompare(b);
   return [...themeIds].sort((a, b) => Number(b === activeThemeId) - Number(a === activeThemeId) || byName(a, b));
+}
+
+/** What one theme card's Activate switch shows and does — see {@link themeCardSwitch}. */
+export interface ThemeCardSwitch {
+  /** ON for the site's active theme, OFF for every other card. */
+  checked: boolean;
+  /** The id `activate()` is called with on a click: this theme when OFF, {@link NO_THEME_ID} when ON. */
+  target: string;
+  /** This card's own request is the one in flight. */
+  busy: boolean;
+  /** Any theme request is in flight — every switch waits, so two clicks cannot race. */
+  disabled: boolean;
+  /** Dictionary key for the switch's tooltip (`title`). */
+  titleKey: string;
+  /** Dictionary key for the verb the accessible name carries while `busy`. */
+  busyKey: string;
+}
+
+/**
+ * A theme card's Activate switch (owner 2026-10-08: the text buttons became icons, Activate a
+ * switch). An OFF switch activates its theme. The active theme's switch is ON, and turning it off is
+ * exactly the toolbar's "Turn the theme off" — `activate(NO_THEME_ID)`, the sentinel, never `""`
+ * (the server reads `""` as "no settings row yet" and falls back to a default theme). `busyTheme`
+ * holds whichever id is in flight, so comparing it to this card's own `target` marks the right card
+ * busy in both directions.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function themeCardSwitch(input: {
+  settings: PresentationSettings;
+  themeId: string;
+  busyTheme: string | null;
+}): ThemeCardSwitch {
+  const checked = isActiveTheme(input.settings, input.themeId);
+  const target = checked ? NO_THEME_ID : input.themeId;
+  return {
+    checked,
+    target,
+    busy: input.busyTheme === target,
+    disabled: input.busyTheme !== null,
+    titleKey: checked ? "Turn the theme off" : "Activate",
+    busyKey: checked ? "Turning off…" : "Activating…",
+  };
 }

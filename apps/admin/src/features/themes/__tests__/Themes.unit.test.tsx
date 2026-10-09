@@ -102,7 +102,7 @@ describe("stranded active theme", () => {
     expect(screen.getByText("column")).toBeInTheDocument();
     expect(screen.getByText("signal")).toBeInTheDocument();
     // None of the cards claim to be Active — the whole point is that nothing legitimately can.
-    expect(screen.queryByText("Active")).not.toBeInTheDocument();
+    for (const toggle of screen.getAllByRole("switch")) expect(toggle).not.toBeChecked();
   });
 });
 
@@ -112,7 +112,7 @@ describe("theme grid", () => {
     expect(screen.getByRole("heading", { name: "Tovu Theme" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "column" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "tovu-official" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Activate Tovu Theme" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Activate Tovu Theme" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Explore Tovu Theme" })).toBeInTheDocument();
   });
 
@@ -121,33 +121,48 @@ describe("theme grid", () => {
     expect(screen.getByRole("group", { name: "Themes" })).toBeInTheDocument();
   });
 
-  it("marks the active theme with the Active tag, not an Activate button", () => {
-    render(<Themes useThemesHook={() => baseController()} />);
+  it("shows the active theme's Activate switch ON, and turning it off is the toolbar's turn-the-theme-off (the sentinel)", async () => {
+    const user = userEvent.setup();
+    const activate = vi.fn(async () => {});
+    render(<Themes useThemesHook={() => baseController({ activate })} />);
     const activeCard = screen.getByText("signal").closest(".theme-card") as HTMLElement;
     expect(activeCard).toHaveClass("active");
-    expect(activeCard.querySelector(".theme-active-tag")).toHaveTextContent("Active");
-    // Scoped past the card's own preview-expand trigger button (unrelated to Activate/Active).
-    expect(within(activeCard).queryByRole("button", { name: /^Activate/ })).not.toBeInTheDocument();
+    const toggle = within(activeCard).getByRole("switch", { name: "Activate signal" });
+    expect(toggle).toBeChecked();
+    expect(toggle).toHaveAttribute("title", "Turn the theme off");
+    await user.click(toggle);
+    expect(activate).toHaveBeenCalledWith(NO_THEME_ID);
   });
 
-  it("gives every inactive theme an Activate button that calls activate(themeId)", async () => {
+  it("gives every inactive theme an OFF Activate switch that calls activate(themeId)", async () => {
     const user = userEvent.setup();
     const activate = vi.fn(async () => {});
     render(<Themes useThemesHook={() => baseController({ activate })} />);
 
     const columnCard = screen.getByText("column").closest(".theme-card") as HTMLElement;
-    await user.click(within(columnCard).getByRole("button", { name: "Activate column" }));
+    const toggle = within(columnCard).getByRole("switch", { name: "Activate column" });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAttribute("title", "Activate");
+    await user.click(toggle);
     expect(activate).toHaveBeenCalledWith("column");
   });
 
-  it("disables every Activate button while any one theme is busy, and shows Activating… on that one", () => {
+  it("disables every Activate switch while any one theme is busy, and names Activating… on that one", () => {
     render(<Themes useThemesHook={() => baseController({ busyTheme: "column" })} />);
-    const columnButton = screen.getByRole("button", { name: "Activating… column" });
+    const columnSwitch = screen.getByRole("switch", { name: "Activating… column" });
     const officialCard = screen.getByText("tovu-official").closest(".theme-card") as HTMLElement;
-    const officialButton = within(officialCard).getByRole("button", { name: "Activate tovu-official" });
-    expect(columnButton).toBeDisabled();
-    expect(officialButton).toBeDisabled();
-    expect(officialButton).toHaveTextContent("Activate");
+    const officialSwitch = within(officialCard).getByRole("switch", { name: "Activate tovu-official" });
+    expect(columnSwitch).toBeDisabled();
+    expect(columnSwitch).toHaveAttribute("aria-busy", "true");
+    expect(officialSwitch).toBeDisabled();
+    expect(officialSwitch).not.toBeChecked();
+  });
+
+  it("names the active card's switch Turning off… while the theme is being turned off", () => {
+    render(<Themes useThemesHook={() => baseController({ busyTheme: NO_THEME_ID })} />);
+    const toggle = screen.getByRole("switch", { name: "Turning off… signal" });
+    expect(toggle).toBeChecked();
+    expect(toggle).toBeDisabled();
   });
 
   it("gives every Activate/Explore button a page-wide-unique accessible name naming its own theme — a generic browser agent reads the accessibility tree, not this repo's own agentHandle() data-agent-label", () => {
@@ -155,8 +170,9 @@ describe("theme grid", () => {
     // Page-wide `screen.getByRole` (no `within()` scoping) — this is exactly what a generic
     // accessibility-tree-driven agent would query, and it fails with an ambiguous-match error if
     // two cards' buttons ever share one accessible name again.
-    expect(screen.getByRole("button", { name: "Activate tovu-official" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Activate column" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Activate tovu-official" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Activate column" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Activate signal" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Explore tovu-official" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Explore column" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Explore signal" })).toBeInTheDocument();
@@ -169,10 +185,16 @@ describe("theme grid", () => {
     expect(unknownCard.querySelector("p")).toBeEmptyDOMElement();
   });
 
-  it("styles Activate with the admin's primary-action class, not the muted theme-card default (owner feedback: match PostEditor's Save button)", () => {
+  it("renders Explore as an icon-only button with a tooltip (owner 2026-10-08: compass)", () => {
     render(<Themes useThemesHook={() => baseController()} />);
     const columnCard = screen.getByText("column").closest(".theme-card") as HTMLElement;
-    expect(within(columnCard).getByRole("button", { name: "Activate column" })).toHaveClass("btn-primary");
+    const explore = within(columnCard).getByRole("button", { name: "Explore column" });
+    expect(explore).toHaveAttribute("title", "Explore");
+    for (const control of [explore, within(columnCard).getByRole("switch")]) {
+      // No visible label text — the glyph (or the switch knob) is the whole control.
+      expect(control.textContent).toBe("");
+    }
+    expect(explore.querySelector("svg")).not.toBeNull();
   });
 });
 
@@ -476,11 +498,12 @@ describe("no theme (state 3 — the operator handles styling themselves)", () =>
 
   it("offers a way back: every theme card still shows Activate, and none claims to be Active", () => {
     render(<Themes useThemesHook={themeOff} />);
-    expect(screen.queryByText("Active")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Activate/i })).toHaveLength(3);
+    expect(screen.getAllByRole("switch", { name: /Activate/i })).toHaveLength(3);
     for (const themeId of ["tovu-official", "column", "signal"]) {
       const card = screen.getByText(themeId).closest(".theme-card") as HTMLElement;
-      expect(within(card).getByRole("button", { name: `Activate ${themeId}` })).toBeEnabled();
+      const toggle = within(card).getByRole("switch", { name: `Activate ${themeId}` });
+      expect(toggle).toBeEnabled();
+      expect(toggle).not.toBeChecked();
     }
   });
 

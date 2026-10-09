@@ -660,8 +660,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   .page-toolbar { margin-block: 0; }
   .page-toolbar > button:first-of-type { margin-left: 0; }
 }
-/* Card action row: Activate (or the Active tag) stays left, Explore is pushed to the right edge.
-   `align-items` centers the tag against the buttons, whose padding makes them taller. */
+/* Card action row: the Activate switch stays left, the Explore/Duplicate icon group is pushed to the
+   right edge. `align-items` centers the short switch against the taller icon buttons. */
 .theme-card-actions {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--space-2); flex-wrap: wrap;
@@ -2723,10 +2723,26 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .theme-paper { background: #faf6ef; color: #2b2620; }
 .theme-atlas { background: #0e1420; color: #e8ecf4; }
 .theme-glassmorphic { background: linear-gradient(135deg, #1c2740, #3a2a55); color: #f2f4fb; }
-/* Green, matching the app's existing --ok/--ok-bg pairing used for every other "active" status
-   pill (.status-active, .status-sub-active) — previously `currentColor`-based, which inherited
-   whatever ambient text color the card had and read as plain gray instead of a status color. */
-.theme-active-tag { display: inline-block; background: var(--ok-bg); border: 1px solid color-mix(in oklch, var(--ok) 35%, transparent); color: var(--ok); padding: 0.2rem 0.7rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; }
+/* Card actions as icons (owner 2026-10-08): the Activate button and the green Active pill became one
+   switch — the same `.agent-plugin-switch` the plugin and settings rows use, burnt orange when ON —
+   and Explore/Duplicate became compass/copy icon buttons grouped on the right. Every rule here is
+   written as `.theme-card button.<class>` for the specificity trap the `.btn-primary`/`.btn-explore`
+   overrides above record: `.theme-card button` (0,1,1) would otherwise tint these with
+   `currentColor` too. Placed after `.theme-card button:hover` so equal-specificity ties resolve here. */
+.theme-card-icon-actions { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: auto; }
+.theme-card button.agent-plugin-switch { background: var(--border-strong); border: 1px solid var(--border-strong); padding: 0; border-radius: var(--r-pill); }
+.theme-card button.agent-plugin-switch[aria-checked="true"] { background: var(--primary); border-color: var(--primary); }
+.theme-card button.agent-plugin-switch:hover:not(:disabled) { border-color: var(--primary); opacity: 1; }
+.theme-card button.theme-card-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0;
+  color: var(--fg); background: transparent;
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+}
+.theme-card button.theme-card-icon-btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--fg-2); opacity: 1; }
+/* In flight (a duplicate running): dimmed and waiting, not the "no" cursor — the click is not refused,
+   it is queued behind the copy already running. */
+.theme-card button.theme-card-icon-btn:disabled { color: var(--muted); background: transparent; cursor: progress; }
 
 /* Theme card preview thumbnail (Themes screen, 2026-08-10) — a `static`-tier theme's own
    `screenshots/index.png` (served straight off disk by `theme-static-assets.ts`'s

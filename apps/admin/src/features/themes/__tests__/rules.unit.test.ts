@@ -8,6 +8,7 @@ import {
   isStrandedActiveTheme,
   isThemeDisabled,
   sortThemesForDisplay,
+  themeCardSwitch,
   THEME_TAB_GROUPS,
   themeDisplayName,
   themeNamesById,
@@ -17,8 +18,7 @@ import {
 
 /**
  * @file Pure-logic coverage for `features/themes/rules.ts` — the active-theme status
- * derivation driving both a theme card's `.active` class and its Active-tag-vs-Activate-button
- * branch. `features/themes` was 3.6% covered with no dedicated test file before this pass.
+ * derivation driving both a theme card's `.active` class and its Activate switch's on/off state. `features/themes` was 3.6% covered with no dedicated test file before this pass.
  */
 
 const SETTINGS: PresentationSettings = {
@@ -215,5 +215,38 @@ describe("sortThemesForDisplay", () => {
     const shown = ["onyx", "meridian"];
     sortThemesForDisplay(shown, "onyx", names);
     expect(shown).toEqual(["onyx", "meridian"]);
+  });
+});
+
+describe("themeCardSwitch", () => {
+  it("an inactive card's switch is OFF and turning it on activates that theme", () => {
+    expect(themeCardSwitch({ settings: SETTINGS, themeId: "column", busyTheme: null })).toEqual({
+      checked: false,
+      target: "column",
+      busy: false,
+      disabled: false,
+      titleKey: "Activate",
+      busyKey: "Activating…",
+    });
+  });
+
+  it("the active card's switch is ON and turning it off sends the no-theme sentinel, never an empty string", () => {
+    expect(themeCardSwitch({ settings: SETTINGS, themeId: "signal", busyTheme: null })).toEqual({
+      checked: true,
+      target: NO_THEME_ID,
+      busy: false,
+      disabled: false,
+      titleKey: "Turn the theme off",
+      busyKey: "Turning off…",
+    });
+  });
+
+  it("is busy only on the card whose own target is in flight; every switch is disabled meanwhile", () => {
+    const turningOff = { settings: SETTINGS, busyTheme: NO_THEME_ID };
+    expect(themeCardSwitch({ ...turningOff, themeId: "signal" })).toMatchObject({ busy: true, disabled: true });
+    expect(themeCardSwitch({ ...turningOff, themeId: "column" })).toMatchObject({ busy: false, disabled: true });
+    const activatingColumn = { settings: SETTINGS, busyTheme: "column" };
+    expect(themeCardSwitch({ ...activatingColumn, themeId: "column" })).toMatchObject({ busy: true, disabled: true });
+    expect(themeCardSwitch({ ...activatingColumn, themeId: "signal" })).toMatchObject({ busy: false, disabled: true });
   });
 });
