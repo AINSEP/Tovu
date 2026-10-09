@@ -13,7 +13,9 @@ import {
   ConversationList,
   JiniChatProvider,
   createMcpUiToolCaller,
+  createMidRunMessagePoster,
   registerExtEventRenderer,
+  registerMidRunUserMessageRenderer,
   MCP_UI_EXT_EVENT_NAME,
   mcpUiSurfaceSlotKey,
   type FrontendSessionBridge,
@@ -130,6 +132,12 @@ const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/
  */
 const typedAnswerPoster = createAdminTypedAnswerPoster({ fetch });
 /**
+ * A message sent while a run streams goes to the running agent (`POST /api/runs/:runId/messages`,
+ * proxied to the daemon) instead of waiting behind the run; an agent that cannot take it mid-run
+ * gets stopped and the text goes out as the next turn. Module scope, like the two above.
+ */
+const midRunMessagePoster = createMidRunMessagePoster({ baseUrl: "", fetch }, { onSecretRedacted: onAdminSecretRedacted });
+/**
  * Computed once, module scope — same posture as `mcpUiToolCaller` above, and for the same reason:
  * `registerExtEventRenderer`'s render-function argument below is re-invoked by `@jini-ai/chat/react`
  * on every transcript render of an active `mcp-ui` event, not just once at registration. Building
@@ -226,6 +234,8 @@ registerExtEventRenderer({ name: "a2ui", renderer: (props) => <RoutedA2uiSurface
  */
 registerExtEventRenderer({ name: "slow_running", renderer: (props) => <SlowRunNoticeCard {...props} /> });
 registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: (props) => <AgentFailureCard {...props} /> });
+// What the operator sent mid-run, drawn as their bubble inside the running turn where the agent got it.
+registerMidRunUserMessageRenderer();
 
 declare global {
   interface Window {
@@ -553,6 +563,7 @@ export function AssistantDock({
         key={chats.paneKey}
         transport={failureSurface.transport}
         deliverTypedAnswer={typedAnswerPoster}
+        deliverMidRunMessage={midRunMessagePoster}
         onSecretRedacted={onAdminSecretRedacted}
         runtimeAccess={failureSurface.runtimeAccess}
         {...(agentsPlaceholder ? { agents: agentsPlaceholder } : {})}

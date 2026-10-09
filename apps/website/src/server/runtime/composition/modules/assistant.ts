@@ -533,6 +533,11 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       app.post("/api/runs/:runId/recover", (req, res, next) => recoverDurableRun({ req, res, deps: routeDeps }, {}).catch(next));
       app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
       app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+      // A message the operator sent mid-run, for the live agent (`@jini-ai/daemon`'s run-messages
+      // route). Passed through untouched: the daemon's 202 / 409 `details.delivery` tells the chat
+      // pane whether to stop the run and send the text as the next turn. A durable run's id is the
+      // daemon's own (`launch` hands it over), so no ledger lookup is needed.
+      app.post("/api/runs/:runId/messages", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
       app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
 
       app.use("/api/agents", requireAdminSession(routeDeps));

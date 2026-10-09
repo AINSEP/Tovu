@@ -99,6 +99,14 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         res.end('{"settled":true}');
         return;
       }
+      // Stand-in for the daemon's `POST /api/runs/:runId/messages` refusing a mid-run message: the
+      // 409 and its `details.delivery` must reach the browser intact, since the chat pane decides
+      // from them whether to stop the run and send the text as the next turn.
+      if ((req.url ?? "") === "/api/runs/run-1/messages") {
+        res.writeHead(409, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: { code: "CONFLICT", message: "not delivered", details: { delivery: "unsupported" } } }));
+        return;
+      }
       if ((req.url ?? "").includes("/events")) {
         res.writeHead(200, { "content-type": "text/event-stream" });
         res.end(`id: cursor-7\ndata: {"kind":"end"}\n\n`);
@@ -384,6 +392,27 @@ test("frontend session streams, answers, and attachment deletion are session-gat
     assert.equal(upstream.headers["last-event-id"], "frontend-cursor");
     if (request.body) assert.deepEqual(JSON.parse(upstream.body), request.body);
   }
+});
+
+test("a message sent mid-run is session-gated and forwarded to the daemon with its token, principal and body", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };
+  const body = JSON.stringify({ text: "also fix the footer" });
+
+  const denied = await fetch(`${baseUrl}/api/runs/run-1/messages`, { method: "POST", headers: { "content-type": "application/json" }, body });
+  assert.equal(denied.status, 401);
+  await denied.text();
+  assert.equal(recorded.length, 0, "an unauthenticated caller must never reach the daemon");
+
+  const res = await fetch(`${baseUrl}/api/runs/run-1/messages`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body });
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: { code: "CONFLICT", message: "not delivered", details: { delivery: "unsupported" } } });
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].method, "POST");
+  assert.equal(recorded[0].url, "/api/runs/run-1/messages");
+  assert.equal(recorded[0].headers.authorization, `Bearer ${TOKEN}`);
+  assert.equal(recorded[0].headers[RUN_PRINCIPAL_HEADER], me.user.id);
+  assert.deepEqual(JSON.parse(recorded[0].body), { text: "also fix the footer" });
 });
 
 test("every proxied request carries the daemon bearer token", async (t) => {

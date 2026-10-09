@@ -1232,7 +1232,10 @@ app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners 
 
 registerCredentialRunIntake({ app }, {});
 if (routeDeps.chatRunLedger.durable) registerDurableRunStartRoute({ app, lifecycle, onStarted, store: routeDeps.chatRunLedger.durable }, {});
-registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter });
+// `deliverUserMessage`: a message the operator sends mid-run reaches the live agent (Claude Code
+// folds it into the running turn); agents that read one prompt per turn answer 'unsupported' and
+// the chat pane stops the run and sends the text as the next turn instead.
+registerRunRoutes({ app, deps: { lifecycle, onStarted, deliverUserMessage: (input) => agentExecutor.sendUserMessage(input) }, adapter });
 // `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
 // default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to

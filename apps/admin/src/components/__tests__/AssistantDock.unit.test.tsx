@@ -255,6 +255,22 @@ describe("AssistantDock", () => {
     }));
   });
 
+  it("hands ChatPane a mid-run deliverer that posts to the run's messages route, and draws what was sent inside the turn", async () => {
+    mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ delivery: "delivered" }), { status: 202 }));
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverMidRunMessage as (input: { runId: string; text: string }) => Promise<string>;
+
+    await expect(deliver({ runId: "run-1", text: "also fix the footer" })).resolves.toBe("delivered");
+    expect(mcpUiFetch).toHaveBeenCalledWith("/api/runs/run-1/messages", expect.objectContaining({
+      method: "POST",
+      credentials: "same-origin",
+      body: JSON.stringify({ text: "also fix the footer" }),
+    }));
+    // The daemon records the sent message as a `user_message` run event; without a renderer it
+    // would vanish from the transcript.
+    expect(getExtEventRenderer({ name: "user_message" })).toBeDefined();
+  });
+
   it("applies no type filter to the composer's file picker, so no file type is excluded", () => {
     render(<AssistantDock useChats={() => fakeChats()} />);
 
