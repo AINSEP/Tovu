@@ -1,6 +1,5 @@
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { useWiredMenus } from "./hooks/use-menus.hooks";
-import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 /**
@@ -53,13 +52,10 @@ export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
           </div>
         }
         columns={[
+          // Menus are live on save, with no draft/publication transition (Jini createMenu).
+          // The stored status serves the trash lifecycle; it cannot report a publish workflow.
           { key: "title", header: t("Title"), cell: (menu) => <a href={`/admin/menus/${menu.slug}`}>{menu.title}</a> },
           { key: "slug", header: "Slug", cell: (menu) => menu.slug },
-          {
-            key: "status",
-            header: t("Status"),
-            cell: (menu) => <span className={`status status-${menu.status}`}><ServerLabel value={menu.status} /></span>,
-          },
           {
             key: "actions",
             headerLabel: t("Actions"),

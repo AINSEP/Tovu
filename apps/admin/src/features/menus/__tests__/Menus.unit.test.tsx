@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -135,7 +135,7 @@ describe("list rendering", () => {
     expect(screen.getByRole("link", { name: "Add New" })).toHaveAttribute("href", "/admin/menus/new");
   });
 
-  it("renders the menu status through ServerLabel in the Status column", async () => {
+  it("omits publication status because menus are live on save without a draft workflow", async () => {
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).includes("/settings/effective")) {
         return Promise.resolve(jsonResponse({ data: [{ key: "locale", value: "es" }] }));
@@ -147,8 +147,10 @@ describe("list rendering", () => {
     const link = await screen.findByRole("link", { name: "Primary nav" });
     const row = link.closest("tr");
     expect(row).not.toBeNull();
-    expect(await screen.findByRole("columnheader", { name: "Estado" })).toBeInTheDocument();
-    expect(await within(row!).findByText("publicado")).toBeInTheDocument();
+    expect(await screen.findByRole("columnheader", { name: "Título" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Estado" })).not.toBeInTheDocument();
+    expect(screen.queryByText("publicado")).not.toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "primary" })).toBeInTheDocument();
   });
 });
 
