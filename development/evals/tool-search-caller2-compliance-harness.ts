@@ -85,10 +85,12 @@ import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 
 import { createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../apps/website/src/contracts/core/rate-limit/rate-limit.js";
-import { createSurfaceExchangeStore } from "../../apps/website/src/contracts/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";
-import { createRunScopedCredentials } from "../../apps/website/src/assistant/run-scoped-credential.js";
+import { createRunScopedCredentials } from "../../apps/website/src/assistant/daemon-access.js";
 
 /** CHANGE THIS before each run — confirm free first. See module doc's Safety section. */
 const PORT = 48731;
@@ -191,7 +193,7 @@ async function main(): Promise<void> {
 
   const routeDeps = createRouteDeps(); // fully in-memory, pre-seeded — see module doc.
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  const surfaceExchanges = createSurfaceExchangeStore();
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
   const registry = buildEvalToolRegistry({ ...routeDeps, magicLinkPerEmailLimiter } as any, { surfaceExchanges });
   const catalog = buildToolCatalogQuery(registry);
@@ -227,10 +229,10 @@ async function main(): Promise<void> {
   // never checks it (no `requireAgentDaemonToken` gate), but minting refuses a run with no live
   // principal, so the run's principal is tracked for exactly that.
   const principalByRunId = new Map<string, string>();
-  const runCredentials = createRunScopedCredentials({ principalOfLiveRun: (runId) => principalByRunId.get(runId) });
+  const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principalByRunId.get(runId) }, {});
   const agentExecutor = createAgentExecutor(
     { lifecycle },
-    { mcpJsonInjection: resolveMcpJsonInjection(DAEMON_URL, (runId) => runCredentials.mint(runId)), promptAugmenter },
+    { mcpJsonInjection: resolveMcpJsonInjection(DAEMON_URL, (runId) => runCredentials.mint({ runId }, {})), promptAugmenter },
   );
 
   // Trimmed copy of agent-daemon-server.ts's onStarted — same contract, minus attachment/frontend-

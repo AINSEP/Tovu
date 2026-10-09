@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 /**
  * @file Measures what collapsing the read-tool family into ONE parameterized parent tool
  * (`content_read({ resource, id?, filters? })`) does to `search_tools` retrieval accuracy, scored on
@@ -165,8 +167,13 @@ function ciHalfwidth(p: number, n: number): number {
   return 1.96 * Math.sqrt((p * (1 - p)) / n);
 }
 
-/** Exact two-sided binomial McNemar test on discordant pairs b (A-only) vs c (B-only). */
-function mcnemarExactP(b: number, c: number): number {
+/** Exact two-sided binomial McNemar test shared with the credential-save retrieval gate.
+ * @param required - Non-negative counts of baseline-only and candidate-only wins on paired cases.
+ * @returns Two-sided p value in [0, 1]; identical outcomes return 1.
+ * @example mcnemarExactP({ baselineOnly: 8, candidateOnly: 1 });
+ * @complexity Time O(n * min(b, c)), space O(1), where n = b + c.
+ */
+export function mcnemarExactP({ baselineOnly: b, candidateOnly: c }: { baselineOnly: number; candidateOnly: number }, _optional = {}): number {
   const total = b + c;
   if (total === 0) return 1;
   const k = Math.min(b, c);
@@ -291,7 +298,7 @@ function run(): void {
         if (x && !y) b++;
         else if (!x && y) c++;
       }
-      const p = mcnemarExactP(b, c);
+      const p = mcnemarExactP({ baselineOnly: b, candidateOnly: c });
       cells.push(`top-${k}: base-only=${b} arm-only=${c} p=${p < 0.0001 ? p.toExponential(1) : p.toFixed(4)}${p < 0.05 ? "*" : ""}`.padEnd(41));
     }
     console.log(`  ${r.name.padEnd(34)}${cells.join("")}`);
@@ -317,7 +324,7 @@ function run(): void {
   console.log("");
 }
 
-run();
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) run();
 
 /* ========================================================================================
  * ADDENDUM (2026-09-08): the one-tool / many-index-entries design.
@@ -487,7 +494,7 @@ function runAddendum(): void {
         if (x && !y) b++;
         else if (!x && y) c++;
       }
-      const p = mcnemarExactP(b, c);
+      const p = mcnemarExactP({ baselineOnly: b, candidateOnly: c });
       return `top-${k}: -${b}/+${c} p=${p < 0.0001 ? p.toExponential(1) : p.toFixed(4)}${p < 0.05 ? "*" : ""}`.padEnd(34);
     });
     console.log(`  ${r.name.padEnd(32)}${cells.join("")}`);
@@ -500,7 +507,7 @@ function runAddendum(): void {
   console.log("");
 }
 
-runAddendum();
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) runAddendum();
 
 /* ========================================================================================
  * SECOND ADDENDUM (2026-09-08, same day): the REAL shipped catalog.
@@ -563,4 +570,4 @@ function runRealCatalog(): void {
   console.log("");
 }
 
-runRealCatalog();
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) runRealCatalog();

@@ -65,6 +65,8 @@ export function fakeEvalRouteDeps(): RegistryDepsWithoutLimiter {
       tearDownAllIndexesForContentType: async () => {},
     },
     outbox: { enqueue: async () => {} },
+    // SEO registrations bind the host dispatch port at construction, even for catalog-only discovery.
+    seoDeps: { dispatch: async () => {} },
   };
   return deps as unknown as RegistryDepsWithoutLimiter;
 }
