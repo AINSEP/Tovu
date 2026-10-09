@@ -122,7 +122,6 @@ import {
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { registerFederationReloadRoute } from "./federation-reload-route.js";
 import { createAgentDaemonRouteDeps, startPluginActivationPolling } from "../../runtime/composition/agent-daemon-deps.js";
-import { resolveChatAttachmentUploadDirectory } from "./chat-attachment-directory.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../../platform/server-logs/index.js";
 import { siteDir } from "../../runtime/composition/deps.js";
@@ -332,20 +331,6 @@ if (process.env.TOVU_DB !== "memory") {
 }
 
 /**
- * Root directory the chat composer's staged image/file uploads land in before a run claims them
- * (`@jini-ai/http-kit`'s `createDiskAttachmentStore`) — deliberately NOT `process.cwd()`.
- *
- * The resolution itself moved to `chat-attachment-directory.ts` (see that file for the full
- * anchoring rationale and its disclosed residual risk) and is UNCHANGED by the move — same
- * `TOVU_CHAT_ATTACHMENTS_DIR` override, same `dirname(defaultContentDbPath())` fallback. It is a
- * shared function rather than this file's private constant for one reason: the API process now
- * reads these same uploads back over HTTP (`modules/assistant.ts`'s
- * `registerAdminChatAttachmentReadRoute`), and two copies of a path expression in two processes is
- * exactly the "one call site drifts" defect this repo keeps finding.
- */
-const ATTACHMENT_UPLOAD_DIRECTORY = resolveChatAttachmentUploadDirectory();
-
-/**
  * Total bytes one composer turn's staged attachments may sum to (`createDiskAttachmentStore`'s
  * `maxBatchBytes`, `@jini-ai/http-kit`'s own default is 20 MB). Kept at twice
  * {@link TOVU_MAX_UPLOAD_BYTES} (below) — the daemon's own per-file cap — rather than left equal to
@@ -361,7 +346,7 @@ const ATTACHMENT_MAX_BATCH_BYTES = TOVU_MAX_UPLOAD_BYTES * 2;
  * Opt-in-only diagnostic gate for the base system overlay's Bash-prohibition instrument — see
  * `assistant-system-overlay.ts`'s `resolveBashProhibitionEnabled` for the full rationale (why this
  * exists, why it defaults OFF, and why it is not a security control). Read once here, at module
- * scope like `ATTACHMENT_UPLOAD_DIRECTORY` above, rather than per-call inside `systemOverlay()`:
+ * scope like `ATTACHMENT_UPLOAD_DIRECTORY` (below), rather than per-call inside `systemOverlay()`:
  * this is a boot-time operator choice, not a per-run condition.
  */
 const bashProhibitionEnabled = resolveBashProhibitionEnabled();
@@ -393,6 +378,28 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 // delivered that the serving process never saw. The serving process's background drainer
 // (`serving-app.ts`) delivers them instead.
 const routeDeps = await createAgentDaemonRouteDeps({ env: process.env });
+
+/**
+ * Root directory the chat composer's staged image/file uploads land in before a run claims them
+ * (`@jini-ai/http-kit`'s `createDiskAttachmentStore`) — deliberately NOT `process.cwd()`.
+ *
+ * The resolution itself moved to `chat-attachment-directory.ts` (see that file for the full
+ * anchoring rationale and its disclosed residual risk) and is UNCHANGED by the move — same
+ * `TOVU_CHAT_ATTACHMENTS_DIR` override, same `dirname(<content.db>)` fallback. It is a
+ * shared function rather than this file's private constant for one reason: the API process now
+ * reads these same uploads back over HTTP (`modules/assistant.ts`'s
+ * `registerAdminChatAttachmentReadRoute`), and two copies of a path expression in two processes is
+ * exactly the "one call site drifts" defect this repo keeps finding.
+ *
+ * Read off `routeDeps` (hardwiring audit #19, 2026-10-08) rather than resolved here: the composition
+ * root that built `routeDeps` resolved it ONCE from the `content.db` it actually opened, so this
+ * process's uploads and its database can no longer name two different sites. Declared right after
+ * `routeDeps` for that reason. The tool contributors below read the same field off `routeDeps`
+ * directly, not this const, so their statement slice stays evaluable on its own (see
+ * `__tests__/helpers/daemon-tool-surface.ts`).
+ */
+const ATTACHMENT_UPLOAD_DIRECTORY = routeDeps.siteStoragePaths.chatAttachmentsDir;
+
 // P0b fix (hooks v2 plan, 2026-09-23): this process's hook registry is built once, here, from a
 // snapshot of the activation table — an enable/disable through the admin process afterwards never
 // reaches it on its own. See `agent-daemon-deps.ts`'s own header for why polling, not an outbox
@@ -438,7 +445,9 @@ const contributions = {
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
 };
 installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await loadDeployOpsRegistry({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability,
+  chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
   readInstallAttachment: createPluginInstallAttachmentReader({}, {
+    uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir,
     getMessageAttachmentRefs: ({ runId }) => messageAttachmentRefsByRunId.get(runId) ?? [],
   }),
 });

@@ -4,12 +4,11 @@ import type { Express } from "express";
 
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
-import { defaultContentDbPath, mediaUploadsDir } from "#src/server/runtime/composition/deps";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/keyring.env";
 import { resolveSiteKeySources } from "./site-key.js";
-import type { RouteDeps } from "#src/server/routes/types";
+import type { RouteDeps, SiteStoragePaths } from "#src/server/routes/types";
 
 /**
  * @file Admin Deployment panel → Overview tab backend.
@@ -36,7 +35,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminDeploymentOverviewDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "identityReady" | "ownerPrincipalId" | "userRepo" | "passwordHasher" | "siteBinding"
+  "workspaceId" | "authorize" | "identityReady" | "ownerPrincipalId" | "userRepo" | "passwordHasher" | "siteBinding" | "siteStoragePaths"
 >;
 
 /** One required-for-production env var's presence, never its value. */
@@ -76,9 +75,9 @@ export interface DeploymentOverviewSnapshot {
    * setups never start it), so the UI must not read `!daemonKnownFailed` as "confirmed alive".
    */
   daemonKnownFailed: boolean;
-  /** `defaultContentDbPath()` — the same path `deps.ts` opens SQLite from. */
+  /** `RouteDeps.siteStoragePaths.contentDbPath` — the path this process's composition root opened. */
   dbPath: string;
-  /** `mediaUploadsDir()` — the same path the blob store writes under. */
+  /** `RouteDeps.siteStoragePaths.mediaUploadsDir` — the same path the blob store writes under. */
   uploadsDir: string;
   /** Presence only, per required env var — never a value. */
   envVars: DeploymentEnvVarStatus[];
@@ -114,10 +113,15 @@ function envVarStatus(name: (typeof REQUIRED_ENV_VAR_NAMES)[number], siteKey: Si
  * @param input.defaultOwnerPasswordUnsafe the one field that needs the database, resolved by the
  *   caller ({@link isOwnerOnDefaultPassword}) so this stays synchronous.
  * @param input.siteKey test seam; defaults to a live {@link inspectSiteKeyMaterial} read.
+ * @param input.storagePaths the booted site's paths (`RouteDeps.siteStoragePaths`). Injected, never
+ *   re-derived here: this used to call `defaultContentDbPath()`/`mediaUploadsDir()`, which read
+ *   `TOVU_CONTENT_DB`/`siteDir()` — the env/cwd site, not necessarily the one this process serves
+ *   once several local sites run side by side (hardwiring audit #19).
  * @complexity O(1) — fixed-size env var list, no iteration over caller-controlled data.
  */
 export function buildDeploymentOverviewSnapshot(input: {
   defaultOwnerPasswordUnsafe: boolean;
+  storagePaths: Pick<SiteStoragePaths, "contentDbPath" | "mediaUploadsDir">;
   siteKey?: SiteKeyStatus;
 }): DeploymentOverviewSnapshot {
   const mode = resolveRuntimeMode();
@@ -127,8 +131,8 @@ export function buildDeploymentOverviewSnapshot(input: {
     productionReadinessGate: { applicable: mode === "production", passed: mode === "production" },
     defaultOwnerPasswordUnsafe: input.defaultOwnerPasswordUnsafe,
     daemonKnownFailed: isAssistantDaemonKnownFailed(),
-    dbPath: defaultContentDbPath(),
-    uploadsDir: mediaUploadsDir(),
+    dbPath: input.storagePaths.contentDbPath,
+    uploadsDir: input.storagePaths.mediaUploadsDir,
     envVars: REQUIRED_ENV_VAR_NAMES.map((name) => envVarStatus(name, siteKey)),
   };
 }
@@ -186,6 +190,7 @@ export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDe
       res.status(200).json(
         buildDeploymentOverviewSnapshot({
           defaultOwnerPasswordUnsafe: await isOwnerOnDefaultPassword(deps),
+          storagePaths: deps.siteStoragePaths,
           siteKey: inspectSiteKeyMaterial({ sources }),
         })
       );

@@ -6,6 +6,7 @@ import { pinPlainHttpIntoEnv, pinServedSiteDirIntoEnv } from "../../commands/ser
 import { resolveDevTls } from "../../../server/runtime/boot/dev-tls.js";
 import { resolveChatAttachmentUploadDirectory } from "../../../server/inbound/assistant/chat-attachment-directory.js";
 import { buildDaemonSpawnEnvOverrides } from "../../../server/runtime/lifecycle/daemon-supervisor.js";
+import { defaultContentDbPath } from "../../../server/runtime/composition/deps.js";
 import { resolveSiteRoot } from "../../../platform/site-dir/site-root.js";
 import { describeSiteBinding } from "../../../platform/site-dir/site-registry.js";
 import { resolveSitesDeps } from "../../../features/sites/deps.js";
@@ -32,8 +33,9 @@ import { resolveSitesDeps } from "../../../features/sites/deps.js";
 const TARGET = path.resolve("/tmp/tovu-serve-pin-target-site");
 
 /** Runs `body` with `process.env` temporarily replaced by `env`, restoring the real one after —
- *  including on throw. The chat-attachment and content-db resolvers read `process.env` directly
- *  (they take no env parameter), so there is no narrower seam available for them. */
+ *  including on throw. The content-db resolver (`defaultContentDbPath()`, the daemon's composition
+ *  root read) reads `process.env` directly (it takes no env parameter), so there is no narrower seam
+ *  available for it. */
 function withProcessEnv<T>(env: NodeJS.ProcessEnv, body: () => T): T {
   const saved = process.env;
   process.env = env;
@@ -74,10 +76,13 @@ test("pinServedSiteDirIntoEnv overrides an operator's own TOVU_SITE_DIR — the 
 test("tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-attachment directory", () => {
   const apiEnv = bareServeEnv();
   pinServedSiteDirIntoEnv(TARGET, apiEnv);
-  const apiDirectory = withProcessEnv(apiEnv, resolveChatAttachmentUploadDirectory);
+  // The API resolves it from the `content.db` `runServeCommand` opens (`<dir>/content.db`, into
+  // `RouteDeps.siteStoragePaths`); the daemon from the one ITS composition root opens,
+  // `defaultContentDbPath()` under the env it was spawned with.
+  const apiDirectory = resolveChatAttachmentUploadDirectory({ contentDbPath: path.join(TARGET, "content.db") }, { env: apiEnv });
 
   const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }) };
-  const daemonDirectory = withProcessEnv(childEnv, resolveChatAttachmentUploadDirectory);
+  const daemonDirectory = withProcessEnv(childEnv, () => resolveChatAttachmentUploadDirectory({ contentDbPath: defaultContentDbPath() }, { env: childEnv }));
 
   assert.equal(
     apiDirectory,

@@ -226,3 +226,27 @@ test("deployment-overview: reports a known agent-daemon failure, latched from ou
   const body = await res.json();
   assert.equal(body.daemonKnownFailed, true);
 });
+
+test("deployment-overview: dbPath/uploadsDir are the BOOTED site's paths, not the env/cwd site's", async (t) => {
+  // Hardwiring audit #19: the route used to call `defaultContentDbPath()`/`mediaUploadsDir()` per
+  // request — `TOVU_CONTENT_DB ?? siteDir()`, the env/cwd site — so a process serving a different
+  // site (several local sites side by side) reported another site's database. A binding that
+  // differs from env must win; the old code would have answered `defaultContentDbPath()` here.
+  const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
+  deps.siteStoragePaths = {
+    contentDbPath: "/booted/site-b/content.db",
+    mediaUploadsDir: "/booted/site-b/uploads",
+    chatAttachmentsDir: "/booted/site-b/uploads/chat-attachments",
+  };
+  assert.notEqual(deps.siteStoragePaths.contentDbPath, defaultContentDbPath(), "control: the binding differs from the env/cwd site");
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/deployment-overview`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.dbPath, "/booted/site-b/content.db");
+  assert.equal(body.uploadsDir, "/booted/site-b/uploads");
+});

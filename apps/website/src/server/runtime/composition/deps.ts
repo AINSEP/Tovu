@@ -162,7 +162,8 @@ import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-a
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
-import type { RouteDeps } from "../../routes/types.js";
+import type { RouteDeps, SiteStoragePaths } from "../../routes/types.js";
+import { resolveChatAttachmentUploadDirectory } from "../../inbound/assistant/chat-attachment-directory.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createVerifiedOrigin, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 import { planOriginBoot } from "#src/features/origin/index";
@@ -325,7 +326,8 @@ export interface SitePathResolverOptional {
  * mirroring `defaultContentDbPath()` below).
  *
  * `optional.siteDir` defaults to {@link siteDir} — this process's env/cwd site — for the callers
- * outside a composition root that have no booted site in hand (`deployment-overview.ts`). The
+ * outside a composition root that have no booted site in hand. `deployment-overview.ts` used to be
+ * one; it now reads `RouteDeps.siteStoragePaths` ({@link resolveSiteStoragePaths}) instead. The
  * composition root passes its booted `siteBinding.dir`.
  */
 export function mediaUploadsDir(optional: SitePathResolverOptional & { siteDir?: string } = {}): string {
@@ -763,6 +765,29 @@ function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; 
     agentPlugins: resolveAgentPluginLayout(),
     skillsDir: resolveSkillLayout().root,
     tovuVersion: readTovuVersion(),
+  };
+}
+
+/**
+ * `RouteDeps.siteStoragePaths`: the served site's storage locations, from the SAME `dbPath` this root
+ * opened and the SAME uploads root its blob store writes under, so a request handler never
+ * re-derives them from `defaultContentDbPath()`/{@link siteDir} — the env/cwd site, which is not
+ * necessarily this composition's `siteBinding.dir` (hardwiring audit #19).
+ *
+ * An in-memory `dbPath` (`:memory:`, tests) has no directory to anchor chat attachments to, so they
+ * fall back to `<siteDir>/content.db`'s directory — the served site's own folder, never the cwd.
+ *
+ * @complexity O(1).
+ */
+export function resolveSiteStoragePaths(
+  required: { contentDbPath: string; siteDir: string; uploadsDir: string },
+  optional: SitePathResolverOptional = {}
+): SiteStoragePaths {
+  const anchor = isInMemoryDbPath(required.contentDbPath) ? join(required.siteDir, "content.db") : required.contentDbPath;
+  return {
+    contentDbPath: required.contentDbPath,
+    mediaUploadsDir: required.uploadsDir,
+    chatAttachmentsDir: resolveChatAttachmentUploadDirectory({ contentDbPath: anchor }, optional),
   };
 }
 
@@ -2150,6 +2175,7 @@ async function composeSiteRouteDeps(
     packageThemesDir: builtInThemesDir(),
     siteBinding: resolvedSiteBinding,
     siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, themesDir: resolvedThemesDir }),
+    siteStoragePaths: resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir }),
     outbox,
     bus,
     // Built in the prelude (see `observability`'s construction above for the rule-of-two it follows).

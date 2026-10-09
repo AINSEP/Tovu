@@ -351,7 +351,7 @@ async function resolveTurnInputsOrRespond(
       return null;
     }
     try {
-      const prepared = await prepareByokMessageAttachments({ refs: body.attachmentIds, principalId: authed.id }, {});
+      const prepared = await prepareByokMessageAttachments({ refs: body.attachmentIds, principalId: authed.id, uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }, {});
       const last = messages[messages.length - 1]!;
       messages[messages.length - 1] = { ...last, content: last.content + prepared.notice, images: prepared.images };
     } catch {
@@ -376,7 +376,7 @@ export function createAssistantByokModule(
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
-  installFirstPartyToolContributors({ contributions }, { observability: routeDeps.observability });
+  installFirstPartyToolContributors({ contributions }, { observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir });
   // The public contract and both roots require complete BYOK dependencies;
   // no cast may conceal a missing runtime port.
   const resolvedToolSurface =

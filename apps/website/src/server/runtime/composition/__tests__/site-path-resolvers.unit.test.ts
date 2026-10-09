@@ -9,10 +9,12 @@ import {
   pluginsInstallDir,
   resolveExportOutputRootDir,
   resolvePublishOutputRootDir,
+  resolveSiteStoragePaths,
   resolveSourceControlExportRootDir,
   siteDir,
   siteThemesDir,
 } from "../deps.js";
+import { resolveChatAttachmentUploadDirectory } from "../../../inbound/assistant/chat-attachment-directory.js";
 
 /**
  * @file The `<site>/...` path resolvers the composition roots call: each roots its default at the
@@ -73,4 +75,38 @@ test("builtInContentSeedDbPath / builtInSeedUploadsDir: keyed by the site name t
   assert.equal(path.basename(builtInContentSeedDbPath("site-a")), "content.seed.db");
   assert.equal(path.basename(path.dirname(builtInSeedUploadsDir("site-a"))), "site-a");
   assert.equal(path.basename(builtInSeedUploadsDir("site-a")), "uploads");
+});
+
+// Hardwiring audit #19: the chat-attachment directory used to be derived from
+// `defaultContentDbPath()` (`TOVU_CONTENT_DB ?? siteDir()`) inside the resolver itself, so it named
+// the env/cwd site whatever content DB the caller had actually booted. Each case below hands it a
+// booted path no env resolution produces, under an EMPTY env.
+test("resolveChatAttachmentUploadDirectory: anchored to the GIVEN content DB's directory, not siteDir()", () => {
+  assert.equal(
+    resolveChatAttachmentUploadDirectory({ contentDbPath: path.join(SITE, "content.db") }, { env: NO_ENV }),
+    path.join(SITE, "uploads", "chat-attachments"),
+  );
+});
+
+test("resolveChatAttachmentUploadDirectory: TOVU_CHAT_ATTACHMENTS_DIR wins over the content DB anchor", () => {
+  assert.equal(
+    resolveChatAttachmentUploadDirectory({ contentDbPath: path.join(SITE, "content.db") }, { env: { TOVU_CHAT_ATTACHMENTS_DIR: "/staging" } }),
+    "/staging",
+  );
+});
+
+test("resolveSiteStoragePaths: reports the booted content DB and uploads root, and anchors chat attachments to that DB", () => {
+  const dbPath = path.join(path.sep, "elsewhere", "site-a.db");
+  assert.deepEqual(resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: SITE, uploadsDir: path.join(SITE, "media") }, { env: NO_ENV }), {
+    contentDbPath: dbPath,
+    mediaUploadsDir: path.join(SITE, "media"),
+    chatAttachmentsDir: path.join(path.sep, "elsewhere", "uploads", "chat-attachments"),
+  });
+});
+
+test("resolveSiteStoragePaths: an in-memory content DB anchors chat attachments to the served site dir, never the cwd", () => {
+  assert.equal(
+    resolveSiteStoragePaths({ contentDbPath: ":memory:", siteDir: SITE, uploadsDir: path.join(SITE, "uploads") }, { env: NO_ENV }).chatAttachmentsDir,
+    path.join(SITE, "uploads", "chat-attachments"),
+  );
 });

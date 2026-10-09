@@ -155,6 +155,21 @@ import type { PublishContentPeerRepoPort } from "../../features/publish-content/
 import type { FileBlobIndexPort } from "../../features/publish-content/file-blob-index.js";
 
 /**
+ * The served site's storage locations ({@link RouteDeps.siteStoragePaths}). Each `TOVU_*` override
+ * is honored at the composition root that builds this, never by a reader of it.
+ */
+export interface SiteStoragePaths {
+  /** The `content.db` path this composition opened (`TOVU_CONTENT_DB`, else `<site>/content.db`). */
+  readonly contentDbPath: string;
+  /** The local blob store's root (`TOVU_MEDIA_UPLOADS_DIR`, else `<site>/uploads`); still reported
+   *  when media lives in object storage, same as before this field existed. */
+  readonly mediaUploadsDir: string;
+  /** `chat-attachment-directory.ts`'s answer for {@link contentDbPath} — the agent daemon writes
+   *  staged chat uploads here and the API reads them back. */
+  readonly chatAttachmentsDir: string;
+}
+
+/**
  * Process-wide clock and id generation, independent of every domain group.
  */
 export interface ClockDeps {
@@ -1334,6 +1349,14 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process
    * serves them from, plus the Tovu version stamped into the backup's manifest. Resolved once by
    * `server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`.
+  /**
+   * The served site's on-disk storage paths, resolved ONCE at boot from the same values the
+   * composition root actually opened (`createSiteRouteDeps`'s `dbPath` and its blob store's uploads
+   * root), so a request handler never re-derives them from `TOVU_CONTENT_DB`/`siteDir()` — which
+   * names the env/cwd site, not necessarily the one this process serves (hardwiring audit #19). See
+   * {@link SiteStoragePaths}.
+   */
+  siteStoragePaths: SiteStoragePaths;
    *
    * Optional because the in-memory `server/app.ts` runtime has no site folder on disk; both
    * site-backup tools then answer `UNAVAILABLE` instead of backing up nothing.

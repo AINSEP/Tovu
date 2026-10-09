@@ -9,8 +9,11 @@ import { buildDeploymentOverviewSnapshot } from "../../inbound/admin-http/routes
  * material. So a working file-backed key read "Not set" beside "Required to boot in production",
  * and a malformed env value read "Set". The row must report what the keyring would actually use.
  */
+/** A booted site's paths that no env/cwd resolution could produce. */
+const BOOTED_STORAGE_PATHS = { contentDbPath: "/booted/site-b/content.db", mediaUploadsDir: "/booted/site-b/uploads" };
+
 function siteKeyRow(siteKey: Parameters<typeof buildDeploymentOverviewSnapshot>[0]["siteKey"]) {
-  const snapshot = buildDeploymentOverviewSnapshot({ defaultOwnerPasswordUnsafe: false, siteKey });
+  const snapshot = buildDeploymentOverviewSnapshot({ defaultOwnerPasswordUnsafe: false, storagePaths: BOOTED_STORAGE_PATHS, siteKey });
   return snapshot.envVars.find((row) => row.name === "TOVU_SITE_KEY");
 }
 
@@ -37,4 +40,16 @@ test("deployment-overview site key: nothing configured is not set, source none",
     set: false,
     source: "none",
   });
+});
+
+test("deployment-overview snapshot: dbPath/uploadsDir are the injected booted-site paths, never an env re-read", () => {
+  // Hardwiring audit #19: the old body called `defaultContentDbPath()`/`mediaUploadsDir()`, so it
+  // could only ever report the env/cwd site, never `/booted/site-b`.
+  const snapshot = buildDeploymentOverviewSnapshot({
+    defaultOwnerPasswordUnsafe: false,
+    storagePaths: BOOTED_STORAGE_PATHS,
+    siteKey: { active: false, source: "none", keyFilePath: "/x/root.key" },
+  });
+  assert.equal(snapshot.dbPath, "/booted/site-b/content.db");
+  assert.equal(snapshot.uploadsDir, "/booted/site-b/uploads");
 });

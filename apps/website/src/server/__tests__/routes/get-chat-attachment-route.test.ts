@@ -30,9 +30,13 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * That it is covered by that mount is an Express routing fact, so it is asserted through a real
  * unauthenticated request rather than assumed.
  *
- * `TOVU_CHAT_ATTACHMENTS_DIR` points the composed app at a staged upload root laid out exactly as
- * `createDiskAttachmentStore` lays one out with `retainAcrossRestarts` on — the real production
- * override (`chat-attachment-directory.ts`), not a test-only seam.
+ * `RouteDeps.siteStoragePaths.chatAttachmentsDir` points the composed app at a staged upload root
+ * laid out exactly as `createDiskAttachmentStore` lays one out with `retainAcrossRestarts` on — the
+ * real production seam (both composition roots resolve it once at boot, `TOVU_CHAT_ATTACHMENTS_DIR`
+ * included, via `chat-attachment-directory.ts`), not a test-only one. It used to be that env var,
+ * read by the module per registration; injecting it instead proves the route reads the BOOTED
+ * site's directory (hardwiring audit #19): with `process.env` untouched, the old env/`siteDir()`
+ * resolution names a different directory and every positive case below would 404.
  *
  * Per-check refusal reasons are exercised in `features/media/__tests__/read-chat-attachment.test.ts`.
  * What this file adds is that NONE of them is distinguishable over HTTP: every refusal below is
@@ -90,12 +94,8 @@ async function writeSidecar(staged: Staged, ownerId: string): Promise<void> {
 /** Boots the REAL assistant composition module against `staged`, and logs in two distinct
  *  principals so "another admin cannot read this" is a real second session, not a fabricated id. */
 async function boot(t: test.TestContext, staged: Staged) {
-  process.env.TOVU_CHAT_ATTACHMENTS_DIR = staged.uploadDirectory;
-  t.after(() => {
-    delete process.env.TOVU_CHAT_ATTACHMENTS_DIR;
-  });
-
   const deps: RouteDeps = createRouteDeps();
+  deps.siteStoragePaths = { ...deps.siteStoragePaths, chatAttachmentsDir: staged.uploadDirectory };
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);

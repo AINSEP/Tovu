@@ -113,7 +113,7 @@ import { createThemeTrashMover } from "#src/features/theme/trash-theme-tool";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import path from "node:path";
-import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
+import { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir } from "./deps.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import { describeSiteBinding, resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "#src/platform/site-dir/index";
 import {
@@ -1220,6 +1220,15 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     themes: siteThemes,
     themesDir: builtInThemesDir(),
     siteBinding: describeSiteBinding(),
+    // Hermetic: no `content.db` is opened here, so this reports the path a real boot of the same
+    // env/cwd site WOULD open (`defaultContentDbPath()`) — exactly what the deployment overview and
+    // the chat-attachment read-back route resolved per request before this field existed, and what
+    // an in-memory agent daemon (`TOVU_DB=memory`, which composes from THIS root) writes uploads under.
+    siteStoragePaths: resolveSiteStoragePaths({
+      contentDbPath: defaultContentDbPath(),
+      siteDir: describeSiteBinding().dir,
+      uploadsDir: mediaUploadsDir({ siteDir: describeSiteBinding().dir }),
+    }),
     outbox,
     bus,
     // Always the no-op adapter here, never the env-driven `createObservabilityPort()` — this root

@@ -66,7 +66,6 @@ import {
 } from "#src/assistant/index";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
-import { resolveChatAttachmentUploadDirectory } from "#src/server/inbound/assistant/chat-attachment-directory";
 import type { RouteDeps } from "#src/server/routes/types";
 import { daemonFetch, getAgentDaemonUrl, forwardToAgentDaemon, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
@@ -621,7 +620,7 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // Express matches that session gate on the `/api/attachments` prefix AND every subpath, so
       // this route is covered by the same mount that covers the upload it reads back. A separate
       // module would have to re-mount the same guard, which is a second thing to keep in sync.
-      registerAdminChatAttachmentReadRoute(app, { uploadDirectory: resolveChatAttachmentUploadDirectory() });
+      registerAdminChatAttachmentReadRoute(app, { uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir });
 
       // The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — see
       // `proxyMcpUiToolCall`'s own doc. Session-gated like every route above; distinct from

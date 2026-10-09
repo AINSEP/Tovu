@@ -112,8 +112,7 @@ const PORTABLE_ENTRY_NAMES: ReadonlySet<string> = new Set([
  * an operator named `chat-attachments` deeper in the tree is ordinary media and is still carried.
  *
  * Expressed as a name here rather than by calling `resolveChatAttachmentUploadDirectory()`: that
- * resolver lives in `server/` and reads the composition root, which `site-dir` domain logic must
- * not import (INV-06). The consequence is disclosed rather than assumed away — an operator who has
+ * resolver lives in `server/`, which `site-dir` domain logic must not import (INV-06). The consequence is disclosed rather than assumed away — an operator who has
  * relocated staging with `TOVU_CHAT_ATTACHMENTS_DIR` to a DIFFERENT name inside `uploads/` is
  * outside this rule, exactly as they are outside every other default this file encodes.
  */
