@@ -1,0 +1,10 @@
+# AI Dev Shop ownership manifest — written by install-slash-commands.sh; do not edit.
+# <command-name> <sha256 of the installed .md>. Lets a later run prune a command
+# ADS installed once its source is renamed or removed. Not loaded by Claude Code.
+architect d718ad648532ce32d61e2adc1f7c3f52ac472cfcdbd039ed785cce25bc0d8cf8
+blueprint 054f4c4514a822a683197dfb15def4d29d9ff648b6d1d2e1663c1110d2ca0150
+breakdown 38312b77e8fe036243d066cb506428a818851c84226dd65c343579de0b106ca2
+code-inspection ae230581057a0e0683bad02526a9725513a78a53d7b711e77247d28d49a7db50
+debate c7626ecd34694f80b8002a3a9485e3b647657f8fec4cbc0c226fb1bf63b50745
+handoff 664fc7a4e105bcd33beaf6796ba8f198eaddf8bfca77bd9e6e60b950a20f42be
+reverse-spec d3ce11ae36ad5f3d60b08010bd5c9ba938051f7d3a30e0e176e1c598f4fa5b10

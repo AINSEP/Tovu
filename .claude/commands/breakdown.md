@@ -18,7 +18,7 @@ The ADR has been human-approved. Generate the task list:
    - Add a `## Constraints` section declaring required suites, coverage profile
      for lines/branches/functions/statements, coverage tool, machine-readable
      artifact paths, cleanup paths, E2E requirement status, and convergence
-     threshold. Default convergence before Code Review is `100%` of P1
+     threshold. Default convergence before Code Inspection is `100%` of P1
      acceptance tests and invariants passing; any lower threshold requires a
      human-approved value and reason.
    - State that task checkboxes are Coordinator-owned and specialist agents

@@ -76,5 +76,5 @@ The Software Architect then follows `<AI_DEV_SHOP_ROOT>/agents/software-architec
 produce research (if required) and `adr.md`.
 
 Output: preflight result, research path (if produced), ADR path, constitution
-check result, parallel delivery plan, risks, recommended next command (`/tasks`
+check result, parallel delivery plan, risks, recommended next command (`/breakdown`
 after human approves ADR).
