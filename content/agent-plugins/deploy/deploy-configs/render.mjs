@@ -94,6 +94,12 @@ ${renderEnvVarsBlock(descriptor)}
     "Render prompts for each `sync: false` env var's real value in the Dashboard the first time this " +
       "Blueprint is applied — no value is stored in this file.",
     kit.migrationsNote,
+    // Owner decision 2026-10-08: the Dockerfile's `TOVU_INSTALL_BROWSER` defaults to 0, so the
+    // opt-in has to be stated wherever a host's config is generated. Render passes a service's
+    // environment variables to a Docker build as build args for every declared `ARG`.
+    "Headless Chromium is not installed by default. To enable browser-backed tools (page evidence, " +
+      "screenshots), set the environment variable TOVU_INSTALL_BROWSER=1 on this service (Render passes " +
+      "it to the Docker build), redeploy, and allow ~150–250 MB more RAM per capture.",
     ...descriptor.secrets.map((secret) => `${secret.name} is ${secret.requirement} — see deploy-config.ts's own doc for why.`),
   ];
 

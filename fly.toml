@@ -50,6 +50,14 @@ primary_region = "iad" # PLACEHOLDER — confirm the intended region.
 [build]
   dockerfile = "Dockerfile"
 
+# Headless Chromium is OFF by default (owner decision 2026-10-08; see the Dockerfile's
+# "Headless Chromium" block for why and what degrades without it). To opt in for browser-backed
+# tools (page evidence, screenshots), set this to "1" — or pass
+# `flyctl deploy --build-arg TOVU_INSTALL_BROWSER=1` for a single deploy — and size the machine
+# for ~150–250 MB of extra RAM per capture.
+[build.args]
+  TOVU_INSTALL_BROWSER = "0"
+
 [env]
   # Non-secret only. Real secrets (TOVU_ADMIN_PASSWORD, TOVU_ADMIN_USER,
   # TOVU_SITE_KEY — see docker-compose.yml's own comments for

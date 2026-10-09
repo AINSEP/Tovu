@@ -84,17 +84,20 @@ jobs:
       # build context and polls status, so no Docker or BuildKit setup is needed
       # here.
       #
-      # BOTH --build-arg flags are load-bearing. They were lost once already in a
-      # history force-push and two deploys failed before anyone noticed — if you
-      # are editing an existing copy of this file, diff MODIFIED files, not just
+      # Keep BOTH --build-arg flags. They were lost once already in a history
+      # force-push and two deploys failed before anyone noticed — if you are
+      # editing an existing copy of this file, diff MODIFIED files, not just
       # added and deleted ones.
       #
       #   TOVU_BUILD_SHA       The build context sent to the remote builder
       #                        excludes `.git`, so `emit-dist-package-json.mjs`
       #                        cannot read the commit itself. Without this the
       #                        runtime manifest records no provenance at all.
-      #   TOVU_INSTALL_BROWSER Set to 0 to skip a ~150MB headless Chromium
-      #                        download on every build.
+      #   TOVU_INSTALL_BROWSER The explicit headless-Chromium switch. 0 matches
+      #                        the Dockerfile default (off: smaller image, less
+      #                        memory). Set it to 1 to opt in to browser-backed
+      #                        tools (page evidence, screenshots); size the
+      #                        machine for ~150-250 MB more RAM per capture.
       - run: flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

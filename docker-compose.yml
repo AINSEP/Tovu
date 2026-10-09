@@ -15,6 +15,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Headless Chromium is OFF by default (owner decision 2026-10-08; see the
+        # Dockerfile's "Headless Chromium" block for why and what degrades without
+        # it). Opt in for browser-backed tools (page evidence, screenshots) with
+        # `TOVU_INSTALL_BROWSER=1` in `.env`, then `docker compose build`.
+        TOVU_INSTALL_BROWSER: ${TOVU_INSTALL_BROWSER:-0}
     image: tovu:local
     restart: unless-stopped
 

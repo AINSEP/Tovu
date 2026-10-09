@@ -87,6 +87,7 @@ test("renderFlyToml: never emits a secret VALUE — only fly secrets set NAME in
   assert.deepEqual(result.notes, [
     "Create the volume before the first deploy — this file only MOUNTS it, it does not create it: fly volumes create acme_sites --region iad -a acme-app",
     MIGRATIONS_NOTE,
+    'Headless Chromium is not installed by default. To enable browser-backed tools (page evidence, screenshots), add [build.args] TOVU_INSTALL_BROWSER = "1" to this file (or deploy with --build-arg TOVU_INSTALL_BROWSER=1) and allow ~150–250 MB more RAM per capture.',
     "Set TOVU_ADMIN_PASSWORD (boot-blocking) with: fly secrets set TOVU_ADMIN_PASSWORD=<value> -a acme-app",
     "Set TOVU_SITE_KEY (recommended) with: fly secrets set TOVU_SITE_KEY=<value> -a acme-app",
   ]);

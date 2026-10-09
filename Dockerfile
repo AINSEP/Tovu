@@ -123,39 +123,54 @@ RUN apt-get update \
 ENV NODE_ENV=production
 
 # ---------------------------------------------------------------------------
-# Headless Chromium — for `site_collect_page_evidence` only.
+# Headless Chromium — OFF by default; opt in with `--build-arg TOVU_INSTALL_BROWSER=1`.
 # ---------------------------------------------------------------------------
 # `playwright` is a real runtime dependency (package.json), but `npm install`
 # only installs the DRIVER. The browser binary is a separate ~150MB download
 # plus its shared libraries, and `-slim` carries almost none of them, which is
 # why this needs both `--with-deps` and its own layer.
 #
-# This is the single largest thing in this image after node_modules, and it
-# exists for exactly one capability: observing what a published page actually
-# renders (cookies before consent, rendered accessibility structure, policy-page
-# reachability) — facts no configuration snapshot can establish. That tradeoff
-# was argued explicitly rather than assumed; see
+# What it is for: observing what a published page actually renders (cookies
+# before consent, rendered accessibility structure, policy-page reachability —
+# `site_collect_page_evidence`) and capturing pages (`web_screenshot_page`, site
+# preview thumbnails) — facts no configuration snapshot can establish. The
+# tradeoff was argued in
 # `ADS-memory/reports/swarm-consensus/runs/2026-08-26T005706Z-consensus-report.md`,
 # Q2-b, where it was the one genuinely unresolved point.
 #
-# HOW TO BUILD WITHOUT IT. Pass `--build-arg TOVU_INSTALL_BROWSER=0`. The image
-# is several hundred MB smaller and everything else works unchanged:
-# `openPlaywrightSiteEvidenceBrowser()` fails to launch, reports
-# `{ available: false, reason }`, and the tool returns every requested page under
-# `skipped` with that reason — which the `site-compliance` skill's output
-# contract requires it to report as "cannot determine", not as a pass. Degraded,
-# honest, and never silent.
+# WHY THE DEFAULT IS 0 (owner decision 2026-10-08). History: 7894cf366
+# (2026-08-25) made `1` the default without that decision being made. It is the
+# single largest thing in this image after node_modules, and every capture costs
+# roughly 150–250 MB of RAM on top of the server — too much to impose on every
+# self-hoster for a few optional tools. So production images ship without it and
+# a host that wants it opts in explicitly.
+#
+# WHAT DEGRADES WITHOUT IT — honestly, never silently; everything else works
+# unchanged:
+# - `site_collect_page_evidence`: `openPlaywrightSiteEvidenceBrowser()` fails to
+#   launch, reports `{ available: false, reason }`, and the tool returns every
+#   requested page under `skipped` with that reason ('browser unavailable') —
+#   which the `site-compliance` skill's output contract requires it to report as
+#   "cannot determine", not as a pass.
+# - `web_screenshot_page`: reports `available: false` instead of a screenshot.
+#
+# HOW TO OPT IN, per host: `docker build --build-arg TOVU_INSTALL_BROWSER=1`;
+# docker-compose.yml's `build.args`; fly.toml's `[build.args]` (or
+# `flyctl deploy --build-arg TOVU_INSTALL_BROWSER=1`); the GitHub workflows'
+# `TOVU_INSTALL_BROWSER` build arg; Render/Railway: a service environment
+# variable `TOVU_INSTALL_BROWSER=1` (both pass service variables to Dockerfile
+# builds as build args for every declared `ARG`).
 #
 # `PLAYWRIGHT_BROWSERS_PATH` is set to a world-readable location because the
 # browser is installed as root here and the process runs as `node` (see USER
 # below); the default per-user cache under /root would be unreadable to it.
-ARG TOVU_INSTALL_BROWSER=1
+ARG TOVU_INSTALL_BROWSER=0
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
 RUN if [ "$TOVU_INSTALL_BROWSER" = "1" ]; then \
       npx --yes playwright@1.61.1 install --with-deps chromium \
       && chmod -R a+rX /opt/playwright-browsers; \
     else \
-      echo "TOVU_INSTALL_BROWSER=0 — skipping Chromium; site_collect_page_evidence will report 'browser unavailable'."; \
+      echo "TOVU_INSTALL_BROWSER=0 (default) — skipping Chromium; browser-backed tools (site_collect_page_evidence, web_screenshot_page) will report the browser as unavailable. Opt in with --build-arg TOVU_INSTALL_BROWSER=1."; \
     fi
 
 COPY --from=build /workspace/Tovu /workspace/Tovu

@@ -151,7 +151,9 @@ jobs:
       # --build-arg TOVU_BUILD_SHA: the build context sent to Fly's remote builder excludes `.git`,
       #   so `emit-dist-package-json.mjs` cannot read the commit itself. Without this the runtime
       #   manifest records no provenance.
-      # --build-arg TOVU_INSTALL_BROWSER=0: skips the ~150MB headless Chromium download.
+      # --build-arg TOVU_INSTALL_BROWSER=0: the explicit headless-Chromium switch. 0 matches the
+      #   Dockerfile default (owner decision 2026-10-08: off by default — image size, ~150–250 MB RAM
+      #   per capture). Change it to 1 to opt in to browser-backed tools (page evidence, screenshots).
       - run: flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

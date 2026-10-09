@@ -133,7 +133,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 **Never** put a token, key, or password into a `custom_credential_make_request` call, a file you
 write, a commit message, or your reply. If a secret value has to exist, the operator types it —
-into GitHub's secret form, or into `custom_credential_set_token`'s masked field.
+into GitHub's secret form, or into `credential_save { kind: "api", target: "fly.io" }`'s masked field (use the exact saved credential label as target).
 
 ### Rule 4 — provision `TOVU_SITE_KEY` before the first deploy.
 
@@ -250,12 +250,15 @@ What is Fly-specific, and what this document is responsible for:
   them** with the values from Step 0, then re-read what you wrote and confirm no `<<PLACEHOLDER`
   marker survives — a leftover marker is a deploy that fails confusingly, or worse, one that
   succeeds against the wrong app.
-- Two build args in the workflow are load-bearing and must never be dropped:
+- Two build args in the workflow must never be dropped:
   `--build-arg TOVU_BUILD_SHA=${{ github.sha }}` (the build context sent to the remote builder
   excludes `.git`, so without this the runtime manifest records no provenance at all) and
-  `--build-arg TOVU_INSTALL_BROWSER=0` (skips a ~150MB headless Chromium download). Both have
-  been silently lost once already, in a history force-push, and two deploys failed before anyone
-  noticed. If you are editing an existing workflow rather than writing a fresh one, this is the
+  `--build-arg TOVU_INSTALL_BROWSER=0` (the explicit headless-Chromium switch; 0 matches the
+  Dockerfile default — off, for a smaller image and less memory). Only if the operator wants
+  browser-backed tools (page evidence, screenshots) set it to `1`, and size the machine for
+  ~150-250 MB more RAM per capture; without it those tools report the browser as unavailable
+  rather than failing. Both args have been silently lost once already, in a history force-push,
+  and two deploys failed before anyone noticed. If you are editing an existing workflow rather than writing a fresh one, this is the
   concrete thing the `github` plugin's diff-the-modified-files rule is protecting.
 
 ### Step 3 — The operator adds `FLY_API_TOKEN` by hand

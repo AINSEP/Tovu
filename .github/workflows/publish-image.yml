@@ -61,9 +61,10 @@ jobs:
       #   `.git` (Dockerfile.dockerignore), so `emit-dist-package-json.mjs` cannot read
       #   the commit itself without this; omitting it would ship a runtime manifest with
       #   no provenance.
-      # --build-arg TOVU_INSTALL_BROWSER=0: mirrors fly-deploy.yml. Skips the ~150MB
-      #   headless Chromium download — this image stays generic, no site or browser baked
-      #   in.
+      # --build-arg TOVU_INSTALL_BROWSER=0: mirrors fly-deploy.yml and the Dockerfile default
+      #   (owner decision 2026-10-08: headless Chromium is opt-in) — this image stays generic,
+      #   no site or browser baked in. Self-hosters who want browser-backed tools build their
+      #   own image with TOVU_INSTALL_BROWSER=1.
       - uses: docker/build-push-action@v6
         with:
           context: .

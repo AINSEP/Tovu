@@ -71,6 +71,11 @@ primary_region = "${region}"
     `Create the volume before the first deploy — this file only MOUNTS it, it does not create it: ` +
       `fly volumes create ${descriptor.volumeName} --region ${region} -a ${descriptor.appName}`,
     kit.migrationsNote,
+    // Owner decision 2026-10-08: the Dockerfile's `TOVU_INSTALL_BROWSER` defaults to 0, so the
+    // opt-in has to be stated wherever a host's config is generated.
+    `Headless Chromium is not installed by default. To enable browser-backed tools (page evidence, ` +
+      `screenshots), add [build.args] TOVU_INSTALL_BROWSER = "1" to this file (or deploy with ` +
+      `--build-arg TOVU_INSTALL_BROWSER=1) and allow ~150–250 MB more RAM per capture.`,
     ...descriptor.secrets.map(
       (secret) => `Set ${secret.name} (${secret.requirement}) with: fly secrets set ${secret.name}=<value> -a ${descriptor.appName}`
     ),

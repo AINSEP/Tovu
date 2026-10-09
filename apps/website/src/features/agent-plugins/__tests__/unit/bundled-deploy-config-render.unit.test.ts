@@ -81,6 +81,15 @@ test("renderRenderYaml: never emits a secret VALUE — sync: false prompts in th
   assert.ok(!JSON.stringify(result.notes).includes(sentinel), "instructions must not contain the environment secret");
 });
 
+test("renderRenderYaml: notes state the headless-Chromium opt-in — the Dockerfile default is off (owner decision 2026-10-08)", () => {
+  const result = renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "frankfurt" });
+  assert.ok(
+    result.notes.some((note) => note.includes("set the environment variable TOVU_INSTALL_BROWSER=1 on this service")),
+    JSON.stringify(result.notes),
+  );
+  assert.ok(!result.contents.includes("TOVU_INSTALL_BROWSER"), "off stays the default: render.yaml itself never opts in");
+});
+
 test("renderRenderYaml: rejects a missing region rather than defaulting to Render's own \"oregon\" default", () => {
   assert.throws(() => renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "" }), ValidationError);
 });

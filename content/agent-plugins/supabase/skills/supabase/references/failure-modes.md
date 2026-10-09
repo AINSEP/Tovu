@@ -20,7 +20,7 @@ it again on your own.
 > Sign-in isn't working right now, so let's use a key instead. [Make a key on Supabase →](https://supabase.com/dashboard/account/tokens)
 > Then paste it in the box below.
 
-Call `agent_plugin_set_access_token { pluginId: "supabase" }` once. It shows the box and waits. On
+Call `credential_save { kind: "agent-plugin-token", target: "supabase" }` once. It shows the box and waits. On
 `{ saved: true }` go to Step 2. On `reason: "invalid"`: "That key didn't work. Make a new one and try
 again." Never ask for the key in chat.
 

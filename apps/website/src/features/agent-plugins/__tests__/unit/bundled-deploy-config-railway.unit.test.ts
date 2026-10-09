@@ -86,6 +86,15 @@ test("renderRailwayConfig: never emits a secret VALUE or any env-var field at al
   assert.ok(!JSON.stringify(result.notes).includes(sentinel), "instructions must not contain the environment secret");
 });
 
+test("renderRailwayConfig: notes state the headless-Chromium opt-in — the Dockerfile default is off (owner decision 2026-10-08)", () => {
+  const result = renderRailwayConfig(FIXTURE_DESCRIPTOR, { region: "us-west2" });
+  assert.ok(
+    result.notes.some((note) => note.includes("railway variables set TOVU_INSTALL_BROWSER=1")),
+    JSON.stringify(result.notes),
+  );
+  assert.ok(!result.contents.includes("TOVU_INSTALL_BROWSER"), "off stays the default: railway.json itself never opts in");
+});
+
 test("renderRailwayConfig: rejects a missing region — railway.json has no single-service region default to fall back to", () => {
   assert.throws(() => renderRailwayConfig(FIXTURE_DESCRIPTOR, { region: "" }), ValidationError);
 });
