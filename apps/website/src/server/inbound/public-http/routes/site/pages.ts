@@ -23,6 +23,7 @@ import {
   type MemberContext,
 } from "#src/features/members/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 import {
   renderStaticPage,
   expandPartials,
@@ -42,8 +43,8 @@ import {
   renderEntryList,
   type DiscoveredTheme,
   type StaticMenuItem,
-  type StaticPostPreview,
   type StaticMenuContent,
+  type StaticPostPreview,
   type StaticFeaturedImage,
   type EntryListItem,
   type EntryListFieldValue,
@@ -2352,7 +2353,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const memberAccessResolver = createMemberAccessResolver(deps);
       const [{ posts }, activeThemeId, siteAssistantEnabled, memberContext] = await Promise.all([
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-        resolveActiveThemeId(deps),
+        resolveRenderThemeId(res, deps),
         // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
         // route that calls `renderSite` resolves this the same way, through the shared
         // `resolveSiteAssistantEnabledForRequest` (see `pages.ts`'s other handler and
@@ -2468,7 +2469,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
 
       const memberAccessResolver = createMemberAccessResolver(deps);
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
-        resolveActiveThemeId(deps),
+        resolveRenderThemeId(res, deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
         resolveSiteAssistantEnabledForRequest(req, deps),
         resolveMemberContextForRequest(req, deps, memberAccessResolver),

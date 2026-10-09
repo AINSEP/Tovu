@@ -1,4 +1,4 @@
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 import { toSiteProducts, type CommerceProductRepoPort, type CommercePriceRepoPort } from "@jini-ai/commerce";
 import type { StoreApi } from "@jini-ai/commerce/store";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
@@ -91,7 +91,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
     try {
       const products = await resolveStorefrontProducts(deps);
       const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
-        resolveActiveThemeId(deps),
+        resolveRenderThemeId(res, deps),
         resolveSiteAssistantEnabledForRequest(req, deps),
         resolveSiteTitleForRender(deps),
       ]);
@@ -123,7 +123,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
         return;
       }
       const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
-        resolveActiveThemeId(deps),
+        resolveRenderThemeId(res, deps),
         resolveSiteAssistantEnabledForRequest(req, deps),
         resolveSiteTitleForRender(deps),
       ]);
