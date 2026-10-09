@@ -43,6 +43,7 @@ import {
   type DiscoveredTheme,
   type StaticMenuItem,
   type StaticPostPreview,
+  type StaticMenuContent,
   type StaticFeaturedImage,
   type EntryListItem,
   type EntryListFieldValue,
@@ -58,7 +59,7 @@ import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from 
 import type { RouteTarget } from "#src/platform/routing/index";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { resolveMenuDoc } from "#src/features/navigation/index";
-import type { NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
+import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
 import { getLatestTransformDefinition } from "#src/features/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
 import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
@@ -605,12 +606,25 @@ function buildDocsPagerItems(
 }
 
 export async function resolveStaticMenusForRender(
+/**
+ * One stored menu's render content: its author-written HTML when the menu is in HTML mode (owner
+ * 2026-10-08, Jini `menu-html.ts`), else its resolved item tree.
+ */
+async function resolveMenuContent(
+  menu: NavMenuEntry,
+  context: { workspaceId: string; currentPath: string },
+  resolveTargetHref: ResolveTargetHrefFn
+): Promise<StaticMenuContent> {
+  if (menu.doc.mode === "html") return { html: menu.doc.html ?? "" };
+  return resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref });
+}
+
   deps: TemplateRenderDeps,
   /** `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */
   theme: DiscoveredTheme | null,
   currentPath: string,
   extraMenuIds?: readonly string[]
-): Promise<Readonly<Record<string, readonly StaticMenuItem[]>>> {
+): Promise<StaticMenuMap> {
   if (theme === null || theme.manifest.tier !== "static") return {};
 
   const menuIds = Array.from(new Set([...scanMenuEmbedIds(theme), ...(extraMenuIds ?? [])]));
@@ -628,7 +642,7 @@ export async function resolveStaticMenusForRender(
   const context = { workspaceId: deps.workspaceId, currentPath };
 
   const entries = await Promise.all(
-    menuIds.map(async (menuId): Promise<readonly [string, readonly StaticMenuItem[]] | undefined> => {
+    menuIds.map(async (menuId): Promise<readonly [string, StaticMenuContent] | undefined> => {
       // `CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID` is a reserved exception: a theme marker authored with
       // THIS literal id does not name one fixed stored menu at all. It names "whichever sidebar menu
       // the page currently being requested owns," resolved by the naming convention
@@ -645,8 +659,7 @@ export async function resolveStaticMenusForRender(
           slug: docsSidebarMenuSlugForPath(currentPath),
         });
         if (!menu) return undefined;
-        const items = await resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref });
-        return [menuId, items] as const;
+        return [menuId, await resolveMenuContent(menu, context, resolveTargetHref)] as const;
       }
 
       // `DOCS_SECTION_MENU_ID` is the second reserved exception (2026-09-24): it names "the Docs
@@ -689,13 +702,12 @@ export async function resolveStaticMenusForRender(
         (await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: menuId })) ??
         (await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menuId }));
       if (!menu) return undefined;
-      const items = await resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref });
-      return [menuId, items] as const;
+      return [menuId, await resolveMenuContent(menu, context, resolveTargetHref)] as const;
     })
   );
 
   return Object.fromEntries(
-    entries.filter((entry): entry is readonly [string, readonly StaticMenuItem[]] => entry !== undefined)
+    entries.filter((entry): entry is readonly [string, StaticMenuContent] => entry !== undefined)
   );
 }
 
@@ -1372,7 +1384,7 @@ export async function renderViaTemplate(
   deps: TemplateRenderDeps,
   theme: DiscoveredTheme,
   post: PostRecord,
-  staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined,
+  staticMenus: StaticMenuMap | undefined,
   pendingBodyJson?: JsonObject,
   pendingBodyHtml?: string,
   extraHead?: string,
@@ -1643,10 +1655,10 @@ async function resolveFeaturedImageForRender(
   return featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post);
 }
 
-/** Local alias for the per-menu-id resolved link map {@link resolveStaticMenusForRender} returns —
- *  used by the `GET /:slug` handler's own extracted helpers below to avoid repeating the full
- *  `Readonly<Record<string, readonly StaticMenuItem[]>>` shape at each call site. */
-type StaticMenuMap = Readonly<Record<string, readonly StaticMenuItem[]>>;
+/** Local alias for the per-menu-id resolved map {@link resolveStaticMenusForRender} returns (an item
+ *  tree, or an HTML-mode menu's markup) — used by the `GET /:slug` handler's own extracted helpers
+ *  below to avoid repeating the full `Readonly<Record<string, StaticMenuContent>>` shape. */
+type StaticMenuMap = Readonly<Record<string, StaticMenuContent>>;
 
 /** Sends the shared "no themes installed" 500 both site routes fall back to when
  * `resolveActiveTheme` finds nothing — a workspace with zero discovered themes at all (a fresh

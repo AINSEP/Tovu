@@ -58,13 +58,14 @@ export const toolMetadata = {
   // --- menus / navigation ----------------------------------------------------------------------
   "menus_update_menu_tree": {
     search: {
-      keywords: "navigation nav menu header top link links add item items reorder site structure",
+      keywords: "navigation nav menu header top link links add item items reorder site structure html markup custom style",
       queries: [
         "Can you rearrange the items in this menu?",
         "I need to replace the whole structure of a menu.",
         "How do I add a new link to an existing menu — do I need to list everything else too?",
         "Can you rename this menu while you're updating its items?",
         "How do I edit a menu's item tree?",
+        "Can you write this menu as my own HTML so I can style it however I want?",
       ],
     },
     approval: { class: 'edit', confirmation: 'direct' },

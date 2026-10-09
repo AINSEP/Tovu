@@ -131,6 +131,10 @@ export {
  */
 export { trashMenu, type RemoveMenuFn, type TrashMenuInput, type TrashMenuDeps } from "./trash-menu.js";
 
+/** Menu HTML mode (2026-10-08): the host's raw-HTML permission, and Jini's validation helpers. */
+export { MENU_RAW_HTML_PERMISSION } from "./menu-html-permission.js";
+export { isMenuHtmlAuthoring, MAX_MENU_HTML_LENGTH, type MenuHtmlAuthoring, type NavMenuMode } from "@jini-ai/cms/navigation";
+
 /** The compare-and-set loss, told apart from the other `MenuConflictError`s — see its own file. */
 export { MenuVersionConflictError } from "./menu-version-conflict-error.js";
 

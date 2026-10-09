@@ -5,26 +5,31 @@ import {
   MenuVersionConflictError,
   updateMenuTree,
 } from "#src/features/navigation/index";
-import type { NavItemNode } from "#src/features/navigation/index";
-import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
+import type { MenuHtmlAuthoring, NavItemNode } from "#src/features/navigation/index";
+import { authorizeMenuHtmlOrRespond, parseMenuHtmlAuthoring, toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import type { Response } from "express";
 
-/** The PUT body's four fields, read off an untyped body, or `null` if `items` is not an array.
+/** The PUT body's fields, read off an untyped body, or `null` if `items` is not an array. `items` may
+ *  be omitted only by an HTML-mode write (`mode`/`html` sent), which keeps the stored tree.
  *  @complexity O(1). */
 function parseMenuTreeRequestBody(rawBody: unknown): {
-  items: NavItemNode[];
+  items: NavItemNode[] | undefined;
   expectedVersion: number;
   title: string | undefined;
   slug: string | undefined;
+  authoring: MenuHtmlAuthoring;
 } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
-  if (!Array.isArray(body.items)) {
+  const authoring = parseMenuHtmlAuthoring(body);
+  const htmlOnly = body.items === undefined && (authoring.mode !== undefined || authoring.html !== undefined);
+  if (!htmlOnly && !Array.isArray(body.items)) {
     return null;
   }
   return {
-    items: body.items as NavItemNode[],
+    items: body.items as NavItemNode[] | undefined,
+    authoring,
     expectedVersion: Number(body.expectedVersion ?? 0),
     title: typeof body.title === "string" ? body.title : undefined,
     slug: typeof body.slug === "string" ? body.slug : undefined,
@@ -118,6 +123,7 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
         });
         return;
       }
+      if (!(await authorizeMenuHtmlOrRespond(res, deps, { principalId: principal.id, authoring: parsedBody.authoring, menuId }))) return;
 
       const { menu } = await updateMenuTree({
         deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },
@@ -128,6 +134,7 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
           title: parsedBody.title,
           slug: parsedBody.slug,
           items: parsedBody.items,
+          ...parsedBody.authoring,
         },
       });
 

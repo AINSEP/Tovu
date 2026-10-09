@@ -7,6 +7,7 @@ import { withToolMetadata } from '@jini-ai/core';
  * register tools or create an assistant-to-feature runtime cycle.
  */
 import type { ToolContributor } from "#src/assistant/index";
+import { MENU_RAW_HTML_PERMISSION } from "./menu-html-permission.js";
 import {
   buildMenusRegistrations,
   menusDerivedRisk,
@@ -54,7 +55,8 @@ const MENUS_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
 export function contributeMenusTools(): ToolContributor {
   return {
     domain: "menus",
-    build: (deps) => withModelFacingRegistrationErrors({ registrations: withToolMetadata({ registrations: buildMenusRegistrations(deps), metadata: toolMetadata }), rules: MENUS_MODEL_FACING_RULES }),
+    // HTML-mode menus need the same raw-HTML permission HTML-mode forms do (`menu-html-permission.ts`).
+    build: (deps) => withModelFacingRegistrationErrors({ registrations: withToolMetadata({ registrations: buildMenusRegistrations({ ...deps, rawHtmlPermission: MENU_RAW_HTML_PERMISSION }), metadata: toolMetadata }), rules: MENUS_MODEL_FACING_RULES }),
     risk: menusDerivedRisk,
   };
 }

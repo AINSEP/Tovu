@@ -100,6 +100,8 @@ export {
   type StaticFeaturedImage,
 } from "./static-render.js";
 
+  type StaticHtmlMenu,
+  type StaticMenuContent,
 // C5 (collections plan, 2026-09-23) — the pure entry-list renderer `pages.ts`'s
 // `resolveCollectionListsForRender` calls once per distinct `collection` marker config, plus the
 // item/field shapes it builds to feed that renderer. No I/O lives here (see `entry-list-render.ts`'s

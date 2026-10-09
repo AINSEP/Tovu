@@ -117,7 +117,7 @@
     "forms_create_definition": "form contact form build create new fields",
     "forms_update_definition": "form edit change existing update fields recipients send email notify notification notifications submissions address recipient recipients inbox forward",
     "forms_set_definition_status": "form enable disable turn off retire deactivate activate",
-    "menus_update_menu_tree": "navigation nav menu header top link links add item items reorder site structure",
+    "menus_update_menu_tree": "navigation nav menu header top link links add item items reorder site structure html markup custom style",
     "menus_create_menu": "navigation nav menu new create header footer",
     "menus_list_menus": "navigation nav menus list existing header footer",
     "menus_assign_location": "navigation nav menu location slot header footer place assign",
@@ -1094,7 +1094,8 @@
       "I need to replace the whole structure of a menu.",
       "How do I add a new link to an existing menu — do I need to list everything else too?",
       "Can you rename this menu while you're updating its items?",
-      "How do I edit a menu's item tree?"
+      "How do I edit a menu's item tree?",
+      "Can you write this menu as my own HTML so I can style it however I want?"
     ],
     "menus_assign_location": [
       "How do I put this menu in the header?",

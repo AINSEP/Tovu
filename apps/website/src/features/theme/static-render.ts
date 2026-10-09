@@ -162,6 +162,15 @@ export interface StaticMenuItem {
   readonly children: readonly StaticMenuItem[];
 }
 
+/** An HTML-mode menu (owner 2026-10-08): the author's own stored markup, placed as-is at the marker.
+ *  Trusted, admin/owner-only markup like HTML-mode forms; the save path (Jini `menu-html.ts`) balances it. */
+export interface StaticHtmlMenu {
+  readonly html: string;
+}
+
+/** What the route layer resolved for one menu id: its item tree, or its authored HTML. */
+export type StaticMenuContent = readonly StaticMenuItem[] | StaticHtmlMenu;
+
 /**
  * Fixed placeholder origin {@link safeHref} resolves a claimed same-origin-relative href against —
  * mirrors `server/inbound/public-http/http/site/render.ts`'s identically-named constant byte-for-byte.
@@ -343,12 +352,13 @@ function renderMenuTree(items: readonly StaticMenuItem[], depth = 0): string {
  */
 function injectMenuEmbeds(
   html: string,
-  menus: Readonly<Record<string, readonly StaticMenuItem[]>>
+  menus: Readonly<Record<string, StaticMenuContent>>
 ): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== MENU_MARKER_TYPE || marker.id === undefined) return undefined;
     const items = menus[marker.id];
     if (items === undefined) return undefined;
+    if (!Array.isArray(items)) return injectAuthoredMenuHtml(marker, (items as StaticHtmlMenu).html);
     if (marker.config.mode === "html") {
       const plain = renderHtmlMenu({ id: marker.id, items, sanitizeHref: safeHref });
       // Match forms: a bare marker disappears; explicitly authored wrapper attributes survive.
@@ -357,6 +367,19 @@ function injectMenuEmbeds(
     const inner = marker.config.variant === "tree" ? renderMenuTree(items) : renderMenuLinks(items);
     return inner === "" ? undefined : withInnerContent({ marker: marker, inner: inner });
   } });
+}
+
+/**
+ * An HTML-mode menu's markup at its marker. The theme's own wrapper (`<nav class="main-nav">`) keeps
+ * its tag and attributes so theme layout still applies around the author's markup; a bare "Copy HTML
+ * embed" marker disappears, the same rule the generated `mode: "html"` menu above follows. Empty
+ * markup leaves the authored fallback, like an empty item tree.
+ */
+function injectAuthoredMenuHtml(marker: EmbedMarker, html: string): string | undefined {
+  if (html.trim() === "") return undefined;
+  return marker.config.mode === "html"
+    ? withElementKeptIfAttributed({ marker: marker, inner: html })
+    : withInnerContent({ marker: marker, inner: html });
 }
 
 /**
@@ -747,7 +770,7 @@ export function renderStaticPage(
     theme: DiscoveredTheme;
     pageId: string;
     htmlOverride?: string;
-    menus?: Readonly<Record<string, readonly StaticMenuItem[]>>;
+    menus?: Readonly<Record<string, StaticMenuContent>>;
     postPreviews?: readonly StaticPostPreview[];
     collectionLists?: ReadonlyMap<string, string | undefined>;
     /** The current post's featured image ({@link injectFeaturedImage}); omitted ⇒ no image. */

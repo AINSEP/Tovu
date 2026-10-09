@@ -1,6 +1,7 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 
-import type { MenuRepoPort } from "#src/features/navigation/index";
+import { isMenuHtmlAuthoring, MENU_RAW_HTML_PERMISSION, type MenuHtmlAuthoring, type MenuRepoPort, type NavMenuMode } from "#src/features/navigation/index";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type {
   NavItemNode,
   NavLocationBindingRepoPort,
@@ -65,6 +66,9 @@ export interface AdminMenuDto {
   title: string;
   status: string;
   items: AdminMenuItemDto[];
+  /** HTML mode (2026-10-08): absent on a menu that never used it. */
+  mode?: NavMenuMode;
+  html?: string;
   locations: string[];
   updatedAt: string;
   version: number;
@@ -115,6 +119,8 @@ export function toAdminMenuDto(menu: NavMenuEntry): AdminMenuDto {
     title: menu.title,
     status: menu.status,
     items: menu.doc.items.map(toAdminMenuItemDto),
+    ...(menu.doc.mode !== undefined ? { mode: menu.doc.mode } : {}),
+    ...(menu.doc.html !== undefined ? { html: menu.doc.html } : {}),
     locations: [...menu.locations],
     updatedAt: menu.updatedAt,
     version: menu.version,
@@ -152,4 +158,28 @@ export function toAdminAssignLocationResponse(required: {
 
 export function toAdminTrashMenuResponse(required: { id: string; version: number | null }): AdminTrashMenuEnvelope {
   return { trashed: true, id: required.id, version: required.version };
+}
+
+/** A create/update body's HTML-mode fields as sent; `createMenu`/`updateMenuTree` validate the values. */
+export function parseMenuHtmlAuthoring(body: Record<string, unknown>): MenuHtmlAuthoring {
+  return {
+    ...(body.mode !== undefined ? { mode: body.mode as NavMenuMode } : {}),
+    ...(body.html !== undefined ? { html: body.html as string } : {}),
+  };
+}
+
+/**
+ * Menu HTML is trusted raw markup, so a write carrying it also needs {@link MENU_RAW_HTML_PERMISSION}
+ * (the HTML-mode forms boundary). Switching back to items authors nothing and passes. Writes the 403
+ * and returns `false` on a denial, like `authorizeOrRespond`.
+ */
+export async function authorizeMenuHtmlOrRespond(
+  res: Response,
+  deps: Pick<MenuRouteDeps, "authorize" | "workspaceId">,
+  { principalId, authoring, menuId }: { principalId: string; authoring: MenuHtmlAuthoring; menuId?: string },
+): Promise<boolean> {
+  if (!isMenuHtmlAuthoring(authoring)) return true;
+  return authorizeOrRespond(res, deps.authorize, {
+    principalId, permission: MENU_RAW_HTML_PERMISSION, workspaceId: deps.workspaceId, entityType: "menu", ...(menuId ? { entityId: menuId } : {}),
+  });
 }

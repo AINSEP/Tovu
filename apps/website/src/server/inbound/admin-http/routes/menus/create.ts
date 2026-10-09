@@ -1,13 +1,13 @@
 import { createMenu, MenuConflictError, MenuValidationError } from "#src/features/navigation/index";
-import type { NavItemNode } from "#src/features/navigation/index";
-import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
+import type { MenuHtmlAuthoring, NavItemNode } from "#src/features/navigation/index";
+import { authorizeMenuHtmlOrRespond, parseMenuHtmlAuthoring, toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 /** This route's three body fields, read off an untyped body in one place, or `null` if a present
  *  `items` isn't an array.
  *  @complexity O(1). */
-function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; items: NavItemNode[] | undefined } | null {
+function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; items: NavItemNode[] | undefined; authoring: MenuHtmlAuthoring } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   if (body.items !== undefined && !Array.isArray(body.items)) {
     return null;
@@ -16,6 +16,7 @@ function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; i
     title: String(body.title ?? ""),
     slug: String(body.slug ?? ""),
     items: body.items as NavItemNode[] | undefined,
+    authoring: parseMenuHtmlAuthoring(body),
   };
 }
 
@@ -57,6 +58,7 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
         entityType: "menu",
       });
       if (!authorized) return;
+      if (!(await authorizeMenuHtmlOrRespond(res, deps, { principalId: principal.id, authoring: parsedBody.authoring }))) return;
 
       const { menu } = await createMenu({
         deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },
@@ -65,6 +67,7 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
           title: parsedBody.title,
           slug: parsedBody.slug,
           items: parsedBody.items,
+          ...parsedBody.authoring,
         },
       });
 
