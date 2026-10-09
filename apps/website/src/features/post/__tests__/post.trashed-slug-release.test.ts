@@ -11,6 +11,7 @@ import { removeEntityWithoutBlocker } from "#src/features/trash/remove-without-b
 import {
   createPost,
   deletePost,
+  retirePostForReplacement,
   updatePost,
   PostConflictError,
   ROOT_SLUG,
@@ -165,7 +166,9 @@ test("updatePost onto a LIVE holder's slug still conflicts", async () => {
   );
 });
 
-test("a row trashed through deletePost and then moved aside is still restorable through the real Trash", async () => {
+/** A SQLite post repo wired to the REAL Trash service (its stored-version check is what a version
+ * bump would break), plus the `remove` port `deletePost`/`retirePostForReplacement` are handed. */
+function openRealTrash() {
   const db = openContentDb(":memory:");
   const client = (db as unknown as { $client: Database.Database }).$client;
   client
@@ -182,6 +185,11 @@ test("a row trashed through deletePost and then moved aside is still restorable 
     entityPolicy: ({ entityType }) => adapters.has(entityType),
   });
   const remove = removeEntityWithoutBlocker({ remove: bindRemoveEntity({ trash, entityType: POST_ENTITY_TYPE }) });
+  return { client, repo, trash, remove };
+}
+
+test("a row trashed through deletePost and then moved aside is still restorable through the real Trash", async () => {
+  const { client, repo, trash, remove } = openRealTrash();
 
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "old-about", title: "About", slug: "about", kind: "page" } });
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove }, input: { workspaceId: WS, id: "old-about" } });
@@ -194,6 +202,27 @@ test("a row trashed through deletePost and then moved aside is still restorable 
   assert.equal(restored?.deletedAt, null);
   assert.equal(restored?.slug, "about-trashed", "it comes back at the address it was moved to");
   assert.equal((await repo.findBySlug({ workspaceId: WS, slug: "about" }))?.id, "new-about", "the new page keeps its address");
+  client.close();
+});
+
+test("publish retiring a holder that is ALREADY in the Trash leaves it restorable through the real Trash", async () => {
+  const { client, repo, trash, remove } = openRealTrash();
+
+  await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "old-about", title: "About", slug: "about", kind: "page" } });
+  const { post: inTrash } = await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove }, input: { workspaceId: WS, id: "old-about" } });
+  const { post: retired } = await retirePostForReplacement({
+    deps: { repo, clock, outbox: noopOutbox, remove },
+    input: { workspaceId: WS, id: "old-about", expectedVersion: inTrash.version, today: "20261008" },
+  });
+
+  assert.equal(retired.slug, "about-trashed");
+  assert.equal(retired.version, inTrash.version, "the version the Trash index recorded must still match");
+  assert.equal(await repo.findBySlug({ workspaceId: WS, slug: "about" }), null, "the address is free for the incoming row");
+  const outcome = await trash.restore({ workspaceId: WS, entityType: POST_ENTITY_TYPE, entityId: "old-about", at: AT });
+  assert.equal(outcome, "restored");
+  const restored = await repo.findById({ workspaceId: WS, id: "old-about" });
+  assert.equal(restored?.deletedAt, null);
+  assert.equal(restored?.slug, "about-trashed");
   client.close();
 });
 

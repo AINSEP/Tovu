@@ -139,7 +139,6 @@ test("restoring from Trash brings the row back at its renamed slug, not the orig
 for (const [label, overrides, emits, operations] of [
   ["published", {}, true, ["update", "delete"]],
   ["draft", { status: "draft" }, false, ["update", "delete"]],
-  ["already trashed", { deletedAt: "2026-09-01T00:00:00.000Z" }, false, ["update"]],
 ] as const) {
   test(`retiring a ${label} holder records revisions and emits only its public transition`, async () => {
     const repo = new InMemoryPostRepo([seed(overrides)]);
@@ -161,3 +160,25 @@ for (const [label, overrides, emits, operations] of [
     assert.deepEqual(revisions.at(-1)?.stateJson, post);
   });
 }
+
+test("retiring an ALREADY-trashed holder only moves it aside: same version, no revision, no event", async () => {
+  // The Trash index recorded version 3 at trash time; Restore and purge compare against it, so a
+  // bump here would strand the row in the Trash (2026-10-08).
+  const repo = new InMemoryPostRepo([seed({ deletedAt: "2026-09-01T00:00:00.000Z" })]);
+  const events: Parameters<OutboxPort["enqueue"]>[0][] = [];
+  const outbox = { ...noopOutbox, enqueue: async (event: Parameters<OutboxPort["enqueue"]>[0]) => { events.push(event); } };
+
+  const result = await retirePostForReplacement({
+    deps: { repo, clock, outbox, remove: removeVia(repo) },
+    input: { workspaceId: WS, id: "post-1", expectedVersion: 3, today: "20260924", actorId: "publisher" },
+  });
+
+  assert.deepEqual(result, {
+    post: { ...seed({ deletedAt: "2026-09-01T00:00:00.000Z" }), slug: "about-trashed" },
+    revisionId: null,
+    previousRevisionId: null,
+  });
+  assert.deepEqual(await repo.findById({ workspaceId: WS, id: "post-1" }), result.post);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "post-1" }), []);
+  assert.deepEqual(events, []);
+});

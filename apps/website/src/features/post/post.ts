@@ -788,9 +788,12 @@ export interface RetirePostForReplacementOptional {}
  *
  * Two writes, one transaction: the row is saved under its new slug first (an `"update"` revision),
  * then handed to {@link RetirePostForReplacementDeps.remove} exactly as {@link deletePost} does (a
- * `"delete"` revision). If the holder is ALREADY trashed, only the rename happens — there is nothing
- * left to remove, and a second `"delete"` revision for a row that never left the Trash would
- * misrepresent the ledger.
+ * `"delete"` revision). If the holder is ALREADY trashed, it is only moved aside through
+ * {@link releaseTrashedSlug} (`<slug>-trashed`, the same move any authoring write makes) — there is
+ * nothing left to remove, and a second `"delete"` revision for a row that never left the Trash would
+ * misrepresent the ledger. That move keeps the row's version and appends no revision (so
+ * `revisionId` is `null`): the Trash index compares the version it recorded at trash time, and a
+ * bump here once left the row in the Trash forever, neither restorable nor purgeable (2026-10-08).
  *
  * Refuses `ROOT_SLUG` (`/` has no other address to move to) and a stale `expectedVersion`
  * (`PostVersionConflictError`, the same guard {@link assertExpectedVersion} applies to `updatePost`)
@@ -806,7 +809,7 @@ export interface RetirePostForReplacementOptional {}
 export async function retirePostForReplacement(
   required: RetirePostForReplacementRequired,
   _optional: RetirePostForReplacementOptional = {}
-): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
+): Promise<{ post: PostRecord; revisionId: string | null; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) {
@@ -823,7 +826,13 @@ export async function retirePostForReplacement(
     );
   }
 
-  const alreadyTrashed = isTrashed(existing);
+  // An already-trashed holder was already off the public site before this call, so no
+  // `entry.unpublished` either — re-emitting it would duplicate the one `deletePost` (or an earlier
+  // retire) already sent for the same transition.
+  if (isTrashed(existing)) {
+    const post = await deps.repo.transaction(() => releaseTrashedSlug(deps.repo, existing));
+    return { post, revisionId: null, previousRevisionId: null };
+  }
 
   // Same disambiguation loop as `createPost`'s derived-slug path (`:1037-1043`): a trashed row keeps
   // reserving its slug (see `deletePost`'s own doc), so a second same-day retirement of the same
@@ -841,7 +850,7 @@ export async function retirePostForReplacement(
 
   const { post, id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
     await deps.repo.save(renamed);
-    const renameRevision = await deps.repo.appendRevision({
+    await deps.repo.appendRevision({
       postId: renamed.id,
       workspaceId: renamed.workspaceId,
       seq: renamed.version,
@@ -852,10 +861,6 @@ export async function retirePostForReplacement(
       delegatedById: input.delegatedById ?? null,
       recordedAt: renamed.updatedAt,
     });
-
-    if (alreadyTrashed) {
-      return { post: renamed, id: renameRevision.id, previousId: renameRevision.previousId };
-    }
 
     // `expectedVersion` here is the CAS basis `remove` compares against the row's version RIGHT NOW
     // — which is `renamed.version`, since the rename above already landed inside this same
@@ -890,12 +895,7 @@ export async function retirePostForReplacement(
     return { post: trashed, id: deleteRevision.id, previousId: deleteRevision.previousId };
   });
 
-  // An already-trashed holder was already off the public site before this call — only the rename
-  // happened, so re-emitting `entry.unpublished` here would be a duplicate of the one `deletePost`
-  // (or an earlier retire) already sent for the same transition.
-  if (!alreadyTrashed) {
-    await emitStatusTransitionEvent(deps.outbox, existing.status, "draft", post);
-  }
+  await emitStatusTransitionEvent(deps.outbox, existing.status, "draft", post);
 
   return { post, revisionId, previousRevisionId };
 }
@@ -1527,11 +1527,12 @@ const TRASHED_SLUG_SUFFIX = "-trashed";
  * Must run inside the caller's write transaction, BEFORE the claiming row is saved, so the real
  * `posts_workspace_slug_unique` index never sees two rows on one slug.
  *
+ * @returns the moved row as saved (same version, new slug).
  * @throws PostConflictError when the holder changed (restored, edited) since it was read.
  * @complexity O(s) lookups for s already-taken renamed slugs (in practice 1), plus one
  * conditional write.
  */
-async function releaseTrashedSlug(repo: PostRepoPort, holder: PostRecord): Promise<void> {
+async function releaseTrashedSlug(repo: PostRepoPort, holder: PostRecord): Promise<PostRecord> {
   const stem = (holder.slug === ROOT_SLUG ? "home" : holder.slug).slice(
     0,
     MAX_SLUG_LENGTH - TRASHED_SLUG_SUFFIX.length - DERIVED_SLUG_SUFFIX_ROOM
@@ -1543,10 +1544,12 @@ async function releaseTrashedSlug(repo: PostRepoPort, holder: PostRecord): Promi
     suffix += 1;
     slug = `${base}-${suffix}`;
   }
-  const { applied } = await repo.saveIfVersion({ record: { ...holder, slug }, ifVersion: holder.version });
+  const moved: PostRecord = { ...holder, slug };
+  const { applied } = await repo.saveIfVersion({ record: moved, ifVersion: holder.version });
   if (!applied) {
     throw new PostConflictError(`slug '${holder.slug}' changed while it was being taken from the Trash`);
   }
+  return moved;
 }
 
 /**
