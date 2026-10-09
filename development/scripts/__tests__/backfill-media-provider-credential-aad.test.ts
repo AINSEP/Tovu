@@ -156,12 +156,14 @@ test("backfill-media-provider-credential-aad: seals OLD (no aad), migrates in pl
 
   const reopenedOpenai = await openSealer.open({
     sealed: { keyId: openaiRow.sealedKeyId!, ciphertext: openaiRow.sealedCiphertext!, nonce: openaiRow.sealedNonce!, alg: openaiRow.sealedAlg! },
+  }, {
     aad: buildMediaProviderCredentialAad({ workspaceId: WORKSPACE, providerId: "openai" }),
   });
   assert.equal(reopenedOpenai, openaiPlaintext, "the migrated row must open to the byte-identical original plaintext under the NEW aad");
 
   const reopenedGrok = await openSealer.open({
     sealed: { keyId: grokRow.sealedKeyId!, ciphertext: grokRow.sealedCiphertext!, nonce: grokRow.sealedNonce!, alg: grokRow.sealedAlg! },
+  }, {
     aad: buildMediaProviderCredentialAad({ workspaceId: WORKSPACE, providerId: "grok" }),
   });
   assert.equal(reopenedGrok, grokPlaintext);
@@ -241,12 +243,23 @@ test("backfill-media-provider-credential-aad: a corrupted row aborts the run wit
   seedDb.$client.close();
   delete process.env[SITE_KEY_ENV_VAR_NAME];
 
-  assert.throws(() => runScript(dbPath, siteKeyHex, ["--apply"]), /Command failed/);
+  assert.throws(() => runScript(dbPath, siteKeyHex, ["--apply"]), (error: unknown) => {
+    assert.match(String((error as { stderr?: string }).stderr), /Unsupported state or unable to authenticate data/);
+    assert.match(String((error as { stdout?: string }).stdout), /MIGRATED: workspace=workspace-1 provider=openai/);
+    assert.doesNotMatch(String((error as { stdout?: string }).stdout), /MIGRATED: .*provider=grok/);
+    return true;
+  });
 
   const db = openContentDb(dbPath);
   const rows = db.select().from(mediaProviderCredentials).all();
   const openaiRow = rows.find((r) => r.providerId === "openai")!;
   assert.equal(openaiRow.aadVersion, 1, "the row processed before the corrupt one must survive migrated — this script never rolls back prior successful writes");
+  const corruptRow = rows.find((row) => row.providerId === "grok")!;
+  assert.ok(corruptRow);
+  assert.deepEqual({
+    keyId: corruptRow.sealedKeyId, ciphertext: corruptRow.sealedCiphertext,
+    nonce: corruptRow.sealedNonce, alg: corruptRow.sealedAlg, version: corruptRow.aadVersion,
+  }, { keyId: corruptSealed.keyId, ciphertext: tamperedCiphertext, nonce: corruptSealed.nonce, alg: corruptSealed.alg, version: 0 });
   db.$client.close();
 
   fs.rmSync(scratch, { recursive: true, force: true });

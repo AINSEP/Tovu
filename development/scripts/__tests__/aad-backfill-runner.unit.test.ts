@@ -65,8 +65,8 @@ test("runAadBackfill: apply seals under the unit's own aad, verifies, then write
   const deps: AadBackfillDeps = {
     db: {} as AadBackfillDeps["db"],
     sealer: {
-      open: async (input: { sealed: unknown; aad?: string }) => {
-        calls.push(input.aad === undefined ? "open(no-aad)" : `open(${input.aad})`);
+      open: async (_input: { sealed: unknown }, { aad }: { aad?: string } = {}) => {
+        calls.push(aad === undefined ? "open(no-aad)" : `open(${aad})`);
         return "plaintext-1";
       },
       seal: async (input: { aad?: string }) => {

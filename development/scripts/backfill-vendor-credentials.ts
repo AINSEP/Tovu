@@ -352,7 +352,7 @@ export async function runVendorCredentialBackfill(deps: VendorCredentialBackfill
       continue;
     }
 
-    const plaintext = await deps.sealer.open({ sealed: row.sealed, aad: row.oldAad });
+    const plaintext = await deps.sealer.open({ sealed: row.sealed }, { aad: row.oldAad });
     const tokenTail = deriveTokenTail(plaintext, row.vendorId);
 
     const key = groupKey(row.workspaceId, row.vendorId);
@@ -366,7 +366,7 @@ export async function runVendorCredentialBackfill(deps: VendorCredentialBackfill
 
     // Post-seal self-check (this file's own header) — never insert a row this process cannot itself
     // prove re-opens to the exact plaintext it just sealed.
-    const verifyPlaintext = await deps.sealer.open({ sealed, aad: newAad });
+    const verifyPlaintext = await deps.sealer.open({ sealed }, { aad: newAad });
     if (verifyPlaintext !== plaintext) {
       throw new Error(
         `vendor-credential backfill: post-seal verification mismatch for workspace=${row.workspaceId} id=${row.id} — refusing to write a row that cannot be proven to re-open correctly`

@@ -266,6 +266,7 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
 
   const reopenedPublish = await openSealer.open({
     sealed: { keyId: publishRow.sealedKeyId, ciphertext: publishRow.sealedCiphertext, nonce: publishRow.sealedNonce, alg: publishRow.sealedAlg },
+  }, {
     aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: publishId }),
   });
   assert.equal(reopenedPublish, publishPlaintext, "the migrated row must open to the byte-identical original plaintext under the NEW AAD");
@@ -277,12 +278,14 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
       nonce: sourceControlRow.sealedNonce,
       alg: sourceControlRow.sealedAlg,
     },
+  }, {
     aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: sourceControlId }),
   });
   assert.equal(reopenedSourceControl, sourceControlPlaintext);
 
   const reopenedGitlab = await openSealer.open({
     sealed: { keyId: gitlabRow.sealedKeyId, ciphertext: gitlabRow.sealedCiphertext, nonce: gitlabRow.sealedNonce, alg: gitlabRow.sealedAlg },
+  }, {
     aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "gitlab", id: gitlabId }),
   });
   assert.equal(reopenedGitlab, gitlabPlaintext);
@@ -294,8 +297,17 @@ test("backfill-vendor-credentials: seals OLD, migrates, opens NEW — plus vendo
     () =>
       openSealer.open({
         sealed: { keyId: publishRow.sealedKeyId, ciphertext: publishRow.sealedCiphertext, nonce: publishRow.sealedNonce, alg: publishRow.sealedAlg },
+      }, {
         aad: buildPublishCredentialAad({ workspaceId: WORKSPACE, providerId: "github-pages", id: publishId }),
       }),
+    /Unsupported state|unable to authenticate|bad decrypt/i
+  );
+
+  // Omitted AAD must also fail: migrated rows must never fall back to an unbound open.
+  await assert.rejects(
+    () => openSealer.open({
+      sealed: { keyId: publishRow.sealedKeyId, ciphertext: publishRow.sealedCiphertext, nonce: publishRow.sealedNonce, alg: publishRow.sealedAlg },
+    }),
     /Unsupported state|unable to authenticate|bad decrypt/i
   );
 
@@ -367,7 +379,7 @@ test("backfill-vendor-credentials: resumes a partial github group and migrates t
       const row = rows.find((row) => row.id === fixture.id)!;
       assert.ok(row);
       assert.equal(row.token_tail, fixture.tail);
-      assert.equal(await sealer.open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg }, aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: fixture.vendorId, id: fixture.id }) }), fixture.plaintext);
+      assert.equal(await sealer.open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg } }, { aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: fixture.vendorId, id: fixture.id }) }), fixture.plaintext);
     }
     const resumed = rows.find((row) => row.id === "pending-github")!;
     assert.equal(resumed.label, "default (Source Control)");

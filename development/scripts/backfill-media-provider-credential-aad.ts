@@ -72,6 +72,7 @@
  * it cannot prove round-trips.
  */
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { and, eq } from "drizzle-orm";
 
@@ -182,7 +183,10 @@ async function main(): Promise<void> {
   });
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+// Imports expose the DI runner without starting a CLI run against the default database.
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main().catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  });
+}

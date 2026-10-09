@@ -44,8 +44,9 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
   const dbPath = path.join(scratch, "content.db");
   const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
-  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
+    env: () => ({ [SITE_KEY_ENV_VAR_NAME]: siteKeyHex }),
+  });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -95,7 +96,6 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
     ])
     .run();
   seedDb.$client.close();
-  delete process.env[SITE_KEY_ENV_VAR_NAME];
 
   const dryRunOutput = runScript(dbPath, undefined);
   assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 1 total pending/);
@@ -115,10 +115,10 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
   assert.equal(rowOne.masked, "••••1111", "masked must survive untouched");
   assert.equal(rowTwo.aadVersion, 0, "a row with no key must be left untouched");
 
-  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
-  const openSealer = new AesGcmSecretSealer(new EnvOrFileKeyring({ sources: [{ kind: "env" }] }));
+  const openSealer = new AesGcmSecretSealer(keyring);
   const reopened = await openSealer.open({
     sealed: { keyId: rowOne.sealedKeyId!, ciphertext: rowOne.sealedCiphertext!, nonce: rowOne.sealedNonce!, alg: rowOne.sealedAlg! },
+  }, {
     aad: buildSiteAssistantCredentialAad({ workspaceId: WORKSPACE }),
   });
   assert.equal(reopened, plaintext, "the migrated row must open to the byte-identical original plaintext under the NEW aad");
@@ -126,10 +126,17 @@ test("backfill-site-assistant-credential-aad: seals OLD (no aad), migrates in pl
   await assert.rejects(() =>
     openSealer.open({
       sealed: { keyId: rowOne.sealedKeyId!, ciphertext: rowOne.sealedCiphertext!, nonce: rowOne.sealedNonce!, alg: rowOne.sealedAlg! },
-    })
+    }),
+    { message: "Unsupported state or unable to authenticate data" }
+  );
+  // Moving a migrated envelope to another workspace must fail authentication.
+  await assert.rejects(() =>
+    openSealer.open({
+      sealed: { keyId: rowOne.sealedKeyId!, ciphertext: rowOne.sealedCiphertext!, nonce: rowOne.sealedNonce!, alg: rowOne.sealedAlg! },
+    }, { aad: buildSiteAssistantCredentialAad({ workspaceId: OTHER_WORKSPACE }) }),
+    { message: "Unsupported state or unable to authenticate data" }
   );
 
-  delete process.env[SITE_KEY_ENV_VAR_NAME];
   db.$client.close();
 
   const secondApplyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);

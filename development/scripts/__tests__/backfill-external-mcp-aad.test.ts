@@ -65,6 +65,10 @@ test("backfill-external-mcp-aad: env and oauth blobs migrate independently, a ro
   const envPlaintextB = JSON.stringify({ API_KEY: "FIXTURE-ENV-B" });
   const envSealedB = await sealer.seal({ plaintext: envPlaintextB, key: activeKey });
 
+  const envSealedC = await sealer.seal({ plaintext: "ENV-C-ALREADY-MIGRATED", key: activeKey, aad: buildExternalMcpEnvAad({ workspaceId: WORKSPACE, serverId: "server-c" }) });
+  const oauthSealedC = await sealer.seal({ plaintext: "OAUTH-C-PENDING", key: activeKey });
+  const envSealedD = await sealer.seal({ plaintext: "ENV-D-PENDING", key: activeKey });
+  const oauthSealedD = await sealer.seal({ plaintext: "OAUTH-D-ALREADY-MIGRATED", key: activeKey, aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: "server-d" }) });
   const seedDb = openContentDb(dbPath);
   seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
   seedDb
@@ -110,12 +114,22 @@ test("backfill-external-mcp-aad: env and oauth blobs migrate independently, a ro
       },
     ])
     .run();
+  for (const [serverId, env, oauth, aadVersion, oauthAadVersion] of [
+    ["server-c", envSealedC, oauthSealedC, 1, 0],
+    ["server-d", envSealedD, oauthSealedD, 0, 1],
+  ] as const) {
+    seedDb.insert(externalMcpServers).values({ workspaceId: WORKSPACE, serverId, transport: "stdio", authMode: "oauth", enabled: true,
+      sealedKeyId: env.keyId, sealedCiphertext: env.ciphertext, sealedNonce: env.nonce, sealedAlg: env.alg, aadVersion,
+      oauthSealedKeyId: oauth.keyId, oauthSealedCiphertext: oauth.ciphertext, oauthSealedNonce: oauth.nonce, oauthSealedAlg: oauth.alg, oauthAadVersion,
+      createdAt: NOW, updatedAt: NOW,
+    }).run();
+  }
   seedDb.$client.close();
   delete process.env[SITE_KEY_ENV_VAR_NAME];
 
-  // --- Dry run: needs NO site key and must write nothing. 3 blobs total pending (A-env, A-oauth, B-env). ---
+  // --- Dry run: needs NO site key and must write nothing. 5 blobs total pending (A-env, A-oauth, B-env, C-oauth, D-env). ---
   const dryRunOutput = runScript(dbPath, undefined);
-  assert.match(dryRunOutput, /DRY RUN: 3 blob\(s\) would be migrated, 3 total pending/);
+  assert.match(dryRunOutput, /DRY RUN: 5 blob\(s\) would be migrated, 5 total pending/);
   const afterDryRun = openContentDb(dbPath);
   assert.equal(
     afterDryRun.select().from(externalMcpServers).all().find((r) => r.serverId === "server-a")!.aadVersion,
@@ -147,6 +161,7 @@ test("backfill-external-mcp-aad: env and oauth blobs migrate independently, a ro
 
   const reopenedEnvA = await openSealer.open({
     sealed: { keyId: rowA.sealedKeyId!, ciphertext: rowA.sealedCiphertext!, nonce: rowA.sealedNonce!, alg: rowA.sealedAlg! },
+  }, {
     aad: buildExternalMcpEnvAad({ workspaceId: WORKSPACE, serverId: "server-a" }),
   });
   assert.equal(reopenedEnvA, envPlaintextA);
@@ -158,20 +173,37 @@ test("backfill-external-mcp-aad: env and oauth blobs migrate independently, a ro
       nonce: rowA.oauthSealedNonce!,
       alg: rowA.oauthSealedAlg!,
     },
+  }, {
     aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: "server-a" }),
   });
   assert.equal(reopenedOauthA, oauthPlaintextA);
 
   const reopenedEnvB = await openSealer.open({
     sealed: { keyId: rowB.sealedKeyId!, ciphertext: rowB.sealedCiphertext!, nonce: rowB.sealedNonce!, alg: rowB.sealedAlg! },
+  }, {
     aad: buildExternalMcpEnvAad({ workspaceId: WORKSPACE, serverId: "server-b" }),
   });
   assert.equal(reopenedEnvB, envPlaintextB);
+
+  const rowC = rows.find((row) => row.serverId === "server-c")!;
+  const rowD = rows.find((row) => row.serverId === "server-d")!;
+  assert.ok(rowC && rowD);
+  const envColumns = (row: typeof rowC) => ({ keyId: row.sealedKeyId!, ciphertext: row.sealedCiphertext!, nonce: row.sealedNonce!, alg: row.sealedAlg! });
+  const oauthColumns = (row: typeof rowC) => ({ keyId: row.oauthSealedKeyId!, ciphertext: row.oauthSealedCiphertext!, nonce: row.oauthSealedNonce!, alg: row.oauthSealedAlg! });
+  assert.deepEqual(envColumns(rowC), envSealedC, "migrating only OAuth must preserve all env sealed columns");
+  assert.deepEqual(oauthColumns(rowD), oauthSealedD, "migrating only env must preserve all OAuth sealed columns");
+  assert.equal(rowC.aadVersion, 1);
+  assert.equal(rowC.oauthAadVersion, 1);
+  assert.equal(rowD.aadVersion, 1);
+  assert.equal(rowD.oauthAadVersion, 1);
+  assert.equal(await openSealer.open({ sealed: oauthColumns(rowC) }, { aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: "server-c" }) }), "OAUTH-C-PENDING");
+  assert.equal(await openSealer.open({ sealed: envColumns(rowD) }, { aad: buildExternalMcpEnvAad({ workspaceId: WORKSPACE, serverId: "server-d" }) }), "ENV-D-PENDING");
 
   // --- Negative half: the env AAD must NOT open the oauth blob (domain separation) and vice versa. ---
   await assert.rejects(() =>
     openSealer.open({
       sealed: { keyId: rowA.sealedKeyId!, ciphertext: rowA.sealedCiphertext!, nonce: rowA.sealedNonce!, alg: rowA.sealedAlg! },
+    }, {
       aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: "server-a" }),
     })
   );

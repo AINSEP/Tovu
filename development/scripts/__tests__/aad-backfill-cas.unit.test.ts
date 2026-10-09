@@ -2,23 +2,24 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test, { mock } from "node:test";
+import test from "node:test";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../../apps/website/src/features/webhooks/keyring.memory.js";
 import * as runner from "../aad-backfill-runner.js";
 
-// Suppress only import-time CLI startup. The exported runs, pending-row selection,
+// Guarded entrypoints prevent import-time CLI startup. The exported runs, pending-row selection,
 // per-slot writes, shared runner, SQLite and AES-GCM all execute normally (F1.4/F3.4).
-const cliMock = mock.module(new URL("../aad-backfill-runner.js", import.meta.url).href, {
-  namedExports: { ...runner, runAadBackfillMain: async () => undefined },
-});
+const exitCodeBeforeImports = process.exitCode;
 const execution = await import("../backfill-execution-credential-aad.js");
 const media = await import("../backfill-media-provider-credential-aad.js");
 const site = await import("../backfill-site-assistant-credential-aad.js");
 const mcp = await import("../backfill-external-mcp-aad.js");
-cliMock.restore();
+
+test("importing the backfill runners does not start their CLI", () => {
+  assert.equal(process.exitCode, exitCodeBeforeImports);
+});
 
 const cases = [
   { name: "execution", table: "admin_execution_credentials", identity: "principal_id", identityValue: "admin", extraColumns: "protocol, provider_id, masked", extraValues: "'openai', 'openai', 'OLD1'", prefix: "", version: "aad_version", run: execution.runExecutionCredentialAadBackfill },
@@ -45,7 +46,7 @@ for (const c of cases) {
       let rotated: Awaited<ReturnType<typeof realSealer.seal>> | undefined;
       let boundAad: string | undefined;
       const sealer: runner.AadBackfillDeps["sealer"] = {
-        open: (input) => realSealer.open(input),
+        open: (input, options) => realSealer.open(input, options),
         seal: async (input) => {
           seals++;
           boundAad = input.aad;
@@ -58,13 +59,18 @@ for (const c of cases) {
         },
       };
       const run = () => c.run({ db, keyring, sealer, log: () => undefined }, { apply: true });
-      if (rotate) await assert.rejects(run, /changed 0 row/, "a stale write must report zero rows and abort (F7.1)");
-      else assert.deepEqual(await run(), { migrated: 1, total: 1 });
+      if (rotate) {
+        const label = c.name === "execution" ? "workspace=ws principal=admin"
+          : c.name === "site" ? "workspace=ws"
+          : c.name === "media" ? "workspace=ws provider=openai"
+          : `workspace=ws server=server slot=${c.name.slice(4)}`;
+        await assert.rejects(run, { message: runner.staleWriteMessage(label, 0) }, "a stale write must report zero rows and abort (F7.1)");
+      } else assert.deepEqual(await run(), { migrated: 1, total: 1 });
       assert.equal(seals, 1, "the real write path must be reached exactly once");
       const row = db.$client.prepare(`SELECT ${c.prefix}sealed_key_id AS keyId, ${c.prefix}sealed_ciphertext AS ciphertext, ${c.prefix}sealed_nonce AS nonce, ${c.prefix}sealed_alg AS alg, ${c.version} AS version FROM ${c.table} WHERE workspace_id = 'ws' AND ${c.identity} = ?`).get(c.identityValue) as runner.SealedColumns & { version: number };
       assert.equal(row.version, 1);
       if (rotate) assert.equal(row.ciphertext, rotated!.ciphertext, "the rotation must survive the actual SQL callback");
-      assert.equal(await realSealer.open({ sealed: row, aad: boundAad }), rotate ? "NEW-ROTATED-KEY" : "OLD-KEY");
+      assert.equal(await realSealer.open({ sealed: row }, { aad: boundAad }), rotate ? "NEW-ROTATED-KEY" : "OLD-KEY");
     });
   }
 }

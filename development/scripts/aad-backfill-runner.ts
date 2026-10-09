@@ -161,7 +161,7 @@ export async function runAadBackfill(
     const activeKey = await deps.keyring.activeKey();
     const sealed = await deps.sealer.seal({ plaintext, key: activeKey, aad });
 
-    const verifyPlaintext = await deps.sealer.open({ sealed, aad });
+    const verifyPlaintext = await deps.sealer.open({ sealed }, { aad });
     if (verifyPlaintext !== plaintext) {
       throw new Error(config.messages.mismatch(unit.label));
     }

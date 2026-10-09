@@ -181,6 +181,7 @@ async function classifyRow(row: CustomCredentialRow, deps: { sealer: SecretSeale
   try {
     const plaintext = await deps.sealer.open({
       sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
+    }, {
       aad: buildCustomCredentialAad({ workspaceId: row.workspaceId, id: row.id }),
     });
     const username = extractUsername(plaintext);
@@ -331,6 +332,7 @@ async function countPending(
     try {
       const plaintext = await deps.sealer.open({
         sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
+      }, {
         aad: buildCustomCredentialAad({ workspaceId: row.workspaceId, id: row.id }),
       });
       if (extractUsername(plaintext) !== undefined) pending += 1;

@@ -36,8 +36,10 @@ import { missingDbPathMessage } from "../backfill-db-path.js";
  * A throwaway, per-test random hex site key stands in for the real `TOVU_SITE_KEY` —
  * this file never touches the real one. `EnvOrFileKeyring`/`AesGcmSecretSealer` are constructed the
  * exact same way `server/deps.ts`'s `siteAssistantSecretKeyring` is
- * (`new EnvOrFileKeyring({ allowFileFallback: false })`), so this test exercises the identical
- * key-derivation path production uses, not a stand-in double.
+ * (`new EnvOrFileKeyring({ sources: [{ kind: "env" }] })`), so this test exercises the identical
+ * key-derivation path production uses, not a stand-in double. Each reader receives an injected
+ * env snapshot; only the CLI child gets the synthetic key, and the developer's key is never used
+ * or replaced in this test process.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
@@ -112,13 +114,26 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
       updatedAt: NOW,
     })
     .run();
+  const preservedId = "cred-newer-username";
+  const preservedSealed = await sealer.seal({
+    plaintext: JSON.stringify({ token: "FIXTURE_PRESERVED", username: "legacy-owner" }),
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: preservedId }),
+  });
+  seedDb.insert(customCredentialSets).values({
+    id: preservedId, workspaceId: WORKSPACE, label: "newer", category: "general",
+    baseUrl: "https://api.example.com", additionalHostsJson: null, username: "newer-owner",
+    sealedKeyId: preservedSealed.keyId, sealedCiphertext: preservedSealed.ciphertext,
+    sealedNonce: preservedSealed.nonce, sealedAlg: preservedSealed.alg, createdAt: NOW, updatedAt: NOW,
+  }).run();
+  const preservedBefore = seedDb.select().from(customCredentialSets).all().find((row) => row.id === preservedId)!;
   seedDb.$client.close();
 
   // --- Dry run: decrypts this row (same as --apply, so its count is accurate — see the
   // "dry run's reported would-migrate count matches --apply's" test below for the case this
   // guards against) and so needs the site key, but must still write nothing. ---
   const dryRunOutput = runScript(dbPath, siteKeyHex);
-  assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 0 would be skipped \(no username\), 0 would fail \(could not decrypt\), 0 already migrated, 1 total/);
+  assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) would be migrated, 0 would be skipped \(no username\), 0 would fail \(could not decrypt\), 1 already migrated, 2 total/);
   const afterDryRun = openContentDb(dbPath);
   const rowAfterDryRun = afterDryRun.select().from(customCredentialSets).all()[0]!;
   assert.equal(rowAfterDryRun.username, null, "a dry run must never write");
@@ -129,10 +144,11 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
   const applyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(applyOutput, /RESTORE POINT CAPTURED/);
   assert.match(applyOutput, new RegExp(`MIGRATED: workspace=${WORKSPACE} id=${credId}`));
-  assert.match(applyOutput, /Done: 1 row\(s\) migrated, 0 already migrated, 0 skipped \(no username\), 0 failed, 1 total/);
+  assert.match(applyOutput, /Done: 1 row\(s\) migrated, 1 already migrated, 0 skipped \(no username\), 0 failed, 2 total/);
 
   const db = openContentDb(dbPath);
   const row = db.select().from(customCredentialSets).all()[0]!;
+  assert.deepEqual(db.select().from(customCredentialSets).all().find((row) => row.id === preservedId), preservedBefore);
   assert.equal(row.username, "owner@example.com", "the column must carry the exact value from the sealed payload");
 
   // --- THE MANDATORY PROOF: the ciphertext/nonce/key id/alg are byte-identical to what was sealed
@@ -146,6 +162,7 @@ test("backfill-custom-credential-usernames: populates the column from the sealed
   // re-seals) — confirms the ciphertext claim above isn't just an unchanged-string coincidence.
   const reopened = await sealer.open({
     sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
+  }, {
     aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: credId }),
   });
   assert.equal(reopened, plaintext);
@@ -170,8 +187,9 @@ test("backfill-custom-credential-usernames: a row that fails to decrypt is skipp
   const dbPath = path.join(scratch, "content.db");
   const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
-  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
+    env: () => ({ [SITE_KEY_ENV_VAR_NAME]: siteKeyHex }),
+  });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -240,7 +258,6 @@ test("backfill-custom-credential-usernames: a row that fails to decrypt is skipp
     sealedAlg: goodSealed.alg,
   });
   seedDb.$client.close();
-  delete process.env[SITE_KEY_ENV_VAR_NAME];
 
   let threw = false;
   try {
@@ -270,8 +287,9 @@ test("backfill-custom-credential-usernames: a sealed payload with no username is
   const dbPath = path.join(scratch, "content.db");
   const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
-  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
+    env: () => ({ [SITE_KEY_ENV_VAR_NAME]: siteKeyHex }),
+  });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -338,7 +356,6 @@ test("backfill-custom-credential-usernames: a sealed payload with no username is
     sealedAlg: pendingSealed.alg,
   });
   seedDb.$client.close();
-  delete process.env[SITE_KEY_ENV_VAR_NAME];
 
   const applyOutput = runScript(dbPath, siteKeyHex, ["--apply"]);
   assert.match(applyOutput, new RegExp(`SKIPPED \\(no username in sealed payload\\): workspace=${WORKSPACE} id=${credId}`));
@@ -360,8 +377,9 @@ test("backfill-custom-credential-usernames: a database whose ONLY NULL row is un
   const dbPath = path.join(scratch, "content.db");
   const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
-  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
+    env: () => ({ [SITE_KEY_ENV_VAR_NAME]: siteKeyHex }),
+  });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -401,7 +419,15 @@ test("backfill-custom-credential-usernames: a database whose ONLY NULL row is un
     })
     .run();
   seedDb.$client.close();
-  delete process.env[SITE_KEY_ENV_VAR_NAME];
+
+  const beforePreview = openContentDb(dbPath);
+  const corruptBefore = beforePreview.select().from(customCredentialSets).all();
+  beforePreview.$client.close();
+  const preview = runScript(dbPath, siteKeyHex);
+  assert.match(preview, /DRY RUN: 0 row\(s\) would be migrated, 0 would be skipped \(no username\), 1 would fail \(could not decrypt\), 0 already migrated, 1 total/);
+  const afterPreview = openContentDb(dbPath);
+  assert.deepEqual(afterPreview.select().from(customCredentialSets).all(), corruptBefore, "preview must not change a corrupt row");
+  afterPreview.$client.close();
 
   let threw = false;
   let output = "";
@@ -431,8 +457,9 @@ test("backfill-custom-credential-usernames: dry run's reported would-migrate cou
   const dbPath = path.join(scratch, "content.db");
   const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
-  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
+    env: () => ({ [SITE_KEY_ENV_VAR_NAME]: siteKeyHex }),
+  });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -469,7 +496,6 @@ test("backfill-custom-credential-usernames: dry run's reported would-migrate cou
     })
     .run();
   seedDb.$client.close();
-  delete process.env[SITE_KEY_ENV_VAR_NAME];
 
   // Dry run now decrypts to classify the row (same as --apply), so it needs the real site key.
   const dryRunOutput = runScript(dbPath, siteKeyHex, []);
@@ -498,8 +524,9 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
   const dbPath = path.join(scratch, "content.db");
   const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
-  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
+    env: () => ({ [SITE_KEY_ENV_VAR_NAME]: siteKeyHex }),
+  });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -563,7 +590,6 @@ test("backfill-custom-credential-usernames: countPending converges to 0 with a t
     sealedAlg: pendingSealed.alg,
   });
   seedDb.$client.close();
-  delete process.env[SITE_KEY_ENV_VAR_NAME];
 
   // --- First apply: migrates the genuinely pending row, skips the token-only row (no username to
   // copy) — the token-only row's `username` column stays NULL, as it always will. ---
@@ -603,8 +629,9 @@ test("backfill-custom-credential-usernames: the FAILED-only summary line reports
   const dbPath = path.join(scratch, "content.db");
   const siteKeyHex = randomBytes(32).toString("hex");
 
-  process.env[SITE_KEY_ENV_VAR_NAME] = siteKeyHex;
-  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
+  const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] }, {
+    env: () => ({ [SITE_KEY_ENV_VAR_NAME]: siteKeyHex }),
+  });
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
@@ -672,7 +699,6 @@ test("backfill-custom-credential-usernames: the FAILED-only summary line reports
     sealedAlg: alreadyMigratedSealed.alg,
   });
   seedDb.$client.close();
-  delete process.env[SITE_KEY_ENV_VAR_NAME];
 
   let output = "";
   try {
