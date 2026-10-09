@@ -16,6 +16,7 @@ import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } 
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
+import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete/agent-tools.js";
 import { agentPluginConnectDomainCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { databaseTransferAgentToolCatalog } from "../../features/database-transfer/tool-registrations.js";
@@ -338,7 +339,11 @@ test("every wired registration publishes the inputSchema from its catalog entry 
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // union schema / concatenated description — see DERIVED_CONTENT_READ_IDS's own doc
     if (CATALOG_SCHEMA_OVERRIDE_IDS.has(id)) continue; // deliberate divergence, asserted honestly in the dedicated test below — see CATALOG_SCHEMA_OVERRIDE_IDS's own doc
-    const expected = rewrite({ ...registration, descriptor: { ...registration.descriptor, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema } }).descriptor;
+    const catalogDescriptor = { ...registration.descriptor, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema };
+    // A batchable tool publishes its catalog contract plus `items` — asserted against the REAL
+    // derivation (`batchDescriptorFor`), in the order the assembly applies it (batch, then rewrite).
+    const batchable = BATCHABLE_TOOLS.find((tool) => tool.toolId === id);
+    const expected = rewrite({ ...registration, descriptor: batchable ? batchDescriptorFor({ descriptor: catalogDescriptor, tool: batchable }) : catalogDescriptor }).descriptor;
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, expected.description);
   }

@@ -34,6 +34,7 @@ import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-too
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { deriveContentReadRegistrations } from "./content-read-tool.js";
+import { applyBatchInputs, type BatchableTool } from "./batch-tool-inputs.js";
 import type { AssistantToolContributions, ToolContributor } from "./tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };
@@ -286,7 +287,11 @@ export function buildAssistantToolRegistrations(
    *  synthetic-arm sections to keep measuring a valid "what if we had not collapsed" comparison
    *  against the now-real thing. Every real caller (the two production composition roots) leaves
    *  this at its default. */
-  options: { readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean } = {},
+  options: {
+    readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean;
+    /** Test seam: which tools take `items` (default `BATCHABLE_TOOLS`); lets a test batch a tool whose approval class asks. */
+    readonly batchableTools?: readonly BatchableTool[];
+  } = {},
 ): ToolRegistration[] {
   const registrations: ToolRegistration[] = [];
   const ownerByToolId = new Map<string, string>();
@@ -348,8 +353,11 @@ export function buildAssistantToolRegistrations(
       return typeof setting?.value === "string" ? setting.value : "en";
     },
   }));
-  if (options.includeContentReadCollapse === false) return approvedRegistrations;
-  const finalRegistrations = deriveContentReadRegistrations(approvedRegistrations);
+  // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
+  // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.
+  const batchedRegistrations = applyBatchInputs({ registrations: approvedRegistrations }, { tools: options.batchableTools });
+  if (options.includeContentReadCollapse === false) return batchedRegistrations;
+  const finalRegistrations = deriveContentReadRegistrations(batchedRegistrations);
   // A new collapsed card is a new registered tool too: never exempt it from the guard.
   for (const registration of finalRegistrations) toolApprovalPolicyFor({ registration });
   return finalRegistrations;

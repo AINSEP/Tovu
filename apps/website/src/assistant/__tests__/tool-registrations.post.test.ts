@@ -14,6 +14,7 @@ import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/i
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
+import { BATCHABLE_TOOLS, batchDescriptorFor } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributePostTools } from "../../features/post/tool-registrations.js";
@@ -242,9 +243,12 @@ test("every wired Posts/Pages registration publishes its catalog contract except
     if (id === "content_read.content_post") continue;
     // The host deliberately rewrites retired read IDs in schema prose (2026-10-05).
     // Pin the exact alias substitution while comparing the entire remaining catalog contract.
-    const expected = JSON.parse(JSON.stringify(catalogEntry(id)).replaceAll(
+    const rewritten = JSON.parse(JSON.stringify(catalogEntry(id)).replaceAll(
       "content_post_create/content_post_list/content_post_get", "content_post_create/content_read.content_post",
     )) as PostAgentToolDefinition;
+    // A batchable tool publishes that contract plus `items`, via the real `batchDescriptorFor`.
+    const batchable = BATCHABLE_TOOLS.find((tool) => tool.toolId === id);
+    const expected = batchable ? batchDescriptorFor({ descriptor: { id, description: rewritten.description, inputSchema: rewritten.inputSchema }, tool: batchable }) : rewritten;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's with current read-tool references`);
     assert.equal(registration.descriptor.description, expected.description);
