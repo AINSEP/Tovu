@@ -1,15 +1,18 @@
+import { useLocalSites, type LocalSitesController } from "./use-local-sites.hooks";
+import { useSiteConfirm, type SiteConfirmController } from "./use-site-confirm.hooks";
 import { useCallback, useRef, useState } from "react";
 
 import { describeApiError, type AdminSiteActivation, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
-import { useFetchMutation, useFetchQuery, useInvalidate, type QueryStatus } from "@jini-ai/ui/fetch-query";
+import { useFetchMutation, type QueryStatus } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSitesSnapshot } from "./use-sites-snapshot.hooks";
 import { useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
 import { t as defaultT } from "../sites-i18n";
-import { KEYS, SITES_RESOURCE, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
+import { KEYS, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
 import type { SitesPort } from "./sites-port.hooks";
 import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "./use-create-site-plugin-tokens.hooks";
+import { resolveAdminPasswordPresentation, resolveCreatedAdminLogin } from "../Sites.hooks";
 
 /**
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
@@ -45,6 +48,9 @@ import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from
  * documents.
  */
 export interface SitesController {
+  localSites?: LocalSitesController;
+  /** The modal that answers {@link SitesController.localSites}' Trash/Delete/Switch confirmations. */
+  siteConfirm?: SiteConfirmController;
   /** `undefined` until the first successful load — the view renders its loading state. */
   snapshot: AdminSitesSnapshot | undefined;
   /** {@link SitesController.snapshot}'s rows in render order (serving first, then by name), or an
@@ -63,6 +69,12 @@ export interface SitesController {
   outlook: ActivationOutlook;
 
   createName: string;
+  adminPassword: string;
+  setAdminPassword: (value: string) => void;
+  adminPasswordInputType: string;
+  adminPasswordRevealLabel: string;
+  toggleAdminPasswordVisibility: () => void;
+  createdAdminLogin: string | null;
   /** Also clears {@link SitesController.createdName} — a still-showing "Created." banner must not
    *  survive the operator changing what's in the field (finding 25, 2026-09-05 admin-tooling audit). */
   setCreateName: (value: string) => void;
@@ -100,15 +112,14 @@ export interface SitesController {
 }
 
 export function useSites(port: SitesPort, t: Translate): SitesController {
-  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listSites() });
-
-  // Stable identity (not an inline arrow) so the subscription effect does not resubscribe every
-  // render — same note as `Jini redirects/react/hooks/use-redirects.hooks.ts`'s own `invalidateList`.
-  const invalidate = useInvalidate();
-  const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  useContentRefreshSubscription(SITES_RESOURCE, invalidateList);
+  const list = useSitesSnapshot({ port });
+  const siteConfirm = useSiteConfirm({ t });
+  const localSites = useLocalSites({ port, snapshot: list.data, t }, { confirm: siteConfirm.confirm });
 
   const [createName, setCreateNameRaw] = useState("");
+  const [adminPassword, setAdminPasswordRaw] = useState("");
+  const [passwordRevealed, setPasswordRevealed] = useState(false);
+  const [createdAdminLogin, setCreatedAdminLogin] = useState<string | null>(null);
   const [createdName, setCreatedName] = useState<string | null>(null);
   const [activation, setActivation] = useState<AdminSiteActivation | null>(null);
   const [activatingName, setActivatingName] = useState<string | null>(null);
@@ -116,7 +127,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   const [createdTokens, setCreatedTokens] = useState<{ names: string[]; note: string } | null>(null);
 
   const createMutation = useFetchMutation({
-    run: ({ input }: { input: { name: string; agentPluginTokens?: Record<string, string> } }) => port.createSite(input),
+    run: ({ input }: { input: { name: string; adminPassword: string; agentPluginTokens?: Record<string, string> } }) => port.createSite(input),
   }, {
     invalidates: [KEYS.list],
   });
@@ -157,7 +168,16 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     setCreateNameRaw(value);
     setCreatedName(null);
     setCreatedTokens(null);
+    setCreatedAdminLogin(null);
   }, []);
+
+  const setAdminPassword = useCallback((value: string) => {
+    setAdminPasswordRaw(value);
+    setCreatedName(null);
+    setCreatedTokens(null);
+    setCreatedAdminLogin(null);
+  }, []);
+  const toggleAdminPasswordVisibility = useCallback(() => setPasswordRevealed((value) => !value), []);
 
   const createSite = useCallback(() => {
     const name = createName.trim();
@@ -170,14 +190,20 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     activateMutation.reset();
     setCreatedName(null);
     setCreatedTokens(null);
+    setCreatedAdminLogin(null);
     const agentPluginTokens = pluginTokens.tokensForCreate();
+    const password = adminPassword === "" ? "tovu-dev" : adminPassword;
+    const customPassword = adminPassword !== "";
     // `.catch` is required even though `mutate` itself never raises `unhandledrejection` (see
     // `MutationResult.mutate`'s own doc): `.then` above it produces a NEW promise, and that one
     // has no handler of its own. The failure is reported through `createMutation.error`.
     createMutation
-      .mutate({ input: agentPluginTokens ? { name, agentPluginTokens } : { name } })
+      .mutate({ input: agentPluginTokens ? { name, adminPassword: password, agentPluginTokens } : { name, adminPassword: password } })
       .then((result) => {
         setCreatedName(result.site.name);
+        setCreatedAdminLogin(resolveCreatedAdminLogin({ customPassword, t }));
+        setAdminPasswordRaw("");
+        setPasswordRevealed(false);
         setCreatedTokens(resolveCreatedTokens(result.agentPluginTokens, pluginTokens.displayNames, t));
         pluginTokens.clear();
         // Raw, not the wrapped `setCreateName` — that also clears `createdName`, which would erase
@@ -188,7 +214,7 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
       .finally(() => {
         creatingRef.current = false;
       });
-  }, [activateMutation, createMutation, createName, pluginTokens, t]);
+  }, [activateMutation, createMutation, createName, adminPassword, pluginTokens, t]);
 
   const activate = useCallback(
     (name: string) => {
@@ -220,8 +246,11 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   );
 
   const view = readSnapshot(list.data);
+  const passwordPresentation = resolveAdminPasswordPresentation({ revealed: passwordRevealed, t });
 
   return {
+    localSites,
+    siteConfirm,
     snapshot: list.data,
     sites: view.sites,
     listStatus: list.status,
@@ -230,6 +259,12 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     switchingEnabled: view.switchingEnabled,
     outlook: view.outlook,
     createName,
+    adminPassword,
+    setAdminPassword,
+    adminPasswordInputType: passwordPresentation.inputType,
+    adminPasswordRevealLabel: passwordPresentation.revealLabel,
+    toggleAdminPasswordVisibility,
+    createdAdminLogin,
     setCreateName,
     createNameError: resolveCreateNameError(createName, nameErrorKey, t),
     createSite,

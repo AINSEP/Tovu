@@ -85,7 +85,7 @@ export function siteRowState(site: AdminSiteListEntry, snapshot: AdminSitesSnaps
  *  @complexity Time/space: O(1). */
 export function siteRowStateLabelKey(state: SiteRowState): string {
   if (state === "serving") return "Serving now";
-  if (state === "pending-restart") return "Queued for next restart";
+  if (state === "pending-restart") return "Default for next launch";
   return "Not in use";
 }
 
@@ -184,6 +184,11 @@ export function siteWriteErrorKey(e: unknown): string | null {
   if (!(e instanceof ApiError)) return null;
   if (e.code === "SITE_SWITCHING_DISABLED") return "Site switching is turned off on this deployment.";
   if (e.code === "SITE_ALREADY_EXISTS") return "A folder with that name already exists under sites/.";
+  if (e.code === "SITE_LIMIT") return "Stop a site before starting another.";
+  if (e.code === "SITE_RUNNING") return "Stop this site before moving it to Trash.";
+  if (e.code === "SITE_SERVING") return "The serving site cannot be stopped or moved to Trash.";
+  if (e.code === "SITE_STOP_FAILED") return "The site could not be fully stopped. Try Stop again.";
+  if (e.code === "SITE_START_FAILED") return "The site could not start.";
   if (e.code === "AGENT_PLUGIN_TOKEN_INVALID") return "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created.";
   if (e.code === "AGENT_PLUGIN_TOKEN_UNSUPPORTED") return "That service can't be connected with an access token here. Leave it empty and connect later from chat. No site was created.";
   return null;

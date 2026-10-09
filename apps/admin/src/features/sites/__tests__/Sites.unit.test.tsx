@@ -40,11 +40,17 @@ function controllerFixture(overrides: Partial<SitesController> = {}): SitesContr
     switchingEnabled: snapshot.switchingEnabled,
     outlook: { kind: "none" },
     createName: "",
+    adminPassword: "",
+    setAdminPassword: vi.fn(),
+    adminPasswordInputType: "password",
+    adminPasswordRevealLabel: "Show admin password",
+    toggleAdminPasswordVisibility: vi.fn(),
     setCreateName: vi.fn(),
     createNameError: null,
     createSite: vi.fn(),
     creating: false,
     createdName: null,
+    createdAdminLogin: null,
     pluginTokens: { fields: [], setToken: vi.fn(), tokensForCreate: () => undefined, displayNames: (ids) => [...ids], clear: vi.fn() },
     createdTokens: null,
     activate: vi.fn(),
@@ -128,7 +134,7 @@ describe("Sites — the live binding is stated on the served site's own card", (
         currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
       }),
     });
-    expect(screen.getByText(/TOVU_SITE_DIR is set in this server's environment/)).toBeTruthy();
+    expect(screen.getByText(/This host is pinned to its serving folder/)).toBeTruthy();
   });
 });
 
@@ -138,8 +144,8 @@ describe("Sites — a pending choice is never presented as a completed switch", 
       snapshot: snapshotFixture({ persistedSiteName: "beta" }),
       outlook: { kind: "pending", name: "beta" },
     });
-    expect(screen.getByText(/Nothing has switched yet — this server and its agent daemon are both still on/)).toBeTruthy();
-    expect(screen.getByText("Queued for next restart")).toBeTruthy();
+    expect(screen.getByText(/is the default for the next launch. This server is serving/)).toBeTruthy();
+    expect(screen.getByText("Default for next launch")).toBeTruthy();
     // ONE match now, not two: the page-level "Now serving" card that carried the second copy is
     // gone, so the only `Serving now` on screen is `alpha`'s own card badge.
     expect(screen.getAllByText("Serving now")).toHaveLength(1);
@@ -152,7 +158,8 @@ describe("Sites — a pending choice is never presented as a completed switch", 
       outlook: { kind: "pending", name: "beta" },
       restartInstructions: "Stop `npm run dev` and start it again.",
     });
-    expect(screen.getByText("Stop `npm run dev` and start it again.")).toBeTruthy();
+    expect(screen.queryByText("Stop `npm run dev` and start it again.")).toBeNull();
+    expect(screen.getByText("Start another site to open its admin in a new tab.")).toBeTruthy();
   });
 
   it("still reports the pending choice after a reload has thrown the response away", () => {
@@ -161,7 +168,8 @@ describe("Sites — a pending choice is never presented as a completed switch", 
       outlook: { kind: "pending", name: "beta" },
       restartInstructions: null,
     });
-    expect(screen.getByText("Restart the dev server to apply it.")).toBeTruthy();
+    expect(screen.queryByText("Restart the dev server to apply it.")).toBeNull();
+    expect(screen.getByText("Start another site to open its admin in a new tab.")).toBeTruthy();
   });
 
   it("says a restart will NOT pick the choice up when TOVU_SITE_DIR defeats it", () => {
@@ -172,7 +180,7 @@ describe("Sites — a pending choice is never presented as a completed switch", 
       }),
       outlook: { kind: "pending-ignored", name: "beta" },
     });
-    expect(screen.getByText(/so a restart will not pick it up/)).toBeTruthy();
+    expect(screen.getByText(/is saved as the default. This host is pinned to/)).toBeTruthy();
   });
 });
 
@@ -210,18 +218,18 @@ describe("Sites — the queued-choice pill (at-a-glance, not just prose)", () =>
 });
 
 describe("Sites — the capability flag", () => {
-  it("explains the deployment cannot switch sites and disables Activate", () => {
+  it("explains the deployment cannot switch sites and offers no Make default anywhere", () => {
     renderSites({ snapshot: snapshotFixture({ switchingEnabled: false }) });
 
     // The notice is page-level, so it is visible from BOTH views — the reason Create is inert has
     // to reach the operator who opened the create screen, not only the one looking at the grid.
     expect(screen.getByText(/Creating and activating sites is turned off on this deployment/)).toBeTruthy();
-    // Page-wide, per-site accessible names now (see `AllSitesTab.tsx`'s `ActivateButton`) — a
-    // generic browser agent reading the accessibility tree could not otherwise tell alpha's
-    // control from beta's, the same reason this suite names them below rather than indexing by
-    // DOM order (see the "leaves the served row's own Activate disabled" test further down).
-    expect(screen.getByRole("button", { name: "Save alpha as the site to serve after the next restart" }).hasAttribute("disabled")).toBe(true);
-    expect(screen.getByRole("button", { name: "Save beta as the site to serve after the next restart" }).hasAttribute("disabled")).toBe(true);
+    // 2026-10-08 card polish: an action that cannot apply is left out, not rendered disabled. With
+    // no local-sites controller and switching off, neither card has anything for its "⋯" menu, so
+    // no menu trigger renders at all. Per-site names keep the two cards distinguishable.
+    expect(screen.queryByRole("button", { name: "More actions for alpha" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "More actions for beta" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Make default" })).toBeNull();
   });
 
   it("disables Create on the create screen, and still says why there", () => {
@@ -231,27 +239,26 @@ describe("Sites — the capability flag", () => {
     expect(screen.getByText(/Creating and activating sites is turned off on this deployment/)).toBeTruthy();
   });
 
-  it("leaves the served row's own Activate disabled even when switching is on", () => {
+  it("offers Make default only on the non-served card's overflow menu, and activates that site", () => {
     const controller = renderSites();
-    // `alpha` is being served, `beta` is not — named directly rather than indexed by DOM order,
-    // now that each card's button carries its own site's name in its accessible name.
-    expect(screen.getByRole("button", { name: "Save alpha as the site to serve after the next restart" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Save beta as the site to serve after the next restart" })).not.toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Save beta as the site to serve after the next restart" }));
+    // `alpha` is being served (and is the default), so its card has no menu; `beta`'s menu offers
+    // Make default — named by site rather than indexed by DOM order.
+    expect(screen.queryByRole("button", { name: "More actions for alpha" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "More actions for beta" }));
+    const menu = screen.getByRole("menu", { name: "More actions for beta" });
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Make default"]);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Make default" }));
     expect(controller.activate).toHaveBeenCalledExactlyOnceWith("beta");
   });
 });
 
-describe("Sites — the Activate button's accessible name is translated copy", () => {
+describe("Sites — the overflow menu's accessible name is translated copy", () => {
   it("resolves the per-site label through t(), with the site name filled into the translated sentence", () => {
-    const t = (key: string): string =>
-      key === "Save {name} as the site to serve after the next restart"
-        ? "Guardar {name} como el sitio que se servirá tras el próximo reinicio"
-        : key;
+    const t = (key: string): string => (key === "More actions for {name}" ? "Más acciones para {name}" : key);
     renderSites({ t });
 
-    expect(screen.getByRole("button", { name: "Guardar beta como el sitio que se servirá tras el próximo reinicio" })).not.toBeDisabled();
-    expect(screen.getByRole("button", { name: "Guardar alpha como el sitio que se servirá tras el próximo reinicio" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Más acciones para beta" })).toHaveAttribute("aria-haspopup", "menu");
+    expect(screen.queryByRole("button", { name: "Más acciones para alpha" })).toBeNull();
   });
 });
 
@@ -357,10 +364,9 @@ describe("Sites — the two tabs the owner asked for, in words, twice", () => {
     expect(screen.getByRole("tab", { name: /New site/ }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tab", { name: /All sites/ })).toBeTruthy();
     // And the grid is genuinely gone, not merely hidden behind the form.
-    expect(screen.queryByRole("button", { name: "Serve after restart" })).toBeNull();
     expect(screen.queryByRole("group", { name: "Sites" })).toBeNull();
     for (const name of ["alpha", "beta"]) {
-      expect(screen.queryByRole("button", { name: `Save ${name} as the site to serve after the next restart` })).toBeNull();
+      expect(screen.queryByRole("button", { name: `More actions for ${name}` })).toBeNull();
     }
   });
 
@@ -393,7 +399,7 @@ describe("Sites — the PROCESS-level notices render above BOTH tabs", () => {
       { snapshot: snapshotFixture({ currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false } }) },
       "new",
     );
-    expect(screen.getByText(/TOVU_SITE_DIR is set in this server's environment/)).toBeTruthy();
+    expect(screen.getByText(/This host is pinned to its serving folder/)).toBeTruthy();
   });
 
   it("renders nothing at all when the process has nothing to report, so the grid moves up", () => {
@@ -410,7 +416,7 @@ describe("Sites — the PROCESS-level notices render above BOTH tabs", () => {
       { snapshot: snapshotFixture({ persistedSiteName: "beta" }), outlook: { kind: "pending", name: "beta" } },
       "new",
     );
-    expect(screen.getByText(/Nothing has switched yet/)).toBeTruthy();
+    expect(screen.getByText(/is the default for the next launch/)).toBeTruthy();
   });
 });
 
@@ -441,17 +447,17 @@ describe("Sites — the ported database picker tells the truth about what it can
     expect(screen.getByText(/Tovu creates every site's content database as SQLite today/)).toBeTruthy();
   });
 
-  it("keeps each vendor's credential fields visible but inert, and says they are stored nowhere", () => {
+  it("keeps unselected vendors' credential fields hidden", () => {
     renderSites({}, "new");
     for (const label of ["Provider name", "Connection string or API endpoint"]) {
-      expect((screen.getByLabelText(label) as HTMLInputElement).disabled).toBe(true);
+      expect(screen.queryByLabelText(label)).toBeNull();
     }
-    // 564fea48e removed Supabase's inert URL/key fields: its working path is the "Connect services"
-    // token field, so a credential-shaped Supabase input here would be a regression, not a preview.
+    // 564fea48e removed Supabase's inert URL/key fields: its working path is the optional inline
+    // token field, so a URL/key input here would be a regression, not a preview.
     for (const label of ["Supabase project URL", "Supabase API key"]) {
       expect(screen.queryByLabelText(label)).toBeNull();
     }
-    expect(screen.getAllByText(/isn't stored anywhere yet/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Shown for what's coming. It isn't stored anywhere yet.")).toBeNull();
   });
 
   it("submitting the form calls createSite with no arguments", () => {
@@ -514,7 +520,7 @@ describe("Sites — creating returns to the first tab, where the new card is", (
   it("puts the confirmation on All sites, not in the form footer nobody returns to", () => {
     renderSites({ createdName: "gamma" });
     expect(screen.getByText("gamma")).toBeTruthy();
-    expect(screen.getByText(/was created\. Activate it to serve after the next restart\./)).toBeTruthy();
+    expect(screen.getByText(/was created\. Start it to open its admin\./)).toBeTruthy();
   });
 
   it("keeps no stale confirmation on the New site tab", () => {
@@ -543,7 +549,7 @@ describe("Sites — the create screen still carries every create guard the tile 
 
   it("says a created site is not switched to, only created — the restart truth survives the move", () => {
     renderSites({ createdName: "gamma" });
-    expect(screen.getByText(/Activate it to serve after the next restart/)).toBeTruthy();
+    expect(screen.getByText(/Start it to open its admin/)).toBeTruthy();
   });
 
   it("still warns on the form itself that creating switches nothing, before anything is created", () => {

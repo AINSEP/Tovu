@@ -1,4 +1,4 @@
-import type { AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminSiteActivation, AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/lib/api";
+import type { AdminLocalSiteAction, AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminSiteActivation, AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/lib/api";
 
 /**
  * @file What `use-sites.hooks.ts` needs from the outside world, as an interface rather than a direct
@@ -13,8 +13,9 @@ import type { AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminSiteActi
  * having them injected.
  */
 export interface SitesPort {
+  manageLocalSite?(input: { name: string; action: AdminLocalSiteAction; confirmed?: boolean; checked?: boolean }): Promise<unknown>;
   listSites(): Promise<AdminSitesSnapshot>;
-  createSite(input: { name: string; agentPluginTokens?: Record<string, string> }): Promise<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>;
+  createSite(input: { name: string; adminPassword?: string; agentPluginTokens?: Record<string, string> }): Promise<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>;
   listTokenSignInPlugins(): Promise<{ plugins: AdminTokenSignInPlugin[] }>;
   activateSite(name: string): Promise<AdminSiteActivation>;
 }

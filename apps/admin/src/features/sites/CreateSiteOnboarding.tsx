@@ -2,12 +2,10 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
-  resolveConnectServicesVisible,
   resolveCreateInputDisabled,
   resolveCreateSubmitDisabled,
-  resolveDatabaseOptionClassName,
-  resolveSiteDatabaseOptions,
-  type SiteDatabaseOption,
+  useCreateSiteDatabase,
+  type SiteDatabaseDisclosure,
 } from "./Sites.hooks";
 import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 import type { useWiredSites } from "./hooks/use-sites.hooks";
@@ -27,13 +25,13 @@ import type { useWiredSites } from "./hooks/use-sites.hooks";
  * PORTED — the shape and the words: one sectioned card running "Site details" -> "Database" ->
  * actions, with Cancel beside the submit. The three database options keep Runner's own titles and
  * hint wording ("Default · …", "Hosted · requires a project URL and API key", "Any vendor · add its
- * endpoint and credential") so the two products read as one family, and each unavailable vendor
- * still shows the fields Runner shows for it.
+ * endpoint and credential") so the two products read as one family. Vendor fields now disclose
+ * only under their selected radio (owner, 2026-10-08), rather than advertising inputs on every card.
  *
  * REBUILT — everything below the markup. Runner's version is backed by `useCreateWebsiteForm`, with
  * `database` state, `supabaseUrl`/`customProvider`/`customConnection` state, two credential refs,
  * and a `computeCanCreate` that varies by branch. None of that is ported, because Tovu's create
- * call takes a name and nothing else and this feature already owns its own controller
+ * call takes a name and optional agent-plugin tokens, and this feature already owns its controller
  * (`use-sites.hooks.ts`). Runner's CSS is not ported either — the classes here are Tovu admin's own
  * tokens, per the dispatch.
  *
@@ -44,33 +42,33 @@ import type { useWiredSites } from "./hooks/use-sites.hooks";
  * (`apps/website/src/platform/site-dir/init-site.ts`) calls
  * `openContentDb(path.join(target, "content.db"), seed)` — hardcoded, with no dialect anywhere in
  * its input shape; the create route (`server/inbound/admin-http/routes/system/sites.ts`) reads
- * exactly one field off the request body (`parseCreateSiteName`) and silently discards the rest;
+ * a name (`parseCreateSiteName`) and optional agent-plugin tokens, with no database-provider input;
  * and `schema.postgres.ts`, though a real generated Postgres schema, is reachable only from
- * drift/parity tests. Supabase exists in this repo solely as an MCP server preset for the
- * assistant, which is a different feature.
+ * drift/parity tests. Supabase's Agent Plugin connects app data for the assistant, which is a
+ * different feature from provisioning the site's content database.
  *
- * Runner gets to render all three live because Runner's create screen provisions nothing — its own
- * footer says as much, and it carries a `blocked` project status for precisely this case, commented
+ * At the original port, Runner rendered all three live because its create screen provisioned
+ * nothing — its footer said as much. It carried a `blocked` project status for this case, commented
  * in its own source: *"A blocked project is waiting on database-provider support Tovu does not
  * have, so the only honest affordance is none — starting it would fail every time."* Tovu's button
  * really does create a site. So the same principle Runner states there is applied one step earlier
  * here: the affordance is shown, and it is not live.
  *
- * The guarantee is structural rather than cosmetic. **There is no state variable that can hold a
- * dialect.** SQLite's radio is a fixed `checked`/`readOnly` control; the other two are `disabled`;
- * and {@link CreateSiteOnboarding}'s submit handler calls `createSite()` — a zero-argument function
- * with nowhere to put a choice. Forcing a disabled radio on in the DOM (which a `disabled`
- * attribute alone would not survive) therefore changes nothing about the request, because nothing
- * reads it. "Chose Supabase, silently received SQLite" has no code path to travel down, which is
- * the standard the rest of this screen is already held to — see `Sites.tsx`'s header.
+ * The guarantee is structural rather than cosmetic. The disclosure hook starts on SQLite and
+ * refuses unavailable selections, including a disabled radio forced on in the DOM. The submit
+ * handler still calls `createSite()` — a zero-argument function with nowhere to put a dialect.
+ * "Chose Supabase, silently received SQLite" has no production code path to travel down, which
+ * is the standard the rest of this screen is already held to — see `Sites.tsx`'s header.
  *
- * ## Connect services (2026-09-29)
+ * ## Optional service tokens (2026-09-29; inline disclosure 2026-10-08)
  *
  * Supabase still cannot be the site's CONTENT database, and its database card still says so. What
  * works is connecting the Supabase Agent Plugin, so the assistant can make and manage a Supabase
- * database for the site's app data: the "Connect services" section offers an optional access-token
- * field for every installed plugin that takes one (`use-create-site-plugin-tokens.hooks.ts`). Empty
- * means skip; the site is created as before and the assistant can connect it later from chat.
+ * database for the site's app data. The existing token controller (`use-create-site-plugin-tokens
+ * .hooks.ts`) remains the owner; its Supabase field appears only under a selected Supabase radio.
+ * Empty means skip; the site is created as before and the assistant can connect it later from chat.
+ * There is no standalone section. Production's unavailable hosted radios keep their fields hidden,
+ * matching desktop's availability policy without inventing a hosted content provisioner.
  *
  * ## Chat data
  *
@@ -99,44 +97,38 @@ import type { useWiredSites } from "./hooks/use-sites.hooks";
 export interface CreateSiteOnboardingProps {
   controller: Pick<
     ReturnType<typeof useWiredSites>,
-    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "pluginTokens" | "t"
+    "createName" | "setCreateName" | "createNameError" | "createSite" | "creating" | "switchingEnabled" | "pluginTokens" | "t" | "adminPassword" | "setAdminPassword" | "adminPasswordInputType" | "adminPasswordRevealLabel" | "toggleAdminPasswordVisibility"
   >;
   /** Back to the "All sites" tab, creating nothing. Supplied by `Sites.tsx` so this form owns no
    *  routing of its own — same seam Runner's own `onBack` is. */
   onCancel: () => void;
+  /** Hook injection follows desktop's form seam; production retains its SQLite-only capabilities. */
+  useDatabase?: typeof useCreateSiteDatabase;
 }
 
-/** The vendor fields Runner shows under its "Custom" option, every control `disabled`, so the shape
- *  of the eventual flow is visible without a field that could collect a credential this product has
+/** The vendor fields Runner shows under its "Custom" option, every control `readOnly`, so the shape
+ *  of the eventual flow is visible when selected without collecting a credential this product has
  *  nowhere to put. (Supabase's inert URL/key fields were removed on 2026-09-29: the working way to
- *  bring Supabase is the token field under "Connect services".) */
-function CustomVendorFields({ t }: { t: Translate }) {
+ *  bring Supabase is the token field under its selected radio.) Read-only inputs can receive
+ *  disclosure focus without collecting a credential this backend cannot use. */
+function CustomVendorFields({ t, id }: { t: Translate; id: string }) {
   return (
-    <span className="site-db-vendor">
+    <span className="site-db-vendor" id={id}>
       <span className="field">
         <label className="field-label" htmlFor="site-db-custom-provider">
           {t("Provider name")}
         </label>
-        <input id="site-db-custom-provider" disabled placeholder={t("e.g. Neon, PlanetScale, Turso")} />
+        <input id="site-db-custom-provider" readOnly autoFocus placeholder={t("e.g. Neon, PlanetScale, Turso")} />
       </span>
       <span className="field">
         <label className="field-label" htmlFor="site-db-custom-connection">
           {t("Connection string or API endpoint")}
         </label>
-        <input id="site-db-custom-connection" disabled placeholder="https://… or postgres://…" autoComplete="off" />
+        <input id="site-db-custom-connection" readOnly placeholder="https://… or postgres://…" autoComplete="off" />
         <span className="field-hint">{t("Shown for what's coming. It isn't stored anywhere yet.")}</span>
       </span>
     </span>
   );
-}
-
-/** Dispatches an option's vendor fields as a flat if-chain — a plain function rather than a ternary
- *  in {@link DatabaseOption}'s JSX, which would be counted against that component's own complexity.
- *  SQLite has none: there is nothing to configure, which is the point of it.
- *  @complexity O(1) — three mutually exclusive branches. */
-function vendorFieldsFor(option: SiteDatabaseOption, t: Translate) {
-  if (option.id === "custom") return <CustomVendorFields t={t} />;
-  return null;
 }
 
 /**
@@ -150,31 +142,33 @@ function vendorFieldsFor(option: SiteDatabaseOption, t: Translate) {
  * `available` decides both the radio's `disabled` and the status pill, from one source — so a card
  * cannot render as choosable while being refused, or vice versa.
  */
-function DatabaseOption({ option, t }: { option: SiteDatabaseOption; t: Translate }) {
-  const inputId = `site-db-${option.id}`;
+function DatabaseOption({ option, pluginTokens, t }: { option: SiteDatabaseDisclosure; pluginTokens: CreateSitePluginTokensController; t: Translate }) {
   return (
-    <div className={resolveDatabaseOptionClassName({ selected: option.available, available: option.available })}>
+    <div className={option.className}>
       <input
         type="radio"
-        id={inputId}
+        id={option.inputId}
         name="site-db"
         value={option.id}
-        checked={option.available}
-        disabled={!option.available}
-        aria-disabled={option.available ? undefined : "true"}
-        readOnly
+        checked={option.selected}
+        disabled={option.disabled}
+        aria-disabled={option.ariaDisabled}
+        aria-expanded={option.ariaExpanded}
+        aria-controls={option.ariaControls}
+        onChange={option.onSelect}
       />
       <span className="site-db-option-text">
         <span className="site-db-option-head">
-          <label className="site-db-option-name" htmlFor={inputId}>
+          <label className="site-db-option-name" htmlFor={option.inputId}>
             {option.title}
           </label>
-          <span className={option.available ? "status status-ok" : "status status-neutral"}>
-            {option.available ? t("Ready") : t("Not supported yet")}
+          <span className={option.statusClassName}>
+            {option.statusLabel}
           </span>
         </span>
         <span className="site-db-option-note">{option.hint}</span>
-        {vendorFieldsFor(option, t)}
+        {option.showCustomFields && <CustomVendorFields t={t} id={option.disclosureId} />}
+        {option.tokenField && <PluginTokenField field={option.tokenField} id={option.disclosureId} onChange={pluginTokens.setToken} t={t} />}
       </span>
     </div>
   );
@@ -182,85 +176,62 @@ function DatabaseOption({ option, t }: { option: SiteDatabaseOption; t: Translat
 
 /** The "Database" section. Runner's own section blurb, plus the one sentence Runner has no need for
  *  — the reason two of its three options are inert here. */
-function DatabaseSection({ t }: { t: Translate }) {
+function DatabaseSection({ t, database, pluginTokens }: { t: Translate; database: ReturnType<typeof useCreateSiteDatabase>; pluginTokens: CreateSitePluginTokensController }) {
   return (
-    <div className="onboarding-section">
+    <fieldset className="onboarding-section site-db-fieldset">
+      <legend className="onboarding-section-title">{t("Database")}</legend>
       <div className="onboarding-section-head">
-        <h3 className="onboarding-section-title">{t("Database")}</h3>
         <p className="onboarding-section-lead">{t("SQLite is the zero-configuration default. Bring a hosted vendor when you need one.")}</p>
       </div>
       <div
         className="site-db-options"
-        role="group"
-        aria-label={t("Database")}
         {...agentHandle({ handle: "sites-create-database" }, {
           role: "region",
           label: "Which database backs the new site — SQLite is the only one Tovu can create today",
         })}
       >
-        {resolveSiteDatabaseOptions(t).map((option) => (
-          <DatabaseOption key={option.id} option={option} t={t} />
+        {database.options.map((option) => (
+          <DatabaseOption key={option.id} option={option} pluginTokens={pluginTokens} t={t} />
         ))}
       </div>
       <p className="field-hint">{t("Tovu creates every site's content database as SQLite today, so the other two can't be chosen yet. Chats always use SQLite, in a separate chat.db — restoring content never touches conversation history.")}</p>
-    </div>
+    </fieldset>
   );
 }
 
 /** One optional service's token field. The token is typed into a password input and sent only with
  *  the create request. */
-function PluginTokenField({ field, onChange, t }: { field: CreateSitePluginTokenField; onChange: (pluginId: string, value: string) => void; t: Translate }) {
-  const inputId = `site-key-${field.pluginId}`;
+function PluginTokenField({ field, id, onChange, t }: { field: CreateSitePluginTokenField; id: string; onChange: (pluginId: string, value: string) => void; t: Translate }) {
   return (
-    <div className="site-db-option is-token">
+    <span className="site-db-vendor" id={id}>
       <span className="site-db-option-text">
         <span className="site-db-option-head">
-          <label className="site-db-option-name" htmlFor={inputId}>
-            {field.displayName}
+          <label className="field-label" htmlFor="site-key-supabase">
+            {t("Paste an access token")}
           </label>
           <span className="status status-neutral">{t("Optional")}</span>
         </span>
-        <span className="site-db-vendor">
-          <span className="field">
-            {/* `new-password`, not `off` — see `security/AccessTokensTab.tsx`'s token input. */}
-            <input
-              id={inputId}
-              type="password"
-              value={field.token}
-              placeholder={t("Paste an access token")}
-              autoComplete="new-password"
-              onChange={(e) => onChange(field.pluginId, e.target.value)}
-              {...agentHandle({ handle: `sites-create-token-${field.pluginId}` }, { role: "field", label: `Optional ${field.displayName} access token for the new site` })}
-            />
-            <span className="field-hint">
-              <a href={field.helpUrl} target="_blank" rel="noopener noreferrer">
-                {t("Create a token")}
-              </a>{" "}
-              {t("No token? Leave it empty. You can ask the assistant to connect it later.")}
-            </span>
+        <span className="field">
+          {/* `new-password`, not `off` — see `security/AccessTokensTab.tsx`'s token input. */}
+          <input
+            id="site-key-supabase"
+            type="password"
+            value={field.token}
+            placeholder={t("Paste an access token")}
+            autoComplete="new-password"
+            autoFocus
+            onChange={(e) => onChange(field.pluginId, e.target.value)}
+            {...agentHandle({ handle: `sites-create-token-${field.pluginId}` }, { role: "field", label: `Optional ${field.displayName} access token for the new site` })}
+          />
+          <span className="field-hint">
+            <a href={field.helpUrl} target="_blank" rel="noopener noreferrer">
+              {t("Create a token")}
+            </a>{" "}
+            {t("No token? Leave it empty. You can ask the assistant to connect it later.")}
           </span>
         </span>
       </span>
-    </div>
-  );
-}
-
-/** "Connect services": one optional token field per installed plugin that takes one. Hidden when
- *  there are none. */
-function ConnectServicesSection({ pluginTokens, t }: { pluginTokens: CreateSitePluginTokensController; t: Translate }) {
-  if (!resolveConnectServicesVisible(pluginTokens.fields)) return null;
-  return (
-    <div className="onboarding-section">
-      <div className="onboarding-section-head">
-        <h3 className="onboarding-section-title">{t("Connect services")}</h3>
-        <p className="onboarding-section-lead">{t("Optional. Your assistant can use these once the site is running.")}</p>
-      </div>
-      <div className="site-db-options" role="group" aria-label={t("Connect services")}>
-        {pluginTokens.fields.map((field) => (
-          <PluginTokenField key={field.pluginId} field={field} onChange={pluginTokens.setToken} t={t} />
-        ))}
-      </div>
-    </div>
+    </span>
   );
 }
 
@@ -325,7 +296,8 @@ function OnboardingActions({ controller, onCancel }: CreateSiteOnboardingProps) 
   );
 }
 
-export function CreateSiteOnboarding({ controller, onCancel }: CreateSiteOnboardingProps) {
+export function CreateSiteOnboarding({ controller, onCancel, useDatabase = useCreateSiteDatabase }: CreateSiteOnboardingProps) {
+  const database = useDatabase({ t: controller.t, pluginTokens: controller.pluginTokens });
   return (
     <form
       className="onboarding"
@@ -337,8 +309,28 @@ export function CreateSiteOnboarding({ controller, onCancel }: CreateSiteOnboard
     >
       <div className="onboarding-card">
         <DetailsSection controller={controller} />
-        <DatabaseSection t={controller.t} />
-        <ConnectServicesSection pluginTokens={controller.pluginTokens} t={controller.t} />
+        <div className="onboarding-section">
+          <p className="field-hint">{controller.t("Admin login: admin / tovu-dev — change it later under Users")}</p>
+          <div className="field">
+            <label className="field-label" htmlFor="site-admin-password">{controller.t("Set a different admin password")}</label>
+            <input
+              id="site-admin-password"
+              type={controller.adminPasswordInputType}
+              value={controller.adminPassword}
+              minLength={1}
+              maxLength={512}
+              autoComplete="new-password"
+              disabled={resolveCreateInputDisabled(controller)}
+              onChange={(e) => controller.setAdminPassword(e.target.value)}
+              {...agentHandle({ handle: "sites-create-admin-password" }, { role: "field", label: "Optional admin password for the new site" })}
+            />
+            <button type="button" className="btn-secondary" disabled={resolveCreateInputDisabled(controller)} onClick={controller.toggleAdminPasswordVisibility}
+              {...agentHandle({ handle: "sites-create-admin-password-reveal" }, { role: "button", label: controller.adminPasswordRevealLabel })}>
+              {controller.adminPasswordRevealLabel}
+            </button>
+          </div>
+        </div>
+        <DatabaseSection t={controller.t} database={database} pluginTokens={controller.pluginTokens} />
         <OnboardingActions controller={controller} onCancel={onCancel} />
       </div>
     </form>

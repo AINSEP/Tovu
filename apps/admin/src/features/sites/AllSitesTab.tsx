@@ -1,19 +1,24 @@
+import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
+import { RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
+import { interpolate } from "@jini-ai/ui/panel-kit";
 
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
-  resolveActivateAriaLabel,
-  resolveActivateDisabled,
+  buildSiteCardMenuItems,
   resolveSiteCardClassName,
+  resolveSiteCardMeta,
   resolveSiteCardTitle,
+  resolveSiteCardView,
   resolveSiteRegistrationBadge,
-  resolveSiteStateDisplay,
+  resolveSiteStatusPill,
   resolveSiteSubtitle,
   resolveSitesEmpty,
   resolveSitesRowHandles,
 } from "./Sites.hooks";
 import { SiteFlagIcon } from "./sites-visuals";
+import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
 
 /**
  * @file The "All sites" tab — the card grid of every site folder listed under `sites/`, and the
@@ -53,6 +58,21 @@ import { SiteFlagIcon } from "./sites-visuals";
  * banner used to: `resolveSiteRegistrationBadge` marks a folder `tovu serve` would refuse. Removing
  * the panel without that badge would have deleted the truth and kept the bug.
  *
+ * ## The card's actions (2026-10-08 polish)
+ *
+ * Owner: "make sure it looks good UI-wise" — four equal-weight buttons wrapped into a ragged pile,
+ * clipped the fourth inside the square card, and sat Delete next to Start. Now a card shows a status
+ * pill, the name, a muted meta line, then ONE visible lifecycle action (Start, or Stop) plus Open ↗
+ * for a ready admin; Make default, Switch now and Delete… live in the shared `RowMenu` overflow menu,
+ * Delete last and danger-toned. Actions that do not apply are left out rather than shown disabled —
+ * `resolveSiteCardView` (`Sites.hooks.tsx`) carries the same rules the old disabled states encoded.
+ *
+ * ## The preview (2026-10-08)
+ *
+ * Owner: the desktop app's cards show a picture of each site; these did not. {@link SiteCardPreview}
+ * sits on top of the card: the server's last capture of the site's public page (re-captured while it
+ * runs, see `use-site-card-preview.hooks.ts`), or a neutral placeholder for a site never captured.
+ *
  * ## The empty state
  *
  * Now genuinely rare rather than this install's normal state: it takes a `sites/` with nothing in it
@@ -61,58 +81,17 @@ import { SiteFlagIcon } from "./sites-visuals";
  * pending choice.
  */
 
-/** One row's Activate control. Its own component rather than an inline `cell` body so the four
- *  conditions that decide its disabled state and label are counted against this function's own
- *  complexity budget rather than the grid's — the same reason `deployment-visuals.tsx` splits its
- *  own row renderers out. Disabled for the site already being served: activating what is already
- *  live would write a `.env` line that changes nothing and imply a restart is needed. */
-function ActivateButton({
-  site,
-  snapshot,
-  handle,
-  switchingEnabled,
-  activatingName,
-  onActivate,
-  t,
-}: {
-  site: AdminSiteListEntry;
-  snapshot: AdminSitesSnapshot;
-  handle: string;
-  switchingEnabled: boolean;
-  activatingName: string | null;
-  onActivate: (name: string) => void;
-  t: Translate;
-}) {
-  // "Serve after restart" reads identically on every non-serving card — a screen reader or a
-  // generic browser agent reading the accessibility tree (roles + accessible names, not this
-  // repo's own `agentHandle()`, whose `label` is a private `data-agent-label` attribute neither
-  // one can see) has no way to tell one card's button from another's without the site's own name
-  // in the accessible name. Same string already computed for `agentHandle`'s own `label`, reused
-  // here so the two channels never drift. Translated copy like every other string on this screen.
-  const ariaLabel = resolveActivateAriaLabel(site.name, t);
-  return (
-    <button
-      type="button"
-      className="btn-secondary"
-      disabled={resolveActivateDisabled({ switchingEnabled, activatingName, site, snapshot })}
-      onClick={() => onActivate(site.name)}
-      aria-label={ariaLabel}
-      {...agentHandle({ handle }, { role: "button", label: ariaLabel })}
-    >
-      {activatingName === site.name ? t("Saving…") : t("Serve after restart")}
-    </button>
-  );
-}
-
 /** The card's second line and its "this folder is not really a site" badge — a plain function so
  *  {@link SiteCard} carries neither `null` check against its own complexity budget, matching the
  *  split every other renderer in this feature makes. */
-function SiteCardFacts({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
+function SiteCardFacts({ site, snapshot, activatingName, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; activatingName: string | null; t: Translate }) {
   const subtitle = resolveSiteSubtitle(site);
+  const meta = resolveSiteCardMeta({ site, snapshot, activatingName, t });
   const registration = resolveSiteRegistrationBadge(site, snapshot);
   return (
     <>
       {subtitle === null ? null : <p className="site-card-display-name">{subtitle}</p>}
+      {meta === null ? null : <p className="site-card-meta">{meta}</p>}
       {registration === null ? null : (
         // A glyph beside the words (2026-09-06 status-strip pass, `styles.css`'s "Sites — the
         // card's status strip"): this line used to render in the same pill chrome as the state
@@ -128,7 +107,7 @@ function SiteCardFacts({ site, snapshot, t }: { site: AdminSiteListEntry; snapsh
   );
 }
 
-/** One site's grid tile — square, compact, and carrying the whole truth about that site.
+/** One site's grid tile — compact, equal-height in its row, and carrying the whole truth about that site.
  *
  *  The folder name (the technical identifier every write on this screen takes) is the dominant
  *  element; the state badge is the green `Serving now` pill for whichever card is genuinely live.
@@ -144,6 +123,7 @@ function SiteCard({
   switchingEnabled,
   activatingName,
   onActivate,
+  localSites,
   t,
 }: {
   site: AdminSiteListEntry;
@@ -152,29 +132,45 @@ function SiteCard({
   switchingEnabled: boolean;
   activatingName: string | null;
   onActivate: (name: string) => void;
+  localSites?: LocalSitesController;
   t: Translate;
 }) {
-  const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
+  const pill = resolveSiteStatusPill({ site, snapshot, t });
   return (
     <div className={resolveSiteCardClassName(site, snapshot)} title={resolveSiteCardTitle(site)}>
+      <SiteCardPreview site={site} snapshot={snapshot} />
       <div className="site-card-head">
-        <span className={`status ${toneClass}`}>{t(labelKey)}</span>
+        <span className={`status ${pill.toneClass}`}>{pill.label}</span>
       </div>
       <div className="site-card-body">
         <span className="site-card-name">{site.name}</span>
-        <SiteCardFacts site={site} snapshot={snapshot} t={t} />
-        <div className="site-card-actions">
-          <ActivateButton
-            site={site}
-            snapshot={snapshot}
-            handle={handle}
-            switchingEnabled={switchingEnabled}
-            activatingName={activatingName}
-            onActivate={onActivate}
-            t={t}
-          />
-        </div>
+        <SiteCardFacts site={site} snapshot={snapshot} activatingName={activatingName} t={t} />
+        <SiteCardActions
+          site={site}
+          snapshot={snapshot}
+          handle={handle}
+          switchingEnabled={switchingEnabled}
+          activatingName={activatingName}
+          onActivate={onActivate}
+          controller={localSites}
+          t={t}
+        />
       </div>
+    </div>
+  );
+}
+
+/** The card's top band: the site's last captured public page, or a neutral placeholder. Decorative
+ *  (`alt=""`, `aria-hidden`) like the desktop card's preview — the name and status pill right below
+ *  already say which site this is, so a screen reader would only hear it twice. Lazy and async so a
+ *  long grid never blocks on images below the fold. */
+function SiteCardPreview({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }) {
+  const preview = useSiteCardPreview({ site, snapshot });
+  return (
+    <div className="site-card-preview" aria-hidden="true">
+      {preview.src === null
+        ? <span className="site-card-preview-placeholder">{preview.initial}</span>
+        : <img src={preview.src} alt="" loading="lazy" decoding="async" onError={preview.onError} />}
     </div>
   );
 }
@@ -214,7 +210,7 @@ function SitesEmptyState({ t }: { t: Translate }) {
  *
  *  The name is rendered VERBATIM and never through `t()`: it is data (a folder name), the same
  *  treatment every other site name on this screen gets. */
-function CreatedSiteNotice({ createdName, createdTokens, t }: { createdName: string | null; createdTokens: AllSitesTabProps["createdTokens"]; t: Translate }) {
+function CreatedSiteNotice({ createdName, createdTokens, createdAdminLogin, t }: { createdName: string | null; createdTokens: AllSitesTabProps["createdTokens"]; createdAdminLogin: AllSitesTabProps["createdAdminLogin"]; t: Translate }) {
   if (createdName === null) return null;
   return (
     <p
@@ -224,7 +220,8 @@ function CreatedSiteNotice({ createdName, createdTokens, t }: { createdName: str
         label: "Confirmation that a site folder was created, and that creating it switched nothing",
       })}
     >
-      <strong>{createdName}</strong> {t("was created. Activate it to serve after the next restart.")}
+      <strong>{createdName}</strong> {t("was created. Start it to open its admin.")}
+      <span className="field-hint" style={{ display: "block" }}>{createdAdminLogin}</span>
       <CreatedTokensLine createdTokens={createdTokens} />
     </p>
   );
@@ -249,9 +246,11 @@ export interface AllSitesTabProps {
   activatingName: string | null;
   /** The site the last successful create made, or `null` — see {@link CreatedSiteNotice}. */
   createdName: string | null;
+  createdAdminLogin?: string | null;
   /** Tokens given with that create, from `useSites`'s `createdTokens`. Optional for older callers. */
   createdTokens?: { names: string[]; note: string } | null;
   onActivate: (name: string) => void;
+  localSites?: LocalSitesController;
   t: Translate;
 }
 
@@ -264,7 +263,7 @@ function sitesGridOrEmpty(props: AllSitesTabProps) {
   return <SitesGrid {...props} />;
 }
 
-function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, t }: AllSitesTabProps) {
+function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, localSites, t }: AllSitesTabProps) {
   // Folder names are unique under `sites/` (they ARE the directory entries), so they disambiguate
   // one card's controls from another's — same reasoning as every other list on this workstream.
   const rowHandles = resolveSitesRowHandles(sites);
@@ -275,10 +274,11 @@ function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActiva
           key={site.name}
           site={site}
           snapshot={snapshot}
-          handle={`${rowHandles[index]}-activate`}
+          handle={rowHandles[index]!}
           switchingEnabled={switchingEnabled}
           activatingName={activatingName}
           onActivate={onActivate}
+          localSites={localSites}
           t={t}
         />
       ))}
@@ -289,8 +289,46 @@ function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActiva
 export function AllSitesTab(props: AllSitesTabProps) {
   return (
     <>
-      <CreatedSiteNotice createdName={props.createdName} createdTokens={props.createdTokens ?? null} t={props.t} />
+      <CreatedSiteNotice createdName={props.createdName} createdTokens={props.createdTokens ?? null} createdAdminLogin={props.createdAdminLogin} t={props.t} />
       {sitesGridOrEmpty(props)}
     </>
+  );
+}
+
+/** The card's action row — one visible lifecycle action and Open, then the "⋯" overflow menu for
+ *  everything else. Only rendering: `resolveSiteCardView` decides which actions apply, and the
+ *  controller owns every confirmation. Each control's accessible name carries the site's name, so a
+ *  screen reader (or an agent reading the accessibility tree) can tell one card's Start from
+ *  another's. */
+function SiteCardActions({ site, snapshot, handle, switchingEnabled, activatingName, onActivate, controller, t }: {
+  site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; handle: string; switchingEnabled: boolean;
+  activatingName: string | null; onActivate: (name: string) => void; controller?: LocalSitesController; t: Translate;
+}) {
+  const view = resolveSiteCardView({
+    site, snapshot, switchingEnabled, activatingName, busyName: controller?.busyName ?? null, managed: controller !== undefined,
+  });
+  const items = buildSiteCardMenuItems({ site, menu: view.menu, onActivate, controller, t });
+  const menuLabel = interpolate({ template: t("More actions for {name}"), vars: { name: site.name } });
+  const lifecycle = view.lifecycle;
+  return (
+    <div className="site-card-actions">
+      {view.openUrl === null ? null : (
+        <a className="btn-secondary site-card-open" href={view.openUrl} target="_blank" rel="noopener noreferrer"
+          aria-label={interpolate({ template: t("Open {name} in a new tab"), vars: { name: site.name } })}>
+          {t("Open")}<span aria-hidden="true">↗</span>
+        </a>
+      )}
+      {lifecycle === null ? null : (
+        <button type="button" className={lifecycle.className} disabled={lifecycle.disabled}
+          aria-label={`${t(lifecycle.labelKey)} ${site.name}`} onClick={() => void controller?.run(site.name, lifecycle.action)}>
+          {t(lifecycle.labelKey)}
+        </button>
+      )}
+      {items.length === 0 ? null : (
+        <span className="site-card-menu">
+          <RowMenu items={items} triggerLabel={menuLabel} agentHandle={`${handle}-menu`} />
+        </span>
+      )}
+    </div>
   );
 }

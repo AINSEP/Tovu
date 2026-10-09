@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
 
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/lib/api";
 import {
@@ -11,6 +12,7 @@ import {
   resolveSitesTabs,
   resolveSiteSubtitle,
   SITES_TAB_IDS,
+  useCreateSiteDatabase,
 } from "../Sites.hooks";
 
 /**
@@ -18,10 +20,12 @@ import {
  *
  * The component suite exercises each of these through rendered output; what it cannot exercise is
  * the INVARIANT on {@link resolveDatabaseOptionClassName} — that an unavailable backend never
- * renders as a selected one. `CreateSiteOnboarding.tsx` only ever calls it with `selected` and
+ * renders as a selected one. `CreateSiteOnboarding.tsx` originally called it with `selected` and
  * `available` set to the same value, so a regression making `available: false, selected: true`
  * return `is-selected` would sail past every rendering assertion in the app while leaving the
- * function one careless call site away from painting Supabase as the chosen database.
+ * function one careless call site away from painting Supabase as the chosen database. That call
+ * site now derives selection independently through `useCreateSiteDatabase`; availability still
+ * wins over selection.
  */
 
 const fakeT = (key: string): string => key;
@@ -49,13 +53,13 @@ describe("resolveSitesTabs", () => {
   it("is exactly two tabs, All sites first", () => {
     // The shape the owner asked for in words, twice. A pass that reduced this to one entry is what
     // led to the bar being deleted, so the LENGTH is asserted, not just the presence of each id.
-    const tabs = resolveSitesTabs(fakeT, 0);
+    const tabs = resolveSitesTabs({ t: fakeT, listedCount: 0 });
     expect(tabs).toHaveLength(2);
     expect(tabs.map((tab) => tab.id)).toEqual(["all", "new"]);
   });
 
   it("counts the listed sites on All sites, and puts no count on an action tab", () => {
-    const tabs = resolveSitesTabs(fakeT, 3);
+    const tabs = resolveSitesTabs({ t: fakeT, listedCount: 3 });
     expect(tabs[0].count).toBe(3);
     expect(tabs[1].count).toBeUndefined();
   });
@@ -95,6 +99,25 @@ describe("resolveDatabaseOptionClassName", () => {
     // combining, so no call site can produce a vendor card that looks like the chosen database.
     expect(resolveDatabaseOptionClassName({ selected: false, available: false })).toBe("site-db-option is-unavailable");
     expect(resolveDatabaseOptionClassName({ selected: true, available: false })).toBe("site-db-option is-unavailable");
+  });
+});
+
+describe("useCreateSiteDatabase", () => {
+  it("refuses unavailable choices even when a caller forces their selection handler", () => {
+    const pluginTokens = {
+      fields: [{ pluginId: "supabase", displayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens", token: "" }],
+      setToken: () => {}, tokensForCreate: () => undefined, displayNames: (ids: readonly string[]) => [...ids], clear: () => {},
+    };
+    const { result } = renderHook(() => useCreateSiteDatabase({ t: fakeT, pluginTokens }));
+    act(() => {
+      result.current.options[1].onSelect();
+      result.current.options[2].onSelect();
+    });
+    expect(result.current.options.map((option) => [option.id, option.selected, option.disabled])).toEqual([
+      ["sqlite", true, false], ["supabase", false, true], ["custom", false, true],
+    ]);
+    expect(result.current.options.map((option) => option.tokenField)).toEqual([null, null, null]);
+    expect(result.current.options.map((option) => option.showCustomFields)).toEqual([false, false, false]);
   });
 });
 
@@ -139,4 +162,10 @@ describe("resolveSiteRegistrationBadge", () => {
     expect(badge?.titleKey).toContain(".site-meta.json");
     expect(badge?.titleKey).toContain("tovu serve would refuse it");
   });
+});
+
+it("offers a counted Trash tab only to local-management hosts", () => {
+  const tabs = resolveSitesTabs({ t: fakeT, listedCount: 2 }, { localManagementEnabled: true, trashCount: 4 });
+  expect(tabs.map((tab) => tab.id)).toEqual(["all", "new", "trash"]);
+  expect(tabs[2].label).toBe("Trash"); expect(tabs[2].count).toBe(4);
 });

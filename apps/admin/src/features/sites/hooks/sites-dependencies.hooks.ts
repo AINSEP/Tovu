@@ -4,6 +4,7 @@ import type { SitesPort } from "./sites-port.hooks";
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */
 export const defaultSitesPort: SitesPort = {
+  manageLocalSite: (input) => api.manageLocalSite(input),
   listSites: () => api.listSites(),
   createSite: (input) => api.createSite(input),
   listTokenSignInPlugins: () => api.listTokenSignInPlugins(),
@@ -13,6 +14,7 @@ export const defaultSitesPort: SitesPort = {
 /** Overrides for {@link createFakeSitesPort} — anything not supplied rejects, so a test that
  *  reaches an operation it did not describe fails loudly instead of silently succeeding. */
 export interface FakeSitesPortOverrides {
+  manageLocalSite?: SitesPort["manageLocalSite"];
   createSite?: SitesPort["createSite"];
   activateSite?: SitesPort["activateSite"];
   /** Defaults to no plugins, so a test that is not about the token fields never sees them. */
@@ -32,6 +34,7 @@ export function createFakeSitesPort(
   overrides: FakeSitesPortOverrides = {},
 ): SitesPort {
   return {
+    manageLocalSite: overrides.manageLocalSite ?? (() => Promise.reject(new Error("manageLocalSite was not expected"))),
     listSites: () => (typeof snapshot === "function" ? snapshot() : Promise.resolve(snapshot)),
     createSite: overrides.createSite ?? (() => Promise.reject(new Error("createSite was not expected"))),
     activateSite: overrides.activateSite ?? (() => Promise.reject(new Error("activateSite was not expected"))),

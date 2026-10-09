@@ -11,6 +11,8 @@ export function useCmsSidebarLabelTooltips(
     const original = new Map<Element, string | null>();
     const update = () => {
       for (const link of nav.querySelectorAll("a.cms-item")) {
+        // Sites owns a measured name-only tooltip; Jini still supplies its full rail tooltip.
+        if (link.getAttribute("href")?.endsWith("/sites")) { link.removeAttribute("title"); continue; }
         const text = link.querySelector("span")?.textContent;
         if (!text) continue;
         if (!original.has(link)) original.set(link, link.getAttribute("title"));

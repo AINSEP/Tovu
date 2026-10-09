@@ -1,24 +1,29 @@
 import { buildAgentListHandles } from "@jini-ai/agentic";
+import { useEffect, useState } from "react";
+import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
+import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
+import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 
 /**
  * @file `Sites.tsx`'s own derived-value logic, split out per the `<Name>.tsx`/`<Name>.hooks.tsx`
  * pattern `TabBar.tsx`/`TabBar.hooks.tsx` establishes (admin TSX-logic-sweep, 2026-09-05) — this
  * repo's rule that a `.tsx` file carries no functions or derived logic of its own. Every export
- * here is a plain value derivation with no rendering of its own; `Sites.tsx` calls each directly
+ * here derives view values without rendering; `Sites.tsx` calls each directly
  * inline where it needs the value (same idiom `TabBar.tsx`'s `{...tabHandleProps(tab)}` uses), so a
  * caller never composes its own boolean/array logic on top of what these return.
  *
  * `Sites.rules.ts` already holds this feature's screen-independent domain logic (`siteRowState`,
  * `activationOutlook`, …) — testable without React and reused by more than this one screen's markup.
  * What lives here instead is logic that is specific to how `Sites.tsx` itself is laid out (which
- * props a given button's `disabled` depends on, which prefix a row's agent handles use): moving it
+ * props a given button's `disabled` depends on, which prefix a row's agent handles use, and which
+ * onboarding radio discloses its fields): moving it
  * into `rules.ts` would make that file's own tests couple to `Sites.tsx`'s prop shapes for no reason.
  */
 
@@ -33,32 +38,26 @@ export function resolveCreateSubmitDisabled(args: {
   return args.creating || !args.switchingEnabled || args.createNameError !== null || args.createName.trim().length === 0;
 }
 
+/** Credential copy contains only the public default or a description, never a custom secret.
+ * @complexity O(1).
+ */
+export function resolveCreatedAdminLogin({ customPassword, t }: { customPassword: boolean; t: Translate }, _options: Record<string, never> = {}): string {
+  return customPassword
+    ? t("Admin login: admin / the one you set — change it later under Users")
+    : t("Admin login: admin / tovu-dev — change it later under Users");
+}
+
+/** Mask/reveal presentation stays out of the form markup. @complexity O(1). */
+export function resolveAdminPasswordPresentation({ revealed, t }: { revealed: boolean; t: Translate }, _options: Record<string, never> = {}) {
+  return { inputType: revealed ? "text" : "password", revealLabel: t(revealed ? "Hide admin password" : "Show admin password") };
+}
+
 /** The create-name input's own `disabled` state: also disabled while a create is already in flight,
  *  not just when the deployment can't switch sites — an enabled field mid-request lets an operator
  *  type a second name that a same-tick success handler would silently overwrite (finding 24,
  *  2026-09-05 admin-tooling audit). */
 export function resolveCreateInputDisabled(args: { creating: boolean; switchingEnabled: boolean }): boolean {
   return args.creating || !args.switchingEnabled;
-}
-
-/** One row's Activate button `disabled` state. Extracting {@link ActivateButton} into its own
- *  component (a prior pass) did not by itself resolve this rule violation — the boolean was still
- *  composed inline in that component's own body; only moving the composition itself out does. */
-export function resolveActivateDisabled(args: {
-  switchingEnabled: boolean;
-  activatingName: string | null;
-  site: AdminSiteListEntry;
-  snapshot: AdminSitesSnapshot;
-}): boolean {
-  return !args.switchingEnabled || args.activatingName !== null || siteRowState(args.site, args.snapshot) === "serving";
-}
-
-/** One row's Activate accessible name — the site's own name inside translated copy, so a screen reader
- *  or a browser agent reading the accessibility tree can tell one card's button from another's in
- *  any locale. Also the row's `agentHandle` label, so the two channels never drift.
- *  @complexity Time/space: O(1). */
-export function resolveActivateAriaLabel(siteName: string, t: Translate): string {
-  return interpolate({ template: t("Save {name} as the site to serve after the next restart"), vars: { name: siteName } });
 }
 
 /** `Sites`'s own per-row agent handles. Folder names are unique under `sites/` (they ARE the
@@ -77,6 +76,12 @@ export function resolveSiteStateDisplay(
   snapshot: AdminSitesSnapshot,
 ): { toneClass: string; labelKey: string } {
   const state = siteRowState(site, snapshot);
+  const local = snapshot.localSites?.find((entry) => entry.name === site.name);
+  if (state !== "serving" && local && local.status !== "stopped") {
+    const states = { starting: { toneClass: "status-warning", labelKey: "Starting…" },
+      running: { toneClass: "status-ok", labelKey: "Running" }, crashed: { toneClass: "status-error", labelKey: "Crashed" } };
+    return states[local.status];
+  }
   return { toneClass: siteRowStateToneClass(state), labelKey: siteRowStateLabelKey(state) };
 }
 
@@ -114,7 +119,7 @@ export function resolveSiteCardTitle(site: AdminSiteListEntry): string {
  *
  * @complexity Time/space: O(1).
  */
-export function resolveSiteSubtitle(site: AdminSiteListEntry): string | null {
+export function resolveSiteSubtitle(site: Pick<AdminSiteListEntry, "name" | "displayName">): string | null {
   return site.displayName === site.name ? null : site.displayName;
 }
 
@@ -157,7 +162,7 @@ export function resolveSiteRegistrationBadge(
  * The URL key is `?tab=`, the same one every other tabbed admin screen uses and the one
  * `panels.tsx` threads in, so the two tabs stay deep-linkable and bookmarkable.
  */
-export const SITES_TAB_IDS = ["all", "new"] as const;
+export const SITES_TAB_IDS = ["all", "new", "trash"] as const;
 export type SitesTabId = (typeof SITES_TAB_IDS)[number];
 
 /** Falls back to the list for an absent or unrecognized `?tab=` value, through the same shared
@@ -176,7 +181,10 @@ export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId 
  *
  * @complexity Time/space: O(1) — a fixed two-element array.
  */
-export function resolveSitesTabs(t: Translate, listedCount: number): TabBarTab[] {
+export function resolveSitesTabs(
+  { t, listedCount }: { t: Translate; listedCount: number },
+  { localManagementEnabled = false, trashCount = 0 }: { localManagementEnabled?: boolean; trashCount?: number } = {},
+): TabBarTab[] {
   return [
     {
       id: "all",
@@ -193,6 +201,7 @@ export function resolveSitesTabs(t: Translate, listedCount: number): TabBarTab[]
       handle: "sites-tab-new",
       handleLabel: "Switch to the New site tab — the form that creates a site folder",
     },
+    ...(localManagementEnabled ? [{ id: "trash", label: t("Trash"), count: trashCount, handle: "sites-tab-trash", handleLabel: "Switch to the site Trash tab" }] : []),
   ];
 }
 
@@ -230,16 +239,9 @@ export interface SiteDatabaseOption {
 export function resolveSiteDatabaseOptions(t: Translate): SiteDatabaseOption[] {
   return [
     { id: "sqlite", title: t("SQLite"), hint: t("Default · created inside this site's own folder"), available: true },
-    { id: "supabase", title: t("Supabase"), hint: t("Hosted · not for site content yet. Connect it below to use it for your app's data."), available: false },
+    { id: "supabase", title: t("Supabase"), hint: t("Hosted · not for site content yet."), available: false },
     { id: "custom", title: t("Custom DB Provider"), hint: t("Any vendor · add its endpoint and credential"), available: false },
   ];
-}
-
-/** Whether the create form shows its "Connect services" section — only when at least one installed
- *  plugin takes a pasted token. Its own function so the view carries no condition.
- *  @complexity O(1). */
-export function resolveConnectServicesVisible(fields: readonly unknown[]): boolean {
-  return fields.length > 0;
 }
 
 /** One database option's own class name. `available: false` never combines with `selected: true`:
@@ -250,4 +252,215 @@ export function resolveConnectServicesVisible(fields: readonly unknown[]): boole
 export function resolveDatabaseOptionClassName(args: { selected: boolean; available: boolean }): string {
   if (!args.available) return "site-db-option is-unavailable";
   return args.selected ? "site-db-option is-selected" : "site-db-option";
+}
+
+/** The picker markup consumes these decisions directly; availability and selection are distinct. */
+export interface SiteDatabaseDisclosure extends SiteDatabaseOption {
+  inputId: string;
+  disclosureId: string;
+  selected: boolean;
+  disabled: boolean;
+  ariaDisabled: boolean | undefined;
+  ariaExpanded: boolean | undefined;
+  ariaControls: string | undefined;
+  className: string;
+  statusClassName: string;
+  statusLabel: string;
+  tokenField: CreateSitePluginTokenField | null;
+  showCustomFields: boolean;
+  onSelect: () => void;
+}
+
+/**
+ * Admin's database disclosures, using its existing token controller rather than a second token
+ * lifecycle. Hosted content databases remain unavailable in production: injected options exercise
+ * the selected states without promising provisioning that `initSite` cannot deliver.
+ *
+ * Leaving Supabase clears its hidden token, and leaving the form clears all tokens, so a later
+ * SQLite create cannot send a credential from an earlier disclosure. Empty still means connect
+ * later; the token controller remains the owner of normalization and submission.
+ * Derive disclosures here so their branching stays out of markup. No installed Supabase plugin
+ * means no token field; other plugins do not acquire a parallel standalone section.
+ * SQLite has no fields: there is nothing to configure, which is the point of it.
+ * @complexity O(p + d) time, O(d) space for p plugins and the fixed three database options.
+ */
+export function useCreateSiteDatabase(
+  { t, pluginTokens }: { t: Translate; pluginTokens: CreateSitePluginTokensController },
+  { options = resolveSiteDatabaseOptions(t) }: { options?: readonly SiteDatabaseOption[] } = {},
+): { options: SiteDatabaseDisclosure[] } {
+  const [database, setDatabase] = useState<SiteDatabaseOption["id"]>("sqlite");
+  const { setToken, clear } = pluginTokens;
+  useEffect(() => () => clear(), [clear]);
+  const supabase = pluginTokens.fields.find((field) => field.pluginId === "supabase") ?? null;
+
+  return { options: options.map((option) => {
+    const selected = option.available && database === option.id;
+    const tokenField = selected && option.id === "supabase" ? supabase : null;
+    const showCustomFields = selected && option.id === "custom";
+    const hasDisclosure = option.id === "custom" || (option.id === "supabase" && supabase !== null);
+    const disclosureId = `site-db-${option.id}-fields`;
+    return {
+      ...option,
+      inputId: `site-db-${option.id}`,
+      disclosureId,
+      selected,
+      disabled: !option.available,
+      ariaDisabled: option.available ? undefined : true,
+      ariaExpanded: hasDisclosure ? selected : undefined,
+      ariaControls: hasDisclosure ? disclosureId : undefined,
+      className: resolveDatabaseOptionClassName({ selected, available: option.available }),
+      statusClassName: option.available ? "status status-ok" : "status status-neutral",
+      statusLabel: option.available ? t("Ready") : t("Not supported yet"),
+      tokenField,
+      showCustomFields,
+      onSelect: () => {
+        // Refuse DOM-forced selection too: a disabled attribute alone is not the boundary.
+        if (!option.available) return;
+        if (option.id !== "supabase") setToken("supabase", "");
+        setDatabase(option.id);
+      },
+    };
+  }) };
+}
+
+/** Card lifecycle facts come from host state, with serving binding taking precedence. */
+export function resolveLocalSiteCard(
+  { site, snapshot, busyName }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; busyName: string | null },
+  _optional = {},
+) {
+  const serving = site.dir === snapshot.currentSite.dir;
+  const local = snapshot.localSites?.find((row) => row.name === site.name);
+  const status = local?.status ?? "stopped";
+  const live = status === "starting" || status === "running" || local?.pid != null;
+  const busy = busyName !== null;
+  const enabled = snapshot.localManagementEnabled === true;
+  const statusKeys = { starting: "Starting…", running: "Running", stopped: "Stopped", crashed: "Crashed" };
+  return {
+    enabled, serving, status, statusLabel: statusKeys[status], port: local?.port ?? null,
+    action: live ? "stop" as const : "start" as const,
+    actionLabel: live ? "Stop" : "Start",
+    disabled: busy || !enabled,
+    deleteDisabled: busy || !enabled || serving || live,
+    openUrl: serving ? "/admin/" : status === "running" ? local?.adminUrl ?? null : null,
+    switchEnabled: snapshot.canSwitchNow === true && !serving,
+    defaultLabel: snapshot.persistedSiteName === site.name ? "Default" : "Make default",
+  };
+}
+
+/** Trash rows must opt in to permanent deletion individually; restoration needs no checkbox. */
+export function resolveTrashDeleteDisabled({ id, checked, busyName }: { id: string; checked: Record<string, boolean>; busyName: string | null }, _optional = {}) {
+  return checked[id] !== true || busyName !== null;
+}
+
+/** Trash card controls: the permanent-delete button exists only once its row is selected. */
+export function resolveTrashCardActions({ id, checked, busyName }: { id: string; checked: Record<string, boolean>; busyName: string | null }, _optional = {}) {
+  return { selected: checked[id] === true, restoreDisabled: busyName !== null, deleteDisabled: resolveTrashDeleteDisabled({ id, checked, busyName }) };
+}
+
+/** The site the next launch boots: the saved choice, or the serving site when nothing is saved.
+ *  @complexity O(1). */
+function isDefaultSite(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): boolean {
+  return site.name === (snapshot.persistedSiteName ?? snapshot.currentSite.name);
+}
+
+/** Overflow-menu entries a card can carry, in menu order — the destructive one always last. */
+export type SiteCardMenuAction = "make-default" | "switch" | "trash";
+
+/**
+ * Everything a site card's controls render, decided once (2026-10-08 card polish).
+ *
+ * One visible lifecycle action (Start, or Stop for a live process) plus Open for a ready admin;
+ * every other action lives in the overflow menu and is LEFT OUT when it does not apply, instead of
+ * rendering disabled. The rules are the same ones the old disabled states encoded: the serving
+ * site is never started, stopped, trashed, switched to or re-made default; a live process is never
+ * trashed; Make default waits while another activation is in flight.
+ * @param input - The card's site, snapshot, busy/activating names, the capability flag, and
+ *   `managed` (whether a local-sites controller is wired at all).
+ * @returns The lifecycle button (or `null`), the Open URL (or `null`) and the menu actions.
+ * @complexity O(n) in `snapshot.localSites` (one lookup).
+ */
+export function resolveSiteCardView(
+  { site, snapshot, busyName, switchingEnabled, activatingName, managed }: {
+    site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; busyName: string | null;
+    switchingEnabled: boolean; activatingName: string | null; managed: boolean;
+  },
+  _optional = {},
+) {
+  const local = resolveLocalSiteCard({ site, snapshot, busyName });
+  const lifecycle = managed && local.enabled;
+  const live = local.action === "stop";
+  const menu: SiteCardMenuAction[] = [];
+  if (switchingEnabled && activatingName === null && !local.serving && !isDefaultSite(site, snapshot)) menu.push("make-default");
+  if (lifecycle && local.switchEnabled) menu.push("switch");
+  if (lifecycle && !local.serving && !live) menu.push("trash");
+  return {
+    lifecycle: lifecycle && !local.serving
+      ? { action: local.action, labelKey: local.actionLabel, className: live ? "btn-secondary" : "btn-primary", disabled: local.disabled }
+      : null,
+    openUrl: lifecycle ? local.openUrl : null,
+    menu,
+  };
+}
+
+/**
+ * The card's status pill. With local management on, a non-serving card states its process
+ * (`Running on :3101`, `Starting…`, `Stopped`, `Crashed`); otherwise the binding state as before.
+ * @complexity O(n) in `snapshot.localSites` (one lookup).
+ */
+export function resolveSiteStatusPill(
+  { site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate },
+  _optional = {},
+): { toneClass: string; label: string } {
+  if (snapshot.localManagementEnabled !== true || siteRowState(site, snapshot) === "serving") {
+    const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
+    return { toneClass, label: t(labelKey) };
+  }
+  const local = snapshot.localSites?.find((row) => row.name === site.name);
+  const status = local?.status ?? "stopped";
+  if (status === "running" && local?.port != null) {
+    return { toneClass: "status-ok", label: interpolate({ template: t("Running on :{port}"), vars: { port: String(local.port) } }) };
+  }
+  const pills = {
+    starting: { toneClass: "status-warning", labelKey: "Starting…" }, running: { toneClass: "status-ok", labelKey: "Running" },
+    stopped: { toneClass: "status-neutral", labelKey: "Stopped" }, crashed: { toneClass: "status-error", labelKey: "Crashed" },
+  };
+  return { toneClass: pills[status].toneClass, label: t(pills[status].labelKey) };
+}
+
+/**
+ * The muted line under the name: only facts the pill does not already state — a starting
+ * process's port, `Default`, and `Saving…` while this card's Make default is in flight.
+ * @returns The joined line, or `null` when there is nothing to add.
+ * @complexity O(n) in `snapshot.localSites` (one lookup).
+ */
+export function resolveSiteCardMeta(
+  { site, snapshot, activatingName, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; activatingName: string | null; t: Translate },
+  _optional = {},
+): string | null {
+  const local = snapshot.localSites?.find((row) => row.name === site.name);
+  const parts: string[] = [];
+  if (local?.status === "starting" && local.port !== null) parts.push(`:${local.port}`);
+  if (isDefaultSite(site, snapshot)) parts.push(t("Default"));
+  if (activatingName === site.name) parts.push(t("Saving…"));
+  return parts.length === 0 ? null : parts.join(" · ");
+}
+
+/**
+ * The overflow menu's items for {@link resolveSiteCardView}'s `menu`. Switch now and Delete… go
+ * through the local-sites controller, which owns their confirmation; Delete… is danger-toned.
+ * @complexity O(k) in the menu's length (at most three).
+ */
+export function buildSiteCardMenuItems(
+  { site, menu, onActivate, controller, t }: {
+    site: AdminSiteListEntry; menu: readonly SiteCardMenuAction[]; onActivate: (name: string) => void;
+    controller?: LocalSitesController; t: Translate;
+  },
+  _optional = {},
+): RowMenuItem[] {
+  const items: Record<SiteCardMenuAction, RowMenuItem> = {
+    "make-default": { key: "make-default", label: t("Make default"), onSelect: () => onActivate(site.name) },
+    switch: { key: "switch", label: t("Switch now"), onSelect: () => void controller?.run(site.name, "switch") },
+    trash: { key: "trash", label: t("Delete…"), tone: "danger", onSelect: () => void controller?.run(site.name, "trash") },
+  };
+  return menu.map((action) => items[action]);
 }

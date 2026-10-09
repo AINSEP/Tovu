@@ -1,5 +1,6 @@
 import { AdminPageApprovalDialog } from "./features/webmcp/AdminPageApprovalDialog";
 import { useCmsSidebarLabelTooltips } from "./hooks/use-cms-sidebar-label-tooltips.hooks";
+import { SitesSidebarNav } from "./components/SitesSidebarNav";
 import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
@@ -693,7 +694,7 @@ export function App(props: AppProps) {
               so two calls produce exactly the DOM one call would, with the toggle spliced between.
               Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
               so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
-          <Sidebar.Nav groups={navGroups.slice(0, 1)} soonLabel={navSoonLabel} />
+          <SitesSidebarNav groups={navGroups.slice(0, 1)} locale={navLocale} soonLabel={navSoonLabel} />
           <Sidebar.RailToggle />
           {/* Collapsible sections (owner-directed, 2026-08-06 — piloted on PEOPLE, then widened to
               all six). `collapsibleGroups` defaults to empty in `@jini-ai/admin`, so this opt-in is

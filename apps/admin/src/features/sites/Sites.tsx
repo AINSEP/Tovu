@@ -1,3 +1,5 @@
+import { SiteTrashTab } from "./SiteTrashTab";
+import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { describeApiError, type AdminSitesSnapshot } from "../../lib/api";
@@ -11,6 +13,9 @@ import type { ActivationOutlook } from "./rules";
 import { useReturnToSiteListOnCreate } from "./hooks/use-created-site-return.hooks";
 import { useWiredSites } from "./hooks/use-sites.hooks";
 
+/** Owner update 2026-10-08: independent full-site children, recoverable Trash and default selection.
+ * Earlier design explanations below are retained history; manual restart instructions are no longer rendered.
+ */
 /**
  * @file Sites admin screen (2026-09-04 sites-switcher decision,
  * `ADS-memory/reports/2026-09-04-sites-switcher-decision.md`; card-grid layout 2026-09-05; tab
@@ -134,7 +139,7 @@ function SiteDirOverrideNotice({ t }: { t: Translate }) {
         label: "Warning that TOVU_SITE_DIR is set and outranks anything Activate writes",
       })}
     >
-      {t("TOVU_SITE_DIR is set in this server's environment. It overrides Activate — restarting will keep serving this folder until it's unset.")}
+      {t("This host is pinned to its serving folder. Other sites can run separately.")}
     </div>
   );
 }
@@ -152,7 +157,6 @@ function SiteDirOverrideNotice({ t }: { t: Translate }) {
 function PendingActivationNotice({
   outlook,
   currentName,
-  instructions,
   t,
 }: {
   outlook: ActivationOutlook;
@@ -172,12 +176,12 @@ function PendingActivationNotice({
       <p>
         <strong>{outlook.name}</strong>{" "}
         {outlook.kind === "pending"
-          ? t("is saved to serve next. Nothing has switched yet — this server and its agent daemon are both still on")
-          : t("is saved, but TOVU_SITE_DIR overrides it, so a restart will not pick it up. This server and its agent daemon are both still on")}{" "}
+          ? t("is the default for the next launch. This server is serving")
+          : t("is saved as the default. This host is pinned to")}{" "}
         <strong>{currentName}</strong>
         {t(".")}
       </p>
-      {instructions === null ? <p>{t("Restart the dev server to apply it.")}</p> : <p>{instructions}</p>}
+      <p>{t("Start another site to open its admin in a new tab.")}</p>
     </div>
   );
 }
@@ -281,6 +285,7 @@ function resolveSitesHook(override: typeof useWiredSites | undefined): typeof us
  *  complexity. Same split `Deployment.tsx`'s own `deploymentTabPanel` makes for the identical gate.
  *  @complexity O(1) — two mutually exclusive branches, no iteration. */
 function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot) {
+  if (tab === "trash") return <SiteTrashTab snapshot={snapshot} controller={controller.localSites} t={controller.t} />;
   if (tab === "new") return <CreateSiteOnboarding controller={controller} onCancel={goToSiteList} />;
   return (
     <AllSitesTab
@@ -289,7 +294,9 @@ function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSi
       switchingEnabled={controller.switchingEnabled}
       activatingName={controller.activatingName}
       createdName={controller.createdName}
+      createdAdminLogin={controller.createdAdminLogin}
       createdTokens={controller.createdTokens}
+      localSites={controller.localSites}
       onActivate={controller.activate}
       t={controller.t}
     />
@@ -332,18 +339,19 @@ export function Sites(props: SitesProps = {}) {
           <p className="page-kicker">{t("Overview")}</p>
           <h1 className="page-title">{t("Sites")}</h1>
           <p className="page-description">
-            {t("Each site under sites/ has its own content, uploads, and themes. Switching between them takes a restart.")}
+            {t("Each site has its own content, uploads, themes, and admin. Start several sites at once.")}
           </p>
         </div>
       </div>
 
       {writeError ? <div className="notice error">{writeError}</div> : null}
+      {controller.localSites?.error ? <div className="notice error">{controller.localSites.error}</div> : null}
       {switchingEnabled ? null : <SwitchingDisabledNotice t={t} />}
 
       <SitesProcessNotices snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
 
       <TabBar
-        tabs={resolveSitesTabs(t, sites.length)}
+        tabs={resolveSitesTabs({ t, listedCount: sites.length }, { localManagementEnabled: snapshot.localManagementEnabled, trashCount: snapshot.trash?.length })}
         activeId={tab}
         onChange={goToSitesTab}
         ariaLabel={t("Sites")}
@@ -351,6 +359,7 @@ export function Sites(props: SitesProps = {}) {
       />
 
       {sitesTabPanel(tab, controller, snapshot)}
+      <LocalSiteConfirmDialog dialog={controller.siteConfirm} />
     </div>
   );
 }

@@ -78,7 +78,7 @@ describe("siteRowState", () => {
 
 describe("siteRowState presentation", () => {
   it("never labels a pending row with the serving copy", () => {
-    expect(siteRowStateLabelKey("pending-restart")).toBe("Queued for next restart");
+    expect(siteRowStateLabelKey("pending-restart")).toBe("Default for next launch");
     expect(siteRowStateLabelKey("serving")).toBe("Serving now");
     expect(siteRowStateLabelKey("idle")).toBe("Not in use");
   });

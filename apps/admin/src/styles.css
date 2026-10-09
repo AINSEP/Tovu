@@ -114,6 +114,13 @@
      `--primary` is only 3.9:1 on the dark surface, so the dark block below swaps in
      `--primary-strong` (5.4:1 on `--surface`, 5.7:1 on `--bg`). */
   --selected-text:  var(--primary);
+  /* `--selected-text` on a TINTED selected row (the sidebar's `.cms-item.active`, whose
+     `--accent-dim` fill costs contrast): plain `--selected-text` there measures 4.36:1 light and
+     4.11:1 dark, under AA's 4.5. Nudging 12% toward `--fg` darkens it in light and lightens it in
+     dark, so one rule serves both themes and still follows whatever `--primary` resolves to.
+     Measured in Chrome on the composited row fill: light #965338 on #EFEFEF 5.09:1, dark #C3876D
+     on #252B32 4.77:1. `in oklab`, not oklch: no hue interpolation, so the orange hue survives the mix. */
+  --selected-text-on-tint: color-mix(in oklab, var(--selected-text) 88%, var(--fg));
   /* Jini's colour contract: every `--jini-accent*` token (selected cards, the Settings primary
      buttons, provider chips, toggles, consent buttons, Settings tab underline) derives from
      `--jini-primary`, which reads these two host inputs and otherwise falls back to #363636.
@@ -1548,6 +1555,22 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    and mobile drawer. Rail mode still hides them with its more-specific rule below. */
 .cms-item { flex-wrap: wrap; }
 .cms-item > span:not(.soon) { flex: 1 0 min-content; white-space: normal; overflow-wrap: normal; word-break: normal; }
+/* Sites keeps its word and parentheses visible while only the live site name ellipsizes.
+   The shared row's original full label remains available to assistive technology and rail tooltips.
+   Keyed on the portaled label's presence (`:has`), never a JS-added row class: Jini's Sidebar is
+   React-rendered, so every active-row change rewrites `className` and dropped such a class, leaving
+   both labels visible side by side (2026-10-08). `.cms-item > span.cms-sites-label` stays below the
+   rail rule's specificity so the collapsed rail still clips it. */
+.cms-item:has(> span.cms-sites-label) { flex-wrap: nowrap; }
+.cms-item:has(> span.cms-sites-label) > span:first-of-type {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.cms-item > span.cms-sites-label {
+  display: flex; flex: 1 1 0; min-width: 0; white-space: nowrap;
+}
+.cms-sites-prefix, .cms-sites-suffix { flex: 0 0 auto; white-space: pre; }
+.cms-sites-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* Rail-mode hover/focus tooltip. `position: fixed`, not `absolute` — this is portaled to
    `document.body` by `Sidebar.tsx`'s `RailTooltip`, not a descendant of the scrollable `.cms-nav`
    (see that component's doc comment for why a CSS-only child tooltip could not escape it), so
@@ -1561,10 +1584,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   pointer-events: none;
 }
 
-.cms-item.active { background: var(--accent-dim); color: var(--accent-text); font-weight: 600; }
-/* "You are here": the rail and icon wear the selection orange (non-text, 3:1 is enough); the label
-   stays near-black, because orange text on this row's tint measures 4.4:1, under AA's 4.5. */
-.cms-item.active svg { color: var(--selected-ring); }
+.cms-item.active { background: var(--accent-dim); color: var(--selected-text-on-tint); font-weight: 600; }
+/* "You are here": the rail wears the selection orange (non-text, 3:1 is enough); the label
+   wears it too, through `--selected-text-on-tint` — plain orange text on this row's tint measured
+   4.4:1, under AA's 4.5, which is why the label was near-black until 2026-10-08. The icon shares the
+   label's token so both read as one orange: on the dark tint `--selected-ring` measured 2.96:1 (under
+   even the 3:1 non-text floor) and visibly darker than the label; the shared token is 5.08:1 light,
+   4.77:1 dark (Chrome, 2026-10-08). */
+.cms-item.active svg { color: var(--selected-text-on-tint); }
 .cms-item.active::before {
   content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
   width: 3px; height: 18px; border-radius: 0 3px 3px 0; background: var(--selected-ring);
@@ -5634,7 +5661,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .site-card-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-4) var(--space-5) var(--space-5); flex: 1; }
 .site-card-display-name { margin: 0; font-size: var(--text-md); color: var(--fg-2); }
 .site-card-meta { margin: 0; font-size: var(--text-xs); color: var(--muted); }
-.site-card-actions { margin-top: auto; padding-top: var(--space-2); align-self: stretch; display: flex; justify-content: flex-end; }
+.site-card-actions { margin-top: auto; padding-top: var(--space-2); align-self: stretch; display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+.site-card-actions [role="status"] { flex-basis: 100%; font-size: var(--text-sm); color: var(--fg-2); }
 
 /* The Create tile — dashed outline, no tint, sits first in the grid (`Sites.tsx`'s own render
  * order) so creating a site reads as one more card rather than a form bolted above the list. The
@@ -5740,7 +5768,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
  * owner asked for Runner's picker, and hiding an unbuilt option teaches nothing — with their
  * unavailability stated in words inside the card, because a control that is merely greyed out
  * reads as a bug or a permissions problem. Nothing here is load-bearing for the guarantee itself:
- * no state can hold a dialect and `createSite()` takes no argument, so the styling is never the
+ * the hook refuses unavailable selections and `createSite()` takes no dialect, so styling is never the
  * thing standing between a choice and a lie (see `CreateSiteOnboarding.tsx`'s own header). */
 .site-db-options { display: flex; flex-direction: column; gap: var(--space-3); }
 .site-db-option {
@@ -5801,7 +5829,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
  * exact value — the panel this replaced already used one on its own truncated path. */
 .sites-grid { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
 
-.site-card { aspect-ratio: 1; }
+/* Lifecycle controls and Trash selection must stay visible when a square cannot fit them. */
+.site-card { aspect-ratio: 1; min-height: min-content; }
 .site-card-head { display: flex; align-items: center; padding: var(--space-3) var(--space-4); }
 .site-card-body { gap: var(--space-1); padding: var(--space-4); }
 .site-card-name { font-size: var(--text-md); line-height: 1.3; }
@@ -5888,6 +5917,67 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   white-space: normal; text-align: left;
 }
 .site-card-flag svg { width: 0.875rem; height: 0.875rem; flex-shrink: 0; }
+
+/* Sites — card polish (2026-10-08, owner: "make sure it looks good UI-wise", from a screenshot of
+ * four equal-weight buttons wrapping into a ragged right-aligned pile, the fourth clipped by the
+ * square card, and Delete sitting beside Start).
+ *
+ * Overrides the `.site-card*` blocks above (this stylesheet is append-only for concurrent work):
+ *
+ * 1. The square goes. `aspect-ratio: 1` plus `overflow: hidden` is what clipped "Make default"; a
+ *    card now sizes to its content with a shared floor, and grid rows stretch, so every card in a
+ *    row has the same height. Wider tracks (15rem) give a name and two buttons room; one column on
+ *    a phone.
+ * 2. Top-down reading order: pill, name, muted meta, then the action row pinned to the bottom. The
+ *    old `margin-top: auto` on the name (which centered a short card's identity) is undone — with
+ *    equal-height rows it made names float at different heights across a row.
+ * 3. The action row is left-aligned: the one primary action first, the "⋯" overflow trigger
+ *    pushed to the far edge. The trigger gets a hairline border so it reads as a control beside a
+ *    bordered button, and the same 34px height as the buttons so the row shares a baseline.
+ * 4. A crashed process tints the strip red, the same `:has()` pattern the warning strip uses.
+ * 5. No hover lift. The card itself is not clickable — its buttons are — so lifting it on hover
+ *    promised an action that does not exist, and moved the "⋯" trigger under the pointer. */
+.sites-grid { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--space-4); }
+.site-card { aspect-ratio: auto; min-height: 10.5rem; }
+.site-card:hover { transform: none; box-shadow: var(--shadow-sm); }
+.site-card-name { margin-top: 0; }
+.site-card-body { gap: var(--space-1); padding: var(--space-4) var(--space-5); }
+.site-card-meta { font-size: var(--text-sm); color: var(--muted); }
+.site-card-actions {
+  margin-top: auto; padding-top: var(--space-4);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-2);
+}
+.site-card-actions > :is(button, a) { height: 34px; padding: 0 0.9rem; display: inline-flex; align-items: center; }
+.site-card-open { gap: 0.35em; text-decoration: none; }
+.site-card-menu { margin-left: auto; display: inline-flex; }
+.site-card-menu .row-menu-trigger { width: 34px; height: 34px; border-color: var(--border); border-radius: var(--r-sm); }
+.site-card-head:has(.status-error) { background: var(--danger-bg); border-bottom-color: transparent; }
+.site-card-select {
+  display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
+  font-size: var(--text-sm); color: var(--muted); cursor: pointer;
+}
+.site-card-trashed .site-card-name { color: var(--fg-2); }
+@media (max-width: 30rem) {
+  .sites-grid { grid-template-columns: 1fr; }
+  .site-card { min-height: 0; }
+}
+
+/* Sites — card preview (2026-10-08, owner: "the desktop app shows a picture of each site").
+ * A fixed 16:10 band on top of every card — the capture's own 1280×800 shape — so cards keep equal
+ * heights whether or not a capture exists yet. `object-fit: cover` anchored top-left: a site's
+ * header and hero are what identify it. The placeholder is a quiet surface with the folder's
+ * initial, never a broken-image glyph (`useSiteCardPreview` swaps a failed load for it). */
+.site-card-preview {
+  position: relative; aspect-ratio: 16 / 10; flex: none; overflow: hidden;
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+.site-card-preview img {
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left;
+}
+.site-card-preview-placeholder {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: var(--text-xl); font-weight: 700; color: var(--faint);
+}
 
 /* ------------------------------------------------------------------------
    Plugins screen (Plugins.tsx) — the `.tovu-plugin` runtime family's row list,
@@ -6346,3 +6436,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
      size they were one slip apart on a phone). */
   .editor-action-row .btn-danger { order: -2; margin-left: 0; }
 }
+
+/* Native fieldset/legend keeps the radio group named without adding browser-default framing.
+   Float the legend into the section's content flow so it shares the existing title spacing. */
+.onboarding-section.site-db-fieldset { margin: 0; min-width: 0; border: 0; border-top: 1px solid var(--border); }
+.site-db-fieldset > legend { float: left; width: 100%; padding: 0; }

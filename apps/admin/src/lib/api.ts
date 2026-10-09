@@ -535,10 +535,24 @@ export interface AdminSiteBinding {
 
 /** Mirrors the `GET .../system/sites` response in
  *  `apps/website/src/server/inbound/admin-http/routes/system/sites.ts`. */
+export interface AdminLocalSiteState {
+  name: string; status: "starting" | "running" | "stopped" | "crashed";
+  pid: number | null; port: number | null; daemonPort: number | null; adminUrl: string | null;
+}
+export interface AdminTrashedSite { id: string; name: string; displayName: string }
+export type AdminLocalSiteAction = "start" | "stop" | "trash" | "restore" | "delete" | "switch";
+
 export interface AdminSitesSnapshot {
+  localManagementEnabled?: boolean;
+  canSwitchNow?: boolean;
+  localSites?: AdminLocalSiteState[];
+  trash?: AdminTrashedSite[];
   /** The deployment capability flag (`TOVU_ENABLE_SITE_SWITCHER`) — Create/Activate 403 when off. */
   switchingEnabled: boolean;
   sites: AdminSiteListEntry[];
+  /** Card preview version tokens (`{ [site name]: capture mtime }`), only for sites with a capture.
+   *  Absent from an older server; see {@link adminSitePreviewUrl}. */
+  previewVersions?: Record<string, number>;
   currentSite: AdminSiteBinding;
   /** The site name a previous Activate persisted to `.env`, pending a restart — `null` when none. */
   persistedSiteName: string | null;
@@ -572,6 +586,7 @@ export interface AdminTokenSignInPlugin {
  *  the screen renders it verbatim rather than hardcoding a second copy. */
 export interface AdminSiteActivation {
   ok: boolean;
+  restarting?: boolean;
   activeSiteName: string;
   restartRequired: boolean;
   restartInstructions: string;
@@ -2537,6 +2552,13 @@ export function authenticatedAdminUrl({ path }: { path: string }, _optional: Rec
   return `${BASE}${path}`;
 }
 
+/** A Sites card's preview image (`GET .../system/sites/:name/preview`, same-origin cookie auth like
+ *  every admin read). The version is in the URL so one URL's bytes never change and the server can
+ *  let the browser cache them indefinitely; a new capture is a new URL. */
+export function adminSitePreviewUrl({ name, version }: { name: string; version: number }, _optional: Record<string, never> = {}): string {
+  return authenticatedAdminUrl({ path: `/workspaces/${WORKSPACE_ID}/system/sites/${encodeURIComponent(name)}/preview?v=${encodeURIComponent(String(version))}` });
+}
+
 /**
  * Shared translation from a thrown request error to operator-facing copy — the "opt-out by
  * default" base every screen should build on, instead of each one copy-pasting this exact base
@@ -3869,7 +3891,7 @@ export const api = {
   /** Create `sites/<name>/` through the same `initSite` path `tovu init` uses. `409`
    *  `SITE_ALREADY_EXISTS` when the directory is occupied, `400` `VALIDATION_ERROR` for a name
    *  outside `[a-z0-9-]{1,100}`. */
-  createSite: (input: { name: string; agentPluginTokens?: Record<string, string> }) =>
+  createSite: (input: { name: string; adminPassword?: string; agentPluginTokens?: Record<string, string> }) =>
     request<{ site: AdminCreatedSite; agentPluginTokens?: AdminCreatedSiteAgentPluginTokens }>(`/workspaces/${WORKSPACE_ID}/system/sites`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -3886,6 +3908,16 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/system/sites/${encodeURIComponent(name)}/activate`,
       { method: "POST" }
     ),
+  manageLocalSite: (input: { name: string; action: AdminLocalSiteAction; confirmed?: boolean; checked?: boolean }) => {
+    const name = encodeURIComponent(input.name);
+    if (input.action === "switch") return request<AdminSiteActivation>(
+      `/workspaces/${WORKSPACE_ID}/system/sites/${name}/activate`, { method: "POST", body: JSON.stringify({ restartNow: true }) });
+    const path = input.action === "restore" || input.action === "delete"
+      ? `trash/${name}/${input.action}` : `${name}/${input.action}`;
+    return request<unknown>(`/workspaces/${WORKSPACE_ID}/system/sites/${path}`, {
+      method: "POST", body: JSON.stringify({ confirmed: input.confirmed, checked: input.checked }),
+    });
+  },
   /** The repo-root `Dockerfile`'s current contents, or `{ exists: false }` when none has been
    *  generated yet, plus its `etag` merged in from the response's own `ETag` header (never the JSON
    *  body — see {@link AdminDockerfileSource.etag}'s own doc). */

@@ -40,6 +40,19 @@ describe("admin selection ring", () => {
     expect(effectiveDeclarationsFor(settings, '.settings-ui-section[data-theme="light"]')).toMatch(/--selected-text\s*:\s*var\(--primary\)\s*;/);
   });
 
+  it("the active sidebar label is the selected-text orange, nudged toward --fg for contrast on its tinted row", () => {
+    expect(effectiveDeclarationsFor(stylesheet, ":root")).toMatch(
+      /--selected-text-on-tint\s*:\s*color-mix\(in oklab, var\(--selected-text\) \d+%, var\(--fg\)\)\s*;/,
+    );
+    const declaration = effectiveDeclarationsFor(stylesheet, ".cms-item.active").match(/(?:^|; )color: ([^;]+);/);
+    expect(declaration?.[1]).toBe("var(--selected-text-on-tint)");
+  });
+
+  it("the active sidebar icon wears the label's exact orange, not the darker ring that measured 2.96:1 on the dark tint", () => {
+    const declaration = effectiveDeclarationsFor(stylesheet, ".cms-item.active svg").match(/(?:^|; )color: ([^;]+);/);
+    expect(declaration?.[1]).toBe("var(--selected-text-on-tint)");
+  });
+
   it.each([
     ["styles.css", '.tab-bar-item[aria-selected="true"]', "color"],
     ["styles.css", ".settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active", "color"],
@@ -62,7 +75,6 @@ describe("admin selection ring", () => {
     ["styles.css", ".site-db-option.is-selected", "border-color"],
     ["styles/forms.css", '.form-tab[aria-selected="true"]', "border-bottom-color"],
     ["styles.css", ".cms-item.active::before", "background"],
-    ["styles.css", ".cms-item.active svg", "color"],
   ])("%s: %s draws its %s in the ring token", (path, selector, property) => {
     const css = sheets.find((sheet) => sheet.path === path)!.css;
     const declaration = effectiveDeclarationsFor(css, selector).match(new RegExp(`(?:^|; )${property}: ([^;]+);`));
