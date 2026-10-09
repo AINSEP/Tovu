@@ -27,38 +27,65 @@ test('ordinary edits and draft creation run without an approval channel', async(
     assert.equal(result.status,'completed'); assert.equal(f.calls(),1);
   }
 });
-test('publishing through status is classified from inputs, and ordinary patches stay direct',()=>{
+// Owner rule 2026-10-08: a site import asked once per page ("Confirm action?" for every
+// content_post_create with status published). Publishing on this site, trashing and moderation are
+// reversible, so they run; only permanent deletes and actions that leave this site still ask.
+test('publishing on this site through status is an ordinary reversible edit',()=>{
   assert.equal(approvalClassFor({toolId:'content_post_update',input:{title:'New title'}}),'edit');
-  assert.equal(approvalClassFor({toolId:'content_post_update',input:{status:'draft'}}),'publish');
-  assert.equal(approvalClassFor({toolId:'content_post_create',input:{status:'published'}}),'publish');
-  assert.equal(approvalClassFor({toolId:'content_post_update',input:{publishAt:'2027-01-01T00:00:00Z'}}),'publish');
+  assert.equal(approvalClassFor({toolId:'content_post_update',input:{status:'draft'}}),'edit');
+  assert.equal(approvalClassFor({toolId:'content_post_create',input:{status:'published'}}),'edit');
+  assert.equal(approvalClassFor({toolId:'content_post_update',input:{publishAt:'2027-01-01T00:00:00Z'}}),'edit');
+  assert.equal(approvalClassFor({toolId:'content_duplicate',input:{overrides:{status:'published'}}}),'edit');
 });
-test('trash and publish refuse without a human confirmation channel',async()=>{
-  for (const id of ['content_post_delete','trash_item','theme_set_page_published','publish_content_publish','deployment_execute_static_publish']) {
-    const f=fixture(id); const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input:{}});
-    assert.equal(result.status,'failed'); assert.equal(f.calls(),0);
+test('reversible writes (publish on this site, trash, moderation) run without an approval channel',async()=>{
+  const calls:[string,unknown][]=[
+    ['content_post_create',{kind:'page',title:'Services',slug:'services',status:'published'}],
+    ['content_post_update',{id:'p1',status:'published'}],
+    ['content_duplicate',{id:'p1',overrides:{status:'published'}}],
+    ['content_post_delete',{id:'p1'}], ['trash_item',{entityType:'form',entityId:'f1'}], ['media_trash_asset',{id:'m1'}],
+    ['theme_set_page_published',{themeId:'t',page:'about',published:true}],
+    ['collections_entry_publish',{id:'e1'}], ['comments_approve_comment',{id:'c1'}],
+  ];
+  for (const [id,input] of calls) {
+    const f=fixture(id); const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input});
+    assert.equal(result.status,'completed',id); assert.equal(f.calls(),1,id); assert.equal(f.surfaces.surfaceExchanges.size(),0,id);
+  }
+});
+test('only read, edit and trash run directly; every other class, including an unknown one, asks',async()=>{
+  const { approvalClassAsks }=await import('../../contracts/headless/assistant-tool-approval-policy.js');
+  for (const cls of ['read','edit','trash']) assert.equal(approvalClassAsks({class:cls}),false,cls);
+  for (const cls of ['delete','restore-over-existing','publish','replace-secret','escalation','not-a-known-class']) assert.equal(approvalClassAsks({class:cls}),true,cls);
+});
+test('permanent deletes and actions that leave this site refuse without a human confirmation channel',async()=>{
+  const calls:[string,unknown][]=[
+    ['page.click',{handle:'trash-purge-confirm'}], ['change_sets_revert',{}], ['theme_reset_file',{}],
+    ['publish_content_publish',{}], ['deployment_execute_static_publish',{}], ['deployment_ops_deploy',{}], ['source_control_execute_commit',{}],
+  ];
+  for (const [id,input] of calls) {
+    const f=fixture(id); const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input});
+    assert.equal(result.status,'failed',id); assert.equal(f.calls(),0,id);
   }
 });
 test('one principal-bound confirmation approves one frozen call; cancel changes nothing',async()=>{
   for (const decision of ['confirm','cancel']) {
-    const f=fixture('content_post_delete');
+    const f=fixture('publish_content_publish');
     const input={id:'post-1'};
     let emittedResolve!:()=>void;
     const emitted=new Promise<void>(resolve=>{emittedResolve=resolve;});
     let exchangeId='';
-    const pending=f.executor.execute({toolId:'content_post_delete',principal:{id:'owner'},run:{id:'run'},input}, {emitSurface:async emission=> {
+    const pending=f.executor.execute({toolId:'publish_content_publish',principal:{id:'owner'},run:{id:'run'},input}, {emitSurface:async emission=> {
       assert.equal(emission.channel,'mcp-ui');
       // Inspect the actual open exchange rather than parsing its HTML.
       const html=(emission.payload as {resource:{resource:{text:string}}}).resource.resource.text;
       exchangeId=html.match(/__exchangeId"\s*:\s*"([^"]+)"/)![1]; emittedResolve();
     }});
     await emitted; assert.equal(f.calls(),0); input.id='changed-after-proposal';
-    assert.equal(f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'intruder', params:{decision} }, { toolId:'content_post_delete' }).ok,false);
-    f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'owner', params:{decision} }, { toolId:'content_post_delete' });
+    assert.equal(f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'intruder', params:{decision} }, { toolId:'publish_content_publish' }).ok,false);
+    f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'owner', params:{decision} }, { toolId:'publish_content_publish' });
     const result=await pending; assert.equal(result.status,'completed');
     assert.equal(f.calls(),decision==='confirm'?1:0);
     if(decision==='confirm') assert.deepEqual(f.executed(),{id:'post-1'});
-    assert.equal(f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'owner', params:{decision} }, { toolId:'content_post_delete' }).ok,false);
+    assert.equal(f.surfaces.surfaceExchanges.deliver({ exchangeId, principalId:'owner', params:{decision} }, { toolId:'publish_content_publish' }).ok,false);
   }
 });
 

@@ -14,7 +14,7 @@ export const toolMetadata = {
         "I want to unhide a trashed comment by approving it.",
       ],
     },
-    approval: { class: 'publish', confirmation: 'policy' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   "comments_get_settings": {
     search: {
@@ -54,7 +54,7 @@ export const toolMetadata = {
         "How do I mark a bad comment without deleting it permanently?",
       ],
     },
-    approval: { class: 'publish', confirmation: 'policy' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   "comments_restore_comment": {
     search: {
@@ -67,7 +67,7 @@ export const toolMetadata = {
         "I want to recover a comment from the trash.",
       ],
     },
-    approval: { class: 'publish', confirmation: 'policy' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   "comments_trash_comment": {
     search: {

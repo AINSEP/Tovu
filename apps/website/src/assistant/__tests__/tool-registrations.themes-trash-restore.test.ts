@@ -382,13 +382,12 @@ test("a trash-then-restore round trip refreshes the live routeDeps.themes entry 
   assert.equal(deps.themes.find((t) => t.manifest.id === "plain")?.tokens["--ink"], "#abcdef", "restore must reload the live theme data");
 });
 
-test("n06: theme trash requires approval and keeps the approved bytes restorable", async () => {
+// Owner rule 2026-10-08: trash is restorable, so the host policy runs it without a dialog.
+test("n06: theme trash is reversible, so the host policy runs it without approval and the bytes stay restorable", async () => {
   const {deps, themesDir} = fakeRouteDeps();
   const original = fs.readFileSync(path.join(themesDir, "plain", "styles.css"));
   const headless = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find(r => r.descriptor.id === "theme_trash_file")!;
-  await assert.rejects(() => headless.handler(executionContext({ themeId: "plain", path: "styles.css" })), { name: "ToolInputError", message: "TOOL_APPROVAL_NO_CONFIRMATION_CHANNEL: theme_trash_file: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
-  assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", "styles.css")), original);
-  const result = await wired(deps, "theme_trash_file").handler(executionContext({themeId: "plain", path: "styles.css"})) as {trashed: boolean; trashedPath: string};
+  const result = await headless.handler(executionContext({ themeId: "plain", path: "styles.css" })) as {trashed: boolean; trashedPath: string};
   assert.equal(result.trashed, true);
   assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", result.trashedPath)), original);
   await wired(deps, "theme_restore_trashed_file").handler(executionContext({themeId: "plain", trashedPath: result.trashedPath}));

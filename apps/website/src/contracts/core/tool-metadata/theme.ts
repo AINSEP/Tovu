@@ -117,7 +117,7 @@ export const toolMetadata = {
         "Show this theme page publicly again.",
       ],
     },
-    approval: { class: 'publish', confirmation: 'policy' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   // Whole-theme delete (owner-approved 2026-10-08): the folder goes to the Trash; refused for the active theme.
   "theme_trash": {

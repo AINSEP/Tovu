@@ -1,7 +1,7 @@
 import { applyApprovalPolicy, type ToolRegistration, type ToolExecutionContext } from '@jini-ai/core';
 import { requireHumanConfirm, notConfirmedResult } from '../contracts/core/human-confirm.js';
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, directPageAction, toolApprovalPolicyFor } from '../contracts/headless/assistant-tool-approval-policy.js';
+import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, approvalClassAsks, directPageAction, toolApprovalPolicyFor } from '../contracts/headless/assistant-tool-approval-policy.js';
 import { approvalText } from '../contracts/core/approval-i18n.js';
 
 /** Classification is an owner-reviewed action policy, separate from read-only admission and auth.
@@ -15,9 +15,6 @@ export function approvalClassFor({ toolId, input }: { toolId: string; input: unk
     case 'plugin-enable': return args.enabled === false ? 'edit' : 'escalation';
     case 'execution-setting': return ASSISTANT_EXECUTION_APPROVAL_SETTINGS.some(setting => setting.namespace === args.namespace && setting.key === args.key) ? 'escalation' : 'edit';
     case 'export-commit': return args.dryRun === true ? 'edit' : 'publish';
-    case 'create-status': return args.status === 'published' ? 'publish' : 'edit';
-    case 'update-status': return args.status === 'draft' || args.status === 'published' || args.publishAt !== undefined ? 'publish' : 'edit';
-    case 'duplicate-status': return (args.overrides as Record<string, unknown> | undefined)?.status === 'published' ? 'publish' : 'edit';
     case 'page-control': return directPageAction({ capabilityId: toolId, input }) ? 'edit' : 'delete';
     case 'http-method': return typeof args.method === 'string' && args.method.toUpperCase() === 'DELETE' ? 'delete' : 'edit';
     default: return policy.class;
@@ -35,7 +32,7 @@ export function applyToolApprovalPolicy(
   return applyApprovalPolicy({
     registration,
     classify: ({ input }) => approvalClassFor({ toolId, input }, { policy }),
-    asks: ({ class: actionClass }) => actionClass !== 'read' && actionClass !== 'edit',
+    asks: ({ class: actionClass }) => approvalClassAsks({ class: actionClass }),
     describe: async ({ ctx, class: actionClass }) => {
       let locale = 'en';
       try { locale = await localeFor(ctx); } catch { /* Copy failure must never bypass a safety gate. */ }

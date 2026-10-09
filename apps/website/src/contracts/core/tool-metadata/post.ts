@@ -15,7 +15,7 @@ export const toolMetadata = {
         "Write a post and schedule it to publish on Friday morning.",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct', rule: 'create-status' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   "content_post_delete": {
     search: {
@@ -99,7 +99,7 @@ export const toolMetadata = {
         "Can you schedule this post to go live next Monday at 9am?",
       ],
     },
-    approval: { class: 'edit', confirmation: 'direct', rule: 'update-status' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
   "content_stats": {
     search: {

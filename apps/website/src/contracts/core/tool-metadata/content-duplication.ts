@@ -11,6 +11,6 @@ export const toolMetadata = {
         "duplicate an image reuse this picture same image different alt text " +
         "same content new name new title starting point template based on existing existing page existing post existing form existing media",
     },
-    approval: { class: 'edit', confirmation: 'direct', rule: 'duplicate-status' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

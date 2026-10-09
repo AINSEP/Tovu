@@ -1985,20 +1985,20 @@
       "confirmation": "direct"
     },
     "collections_entry_publish": {
-      "class": "publish",
-      "confirmation": "policy"
+      "class": "edit",
+      "confirmation": "direct"
     },
     "collections_entry_unpublish": {
-      "class": "publish",
-      "confirmation": "policy"
+      "class": "edit",
+      "confirmation": "direct"
     },
     "collections_entry_update": {
       "class": "edit",
       "confirmation": "direct"
     },
     "comments_approve_comment": {
-      "class": "publish",
-      "confirmation": "policy"
+      "class": "edit",
+      "confirmation": "direct"
     },
     "comments_get_settings": {
       "class": "read",
@@ -2009,16 +2009,16 @@
       "confirmation": "direct"
     },
     "comments_mark_comment_spam": {
-      "class": "publish",
-      "confirmation": "policy"
+      "class": "edit",
+      "confirmation": "direct"
     },
     "comments_purge_comment": {
       "class": "delete",
       "confirmation": "plan"
     },
     "comments_restore_comment": {
-      "class": "publish",
-      "confirmation": "policy"
+      "class": "edit",
+      "confirmation": "direct"
     },
     "comments_trash_comment": {
       "class": "trash",
@@ -2030,13 +2030,11 @@
     },
     "content_duplicate": {
       "class": "edit",
-      "confirmation": "direct",
-      "rule": "duplicate-status"
+      "confirmation": "direct"
     },
     "content_post_create": {
       "class": "edit",
-      "confirmation": "direct",
-      "rule": "create-status"
+      "confirmation": "direct"
     },
     "content_post_delete": {
       "class": "trash",
@@ -2060,8 +2058,7 @@
     },
     "content_post_update": {
       "class": "edit",
-      "confirmation": "direct",
-      "rule": "update-status"
+      "confirmation": "direct"
     },
     "content_stats": {
       "class": "read",
@@ -2816,8 +2813,8 @@
       "confirmation": "direct"
     },
     "theme_set_page_published": {
-      "class": "publish",
-      "confirmation": "policy"
+      "class": "edit",
+      "confirmation": "direct"
     },
     "theme_trash": {
       "class": "trash",
@@ -2933,17 +2930,9 @@
     "backup_execute_restore",
     "change_sets_revert",
     "collections_content_type_tombstone",
-    "collections_entry_publish",
-    "collections_entry_unpublish",
-    "comments_approve_comment",
-    "comments_mark_comment_spam",
     "comments_purge_comment",
-    "comments_restore_comment",
     "comments_trash_comment",
-    "content_duplicate",
-    "content_post_create",
     "content_post_delete",
-    "content_post_update",
     "custom_credential_delete",
     "custom_credential_make_request",
     "database_execute_migrate_forward",
@@ -2973,7 +2962,6 @@
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
     "theme_reset_file",
-    "theme_set_page_published",
     "theme_trash",
     "theme_trash_file",
     "trash_empty",
@@ -3019,17 +3007,9 @@
     "backup_execute_restore",
     "change_sets_revert",
     "collections_content_type_tombstone",
-    "collections_entry_publish",
-    "collections_entry_unpublish",
-    "comments_approve_comment",
-    "comments_mark_comment_spam",
     "comments_purge_comment",
-    "comments_restore_comment",
     "comments_trash_comment",
-    "content_duplicate",
-    "content_post_create",
     "content_post_delete",
-    "content_post_update",
     "custom_credential_delete",
     "custom_credential_make_request",
     "database_execute_migrate_forward",
@@ -3058,7 +3038,6 @@
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
     "theme_reset_file",
-    "theme_set_page_published",
     "theme_trash",
     "theme_trash_file",
     "trash_empty",
@@ -3083,17 +3062,9 @@
     "backup_execute_restore",
     "change_sets_revert",
     "collections_content_type_tombstone",
-    "collections_entry_publish",
-    "collections_entry_unpublish",
-    "comments_approve_comment",
-    "comments_mark_comment_spam",
     "comments_purge_comment",
-    "comments_restore_comment",
     "comments_trash_comment",
-    "content_duplicate",
-    "content_post_create",
     "content_post_delete",
-    "content_post_update",
     "custom_credential_delete",
     "custom_credential_make_request",
     "database_execute_migrate_forward",
@@ -3122,7 +3093,6 @@
     "source_control_execute_commit",
     "taxonomy_execute_merge_term",
     "theme_reset_file",
-    "theme_set_page_published",
     "theme_trash",
     "theme_trash_file",
     "trash_empty",

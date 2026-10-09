@@ -111,26 +111,15 @@ function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistrati
   return found;
 }
 
-/** Publication fixtures must answer the real card: owner policy (2026-10-07) gates status
- * changes, while patches without status run directly. Check persistence before approving. */
-async function confirmedCall(deps: RegistryDepsWithoutLimiter, toolId: string, input: Record<string, unknown>) {
+/** Publishing on this site is reversible (owner rule 2026-10-08, after a site import asked once
+ * per page), so a status change runs directly even when a confirmation channel is available. */
+async function publishCall(deps: RegistryDepsWithoutLimiter, toolId: string, input: Record<string, unknown>) {
   const surfaceExchanges: SurfaceExchangeStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const registration = postRegistrations(deps, surfaceExchanges).get(toolId);
   assert.ok(registration, `expected '${toolId}' to be wired`);
-  const before = structuredClone(await deps.postRepo.list({ workspaceId: WORKSPACE_ID }));
   let emitted = 0;
-  const result = await registration.handler(executionContext(input), {
-    emitSurface: async (surface) => {
-      emitted += 1;
-      assert.equal(surface.channel, "mcp-ui");
-      const html = (surface.payload as { resource: { resource: { text: string } } }).resource.resource.text;
-      const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1];
-      assert.ok(exchangeId, "the approval card must name its exchange");
-      assert.deepEqual(await deps.postRepo.list({ workspaceId: WORKSPACE_ID }), before, "publication must wait for approval");
-      assert.deepEqual(surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId }), { ok: true });
-    },
-  });
-  assert.equal(emitted, 1, "publication must ask exactly once");
+  const result = await registration.handler(executionContext(input), { emitSurface: async () => { emitted += 1; } });
+  assert.equal(emitted, 0, "publishing on this site must not ask");
   assert.equal(surfaceExchanges.size(), 0);
   return result;
 }
@@ -528,7 +517,7 @@ test("workflow (post): create a post, give it a real TipTap body, publish it, th
 
   // Step 3: publish — a content_post_update call with status:'published', chained off step 2's own
   // returned version/slug/bodyJson (post.ts has no separate publish function to call instead).
-  const published = (await confirmedCall(deps, "content_post_update",
+  const published = (await publishCall(deps, "content_post_update",
     { id: postId, kind: "post", title: "My Article", slug: "my-article", bodyJson: RICH_DOC, status: "published" },
   )) as { post: { id: string; status: string; version: number } };
   assert.equal(published.post.id, postId);
@@ -567,7 +556,7 @@ test("workflow (page): create a page, give it a real TipTap body, publish it, th
   assert.deepEqual(updated.post.bodyJson, RICH_DOC);
 
   // Step 3: publish.
-  const published = (await confirmedCall(deps, "content_post_update",
+  const published = (await publishCall(deps, "content_post_update",
     { id: pageId, kind: "page", title: "About Us", slug: "about-us", bodyJson: RICH_DOC, status: "published" },
   )) as { post: { id: string; status: string; version: number } };
   assert.equal(published.post.status, "published");
@@ -621,7 +610,7 @@ async function seedSearchCorpus(deps: RegistryDepsWithoutLimiter): Promise<Recor
   ] as const) {
     const input = { kind: spec.kind, title: spec.title, slug: spec.slug, bodyJson: body(spec.text), status: spec.status };
     const created = (await (spec.status === "published"
-      ? confirmedCall(deps, "content_post_create", input)
+      ? publishCall(deps, "content_post_create", input)
       : wired("content_post_create", deps).handler(executionContext(input)))) as { post: { id: string } };
     ids[spec.key] = created.post.id;
   }

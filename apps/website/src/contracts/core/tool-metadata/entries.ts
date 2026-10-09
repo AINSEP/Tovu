@@ -44,7 +44,7 @@ export const toolMetadata = {
         "Can you set the publish date on this entry to right now?",
       ],
     },
-    approval: { class: 'publish', confirmation: 'policy' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
 
   "collections_entry_unpublish": {
@@ -58,7 +58,7 @@ export const toolMetadata = {
         "Can you unpublish this collection item temporarily?",
       ],
     },
-    approval: { class: 'publish', confirmation: 'policy' },
+    approval: { class: 'edit', confirmation: 'direct' },
   },
 
   "collections_entry_update": {

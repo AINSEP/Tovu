@@ -1,11 +1,23 @@
 import { nativeToolMetadata } from '../core/tool-metadata/index.js';
 import type { ToolRegistration } from '@jini-ai/core';
 /** Owner policy: classify the action rather than the input's write-shaped fields.
- * ONE reviewed declaration per owning domain: read/edit run directly; trash/delete/restore-over-existing/publish ask.
+ * ONE reviewed declaration per owning domain. Reversible actions run directly: read, edit (which
+ * includes publishing or unpublishing on this site) and trash (restorable from the Trash).
+ * Only what cannot be undone from here asks — see {@link approvalClassAsks}.
+ * `publish` means the action leaves this site: the live site, a deploy, a git host, an email.
  * Plan entries describe domain facts through Jini; human forms stay on their secret-card engine.
  * New native registrations fail closed until their owner declares an action policy. */
 export type ToolApprovalClass = 'read' | 'edit' | 'trash' | 'delete' | 'restore-over-existing' | 'publish' | 'replace-secret' | 'escalation';
-export interface ToolApprovalPolicy { readonly class: ToolApprovalClass; readonly confirmation: 'direct' | 'policy' | 'plan'; readonly input?: 'human-form'; readonly rule?: 'create-status' | 'update-status' | 'duplicate-status' | 'http-method' | 'page-control' | 'export-commit' | 'plugin-enable' | 'execution-setting' }
+export interface ToolApprovalPolicy { readonly class: ToolApprovalClass; readonly confirmation: 'direct' | 'policy' | 'plan'; readonly input?: 'human-form'; readonly rule?: 'http-method' | 'page-control' | 'export-commit' | 'plugin-enable' | 'execution-setting' }
+/** Owner rule (2026-09-24, restated 2026-10-08 after a site import asked once per page): no
+ * per-item confirmation for anything the owner can undo. Permanent deletes, overwrites of current
+ * data, secret replacement, permission escalation and actions that leave this site still ask. */
+const DIRECT_APPROVAL_CLASSES: ReadonlySet<string> = new Set<ToolApprovalClass>(['read', 'edit', 'trash']);
+/** Whether an action of this class must wait for a human click. Fails closed: a class this table
+ * does not know asks. @complexity O(1). */
+export function approvalClassAsks({ class: actionClass }: { class: string }, _optional = {}): boolean {
+  return !DIRECT_APPROVAL_CLASSES.has(actionClass);
+}
 /** Owner-approved escalation settings; ordinary preferences and instructions run directly. */
 export const ASSISTANT_EXECUTION_APPROVAL_SETTINGS = [
   { namespace: "core.execution", key: "localCli.permissionLevel", reason: "Changes the assistant's permission level" },

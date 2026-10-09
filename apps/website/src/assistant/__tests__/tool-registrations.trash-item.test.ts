@@ -452,10 +452,10 @@ test("ESCALATION: a principal holding only comments.delete cannot trash a post b
     { message: "trash_item: comment 'post-1' was not found. Nothing was changed." }
   );
 
-  assert.equal(emitted.length, 1, "policy approval precedes the delegate ownership check; it cannot authorize another kind");
+  assert.equal(emitted.length, 0, "trash is reversible, so no dialog opens; the delegate ownership check alone refuses another kind");
 });
 
-test("ESCALATION: the same principal naming the post honestly is refused on content.write after policy approval", async () => {
+test("ESCALATION: the same principal naming the post honestly is refused on content.write", async () => {
   const { routeDeps, registrations, authorizeCalls } = harness(new Set(["comments.delete"]));
   await seedPost(routeDeps);
   const emitted: unknown[] = [];
@@ -465,7 +465,7 @@ test("ESCALATION: the same principal naming the post honestly is refused on cont
     { message: "principal 'principal-under-test' is not authorized for 'content.write' (insufficient_permission)" }
   );
   assert.deepEqual(authorizeCalls, ["content.write"]);
-  assert.equal(emitted.length, 1, "approval never replaces the domain permission check");
+  assert.equal(emitted.length, 0, "trash is reversible, so no dialog opens; the domain permission check still refuses");
   assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
 });
 
@@ -690,14 +690,12 @@ test("a widget with a corrupt payload can still be trashed, through widgets_tras
   assert.ok(byId.get(id2)?.actorPluginId, "the trash_item-routed call must record a non-null actorPluginId");
 });
 
-test("n06: generic trash records the AI actor, while host policy refuses headless calls", async () => {
+// Owner rule 2026-10-08: trash is restorable, so the host policy runs it without a dialog.
+test("n06: generic trash records the AI actor, and the host policy runs it without approval", async () => {
   const h = sqliteFormHarness();
   const [registration] = deriveTrashItemRegistrations({registrations: [], routeDeps: h.routeDeps, surfaces: h.surfaces});
   const hostRegistration = applyToolApprovalPolicy({ registration: registration!, surfaces: h.surfaces });
-  await assert.rejects(() => call(hostRegistration, { entityType: "form", entityId: "f1" }), { name: "ToolInputError", message: "TOOL_APPROVAL_NO_CONFIRMATION_CHANNEL: trash_item: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
-  assert.equal(h.formIsLive("f1"), true);
-  // The raw domain handler remains independently testable; production calls receive the host policy above.
-  const result = await call(registration!, {entityType: "form", entityId: "f1"}) as {outcome: {trashed: boolean}};
+  const result = await call(hostRegistration, {entityType: "form", entityId: "f1"}) as {outcome: {trashed: boolean}};
   assert.equal(result.outcome.trashed, true);
   assert.equal(h.formIsLive("f1"), false);
   assert.equal(h.surfaces.surfaceExchanges.size(), 0);
