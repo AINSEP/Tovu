@@ -93,19 +93,20 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
 
 // Owner decision 2026-09-13: the admin lists every installed plugin, switched off or not. That
 // listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.
-test("every bundled plugin not seeded enabled, supabase and tovu-theme included, is listed as switched off yet gets no tool and no prompt injection", async () => {
+test("every bundled plugin not seeded enabled, supabase included, is listed as switched off yet gets no tool and no prompt injection", async () => {
   await withSeededWorkspace(async () => {
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
     const bundledIds = [...new Set((await listInstalledPlugins(layout.root)).map((plugin) => plugin.pluginId))].filter(
       (pluginId) => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId),
     );
-    assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), ["deploy", "github", "resend"]);
-    assert.deepEqual([...bundledIds].sort(), ["composio", "higgsfield-media", "jev", "site-compliance", "supabase", "tovu-theme"]);
-    for (const expected of ["supabase", "tovu-theme"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
+    assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), ["deploy", "github", "resend", "site-import", "tovu-theme"]);
+    assert.deepEqual([...bundledIds].sort(), ["composio", "higgsfield-media", "jev", "site-compliance", "supabase"]);
+    for (const expected of ["supabase"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
 
     const listed = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_ID });
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
-    for (const pluginId of ["deploy", "github", "resend"]) {
+    // tovu-theme (2026-10-08): site-import delegates its theme step to it, so both seed enabled.
+    for (const pluginId of ["deploy", "github", "resend", "site-import", "tovu-theme"]) {
       assert.equal(listed.find(candidate => candidate.pluginId === pluginId)?.enabled, true, `${pluginId}: seeded enabled`);
       assert.ok(sources.some(source => source.pluginId === pluginId), `${pluginId}: tool gate open`);
       const injected = await resolveAgentPluginRefs([pluginId], layout);

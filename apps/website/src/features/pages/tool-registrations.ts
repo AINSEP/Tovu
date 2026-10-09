@@ -13,6 +13,7 @@ import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { type AgentToolDefinition as PagesAgentToolDefinition } from "@jini-ai/core";
 import { pagesAgentToolCatalog } from "./agent-tools.js";
+import { describeScriptRevealedContent } from "./hidden-until-script.js";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,
@@ -446,7 +447,10 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         throw toModelFacingWriteError(err);
       }
 
-      return { written: true, id, regions: regionHandlesIn(html), version: requireCapturedVersion(store) };
+      // A warning, not a refusal: hidden-until-script markup copied from another site is a fixable
+      // mistake, but a deliberately hidden element is legal (see `hidden-until-script.ts`).
+      const warning = describeScriptRevealedContent({ html });
+      return { written: true, id, regions: regionHandlesIn(html), version: requireCapturedVersion(store), ...(warning ? { warning } : {}) };
     },
 
     /**
@@ -503,6 +507,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         throw toModelFacingWriteError(err);
       }
 
+      const warning = describeScriptRevealedContent({ html: fragment });
       return {
         written: true,
         id,
@@ -512,6 +517,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         // is the failure that makes handle churn worse than no handles at all.
         regions: regionHandlesIn(next),
         version: requireCapturedVersion(store),
+        ...(warning ? { warning } : {}),
       };
     },
 

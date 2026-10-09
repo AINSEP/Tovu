@@ -114,6 +114,11 @@ export const PAGE_HTML_CONTRACT =
   "- LAYOUT: the theme's content area already sets the page width and the space around the content. " +
   "Do not wrap each section in its own max-width or padding container; separate sections with a " +
   "modest margin (at most about 2rem) so the page does not open large empty gaps.\n" +
+  // Luvira import, 2026-10-08: copied markup keeps a source site's scroll-reveal start state, and no
+  // page script ever reveals it. The writers also return a `warning` naming each hidden element.
+  "- VISIBLE WITHOUT SCRIPTS: no script from another site runs here. Never keep a scroll-reveal start " +
+  "state (inline `opacity:0` or `visibility:hidden`, data-aos/data-sal attributes, a `.reveal { opacity: 0 }` " +
+  "rule); write every element in its final, visible state.\n" +
   "- TAG EDITABLE REGIONS with `data-agent-element=\"<handle>\" data-agent-role=\"region\"` on each " +
   "top-level section. These handles are how you edit parts of the page later without rewriting all " +
   `of it. A starter page ships with ${PAGE_SKELETON_REGIONS.join(", ")}; keep those handles when they ` +

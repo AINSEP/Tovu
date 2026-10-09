@@ -1,18 +1,22 @@
 ---
 name: tovu-theme
-description: Build a Tovu theme — either scaffold a NEW one (static, templated or declarative tier; hand-authored, or compiled from a React/Vue/Angular build), or convert an existing static website (plain HTML/CSS/JS — no Tovu, no database, no admin) into a Tovu static-tier theme. Encodes the theme-format rules a generic approach gets wrong — the apiVersion-2 folder layout, the manifest keys the live loader actually reads, which token file holds which color palette regardless of the source's own default, the publishedPages allow-list that leaves every non-index page unreachable until explicitly turned on, the narrow sentinel rewrite that a JS fetch() call slips straight past, and the hard boundary around binary assets no agent tool in this product can cross. Use whenever asked to create, scaffold or start a theme, wrap a framework build as a theme, or "Tovu-ize", import, migrate, or convert a static site/export/template into a theme.
-argument-hint: "[new: theme id, tier static|templated|declarative, authored|compiled] or [convert: source folder]"
+description: Build a Tovu theme — either make a NEW one (by default theme_duplicate an existing theme and restyle the copy; or scaffold one from scratch in the static, templated or declarative tier, hand-authored or compiled from a React/Vue/Angular build), or convert an existing static website (plain HTML/CSS/JS — no Tovu, no database, no admin) into a Tovu static-tier theme. or make a theme that MATCHES a reference site at a URL (rebuild its design system, then compare screenshots of the source and this site until they match). Encodes the theme-format rules a generic approach gets wrong — the apiVersion-2 folder layout, the manifest keys the live loader actually reads, which token file holds which color palette regardless of the source's own default, the publishedPages allow-list that leaves every non-index page unreachable until explicitly turned on, the narrow sentinel rewrite that a JS fetch() call slips straight past, and which binary assets an agent tool can bring in (fonts and images from a URL) versus which need a human copy. Use whenever asked to create, scaffold or start a theme, wrap a framework build as a theme, "Tovu-ize", import, migrate, or convert a static site/export/template into a theme, or make the site look like another site (also the theme step of a site-import).
+argument-hint: "[new: theme id, tier static|templated|declarative, authored|compiled] or [convert: source folder] or [match: reference URL]"
 ---
 
-# Tovu themes: make a new one, or convert an existing static site
+# Tovu themes: make a new one, convert an existing static site, or match a reference site
 
-This plugin covers two jobs that share one theme format:
+This plugin covers three jobs that share one theme format:
 
-- **Job A — a new theme** (Part A below): from scratch, from a copy of a working theme, or
-  wrapping a framework build as a `compiled` theme.
+- **Job A — a new theme** (Part A below): by default a `theme_duplicate` copy of a working
+  theme that you then restyle; otherwise from scratch, or wrapping a framework build as a
+  `compiled` theme.
 - **Job B — convert an existing static site** (Part B below): someone has a plain HTML/CSS/JS
   site and wants it running as a Tovu theme. If they pointed you at a folder that looks like a
   website, this is the job.
+- **Job C — match a reference site** (Part C below): the owner gives a URL (or `site-import`
+  hands one over) and wants this site to LOOK like it. Rebuild its design system in a theme,
+  then compare screenshots of the source and this site until they match.
 
 Read the shared rules first either way — both jobs fail in the same places.
 
@@ -30,13 +34,18 @@ is the single most consequential, easiest-to-miss step in both jobs — see Rule
 loads with `status: "valid"` and ships 15 real page files can still serve exactly one working
 URL. Do not treat "the theme validated" as "the site works."
 
-## Tools: no new ones
+## Tools
 
 Everything runs on tools that already exist: `fs_list_files` / `fs_read_file` to survey and
-read a source tree, and `theme_write_file` / `theme_edit_file` / `theme_list_files` /
-`theme_read_file` to author the theme, `theme_rescan` to make a new theme folder show up (it
-also returns each invalid theme's errors), and `theme_set_page_published` to publish a page
-(Rule 4). If you hit something those genuinely cannot do, say exactly what and why, and propose
+read a source tree, `theme_duplicate` to start a new theme as a full copy of an existing one
+(Part A2), and `theme_write_file` / `theme_edit_file` / `theme_list_files` /
+`theme_read_file` to author the theme, `theme_rescan` to make a hand-built theme folder show up
+(it also returns each invalid theme's errors), `theme_set_page_published` to publish a page
+(Rule 4), and `theme_set_active` to switch the live site to a theme — only once the owner has
+approved it. Part C adds `web_fetch_page` (read the source's HTML and CSS), `web_screenshot_page`
+(see the source, and this site through any installed theme with `themeId`), `content_read.menu` (the header menu's id) and
+`media_import_from_url` (raster logos and images into the media library) and
+`theme_import_file_from_url` (a font or image file from a URL, saved into the theme folder). If you hit something those genuinely cannot do, say exactly what and why, and propose
 the tool **before** building it — do not build against an assumed API. A new tool needs a
 `DERIVED_RISK_BY_TOOL_ID` entry or `assertToolIsWirable` throws at composition-root boot; that
 is a real cost, not a formality.
@@ -57,7 +66,7 @@ only as history, and parts of them are wrong about today). `theme-layout.ts`
 (`resolveThemeLayout()`) is the one pure, tested, apiVersion-aware source of truth for every
 path name if a doc and what you see on disk seem to disagree.
 
-# Shared rules (both jobs)
+# Shared rules (every job)
 
 ## Rule 1 — Build as apiVersion 2. The v1 flat layout is legacy, not a safe default.
 
@@ -186,17 +195,28 @@ referenced file was actually placed at. This is a by-hand fix, not something a c
 do generically — flag it to the operator rather than silently leaving it broken or silently
 "fixing" it into something unverified.
 
-A copied theme has the mirror-image problem: every hardcoded `/theme-assets/<old-id>/` path
-keeps loading the ORIGINAL theme's logo and icons. Replace each with the new id.
+A duplicated theme has the mirror-image problem: `theme_duplicate` rewrites only `theme.json`,
+so every hardcoded `/theme-assets/<old-id>/` path keeps loading the ORIGINAL theme's logo and
+icons. Replace each with the new id.
 
-## Assets: the hard boundary these tools cannot cross
+## Assets: what can and cannot reach a theme folder
 
 `fs_read_file` refuses anything that trips its binary/NUL-byte sniff, and caps every read at
 1MB. `theme_write_file`/`theme_edit_file` accept **UTF-8 text only** — there is no base64 or
-binary path through either tool, at any size. Put together: there is currently **no agent-tool
-path in this product that can move a binary asset — image, video, font, icon — into a theme.**
-This is not a gap in this skill; it's a gap in the tool surface, and no clever encoding trick
-closes it (asking a model to reproduce image bytes as text is not a real option).
+binary path through either tool, at any size. The one binary door is
+`theme_import_file_from_url`: it downloads a font (woff2/woff/ttf/otf) or image
+(png/jpg/gif/webp/avif/ico) from an https URL into the theme folder, byte for byte. A binary that
+exists only on a local disk has **no agent-tool path into a theme**, and no encoding trick
+closes that (asking a model to reproduce image bytes as text is not a real option).
+
+The one exception is `theme_duplicate`: it copies the source theme's folder on the server,
+binaries included, so a duplicated theme already has every image, font and icon its source had.
+It cannot bring in a NEW binary.
+
+**Batch repeated calls.** `theme_read_file`, `theme_write_file`, `theme_edit_file`,
+`theme_import_file_from_url`, `web_fetch_page` and `media_import_from_url` take
+`items: [{...}, ...]`: several files or URLs in ONE call (fields such as `themeId` set once at the
+top level), never one call per file. Each item reports its own `ok` / `result` / `error`.
 
 What this means in practice:
 
@@ -209,8 +229,12 @@ What this means in practice:
   spans) and still be perfectly ordinary, working source — `fs_read_file`'s sniff can't tell
   the difference. Either way, the fix is the same as for a true binary: it needs a real
   filesystem copy, not a tool call.
-- **True binaries — images, video, fonts, icons, favicons** — cannot go through any agent tool
-  today, full stop. **Say this plainly to the operator, by name, with the exact source and
+- **From a URL (Part C)** — a font, or an image the theme itself uses (logo, icon, favicon,
+  background): `theme_import_file_from_url` into `assets/…`. A content image an editor should manage:
+  `media_import_from_url`, then its `publicUrl`. An SVG: `web_fetch_page` with `format: "raw"`, then
+  `theme_write_file`.
+- **Local-only binaries — images, video, fonts, icons, favicons with no URL** — cannot go through
+  any agent tool today, full stop. **Say this plainly to the operator, by name, with the exact source and
   destination paths**: "copy `<source>/assets/` to `<site>/themes/static/<theme-id>/assets/`
   yourself (Finder, `cp -r`, your own script) — no tool in this session can move binary files."
   Then continue with everything that IS text-portable, rather than blocking the whole task on
@@ -220,6 +244,11 @@ What this means in practice:
 # Part A — A new theme
 
 ## A1 — Gather the essentials
+
+For the default path (A2, duplicate and restyle) you need only a **name** for the new theme and
+**which theme to start from** — the theme the site uses now unless the owner says otherwise. The
+copy keeps its source's tier, and its id is derived from the name. The questions below are for
+building from scratch (A3).
 
 Ask (batch into one question if more than one is missing):
 
@@ -234,15 +263,28 @@ Ask (batch into one question if more than one is missing):
      `sourceDir` with the framework-native source.
 4. **Name, description, one-line purpose.**
 
-## A2 — Start from a working theme when you can
+## A2 — Default: duplicate a working theme, restyle the copy
 
-The fastest correct path (themes-guide §4): copy a working theme of the same tier — e.g.
-`themes/static/basic` — to `themes/<tier>/<id>/`, set `theme.json`'s `id` and `name`, replace
-every `/theme-assets/<old-id>/` path (Rule 5), then `theme_rescan`. Starting from something that
-already loads is much faster than starting from nothing, and every rule above is already
-satisfied in it.
+Starting from something that already loads is much faster than starting from nothing, and every
+rule above is already satisfied in it (themes-guide §4).
 
-## A3 — Or scaffold the folder tree
+1. **Pick the source.** Use the theme the site runs now unless the owner names another.
+   `site_get_profile { sections: ["theme"] }` exposes the configured id and installed active row
+   (the exact fields and unavailable/disabled cases are in C1). A bundled stock theme
+   (e.g. `tovu-starter`, the default for a new site) works too. `content_read.theme` gives the roster's ids.
+2. **Duplicate it:** `theme_duplicate { sourceThemeId, newName }` (add `newId` only if the owner
+   asked for a specific folder id). It copies every file — binaries included — into a new folder,
+   gives the copy its own `id`/`name`, resets `version` to `1.0.0`, records `lineage.from`, and
+   returns the new `themeId` with its load `status`/`errors`. The source is never touched. Leave
+   `activate` at its default `false`.
+3. **Restyle the COPY**, never the source: `theme_edit_file` / `theme_write_file` on the new
+   `themeId` — tokens (Rule 3), `css/theme.css`, pages, partials — and replace every
+   `/theme-assets/<old-id>/` path with the new id (Rule 5).
+4. **Show it to the owner** and wait for an explicit yes. Only then switch the live site with
+   `theme_set_active { themeId }` (or Admin → Themes). Report the previous theme id it returns so
+   the switch can be undone.
+
+## A3 — Or scaffold the folder tree from scratch
 
 ### Authored (any tier)
 
@@ -342,10 +384,11 @@ fails — a theme that isn't in the list or shows errors is not done. From a Tov
 
 ## A6 — Tell the user what they actually have
 
-Always close with a plain-language recap, not just "done": where the theme is, whether
-`theme_rescan` loaded it clean, which pages are published (Rule 4), and what's left for them —
-Activate it in Admin → Themes, copy any binary assets (Assets section), and Publish to send the
-theme to the live site.
+Always close with a plain-language recap, not just "done": where the theme is (and, for a
+duplicate, which theme it was copied from), whether it loaded clean, which pages are published
+(Rule 4), and what's left for them — approve it so it can be activated (never activate it
+yourself without that approval), copy any binary assets the copy doesn't already have (Assets
+section), and Publish to send the theme to the live site.
 
 # Part B — Convert an existing static site
 
@@ -436,7 +479,170 @@ half-converting something this procedure was never built for.
    copy, at minimum) before this theme is genuinely done. A "so, this is finished" report that
    skips the by-hand fixes and the asset gap is not an honest report of this procedure.
 
-# Reporting rules (both jobs)
+# Part C — Match a reference site
+
+**Copy the source verbatim.** Use the source's real text, images, logo, brand names and fonts
+exactly as they are: the header wordmark, nav labels, button labels, footer lines and any copy
+written into the theme's partials or pages. Never substitute placeholder or rewritten copy, never
+comment on who owns the content, and never ask about rights. Ask the owner nothing during Part C:
+build the copy, run the compare loop, and report; switching the live site to it is the only
+thing left for them to decide.
+
+Goal: this site looks like the source, at desktop and mobile. A recolour is not a match: the
+Luvira import (2026-10-08) duplicated the starter, changed tokens, never looked at its own page,
+and shipped the starter's header, 720px column and fonts. Copy anything that helps: the source's
+CSS rules, fonts, SVGs, markup patterns.
+
+**Modular, not a flat copy.** Break the source into the theme's parts. The header and footer are
+partials (`render/partials/nav.html`, `render/partials/footer.html`), and page sections reuse the
+theme's page templates and partials instead of repeating markup per page. Every link list (the
+header nav, each footer column, the legal links) is a menu: create it with `menus_create_menu`
+from the source's links, then render it through a menu marker in the partial. Never hard-code a list of links into a partial: the
+owner edits links in Admin → Menus, and hard-coded ones never show there (Luvira import,
+2026-10-08: its footer's Explore and Legal links were baked into `footer.html`). Static themes
+have no site-profile fields to render yet, so the site name, tagline and contact lines are written
+once, in the header and footer partials, never repeated in page templates.
+
+A caller (`site-import`) hands over: the source URL, the values it already extracted, the
+imported main menu's id, and the header call-to-action (label + href). Re-extract anything
+missing.
+
+## C1 — Scaffold
+
+1. `site_get_profile { sections: ["theme"] }` → check `sections.theme.status` is `"ok"`, then read
+   `sections.theme.data.activeThemeId` (the configured id) and `sections.theme.data.active`
+   (the installed theme's row). Use `active.id` when that row is a valid static theme. If
+   `themeDisabled` is true, the active id is null, or the active row is missing, invalid or another
+   tier, select a valid static theme from the roster instead. If the section is `"forbidden"` or
+   `"unavailable"`, report that the active theme could not be read; do not guess which one is active.
+   `content_read.theme` returns `{ themes: [...] }`, a roster, not the active id; use it to choose
+   a valid static scaffold when needed. If none is available, use Part A's from-scratch path.
+   Duplicate the selected theme with
+   `theme_duplicate { sourceThemeId: <selected id>, newName: "<Source> match" }` (`activate` stays
+   `false`). Use the `theme_duplicate` copy as a scaffold only — a file layout that loads — and
+   replace its look. Never edit the live theme.
+2. The compare loop (C4) sees the copy with `web_screenshot_page { sitePath, themeId: <copy id> }`,
+   which renders this site's page through the copy WITHOUT activating it. Do not activate the copy
+   to compare; visitors keep the live theme until the owner approves the switch.
+
+## C2 — Extract the design system (read only)
+
+1. `web_fetch_page { url, format: "html" }` → markup, `stylesheets`, `meta` (favicon,
+   theme-color, og:image).
+2. Every same-host stylesheet and font stylesheet, in ONE call:
+   `web_fetch_page { format: "raw", items: [{ url: <stylesheet> }, ...] }` (up to 10 per call).
+3. `web_screenshot_page { url, viewport: "desktop", fullPage: true }` and the same with
+   `viewport: "mobile"`. These are the target.
+4. Write the values down (hex, px, names) before touching a file:
+   - **Palette**: page background, surfaces/cards, borders, body text, muted text, accent,
+     accent hover, text on accent, links. `:root` custom properties first; else the rules on
+     `body`, `a`, `button`, `h1`. `meta theme-color` confirms the brand colour.
+   - **Fonts**: display (and its italic, if emphasis words are italic), body, nav; how they load
+     (Google Fonts link, `@font-face` URLs, a provider kit).
+   - **Type scale**: h1–h6, body, small; weights, line-heights; letter-spacing and uppercase
+     (nav, eyebrows, section labels).
+   - **Layout**: container max-width, gutters, section padding, grid columns, radius, shadows.
+   - **Components**: header (logo or wordmark, nav style, CTA button, sticky, divider), buttons,
+     pills/tags, cards, section labels ("01 •"), feature strips, footer columns.
+
+Role → token (names the themes and the page-HTML contract use; do not invent others):
+
+| Source role | Token |
+|---|---|
+| page background | `--bg` |
+| card / panel; stronger | `--surface`; `--surface-2` |
+| body text; secondary text | `--fg`; `--muted` |
+| borders; strong borders | `--border`; `--border-strong` |
+| brand / link / primary button; text on it | `--accent`; `--accent-fg` |
+| heading font; body font | `--font-display`; `--font-body` |
+| content max-width | `--container` |
+
+## C3 — Write the theme (the copy only)
+
+1. **Tokens** (Rule 3): palette, fonts and `--container` into `tokens.json` /
+   `tokens.light.json`, colours exactly as the source wrote them. Light-only source: palette in
+   `tokens.light.json`, `"defaultMode": "light"` in `theme.json`; keep the other mode readable
+   (base palette with the source accent) and say so.
+2. **Fonts**: `theme.json` `fonts` is inert for static themes (Rule 2). Import each font file the
+   source loads (every `@font-face` `src`, and the files a provider stylesheet such as Google Fonts
+   points at), all in ONE call:
+   `theme_import_file_from_url { themeId, items: [{ path: "assets/fonts/<name>.woff2", url: <font file URL> }, ...] }`.
+   Then copy the source's `@font-face` rules into `css/theme.css`, each pointing at its import:
+   `@font-face { … src: url("../assets/fonts/<name>.woff2") }`. Include the italic face when the
+   source uses italic emphasis. If an import is refused, fall back to linking: the provider stylesheet as the first
+   line (`@import url("https://fonts.googleapis.com/css2?family=...")`) or the `@font-face` rule with
+   its absolute `src: url("https://<source host>/...")`, and say which fonts are linked.
+3. **CSS** (`css/theme.css`): set the base rules to the source's values — `body` background,
+   colour, font, size; `h1`–`h6` family, size, weight, line-height; links; `.wrap` (the container);
+   buttons. Then append the source's component styles, copied where they fit, in one block at the
+   end: `/* ===== reference: <host> ===== */`. Later rules win.
+4. **Header** — rewrite `render/partials/nav.html` from the source header:
+   - Logo: SVG → `web_fetch_page` `format: "raw"` → `theme_write_file` `assets/logo.svg`;
+     raster → `media_import_from_url` → its `publicUrl`; text wordmark → markup + CSS.
+   - Menu: `<nav class="main-nav" data-embed-config='{"type":"menu","id":"<menu id>","variant":"tree"}'>`
+     with the imported menu's id (`content_read.menu`). A static theme resolves a menu by the
+     marker's id; `menus_assign_location` does not place a menu in a static theme.
+   - CTA: `<a class="btn btn-solid nav-cta" href="<source CTA href>">label</a>`, styled like the
+     source button.
+   - Keep the classes the theme's scripts query (`site-header`, `nav-row`, `brand`, `main-nav`,
+     `nav-actions`, `nav-toggle`, the `mnav` dialog) or edit the script to match. Remove the
+     light/dark toggle when the source has none.
+5. **Footer** — rewrite `render/partials/footer.html`: the source's columns and small print.
+   Each link column is its own menu,
+   `menus_create_menu { title: "Footer — <column heading>", slug: "footer-<heading>", items }`
+   (reuse the menus `site-import` already made), rendered under the column's own heading:
+   `<h4>Explore</h4><div data-embed-config='{"type":"menu","id":"footer-explore"}'>…</div>`. A static
+   theme resolves the marker's `id` as a menu slug first, then as an id; links inside the marker
+   are only a fallback until the menu has items. `theme_write_file` and `theme_edit_file` return a
+   `warning` when a header, nav or footer partial still hard-codes a list of links.
+6. **Page shell** — `render/pages/pages-default.html` wraps every Page, including imported
+   pages: set its content wrapper to the source's container width (the starter's `post-detail`
+   is a 720px reading column) and remove its `data-kui` reveal unless the source animates the
+   same way. If the homepage renders through `render/pages/index.html`, do the same there.
+7. Replace every `/theme-assets/<old-id>/` path (Rule 5). Read each write's `status`; fix
+   `invalid` before the next file.
+
+## C4 — Compare loop (mandatory)
+
+One round:
+
+1. `web_screenshot_page { sitePath: "/", themeId: <copy id>, viewport: "desktop", fullPage: true }`
+   and `web_screenshot_page { sitePath: "/", themeId: <copy id>, viewport: "mobile", fullPage: true }`
+   (plus any other page the owner cares about, at the same viewport as its source capture).
+2. Compare with the source captures. List concrete differences, most visible first: header
+   (logo, nav case and spacing, CTA), page background, accent, display font and italics,
+   container width and hero layout, type scale, cards and pills, spacing, footer.
+3. Fix the theme (or the page's HTML), then capture again.
+
+Up to 3 rounds; stop early when nothing visible differs.
+Never report the theme done without a capture of its own page.
+If `web_screenshot_page` says this server cannot take screenshots, compare the theme's HTML and
+CSS with the source's instead (`theme_read_file`, `web_fetch_page`), and report the match as
+unverified.
+
+## C5 — Report
+
+- Theme id, copied from, and that it is NOT active yet (visitors still see the current theme;
+  one `theme_set_active` call switches after the owner approves).
+- Rounds run, and the captures behind the verdict: the `savedFiles` paths of each
+  `web_screenshot_page` call (source and copy, per viewport, last round at least). Every capture is
+  saved under the site folder's `.captures/<date>/`.
+- Remaining differences, one line each, and why each is left (a missing asset, a source feature
+  Tovu has no equivalent for).
+- What the owner decides: activate the new theme (`theme_set_active`), or keep the current one.
+
+**After activating** (the owner approved, or asked for the switch up front): the C4 captures used
+`themeId`, which bypasses the live site, so they prove nothing about what visitors get. Check the
+live site:
+1. `theme_set_active { themeId: <copy id> }`. It refuses, and restores the previous theme, when the
+   public render would not resolve the theme. Fix what it names; never report the switch as done.
+2. `fetch_published_page { path: "/" }` (no `themeId`). The HTML must load `/theme-assets/<copy id>/`
+   CSS, with no `/theme-assets/<previous id>/` left.
+3. `web_screenshot_page { sitePath: "/", viewport: "desktop", fullPage: true }` WITHOUT `themeId`
+   (and `viewport: "mobile"`). It must match the last C4 copy capture, not the old theme or an
+   unstyled page. Report both `savedFiles` paths.
+
+# Reporting rules (every job)
 
 - **Say the page-publish state explicitly.** "Converted 6 pages" (or "scaffolded 6 pages") is
   not the same claim as "6 pages are reachable" — always report both the page count and the
