@@ -25,6 +25,21 @@ it("applies the saved accent on load and follows settings refreshes", async () =
   unmount();
 });
 
+it("the unchosen ledger default leaves the stylesheet's brand mapping in charge, in any case", async () => {
+  let accentColor = "#a855f7";
+  let refresh = () => {};
+  const port = {
+    loadAppearance: async () => ({ ...DEFAULT_APPEARANCE, accentColor }),
+    subscribeToSettingsRefresh: (listener: () => void) => { refresh = listener; return () => {}; },
+  };
+  renderHook(() => useAdminAppearance({}, { port }));
+  await waitFor(() => expect(primary()).toBe("#a855f7"));
+  accentColor = DEFAULT_APPEARANCE.accentColor.toUpperCase();
+  await act(async () => refresh());
+  expect(primary()).toBe("");
+  expect(document.documentElement.style.getPropertyValue("--jini-theme-dark-primary")).toBe("");
+});
+
 it("previews edits immediately and skips unloaded values", async () => {
   const { rerender } = renderHook(({ accentColor, ready }) => useSettingsAppearance({ accentColor, ready }, {}), {
     initialProps: { accentColor: "#2563eb", ready: false },

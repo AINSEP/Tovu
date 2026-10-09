@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { APPEARANCE_NAMESPACE, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
+import { APPEARANCE_NAMESPACE, DEFAULT_APPEARANCE, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
 
 export interface AdminAppearancePort {
@@ -17,8 +17,20 @@ const defaultPort: AdminAppearancePort = {
 // that read at the document boundary rather than letting it undo the operator's live preview.
 const previewVersions = new WeakMap<HTMLElement, number>();
 
-/** The host inputs feed Jini's derived accent tokens, including descendants with their own theme. */
+/**
+ * The host inputs feed Jini's derived accent tokens, including descendants with their own theme.
+ * The ledger's registered default (Jini's neutral blue, which Jini expects hosts to brand over) is
+ * not an operator choice, so it clears the inline inputs and `styles.css`'s `var(--primary)` mapping
+ * keeps every Jini accent brand orange. Writing it inline turned selected chips, toggles and
+ * primary buttons blue on any site that never picked an accent (owner, 2026-10-08: "selected tabs
+ * and navs should be orange").
+ */
 function applyAccent({ accentColor, root }: { accentColor: string; root: HTMLElement }, _optional: object) {
+  if (accentColor.toLowerCase() === DEFAULT_APPEARANCE.accentColor.toLowerCase()) {
+    root.style.removeProperty("--jini-theme-light-primary");
+    root.style.removeProperty("--jini-theme-dark-primary");
+    return;
+  }
   root.style.setProperty("--jini-theme-light-primary", accentColor);
   root.style.setProperty("--jini-theme-dark-primary", accentColor);
 }
