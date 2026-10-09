@@ -2326,9 +2326,15 @@ function renderWidgetMenuItems(items: JsonValue[]): string {
     .join("");
 }
 
+/**
+ * Render the navigation-owned menu IR, escaping the title and item labels. HTML mode forwards
+ * trusted markup already balanced by Jini's navigation save path, just as static menu embeds do.
+ * @complexity O(h) for HTML length, or O(n + text length) for the resolved item tree.
+ */
 function renderWidgetMenu(props: JsonObject): string {
   const title = str(props.title);
   const heading = title ? `<h3 class="widget-menu-title">${escapeHtml(title)}</h3>` : "";
+  if (props.mode === "html") return `<nav class="widget widget-menu">${heading}${str(props.html)}</nav>`;
   return `<nav class="widget widget-menu">${heading}<ul>${renderWidgetMenuItems(arr(props.items))}</ul></nav>`;
 }
 
