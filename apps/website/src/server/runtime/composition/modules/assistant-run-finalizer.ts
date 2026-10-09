@@ -44,6 +44,7 @@ import {
   runContentFromEvents,
   runEventsForSave,
   translateRunFrame,
+  type RunFrameCarry,
 } from "#src/contracts/core/assistant-run-events";
 import { isTerminalRunStatus, type AgentEvent } from "@jini-ai/chat/core";
 
@@ -219,6 +220,8 @@ interface Watch {
   events: AgentEvent[];
   /** Keep the last complete checkpoint while a reconnect is still replaying an earlier prefix. */
   retainedEvents: AgentEvent[];
+  /** Split-echo-line memory for the current connection; reset with `events` on every replay. */
+  frameCarry?: RunFrameCarry;
   failed: boolean;
   /** Event count and start time of the latest checkpoint attempt (writes are best effort). */
   checkpointedEvents: number;
@@ -415,6 +418,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     if (!response.ok || !response.body) return { kind: "dropped" };
     watch.retainedEvents = [...interruptionEvents(watch)];
     watch.events = [...watch.attemptBase];
+    watch.frameCarry = {};
     watch.failed = false;
     // Cancel the reader as well as HTTP when a bounded resolution settles the row. Fakes may
     // ignore the request signal; late frames must not change a settled watch's checkpoint.
@@ -427,7 +431,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   }
 
   function applyStreamFrame(watch: Watch, frame: { event: string; data: string }): StreamResult | undefined {
-    const outcome = translateRunFrame(frame.event, frame.data);
+    const outcome = translateRunFrame(frame.event, frame.data, watch.frameCarry);
     watch.events.push(...outcome.events);
     if (outcome.error) watch.failed = true;
     if (outcome.terminal) {

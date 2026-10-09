@@ -4,9 +4,9 @@ import * as owner from "@jini-ai/chat/core/run-events";
 
 import type { AgentEvent } from "@jini-ai/chat/core";
 
-export type { RunAgentPayload, RunProtocolEventWire, TerminalOutcome, RunFrameOutcome } from "@jini-ai/chat/core/run-events";
+export type { RunAgentPayload, RunProtocolEventWire, TerminalOutcome, RunFrameOutcome, RunFrameCarry } from "@jini-ai/chat/core/run-events";
 
-import type { RunAgentPayload, TerminalOutcome, RunFrameOutcome } from "@jini-ai/chat/core/run-events";
+import type { RunAgentPayload, TerminalOutcome, RunFrameOutcome, RunFrameCarry } from "@jini-ai/chat/core/run-events";
 
 export function asString(v: unknown): string { return owner.asString({ value: v }, {}); }
 
@@ -50,7 +50,8 @@ export function runContentFromEvents(events: readonly AgentEvent[]): string { re
 
 export function runEventsForSave(events: readonly AgentEvent[]): AgentEvent[] { return owner.runEventsForSave({ events }, {}); }
 
-export function translateRunFrame(kind: string, raw: string | undefined): RunFrameOutcome { return owner.translateRunFrame({ kind, raw, notices: RUN_NOTICES }, {}); }
+/** `carry`: one fresh `{}` per daemon connection, so a split echo line's later chunks are dropped too. */
+export function translateRunFrame(kind: string, raw: string | undefined, carry?: RunFrameCarry): RunFrameOutcome { return owner.translateRunFrame({ kind, raw, notices: RUN_NOTICES }, carry ? { carry } : {}); }
 
 export const RUN_NOTICES: owner.RunNotices = {
   toolStepLimit: { kind: "status", label: "Stopped early — tool-step limit reached", detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off." },
