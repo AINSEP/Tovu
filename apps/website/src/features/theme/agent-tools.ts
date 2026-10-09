@@ -65,6 +65,10 @@ import { MAX_THEME_FILE_BYTES } from "./theme-files.js";
  *   out this pass on the same basis. (`theme_rename_file`, below, only ever touches a file inside an
  *   already-discovered theme's own folder — a different, narrower operation from renaming the
  *   folder itself, and not what this bullet excludes.)
+ *
+ *   `theme_delete` stays unwired, but a whole theme CAN now be removed reversibly: `theme_trash`
+ *   (owner-approved 2026-10-08, `trash-theme-tool.ts`) moves the folder to the Trash (restorable via
+ *   `trash_restore_item`) and refuses the active theme, so the blast radius above cannot happen.
  * - Nothing here touches the ACTIVE theme selection. `theme.set` is a separate operation, exposed
  *   both to a human (`server/inbound/admin-http/routes/presentation/patch-active-theme.ts`) and, as
  *   of F7a (2026-09-24), to an agent (`theme_set_active`, `features/theme/set-active-theme-tool.ts`

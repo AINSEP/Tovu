@@ -1,6 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { RemoveEntity } from "@jini-ai/cms/trash";
+import { nowIso } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
@@ -108,7 +109,7 @@ function buildTrashThemeHandlers(routeDeps: TrashThemeToolDeps): Record<string, 
         workspaceId: routeDeps.workspaceId,
         id: themeId,
         display: { title: theme.manifest.name, subtitle: themeId },
-        at: routeDeps.clock.nowIso(),
+        at: nowIso({ clock: routeDeps.clock }),
         expectedVersion: null,
         actor: { principalId, pluginId: ASSISTANT_ACTOR_PLUGIN_ID },
       });

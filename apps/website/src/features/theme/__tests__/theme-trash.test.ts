@@ -153,6 +153,17 @@ test("theme_trash: moves the WHOLE folder to the Trash, then trash_restore_item'
   assert.equal((await trash.list({ workspaceId: WORKSPACE_ID, now: AT, limit: 10 })).items.length, 0);
 });
 
+test("theme_trash: stamps the Trash row from a production-shaped Clock (nowMs only, no nowIso)", async (t) => {
+  // Regression: the handler once read `routeDeps.clock.nowIso()`, which only the test FakeClock has —
+  // `@jini-ai/core`'s `Clock` is `{ nowMs() }`, so every live call threw a TypeError.
+  const { handler, deps, trash } = harness(t);
+  deps.clock = { nowMs: () => Date.parse(AT) };
+
+  await handler(ctxFor({ themeId: "aurora" }));
+  const [item] = (await trash.list({ workspaceId: WORKSPACE_ID, now: AT, limit: 10 })).items;
+  assert.equal(item?.trashedAt, AT);
+});
+
 test("theme_trash: an engine-subfolder theme restores into the SAME subfolder it came from", async (t) => {
   const { handler, themesDir, deps, trash } = harness(t);
 
