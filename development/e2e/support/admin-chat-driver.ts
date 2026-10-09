@@ -188,9 +188,13 @@ export function createAdminChatDriver(
     if (source === "persisted") {
       const id = await currentConversationId();
       if (!id) return [];
-      const response = await page.request.get(`/api/assistant/chats/${encodeURIComponent(id)}/messages`);
-      if (!response.ok()) throw new Error(`Read chat ${id}: ${response.status()} ${await response.text()}`);
-      const body = await response.json() as { messages: Array<{
+      // In-page fetch carries the session's Secure cookie over loopback HTTP; page.request omits it.
+      const response = await page.evaluate(async (url) => {
+        const reply = await fetch(url, { credentials: "same-origin" });
+        return { status: reply.status, text: await reply.text() };
+      }, `/api/assistant/chats/${encodeURIComponent(id)}/messages`);
+      if (response.status < 200 || response.status >= 300) throw new Error(`Read chat ${id}: ${response.status} ${response.text}`);
+      const body = JSON.parse(response.text) as { messages: Array<{
         id: string; role: "user" | "assistant"; content: string; runStatus?: string;
         attachments?: Array<{ name: string; kind: string; path: string }>;
       }> };
