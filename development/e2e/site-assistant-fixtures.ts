@@ -123,9 +123,9 @@ export async function sendVisitorMessage(page: Page, message: string): Promise<v
 
 /** The `{ open, messages }` envelope under `tovu.site-assistant.transcript.v1`, read straight out of
  *  the page's own `sessionStorage`. Returns `null` when nothing is persisted. */
-export async function readPersistedState(page: Page): Promise<{ open: boolean; messages: { id: string; role: string }[] } | null> {
+export async function readPersistedState(page: Page): Promise<{ open: boolean; messages: { id: string; role: string; content?: string }[] } | null> {
   return page.evaluate(() => {
     const raw = sessionStorage.getItem("tovu.site-assistant.transcript.v1");
-    return raw === null ? null : (JSON.parse(raw) as { open: boolean; messages: { id: string; role: string }[] });
+    return raw === null ? null : (JSON.parse(raw) as { open: boolean; messages: { id: string; role: string; content?: string }[] });
   });
 }

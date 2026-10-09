@@ -90,7 +90,7 @@ async function seed(request: APIRequestContext, site: IsolatedJourneySite): Prom
     },
   }), "menu create");
   const widget = await created<{ widget: { id: string } }>(await request.post(`${WS_API}/widgets`, {
-    data: { widgetType: "text", title: "Mobile baseline widget", config: { body: "A fixed widget body" } },
+    data: { widgetType: "text", title: "Mobile baseline widget", slug: "mobile-baseline-widget", config: { body: "A fixed widget body" } },
   }), "widget create");
   const user = await created<{ user: { principalId: string } }>(
     await request.post(`${WS_API}/users`, { data: { username: USERNAME, password: "mobile-baseline-pass-1" } }), "user create");

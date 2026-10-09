@@ -1,6 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
 import type { IsolatedJourneySite } from "../support/isolated-journey-site.js";
+import { pinSessionHeaders } from "../support/bug-pin-auth.js";
 
 /**
  * Shared constants and helpers for every `*.journey.ts` file (minimal stand-in for SCOPE.md's
@@ -10,10 +11,11 @@ import type { IsolatedJourneySite } from "../support/isolated-journey-site.js";
  * public site is the site server itself. Ports mirror `playwright.journeys.config.ts`.
  */
 export { JOURNEY_ADMIN_USER, JOURNEY_ADMIN_PASSWORD } from "../support/isolated-journey-site.js";
-export const PUBLIC_URL = "http://127.0.0.1:9101";
+const PORT_BASE = Number(process.env.TOVU_JOURNEY_PORT_BASE ?? 9100);
+export const PUBLIC_URL = `http://127.0.0.1:${PORT_BASE + 1}`;
 /** A packaged server (`TOVU_E2E_PACKAGED_APP`) serves its bundled admin on the site origin. */
 export const IS_PACKAGED_SERVER = Boolean(process.env.TOVU_E2E_PACKAGED_APP);
-export const ADMIN_URL = IS_PACKAGED_SERVER ? PUBLIC_URL : "http://127.0.0.1:9102";
+export const ADMIN_URL = IS_PACKAGED_SERVER ? PUBLIC_URL : `http://127.0.0.1:${PORT_BASE + 2}`;
 export const WS = "workspace-local";
 export const API = "/api/admin/v1";
 export const WS_API = `${API}/workspaces/${WS}`;
@@ -101,17 +103,23 @@ interface JourneyFixtures {
  * error must clear `pageErrors` itself and say why.
  */
 export const test = base.extend<JourneyFixtures>({
+  request: async ({ playwright, baseURL, storageState, extraHTTPHeaders }, use) => {
+    const request = await playwright.request.newContext({ baseURL, storageState, extraHTTPHeaders: {
+      ...extraHTTPHeaders, ...await pinSessionHeaders({ storageState }, { requireSession: false }),
+    } });
+    try { await use(request); } finally { await request.dispose(); }
+  },
   journeySite: async ({}, use, testInfo) => {
     const site = (testInfo.project.metadata.isolatedJourneySite ?? testInfo.config.metadata.isolatedJourneySite) as IsolatedJourneySite | undefined;
     if (!site) throw new Error("This journey requires its config's isolated site");
     await use(site);
   },
   pageErrors: [
-    async ({ page, context }, use) => {
+    async ({ page, context }, use, testInfo) => {
       const errors: string[] = [];
       const egress: string[] = [];
       await context.route(
-        (url) => VENDOR_HOSTS.test(url.hostname),
+        (url) => VENDOR_HOSTS.test(url.hostname) && !(process.env.TOVU_E2E_REAL_SERVICES === "1" && testInfo.tags.includes("@real-service")),
         async (route) => {
           egress.push(route.request().url());
           await route.abort("blockedbyclient");

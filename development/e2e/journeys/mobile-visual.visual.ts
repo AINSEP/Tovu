@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import type { IsolatedJourneySite } from "../support/isolated-journey-site.js";
 import { IS_PACKAGED_SERVER, expect, test } from "./_fixtures.js";
@@ -24,14 +24,71 @@ import { ENTRY_SLUG, TYPE_KEY, readSeeded, type Seeded } from "./mobile-visual.s
 const SWEEP_DIR = process.env.TOVU_MOBILE_SWEEP_DIR;
 const SWEEP_WIDTH = Number(process.env.TOVU_MOBILE_SWEEP_WIDTH) || 0;
 
-/** One screen: how to reach it from a seeded site. `list` screens also run at 414px. */
+/**
+ * One screen: how to reach it from a seeded site. `list` screens also run at 414px. `pin` trims a
+ * response whose rows come from the repo (bundled plugins, bundled themes) to fixed rows, so adding
+ * a plugin or a theme file does not fail a layout baseline; `mask` hides extra per-screen regions.
+ */
 interface Screen {
   name: string;
   list?: boolean;
+  pin?(page: Page): Promise<void>;
+  mask?(page: Page): Locator[];
   open(page: Page, s: Seeded): Promise<void>;
 }
 
 const route = (name: string, url: string, list = false): Screen => ({ name, list, open: async (page) => { await page.goto(url); } });
+
+/** Rewrites one GET admin API response's JSON; every other method passes through untouched. */
+async function pinJson(page: Page, url: RegExp, rewrite: (body: any) => unknown): Promise<void> {
+  await page.route(url, async (r) => {
+    if (r.request().method() !== "GET") return r.fallback();
+    const response = await r.fetch();
+    await r.fulfill({ response, json: rewrite(await response.json()) });
+  });
+}
+
+const API = String.raw`/api/admin/v1/workspaces/[^/]+`;
+
+/** Three real installed plugins (enabled flags kept) with fixed text, so repo plugin edits don't show. */
+const pinAgentPlugins = (page: Page) => pinJson(page, new RegExp(`${API}/agent-plugins(\\?.*)?$`), (body) => ({
+  ...body,
+  agentPlugins: [...body.agentPlugins]
+    .sort((a, b) => a.pluginId.localeCompare(b.pluginId))
+    .slice(0, 3)
+    .map((p, i) => ({
+      ...p,
+      displayName: ["Alpha Tools", "Beta Publisher", "Gamma Helper"][i],
+      summary: "Lets the assistant work with a service you connect, so it can act on your site.",
+      description: null,
+      version: "1.0.0",
+      keywords: [],
+      enabled: i === 1,
+    })),
+}));
+
+/** The active theme plus one other of the same tier, renamed; tab counts then never move. */
+const pinThemes = (page: Page) => pinJson(page, new RegExp(`${API}/presentation(\\?.*)?$`), (body) => {
+  const active = body.availableThemes.find((t: { id: string }) => t.id === body.settings.activeThemeId);
+  const other = body.availableThemes
+    .filter((t: { id: string; tier: string }) => t.tier === active.tier && t.id !== active.id)
+    .sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id))[0];
+  const kept = [{ ...active, name: "Active Theme" }, ...(other ? [{ ...other, name: "Second Theme" }] : [])];
+  return { ...body, availableThemeIds: kept.map((t) => t.id), availableThemes: kept };
+});
+
+/** A fixed handful of the active theme's files, so adding/removing a theme file does not move the list. */
+const EXPLORE_FILES = new Set(["index", "404", "nav", "footer", "theme.css", "theme.json", "logo.png"]);
+const pinThemeFiles = (page: Page) => pinJson(page, new RegExp(`${API}/themes/(?!rescan)[^/?]+(\\?.*)?$`), (body) => {
+  const stem = (p: string) => p.split("/").pop()!.replace(/\.html?$/, "");
+  return {
+    ...body,
+    name: "Active Theme",
+    pages: body.pages.filter((p: string) => EXPLORE_FILES.has(stem(p))),
+    partials: body.partials.filter((p: string) => EXPLORE_FILES.has(stem(p))),
+    files: body.files.filter((f: { path: string }) => EXPLORE_FILES.has(stem(f.path))),
+  };
+});
 
 const SCREENS: Screen[] = [
   route("dashboard", "/admin/dashboard", true),
@@ -47,8 +104,8 @@ const SCREENS: Screen[] = [
   route("users", "/admin/users", true),
   route("roles", "/admin/roles", true),
   route("comments", "/admin/comments", true),
-  route("themes", "/admin/themes", true),
-  route("agent-plugins", "/admin/agent-plugins", true),
+  { ...route("themes", "/admin/themes", true), pin: pinThemes, mask: (page) => [page.locator(".theme-card-preview img")] },
+  { ...route("agent-plugins", "/admin/agent-plugins", true), pin: pinAgentPlugins },
   route("access-tokens", "/admin/access-tokens", true),
   route("redirects", "/admin/redirects", true),
   route("trash", "/admin/trash", true),
@@ -93,6 +150,7 @@ const SCREENS: Screen[] = [
   },
   {
     name: "theme-explore",
+    pin: async (page) => { await pinThemes(page); await pinThemeFiles(page); },
     open: async (page) => {
       await page.goto("/admin/themes");
       await page.getByRole("button", { name: "Explore" }).first().click();
@@ -193,6 +251,7 @@ test.describe("admin at phone width", () => {
     test(screen.name, { tag: screen.list ? ["@list"] : [] }, async ({ page }, testInfo) => {
       // Sweep only: `TOVU_MOBILE_SWEEP_WIDTH=768` spot-checks a wider viewport with the same screens.
       if (SWEEP_DIR && SWEEP_WIDTH) await page.setViewportSize({ width: SWEEP_WIDTH, height: 900 });
+      await screen.pin?.(page);
       await screen.open(page, seeded);
       await settle(page);
       if (SWEEP_DIR) {
@@ -207,7 +266,7 @@ test.describe("admin at phone width", () => {
         "the page scrolls sideways at phone width").toBe(false);
       await tagVolatile(page);
       await withWholeContent(page, () => expect(page).toHaveScreenshot(`${screen.name}.png`, {
-        mask: [page.locator("[data-mobile-visual-mask]"), page.locator(".admin-content iframe")],
+        mask: [page.locator("[data-mobile-visual-mask]"), page.locator(".admin-content iframe"), ...(screen.mask?.(page) ?? [])],
       }));
     });
   }

@@ -1,0 +1,24 @@
+/* Lumen & Pine Ceramics: the palette the import maps onto Tovu tokens. */
+@font-face { font-family: 'Lumen Display'; src: url('/fonts/display.woff2') format('woff2'); }
+@font-face { font-family: 'Lumen Text'; src: url('/fonts/text.woff2') format('woff2'); }
+:root {
+  --brand: #b5543a;
+  --brand-contrast: #fffaf5;
+  --bg: #fbf7f2;
+  --surface: #f3ece4;
+  --text: #2b2420;
+  --muted: #7a6e66;
+  --border: #e2d6ca;
+  --font-heading: 'Lumen Display', Georgia, serif;
+  --font-text: 'Lumen Text', system-ui, sans-serif;
+  --content-width: 1080px;
+}
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-text); }
+h1, h2, h3 { font-family: var(--font-heading); }
+a { color: var(--brand); }
+header, footer { display: flex; justify-content: space-between; padding: 24px; border-bottom: 1px solid var(--border); }
+main { max-width: var(--content-width); margin: 0 auto; padding: 32px 24px; }
+.button { background: var(--brand); color: var(--brand-contrast); padding: 12px 20px; border-radius: 999px; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.card { background: var(--surface); border-radius: 12px; padding: 20px; }
+.meta { color: var(--muted); }

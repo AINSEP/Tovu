@@ -1,0 +1,6 @@
+# Lumen & Pine Ceramics (offline E2E fixture: never a real site)
+User-agent: *
+Disallow: /cart/
+Disallow: /checkout/
+
+Sitemap: {{origin}}/sitemap.xml

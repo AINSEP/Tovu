@@ -71,10 +71,12 @@ export async function createIsolatedJourneySite(
   // Reuse the desktop's existing dual-loopback free-port scanner. Strict binds below fail if
   // another process takes a probed port; an existing server is never reused.
   const selected: number[] = [];
+  // Parallel test-queue lanes scan disjoint ranges, or two lanes starting together probe the same port.
+  const scanStart = Number(process.env.TOVU_JOURNEY_PORT_BASE ?? 9_100) + 10_000;
   if (!ports) {
     for (let i = 0; i < 3; i++) {
       const previous = selected.at(-1);
-      const port = await pickFreePort({ start: previous === undefined ? 19_100 : previous + 1, span: 1_000 });
+      const port = await pickFreePort({ start: previous === undefined ? scanStart : previous + 1, span: 1_000 });
       if (port === null) throw new Error("No free port for isolated journey site");
       selected.push(port);
     }
@@ -152,7 +154,7 @@ function applyPackagedServerEnv(env: Record<string, string>, packaged: NonNullab
 
 /** Playwright owns both processes and shuts them down, including the API's supervised daemon. */
 export function isolatedJourneyWebServers(
-  { site }: { site: IsolatedJourneySite }, _optional = {},
+  { site }: { site: IsolatedJourneySite }, { buildSiteChat = false }: { buildSiteChat?: boolean } = {},
 ): Array<Exclude<NonNullable<PlaywrightTestConfig["webServer"]>, unknown[]>> {
   const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
   const boot = `node --import tsx development/e2e/support/start-journey-site.mjs ${quote(site.manifestPath)}`;
@@ -165,7 +167,7 @@ export function isolatedJourneyWebServers(
   }
   return [
     {
-      command: `${boot} api`, cwd: REPO_ROOT, url: site.apiURL,
+      command: `${boot} ${buildSiteChat ? "api-with-site-chat" : "api"}`, cwd: REPO_ROOT, url: site.apiURL,
       timeout: 120_000, reuseExistingServer: false,
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     },

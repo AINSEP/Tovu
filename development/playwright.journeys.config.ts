@@ -15,19 +15,24 @@ import { CODEX_JOURNEY } from "./e2e/support/assistant-journey-state.js";
  *
  * `testMatch` is anchored to `.journey.ts` on purpose: every older config matches an unanchored
  * `...\.spec\.ts` regex under `testDir: ./e2e`, so a journey must never end in `.spec.ts`.
- * Ports 9101-9103 serve the default project; media uses the helper's free-port selection.
+ * Ports 9101-9103 (TOVU_JOURNEY_PORT_BASE + 1..3) serve the default project; media uses the helper's free-port selection.
  */
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
+const REAL_SERVICES = process.env.TOVU_E2E_REAL_SERVICES === "1";
+// Parallel test-queue lanes each set their own port base and output folder so runs never collide.
+const PORT_BASE = Number(process.env.TOVU_JOURNEY_PORT_BASE ?? 9100);
+const LANE = process.env.TOVU_JOURNEY_LANE ? `-${process.env.TOVU_JOURNEY_LANE}` : "";
 export default Promise.all([
   createIsolatedJourneySite(
-    { suite: "journeys" }, { ports: { api: 9101, admin: 9102, daemon: 9103 },
+    { suite: "journeys" }, { ports: { api: PORT_BASE + 1, admin: PORT_BASE + 2, daemon: PORT_BASE + 3 },
       ...(CODEX_JOURNEY ? { database: "sqlite", runtime: "local-cli" } as const : {}) },
   ),
   createIsolatedJourneySite({ suite: "journeys-media" }, { database: "sqlite" }),
 ]).then(([site, mediaSite]) => defineConfig({
   testDir: "./e2e/journeys",
   testMatch: /\.journey\.ts$/,
-  grepInvert: /@live/,
+  // Live paths are never discovered by a default web run, even in mixed offline files.
+  grepInvert: REAL_SERVICES ? undefined : /@live|@real-service/,
   globalSetup: "./e2e/journeys/journeys.globalSetup.ts",
   metadata: { isolatedJourneySite: site },
   timeout: 90_000,
@@ -41,7 +46,7 @@ export default Promise.all([
   forbidOnly: !!process.env.CI,
   retries: 0,
   snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-{platform}{ext}",
-  outputDir: path.join(REPO_ROOT, "development/test-results/journeys"),
+  outputDir: path.join(REPO_ROOT, `development/test-results/journeys${LANE}`),
   reporter: [
     ["list"],
     ["html", { outputFolder: path.join(REPO_ROOT, "development/playwright-report/journeys"), open: "never" }],
@@ -56,11 +61,21 @@ export default Promise.all([
     colorScheme: "light",
     viewport: { width: 1440, height: 900 },
     headless: true,
+    launchOptions: { slowMo: Number(process.env.TOVU_E2E_SLOWMO ?? 0) },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "chromium", testIgnore: /(?:^|\/)media\.journey\.ts$/ },
+    {
+      name: "chromium", testIgnore: /(?:^|\/)(?:media\.journey|admin-visual\.pins\.journey)\.ts$/,
+      grepInvert: REAL_SERVICES ? /@real-service/ : /@live|@real-service/,
+    },
+    // Real-service pins type real API keys/tokens into the page. trace/screenshot/video are
+    // worker-scoped, so a describe-level `test.use` cannot turn them off; this project does.
+    ...(REAL_SERVICES ? [{
+      name: "real-service", testIgnore: /(?:^|\/)(?:media\.journey|admin-visual\.pins\.journey)\.ts$/,
+      grep: /@real-service/, use: { trace: "off" as const, screenshot: "off" as const, video: "off" as const },
+    }] : []),
     {
       name: "chromium-media", testMatch: /(?:^|\/)media\.journey\.ts$/,
       metadata: { isolatedJourneySite: mediaSite },
@@ -68,9 +83,15 @@ export default Promise.all([
       // Keep the established media screenshot paths when selecting a separate project.
       snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-chromium-{platform}{ext}",
     },
+    // Preserve the old visual regression matrix without running every web journey three times.
+    ...[
+      { name: "desktop", viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false },
+      { name: "tablet", viewport: { width: 834, height: 1112 }, isMobile: false, hasTouch: false },
+      { name: "mobile", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+    ].map(({ name, ...use }) => ({ name, testMatch: /(?:^|\/)admin-visual\.pins\.journey\.ts$/, use })),
   ],
   webServer: [
-    ...isolatedJourneyWebServers({ site }),
+    ...isolatedJourneyWebServers({ site }, { buildSiteChat: !site.packaged }),
     ...isolatedJourneyWebServers({ site: mediaSite }),
   ],
 }));

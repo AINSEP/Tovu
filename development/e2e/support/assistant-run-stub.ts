@@ -24,6 +24,8 @@ function frame(event: "agent" | "end", payload: Payload, eventId: number): strin
 interface RunStub {
   runStarts: Request[];
   toolCalls: Array<{ toolName: string; params: Record<string, unknown> }>;
+  midRunMessages: Array<{ text: string }>;
+  cancels: Request[];
 }
 
 /**
@@ -36,7 +38,7 @@ interface RunStub {
 export async function stubPendingRun(
   { page, payloads, toolCallStatus }: { page: Page; payloads: Payload[]; toolCallStatus: 202 | 409 | 500 }, _optional = {},
 ): Promise<RunStub> {
-  const stub: RunStub = { runStarts: [], toolCalls: [] };
+  const stub: RunStub = { runStarts: [], toolCalls: [], midRunMessages: [], cancels: [] };
   let message: ChatMessage | undefined;
   let conversationId: string | undefined;
   const events = payloads.map(translateRunAgentPayload).filter((event): event is AgentEvent => event !== null);
@@ -73,9 +75,28 @@ export async function stubPendingRun(
   });
   await page.route(`**/api/runs/${RUN_ID}`, (route) =>
     route.request().method() === "GET"
-      ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ run: { id: RUN_ID, state: "running" } }) })
+      ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ run: { id: RUN_ID, state: message?.runStatus ?? "running" } }) })
       : route.continue(),
   );
+  await page.route(`**/api/runs/${RUN_ID}/messages`, async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    const input = route.request().postDataJSON() as { text: string };
+    stub.midRunMessages.push(input);
+    // The daemon checkpoints user_message inside the active answer; a 202 alone never renders it.
+    // Keep recovery in sync, using the same translator as the initial run events.
+    const event = translateRunAgentPayload({ type: "user_message", id: `journey-mid-run-${stub.midRunMessages.length}`, text: input.text });
+    if (message && event) {
+      const nextEvents = [...(message.events ?? []), event];
+      message = { ...message, events: nextEvents, content: assistantContentFromEvents({ events: nextEvents }) };
+    }
+    await route.fulfill({ status: 202, json: { delivery: "delivered" } });
+  });
+  await page.route(`**/api/runs/${RUN_ID}/cancel`, async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    stub.cancels.push(route.request());
+    if (message) message = { ...message, runStatus: "canceled" };
+    await route.fulfill({ json: { ok: true } });
+  });
   await page.route("**/api/admin/v1/mcp-ui/tool-calls", async (route) => {
     stub.toolCalls.push(route.request().postDataJSON());
     const body =

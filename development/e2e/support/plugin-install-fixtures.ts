@@ -5,6 +5,7 @@ import path from "node:path";
 import { expect, type APIRequestContext } from "@playwright/test";
 import { buildZipFixture } from "../../../apps/website/src/features/agent-plugins/__tests__/fixtures/build-zip.js";
 import type { IsolatedJourneySite } from "./isolated-journey-site.js";
+import { pinSessionHeaders } from "./bug-pin-auth.js";
 
 export const WORKSPACE = "workspace-local";
 export const PLUGIN_API = `/api/admin/v1/workspaces/${WORKSPACE}`;
@@ -25,8 +26,10 @@ async function entries({ directory, prefix = "" }: { directory: string; prefix?:
   return result;
 }
 
+/** Chromium sends Secure cookies to HTTP on 127.0.0.1; Playwright's API client does not. Reuse the
+ * isolated site's real session explicitly for list reads and uninstall, without another login. */
 export async function pluginRows({ request, family }: { request: APIRequestContext; family: PluginFamily }, _optional = {}): Promise<PluginRow[]> {
-  const response = await request.get(`${PLUGIN_API}/${family === "site" ? "plugins" : "agent-plugins"}`);
+  const response = await request.get(`${PLUGIN_API}/${family === "site" ? "plugins" : "agent-plugins"}`, { headers: await pinSessionHeaders({ request }) });
   expect(response.ok(), await response.text()).toBe(true);
   const body = await response.json();
   return family === "site" ? body.plugins : body.agentPlugins;
@@ -62,13 +65,13 @@ export async function createPluginInstallFixtures(
         const rows = await pluginRows({ request, family });
         if (rows.some((row) => (row.id ?? row.pluginId) === ids[family])) {
           if (family === "site") {
-            const response = await request.delete(`${PLUGIN_API}/plugins/${ids.site}`);
+            const response = await request.delete(`${PLUGIN_API}/plugins/${ids.site}`, { headers: await pinSessionHeaders({ request }) });
             expect(response.ok(), await response.text()).toBe(true);
           } else {
             // Agent Plugins has no HTTP uninstall route/UI action yet. Use the same domain
             // uninstall as plugins_uninstall, with an explicitly isolated layout and one QA id.
             const { resolveAgentPluginLayout } = await import("../../../apps/website/src/features/agent-plugins/layout.js");
-            const { uninstallAgentPlugin } = await import("../../../apps/website/src/features/agent-plugins/uninstall.js");
+            const { uninstallAgentPlugin } = await import("../../../apps/website/src/features/agent-plugins/lifecycle.js");
             const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(site.siteDir, "agent-plugins") } });
             await uninstallAgentPlugin({ layout, workspaceId: WORKSPACE, pluginId: ids.agent });
           }

@@ -1,20 +1,20 @@
 # Plugin install tests
 
-Opt-in unattended suite on a fresh seeded SQLite site, API, Vite admin and daemon. It reuses
+Plugin journeys run on a fresh seeded SQLite site, API, Vite admin and daemon per test. It reuses
 `isolated-journey-site.ts`, journeys login and `admin-chat-driver.ts`. External admin URLs are
-rejected; existing servers and the owner's site are never reused. Without opt-in the tests skip
-without allocating a site or starting servers.
+rejected; existing servers and the owner's site are never reused. Offline browser cases run by default; chat cases are tagged `@real-service` and excluded unless
+`TOVU_E2E_REAL_SERVICES=1`. The old plugin-specific config is retired.
 
 From the repository root:
 
 ```sh
-env -u TOVU_E2E_ADMIN_BASE_URL TOVU_E2E_PLUGIN_INSTALL=1 npx playwright test --config=development/playwright.plugin-install.config.ts
+npm run e2e:journeys:real -- plugins.pins.journey.ts
 ```
 
 Prerequisites: the normal repository dependencies and Playwright Chromium must already be
 installed. The chat cases need the Local CLI `claude` installed and signed in on this machine;
 they run real assistant calls and may incur model charges. No owner password or BYOK key is used.
-The command starts/stops its own servers. A full run takes 3-15 minutes depending on machine load; 8/8 passed on 2026-10-06.
+The command starts/stops its own servers. The legacy suite passed 8/8 on 2026-10-06. The migration is typechecked but its browser execution is pending.
 
 Coverage (test names):
 
@@ -56,7 +56,8 @@ same domain uninstall as `plugins_uninstall`, with an explicit isolated layout b
 currently no HTTP/UI uninstall. It verifies both lists afterward, attempts both families even if
 one fails, removes temp ZIPs and reports cleanup errors. The final case checks for remaining QA
 packages. Every new run uses a new site and IDs; failed cleanup can never touch the owner's site.
-The isolated site's runtime directory remains available for failure inspection.
+The shared cleanup reporter verifies removal of the whole isolated site; failure logs are attached
+to each test as `pin-server.log`.
 
 Unit regressions and admin types (coordinator execution):
 
@@ -92,8 +93,8 @@ Files in this UI/E2E change (including the retained interrupted-run edits):
   `plugin-install-size.unit.test.ts`, `plugin-list-refresh.unit.test.ts`.
 - `apps/admin/src/components/InstallTabCard/install-archive-size.ts`,
   `apps/admin/src/panels.tsx`, `apps/admin/src/styles.css`.
-- `development/e2e/plugin-install.spec.ts`, `development/e2e/support/plugin-install-fixtures.ts`,
-  `development/playwright.plugin-install.config.ts`, this runbook.
+- `development/e2e/journeys/plugins.pins.journey.ts`, `development/e2e/support/plugin-install-fixtures.ts`,
+  `development/playwright.journeys.config.ts`, this runbook.
 - `development/e2e/fixtures/plugins/qa-fake-hello/{1.0.0,1.0.1}/{tovu.plugin.json,README.md}`.
 - `development/e2e/fixtures/plugins/qa-fake-agent/{1.0.0,1.0.1}/plugin.json` and each version's
   `skills/qa-fake-agent/SKILL.md`.
@@ -103,9 +104,8 @@ and installs. Its Jini extraction candidate is already recorded in
 `ADS-memory/.local-artifacts/tovu-to-jini-extract/SURVEY.md`; no shared platform module or new
 archive dependency was added.
 
-To run browser install/layout cases without live chat charges (the suite still boots its configured
-Local CLI site):
+To run browser install/layout cases without live chat charges:
 
 ```sh
-env -u TOVU_E2E_ADMIN_BASE_URL TOVU_E2E_PLUGIN_INSTALL=1 npx playwright test --config=development/playwright.plugin-install.config.ts --grep-invert 'chat attaches'
+npm run e2e:journeys -- plugins.pins.journey.ts
 ```
