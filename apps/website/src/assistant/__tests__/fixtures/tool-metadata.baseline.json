@@ -159,6 +159,7 @@
     "theme_reset_file": "theme file reset restore revert original undo pristine default discard changes modified changed header footer template",
     "theme_rename_file": "theme file rename renaming move name change filename css template stylesheet",
     "theme_copy_file": "theme file copy duplicate clone branch variant new name",
+    "theme_trash": "theme themes delete remove trash get rid of uninstall whole theme old unused theme folder",
     "theme_trash_file": "theme file delete remove trash soft delete",
     "theme_restore_trashed_file": "theme file bring back undelete recover",
     "theme_set_active": "theme switch activate change active theme live site look design",
@@ -421,6 +422,11 @@
       "Unpublish a standalone static theme page.",
       "Hide the pricing page in this theme.",
       "Show this theme page publicly again."
+    ],
+    "theme_trash": [
+      "Delete this theme.",
+      "Remove the old theme I'm not using.",
+      "Get rid of the luvira theme."
     ],
     "trash_empty": [
       "Can you empty my Trash?",
@@ -2813,6 +2819,10 @@
       "class": "publish",
       "confirmation": "policy"
     },
+    "theme_trash": {
+      "class": "trash",
+      "confirmation": "policy"
+    },
     "theme_trash_file": {
       "class": "trash",
       "confirmation": "policy"
@@ -2964,6 +2974,7 @@
     "taxonomy_execute_merge_term",
     "theme_reset_file",
     "theme_set_page_published",
+    "theme_trash",
     "theme_trash_file",
     "trash_empty",
     "trash_item",
@@ -3048,6 +3059,7 @@
     "taxonomy_execute_merge_term",
     "theme_reset_file",
     "theme_set_page_published",
+    "theme_trash",
     "theme_trash_file",
     "trash_empty",
     "trash_item",
@@ -3111,6 +3123,7 @@
     "taxonomy_execute_merge_term",
     "theme_reset_file",
     "theme_set_page_published",
+    "theme_trash",
     "theme_trash_file",
     "trash_empty",
     "trash_item",

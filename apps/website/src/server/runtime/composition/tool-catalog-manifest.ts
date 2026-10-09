@@ -80,6 +80,7 @@ import { contributeSiteInspectionTools } from "#src/features/site-inspection/ind
 import { contributeSitesTools } from "#src/features/sites/index";
 import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
+import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
 import { deriveTrashItemRegistrations, trashItemDerivedRisk } from "#src/features/trash/index";
 import { buildPublishHostCredentialHandler, contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
@@ -449,6 +450,9 @@ export function installFirstPartyToolContributors(
   // the four per-domain delete tools, through the derived-contributor seam registered just below —
   // see `features/trash/trash-item-tool.ts`.)
   contributions.contributors.register({ contribution: contributeTrashTools() });
+  // `theme_trash` (2026-10-08) — whole-theme delete into the Trash; own domain key (`"theme-trash"`),
+  // and `trash_item`'s `theme` delegate, so it must be registered before that derived pass runs.
+  contributions.contributors.register({ contribution: contributeTrashThemeTools() });
   // `trashUser` gives `trash_item` its `user` kind through the Users screen's own delete (see that port's doc).
   contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: (input) => deriveTrashItemRegistrations(input, { trashUser: bindTrashUserForTool(input.routeDeps) }), risk: trashItemDerivedRisk } });
   contributions.contributors.register({ contribution: contributeWidgetsTools() });

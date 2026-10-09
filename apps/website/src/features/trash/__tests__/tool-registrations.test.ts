@@ -357,7 +357,7 @@ test("both enums are exactly the bespoke permission-map kinds plus every registr
     .properties.entityTypes.items.enum;
   assert.deepEqual([...restoreEnum].sort(), expected);
   assert.deepEqual([...listEnum].sort(), expected);
-  const supported = ["comment", "form", "form_submission", "media", "menu", "plugin", "post", "redirect", "taxonomy", "term", "user", "widget"];
+  const supported = ["comment", "form", "form_submission", "media", "menu", "plugin", "post", "redirect", "taxonomy", "term", "theme", "user", "widget"];
   assert.deepEqual([...restoreEnum].sort(), supported);
   assert.deepEqual([...listEnum].sort(), supported);
 });

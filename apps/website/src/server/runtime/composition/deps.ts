@@ -77,6 +77,7 @@ import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/featu
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
+import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "./open-site-content-db.js";
@@ -232,6 +233,7 @@ import {
   createTableTrashAdapter,
   MEDIA_ENTITY_TYPE,
   PLUGIN_ENTITY_TYPE,
+  THEME_ENTITY_TYPE,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
   SqliteTrashRepo,
@@ -1880,6 +1882,13 @@ async function composeSiteRouteDeps(
   // One array shared by `routeDeps.themes` (below) and the theme-files apply's refresh hook, so a
   // published theme's partials/pages re-render without a restart (`rescanThemes` refills IN PLACE).
   const siteThemes = discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" });
+  // `theme` joins the Trash here rather than in `trashAdapters`' literal above: its adapter rescans
+  // `siteThemes` after every move, and the Trash resolves adapters at call time, so this `set` is seen
+  // by every later trash/restore/purge (`theme_trash`, `trash_restore_item`, the admin Trash screen).
+  const themeTrashAdapter = createThemeTrashAdapter({ themes: siteThemes, themesDir: resolvedThemesDir });
+  trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
+  // Folder moves before the Trash row is written; if that write throws, move the folder back.
+  const removeTheme = unhideIfRemoveThrows(themeTrashAdapter, bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }));
   const publishContentApplyPort = createPublishContentApplyPort({
     workspaceId,
     bundleRepo: publishContentBundleRepo,
@@ -2329,6 +2338,7 @@ async function composeSiteRouteDeps(
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     listPluginConflicts: pluginRuntime.listPluginConflicts,
     removePlugin,
+    removeTheme,
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     previewPluginBeforeSave: pluginRuntime.previewPluginBeforeSave,
     pluginInstaller: pluginRuntime.pluginInstaller,

@@ -106,5 +106,6 @@ export type { RecordStoreTrashAdapterDeps, TrashRecordStore } from "@jini-ai/cms
 export { createDirectoryTrashAdapter, unhideIfRemoveThrows } from "./adapters/directory.js";
 export type { DirectoryTrashAdapterDeps, DirectoryTrashLocation } from "./adapters/directory.js";
 export { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
+export { THEME_ENTITY_TYPE } from "./adapters/theme.js";
 export { createUserTrashAdapter, USER_ENTITY_TYPE } from "./adapters/user.js";
 export type { UserTrashAdapterDeps } from "./adapters/user.js";

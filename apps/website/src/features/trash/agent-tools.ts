@@ -105,7 +105,7 @@ export function buildTrashAgentToolCatalog(kinds: readonly TrashEntityType[]): r
       name: "trash_list_items",
       description:
         "Lists what is currently in the Trash — anything in the Trash: posts, pages, comments, media, redirects, " +
-        "forms and submissions, widgets, menus, taxonomies and terms, plugins; see the entityType enum for the " +
+        "forms and submissions, widgets, menus, taxonomies and terms, plugins, themes; see the entityType enum for the " +
         "exact list — newest first. Each row reports entityType, entityId, the title as it was when it was " +
         "deleted, who deleted it, when, and the date it will be permanently removed automatically. Rows past " +
         "that date are already excluded. Restore anything listed here with trash_restore_item. Reading this " +

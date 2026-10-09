@@ -23,6 +23,7 @@ import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
 import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
 import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../../features/trash/agent-tools.js";
+import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
@@ -254,6 +255,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // This derived tool reuses built handlers, so contributor/DOMAIN_SLICES enumeration cannot
   // discover it. Keep this fallback separate from trash's list/restore catalog.
   "trash-item": getTrashItemAgentToolCatalog() as unknown as AgentToolDefinition[],
+  "theme-trash": trashThemeAgentToolCatalog as unknown as AgentToolDefinition[],
 };
 
 /** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog

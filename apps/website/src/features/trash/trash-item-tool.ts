@@ -60,6 +60,7 @@ import { COMMENT_ENTITY_TYPE } from "./adapters/comment.js";
 import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
+import { THEME_ENTITY_TYPE } from "./adapters/theme.js";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashDb } from "./db-port.js";
 import { moveToTrash, type MoveToTrashOutcome } from "./move-to-trash.js";
@@ -214,6 +215,19 @@ export const TRASH_ITEM_DELEGATES: ReadonlyMap<TrashEntityType, TrashItemDelegat
       // (a raw `entryRepo.findById`, no payload parse) resolves not-found itself.
       async toDelegateInput(_deps, entityId) {
         return { widgetInstanceId: entityId };
+      },
+    },
+  ],
+  [
+    THEME_ENTITY_TYPE,
+    {
+      entityType: THEME_ENTITY_TYPE,
+      toolId: "theme_trash",
+      permission: "theme.edit",
+      // The theme id IS the entity id; `theme_trash` resolves it against the live registry and owns
+      // the active-theme refusal, so nothing is read here.
+      async toDelegateInput(_deps, entityId) {
+        return { themeId: entityId };
       },
     },
   ],

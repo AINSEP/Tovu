@@ -13,7 +13,7 @@ import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
 import type { RemoveEntity, TrashDb, TrashRegistry } from "#src/features/trash/index";
-import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce } from "@jini-ai/cms/trash";
+import type { ForgetRemovedEntity, RemoveEntity, TrashPort, TrashSweepOnce } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
@@ -1070,6 +1070,10 @@ export interface PluginRuntimeDeps {
    * supply it; absent ⇒ every plugin is listed with `conflicts: []`. */
   listPluginConflicts?: () => Promise<ReadonlyMap<string, readonly PluginConflict[]>>;
   removePlugin: RemovePluginFn;
+  /** 2026-10-08 — moves a whole theme folder to the Trash (`theme_trash`). Bound at the composition
+   * root over the `theme` directory adapter (`features/theme/theme-trash.ts`), wrapped so a failed
+   * Trash-row write moves the folder back — same shape as {@link removePlugin}. */
+  removeTheme: RemoveEntity;
   /** 2026-09-13 — pre-bound, read-only, bounded listing of one discovered plugin's own files
    * (`PLUGIN_FILES`). Path safety lives in the binding (`plugin-runtime.ts`) and
    * `Jini/packages/plugins/src/host/node/package-files.ts`; the route only authorizes and resolves the record. */

@@ -119,6 +119,18 @@ export const toolMetadata = {
     },
     approval: { class: 'publish', confirmation: 'policy' },
   },
+  // Whole-theme delete (owner-approved 2026-10-08): the folder goes to the Trash; refused for the active theme.
+  "theme_trash": {
+    search: {
+      keywords: "theme themes delete remove trash get rid of uninstall whole theme old unused theme folder",
+      queries: [
+        "Delete this theme.",
+        "Remove the old theme I'm not using.",
+        "Get rid of the luvira theme.",
+      ],
+    },
+    approval: { class: 'trash', confirmation: 'policy' },
+  },
   "theme_trash_file": {
     search: {
       keywords: "theme file delete remove trash soft delete",

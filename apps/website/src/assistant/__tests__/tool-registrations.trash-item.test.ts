@@ -28,6 +28,7 @@ import { createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
 import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 
 import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
+import { trashThemeAgentToolCatalog } from "#src/features/theme/trash-theme-tool";
 import { createRedirect } from "@jini-ai/cms/redirects";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -405,7 +406,7 @@ test("an entityType with no registered Trash adapter is refused with an exact er
   // genuinely un-adapted kind here (see `withRealTrashRegistry`'s comment).
   await assert.rejects(call(tool(registrations, TRASH_ITEM_TOOL_ID), { entityType: "form", entityId: "post-1" }), {
     message:
-      "trash_item: 'form' is not a kind of thing the Trash can hold. Expected one of: post, comment, media, redirect, widget, form_submission, term, taxonomy. Nothing was changed.",
+      "trash_item: 'form' is not a kind of thing the Trash can hold. Expected one of: post, comment, media, redirect, widget, theme, form_submission, term, taxonomy. Nothing was changed.",
   });
   assert.deepEqual(authorizeCalls, []);
   assert.deepEqual(await trashRows(routeDeps), []);
@@ -424,7 +425,7 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   // Delegate, generic and `user` kinds remain available; only `post` is removed by this probe.
   await assert.rejects(call(trashItem, { entityType: "post", entityId: "post-1" }), {
     message:
-      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget, form_submission, term, taxonomy, user. Nothing was changed.",
+      "trash_item: 'post' is not a kind of thing the Trash can hold. Expected one of: comment, media, redirect, widget, theme, form_submission, term, taxonomy, user. Nothing was changed.",
   });
   assert.equal((await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id: "post-1" }))?.deletedAt, null);
 });
@@ -491,11 +492,12 @@ test("every delegate pre-checks exactly the permission its own delete tool decla
   declared.set("media_trash_asset", "media.delete");
   // `widgets_trash_instance`'s catalog is Jini-owned too; its Tovu wrapper hard-codes the same gate.
   declared.set("widgets_trash_instance", "widgets.delete");
+  for (const entry of trashThemeAgentToolCatalog) declared.set(entry.name, entry.authorization.permission);
 
   for (const delegate of TRASH_ITEM_DELEGATES.values()) {
     assert.equal(delegate.permission, declared.get(delegate.toolId), `${delegate.entityType} -> ${delegate.toolId}`);
   }
-  assert.deepEqual([...TRASH_ITEM_DELEGATES.keys()], ["post", "comment", "media", "redirect", "widget"]);
+  assert.deepEqual([...TRASH_ITEM_DELEGATES.keys()], ["post", "comment", "media", "redirect", "widget", "theme"]);
 });
 
 test("SINK AUDIT: in the production catalog, trash_item accepts every delegate AND every generic TRASHABLE kind", () => {
@@ -513,7 +515,7 @@ test("SINK AUDIT: in the production catalog, trash_item accepts every delegate A
   };
   // Delegates first (insertion order of TRASH_ITEM_DELEGATES), then generic registry kinds with no
   // delegate (insertion order of TRASHABLE) — `widget` has a delegate, so it never repeats below.
-  assert.deepEqual(schema.properties.entityType.enum, ["post", "comment", "media", "redirect", "widget", ...realGenericKinds()]);
+  assert.deepEqual(schema.properties.entityType.enum, ["post", "comment", "media", "redirect", "widget", "theme", ...realGenericKinds()]);
 });
 
 test("a kind whose delete tool is not registered is not accepted, with an exact error, and nothing is written", async () => {
@@ -527,7 +529,7 @@ test("a kind whose delete tool is not registered is not accepted, with an exact 
   });
   assert.ok(trashItem);
 
-  const accepted = ["post", "media", "redirect", "widget", ...realGenericKinds()].join(", ");
+  const accepted = ["post", "media", "redirect", "widget", "theme", ...realGenericKinds()].join(", ");
   await assert.rejects(call(trashItem, { entityType: "comment", entityId: "comment-1" }), {
     message: `trash_item: 'comment' is not a kind of thing the Trash can hold. Expected one of: ${accepted}. Nothing was changed.`,
   });

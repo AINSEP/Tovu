@@ -131,6 +131,7 @@ export type AssistantToolRegistryDeps = import("../features/analytics/tool-regis
   TaxonomyToolDeps &
   ThemeToolDeps &
   SetActiveThemeToolDeps &
+  import("../features/theme/trash-theme-tool.js").TrashThemeToolDeps &
   ChangeSetToolDeps &
   WorkspaceToolDeps &
   FormsToolDeps &

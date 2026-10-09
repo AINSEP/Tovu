@@ -23,6 +23,7 @@ import { MEDIA_ENTITY_TYPE } from "./adapters/media.js";
 import { POST_ENTITY_TYPE } from "./adapters/post.js";
 import { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
+import { THEME_ENTITY_TYPE } from "./adapters/theme.js";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashEntityType, TrashItem } from "@jini-ai/cms/trash";
 import type { TrashRegistry } from "./registry.js";
@@ -50,6 +51,8 @@ export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, strin
   [MEDIA_ENTITY_TYPE, "media.delete"],
   [REDIRECT_ENTITY_TYPE, "admin.redirects.manage"],
   [PLUGIN_ENTITY_TYPE, "admin.plugins.enable"],
+  // `theme_trash`'s own gate (`theme.edit`, `features/theme/agent-tools.ts`'s THEME_WRITE_PERMISSION).
+  [THEME_ENTITY_TYPE, "theme.edit"],
   [USER_ENTITY_TYPE, "*"],
 ]);
 
