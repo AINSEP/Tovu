@@ -1,6 +1,7 @@
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import assert from "node:assert/strict";
 import test from "node:test";
+import express from "express";
 import { createThemePreviewMiddleware, freshThemePreviewHtml } from "../theme-preview-refresh.js";
 
 test("preview assets get a unique directory, preserving relative imports and existing queries", () => {
@@ -99,10 +100,10 @@ test("preview asset handler disables storage and validators while normal asset o
   const options: unknown[] = [];
   registerThemeStaticAssets(app as never, {
     themeRoots: [root],
-    serveStatic: (_dir, opts) => {
+    serveStatic: Object.assign((_dir: string, opts?: Parameters<typeof express.static>[1]) => {
       options.push(opts);
-      return (_req, res) => res.send("fresh stylesheet");
-    },
+      return (_req: unknown, res: express.Response) => res.send("fresh stylesheet");
+    }, { mime: express.static.mime }),
   });
   assert.deepEqual(routes, [["/theme-assets/:themeId", "/theme-preview-assets/:revision/:themeId"]]);
   const headers: Record<string, string> = {};
@@ -143,7 +144,7 @@ test("authenticated preview CSS versions absolute local fonts, images and import
   let staticHandler: Function = () => {};
   const authenticated = new Set<string>();
   registerThemeStaticAssets({ use: (_route: unknown, _security: unknown, handler: Function) => { staticHandler = handler; } } as never, {
-    themeRoots: [root], serveStatic: () => (_req, res) => res.send(css),
+    themeRoots: [root], serveStatic: Object.assign(() => (_req: unknown, res: express.Response) => res.send(css), { mime: express.static.mime }),
     isAuthenticatedPreviewRevision: ({ revision }) => authenticated.has(revision),
   });
   const previewHandler = createThemePreviewMiddleware({

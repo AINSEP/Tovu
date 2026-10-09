@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
+import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
+import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
@@ -22,12 +26,15 @@ const routePath = "/api/admin/v1/workspaces/:workspaceId/assistant/execution/det
 function handler(allowed: boolean) {
   const app = express();
   registerAdminAssistantDetectAgentsRoute(app, {
+    adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
+    siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
+    siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
     detectAgents: async () => { calls += 1; if (failure) throw failure; return agents; },
     workspaceId: "workspace-test", authorize: async (params) => {
       assert.deepEqual(params, { principalId: "principal-test", permission: "admin.assistant.manage", workspaceId: "workspace-test", entityType: "assistant-execution" });
       return { allowed, reason: allowed ? "granted" : "no_grant" };
     },
-  } as Parameters<typeof registerAdminAssistantDetectAgentsRoute>[1]);
+  });
   return extractRouteHandler(app, "post", routePath);
 }
 

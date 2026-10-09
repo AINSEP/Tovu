@@ -61,7 +61,7 @@ async function buildHarness(routeDeps: NewsletterToolDeps) {
   const registry = createToolRegistry({});
   for (const registration of buildNewsletterRegistrations(routeDeps)) registry.register(registration);
   const toolExecutor = createToolExecutor({ registry });
-  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog() });
+  const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
   return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) };
 }

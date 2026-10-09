@@ -165,6 +165,7 @@ test("no published Menus tool names the retired menus_list_menus/menus_get_menu;
   const menuId = (assign.descriptor.inputSchema as { properties: { menuId: { description: string } } }).properties.menuId;
   assert.equal(menuId.description, "The menu's id, as returned by content_read.menu, or menus_create_menu.");
   for (const [id, registration] of registrations) {
+    assert.ok(registration.descriptor.description, `${id} must publish a description`);
     const text = `${registration.descriptor.description.split(KEYWORD_MARKER)[0]} ${JSON.stringify(registration.descriptor.inputSchema)}`;
     assert.doesNotMatch(text, /\bmenus_(list_menus|get_menu)\b/, `${id} still names a retired menu read tool`);
   }

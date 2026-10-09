@@ -24,7 +24,7 @@ function cryptoDeps() {
 }
 async function fixture() {
   const deps = { ...cryptoDeps(), repo: new InMemoryExternalMcpServerRepo(), clock };
-  await saveExternalMcpServer(deps, { workspaceId, serverId: 'fixture', label: 'Fixture', transport: 'streamable_http', authMode: 'static_env', command: '', args: '', url: 'https://example.test/mcp', accessToken: 'fixture-credential-a9F2', allowedToolNames: '', principalId: 'owner', enabled: true });
+  await saveExternalMcpServer(deps, { workspaceId, serverId: 'fixture', label: 'Fixture', transport: 'streamable_http', authMode: 'static_env', command: '', args: '', url: 'https://example.test/mcp', accessToken: 'fixture-credential-a9F2', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', enabled: true });
   return { workspaceId, clock, externalMcpServerRepo: deps.repo, siteAssistantSecretSealer: deps.sealer };
 }
 for (const status of [401, 403]) test(`hosted probe maps ${status} to auth, without echoing upstream text`, async () => {
@@ -109,7 +109,7 @@ test('publish verifier validates before probing and maps 401/403 independently o
   let probes = 0; let status = 401; let value = 'fixture-credential-a9F2';
   const target = {
     pluginId: 'fixture',
-    descriptor: { id: 'fixture-host', label: 'Fixture', module: 'fixture.mjs', configFields: [], credential: { vendorId: 'fixture', tokenField: 'apiKey', fields: [{ name: 'apiKey', label: 'Key', required: true, secret: true }] } },
+    descriptor: { id: 'fixture-host', label: 'Fixture', module: 'fixture.mjs', configFields: [], credential: { vendorId: 'fixture', tokenField: 'apiKey', fields: [{ name: 'apiKey', label: 'Key', required: true, secret: true as const }] } },
     module: { create: () => { throw new Error('unused'); }, verifyCredential: async () => { probes++; return { ok: false as const, reason: 'unreachable' as const, statusCode: status }; } },
   };
   const deps = {

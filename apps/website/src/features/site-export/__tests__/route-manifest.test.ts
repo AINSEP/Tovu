@@ -323,8 +323,7 @@ test("buildRouteManifest: enumerates products only when the storefront actually 
   // directly instead, mutated in place for the same closure-identity reason `baseDeps` itself now
   // mutates rather than spreads (see that function's own doc above) — `deps` here is structurally a
   // superset of `RouteManifestDeps`, so passing it to `buildRouteManifest` needs no cast.
-  const deps = createRouteDeps();
-  deps.store = store;
+  const deps = Object.assign(createRouteDeps(), { store });
   const withStore = await buildRouteManifest(deps);
   assert.ok(withStore.routes.find((r) => r.path === "/products" && r.kind === "product-list"));
   assert.ok(withStore.routes.find((r) => r.path === "/products/mug-01" && r.kind === "product"));

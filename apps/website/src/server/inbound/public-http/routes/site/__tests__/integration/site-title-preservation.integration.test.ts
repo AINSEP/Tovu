@@ -18,7 +18,7 @@ import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
-import type { CommerceSiteAdapterDeps } from "../../products.js";
+import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import { builtInThemesDir, createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
@@ -43,7 +43,7 @@ const SITE_NAME = "My Site";
 const SYSTEM_PRINCIPAL_ID = "system-settings-migration";
 
 interface BootedSite {
-  deps: CommerceSiteAdapterDeps;
+  deps: CommerceSiteTestDeps;
   baseUrl: string;
   cookie: string;
 }
@@ -74,7 +74,7 @@ async function createPreExistingSite(t: TestContext): Promise<string> {
   const dbPath = path.join(dir, "content.db");
   for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${dbPath}${suffix}`, { force: true });
 
-  const { seed: starterSeed } = readTemplate({ templateId: "starter" });
+  const { seed: starterSeed } = readTemplate({ templateId: "starter" }, { withSampleContent: true });
   // Every pre-existing site was seeded on Tovu Theme (new sites start on Tovu Starter since
   // 2026-09-27, which has no `/pricing` page — the S2 surface below).
   const seed = { ...starterSeed, presentation: { ...starterSeed.presentation, activeThemeId: "tovu-theme" } };

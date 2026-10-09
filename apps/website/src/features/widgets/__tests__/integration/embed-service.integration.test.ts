@@ -585,7 +585,7 @@ test("insertWidgetEmbed rolls back document, version, refs and revision when ref
       throw failure;
     }
   }
-  await assert.rejects(insertWidgetEmbed({ deps: { host: buildWidgetHostPorts({}, {}), ...deps, entryRefsRepo: new FailingRefs(db) },
+  await assert.rejects(insertWidgetEmbed({ deps: { ...deps, entryRefsRepo: new FailingRefs(db) },
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: "host-atomic", baseVersion: 1, widgetEntryId: "widget-atomic" } }), (error) => error === failure);
   assert.equal(refWrites, 1, "failure follows a real ref write");
   assert.deepEqual(await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: "host-atomic" }), before);

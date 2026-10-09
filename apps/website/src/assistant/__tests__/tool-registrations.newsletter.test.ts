@@ -293,6 +293,7 @@ test("no wired tool description implies it can send/schedule/resume a real campa
   const { deps } = fakeRouteDeps();
   for (const [id, registration] of newsletterRegistrations(deps)) {
     if (id === "newsletter_pause_campaign") continue; // legitimately describes HALTING a send
+    assert.ok(registration.descriptor.description, `${id} must publish a description`);
     const claim = registration.descriptor.description.replace(/\b(never|no|not|cannot|nothing)\b[^.;—]*/gi, "");
     assert.equal(/\bsends? (the )?campaign\b|\bschedules? (the )?campaign\b|\bresumes? sending\b/i.test(claim), false, `'${id}' must not claim to send/schedule/resume a real campaign send`);
   }

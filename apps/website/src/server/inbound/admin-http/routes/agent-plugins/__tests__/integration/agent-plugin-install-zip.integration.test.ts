@@ -55,7 +55,7 @@ function upload(baseUrl: string, cookie: string, archive: Buffer, expectedSha256
   return fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${expectedSha256}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/zip" },
-    body: archive,
+    body: Uint8Array.from(archive),
   });
 }
 
@@ -156,7 +156,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: input checks, auth, and permission", async (t) =
     const otherWorkspace = await fetch(`${baseUrl}/api/admin/v1/workspaces/other/agent-plugins/install/zip?expectedSha256=${sha(archive)}`, {
       method: "POST",
       headers: { cookie, "content-type": "application/zip" },
-      body: archive,
+      body: Uint8Array.from(archive),
     });
     assert.equal(otherWorkspace.status, 404);
 
@@ -175,7 +175,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: replace=true upgrades the same plugin id and rep
     const next = await buildZipFixture([{ path: "plugin.json", content: manifest("2.0.0") }]);
     assert.equal((await upload(baseUrl, cookie, old)).status, 201);
     const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/install/zip?expectedSha256=${sha(next)}&replace=true`, {
-      method: "POST", headers: { cookie, "content-type": "application/zip" }, body: next,
+      method: "POST", headers: { cookie, "content-type": "application/zip" }, body: Uint8Array.from(next),
     });
     assert.equal(response.status, 201);
     const body = await response.json() as { agentPlugin: { version: string; enabled: boolean } };

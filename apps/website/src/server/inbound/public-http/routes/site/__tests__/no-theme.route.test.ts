@@ -1,5 +1,5 @@
 import { createCommerceSiteTestApp as createApp } from "./commerce-site-app.js";
-import type { CommerceSiteAdapterDeps } from "../products.js";
+import type { CommerceSiteTestDeps } from "./commerce-site-app.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -34,7 +34,7 @@ const NO_THEME_SETTINGS: PresentationSettingsRecord = {
   updatedAt: "2026-09-12T00:00:00.000Z",
 } as PresentationSettingsRecord;
 
-async function startServer(overrides: Partial<CommerceSiteAdapterDeps> = {}) {
+async function startServer(overrides: Partial<CommerceSiteTestDeps> = {}) {
   const deps = { ...createRouteDeps(), ...overrides };
   const server = createServer(createApp(deps));
   server.listen(0);

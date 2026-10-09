@@ -1,5 +1,6 @@
 import { createCommerceSiteTestApp as createApp } from "./commerce-site-app.js";
-import { resolveStorefrontProducts, type CommerceSiteAdapterDeps } from "../products.js";
+import { resolveStorefrontProducts } from "../products.js";
+import type { CommerceSiteTestDeps } from "./commerce-site-app.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -52,7 +53,7 @@ function fakePriceRepo(pricesByProduct: Record<string, CommercePriceRecord[]>): 
   };
 }
 
-async function startServer(overrides: Partial<CommerceSiteAdapterDeps>) {
+async function startServer(overrides: Partial<CommerceSiteTestDeps>) {
   const deps = { ...createRouteDeps(), ...overrides };
   const server = createServer(createApp(deps));
   server.listen(0);

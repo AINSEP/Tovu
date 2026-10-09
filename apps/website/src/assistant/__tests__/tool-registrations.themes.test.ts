@@ -266,7 +266,7 @@ test("each themes tool checks exactly the permission its catalog entry declares"
     const emitted: unknown[] = [];
     const result = await registrations.get(toolId)!.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
     if (toolId === "theme_trash_file") {
-      assert.equal(emitted.length, 1, "theme trash requires one policy approval card");
+      assert.equal(emitted.length, 0, "reversible theme trash runs without a policy approval card");
     }
     assert.deepEqual(authorizeCalls.map((call) => [call.permission, call.principalId, call.workspaceId]), [
       [toolId === "content_read.theme" ? "theme.set" : catalogEntry(toolId).authorization.permission, PRINCIPAL_ID, WORKSPACE_ID],

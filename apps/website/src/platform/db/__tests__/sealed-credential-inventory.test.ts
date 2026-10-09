@@ -73,7 +73,8 @@ async function createFixtureTable(t: { after(fn: () => Promise<void>): void }, k
 }
 
 async function sealedQuad(input: { sealer: Sealer; keyring: InMemoryKeyring; plaintext: string; aad: string | undefined; prefix?: string; secrets: string[] }) {
-  const sealed = await input.sealer.seal({ plaintext: input.plaintext, key: await input.keyring.activeKey(), aad: input.aad });
+  // Empty AAD supplies zero bytes, preserving legacy rows that were sealed without a binding.
+  const sealed = await input.sealer.seal({ plaintext: input.plaintext, key: await input.keyring.activeKey(), aad: input.aad ?? "" });
   input.secrets.push(input.plaintext, sealed.ciphertext, sealed.nonce);
   const p = input.prefix ?? "";
   return { [`${p}sealed_key_id`]: sealed.keyId, [`${p}sealed_ciphertext`]: sealed.ciphertext, [`${p}sealed_nonce`]: sealed.nonce, [`${p}sealed_alg`]: sealed.alg };
@@ -361,7 +362,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
         if (!healthy) throw new Error("keyring went away");
         return fixture.sealer.seal(input);
       },
-      open: async (input) => {
+      open: async (input, optional = {}) => {
         if (optional.aad !== "sealed-credential-inventory-probe:v1") healthy = false;
         if (!healthy) throw new Error("keyring went away");
         return fixture.sealer.open(input, optional);

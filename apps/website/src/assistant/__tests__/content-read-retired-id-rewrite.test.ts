@@ -74,6 +74,7 @@ test("SINK AUDIT: in the real assistant catalog no published description or inpu
 
   const offenders: string[] = [];
   for (const entry of registrations) {
+    assert.ok(entry.descriptor.description, `${entry.descriptor.id} must publish a description`);
     const plain = entry.descriptor.description.split(KEYWORD_MARKER)[0];
     const text = `${plain} ${JSON.stringify(entry.descriptor.inputSchema ?? {})}`;
     for (const id of retired) if (new RegExp(`\\b${id}\\b`).test(text)) offenders.push(`${entry.descriptor.id} -> ${id}`);

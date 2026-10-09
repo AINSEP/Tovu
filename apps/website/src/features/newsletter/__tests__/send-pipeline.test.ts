@@ -116,7 +116,7 @@ function makeSubscriberDirectory(contacts: SubscriberContact[]): SubscriberDirec
 
 type MailCall = { message: Parameters<MailerPort["send"]>[0]; options: Parameters<MailerPort["send"]>[1] };
 
-function makeMailer(sendImpl?: (message: { to: { email: string } }) => { ok: true; providerMessageId: string; acceptedAt: string } | { ok: false; retryable: boolean; errorCode: string; message: string }): MailerPort & { sentTo: string[]; calls: MailCall[] } {
+function makeMailer(sendImpl?: (message: Parameters<MailerPort["send"]>[0]) => Awaited<ReturnType<MailerPort["send"]>> | ReturnType<MailerPort["send"]>): MailerPort & { sentTo: string[]; calls: MailCall[] } {
   const sentTo: string[] = [];
   const calls: MailCall[] = [];
   return {
@@ -364,8 +364,10 @@ test("freezeAudience: chunks outbox events at CHUNK=20 -- 25 recipients produce 
 
   const claimed = await rig.outbox.claimPending({ batchSize: 100, nowIso: clock.nowIso() });
   assert.equal(claimed.length, 2);
-  const job1 = claimed[0].event.payload as SendBatchJob;
-  const job2 = claimed[1].event.payload as SendBatchJob;
+  const job1 = claimed[0].event.payload;
+  const job2 = claimed[1].event.payload;
+  assert.ok(Array.isArray(job1.sendIds));
+  assert.ok(Array.isArray(job2.sendIds));
   assert.equal(job1.sendIds.length, 20);
   assert.equal(job2.sendIds.length, 5);
   for (const [i, row] of claimed.entries()) {
@@ -1216,7 +1218,7 @@ test("handleSendBatchClaimed: a row leased by a run that threw is claimable agai
     return lookUp(args);
   });
   let nowIso = clock.nowIso();
-  const deps: SendPipelineDeps = { ...rig.deps, clock: { nowMs: () => Date.parse(nowIso), nowIso: () => nowIso } };
+  const deps: SendPipelineDeps = { ...rig.deps, clock: { nowIso: () => nowIso } };
 
   await assert.rejects(handleSendBatchClaimed({ deps, job: makeJob() }), { message: "database is locked" });
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");

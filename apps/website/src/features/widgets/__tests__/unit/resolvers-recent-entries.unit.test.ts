@@ -5,7 +5,7 @@ import test from "node:test";
 import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
 import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
-import { SYSTEM_CONTENT_TYPES, type CollectionListQuery, type EntryDisplayListPort, type EntryListExcludingTypesPort } from "#src/features/entries/public-list";
+import { type CollectionListQuery, type EntryDisplayListPort, type EntryListExcludingTypesPort } from "#src/features/entries/public-list";
 import { createRecentEntriesResolver, type CoreResolverDeps } from "@jini-ai/cms/widgets/resolvers";
 type ContentTypeLookup = CoreResolverDeps["contentTypes"];
 import type { WidgetInstanceView, WidgetResolveContext } from "@jini-ai/cms/widgets";

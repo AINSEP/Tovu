@@ -21,7 +21,7 @@ import {
  * type below is inferred from `extractSessionRefFromEndEvent`'s own parameter, not re-imported.
  */
 
-type SessionEndEvent = Parameters<typeof extractSessionRefFromEndEvent>[0];
+type SessionEndEvent = Parameters<typeof extractSessionRefFromEndEvent>[0]["event"];
 
 /** A minimally-valid event of the given kind/payload — every other envelope field is inert for
  * these two functions, which only ever branch on `kind` and read `payload`. */

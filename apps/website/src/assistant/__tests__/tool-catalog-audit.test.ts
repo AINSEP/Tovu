@@ -132,7 +132,7 @@ test("ADVERSARIAL: a sink that throws cannot break a search or describe call —
 });
 
 test("searchToolsAuditDetail/describeToolAuditDetail are pure JSON builders", () => {
-  assert.equal(searchToolsAuditDetail({ query: "q", limit: 10, hits: [{ id: "a", description: "", source: "s", score: 1 }] }, {}), JSON.stringify({ queryLength: 1, limit: 10, resultIds: ["a"], resultCount: 1 }));
+  assert.equal(searchToolsAuditDetail({ query: "q", limit: 10, hits: [{ id: "a" }] }, {}), JSON.stringify({ queryLength: 1, limit: 10, resultIds: ["a"], resultCount: 1 }));
   assert.equal(describeToolAuditDetail({ id: "a", entry: null }, {}), JSON.stringify({ id: "a", found: false }));
 });
 

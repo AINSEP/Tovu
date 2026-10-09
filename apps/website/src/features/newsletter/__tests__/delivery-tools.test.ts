@@ -8,7 +8,8 @@ import { createHookRegistry } from "../hooks.js";
 import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
 import { buildNewsletterDeliveryRegistrations, newsletterDeliveryDerivedRisk, type NewsletterDeliveryToolDeps } from "../delivery/tool-registrations.js";
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
-import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT, type SendBatchJob } from "../send-pipeline.js";
+import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../send-pipeline.js";
+import type { SendBatchJob } from "../ports.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -24,7 +25,7 @@ async function fixture(driver = "smtp", status = "draft") {
     clock: { nowIso: () => NOW }, idGen: { newId: () => `id-${++id}` },
     outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(),
     mailer: { capabilities: () => ({ driver, maxBatchSize: 1, supportsAttachments: false, supportsIdempotencyKey: true, supportsWebhookFeedback: false }), sendBatch: async () => [], send: async (message) => { messages.push(message); return { ok: true, providerMessageId: "provider-1", acceptedAt: NOW }; } },
-    originRegistry: { canonicalOrigin: async () => ({ scheme: "https", host: "example.com", port: 443 }), isAllowedEgressTarget: async () => true } as NewsletterDeliveryToolDeps["originRegistry"],
+    originRegistry: { canonicalOrigin: async () => ({ scheme: "https", host: "example.com", port: 443, verifiedAt: NOW, source: "workspace-setting" }), isAllowedEgressTarget: async () => true, isAllowedRedirectTarget: async () => true },
     newsletterReady: Promise.resolve(), newsletterCampaignRepo: new InMemoryNewsletterCampaignRepo(),
     newsletterListRepo: new InMemoryNewsletterListRepo(), newsletterSubscriptionRepo: new InMemoryNewsletterSubscriptionRepo(),
     newsletterAudienceSnapshotRepo: new InMemoryNewsletterAudienceSnapshotRepo(), newsletterSendRepo: new InMemoryNewsletterSendRepo(),

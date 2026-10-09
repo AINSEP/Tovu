@@ -62,7 +62,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
   await ensureWidgetContentTypesRegistered({ deps: buildWidgetsDeps(deps), workspaceId: "ws-1" });
   await entryRepo.save({
     id: "w-1", workspaceId: "ws-1", type: "widget", slug: "widget-one", title: "Original Widget",
-    status: "published", bodyJson: null, version: 1, createdAt: now, updatedAt: now,
+    status: "published", bodyJson: null, version: 1, publishedAt: now, createdAt: now, updatedAt: now,
     fieldsJson: buildWidgetInstanceFieldsJson({ payload: { widgetType: "text", status: "active", config: { body: "Original" } } }),
   });
   savedEntry = undefined;

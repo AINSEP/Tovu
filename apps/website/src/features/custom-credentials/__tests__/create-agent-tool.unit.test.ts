@@ -59,7 +59,7 @@ class ExplodingHttpClient implements HttpClientPort {
   }
 }
 
-function fakeRouteDeps(options: { allow?: boolean } = {}) {
+function fakeRouteDeps(options: { allow?: boolean; httpClient?: HttpClientPort } = {}) {
   let allow = options.allow ?? true;
   const repo = new InMemoryCustomCredentialSetRepo();
   const keyring = new InMemoryKeyring();
@@ -76,7 +76,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
       let n = 0;
       return { newId: () => `cred-${++n}` };
     })(),
-    customCredentialsHttpClient: new ExplodingHttpClient(),
+    customCredentialsHttpClient: options.httpClient ?? new ExplodingHttpClient(),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
@@ -485,9 +485,8 @@ test("submit with no category hint at all: the credential is still created, land
 });
 
 test('card-created credential is reused by the same label with the exact Authorization token', async () => {
-  const { deps } = fakeRouteDeps();
   const requests: HttpRequest[] = [];
-  deps.customCredentialsHttpClient = { send: async request => { requests.push(request); return { status: 200, headers: {}, bodyText: 'ok' }; } };
+  const { deps } = fakeRouteDeps({ httpClient: { send: async request => { requests.push(request); return { status: 200, headers: {}, bodyText: 'ok' }; } } });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const registrations = buildRegistrations(deps, exchanges);
   const secret = 'exact-token.Mixed_0123456789-+/=';
   const { pending, exchangeId } = await raiseForm(tool(registrations, TOOL_ID));
@@ -511,9 +510,8 @@ test('missing request credential returns the create-card diagnostic with URL ori
 });
 
 for (const mode of ['request', 'verify'] as const) test(`${mode} credential rejection offers the existing-label rotation card`, async () => {
-  const { deps, writeDeps } = fakeRouteDeps();
+  const { deps, writeDeps } = fakeRouteDeps({ httpClient: { send: async () => ({ status: 401, headers: {}, bodyText: 'Unauthorized' }) } });
   await seedGithub(writeDeps, { token: 'private-test-token', username: 'account' });
-  deps.customCredentialsHttpClient = { send: async () => ({ status: 401, headers: {}, bodyText: 'Unauthorized' }) };
   const registrations = buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }));
   const id = mode === 'verify' ? 'custom_credential_verify' : 'custom_credential_make_request';
   const result = await call(tool(registrations, id), { input: { label: 'github', ...(mode === 'request' ? { method: 'GET', url: 'https://api.github.com/user' } : {}) } }) as { credentialSetup: unknown };

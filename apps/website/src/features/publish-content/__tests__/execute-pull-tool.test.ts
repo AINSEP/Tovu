@@ -51,7 +51,7 @@ test("the card names the source, counts and every overwritten title; only a huma
   assert.match(html, /<dt>Unchanged<\/dt><dd>0<\/dd>/);
   assert.match(html, /<dt>Blocked<\/dt><dd>0<\/dd>/);
   assert.match(html, /Owner(?:&#39;|&#x27;|')s article/);
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
   assert.equal(confirmations.length, 0);
   assert.equal(redemptions, 0);
   assert.deepEqual(answer("confirm"), { ok: true });
@@ -79,7 +79,7 @@ test("decline and unanswered abort never apply or capture a restore point", asyn
     assert.equal(result.executed, false);
     assert.equal(result.reason, decision === "abandon" ? "abandoned" : undefined);
     assert.deepEqual([...f.destination], before);
-    assert.deepEqual(f.applied, []);
+    assert.equal(f.applied.length, 0);
     assert.equal(f.restorePoints.size, 0);
   }
 });
@@ -87,11 +87,11 @@ test("a wrong human cannot confirm; a changed plan after the card fails the gate
   const f = await planned();
   const call = await start(f, []);
   assert.deepEqual(call.answer("confirm", "another-human"), { ok: false, reason: "binding-mismatch" });
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
   f.destination.set("new", { version: 1, hash: "concurrent-edit", title: "Concurrent edit" });
   call.answer("confirm");
   await assert.rejects(() => call.pending, { message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." });
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
   assert.equal(f.restorePoints.size, 0);
 });
 test("the gateway still refuses an agent confirmer, even with apply permission", async () => {
@@ -102,7 +102,7 @@ test("the gateway still refuses an agent confirmer, even with apply permission",
     assert.equal((err as Error).message, "agent principals may not confirm a gated mutation");
     return true;
   });
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
 });
 test("permission denied, malformed overwrite selections and forged confirm inputs never open a card", async () => {
   const f = await planned();
@@ -111,7 +111,7 @@ test("permission denied, malformed overwrite selections and forged confirm input
   for (const key of ["confirm", "confirmationToken"]) await assert.rejects(() => r.handler(context({ bundleId: f.bundleId, [key]: true })), { message: `'${key}' is not an input of this tool. Only a click in the confirm dialog confirms it — nothing in the tool input can.` });
   f.denied.add("publish_content.apply");
   await assert.rejects(() => r.handler(context({ bundleId: f.bundleId })), { message: "principal 'human-owner' is not authorized for 'publish_content.apply' (insufficient_permission)" });
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
 });
 test("missing/expired bundles, wrong caller and unknown overwrite keys require a fresh plan", async () => {
   const f = await planned();
@@ -121,7 +121,7 @@ test("missing/expired bundles, wrong caller and unknown overwrite keys require a
   await assert.rejects(() => r.handler(context({ bundleId: f.bundleId, overwriteEntityKeys: ["pull-fixture:not-in-bundle"] })), { message: "'pull-fixture:not-in-bundle' is not in this pull plan. Use entity keys returned by publish_content_plan_pull." });
   f.setNow("2026-10-03T00:00:00.000Z");
   await assert.rejects(() => r.handler(context({ bundleId: f.bundleId })), { message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." });
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
 });
 test("restore-point unavailability refuses before any content write, even after confirmation", async () => {
   const f = await planned();
@@ -129,7 +129,7 @@ test("restore-point unavailability refuses before any content write, even after 
   const call = await start(f);
   call.answer("confirm");
   await assert.rejects(() => call.pending, { message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." });
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
   assert.equal(f.restorePoints.size, 0);
 });
 test("success reports the stored apply-time outcomes, including a conflict downgraded during apply", async () => {
@@ -157,7 +157,7 @@ test("a headless call cannot apply, and an expired confirmation resolves execute
     const result = await r.handler(context({ bundleId: f.bundleId }), { emitSurface: async () => undefined });
     assert.deepEqual(result, { executed: false, cancelled: false, reason: "expired", note: "The user did not answer the confirmation dialog before it expired. Nothing was changed." });
   } finally { clearInterval(keepAlive); }
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
   assert.equal(f.restorePoints.size, 0);
 });
 test("revoking apply permission while the card is open prevents confirmation and all writes", async () => {
@@ -166,7 +166,7 @@ test("revoking apply permission while the card is open prevents confirmation and
   f.denied.add("publish_content.apply");
   call.answer("confirm");
   await assert.rejects(() => call.pending, { message: "principal 'human-owner' is not authorized for 'publish_content.apply' (insufficient_permission)" });
-  assert.deepEqual(f.applied, []);
+  assert.equal(f.applied.length, 0);
   assert.equal(f.restorePoints.size, 0);
   assert.equal(f.destination.get("conflict")?.title, "Local article");
 });

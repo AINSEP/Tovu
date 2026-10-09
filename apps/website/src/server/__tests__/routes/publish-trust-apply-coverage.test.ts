@@ -212,7 +212,7 @@ function widgetService(s: Site) {
   return {
     entryRepo: s.entryRepo, contentTypeRepo: s.contentTypeRepo, entryRefsRepo: s.entryRefsRepo, bindingRepo: s.widgetBindingRepo,
     clock: s.clock, ids: s.idGen, authorize: allow, outbox: s.outbox,
-  } as never;
+  };
 }
 
 function titleDefinition(): SettingDefinitionRecord {

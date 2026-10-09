@@ -116,7 +116,7 @@ function token(id: string, overrides: Partial<ConfirmationTokenRecord> = {}): Co
     workspaceId: WS,
     subscriptionId: "sub-1",
     tokenHash: `hash-${id}`,
-    purpose: "confirm",
+    purpose: "newsletter_subscription_confirm",
     createdAt: T0,
     expiresAt: "2026-09-29T00:00:00.000Z",
     consumedAt: null,
@@ -538,7 +538,8 @@ describeEachDialect(
       test("re-saving only moves consumedAt; every other field stays as first stored", async () => {
         const { tokens } = makeRepos();
         await tokens.save(token("t1"));
-        await tokens.save(token("t1", { consumedAt: T1, tokenHash: "hijack", purpose: "unsubscribe", expiresAt: T1, subscriptionId: "sub-x" }));
+        // Deliberately corrupt the purpose: an upsert must preserve the first token's binding.
+        await tokens.save(token("t1", { consumedAt: T1, tokenHash: "hijack", purpose: "unsubscribe" as unknown as ConfirmationTokenRecord["purpose"], expiresAt: T1, subscriptionId: "sub-x" }));
         assert.deepEqual(await tokens.findById({ workspaceId: WS, id: "t1" }), token("t1", { consumedAt: T1 }));
         assert.deepEqual(await tokens.findUnconsumedBySubscription({ workspaceId: WS, subscriptionId: "sub-1" }), []);
       });

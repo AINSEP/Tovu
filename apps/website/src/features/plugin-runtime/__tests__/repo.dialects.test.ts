@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PluginActivationRecord } from "@jini-ai/plugins/host";
-import { pluginActivationRepoFor } from "@jini-ai/plugins/host/sql";
+import { sqlitePluginActivationRepoFor } from "../repo.sqlite.js";
 
 /**
  * @file The plugin-activation repo on every dialect through the kernel's matrix
@@ -22,7 +22,7 @@ function activation(pluginId: string, overrides: Partial<PluginActivationRecord>
 }
 
 function repos(kernel: ContentKernel) {
-  return { kernel, repo: pluginActivationRepoFor({ kernel: kernel, tables: { activations: "plugin_activations" } }) };
+  return { kernel, repo: sqlitePluginActivationRepoFor({ store: kernel }, {}) };
 }
 
 describeEachDialect("plugin activation repo", { tables: ["plugin_activations"], make: repos }, (makeRepos) => {

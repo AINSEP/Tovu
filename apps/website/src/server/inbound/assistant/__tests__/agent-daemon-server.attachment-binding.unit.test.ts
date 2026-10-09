@@ -88,8 +88,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     const result = await delegatedToolExecuteRoute.handle({ input: {
       runId: launched.runId, toolUseId: "claude-discover", toolId: registration.descriptor.id, input: {}, requireReadOnly: true,
     }, deps });
-    assert.equal(result.ok, true);
-    if (!result.ok) throw new Error(result.error.message);
+    if (!result.ok) assert.fail(result.error.message);
     const output = result.value.result.output as { attachments: { attachmentRef: string }[] };
     assert.deepEqual(output.attachments.map(item => item.attachmentRef), [video.path]);
     const read = await readChatAttachmentForOwner({ uploadDirectory: root }, { ref: output.attachments[0]!.attachmentRef, ownerId: context.principalId });

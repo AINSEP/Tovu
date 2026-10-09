@@ -37,7 +37,7 @@ function fakeDeps(overrides: Partial<Deps> = {}): Deps {
     outbox: { enqueue: async () => {} },
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => [],
-    listInstalledAgentPlugins: dir => listBehavior(dir),
+    listInstalledAgentPlugins: (dir: Parameters<typeof listBehavior>[0]) => listBehavior(dir),
     onPluginEnabled: async () => {},
     onPluginDisabled: () => {},
     removePlugin: async () => ({ ok: true as const, version: null }),

@@ -143,7 +143,7 @@ test("capture records a fatal uncaught exception without handling it, tagged wit
   const listenersBefore = process.listenerCount("uncaughtExceptionMonitor");
   const uninstall = installServerLogCapture({ source: "daemon" });
   try {
-    process.emit("uncaughtExceptionMonitor", new Error(`fatal-${process.pid}`), "uncaughtException");
+    Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", new Error(`fatal-${process.pid}`), "uncaughtException"]);
   } finally {
     uninstall();
   }

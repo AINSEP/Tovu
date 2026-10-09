@@ -205,7 +205,6 @@ await t.test("first boot (secretRef env): the composition migrates the database 
     principalId: "principal-r1f-pg",
     phase: "completed",
     at: "2026-09-28T00:00:00.000Z",
-    detail: null,
   });
   assert.equal(query("SELECT count(*) FROM public.agent_tool_attempts WHERE attempt_id = 'attempt-r1f-pg-1'"), "1");
 });

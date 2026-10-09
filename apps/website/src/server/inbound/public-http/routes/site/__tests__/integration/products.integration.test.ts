@@ -1,5 +1,5 @@
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
-import type { CommerceSiteAdapterDeps } from "../../products.js";
+import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -39,7 +39,7 @@ function fakePriceRepo(pricesByProduct: Record<string, CommercePriceRecord[]>): 
   };
 }
 
-function testDeps(overrides: Partial<CommerceSiteAdapterDeps> = {}): CommerceSiteAdapterDeps {
+function testDeps(overrides: Partial<CommerceSiteTestDeps> = {}): CommerceSiteTestDeps {
   return { ...createRouteDeps(), ...overrides };
 }
 

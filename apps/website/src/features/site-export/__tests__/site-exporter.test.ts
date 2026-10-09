@@ -139,13 +139,13 @@ async function enablePublicAssistant(deps: ReturnType<typeof createRouteDeps>): 
 /** The seeded demo workspace has no storefront products, which would leave `products.ts`'s two
  *  handlers out of both the crawl and these widget tests — one sample-store product brings them in. */
 function withOneSampleProduct(deps: ReturnType<typeof createRouteDeps>): void {
-  deps.store = {
+  const commerceDeps = Object.assign(deps, { store: {
     listProducts: async () => [{ id: "prod-widget-1", slug: "widget-mug", title: "Widget Mug", price: 1200, stock: 3, version: 1 }],
-    checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
-  };
+    checkout: async () => ({ ok: false as const, reason: "not-found" as const, retries: 0 }),
+  } });
   // Product routes are an opt-in adapter now. Use its existing test composition for both live
   // requests and the export crawl, so this retained coverage does not re-enable production commerce.
-  deps.createSiteApp = () => createCommerceSiteTestApp(deps);
+  deps.createSiteApp = () => createCommerceSiteTestApp(commerceDeps);
 }
 
 /**

@@ -38,7 +38,7 @@ interface Harness {
 function externalHarness(transport: 'streamable_http' | 'stdio' = 'streamable_http'): Harness {
   const deps = { ...cryptoDeps(), repo: new InMemoryExternalMcpServerRepo() };
   return {
-    save: accessToken => saveExternalMcpServer(deps, { workspaceId, serverId: 'fixture', label: 'Fixture', transport, authMode: 'static_env', command: transport === 'stdio' ? 'node' : '', args: '', url: transport === 'stdio' ? undefined : 'https://example.test/mcp', accessToken: accessToken as string, accessTokenEnvName: 'ACCESS_TOKEN', allowedToolNames: '', principalId: 'owner', enabled: true }),
+    save: accessToken => saveExternalMcpServer(deps, { workspaceId, serverId: 'fixture', label: 'Fixture', transport, authMode: 'static_env', command: transport === 'stdio' ? 'node' : '', args: '', url: transport === 'stdio' ? undefined : 'https://example.test/mcp', accessToken: accessToken as string, accessTokenEnvName: 'ACCESS_TOKEN', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', enabled: true }),
     read: async () => {
       const { configs, failures } = await readEnabledExternalMcpConfigs(deps, workspaceId);
       assert.equal(failures.length, 0);
@@ -152,7 +152,7 @@ test('stdio token keeps interior spaces and Unicode exactly', async () => {
 test('stdio JSON env preserves embedded newlines, edge spaces, Unicode and punctuation', async () => {
   const deps = { ...cryptoDeps(), repo: new InMemoryExternalMcpServerRepo() };
   const value = '  café 東京\nsecond +/=._-~\nthird  ';
-  await saveExternalMcpServer(deps, { workspaceId, serverId: 'env', transport: 'stdio', authMode: 'static_env', enabled: true, command: 'node', args: '', allowedToolNames: '', principalId: 'owner', env: JSON.stringify({ PRIVATE_VALUE: value }) });
+  await saveExternalMcpServer(deps, { workspaceId, serverId: 'env', transport: 'stdio', authMode: 'static_env', enabled: true, command: 'node', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', env: JSON.stringify({ PRIVATE_VALUE: value }) });
   const { configs } = await readEnabledExternalMcpConfigs(deps, workspaceId);
   const target = configs[0]?.target;
   assert.equal(target?.kind === 'stdio' && Buffer.from(target.env.PRIVATE_VALUE ?? '').equals(Buffer.from(value)), true, 'multiline env is lossless');
@@ -179,7 +179,7 @@ test('plaintext labels and URL credentials are refused by the stores, with value
   await assert.rejects(create({ baseUrl: 'https://example.test?api_key=never-echo' }), exactError(CREDENTIAL_MESSAGES.plain));
   const external = { ...cryptoDeps(), repo: new InMemoryExternalMcpServerRepo() };
   for (const patch of [{ label: secretLabel }, { url: 'https://example.test?token=never-echo' }, { args: '--token=never-echo' }, { args: '--api-key never-echo' }]) {
-    await assert.rejects(saveExternalMcpServer(external, { workspaceId, serverId: 'metadata', transport: 'streamable_http', authMode: 'static_env', enabled: true, command: '', args: '', url: 'https://example.test/mcp', accessToken: 'safe-key-a9F2', allowedToolNames: '', principalId: 'owner', ...patch }), exactError(CREDENTIAL_MESSAGES.plain));
+    await assert.rejects(saveExternalMcpServer(external, { workspaceId, serverId: 'metadata', transport: 'streamable_http', authMode: 'static_env', enabled: true, command: '', args: '', url: 'https://example.test/mcp', accessToken: 'safe-key-a9F2', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', ...patch }), exactError(CREDENTIAL_MESSAGES.plain));
   }
   const source = { ...cryptoDeps(), repo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: noProviders };
   await assert.rejects(createSourceControlCredential(source, { workspaceId, label: secretLabel, connection: { providerId: 'github', token: 'safe-key-a9F2' } }), exactError(CREDENTIAL_MESSAGES.plain));
@@ -192,10 +192,10 @@ test('plaintext labels and URL credentials are refused by the stores, with value
 test('env-only credentials receive server-unsealed hints without sending their values', async () => {
   const deps = { ...cryptoDeps(), repo: new InMemoryExternalMcpServerRepo() };
   const token = 'fixture-environment-credential-a9F2';
-  const summary = await saveExternalMcpServer(deps, { workspaceId, serverId: 'env-hint', transport: 'stdio', authMode: 'static_env', enabled: true, command: 'node', args: '', allowedToolNames: '', principalId: 'owner', env: JSON.stringify({ API_TOKEN: token, SHORT_TOKEN: 'short' }) });
+  const summary = await saveExternalMcpServer(deps, { workspaceId, serverId: 'env-hint', transport: 'stdio', authMode: 'static_env', enabled: true, command: 'node', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', env: JSON.stringify({ API_TOKEN: token, SHORT_TOKEN: 'short' }) });
   assert.deepEqual(summary.envTokenHints, { API_TOKEN: { length: token.length, last4: 'a9F2' }, SHORT_TOKEN: { length: 5, last4: null } });
   assert.equal(JSON.stringify(summary).includes(token), false);
   assert.equal(JSON.stringify(summary).includes('short'), false);
-  await saveExternalMcpServer(deps, { workspaceId, serverId: 'env-hint', transport: 'stdio', authMode: 'static_env', enabled: true, command: 'node', args: '', allowedToolNames: '', principalId: 'owner', env: '' });
+  await saveExternalMcpServer(deps, { workspaceId, serverId: 'env-hint', transport: 'stdio', authMode: 'static_env', enabled: true, command: 'node', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', env: '' });
   assert.deepEqual((await listExternalMcpServerViews(deps, workspaceId))[0]?.envTokenHints, summary.envTokenHints);
 });

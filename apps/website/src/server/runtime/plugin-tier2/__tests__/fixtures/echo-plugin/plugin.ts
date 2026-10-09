@@ -15,7 +15,7 @@ import { titleLength } from "./measure.js";
 
 export default definePlugin({
   setup(sdk) {
-    sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, (entry) => {
+    sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, (entry): Readonly<Record<string, string | number | boolean>> => {
       if (entry.title === "throw") throw new Error("echo fixture refused this draft");
       if (entry.title === "loop") for (;;) { /* runaway plugin */ }
       if (entry.title === "env") return { seenSlug: process.env.TIER2_ENV_PROBE ?? "absent" };

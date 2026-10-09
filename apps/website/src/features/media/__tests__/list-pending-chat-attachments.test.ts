@@ -147,6 +147,7 @@ describe("buildListPendingChatAttachmentsTool", () => {
 
   test("descriptor names every attachmentRef consumer, including both plugin install tools", () => {
     const { description } = buildListPendingChatAttachmentsTool({ getStore: () => fakeStore([]) }).descriptor;
+    assert.ok(description, "attachment discovery must publish a description");
     for (const consumer of ["media_promote_chat_attachment", "plugins_install", "agent_plugins_install"]) assert.match(description, new RegExp(consumer));
   });
 

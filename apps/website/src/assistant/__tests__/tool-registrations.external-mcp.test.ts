@@ -857,7 +857,7 @@ test("external_mcp_save: update identity and auth stay bound despite forged hidd
   const secret = "phase9-update-canary";
   await saveExternalMcpServer({ repo, sealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, {
     workspaceId: WORKSPACE_ID, serverId: "bound", transport: "streamable_http", authMode: "static_env", enabled: true,
-    command: "", args: "", allowedToolNames: "read", url: "https://bound.example/mcp", accessToken: secret, principalId: PRINCIPAL_ID,
+    command: "", args: "", allowedToolNames: "read", writeAllowedToolNames: "", url: "https://bound.example/mcp", accessToken: secret, principalId: PRINCIPAL_ID,
   });
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const saveTool = buildExternalMcpRegistrations(deps, { surfaceExchanges: exchanges }).find(r => r.descriptor.id === "external_mcp_save")!;

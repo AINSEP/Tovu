@@ -45,7 +45,7 @@ function makeCallOrderSpy() {
       request: async (input: Parameters<MembersConsentCapability["request"]>[0]) => {
         calls.push("request");
         requests.push(input);
-        return { requested: true };
+        return { requested: true as const };
       },
       confirm: async (input: Parameters<MembersConsentCapability["confirm"]>[0]) => {
         calls.push("confirm");

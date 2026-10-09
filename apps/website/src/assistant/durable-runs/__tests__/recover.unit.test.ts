@@ -61,7 +61,7 @@ function harness(overrides: Partial<DurableRun> = {}) {
     verifyChildDead: async () => identityDead, supportsNativeResume: () => true,
     async settle(value) {
       if (!current || current.runId !== value.runId || !["queued", "running"].includes(current.message.runStatus ?? "")) return false;
-      settlements.push(value); current = { ...current, message: { ...current.message, ...value, runStatus: value.status } }; return true;
+      settlements.push(value); current = { ...current, message: { ...current.message, ...value, events: [...value.events], runStatus: value.status } }; return true;
     },
   };
   const recovery = createDurableRecovery(ports, {});

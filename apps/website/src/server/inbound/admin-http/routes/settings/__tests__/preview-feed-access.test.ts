@@ -68,11 +68,11 @@ test("existing stream emits exact theme frames across writers, reauthorizes and 
     {
       ...deps,
       feedTimers: {
-        scheduleInterval: (work, ms) => {
+        scheduleInterval: (work: () => void, ms: number) => {
           ticks.set(ms, work);
           return ms as never;
         },
-        clearScheduledInterval: (timer) => {
+        clearScheduledInterval: (timer: ReturnType<typeof setInterval>) => {
           cleared.push(timer as never);
         },
       },
