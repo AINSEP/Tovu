@@ -1,5 +1,5 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/content-read.js';
-import { buildDomainRegistrations, isRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { buildDomainRegistrations, isRecord, requireInputRecord, requireString, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js";
 
@@ -24,6 +24,14 @@ import { indexedDescriptionFor, KEYWORD_MARKER } from "./tool-search-keywords.js
  * tools share a card; idProperty comes from each source schema and is not universally "id".
  * newsletter_list is intentional: newsletter_list_lists lists mailing lists, so "newsletter list"
  * is the resource noun and does not collide with newsletter_campaign.
+ *
+ * Read-one-by-id (2026-10-08, ADS-memory/reports/tool-crud-coverage-2026-10-08.md): a card whose
+ * domain ships a single-item reader names it as `get`. A card whose domain ships only a list reader
+ * that returns the WHOLE set names `listLookup` instead, and an id is served by that same list
+ * handler's result filtered to the matching item — so its permission check, visibility rules and
+ * view shape are the list's own, with no second per-resource reader to drift from it. A paginated
+ * or status-filtered list (comment moderation queue, media) cannot answer "does id X exist" from one
+ * page, so those cards get no lookup. A card never carries both: a hand-written get always wins.
  */
 
 /** One card's real, statically-known permission plus which of its (at most two) member tools it
@@ -36,6 +44,23 @@ interface ContentReadCard {
   readonly orPermission?: string;
   readonly get?: { readonly toolId: string; readonly idProperty?: string };
   readonly list?: { readonly toolId: string };
+  /** Read-one through the list member (see this file's header). Only for a list that returns the
+   *  whole set; a list that reports `truncated: true` makes a miss inconclusive, and says so. */
+  readonly listLookup?: ListLookup;
+}
+
+/** Where the id lives in a list result. `idProperty` is the caller-facing parameter, named the way
+ *  the resource's own write tools address it (`themeId`, `formId`, `label`, ...). Each source is one
+ *  array in the list result and the path to an item's id inside it (most are `["id"]`; taxonomy rows
+ *  are `{ taxonomy, terms }`; plugins_list carries two families with different id fields). */
+interface ListLookup {
+  readonly idProperty: string;
+  readonly sources: readonly { readonly itemsKey: string; readonly idPath: readonly string[] }[];
+}
+
+/** The common case: one array whose items carry the id at `idField`. */
+function lookupIn(idProperty: string, itemsKey: string, idField = "id"): ListLookup {
+  return { idProperty, sources: [{ itemsKey, idPath: [idField] }] };
 }
 
 /**
@@ -45,19 +70,26 @@ interface ContentReadCard {
  * `THEME_READ_PERMISSION` = `"theme.set"` — copied here as the literal value those constants hold).
  */
 const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
-  { resource: "backup_restore_point", permission: "backup.read", list: { toolId: "backup_list_restore_points" } },
-  { resource: "collection_content_type", permission: "admin.collections.read", list: { toolId: "collections_content_type_list" } },
-  { resource: "collection_entry", permission: "admin.collections.read", list: { toolId: "collections_entry_list" } },
+  { resource: "backup_restore_point", permission: "backup.read", list: { toolId: "backup_list_restore_points" }, listLookup: lookupIn("restorePointId", "items") },
+  { resource: "collection_content_type", permission: "admin.collections.read", list: { toolId: "collections_content_type_list" }, listLookup: lookupIn("key", "contentTypes", "key") },
+  { resource: "collection_entry", permission: "admin.collections.read", list: { toolId: "collections_entry_list" }, listLookup: lookupIn("id", "items") },
   { resource: "comment_moderation_queue", permission: "comments.read", list: { toolId: "comments_list_moderation_queue" } },
   { resource: "content_post", permission: "content.read", get: { toolId: "content_post_get", idProperty: "id" }, list: { toolId: "content_post_list" } },
-  { resource: "custom_credential", permission: "custom-credentials.read", list: { toolId: "custom_credential_list" } },
+  { resource: "custom_credential", permission: "custom-credentials.read", list: { toolId: "custom_credential_list" }, listLookup: lookupIn("label", "credentials", "label") },
   { resource: "database_pending_migration", permission: "database.read", list: { toolId: "database_list_pending_migrations" } },
   { resource: "database_restore_point", permission: "database.read", list: { toolId: "database_list_restore_points" } },
-  { resource: "external_mcp", permission: "admin.integrations.manage", list: { toolId: "external_mcp_list" } },
-  { resource: "form_definition", permission: "admin.forms.manage", list: { toolId: "forms_list_definitions" } },
-  { resource: "identity_policy", permission: "role.manage", list: { toolId: "identity_policy_list" } },
-  { resource: "identity_role", permission: "role.manage", list: { toolId: "identity_role_list" } },
-  { resource: "identity_user", permission: "user.manage", orPermission: "member.manage", list: { toolId: "identity_user_list" } },
+  { resource: "external_mcp", permission: "admin.integrations.manage", list: { toolId: "external_mcp_list" }, listLookup: lookupIn("id", "servers", "serverId") },
+  { resource: "form_definition", permission: "admin.forms.manage", list: { toolId: "forms_list_definitions" }, listLookup: lookupIn("formId", "definitions") },
+  { resource: "identity_policy", permission: "role.manage", list: { toolId: "identity_policy_list" }, listLookup: lookupIn("policyId", "policies") },
+  { resource: "identity_role", permission: "role.manage", list: { toolId: "identity_role_list" }, listLookup: lookupIn("roleId", "roles") },
+  {
+    resource: "identity_user",
+    permission: "user.manage",
+    orPermission: "member.manage",
+    list: { toolId: "identity_user_list" },
+    // identity_user_list caps at 200 and reports `truncated`; a miss past the cap says so.
+    listLookup: lookupIn("principalId", "users", "principalId"),
+  },
   { resource: "media_asset", permission: "media.read", list: { toolId: "media_list_assets" } },
   { resource: "member", permission: "member.manage", get: { toolId: "members_get_by_id", idProperty: "memberId" }, list: { toolId: "members_list" } },
   { resource: "menu", permission: "admin.menus.read", get: { toolId: "menus_get_menu", idProperty: "menuId" }, list: { toolId: "menus_list_menus" } },
@@ -69,16 +101,22 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
   },
   // See this file's header for the ruling on this card's key (the disclosed `resourceKeyOf` misfire).
   { resource: "newsletter_list", permission: "admin.newsletter.read", list: { toolId: "newsletter_list_lists" } },
-  { resource: "plugin", permission: "admin.plugins.read", list: { toolId: "plugins_list" } },
+  {
+    resource: "plugin",
+    permission: "admin.plugins.read",
+    list: { toolId: "plugins_list" },
+    // Both families in one list: site plugins by `id`, Agent Plugins by `pluginId`.
+    listLookup: { idProperty: "pluginId", sources: [{ itemsKey: "plugins", idPath: ["id"] }, { itemsKey: "agentPlugins", idPath: ["pluginId"] }] },
+  },
   { resource: "redirect", permission: "admin.redirects.manage", get: { toolId: "redirects_get", idProperty: "id" }, list: { toolId: "redirects_list" } },
   // Get-only, single member: `seo_get_entry_meta` has no `_list` counterpart in Tier 1 (per-entry
   // SEO meta is not a collection with its own listing tool), so this card always calls `get` — its
   // own inputSchema already requires `entryId`, so no dispatch wrapper is needed or used.
   { resource: "seo_entry_meta", permission: "admin.seo.manage", get: { toolId: "seo_get_entry_meta", idProperty: "entryId" } },
   { resource: "setting_definition", permission: "settings.read.definitions", list: { toolId: "settings_list_definitions" } },
-  { resource: "taxonomy", permission: "admin.taxonomy.manage", list: { toolId: "taxonomy_list" } },
-  { resource: "theme", permission: "theme.set", list: { toolId: "theme_list" } },
-  { resource: "webhook_subscription", permission: "admin.integrations.manage", list: { toolId: "webhooks_list_subscriptions" } },
+  { resource: "taxonomy", permission: "admin.taxonomy.manage", list: { toolId: "taxonomy_list" }, listLookup: { idProperty: "taxonomyId", sources: [{ itemsKey: "items", idPath: ["taxonomy", "id"] }] } },
+  { resource: "theme", permission: "theme.set", list: { toolId: "theme_list" }, listLookup: lookupIn("themeId", "themes") },
+  { resource: "webhook_subscription", permission: "admin.integrations.manage", list: { toolId: "webhooks_list_subscriptions" }, listLookup: lookupIn("subscriptionId", "subscriptions") },
   {
     resource: "widget_instance",
     permission: "widgets.read",
@@ -253,6 +291,78 @@ function dispatchByIdPresence(idProperty: string, get: ToolHandler, list: ToolHa
   };
 }
 
+/** The value at `path` inside `item`, or `undefined` when any step is not a record. */
+function valueAtPath(item: unknown, path: readonly string[]): unknown {
+  let current: unknown = item;
+  for (const key of path) {
+    const candidate = { value: current };
+    if (!isRecord(candidate)) return undefined;
+    current = candidate.value[key];
+  }
+  return current;
+}
+
+/**
+ * The `get` half of a {@link ListLookup} card: runs the list member's ORIGINAL handler — so its own
+ * input validation and permission check run exactly as for a plain list call — with the id removed
+ * from the input (several list readers refuse any input at all; the list's other filters still pass
+ * through), then returns the list's own shape with each source array filtered to the matching item.
+ *
+ * Returning the list shape rather than a bare item keeps one view contract per resource and stays
+ * honest if two families both match (plugins_list).
+ *
+ * @throws {ToolInputError} when the id is not a non-empty string, or when nothing matches (the
+ *         message names how to list valid ids, or that a truncated list makes the miss inconclusive).
+ * @throws {Error} when the list result lacks a declared source array — a shape drift in the list
+ *         reader, which must not read as "not found".
+ * @complexity O(n) in the listed items; one list call, no per-item I/O of its own.
+ */
+function lookupInList(required: { resource: string; listToolId: string; lookup: ListLookup; list: ToolHandler }): ToolHandler {
+  const { resource, listToolId, lookup, list } = required;
+  const cardId = contentReadToolId(resource);
+  return async (ctx) => {
+    const input = requireInputRecord({ input: ctx.input });
+    const id = requireString({ input, key: lookup.idProperty });
+    const listInput = Object.fromEntries(Object.entries(input).filter(([key]) => key !== lookup.idProperty));
+    const listed = { value: await list({ ...ctx, input: listInput }) };
+    if (!isRecord(listed)) throw new Error(`content-read-tool.ts: '${listToolId}' returned a non-object result`);
+
+    const filtered: Record<string, unknown[]> = {};
+    let matches = 0;
+    for (const source of lookup.sources) {
+      const items = listed.value[source.itemsKey];
+      if (!Array.isArray(items)) {
+        throw new Error(`content-read-tool.ts: '${listToolId}' result has no '${source.itemsKey}' array — the ${cardId} lookup is out of date`);
+      }
+      filtered[source.itemsKey] = items.filter((item) => valueAtPath(item, source.idPath) === id);
+      matches += filtered[source.itemsKey].length;
+    }
+    if (matches > 0) return filtered;
+
+    throw new ToolInputError({
+      message:
+        listed.value.truncated === true
+          ? `${resource} '${id}' was not found among the listed items, but ${cardId}'s list is truncated, so it may still exist`
+          : `${resource} '${id}' was not found — call ${cardId} without ${lookup.idProperty} to list valid ids`,
+    });
+  };
+}
+
+/** The synthetic get-side schema a {@link ListLookup} card feeds {@link unionInputSchema}. */
+function listLookupIdSchema(resource: string, lookup: ListLookup): Readonly<Record<string, unknown>> {
+  return {
+    type: "object",
+    required: [lookup.idProperty],
+    properties: {
+      [lookup.idProperty]: {
+        type: "string",
+        minLength: 1,
+        description: `Fetch the one ${resource.replace(/_/g, " ")} with this id, as ${contentReadToolId(resource)} lists it.`,
+      },
+    },
+  };
+}
+
 /**
  * A card's model-visible description: every member tool's OWN plain description, concatenated,
  * followed by ONE {@link KEYWORD_MARKER} boundary and every member's combined keyword/doc2query
@@ -359,7 +469,21 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
     let handler: ToolHandler;
     let inputSchema: Readonly<Record<string, unknown>>;
 
-    if (card.get && card.list) {
+    if (card.get && card.listLookup) {
+      throw new Error(`content-read-tool.ts: card '${card.resource}' declares both get and listLookup — a hand-written get always serves read-one`);
+    }
+
+    if (card.list && card.listLookup) {
+      const listReg = sourceRegistration(byId, card.list.toolId);
+      memberIds.push(card.list.toolId);
+      const get = lookupInList({ resource: card.resource, listToolId: card.list.toolId, lookup: card.listLookup, list: listReg.handler });
+      handler = dispatchByIdPresence(card.listLookup.idProperty, get, listReg.handler);
+      inputSchema = unionInputSchema(
+        listLookupIdSchema(card.resource, card.listLookup),
+        (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA,
+        card.listLookup.idProperty,
+      );
+    } else if (card.get && card.list) {
       if (!card.get.idProperty) {
         throw new Error(`content-read-tool.ts: card '${card.resource}' declares both get and list but no idProperty on get`);
       }

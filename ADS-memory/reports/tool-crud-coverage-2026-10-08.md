@@ -29,35 +29,50 @@ Key: tool id = covered; **GAP** = no agent tool; n/a = the operation does not ap
 | Media asset | `media_upload_asset`, `media_import_from_url`, `media_import_local_file`, `media_generate_asset`, `media_promote_chat_attachment`, `content_duplicate` | `media_view_image`, `media_view_video` | `content_read.media_asset` | `media_update_metadata` | `media_trash_asset`, `trash_item`; `media_purge_asset` *(hard)* | `trash_restore_item` |
 | Comment | n/a (visitor-authored) | **GAP** | `content_read.comment_moderation_queue` | `comments_approve_comment`, `comments_mark_comment_spam` | `comments_trash_comment`, `trash_item`; `comments_purge_comment` *(hard)* | `comments_restore_comment`, `trash_restore_item` |
 | Menu | `menus_create_menu` | `content_read.menu` | `content_read.menu` | `menus_update_menu_tree`, `menus_assign_location` | `trash_item` (menu) | `trash_restore_item` |
-| Taxonomy | `taxonomy_create_taxonomy` | **GAP** | `content_read.taxonomy` | **GAP** (no rename/settings tool) | `trash_item` (taxonomy) | `trash_restore_item` |
+| Taxonomy | `taxonomy_create_taxonomy` | `content_read.taxonomy` (taxonomyId) | `content_read.taxonomy` | **GAP** (no rename/settings tool) | `trash_item` (taxonomy) | `trash_restore_item` |
 | Term | `taxonomy_create_term` | **GAP** | `content_read.taxonomy` (terms inside), `taxonomy_get_assigned_terms` | `taxonomy_rename_term`, `taxonomy_plan_merge_term`/`taxonomy_execute_merge_term`, `taxonomy_assign_terms`/`taxonomy_unassign_terms` | `trash_item` (term) | `trash_restore_item` |
-| Theme | `theme_duplicate` (uncommitted, other session) | **GAP** (list only) | `content_read.theme`, `theme_rescan` | `theme_set_active` (selection); content through theme-file tools | **`theme_trash` + `trash_item` (theme) — added today** (was GAP) | `trash_restore_item` (theme) — added today |
+| Theme | `theme_duplicate` (uncommitted, other session) | `content_read.theme` (themeId) | `content_read.theme`, `theme_rescan` | `theme_set_active` (selection); content through theme-file tools | **`theme_trash` + `trash_item` (theme) — added today** (was GAP) | `trash_restore_item` (theme) — added today |
 | Theme file | `theme_write_file` (new path), `theme_copy_file` | `theme_read_file` | `theme_list_files` | `theme_write_file`, `theme_edit_file`, `theme_rename_file`, `theme_reset_file` | `theme_trash_file` | `theme_restore_trashed_file` |
 | Theme page publication | n/a | **GAP** | **GAP** (only through `theme_read_file theme.json`) | `theme_set_page_published` | n/a | n/a |
-| User (staff) | `identity_user_create` | **GAP** | `content_read.identity_user` | `identity_user_update_email`, `identity_user_enable`/`identity_user_disable`, `identity_role_assign` | `trash_item` (user); `identity_user_delete` *(hard)* | `trash_restore_item` |
-| Role | `identity_role_create` | **GAP** | `content_read.identity_role` | `identity_role_rename` | `identity_role_delete` *(hard)* | **GAP** |
-| Policy | `identity_policy_create` | **GAP** | `content_read.identity_policy`, `identity_policy_list_permissions` | `identity_policy_update`, `identity_policy_attach` | `identity_policy_delete` *(hard)* | **GAP** |
+| User (staff) | `identity_user_create` | `content_read.identity_user` (principalId; list caps at 200, a miss past the cap says so) | `content_read.identity_user` | `identity_user_update_email`, `identity_user_enable`/`identity_user_disable`, `identity_role_assign` | `trash_item` (user); `identity_user_delete` *(hard)* | `trash_restore_item` |
+| Role | `identity_role_create` | `content_read.identity_role` (roleId) | `content_read.identity_role` | `identity_role_rename` | `identity_role_delete` *(hard)* | **GAP** |
+| Policy | `identity_policy_create` | `content_read.identity_policy` (policyId) | `content_read.identity_policy`, `identity_policy_list_permissions` | `identity_policy_update`, `identity_policy_attach` | `identity_policy_delete` *(hard)* | **GAP** |
 | Member (site visitor account) | **GAP** (only `members_request_magic_link`) | `content_read.member` | `content_read.member` | **GAP** (only `members_disable`) | **GAP** | **GAP** |
 | Site (local multi-site) | `sites_create_site`, `sites_duplicate_site` | **GAP** (`site_get_profile` is current site only) | `sites_list` | **GAP** | **GAP** | **GAP** |
 | Workspace | `workspace_create` | `content_read.workspace` | **GAP** (single workspace in v1) | `workspace_update` | `workspace_delete` *(hard)* | **GAP** |
 | Redirect | `redirects_create`, `redirects_import` | `content_read.redirect` | `content_read.redirect` | `redirects_update` | `redirects_tombstone`, `trash_item` | `trash_restore_item` |
 | Setting | `settings_register_definitions` (definitions) | `settings_get_effective`, `settings_get_raw` | `content_read.setting_definition` | `settings_set_value`, `settings_set_ui_preference` | `settings_clear_value`, `settings_reset` | n/a |
-| Site plugin | `plugins_install` | **GAP** | `content_read.plugin` | `plugins_set_enabled` | `plugins_uninstall` (confirm card, then Trash) | `trash_restore_item` (plugin) |
-| Agent plugin / skill | `agent_plugins_install`, `skills_install` | **GAP** | `search_agent_plugin_local`, `content_read.plugin` | `plugins_set_enabled` | `plugins_uninstall` | `trash_restore_item` |
-| Form definition | `forms_create_definition`, `content_duplicate` | **GAP** | `content_read.form_definition` | `forms_update_definition`, `forms_set_definition_status` | `trash_item` (form) | `trash_restore_item` |
+| Site plugin | `plugins_install` | `content_read.plugin` (pluginId) | `content_read.plugin` | `plugins_set_enabled` | `plugins_uninstall` (confirm card, then Trash) | `trash_restore_item` (plugin) |
+| Agent plugin / skill | `agent_plugins_install`, `skills_install` | `content_read.plugin` (pluginId, agent plugins) | `search_agent_plugin_local`, `content_read.plugin` | `plugins_set_enabled` | `plugins_uninstall` | `trash_restore_item` |
+| Form definition | `forms_create_definition`, `content_duplicate` | `content_read.form_definition` (formId) | `content_read.form_definition` | `forms_update_definition`, `forms_set_definition_status` | `trash_item` (form) | `trash_restore_item` |
 | Form submission | n/a (visitor-authored) | `forms_get_submission` | `forms_list_submissions` | n/a | `trash_item` (form_submission) | `trash_restore_item` |
 | Widget instance | `widgets_create_instance` | `content_read.widget_instance` | `content_read.widget_instance` | `widgets_update_instance`, `widgets_insert_embed`/`widgets_remove_embed`/`widgets_reorder_embeds` | `widgets_trash_instance`, `trash_item` | `trash_restore_item` |
 | Widget region | n/a (theme-declared) | `content_read.widget_region` | `content_read.widget_region` | `widgets_bind_region`, `widgets_set_region_placements` | n/a | n/a |
-| Collection content type | `collections_content_type_define` | **GAP** | `content_read.collection_content_type` | `collections_content_type_update_fields` | `collections_content_type_deprecate`, `collections_content_type_tombstone` | `collections_content_type_reactivate` |
-| Collection entry | `collections_entry_create` | **GAP** | `content_read.collection_entry` | `collections_entry_update`, `collections_entry_publish`/`_unpublish` | **GAP** (only bulk `collections_plan_cleanup`/`collections_execute_cleanup`) | **GAP** |
-| Webhook subscription | `webhooks_create_subscription` | **GAP** | `content_read.webhook_subscription`, `webhooks_get_deliveries` | **GAP** (only `webhooks_pause_subscription`) | `webhooks_delete_subscription` *(hard)* | **GAP** |
-| External MCP server | `external_mcp_save` | **GAP** | `content_read.external_mcp`, `external_mcp_get_admissions` | `external_mcp_save` | `external_mcp_delete` *(hard)* | **GAP** |
-| Custom credential | `credential_save` | **GAP** | `content_read.custom_credential` | `credential_save`, `custom_credential_set_username`, `custom_credential_write_files` | `custom_credential_delete` *(hard)* | **GAP** |
+| Collection content type | `collections_content_type_define` | `content_read.collection_content_type` (key) | `content_read.collection_content_type` | `collections_content_type_update_fields` | `collections_content_type_deprecate`, `collections_content_type_tombstone` | `collections_content_type_reactivate` |
+| Collection entry | `collections_entry_create` | `content_read.collection_entry` (id) | `content_read.collection_entry` | `collections_entry_update`, `collections_entry_publish`/`_unpublish` | **GAP** (only bulk `collections_plan_cleanup`/`collections_execute_cleanup`) | **GAP** |
+| Webhook subscription | `webhooks_create_subscription` | `content_read.webhook_subscription` (subscriptionId) | `content_read.webhook_subscription`, `webhooks_get_deliveries` | **GAP** (only `webhooks_pause_subscription`) | `webhooks_delete_subscription` *(hard)* | **GAP** |
+| External MCP server | `external_mcp_save` | `content_read.external_mcp` (id) | `content_read.external_mcp`, `external_mcp_get_admissions` | `external_mcp_save` | `external_mcp_delete` *(hard)* | **GAP** |
+| Custom credential | `credential_save` | `content_read.custom_credential` (label) | `content_read.custom_credential` | `credential_save`, `custom_credential_set_username`, `custom_credential_write_files` | `custom_credential_delete` *(hard)* | **GAP** |
 | SEO entry meta | n/a | `content_read.seo_entry_meta` | n/a | `seo_set_entry_overrides` | n/a | n/a |
-| Backup restore point | `backup_create_restore_point` | **GAP** | `content_read.backup_restore_point` | n/a | **GAP** | n/a |
+| Backup restore point | `backup_create_restore_point` | `content_read.backup_restore_point` (restorePointId) | `content_read.backup_restore_point` | n/a | **GAP** | n/a |
 | Deploy secret | `deployment_ops_set_secret` | n/a (secret) | `deployment_ops_list_secrets` | `deployment_ops_set_secret` | `deployment_ops_unset_secret` *(hard)* | n/a |
 
-**Gap count: 38 GAP cells** (40 before today; `theme_trash` closed theme Delete and Restore). By verb: Create 1, Read-one 18, List 2, Update 4, Delete 4, Restore 9. Read-one is the largest group, and most of those resources can still be read through their `content_read` list card, so the missing piece there is usually a "get by id" member on an existing card, not a missing capability. Most Restore gaps belong to hard-delete-only resources (roles, policies, webhooks, credentials, MCP servers) that have no Trash adapter.
+**Gap count: 24 GAP cells** (38 earlier today; 40 before `theme_trash`). By verb: Create 1, Read-one 4, List 2, Update 4, Delete 4, Restore 9. Read-one dropped from 18 to 4 once `content_read` cards gained read-one-by-id (see below). Most Restore gaps belong to hard-delete-only resources (roles, policies, webhooks, credentials, MCP servers) that have no Trash adapter.
+
+## Read-one-by-id on `content_read` cards (added 2026-10-08)
+
+Each `content_read.<resource>` card now reads one item when the caller passes the resource's id, and lists when the id is left out. There is one generic path in `apps/website/src/assistant/content-read-tool.ts`:
+- **A card whose domain has a get tool** (post, member, menu, redirect, widget instance/region, SEO entry meta, workspace) keeps dispatching to that tool. No second path was added.
+- **A card whose domain has only a list reader that returns the whole set** declares `listLookup`. Given an id, the card runs the list handler without the id and filters the result to the matching item. The answer comes back in the list's own shape. The list handler's own permission check and view therefore apply unchanged. A miss returns `<resource> '<id>' was not found — call content_read.<resource> without <idProperty> to list valid ids`. If the list reports `truncated` (only `identity_user_list` does, capped at 200), the miss is reported as inconclusive. The id parameter uses the name the resource's own write tools take: `themeId`, `formId`, `roleId`, `label`, and so on.
+- Tests: `apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts`.
+
+**Read-one gaps still open (4):**
+- **Comment.** `comments_list_moderation_queue` is paginated and filtered by status (pending by default), so one page cannot show whether an id exists. This needs a real single-item reader (`commentRepo` by id).
+- **Term.** Terms live inside `content_read.taxonomy` rows. No card owns them, and that list is already the taxonomy card's member.
+- **Theme page publication.** It has no list or get reader. The data lives only in `theme.json`.
+- **Site.** `sites_list` is not a `content_read` card. Adding a `site` card would retire the `sites_list` id, which needs the eval ground-truth remap.
+
+Media (paginated), comment moderation, settings, database and newsletter cards have no lookup. They were not read-one gaps, or they are out of scope.
 
 ## What a generic create/update layer would look like (proposal, not built)
 
