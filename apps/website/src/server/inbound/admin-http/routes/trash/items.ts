@@ -31,7 +31,7 @@ export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = (app, dep
 
       const outcome = await moveToTrash(
         { workspaceId: deps.workspaceId, entityType: body.type, entityId: body.id, actor: { principalId: principal.id } },
-        { registry: deps.registry, trash: deps.trash, db: deps.db, authorize: deps.authorize, clock: deps.clock }
+        { registry: deps.registry, trash: deps.trash, db: deps.db, authorize: deps.authorize, clock: deps.clock, movers: deps.movers }
       );
 
       if (outcome.ok) {
@@ -56,14 +56,7 @@ export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = (app, dep
           res.status(409).json({ error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" });
           return;
         case "blocked":
-          // `TERM_HAS_CHILDREN` (`registry.ts`'s only `blocker` today) is the one message this text is
-          // written for — plan's literal spec. A second blocked kind needs its own `code` branch here
-          // rather than reusing this sentence; `code`/`count` alone are already generic.
-          res.status(409).json({
-            error: `this term has ${outcome.count} sub-terms — move them under another parent, or delete them permanently, first`,
-            code: outcome.code,
-            count: outcome.count,
-          });
+          res.status(409).json({ error: blockedMessage(outcome), code: outcome.code, count: outcome.count });
           return;
       }
     } catch {
@@ -71,6 +64,26 @@ export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = (app, dep
     }
   });
 };
+
+/**
+ * The words for one `blocked` refusal, by its `code`. `TERM_HAS_CHILDREN` is `registry.ts`'s
+ * blocker; `THEME_ACTIVE` and `ALREADY_IN_TRASH` come from the theme mover and its folder adapter.
+ * Any other code gets a generic sentence; `code`/`count` stay machine-readable either way.
+ *
+ * @complexity O(1).
+ */
+function blockedMessage(outcome: { code: string; count: number }): string {
+  switch (outcome.code) {
+    case "TERM_HAS_CHILDREN":
+      return `this term has ${outcome.count} sub-terms — move them under another parent, or delete them permanently, first`;
+    case "THEME_ACTIVE":
+      return "this is the site's active theme — switch to another theme first";
+    case "ALREADY_IN_TRASH":
+      return "an item with this id is already in the Trash — restore or permanently delete that one first";
+    default:
+      return `this item cannot be moved to the Trash (${outcome.code})`;
+  }
+}
 
 /**
  * Reads `{ type, id }`, or `null` when the body is not a usable one.

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { TrashAuthorizeFn, TrashDb, TrashRegistry } from "#src/features/trash/index";
+import type { TrashAuthorizeFn, TrashDb, TrashKindMover, TrashRegistry } from "#src/features/trash/index";
 import type { TrashPort } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/user-management";
 
@@ -29,6 +29,9 @@ export interface TrashRouteDeps {
   registry: TrashRegistry;
   db: TrashDb;
   userRepo: UserRepoPort;
+  /** Kinds outside `registry` that move themselves (a theme folder) — `items.ts` reaches them through
+   *  `moveToTrash`. Absent: only registry kinds can be trashed here. */
+  movers?: ReadonlyMap<string, TrashKindMover>;
 }
 
 export type TrashRouteRegistrar = (app: Express, deps: TrashRouteDeps) => void;

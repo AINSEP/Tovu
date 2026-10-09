@@ -109,6 +109,7 @@ import {
 } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
+import { createThemeTrashMover } from "#src/features/theme/trash-theme-tool";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import path from "node:path";
@@ -1923,6 +1924,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
         workspaceId: routeDeps.workspaceId,
         seededOwnerPrincipalId: routeDeps.ownerPrincipalId,
       }),
+      // A theme is a folder, not a `TRASHABLE` row: `POST /trash/items` reaches it through the same
+      // `trashTheme` `theme_trash` runs (active-theme refusal included).
+      movers: new Map([[THEME_ENTITY_TYPE, createThemeTrashMover(routeDeps)]]),
     })
   );
   mountRoutes(app, createExternalMcpModule(routeDeps));

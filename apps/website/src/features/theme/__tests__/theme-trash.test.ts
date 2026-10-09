@@ -6,13 +6,18 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import express from "express";
+
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
-import { buildTrashThemeRegistrations, trashThemeDerivedRisk, type TrashThemeToolDeps } from "#src/features/theme/trash-theme-tool";
-import { THEME_ENTITY_TYPE, unhideIfRemoveThrows } from "#src/features/trash/index";
+import { buildTrashThemeRegistrations, createThemeTrashMover, trashThemeDerivedRisk, type TrashThemeToolDeps } from "#src/features/theme/trash-theme-tool";
+import { buildTrashRegistry, THEME_ENTITY_TYPE, unhideIfRemoveThrows } from "#src/features/trash/index";
 import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
+import type { TrashRouteDeps } from "#src/server/inbound/admin-http/routes/trash/deps";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { createTrashModule } from "#src/server/runtime/composition/modules/trash";
 
 /**
  * @file `theme_trash` (2026-10-08) — whole-theme delete through the generic Trash: the folder moves
@@ -48,7 +53,7 @@ interface Harness {
 }
 
 /** A site themes root with `basic` (active) and `aurora` at the top level and `nordic` under `static/`. */
-function harness(t: test.TestContext, options: { deny?: readonly string[] } = {}): Harness {
+function harness(t: test.TestContext, options: { deny?: readonly string[]; rename?: typeof fs.promises.rename } = {}): Harness {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-theme-trash-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const themesDir = path.join(root, "themes");
@@ -57,7 +62,7 @@ function harness(t: test.TestContext, options: { deny?: readonly string[] } = {}
   writeTheme(path.join(themesDir, "static", "nordic"), "nordic");
 
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
-  const adapter: TrashAdapter = createThemeTrashAdapter({ themes, themesDir });
+  const adapter: TrashAdapter = createThemeTrashAdapter({ themes, themesDir }, options.rename ? { rename: options.rename } : {});
   const adapters = new Map<string, TrashAdapter>([[THEME_ENTITY_TYPE, adapter]]);
   const repo = new InMemoryTrashRepo({});
   let sequence = 0;
@@ -203,4 +208,146 @@ test("trash_item accepts entityType 'theme' and routes it through theme_trash (a
   const outcome = await trashItem.handler(ctxFor({ entityType: "theme", entityId: "aurora" }));
   assert.deepEqual(outcome, { entityType: "theme", entityId: "aurora", via: "theme_trash", outcome: { themeId: "aurora", name: "aurora theme", trashed: true } });
   assert.equal(fs.existsSync(path.join(themesDir, "aurora")), false);
+});
+
+/** Gives `id` a stored original at the exact place `seed-site-themes.ts` writes one. */
+function writeOriginal(themesDir: string, id: string): string {
+  const originalDir = path.join(themesDir, "__original-themes__", "declarative", id);
+  writeTheme(originalDir, id);
+  return originalDir;
+}
+
+test("theme_trash: the theme's stored original goes to the Trash WITH it, and restore puts it back", async (t) => {
+  const { handler, themesDir, trash } = harness(t);
+  const originalDir = writeOriginal(themesDir, "aurora");
+  writeOriginal(themesDir, "basic");
+
+  await handler(ctxFor({ themeId: "aurora" }));
+  assert.equal(fs.existsSync(originalDir), false, "a trashed theme leaves no orphan original behind");
+  assert.equal(
+    fs.existsSync(path.join(`${themesDir}-trash`, "__original-themes__", "declarative", "aurora", "aurora", "theme.json")),
+    true
+  );
+  assert.equal(fs.existsSync(path.join(themesDir, "__original-themes__", "declarative", "basic", "theme.json")), true, "other originals stay");
+
+  assert.equal(await trash.restore({ workspaceId: WORKSPACE_ID, entityType: THEME_ENTITY_TYPE, entityId: "aurora", at: AT }), "restored");
+  assert.equal(fs.readFileSync(path.join(originalDir, "styles.css"), "utf8"), "body{margin:0}");
+  assert.equal(fs.existsSync(path.join(`${themesDir}-trash`, "__original-themes__", "declarative", "aurora")), false);
+});
+
+test("theme_trash: purge removes the parked original along with the theme", async (t) => {
+  const { handler, themesDir, trash } = harness(t);
+  writeOriginal(themesDir, "aurora");
+  await handler(ctxFor({ themeId: "aurora" }));
+  const [item] = (await trash.list({ workspaceId: WORKSPACE_ID, now: AT, limit: 10 })).items;
+  assert.ok(item);
+
+  await trash.purgeSelected({ workspaceId: WORKSPACE_ID, ids: [item.id], actor: { principalId: PRINCIPAL_ID }, authorizeItem: async () => true });
+  assert.equal(fs.existsSync(path.join(`${themesDir}-trash`, "__original-themes__", "declarative", "aurora")), false);
+  assert.equal(fs.existsSync(path.join(themesDir, "__original-themes__", "declarative", "aurora")), false);
+});
+
+/** The admin Trash's generic `POST /trash/items` over the harness's real theme adapter and Trash. */
+async function startTrashRoutes(t: test.TestContext, h: Harness, options: { deny?: readonly string[] } = {}): Promise<string> {
+  const app = express();
+  app.use(express.json());
+  app.use((_req, res, next) => {
+    res.locals.principal = { id: PRINCIPAL_ID };
+    next();
+  });
+  const trashDeps = {
+    workspaceId: WORKSPACE_ID,
+    authorize: async (request: { permission: string }) =>
+      options.deny?.includes(request.permission) ? { allowed: false, reason: "insufficient_permission" } : { allowed: true, reason: "matched" },
+    clock: createFakeClock({ startIso: AT }),
+    trash: h.trash,
+    registry: buildTrashRegistry(),
+    db: {},
+    userRepo: {},
+    movers: new Map([[THEME_ENTITY_TYPE, createThemeTrashMover(h.deps)]]),
+  } as unknown as TrashRouteDeps;
+  createTrashModule(trashDeps).registerRoutes?.(app);
+  const baseUrl = await startTestServer(app, t);
+  return `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/trash/items`;
+}
+
+async function postTrashItem(url: string, body: unknown): Promise<{ status: number; body: unknown }> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(5000),
+  });
+  return { status: res.status, body: await res.json() };
+}
+
+test("POST /trash/items accepts type 'theme': the folder and its original go to the Trash, restorable", async (t) => {
+  const h = harness(t);
+  const originalDir = writeOriginal(h.themesDir, "aurora");
+  const url = await startTrashRoutes(t, h);
+
+  assert.deepEqual(await postTrashItem(url, { type: "theme", id: "aurora" }), { status: 200, body: { ok: true, version: null } });
+  assert.equal(fs.existsSync(path.join(h.themesDir, "aurora")), false);
+  assert.equal(fs.existsSync(originalDir), false);
+  assert.deepEqual(themeIds(h.deps), ["basic", "nordic"]);
+  const page = await h.trash.list({ workspaceId: WORKSPACE_ID, now: AT, limit: 10 });
+  assert.deepEqual(page.items.map((item) => [item.entityType, item.entityId, item.displayTitle]), [["theme", "aurora", "aurora theme"]]);
+
+  assert.equal(await h.trash.restore({ workspaceId: WORKSPACE_ID, entityType: THEME_ENTITY_TYPE, entityId: "aurora", at: AT }), "restored");
+  assert.equal(fs.existsSync(path.join(h.themesDir, "aurora", "theme.json")), true);
+  assert.equal(fs.existsSync(path.join(originalDir, "theme.json")), true);
+});
+
+test("POST /trash/items refuses the active theme (409 THEME_ACTIVE), an unknown id (404) and a missing theme.edit (403)", async (t) => {
+  const h = harness(t);
+  const url = await startTrashRoutes(t, h);
+
+  assert.deepEqual(await postTrashItem(url, { type: "theme", id: "basic" }), {
+    status: 409,
+    body: { error: "this is the site's active theme — switch to another theme first", code: "THEME_ACTIVE", count: 0 },
+  });
+  assert.equal(fs.existsSync(path.join(h.themesDir, "basic", "theme.json")), true);
+  assert.deepEqual(await postTrashItem(url, { type: "theme", id: "missing" }), { status: 404, body: { error: "item was not found", code: "NOT_FOUND" } });
+
+  const deniedUrl = await startTrashRoutes(t, h, { deny: ["theme.edit"] });
+  const denied = await postTrashItem(deniedUrl, { type: "theme", id: "aurora" });
+  assert.equal(denied.status, 403);
+  assert.equal(fs.existsSync(path.join(h.themesDir, "aurora", "theme.json")), true);
+});
+
+test("theme_trash: when the original cannot follow, the theme's own move is undone and the error surfaces", async (t) => {
+  const failOriginal: typeof fs.promises.rename = async (from, to) => {
+    if (String(from).includes("__original-themes__")) throw Object.assign(new Error("simulated EIO"), { code: "EIO" });
+    return fs.promises.rename(from, to);
+  };
+  const { handler, themesDir, deps, repo } = harness(t, { rename: failOriginal });
+  const originalDir = writeOriginal(themesDir, "aurora");
+
+  await assert.rejects(handler(ctxFor({ themeId: "aurora" })), /simulated EIO/);
+  assert.equal(fs.existsSync(path.join(themesDir, "aurora", "theme.json")), true, "the theme folder is back");
+  assert.equal(fs.existsSync(path.join(originalDir, "theme.json")), true, "the original never left");
+  assert.deepEqual(themeIds(deps), ["aurora", "basic", "nordic"]);
+  assert.equal((await repo.list({ workspaceId: WORKSPACE_ID, now: AT, limit: 10 })).items.length, 0);
+});
+
+test("theme_trash: a restore refused because a live theme took the id re-parks the original it had moved", async (t) => {
+  const { handler, themesDir, trash } = harness(t);
+  writeOriginal(themesDir, "aurora");
+  await handler(ctxFor({ themeId: "aurora" }));
+  writeTheme(path.join(themesDir, "aurora"), "aurora");
+
+  assert.notEqual(await trash.restore({ workspaceId: WORKSPACE_ID, entityType: THEME_ENTITY_TYPE, entityId: "aurora", at: AT }), "restored");
+  assert.equal(fs.existsSync(path.join(themesDir, "__original-themes__", "declarative", "aurora")), false);
+  assert.equal(
+    fs.existsSync(path.join(`${themesDir}-trash`, "__original-themes__", "declarative", "aurora", "aurora", "theme.json")),
+    true,
+    "the original stays with the trashed theme"
+  );
+});
+
+test("theme_trash: a theme with no stored original trashes and restores without creating a catalog folder", async (t) => {
+  const { handler, themesDir, trash } = harness(t);
+  await handler(ctxFor({ themeId: "aurora" }));
+  assert.equal(await trash.restore({ workspaceId: WORKSPACE_ID, entityType: THEME_ENTITY_TYPE, entityId: "aurora", at: AT }), "restored");
+  assert.equal(fs.existsSync(path.join(themesDir, "__original-themes__")), false);
 });

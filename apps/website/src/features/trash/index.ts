@@ -41,7 +41,7 @@ export {
 export type { TrashChangeEvent, TrashServiceDeps } from "@jini-ai/cms/trash";
 
 export { moveToTrash } from "./move-to-trash.js";
-export type { MoveToTrashOutcome } from "./move-to-trash.js";
+export type { MoveToTrashOutcome, TrashKindMover } from "./move-to-trash.js";
 
 export { buildTrashRegistry } from "./registry.js";
 export type {

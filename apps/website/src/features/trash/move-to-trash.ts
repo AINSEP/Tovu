@@ -34,6 +34,32 @@ export type MoveToTrashOutcome =
   | { ok: false; reason: "blocked"; code: string; count: number };
 
 /**
+ * A Trash kind with no `TRASHABLE` table entry that performs its own move — a theme is a folder, not
+ * a row (`features/theme/trash-theme-tool.ts`'s `createThemeTrashMover`). {@link moveToTrash} checks
+ * `permission` exactly as it checks a registry entry's, then hands the move over; the mover owns its
+ * own lookup and refusals and answers in the same outcome shape.
+ */
+export interface TrashKindMover {
+  readonly permission: string;
+  move(required: { workspaceId: string; entityId: string; actor: TrashActor }): Promise<MoveToTrashOutcome>;
+}
+
+/** Whether the actor holds `permission` for this one entity. @complexity O(1): one authorize call. */
+async function isAllowed(
+  required: { workspaceId: string; entityType: TrashEntityType; entityId: string; actor: TrashActor },
+  deps: { authorize: TrashAuthorizeFn; permission: string }
+): Promise<boolean> {
+  const decision = await deps.authorize({
+    principalId: required.actor.principalId,
+    permission: deps.permission,
+    workspaceId: required.workspaceId,
+    entityType: required.entityType,
+    entityId: required.entityId,
+  });
+  return decision.allowed;
+}
+
+/**
  * Moves one entity of a `TRASHABLE` kind into the Trash.
  *
  * Flow (plan §3): resolve the kind → authorize the kind's own permission → read its live display and
@@ -46,6 +72,9 @@ export type MoveToTrashOutcome =
  * codebase (the bespoke `remove*` bindings, this route's siblings) is handed a clock rather than a
  * fixed timestamp, and `moveToTrash`'s own required object has no `at` field per the plan's §0
  * signature list. Flagged as a deviation, not a silent addition.
+ *
+ * A kind outside the registry is looked up in `deps.movers` (see {@link TrashKindMover}); one in
+ * neither is `unknown-type`.
  *
  * @complexity O(1): one authorize call, one indexed read, one `TrashPort.trash` call (itself O(1)).
  */
@@ -70,19 +99,22 @@ export async function moveToTrash(
     db: TrashDb;
     authorize: TrashAuthorizeFn;
     clock: { nowIso(): string };
+    movers?: ReadonlyMap<TrashEntityType, TrashKindMover>;
   }
 ): Promise<MoveToTrashOutcome> {
   const entry = deps.registry.get(required.entityType);
-  if (!entry) return { ok: false, reason: "unknown-type" };
+  if (!entry) {
+    const mover = deps.movers?.get(required.entityType);
+    if (!mover) return { ok: false, reason: "unknown-type" };
+    if (!(await isAllowed(required, { authorize: deps.authorize, permission: mover.permission }))) {
+      return { ok: false, reason: "forbidden", permission: mover.permission };
+    }
+    return mover.move({ workspaceId: required.workspaceId, entityId: required.entityId, actor: required.actor });
+  }
 
-  const decision = await deps.authorize({
-    principalId: required.actor.principalId,
-    permission: entry.permission,
-    workspaceId: required.workspaceId,
-    entityType: required.entityType,
-    entityId: required.entityId,
-  });
-  if (!decision.allowed) return { ok: false, reason: "forbidden", permission: entry.permission };
+  if (!(await isAllowed(required, { authorize: deps.authorize, permission: entry.permission }))) {
+    return { ok: false, reason: "forbidden", permission: entry.permission };
+  }
 
   // A shared table's other kinds (a collection row in `entries`) read as not-found here too.
   const row = await readLiveSnapshot(
