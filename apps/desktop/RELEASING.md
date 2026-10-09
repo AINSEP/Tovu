@@ -35,6 +35,10 @@ find the existing one first.
    tab (Desktop Release → Run workflow).
 3. Wait for three green builds (one per platform target).
 4. Download the draft release's artifacts and smoke-test each one before publishing.
+   Run the desktop journeys against the downloaded packaged app from the repo root:
+   `TOVU_E2E_DESKTOP_APP="/path/to/Tovu.app" npm run e2e:desktop:app`.
+   The harness uses fresh user data and sites and logs the app path/version. Run on each
+   target machine; do not substitute the development build (`npm run e2e:desktop`).
 5. Publish the draft. The stable `releases/latest/download/<fixed name>` URLs only resolve to
    real files once a release is published — they 404 against a draft.
 6. The fixed asset names, unchanged release to release:
