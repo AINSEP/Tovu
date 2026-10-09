@@ -1,3 +1,6 @@
+import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets } from "../sites/site-previews.js";
+import { sitePreviewServiceForHost } from "#src/server/runtime/lifecycle/site-preview-host";
+import type { SitePreviewService } from "#src/features/sites/index";
 import type { Express, Response } from "express";
 
 import {
@@ -95,6 +98,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  * either way). Delegates to `site-registry.ts`'s `createSite`, itself a thin wrapper over the SAME
  * `initSite` `tovu init` calls — so a site created here and one created by the CLI are identical.
  *
+ * `GET .../system/sites/:name/preview` (2026-10-08) — a card's screenshot (`../sites/site-previews.ts`).
+ * List carries `previewVersions` (`{ [name]: mtime }`) and enqueues due captures without waiting
+ * on them; only with local site management on, so a production deployment never launches Chromium.
+ *
  * `POST .../system/sites/:name/activate` — Activate. Same flag gate as Create. Persists the
  * choice (`active-site.ts`'s `persistActiveSite`) and returns explicit restart instructions —
  * it does NOT kill, signal, or re-exec any process (standing rule: no admin API terminates the
@@ -110,6 +117,8 @@ import type { RouteDeps } from "#src/server/routes/types";
  * (`composition/pending-agent-plugin-tokens.ts`). Leaving it out creates the site exactly as before.
  */
 export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+  /** Card preview captures (`site-preview-host.ts`); a test injects a fake, `null` turns them off. */
+  sitePreviews?: SitePreviewService | null;
   /** The guarded outbound client a token check probes through. Absent, a given token is refused as
    *  not checkable rather than saved unchecked. */
   customCredentialsHttpClient?: RouteDeps["customCredentialsHttpClient"];
@@ -165,6 +174,8 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   const listSites = deps.listSites ?? listSitesReal;
   const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
   const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
+  const sitePreviews = deps.sitePreviews === undefined ? sitePreviewServiceForHost({ binding: deps.siteBinding }) : deps.sitePreviews ?? undefined;
+  registerSitePreviewRoutes({ app, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, sitePreviews } });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -189,9 +200,14 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       const switcherBase = switcherBaseForBinding(binding);
       const sites: ServingSiteListEntry[] = includeServingSite({ sites: registered, binding });
       const serving = sites.find((site) => site.dir === binding.dir);
+      // Reads capture mtimes and only ENQUEUES due captures — never awaited here (see the service).
+      const previewVersions = sitePreviews && isSiteSwitcherEnabled()
+        ? sitePreviews.versions({ sites, targets: sitePreviewTargets({ servingName: binding.name, localSites: [] }, { serving: servingAddressOf({ req }) }) })
+        : {};
       res.status(200).json({
         switchingEnabled: isSiteSwitcherEnabled(),
         sites,
+        previewVersions,
         currentSite: { ...binding, listed: serving?.registration === "registered" },
         // An install-dir boot has no switcher `.env`: whatever sits in the cwd's belongs to another tree.
         persistedSiteName: switcherBase === null ? null : readPersistedActiveSite({ cwd: switcherBase }),
