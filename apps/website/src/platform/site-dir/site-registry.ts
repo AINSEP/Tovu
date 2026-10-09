@@ -115,6 +115,7 @@ function validateSiteName(name: string): string {
 
 export interface CreateSiteRequired {
   name: string;
+  adminPassword?: string;
 }
 
 export interface CreateSiteResult extends InitSiteResult {
@@ -139,7 +140,7 @@ export async function createSite(required: CreateSiteRequired, optional: ListSit
   const name = validateSiteName(required.name);
   const cwd = optional.cwd ?? process.cwd();
   const dir = path.join(cwd, "sites", name);
-  const result = await initSite({ dir, name });
+  const result = await initSite({ dir, name, adminPassword: required.adminPassword });
   return { ...result, name };
 }
 

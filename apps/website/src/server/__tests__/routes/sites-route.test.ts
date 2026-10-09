@@ -150,9 +150,12 @@ test("sites: List — 200 with switchingEnabled + the injected site list, regard
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), {
     switchingEnabled: false,
+    localManagementEnabled: false, canSwitchNow: false, localSites: [], trash: [],
     // `registration` is added by `includeServingSite` (2026-09-05): every row `listSites` returned
     // is by definition a directory `tovu serve` would accept.
     sites: [{ ...SAMPLE_SITE, registration: "registered" }],
+    // Previews only run with local site management; switcher off means no versions at all.
+    previewVersions: {},
     currentSite: { ...SAMPLE_BINDING, listed: true },
     persistedSiteName: null,
   });
@@ -484,5 +487,6 @@ test("sites: Create — a `storage` field in the body never reaches createSite (
     body: JSON.stringify({ name: "new-site", storage: { kind: "pglite" } }),
   });
   assert.equal(res.status, 201);
-  assert.deepEqual(received, [{ name: "new-site" }]);
+  // The default owner password is passed explicitly (never inherited from env); `storage` still never reaches createSite.
+  assert.deepEqual(received, [{ name: "new-site", adminPassword: "tovu-dev" }]);
 });

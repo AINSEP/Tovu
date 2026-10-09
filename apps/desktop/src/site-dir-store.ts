@@ -69,7 +69,7 @@ type CliMode = "source" | "compiled";
  * reads its output and waits for one `exit`.
  */
 interface InitChildLike {
-  /** Present when spawned with a piped stdin — only when there are Agent Plugin tokens to hand over. */
+  /** Present when spawned with a piped stdin — for Agent Plugin tokens or explicit create credentials. */
   stdin?: Writable | null;
   stdout: Readable;
   stderr: Readable;
@@ -248,6 +248,7 @@ interface InitSiteDirInput {
   repoRoot: string;
   dir: string;
   name?: string;
+  adminPassword?: string;
   baseEnv?: NodeJS.ProcessEnv;
   spawnFn?: InitSpawnFn;
   cliMode?: CliMode;
@@ -285,14 +286,25 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
   if (input.name) cliArgs.push("--name", input.name);
   const tokens = input.agentPluginTokens ?? {};
   const withTokens = Object.keys(tokens).length > 0;
-  if (withTokens) cliArgs.push("--agent-plugin-tokens-stdin");
+  const withPassword = input.adminPassword !== undefined;
+  if (withPassword) cliArgs.push("--create-input-stdin");
+  else {
+    cliArgs.push("--admin-password", "tovu-dev");
+    if (withTokens) cliArgs.push("--agent-plugin-tokens-stdin");
+  }
   const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: input.cliMode, cliArgs });
+  // Init and serve are separate children. No inherited deployment credential may enter init;
+  // a custom password travels with the tokens over stdin, never in argv or the child env.
+  const initEnv = buildCliEnv(input.baseEnv, input.dir);
+  delete initEnv.TOVU_ADMIN_PASSWORD;
+  delete initEnv.TOVU_ADMIN_USER;
 
   const child = spawnFn(plan.command, plan.args, {
-    env: buildCliEnv(input.baseEnv, input.dir),
-    stdio: [withTokens ? "pipe" : "ignore", "pipe", "pipe"],
+    env: initEnv,
+    stdio: [withTokens || withPassword ? "pipe" : "ignore", "pipe", "pipe"],
   });
-  const tokenDelivery = deliverTokens(child.stdin, withTokens ? JSON.stringify(tokens) : null);
+  const payload = withPassword ? JSON.stringify({ adminPassword: input.adminPassword, agentPluginTokens: tokens }) : withTokens ? JSON.stringify(tokens) : null;
+  const tokenDelivery = deliverTokens(child.stdin, payload);
 
   return new Promise((resolve, reject) => {
     let output = "";
@@ -309,7 +321,8 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
       }
       void tokenDelivery.then((deliveryError) => {
         if (deliveryError !== null) {
-          return reject(new Error(`tovu init for ${input.dir} could not receive its Agent Plugin tokens: ${deliveryError.message}`));
+          const subject = withPassword ? "create credentials" : "Agent Plugin tokens";
+          return reject(new Error(`tovu init for ${input.dir} could not receive its ${subject}: ${deliveryError.message}`));
         }
         input.onInitOutput?.(output);
         resolve(input.dir);
@@ -345,6 +358,7 @@ interface ResolveOrInitSiteDirInput {
   onMissingSite: OnMissingSite;
   repoRoot?: string;
   name?: string;
+  adminPassword?: string;
   baseEnv?: NodeJS.ProcessEnv;
   spawnFn?: InitSpawnFn;
   cliMode?: CliMode;
@@ -399,6 +413,7 @@ async function resolveOrInitSiteDir(input: ResolveOrInitSiteDirInput): Promise<s
       repoRoot: input.repoRoot!,
       dir: input.dir,
       name: input.name,
+      adminPassword: input.adminPassword,
       baseEnv: input.baseEnv,
       spawnFn: input.spawnFn,
       cliMode: input.cliMode,
@@ -415,6 +430,7 @@ interface AdoptSiteDirInput {
   statePath: string;
   repoRoot?: string;
   name?: string;
+  adminPassword?: string;
   baseEnv?: NodeJS.ProcessEnv;
   spawnFn?: InitSpawnFn;
   cliMode?: CliMode;
@@ -489,6 +505,7 @@ interface ResolveSiteDirInput {
   devFallbackDir?: string | null;
   repoRoot?: string;
   name?: string;
+  adminPassword?: string;
   baseEnv?: NodeJS.ProcessEnv;
   spawnFn?: InitSpawnFn;
   cliMode?: CliMode;
@@ -538,6 +555,7 @@ async function resolveSiteDir(input: ResolveSiteDirInput): Promise<string> {
       onMissingSite: input.onMissingSite,
       repoRoot: input.repoRoot,
       name: input.name,
+      adminPassword: input.adminPassword,
       baseEnv: input.baseEnv,
       spawnFn: input.spawnFn,
       cliMode: input.cliMode,
@@ -559,6 +577,7 @@ async function resolveSiteDir(input: ResolveSiteDirInput): Promise<string> {
     repoRoot: input.repoRoot,
     statePath: input.statePath,
     name: input.name,
+    adminPassword: input.adminPassword,
     baseEnv: input.baseEnv,
     spawnFn: input.spawnFn,
     cliMode: input.cliMode,

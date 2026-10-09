@@ -39,6 +39,11 @@ export interface ReadTemplateRequired {
   templateId: string;
 }
 
+export interface ReadTemplateOptional {
+  /** Demo/journey fixtures opt in; ordinary site creation starts without authored content. */
+  withSampleContent?: boolean;
+}
+
 export interface ReadTemplateResult {
   template: TemplateJson;
   seed: ContentDbSeedData;
@@ -49,6 +54,7 @@ export interface ReadTemplateResult {
  * `ContentDbSeedData`.
  *
  * @param required.templateId - `"starter"` in v1 (the only template shipped).
+ * @param optional.withSampleContent - Include the demo entries only when explicitly requested.
  * @returns `{ template, seed }` — `seed` is directly consumable by `openContentDb`.
  * @throws {InternalError} when the template dir/files are missing or unparseable — BR-01 step 3
  *   classifies this as an internal fault, since nothing has been written to the install target
@@ -57,7 +63,7 @@ export interface ReadTemplateResult {
  *   template's content, not by any caller-controlled input).
  * @overallScore 100
  */
-export function readTemplate(required: ReadTemplateRequired): ReadTemplateResult {
+export function readTemplate(required: ReadTemplateRequired, optional: ReadTemplateOptional = {}): ReadTemplateResult {
   const { templateId } = required;
   const templateDir = path.join(TEMPLATES_ROOT, templateId);
 
@@ -72,7 +78,9 @@ export function readTemplate(required: ReadTemplateRequired): ReadTemplateResult
 
   const seed: ContentDbSeedData = {
     workspace: seedContent.workspace,
-    posts: seedContent.entries,
+    // The starter theme renders its index directly when no Home page exists. Workspace and
+    // presentation settings are sufficient; neither a sample post nor a placeholder page is needed.
+    posts: optional.withSampleContent === true ? seedContent.entries : [],
     presentation: seedContent.presentation,
   };
 

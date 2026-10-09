@@ -9,6 +9,12 @@ test("no supervisor env var means no port (tovu serve, npm start, desktop, hoste
   assert.equal(devRestartPortFromEnv({ env: {} }), null);
 });
 
+test("an explicit launcher site pin withdraws Switch now capability", () => {
+  const env = { [DEV_RESTART_REQUEST_FILE_ENV]: "/tmp/req.json", TOVU_DEV_SITE_PINNED: "1" };
+  assert.equal(devRestartPortFromEnv({ env })?.canSwitchSite, false);
+  assert.equal(devRestartPortFromEnv({ env: { ...env, TOVU_DEV_SITE_PINNED: "0" } })?.canSwitchSite, true);
+});
+
 test("requestRestart writes the request file only after the delay, with the reason", () => {
   const writes: Array<[string, string]> = [];
   const scheduled: Array<{ fn: () => void; ms: number }> = [];

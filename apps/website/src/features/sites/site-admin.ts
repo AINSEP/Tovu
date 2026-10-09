@@ -5,6 +5,7 @@ import {
   switcherBaseForBinding,
   InitDirNotEmptyError,
   ValidationError,
+  resolveNewSiteAdminPassword,
   type SiteBinding,
   type SiteListEntry,
 } from "#src/platform/site-dir/index";
@@ -111,6 +112,7 @@ export function resolveSiteSwitchBase(required: {
 }
 
 export interface CreateSiteForOwnerRequired {
+  adminPassword?: unknown;
   workspaceId: string;
   /** From {@link resolveSiteSwitchBase}: the new site lands at `<switcherBase>/sites/<name>`. */
   switcherBase: string;
@@ -192,15 +194,16 @@ export async function createSiteForOwner(
   required: CreateSiteForOwnerRequired,
   ports: CreateSiteForOwnerPorts = {},
 ): Promise<CreateSiteForOwnerResult | SiteAdminRefusal> {
-  const parsedTokens = parseNewSiteAgentPluginTokens(required.agentPluginTokens);
-  if (!parsedTokens.ok) return { ok: false, code: "VALIDATION_ERROR", error: parsedTokens.error };
-  if (Object.keys(parsedTokens.tokens).length > 0 && !ports.sealPendingAgentPluginTokens) {
-    return { ok: false, code: "VALIDATION_ERROR", error: "access tokens can't be stored from here — create the site without them and connect later from chat" };
-  }
-  const refusal = await checkTokensBeforeCreate(required.workspaceId, ports, parsedTokens.tokens);
-  if (refusal) return refusal;
   try {
-    const result = await (ports.createSite ?? createSiteReal)({ name: required.name }, { cwd: required.switcherBase });
+    const adminPassword = resolveNewSiteAdminPassword(required);
+    const parsedTokens = parseNewSiteAgentPluginTokens(required.agentPluginTokens);
+    if (!parsedTokens.ok) return { ok: false, code: "VALIDATION_ERROR", error: parsedTokens.error };
+    if (Object.keys(parsedTokens.tokens).length > 0 && !ports.sealPendingAgentPluginTokens) {
+      return { ok: false, code: "VALIDATION_ERROR", error: "access tokens can't be stored from here — create the site without them and connect later from chat" };
+    }
+    const refusal = await checkTokensBeforeCreate(required.workspaceId, ports, parsedTokens.tokens);
+    if (refusal) return refusal;
+    const result = await (ports.createSite ?? createSiteReal)({ name: required.name, adminPassword }, { cwd: required.switcherBase });
     const agentPluginTokens = await storeTokensForNewSite(ports, result, parsedTokens.tokens);
     return { ok: true, site: { name: result.name, dir: result.dir, siteId: result.siteId }, agentPluginTokens };
   } catch (err) {
@@ -244,6 +247,7 @@ export interface ActivateSiteResult {
 /** Whether to fire the restart, and if not, why (so the person is told the real reason). */
 function restartDecision(required: ActivateSiteRequired, devRestart: DevRestartPort | null | undefined): { restart: boolean; note?: string } {
   if (!required.restartNow) return { restart: false };
+  if (devRestart?.canSwitchSite === false) return { restart: false };
   if (required.dirOverridden) {
     return { restart: false, note: " Not restarting: TOVU_SITE_DIR is set, so a restart would come back on the same site — unset it first." };
   }

@@ -184,6 +184,7 @@ interface Serializer {
  *  header. */
 interface CreateSiteInput {
   displayName: string;
+  adminPassword?: string;
   database?: { kind: string };
   /** Optional "Connect services" tokens, `{ [pluginId]: token }` — see `agent-plugin-tokens.ts`. */
   agentPluginTokens?: unknown;
@@ -209,6 +210,7 @@ interface AdoptSiteDirInput {
   repoRoot: string;
   statePath: string;
   name?: string;
+  adminPassword?: string;
   cliMode?: "source" | "compiled";
   agentPluginTokens?: Readonly<Record<string, string>>;
   onInitOutput?: (output: string) => void;
@@ -460,6 +462,9 @@ async function handleCreate(
   // Checked before the dialog for the same reason as the database choice: a malformed map is refused
   // before anyone picks a folder.
   const agentPluginTokens = cleanCreateTokens(input.agentPluginTokens);
+  if (input.adminPassword !== undefined && (typeof input.adminPassword !== "string" || input.adminPassword.length === 0)) {
+    throw new Error("Admin password must be a nonempty string.");
+  }
 
   const picked = await deps.dialog.showOpenDialog({
     title: "Choose a folder for your new site",
@@ -478,6 +483,7 @@ async function handleCreate(
   // only two classifications that reach `trackSite` are the two this maps.
   const wasEmpty = deps.classifySiteDir(picked.filePaths[0]!) === "empty"; // just checked `filePaths.length === 0` above, so index 0 exists
   assertTokensCanReachFolder(agentPluginTokens, wasEmpty);
+  if (!wasEmpty && input.adminPassword !== undefined) throw new Error("An admin password can only be set while creating a new site. Change an existing site's password under Users.");
   const names = otherSiteNames({ deps, siteDir: picked.filePaths[0]! });
   const displayName = uniqueSiteName({ name: wasEmpty ? input.displayName : deps.readSiteName(picked.filePaths[0]!), names });
   const init = { output: "" };
@@ -486,6 +492,7 @@ async function handleCreate(
     repoRoot: deps.repoRoot,
     statePath: deps.statePath,
     name: displayName,
+    adminPassword: input.adminPassword,
     cliMode: deps.cliMode,
     ...initTokenOptions(agentPluginTokens, init),
   });

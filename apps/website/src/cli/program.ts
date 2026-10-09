@@ -61,13 +61,19 @@ export function createProgram(): Command {
     .description("instantiate the starter template into a new install dir")
     .argument("<dir>", "target install directory")
     .option("--name <name>", "site display name (defaults to the directory's basename)")
+    .option("--with-sample-content", "include the starter demo posts and pages (for demos and test fixtures)")
+    .option("--admin-password <password>", "new site's admin password (default: tovu-dev; ignores TOVU_ADMIN_PASSWORD)")
+    .option("--create-input-stdin", "read {adminPassword, agentPluginTokens?} JSON privately from stdin")
     .option("--storage <kind>", "where the site keeps its data: sqlite (default), pglite, or postgres")
     .option("--storage-env <name>", "postgres: read the connection string from this environment variable (default: asked for once and sealed in the site folder)")
     .option("--agent-plugin-tokens-stdin", "read {\"<pluginId>\": \"<access token>\"} JSON from stdin; each token is checked, then connects that plugin when the site first starts")
-    .action(async (dir: string, options: { name?: string; storage?: string; storageEnv?: string; agentPluginTokensStdin?: boolean }) => {
+    .action(async (dir: string, options: { name?: string; withSampleContent?: boolean; adminPassword?: string; createInputStdin?: boolean; storage?: string; storageEnv?: string; agentPluginTokensStdin?: boolean }) => {
       await runInitCommand({
         dir,
         name: options.name,
+        withSampleContent: options.withSampleContent === true,
+        adminPassword: options.adminPassword,
+        createInputStdin: options.createInputStdin === true,
         storage: options.storage,
         storageEnv: options.storageEnv,
         agentPluginTokensStdin: options.agentPluginTokensStdin === true,

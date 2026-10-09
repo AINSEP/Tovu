@@ -35,7 +35,7 @@ function mkTempParent(): string {
  *  nowhere else; `db/migration/manifest.ts` has never declared it).
  *  Returns the site's `content.db` path. */
 async function buildSourceWithChatHistory(parent: string): Promise<string> {
-  const { dir } = await initSite({ dir: path.join(parent, "source"), name: "Source Site" });
+  const { dir } = await initSite({ dir: path.join(parent, "source"), name: "Source Site" }, { withSampleContent: true });
   const dbPath = path.join(dir, "content.db");
 
   // A site's boot drops the ai_chats/ai_chat_messages/assistant_agent_sessions tables from

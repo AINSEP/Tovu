@@ -68,7 +68,7 @@ test("the program routes `storage move` to the command", async () => {
 });
 
 test("--storage-env moves the site and leaves the connection string in that variable", async () => {
-  const site = await initSite({ dir: path.join(parent, "site"), name: "Cli Move", storage: { kind: "pglite" } });
+  const site = await initSite({ dir: path.join(parent, "site"), name: "Cli Move", storage: { kind: "pglite" } }, { withSampleContent: true });
   const source = openPgliteKernel<unknown>({ dataDir: path.join(site.dir, "pglite") });
   let sourceCounts: Record<string, number>;
   let sourcePosts: Array<{ id: string; title: string; slug: string; body_json: string }>;

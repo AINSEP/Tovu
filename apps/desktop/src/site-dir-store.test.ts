@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EventEmitter, once } from "node:events";
 import { spawn } from "node:child_process";
+import { DatabaseSync } from "node:sqlite";
 import { PassThrough, Writable } from "node:stream";
 
 import { MAX_RECENT_SITE_DIRS, SiteDirSelectionCancelled, stateFilePath, readDesktopState, rememberSiteDir, existingRecentSiteDirs, classifySiteDir, classifySiteDirSafely, resolveDevFallback, initSiteDir, resolveOrInitSiteDir, adoptSiteDir, resolveSiteDir } from "./site-dir-store.ts";
@@ -184,7 +185,7 @@ test('resolveSiteDir DOES initialize an empty TOVU_DESKTOP_SITE_DIR under the "i
     pickDir: () => assert.fail("an env override must never fall through to the picker"),
   });
   assert.equal(dir, empty);
-  assert.deepEqual(args!.slice(1), ["init", empty]);
+  assert.deepEqual(args!.slice(1), ["init", empty, "--admin-password", "tovu-dev"]);
 });
 
 test("resolveSiteDir still refuses an occupied or half-initialized TOVU_DESKTOP_SITE_DIR under either policy", async () => {
@@ -350,7 +351,7 @@ test('resolveOrInitSiteDir("init") runs `tovu init` for an empty folder, the sam
     },
   });
   assert.equal(dir, empty);
-  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site"]);
+  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site", "--admin-password", "tovu-dev"]);
 });
 
 test('resolveOrInitSiteDir("fail") refuses an empty folder with a specific reason instead of creating anything', async () => {
@@ -405,7 +406,7 @@ test("adoptSiteDir runs `tovu init` for an empty folder", async () => {
       return fakeInitChild(0);
     },
   });
-  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site"]);
+  assert.deepEqual(args!.slice(1), ["init", empty, "--name", "My Site", "--admin-password", "tovu-dev"]);
 });
 
 test("adoptSiteDir does NOT re-init a folder that is already a site", async () => {
@@ -533,22 +534,27 @@ test("initSiteDir: tokens that never reached the child fail the create even when
   assert.equal(result, "tovu init for /a/new/site could not receive its Agent Plugin tokens: write EPIPE");
 });
 
-test("initSiteDir creates a complete site with the requested name through Tovu's actual CLI", async (t) => {
+test("initSiteDir creates a complete blank site with the requested name through Tovu's actual CLI", async (t) => {
   // The checkout's own root (src -> apps/desktop -> apps -> repo), not a literal path: a
-  // machine-specific absolute path exists on one laptop and nowhere else, CI runners included. This
-  // test needs the root CLI built (`npm run build` at the repo root) — the release workflow's gates
-  // job builds it before `npm run gates` for exactly this reason.
+  // machine-specific absolute path exists on one laptop and nowhere else, CI runners included.
+  // Use the checkout's source CLI, as desktop development does: the desktop build only builds its
+  // preload and renderer, so root dist can be stale even after that build succeeds.
   const repoRoot = path.resolve(import.meta.dirname, "..", "..", "..");
-  if (!fs.existsSync(path.join(repoRoot, "dist/src/cli/main.js"))) {
-    t.skip("requires the built root CLI: dist/src/cli/main.js (npm run build)");
-    return;
-  }
-  const target = path.join(tempDir(), "created-site");
-  await initSiteDir({ repoRoot, dir: target, name: "Created By Test" });
+  const parent = tempDir();
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const target = path.join(parent, "created-site");
+  await initSiteDir({ repoRoot, dir: target, name: "Created By Test", cliMode: "source" });
 
   assert.equal(classifySiteDir(target), "site");
   assert.equal(fs.existsSync(path.join(target, "content.db")), true);
   assert.equal(JSON.parse(fs.readFileSync(path.join(target, "config.json"), "utf8")).name, "Created By Test");
+  const db = new DatabaseSync(path.join(target, "content.db"), { readOnly: true });
+  try {
+    // Posts and pages share this table; a new site must contain neither kind of sample entry.
+    assert.deepEqual(db.prepare("SELECT id FROM posts").all(), []);
+  } finally {
+    db.close();
+  }
 });
 
 test("classifySiteDirSafely answers 'unreadable' where classifySiteDir throws, and agrees everywhere else", () => {

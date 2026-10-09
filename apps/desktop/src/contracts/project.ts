@@ -89,6 +89,8 @@ export interface CreateSiteDatabaseInput {
 
 export interface CreateSiteInput {
   displayName: string;
+  /** Creation-only input; never persisted in a SiteRecord or sent back to the renderer. */
+  adminPassword?: string;
   database: CreateSiteDatabaseInput;
   /**
    * Optional "Connect services" access tokens, `{ [pluginId]: token }` (2026-09-29). Main hands them

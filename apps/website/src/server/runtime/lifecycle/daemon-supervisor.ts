@@ -387,6 +387,8 @@ export function isDaemonProcessForWorkspace(commandLine: string, workspaceId: st
 function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optional: Pick<NodeDaemonProcessOptions, "spawn"> = {}): DaemonProcessPorts {
   const daemonPath = resolveDaemonScriptPath();
   const args = buildDaemonSpawnArgs({ daemonPath, workspaceId: input.workspaceId });
+  // The local host must prove a detached daemon still belongs to this API before reaping a cached PID.
+  if (process.env.TOVU_LOCAL_SITE_OWNER_PID) args.push(`--local-site-api-pid=${process.pid}`);
   const { registryPath, registry } = createAssistantDaemonRegistry({ siteDir: input.siteDir }, {});
   function createProcessAdapter() {
     const isCompiled = daemonPath.endsWith(".js");

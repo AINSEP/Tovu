@@ -28,7 +28,7 @@ export function bundledAgentPluginsRoot(): string {
 }
 
 /** All of stdin as text. */
-async function readAllStdin(): Promise<string> {
+export async function readAllStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk as Buffer));
   return Buffer.concat(chunks).toString("utf8");

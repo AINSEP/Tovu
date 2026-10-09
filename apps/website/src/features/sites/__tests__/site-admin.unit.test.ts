@@ -35,7 +35,7 @@ test("createSiteForOwner: creates under the switcher base and reports no tokens"
     { workspaceId: "ws", switcherBase: "/repo", name: "beta" },
     { createSite: async (required, optional) => (calls.push([required, optional]), { name: required.name, dir: "/repo/sites/beta", siteId: "id-1" } as never) },
   );
-  assert.deepEqual(calls, [[{ name: "beta" }, { cwd: "/repo" }]]);
+  assert.deepEqual(calls, [[{ name: "beta", adminPassword: "tovu-dev" }, { cwd: "/repo" }]]);
   assert.deepEqual(result, { ok: true, site: { name: "beta", dir: "/repo/sites/beta", siteId: "id-1" }, agentPluginTokens: { status: "none", pluginIds: [] } });
 });
 

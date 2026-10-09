@@ -9,6 +9,7 @@ import { freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import { STORAGE_SECRET_FILENAME } from "#src/server/runtime/composition/storage-secret";
 import { runInitCommand } from "../../commands/init.js";
+import { assertSiteOwnerLogin } from "../../../platform/site-dir/__tests__/helpers/assert-site-owner-login.js";
 
 /**
  * @file `tovu init --storage postgres` on the local Postgres server (temp databases, dropped WITH
@@ -28,9 +29,10 @@ const URL_ENV = "TOVU_R1F2_INIT_URL";
 
 let parent: string;
 let home: string;
-const saved = { HOME: process.env.HOME, TOVU_SITE_KEY: process.env.TOVU_SITE_KEY };
+const saved = { HOME: process.env.HOME, TOVU_SITE_KEY: process.env.TOVU_SITE_KEY, TOVU_ADMIN_PASSWORD: process.env.TOVU_ADMIN_PASSWORD };
 
 before(() => {
+  process.env.TOVU_ADMIN_PASSWORD = "postgres-inherited-password-fixture";
   parent = fs.mkdtempSync(path.join(os.tmpdir(), "r1f2-init-pg-"));
   // The sealed case makes the new site's key file; keep it out of the real ~/.tovu.
   home = fs.mkdtempSync(path.join(os.tmpdir(), "r1f2-home-"));
@@ -75,14 +77,16 @@ test("--storage-env: the site names the variable, keeps no secret, and its datab
   for (const name of ["content.db", "chat.db"]) assert.equal(fs.existsSync(path.join(dir, name)), false, `no ${name}`);
   const rows = await templateRows(dir, { kind: "postgres", secretRef: { env: URL_ENV } });
   assert.deepEqual(rows.workspaces, ["local-tovu"]);
-  assert.ok(rows.posts.includes("welcome"), JSON.stringify(rows.posts));
+  assert.deepEqual(rows.posts, [], "a new Postgres site starts blank");
   assert.deepEqual(rows.chats, []);
+  await assertSiteOwnerLogin({ dir, password: "tovu-dev", rejectedPassword: "postgres-inherited-password-fixture" });
 });
 
 test("sealed: the connection string is sealed in the site folder (0600, no plaintext) and the site reopens from its meta", async () => {
   const connectionString = freshPostgresDatabase(SEALED_DB);
   const dir = path.join(parent, "sealed-site");
-  await runInitCommand({ dir, storage: "postgres", readConnectionString: async () => `${connectionString}\n` });
+  const adminPassword = "chosen-postgres-password-fixture";
+  await runInitCommand({ dir, storage: "postgres", adminPassword, readConnectionString: async () => `${connectionString}\n` });
 
   const meta = readMeta(dir);
   assert.deepEqual(meta.storage, { kind: "postgres", secretRef: "site" });
@@ -98,7 +102,8 @@ test("sealed: the connection string is sealed in the site folder (0600, no plain
 
   const rows = await templateRows(dir, { kind: "postgres", secretRef: "site" });
   assert.deepEqual(rows.workspaces, ["local-tovu"]);
-  assert.ok(rows.posts.includes("about"), JSON.stringify(rows.posts));
+  assert.deepEqual(rows.posts, [], "the sealed Postgres site stays blank after boot");
+  await assertSiteOwnerLogin({ dir, password: adminPassword, rejectedPassword: "postgres-inherited-password-fixture" });
 });
 
 test("a database that already holds a Tovu site is refused, before any folder, secret or key is made", async () => {
@@ -111,8 +116,9 @@ test("a database that already holds a Tovu site is refused, before any folder, s
   const envDir = path.join(parent, "second-env-site");
   await assert.rejects(runInitCommand({ dir: envDir, storage: "postgres", storageEnv: URL_ENV }), (err: Error) => {
     assert.equal(err.name, "ValidationError");
-    assert.match(err.message, /already holds data \(.*public\.workspaces/);
-    assert.match(err.message, /empty database/);
+    // Diagnostics name only the first five occupied tables; workspaces can fall beyond that cap.
+    assert.ok(err.message.startsWith("initSite: the Postgres database already holds data (public."));
+    assert.ok(err.message.endsWith("); a new site needs an empty database. Adopting an existing Tovu database into a new site folder is a separate step that is not available yet."));
     assert.equal(err.message.includes(connectionString), false, "the connection string is never echoed");
     return true;
   });

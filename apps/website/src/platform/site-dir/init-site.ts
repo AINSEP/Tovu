@@ -12,7 +12,7 @@ import { writeJsonFileAtomic } from "./atomic-write.js";
 import { seedSiteThemes } from "./seed-site-themes.js";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors.js";
 import { resolveProductRoot } from "./product-root.js";
-import { readTemplate } from "./read-template.js";
+import { readTemplate, type ReadTemplateOptional } from "./read-template.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "./schema-guard.js";
 import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
@@ -20,6 +20,9 @@ import type { ContentDbSeedData } from "../db/sqlite/content-db.js";
 import { nonEmptyTables } from "#src/features/database-transfer/pg-store-copy";
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import { sealConnectionStringForNewSite } from "#src/server/runtime/composition/storage-secret";
+import { createSqliteIdentityRouteDeps } from "../../features/identity/wiring.js";
+import { createPermissionGrantRegistry } from "../../features/identity/permission-grants.js";
+import { resolveNewSiteAdminPassword } from "./new-site-owner.js";
 
 /**
  * @file SPEC-003 C-007 — `initSite`, `tovu init`'s full orchestration.
@@ -70,6 +73,8 @@ function stockThemesDir(): string {
 
 export interface InitSiteRequired {
   dir: string;
+  /** Explicit new owner password; omission means tovu-dev, independently of process env. */
+  adminPassword?: string;
   /**
    * Site display name; defaults to the target directory's basename (BR-03). Kept in the SAME
    * input object (not a separate options parameter) to match Contract Map C-007's Inputs shape
@@ -178,6 +183,7 @@ export function validateInitTarget(target: string): void {
  * @param required.dir - the install dir path; resolved once (path/symlink containment, CIC
  *   U-004) into the single `target` every write below derives from.
  * @param required.name - site display name; defaults to the target directory's basename (BR-03).
+ * @param options.withSampleContent - Explicit demo/fixture opt-in; default creation has no entries.
  * @returns `{ siteId, dir }` — `dir` is the RESOLVED target path.
  * @throws {ValidationError} an invalid `--name` (EC-06, behavior.spec.md §4) — nothing created.
  * @throws {InitDirNotEmptyError} the target is occupied (file or non-empty dir, AC-04/EC-01/EC-02)
@@ -190,15 +196,16 @@ export function validateInitTarget(target: string): void {
  *   caller-independent size (see that function's own `@complexity`).
  * @overallScore 100
  */
-export async function initSite(required: InitSiteRequired): Promise<InitSiteResult> {
+export async function initSite(required: InitSiteRequired, options: ReadTemplateOptional = {}): Promise<InitSiteResult> {
   const { dir, name } = required;
+  const adminPassword = resolveNewSiteAdminPassword(required);
   const target = resolveInstallDirTarget(dir);
 
   const resolvedName = resolveSiteName(target, name); // step 1 (VALIDATION) — before any target/fs check.
   const storage = required.storage ?? { kind: "sqlite" };
   validateStorageInput(storage, required.connectionString); // step 1 too.
   validateInitTarget(target); // step 2 (INIT_DIR_NOT_EMPTY).
-  const { template, seed } = readTemplate({ templateId: "starter" }); // step 3 (INTERNAL) — nothing created yet.
+  const { template, seed } = readTemplate({ templateId: "starter" }, options); // step 3 (INTERNAL) — nothing created yet.
 
   const siteId = randomUUID();
   const createdAt = new Date().toISOString();
@@ -245,11 +252,12 @@ export async function initSite(required: InitSiteRequired): Promise<InitSiteResu
         // A freshly initialized site must already carry current repair markers, so its first boot
         // does not mutate content.db merely to record a no-op repair. Older sites still repair on boot.
         await runBootDataRepairs({ kernel: contentKernel(db) });
+        await seedNewSiteOwner({ kernel: contentKernel(db), seed, adminPassword });
       } finally {
         closeSqliteConnection(db);
       }
     } else {
-      await createPgSiteStore({ target, storage, seed, siteKeyId: siteId, connectionString: required.connectionString });
+      await createPgSiteStore({ target, storage, seed, siteKeyId: siteId, connectionString: required.connectionString, adminPassword });
     }
 
     // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
@@ -330,6 +338,7 @@ async function assertPostgresTargetEmpty(storage: SiteStorage, connectionString:
  * histories to head and seeds the template, and close it.
  */
 async function createPgSiteStore(required: {
+  adminPassword: string;
   target: string;
   storage: Exclude<SiteStorage, { kind: "sqlite" }>;
   seed: ContentDbSeedData;
@@ -345,5 +354,29 @@ async function createPgSiteStore(required: {
     { storage, dbPath: path.join(target, "content.db"), chatDbPath: path.join(target, "chat.db"), role: "owner" },
     { seed, sealer: sealed?.sealer }
   );
-  await store.close();
+  try {
+    await seedNewSiteOwner({ kernel: store.content, seed, adminPassword: required.adminPassword });
+  } finally {
+    await store.close();
+  }
+}
+
+/** Persist the owner before init's commit marker: serve must never choose a new site's password.
+ * Uses the same identity repositories and Jini seeder as boot, across all storage backends.
+ * Boot still reconciles app-specific grants. @complexity O(1), including one password hash.
+ */
+async function seedNewSiteOwner(
+  { kernel, seed, adminPassword }: { kernel: Parameters<typeof createSqliteIdentityRouteDeps>[0]["db"]; seed: ContentDbSeedData; adminPassword: string },
+  _options: Record<string, never> = {},
+): Promise<void> {
+  const identity = createSqliteIdentityRouteDeps({
+    db: kernel,
+    workspaceId: seed.workspace.id,
+    clock: { nowMs: () => Date.now() },
+    idGen: { newId: () => randomUUID() },
+    permissionGrants: createPermissionGrantRegistry({}),
+    reconcileGrantsOnBoot: false,
+    ownerCredentials: { username: "admin", password: adminPassword },
+  });
+  await Promise.all([identity.identityReady, identity.ownerPrincipalId]);
 }

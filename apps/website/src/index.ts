@@ -1,3 +1,4 @@
+import { shutdownLocalSiteHosts } from "./server/runtime/lifecycle/local-site-host.js";
 import { createServer as createHttpServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
@@ -435,6 +436,7 @@ async function main(): Promise<void> {
   // it ships.
   // The listener above uses Node's options overload and omits an undefined hostname, preserving
   // the all-interfaces container default without Express's required-hostname overload ambiguity.
+  server.once("close", () => { void shutdownLocalSiteHosts({}).catch(() => {}); });
   requestHandler = app;
 
   // Forwards Vite's HMR WebSocket through this server's own `upgrade` event when

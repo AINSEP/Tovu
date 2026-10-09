@@ -21,6 +21,8 @@
  * anything; Tovu-Runner and a hosted deploy never set it, so both stay OFF.
  */
 export function isSiteSwitcherEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  // A deployed production server must never manage local folders, even with a stale dev flag.
+  if (env.NODE_ENV === "production") return false;
   const raw = env.TOVU_ENABLE_SITE_SWITCHER?.trim().toLowerCase();
   return raw === "1" || raw === "true";
 }

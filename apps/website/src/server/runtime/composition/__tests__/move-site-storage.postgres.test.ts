@@ -65,7 +65,7 @@ before(async () => {
   lateUrl = freshPostgresDatabase(LATE);
   const created = psql({ database: BUSY, sql: "CREATE TABLE someone_elses (id text); INSERT INTO someone_elses VALUES ('x');" });
   assert.ok(created.ok, created.stderr);
-  siteDir = (await initSite({ dir: path.join(parent, "site"), name: "Move Me", storage: { kind: "pglite" } })).dir;
+  siteDir = (await initSite({ dir: path.join(parent, "site"), name: "Move Me", storage: { kind: "pglite" } }, { withSampleContent: true })).dir;
   const store = await openOwner(siteDir);
   try {
     const k = store.content;

@@ -24,6 +24,8 @@ export const DEV_RESTART_REQUEST_FILE_ENV = "TOVU_DEV_RESTART_REQUEST_FILE";
 export const DEV_RESTART_DELAY_MS = 3000;
 
 export interface DevRestartPort {
+  /** False when the launcher is pinned by an explicit shell site override. */
+  canSwitchSite?: boolean;
   /** Schedules the restart request. Returns at once; the write happens {@link DEV_RESTART_DELAY_MS} later. */
   requestRestart(required: { reason: string }): void;
 }
@@ -48,6 +50,7 @@ export function devRestartPortFromEnv(optional: DevRestartPortOptional = {}): De
   const schedule = optional.schedule ?? ((fn: () => void, ms: number) => void setTimeout(fn, ms).unref?.());
   const log = optional.log ?? ((message: string) => console.error(message));
   return {
+    canSwitchSite: env.TOVU_DEV_SITE_PINNED !== "1",
     requestRestart({ reason }) {
       schedule(() => {
         try {

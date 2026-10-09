@@ -33,6 +33,7 @@ export { DEFAULT_SITE_NAME, resolveSiteRoot, type ResolveSiteRootOptional } from
  * `.dependency-cruiser.mjs`'s `PROMOTED_NO_DEEP_IMPORTS`).
  */
 export { resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "./product-root.js";
+export { resolveNewSiteAdminPassword } from "./new-site-owner.js";
 export {
   SiteCorruptError,
   SiteDirInvalidError,

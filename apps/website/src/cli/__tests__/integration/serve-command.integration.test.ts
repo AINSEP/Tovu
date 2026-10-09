@@ -215,7 +215,7 @@ async function stopGracefully(child: ChildProcessWithoutNullStreams, timeoutMs =
 function initFixture(name = "Serve Fixture"): { parent: string; dir: string } {
   const parent = mkTempParent();
   const dir = path.join(parent, "site");
-  const initResult = runCliSync(["init", dir, "--name", name]);
+  const initResult = runCliSync(["init", dir, "--name", name, "--with-sample-content"]);
   assert.equal(initResult.status, 0, `fixture setup: tovu init must succeed (stderr: ${initResult.stderr})`);
   return { parent, dir };
 }
@@ -243,14 +243,16 @@ test("behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is A
       // PORT_IN_USE — which is itself the stronger proof, since reaching a bind at all means the
       // value already cleared the 1..65535 range check. Where the OS refuses this process the port
       // (port 1 is privileged on most POSIX hosts), require the matching bind error from the child.
+      // Match the child's IPv4 loopback bind: an implicit IPv6 listener may neither block IPv4
+      // nor encounter the same privileged-port restriction on this host.
       const blocker = net.createServer();
       let bindError: NodeJS.ErrnoException | undefined;
       const held = await new Promise<boolean>((resolve) => {
         blocker.once("error", (error: NodeJS.ErrnoException) => { bindError = error; resolve(false); });
-        blocker.listen(boundaryPort, () => resolve(true));
+        blocker.listen(boundaryPort, "127.0.0.1", () => resolve(true));
       });
       try {
-        const result = runCliSync(["serve", dir, "--port", String(boundaryPort)], {}, 60_000);
+        const result = runCliSync(["serve", dir, "--port", String(boundaryPort), "--host", "127.0.0.1"], {}, 60_000);
         assert.notEqual(result.status, 2, `--port ${boundaryPort} is IN the valid 1..65535 range and must not be rejected as VALIDATION (stderr: ${result.stderr})`);
         assert.doesNotMatch(result.stderr, /^tovu: VALIDATION:/m, `--port ${boundaryPort} must not produce a VALIDATION line`);
         if (held) {
@@ -325,11 +327,15 @@ test("AC-09: serve against a site whose content.db has zero workspace rows exits
 
 test("EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bound", async () => {
   const { parent, dir } = initFixture();
-  const port = await getFreePort();
   const blocker = net.createServer();
-  await new Promise<void>((resolve) => blocker.listen(port, resolve));
+  // Allocate and hold the child's exact address in one step: no free-port race or IPv6 mismatch.
+  await new Promise<void>((resolve, reject) => {
+    blocker.once("error", reject);
+    blocker.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = blocker.address() as net.AddressInfo;
   try {
-    const result = runCliSync(["serve", dir, "--port", String(port)]);
+    const result = runCliSync(["serve", dir, "--port", String(port), "--host", "127.0.0.1"]);
     assert.equal(result.status, 1, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
     assert.match(result.stderr, /^tovu: PORT_IN_USE:/m);
     assert.match(result.stderr, new RegExp(String(port)));

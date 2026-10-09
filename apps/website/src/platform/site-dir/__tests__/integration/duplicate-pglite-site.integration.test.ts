@@ -50,7 +50,7 @@ async function addPublish(store: SiteStore, project: string): Promise<void> {
 }
 
 test("a PGlite site duplicates while it runs in this process and while stopped; both copies boot on their own", async () => {
-  const source = await initSite({ dir: path.join(parent, "source"), name: "Pglite Source", storage: { kind: "pglite" } });
+  const source = await initSite({ dir: path.join(parent, "source"), name: "Pglite Source", storage: { kind: "pglite" } }, { withSampleContent: true });
   const running = await openOwner(source.dir);
   let posts: number;
   let expectedPosts: unknown[];

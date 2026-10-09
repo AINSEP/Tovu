@@ -1,6 +1,9 @@
+import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../sites/local-sites.js";
+import { localSiteSupervisorForHost } from "#src/server/runtime/lifecycle/local-site-host";
 import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets } from "../sites/site-previews.js";
 import { sitePreviewServiceForHost } from "#src/server/runtime/lifecycle/site-preview-host";
 import type { SitePreviewService } from "#src/features/sites/index";
+import { listSiteTrash } from "#src/platform/site-dir/site-trash";
 import type { Express, Response } from "express";
 
 import {
@@ -9,7 +12,7 @@ import {
   listSites as listSitesReal,
   listSitesForBinding,
   switcherBaseForBinding,
-  type persistActiveSite as persistActiveSiteReal,
+  persistActiveSite as persistActiveSiteReal,
   readPersistedActiveSite as readPersistedActiveSiteReal,
   type ServingSiteListEntry,
   type SiteListEntry,
@@ -117,6 +120,9 @@ import type { RouteDeps } from "#src/server/routes/types";
  * (`composition/pending-agent-plugin-tokens.ts`). Leaving it out creates the site exactly as before.
  */
 export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+  localSiteSupervisor?: LocalSitesRouteDeps["localSiteSupervisor"];
+  siteTrash?: LocalSitesRouteDeps["siteTrash"];
+  listSiteTrash?: typeof listSiteTrash;
   /** Card preview captures (`site-preview-host.ts`); a test injects a fake, `null` turns them off. */
   sitePreviews?: SitePreviewService | null;
   /** The guarded outbound client a token check probes through. Absent, a given token is refused as
@@ -174,8 +180,18 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   const listSites = deps.listSites ?? listSitesReal;
   const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
   const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
+  const localSiteSupervisor = deps.localSiteSupervisor ?? localSiteSupervisorForHost({ binding: deps.siteBinding });
+  const devRestart = deps.devRestart === undefined ? devRestartPortFromEnv() : deps.devRestart;
   const sitePreviews = deps.sitePreviews === undefined ? sitePreviewServiceForHost({ binding: deps.siteBinding }) : deps.sitePreviews ?? undefined;
   registerSitePreviewRoutes({ app, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, sitePreviews } });
+  registerLocalSitesRoutes({ app, deps: { ...deps, localSiteSupervisor, isSiteSwitcherEnabled,
+    afterTrash({ base, name }) {
+      // A next-launch default must not silently recreate the folder just moved to Trash.
+      if (readPersistedActiveSite({ cwd: base }) === name) {
+        (deps.persistActiveSite ?? persistActiveSiteReal)({ name: deps.siteBinding.name }, { cwd: base });
+      }
+    },
+  } });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -200,12 +216,18 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       const switcherBase = switcherBaseForBinding(binding);
       const sites: ServingSiteListEntry[] = includeServingSite({ sites: registered, binding });
       const serving = sites.find((site) => site.dir === binding.dir);
+      const localSites = isSiteSwitcherEnabled() ? localSiteSupervisor?.list() ?? [] : [];
       // Reads capture mtimes and only ENQUEUES due captures — never awaited here (see the service).
       const previewVersions = sitePreviews && isSiteSwitcherEnabled()
-        ? sitePreviews.versions({ sites, targets: sitePreviewTargets({ servingName: binding.name, localSites: [] }, { serving: servingAddressOf({ req }) }) })
+        ? sitePreviews.versions({ sites, targets: sitePreviewTargets({ servingName: binding.name, localSites }, { serving: servingAddressOf({ req }) }) })
         : {};
       res.status(200).json({
         switchingEnabled: isSiteSwitcherEnabled(),
+        localManagementEnabled: isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null,
+        canSwitchNow: isSiteSwitcherEnabled() && devRestart !== null && devRestart.canSwitchSite !== false && !binding.dirOverridden && switcherBase !== null,
+        localSites,
+        trash: isSiteSwitcherEnabled() && switcherBase !== null && localSiteSupervisor
+          ? (deps.listSiteTrash ?? listSiteTrash)({ base: switcherBase }) : [],
         sites,
         previewVersions,
         currentSite: { ...binding, listed: serving?.registration === "registered" },
@@ -274,6 +296,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
           workspaceId: deps.workspaceId,
           switcherBase: gate.switcherBase,
           name: parsed.name,
+          adminPassword: (req.body as Record<string, unknown> | null | undefined)?.adminPassword,
           agentPluginTokens: (req.body as Record<string, unknown> | null | undefined)?.agentPluginTokens,
         },
         {

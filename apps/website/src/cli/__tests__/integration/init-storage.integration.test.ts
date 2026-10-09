@@ -77,7 +77,7 @@ test("init --storage pglite: the data dir is at head with the template seeded, n
     const workspaces = await store.content.run((db) => db.selectFrom("workspaces").select("slug").execute());
     assert.deepEqual(workspaces.map((w) => w.slug), ["local-tovu"], "the starter template's workspace, once");
     const slugs = (await store.content.run((db) => db.selectFrom("posts").select("slug").execute())).map((p) => p.slug);
-    assert.ok(slugs.includes("welcome") && slugs.includes("about"), JSON.stringify(slugs));
+    assert.deepEqual(slugs, [], "a new PGlite site stays blank after its first boot");
     const chatTables = await store.chat.run((db) => db.selectFrom("ai_chats").select("id").execute());
     assert.deepEqual(chatTables, [], "the ai_chat history is at head (its tables exist), empty");
   } finally {

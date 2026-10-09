@@ -59,7 +59,8 @@ function seedSourceExtras(siteDir: string): void {
 test("a duplicate carries content, uploads, and themes, but never chat history, and gets a fresh identity", async () => {
   const parent = mkTempParent();
   try {
-    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    // New sites start blank by default (2026-10-08); these tests need posts to prove content is copied.
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" }, { withSampleContent: true });
     seedSourceExtras(source.dir);
     const sourceConfigPath = path.join(source.dir, "config.json");
     const sourceConfig = JSON.stringify({ name: "Original Client Site", domain: "example.com", port: 8080 });
@@ -451,7 +452,8 @@ function plantNonPortableArtifacts(siteDir: string): void {
 test("a duplicate carries none of the source's sidecar databases, restore points, backups, or derived output", async () => {
   const parent = mkTempParent();
   try {
-    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    // New sites start blank by default (2026-10-08); these tests need posts to prove content is copied.
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" }, { withSampleContent: true });
     seedSourceExtras(source.dir);
     plantNonPortableArtifacts(source.dir);
 
@@ -685,7 +687,8 @@ test("a successful duplicate into a pre-existing empty target still succeeds —
 test("a duplicate carries the site's media uploads but NOT the staged chat attachments under uploads/", async () => {
   const parent = mkTempParent();
   try {
-    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    // New sites start blank by default (2026-10-08); these tests need posts to prove content is copied.
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" }, { withSampleContent: true });
 
     fs.writeFileSync(path.join(source.dir, "uploads", "public-media.txt"), "media library bytes");
     const attachments = path.join(source.dir, "uploads", "chat-attachments");
@@ -714,7 +717,8 @@ test("a duplicate carries the site's media uploads but NOT the staged chat attac
 test("excluding chat-attachments is name-scoped to the uploads root — an unrelated nested directory of that name is still carried", async () => {
   const parent = mkTempParent();
   try {
-    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" });
+    // New sites start blank by default (2026-10-08); these tests need posts to prove content is copied.
+    const source = await initSite({ dir: path.join(parent, "source"), name: "Original Client Site" }, { withSampleContent: true });
     const nested = path.join(source.dir, "uploads", "media", "chat-attachments");
     fs.mkdirSync(nested, { recursive: true });
     fs.writeFileSync(path.join(nested, "screenshot.png"), "a real media asset in a folder named that");

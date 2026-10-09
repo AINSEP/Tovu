@@ -17,14 +17,22 @@ for (const raw of ["1", "true", " TRUE ", "\t1\n", "TrUe"]) {
 
 test("the default argument reads current process env on each call and an explicit env wins", () => {
   const previous = process.env.TOVU_ENABLE_SITE_SWITCHER;
+  const previousNodeEnv = process.env.NODE_ENV;
   try {
+    process.env.NODE_ENV = "development";
     process.env.TOVU_ENABLE_SITE_SWITCHER = "1";
     assert.equal(isSiteSwitcherEnabled(), true);
     assert.equal(isSiteSwitcherEnabled({}), false);
     delete process.env.TOVU_ENABLE_SITE_SWITCHER;
     assert.equal(isSiteSwitcherEnabled(), false);
   } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
     if (previous === undefined) delete process.env.TOVU_ENABLE_SITE_SWITCHER;
     else process.env.TOVU_ENABLE_SITE_SWITCHER = previous;
   }
+});
+
+test("a production deployment refuses a stale local-management flag", () => {
+  assert.equal(isSiteSwitcherEnabled({ NODE_ENV: "production", TOVU_ENABLE_SITE_SWITCHER: "1" }), false);
 });

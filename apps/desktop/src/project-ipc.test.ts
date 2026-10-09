@@ -430,6 +430,39 @@ test("handleCreate adopts the picked folder, tracks it, and returns its record",
   assert.deepEqual(readTrackedSites(deps.projectsPath).map((r) => r.siteDir), [picked]);
 });
 
+test("handleCreate passes a custom admin password only to init and never persists or returns it", async () => {
+  const picked = "/sites/password-create";
+  const password = "ipc-custom-password-fixture";
+  let givenPassword: string | undefined;
+  const deps = baseDeps({
+    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) },
+    adoptSiteDir: async (input) => { givenPassword = input.adminPassword; return picked; },
+  });
+  const record = await handleCreate({ displayName: "Custom Site", adminPassword: password }, deps);
+  assert.equal(givenPassword, password);
+  assert.ok(!JSON.stringify(record).includes(password));
+  assert.ok(!fs.readFileSync(deps.projectsPath, "utf8").includes(password));
+});
+
+test("handleCreate rejects malformed or empty admin password before choosing a folder", async () => {
+  const deps = baseDeps({
+    dialog: { showOpenDialog: async () => assert.fail("invalid input must not open the folder dialog") },
+    adoptSiteDir: async () => assert.fail("invalid input must not initialize a site"),
+  });
+  for (const adminPassword of ["", null, 123]) {
+    await assert.rejects(handleCreate({ displayName: "Custom Site", adminPassword: adminPassword as string }, deps), { message: "Admin password must be a nonempty string." });
+  }
+});
+
+test("handleCreate refuses a custom password for a folder that already has a site", async () => {
+  const deps = baseDeps({
+    classifySiteDir: () => "site",
+    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: ["/sites/existing"] }) },
+    adoptSiteDir: async () => assert.fail("an existing site's credentials must not change"),
+  });
+  await assert.rejects(handleCreate({ displayName: "Existing", adminPassword: "chosen" }, deps), { message: "An admin password can only be set while creating a new site. Change an existing site's password under Users." });
+});
+
 test("handleDelete on an untracked id is a no-op — no stop, no fs.rm, no throw", async () => {
   const siteDir = writeSite(path.join(tempDir(), "never-tracked"), "untracked", { "sentinel.txt": "keep these bytes" });
   const deps = baseDeps({

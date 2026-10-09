@@ -15,10 +15,9 @@ import { createSite, describeSiteBinding, includeServingSite, listSites, listSit
  * `createSite` is a thin wrapper over `initSite` (already certified by
  * `init-site.integration.test.ts`), so these tests do not re-prove `initSite`'s own layout
  * contract — they prove the wrapper's OWN job: folder-name validation, `sitesRoot` derivation,
- * `listSites`'s directory scan/skip-invalid/`active`-flag behavior, and (BR: "tovu init should
- * seed a '/' page") that a site created THIS way actually has one, since `createSite` shares
- * `seed.ts`'s `seededPosts` with `tovu init` via the same `readTemplate`-generated
- * `content/templates/starter/seed-content.json` (see `seed.ts`'s own root-page addition).
+ * `listSites`'s directory scan/skip-invalid/`active`-flag behavior, and that creation starts blank.
+ * `createSite` shares `readTemplate` with `tovu init`; the starter theme can render its own index
+ * without a '/' page, so the former seeded-homepage requirement needs no placeholder row.
  */
 
 function mkSitesRoot(): { cwd: string; sitesDir: string } {
@@ -107,17 +106,14 @@ test("listSites: marks the site matching TOVU_SITE as active, and every sibling 
   }
 });
 
-test("createSite: the resulting content.db has a published kind:'page' row at slug '/' (the seeded homepage, matching tovu init byte for byte)", async () => {
+test("createSite: the resulting content.db starts without posts or placeholder pages", async () => {
   const { cwd } = mkSitesRoot();
   try {
     const result = await createSite({ name: "root-page-check" }, { cwd });
     const db = openContentDbReadOnly(path.join(result.dir, "content.db"));
     try {
       const rows = db.select().from(postsTable).all();
-      const rootPage = rows.find((row) => row.slug === "/");
-      assert.ok(rootPage, "expected a post row claiming slug '/' right after createSite");
-      assert.equal(rootPage?.kind, "page", "the '/' row must be kind:'page' (post.ts's ROOT_SLUG gate), never kind:'post'");
-      assert.equal(rootPage?.status, "published", "an unpublished '/' row would never actually render for GET /");
+      assert.deepEqual(rows, []);
     } finally {
       db.$client.close();
     }

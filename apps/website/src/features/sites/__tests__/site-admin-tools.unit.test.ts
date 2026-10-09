@@ -61,7 +61,7 @@ function handlerFor(deps: SitesToolDeps, id: string): ToolRegistration["handler"
 test("sites_create_site: creates under the served tree and returns the new site", async () => {
   const env = fake();
   const result = await handlerFor(env.deps, "sites_create_site")(ctxFor({ name: "beta" }));
-  assert.deepEqual(env.creates, [[{ name: "beta" }, { cwd: "/repo" }]]);
+  assert.deepEqual(env.creates, [[{ name: "beta", adminPassword: "tovu-dev" }, { cwd: "/repo" }]]);
   assert.deepEqual(result, { name: "beta", dir: "/repo/sites/beta", siteId: "new-id" });
 });
 

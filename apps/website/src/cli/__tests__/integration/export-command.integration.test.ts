@@ -63,7 +63,7 @@ test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summa
   const installDir = path.join(parent, "site");
   const outDir = path.join(parent, "out");
 
-  const init = runCli(["init", installDir]);
+  const init = runCli(["init", installDir, "--with-sample-content"]);
   assert.equal(init.status, 0, `init stderr: ${init.stderr}`);
 
   const result = runCli(["export", installDir, "--out", outDir]);
@@ -98,7 +98,7 @@ test("tovu export: a non-empty --out preserves unrelated files unless --clean is
   const installDir = path.join(parent, "site");
   const outDir = path.join(parent, "out");
 
-  assert.equal(runCli(["init", installDir]).status, 0);
+  assert.equal(runCli(["init", installDir, "--with-sample-content"]).status, 0);
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, "stale.html"), "leftover", "utf8");
 
@@ -119,7 +119,7 @@ test("tovu export --base-path <path>: rewrites root-relative links and prints th
   const installDir = path.join(parent, "site");
   const outDir = path.join(parent, "out");
 
-  assert.equal(runCli(["init", installDir]).status, 0);
+  assert.equal(runCli(["init", installDir, "--with-sample-content"]).status, 0);
 
   const homePath = path.join(installDir, "themes", "static", "tovu-starter", "render", "pages", "index.html");
   const probes = '<link id="audit-css" rel="stylesheet" href="/theme-assets/tovu-starter/css/theme.css"><script id="audit-js" src="/theme-assets/tovu-starter/scripts/main.js"></script><img id="audit-image" src="/theme-assets/tovu-starter/assets/logo.png">';
@@ -143,7 +143,7 @@ test("tovu export: TOVU_EXPORT_DIR env var sets the default output directory whe
   const installDir = path.join(parent, "site");
   const envOutDir = path.join(parent, "env-out");
 
-  assert.equal(runCli(["init", installDir]).status, 0);
+  assert.equal(runCli(["init", installDir, "--with-sample-content"]).status, 0);
 
   const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "export", installDir], {
     encoding: "utf8",
@@ -163,7 +163,7 @@ test("tovu export <dir>: with neither --out nor TOVU_EXPORT_DIR, the export land
   const elsewhere = path.join(parent, "elsewhere");
   fs.mkdirSync(elsewhere);
 
-  assert.equal(runCli(["init", installDir]).status, 0);
+  assert.equal(runCli(["init", installDir, "--with-sample-content"]).status, 0);
 
   const env: NodeJS.ProcessEnv = { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR) };
   for (const key of ["TOVU_EXPORT_DIR", "TOVU_SITE_DIR", "TOVU_SITE"]) delete env[key];
