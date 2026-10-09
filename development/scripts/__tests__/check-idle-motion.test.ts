@@ -36,6 +36,22 @@ test("the live tree has no idle-CPU offenders and no stale allowlist entries", (
   assert.deepEqual(checkIdleMotion(REPO_ROOT), []);
 });
 
+test("an absent allowed spinner produces its exact stale-allowlist violation", (t) => {
+  const root = plant({});
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  assert.deepEqual(checkIdleMotion(root).filter((v) => v.detail.endsWith("app.css::.spinner")), [{
+    rule: "stale-allowlist", file: "apps/desktop/src/renderer/app.css", line: 0,
+    detail: "INFINITE_ANIMATION_ALLOWLIST entry matches nothing: apps/desktop/src/renderer/app.css::.spinner",
+  }]);
+});
+
+test("an allowed infinite spinner still requires reduced-motion support", () => {
+  assert.deepEqual(planted({ "apps/desktop/src/renderer/app.css": ".spinner { animation: spin 1s infinite; }" }), [{
+    rule: "reduced-motion", file: "apps/desktop/src/renderer/app.css", line: 1,
+    detail: "has an infinite animation but no prefers-reduced-motion rule",
+  }]);
+});
+
 test("an infinite CSS animation outside the allowlist fails, with its selector", () => {
   const found = planted({ "apps/admin/src/x.css": ".glow {\n  animation: pulse 1s infinite;\n}\n" });
   assert.deepEqual(

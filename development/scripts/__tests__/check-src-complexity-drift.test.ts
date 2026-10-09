@@ -1,8 +1,53 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { diffAgainstBaseline, violationKey, type Violation } from "../check-src-complexity-drift.js";
 import debt from "../src-complexity-debt.json" with { type: "json" };
+
+test("CLI consumes scanner JSON and fails on a new violation, with the expected scan arguments", (t) => {
+  const scratch = mkdtempSync(path.join(tmpdir(), "complexity-cli-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const report = path.join(scratch, "eslint.json");
+  const recording = path.join(scratch, "args.json");
+  // Substitute only the external scanner process: no real lint run or repository writes.
+  const scanner = path.join(scratch, "npx");
+  writeFileSync(scanner, `#!${process.execPath}\n` +
+    `const fs = require('node:fs');\n` +
+    `fs.writeFileSync(${JSON.stringify(recording)}, JSON.stringify(process.argv.slice(2)));\n` +
+    `process.stdout.write(fs.readFileSync(${JSON.stringify(report)}, 'utf8'));\nprocess.exitCode = 1;\n`);
+  chmodSync(scanner, 0o755);
+  const repo = path.resolve(import.meta.dirname, "../../..");
+  const reason = "Function 'fixture' has a complexity of 10. Maximum allowed is 9.";
+  writeFileSync(report, JSON.stringify([
+    { filePath: path.join(repo, "apps/website/src/features/fixture-drift.ts"), messages: [
+      { ruleId: "complexity", message: reason }, { ruleId: "unrelated-rule", message: "ignore" },
+    ] },
+    { filePath: path.join(repo, "apps/website/src/features/__tests__/fixture.test.ts"), messages: [{ ruleId: "complexity", message: reason }] },
+  ]));
+  const run = () => spawnSync(process.execPath, ["--import", "tsx", path.resolve(import.meta.dirname, "../check-src-complexity-drift.ts")], {
+    cwd: repo, encoding: "utf8", env: { ...process.env, PATH: `${scratch}${path.delimiter}${process.env.PATH ?? ""}` },
+  });
+  const failing = run();
+  assert.equal(failing.status, 1, failing.stderr);
+  assert.match(failing.stderr, /1 NEW/);
+  assert.ok(failing.stderr.includes(`[complexity] apps/website/src/features/fixture-drift.ts: ${reason}`));
+  assert.doesNotMatch(failing.stderr, /fixture\.test\.ts|unrelated-rule/);
+  assert.deepEqual(JSON.parse(readFileSync(recording, "utf8")), [
+    "eslint", "--no-error-on-unmatched-pattern", "--ignore-pattern", "**/__tests__/**",
+    "--ignore-pattern", "**/__measurements__/**", "--rule",
+    JSON.stringify({ complexity: ["error", 9], "sonarjs/cognitive-complexity": ["error", 9] }), "-f", "json",
+    "apps/website/src/server", "apps/website/src/assistant", "apps/website/src/features", "apps/website/src/widgets",
+    "apps/website/src/seo", "apps/website/src/analytics", "apps/website/src/media", "apps/site-chat/src",
+  ]);
+  writeFileSync(report, "[]");
+  const clean = run();
+  assert.equal(clean.status, 0, clean.stderr);
+  assert.match(clean.stdout, /0 new complexity violations/);
+});
 
 /**
  * @file Direct coverage for `diffAgainstBaseline`'s multiset behavior — the load-bearing part of

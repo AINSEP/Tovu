@@ -76,6 +76,36 @@ function runScript(dbPath: string, extraArgs: string[] = []): string {
   });
 }
 
+test("backfill-media-slugs: a slug assigned after planning survives and is reported as skipped", (t) => {
+  const scratch = tmpDir("backfill-media-slugs-race-");
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  const dbPath = path.join(scratch, "content.db");
+  seedDb(dbPath, [{ id: "row-race", workspaceId: "ws-1", title: "Old title", slug: null }]);
+  const preload = path.join(scratch, "rotate-slug.mjs");
+  // Interleave a real SQLite write at the existing asynchronous restore-point boundary.
+  // Planning, backup and the guarded UPDATE remain production code.
+  const dbOpsUrl = new URL("../../../apps/website/src/platform/db/sqlite/db-ops.ts", import.meta.url).href;
+  const contentDbUrl = new URL("../../../apps/website/src/platform/db/sqlite/content-db.ts", import.meta.url).href;
+  fs.writeFileSync(preload, `
+    import { SqliteDbOpsAdapter } from ${JSON.stringify(dbOpsUrl)};
+    import { openContentDb } from ${JSON.stringify(contentDbUrl)};
+    const capture = SqliteDbOpsAdapter.prototype.captureRestorePoint;
+    SqliteDbOpsAdapter.prototype.captureRestorePoint = async function (...args) {
+      const point = await capture.apply(this, args);
+      const db = openContentDb(${JSON.stringify(dbPath)});
+      try { db.$client.prepare("UPDATE media SET slug = 'editor-chosen-slug' WHERE id = 'row-race'").run(); }
+      finally { db.$client.close(); }
+      return point;
+    };
+  `);
+  const output = execFileSync(process.execPath, ["--import", "tsx", "--import", preload, SCRIPT, "--db", dbPath, "--apply"], {
+    cwd: REPO_ROOT, encoding: "utf8",
+  });
+  assert.deepEqual(readSlugs(dbPath), { "row-race": "editor-chosen-slug" });
+  assert.match(output, /SKIPPED \(slug set concurrently since read\): id=row-race workspace=ws-1\./);
+  assert.match(output, /Done: 0 row\(s\) backfilled with a new slug\./);
+});
+
 test("backfill-media-slugs: derives per-title slugs, suffixes a same-base collision, isolates per workspace, and defaults a blank title to 'untitled'", () => {
   const scratch = tmpDir("backfill-media-slugs-");
   const dbPath = path.join(scratch, "content.db");

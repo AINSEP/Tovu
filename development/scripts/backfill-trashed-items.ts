@@ -53,7 +53,7 @@ import path from "node:path";
 
 import type Database from "better-sqlite3";
 
-import { COMMENTS_PLUGIN_ID } from "../../apps/website/src/features/comments/index.js";
+import { COMMENTS_PLUGIN_ID } from "@jini-ai/cms/comments";
 import { computePurgeAfter, TRASH_RETENTION_DAYS } from "../../apps/website/src/features/trash/index.js";
 import { openContentDb, openContentDbReadOnly } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";

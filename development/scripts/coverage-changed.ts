@@ -57,7 +57,9 @@ export function normalizeCoveragePath({ repo, cwd, file }: { repo: string; cwd: 
   return normalizeFile(repo, file.startsWith("file:") ? fileURLToPath(file) : path.resolve(cwd, file));
 }
 
-export function collectChanged({ repo, input, ports }: { repo: string; input: string; ports: CoveragePorts }, _optional: Optional = {}) {
+export function collectChanged({ repo, input, ports }: { repo: string; input: string; ports: CoveragePorts }, _optional: Optional = {}): {
+  paths: string[]; deleted: string[]; reportedTests: string[]; kind: "report" | "git";
+} {
   const reportPath = path.resolve(repo, input);
   if (ports.isFile({ file: reportPath })) {
     const report = parseJobReport({ text: ports.readText({ file: reportPath }) });

@@ -202,6 +202,8 @@ export interface StringToken {
   /** code text immediately preceding the opening quote, trimmed — used to tell an import specifier
    *  from any other literal */
   readonly precedingCode: string;
+  /** Byte offset immediately after the closing quote, for recognizing a module URL's base. */
+  readonly end: number;
 }
 
 /** Matches the tail of the code preceding a string literal when that literal is a module specifier:
@@ -272,6 +274,7 @@ export function tokenizeStringLiterals(source: string): readonly StringToken[] {
       line: lineOf(code, open),
       isTemplate: quote === "`",
       precedingCode: code.slice(lastCodeEnd, open).trimEnd(),
+      end: close + 1,
     });
     i = close + 1;
     lastCodeEnd = i;
@@ -292,10 +295,16 @@ export function tokenizeStringLiterals(source: string): readonly StringToken[] {
  * @complexity O(n) in source length.
  */
 export function extractRelativeImportSpecifiers(source: string): readonly { specifier: string; line: number }[] {
-  return tokenizeStringLiterals(source)
+  const code = stripComments(source);
+  return tokenizeStringLiterals(code)
     .filter((t) => !t.isTemplate)
     .filter((t) => t.value.startsWith("./") || t.value.startsWith("../"))
-    .filter((t) => IMPORT_POSITION.test(t.precedingCode))
+    // A URL explicitly based on import.meta.url shares the importer's directory, never the CWD.
+    // Keep it in class 1 so the same literal cannot also be reported as a repo-root path.
+    .filter((t) => IMPORT_POSITION.test(t.precedingCode) || (
+      /\bnew\s+URL\s*\(\s*$/.test(t.precedingCode)
+      && /^\s*,\s*import\.meta\.url\s*\)/.test(code.slice(t.end))
+    ))
     .map((t) => ({ specifier: t.value, line: t.line }));
 }
 

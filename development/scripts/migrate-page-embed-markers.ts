@@ -55,7 +55,7 @@
 import path from "node:path";
 
 import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
-import { scanEmbedMarkers, describeRejection } from "../../apps/website/src/contracts/core/embeds/marker.js";
+import { scanEmbedMarkers, describeRejection } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../apps/website/src/contracts/core/entry-refs/extractor.js";
 import { SqliteEntryRefsRepo } from "../../apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
@@ -276,8 +276,8 @@ function reportRow(plan: RowPlan): void {
 /** The shared parser is the authority on whether the rewrite produced a valid marker — never this
  * script's own pattern. A body that comes back with rejections is not written. */
 function verifyRewrite(plan: RowPlan): string[] {
-  const { rejected } = scanEmbedMarkers(plan.after);
-  return rejected.map((r) => `${plan.slug} (${plan.id}): ${describeRejection(r)}`);
+  const { rejected } = scanEmbedMarkers({ html: plan.after });
+  return rejected.map((r) => `${plan.slug} (${plan.id}): ${describeRejection({ rejection: r })}`);
 }
 
 /** Print the reversal statements, then write. Reversal FIRST and unconditionally: if the write step

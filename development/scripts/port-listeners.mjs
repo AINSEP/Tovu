@@ -38,14 +38,17 @@ export function parseLsofListeners(stdout) {
 }
 
 /**
+ * Runs the synchronous dev-launcher lookup; the subprocess is injectable without module mocks.
+ *
  * @param {number} port
+ * @param {{spawnSync?: typeof spawnSync}} [deps] - defaults to Node's subprocess runner.
  * @returns {{pid: string, command: string}[]} processes listening on `port`; empty when the port is
  *   free, and also when `lsof` is unavailable or errors — callers treat "cannot tell" as "no
  *   conflict to report" rather than refusing to start over a missing tool.
  * @complexity One `lsof` process; O(n) in its output.
  */
-export function listenersOn(port) {
-  const out = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-F", "pc"], {
+export function listenersOn(port, { spawnSync: run = spawnSync } = {}) {
+  const out = run("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-F", "pc"], {
     encoding: "utf8",
   });
   if (out.status !== 0 || !out.stdout) return [];

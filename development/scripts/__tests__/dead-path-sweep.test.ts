@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+
+test("sweepFiles emits the complete finding for a planted single-segment path.join", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dead-path-sweep-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  // Keep the file at repo root: zero leading '..' segments must match its directory depth.
+  const file = "planted.ts";
+  // The classifier derives known directory names from the tree, as it does in the real repo.
+  fs.mkdirSync(path.join(root, "apps/website/src"), { recursive: true });
+  fs.writeFileSync(path.join(root, file), 'const SRC_ROOT = path.join(REPO_ROOT, "src");\n');
+  assert.deepEqual(sweepFiles({ repoRoot: root, files: [file] }), [{
+    file, line: 1, kind: "path-join-call", specifier: "src", attempted: ["src"],
+  }]);
+});
 
 import {
   SKIP_REASONS,
@@ -186,7 +200,7 @@ const UNRUN_ONE_SHOT =
  * to park an entry; "CI won't notice because continue-on-error" is not a reason at all.
  */
 const KNOWN_BROKEN_PENDING_OWNER_DECISION: Readonly<Record<string, KnownBrokenEntry>> = {
-  ...known("development/scripts/theme-tool.ts", UNRUN_ONE_SHOT, ["../../src/features/theme/theme.js"]),
+  // theme-tool.ts now delegates to the live Jini theme owner; its former suppression is retired.
   ...known(
     "development/scripts/write-path-inventory.ts",
     `${UNRUN_ONE_SHOT} Note this script builds its own ROOT as development/, not the repo root, so ` +
@@ -230,8 +244,24 @@ test("known-broken register has no stale entries — every listed reference is s
   );
 });
 
-test("known-broken register is exactly the 2 references remaining after B4/A23 removed the agent-plugin CLI entries — growth needs a deliberate edit", () => {
-  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 2);
+test("known-broken register is exactly the 1 reference remaining after the theme-tool repair — growth needs a deliberate edit", () => {
+  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 1);
+});
+
+test("module-relative fixture URLs resolve beside the importer and still report missing files", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dead-path-module-url-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const file = "development/evals/planted.ts";
+  fs.mkdirSync(path.join(root, "development/evals/fixtures"), { recursive: true });
+  fs.writeFileSync(path.join(root, "development/evals/fixtures/present.json"), "{}");
+  fs.writeFileSync(path.join(root, file), [
+    'const present = new URL("./fixtures/present.json", import.meta.url);',
+    'const missing = new URL("./fixtures/missing.json", import.meta.url);',
+  ].join("\n"));
+  assert.deepEqual(sweepFiles({ repoRoot: root, files: [file] }), [{
+    file, line: 2, kind: "relative-import", specifier: "./fixtures/missing.json",
+    attempted: ["development/evals/fixtures/missing.json"],
+  }]);
 });
 
 test("every known-broken entry carries a non-empty rationale", () => {

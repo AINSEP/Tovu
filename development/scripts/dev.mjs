@@ -57,6 +57,13 @@ if (loadRepoRootEnvFile(REPO_ROOT)) {
   console.log("tovu dev: loaded .env");
 }
 
+/** Explain inherited deployment credentials at startup without disclosing their value. @complexity O(1). */
+export function warnInheritedAdminPassword({ env }, { warn = console.warn } = {}) {
+  if (env.TOVU_ADMIN_PASSWORD !== undefined) {
+    warn("tovu dev: TOVU_ADMIN_PASSWORD is ignored for newly created sites; it still applies to the serving site's first-boot owner seeding when no owner exists.");
+  }
+}
+
 const API_PORT = Number(process.env.PORT ?? 3000);
 const VITE_PORT = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
 // Mirrors apps/website/src/index.ts's own default. Checked here so a squatter is reported by name at startup
@@ -517,6 +524,7 @@ function resolveMkcertRootCaPath(tlsActive) {
 }
 
 async function main() {
+  warnInheritedAdminPassword({ env: process.env });
   preflight();
 
   const tlsActive = resolveDevTlsActive({
@@ -544,6 +552,7 @@ async function main() {
     /* no stale request */
   }
   apiEnv[DEV_RESTART_REQUEST_FILE_ENV] = restartRequestFile;
+  apiEnv.TOVU_DEV_SITE_PINNED = SHELL_TOVU_SITE === undefined ? "0" : "1";
   const apiRestarter = createApiRestarter({
     startApi: (env) => start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], env),
     stopChild: (child) => stopChildGroup(child),

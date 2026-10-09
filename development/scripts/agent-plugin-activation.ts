@@ -21,7 +21,7 @@
 import { agentPluginActivations } from "../../apps/website/src/features/agent-plugins/activation-effects.js";
 const { isAgentPluginActive, readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import { resolveAgentPluginLayout } from "../../apps/website/src/features/agent-plugins/layout.js";
-import { listInstalledPlugins } from "../../apps/website/src/features/agent-plugins/resolve-agent-plugin-refs.js";
+import { listInstalledPlugins } from "../../apps/website/src/features/agent-plugins/lifecycle.js";
 
 const USAGE =
   "Usage: npx tsx development/scripts/agent-plugin-activation.ts list    --workspace <uuid>\n" +
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
   }
 
   if (parsed.command === "list") {
-    const installed = await listInstalledPlugins(workspaceLayout.packages);
+    const installed = await listInstalledPlugins(workspaceLayout.root);
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
 
     if (installed.length === 0) {

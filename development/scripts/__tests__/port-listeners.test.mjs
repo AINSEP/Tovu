@@ -1,7 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { listenersOn, parseLsofListeners } from "../port-listeners.mjs";
 
-import { parseLsofListeners } from "../port-listeners.mjs";
+test("listenersOn passes the exact TCP port to lsof and handles populated, empty and unavailable results", () => {
+  const calls = [];
+  let result = { status: 0, stdout: "p41207\ncnode\np41310\ncvite\n" };
+  const deps = {
+    spawnSync: (...args) => { calls.push(args); return result; },
+  };
+  const populated = listenersOn(7852, deps);
+  assert.deepEqual(calls, [["lsof", ["-nP", "-iTCP:7852", "-sTCP:LISTEN", "-F", "pc"], { encoding: "utf8" }]]);
+  assert.deepEqual(populated, [{ pid: "41207", command: "node" }, { pid: "41310", command: "vite" }]);
+  result = { status: 0, stdout: "" };
+  assert.deepEqual(listenersOn(7852, deps), []);
+  result = { status: 1, stdout: "p41207\ncnode\n" };
+  assert.deepEqual(listenersOn(7852, deps), []);
+  result = { status: null, stdout: undefined, error: Object.assign(new Error("missing lsof"), { code: "ENOENT" }) };
+  assert.deepEqual(listenersOn(7852, deps), []);
+  assert.deepEqual(calls, Array(4).fill(["lsof", ["-nP", "-iTCP:7852", "-sTCP:LISTEN", "-F", "pc"], { encoding: "utf8" }]));
+});
 
 /**
  * @file `parseLsofListeners` — the `lsof -F pc` parse that `development/scripts/dev.mjs`'s port

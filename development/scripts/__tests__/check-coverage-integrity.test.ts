@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
@@ -18,6 +20,51 @@ import {
 } from "../check-coverage-integrity.js";
 
 const REPO_ROOT = path.join(import.meta.dirname, "..", "..", "..");
+
+test("SEVERE requires at least 30 DA records and every hit count to match the wrapper", () => {
+  for (const [da, severe] of [
+    [Array(29).fill(7), false],
+    [Array(30).fill(7), true],
+    [[...Array(29).fill(7), 99], false],
+  ] as const) {
+    const verdict = classifyBlock({ file: "src/floor-fixture.ts", fnda: [{ name: "__toCommonJS", hits: 7 }], da });
+    assert.equal(verdict.status, "contaminated");
+    assert.equal(verdict.severe, severe, JSON.stringify(da));
+  }
+});
+
+test("CLI gates severe/new contamination and captures a usable exact baseline", (t) => {
+  const scratch = mkdtempSync(path.join(tmpdir(), "coverage-integrity-cli-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const lcov = path.join(scratch, "fixture.lcov");
+  const baseline = path.join(scratch, "baseline.json");
+  const run = (...extra: string[]) => spawnSync(process.execPath, [
+    "--import", "tsx", path.join(REPO_ROOT, "development/scripts/check-coverage-integrity.ts"),
+    lcov, "--baseline", baseline, ...extra,
+  ], { cwd: REPO_ROOT, encoding: "utf8" });
+  const writeLcov = (lines: number) => writeFileSync(lcov,
+    `SF:src/cli-contamination-fixture.ts\nFNDA:7,__toCommonJS\n` +
+    Array.from({ length: lines }, (_, i) => `DA:${i + 1},7`).join("\n") + "\nend_of_record\n");
+  writeFileSync(baseline, JSON.stringify({ _comment: ["fixture"], knownContaminated: ["src/cli-contamination-fixture.ts"] }));
+  writeLcov(30);
+  const severe = run();
+  assert.equal(severe.status, 1, severe.stderr);
+  assert.match(severe.stderr, /1 SEVERE/);
+  writeLcov(29);
+  const known = run();
+  assert.equal(known.status, 0, known.stderr);
+  assert.match(known.stderr, /0 NEW, 1 known/);
+  writeFileSync(baseline, JSON.stringify({ _comment: ["fixture"], knownContaminated: [] }));
+  const added = run();
+  assert.equal(added.status, 1, added.stderr);
+  assert.match(added.stderr, /1 NEW/);
+  const captured = run("--update-baseline");
+  assert.equal(captured.status, 0, captured.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(baseline, "utf8")), {
+    _comment: ["fixture"], knownContaminated: ["src/cli-contamination-fixture.ts"],
+  });
+  assert.equal(run().status, 0);
+});
 function readRealSource(repoRelativeFile: string): string {
   // 168d8c276 moved the live exporter to features/site-export. Keep the frozen LCOV's
   // historical SF path and provenance intact while resolving its corresponding live source.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -7,6 +8,7 @@ import { fileURLToPath } from "node:url";
 // not `development/`'s.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const ADMIN_ROOT = path.join(REPO_ROOT, "apps/admin");
+const ADMIN_VERSION = JSON.parse(readFileSync(path.join(ADMIN_ROOT, "package.json"), "utf8")).version;
 const { resolveConfig } = await import(
   path.join(ADMIN_ROOT, "node_modules/vite/dist/node/index.js")
 );
@@ -67,7 +69,7 @@ test("the version define survives the plugin's own define merge", async () => {
   // it would drop `__TOVU_ADMIN_VERSION__` and throw `ReferenceError` in `lib/app-version.ts`.
   const config = await resolveAdminConfig();
 
-  assert.ok(config.define.__TOVU_ADMIN_VERSION__, "__TOVU_ADMIN_VERSION__ must still be defined");
+  assert.equal(config.define.__TOVU_ADMIN_VERSION__, JSON.stringify(ADMIN_VERSION));
 });
 
 test("a build gets the define too — it is dead code there, but it must not be missing", async () => {
@@ -77,4 +79,22 @@ test("a build gets the define too — it is dead code there, but it must not be 
   );
 
   assert.equal(typeof config.define.__TOVU_ADMIN_DEV_PORT__, "string");
+  assert.equal(config.define.__TOVU_ADMIN_VERSION__, JSON.stringify(ADMIN_VERSION));
+});
+
+test("the real dev plugin redirects bare /admin, preserves the query, and passes other paths onward", async () => {
+  const config = await resolveAdminConfig();
+  const plugin = config.plugins.find((entry) => entry.name === "tovu:redirect-bare-admin");
+  assert.ok(plugin);
+  const registered = [];
+  await plugin.configureServer({ middlewares: { use: (middleware) => registered.push(middleware) } });
+  assert.equal(registered.length, 1);
+  for (const [url, location] of [["/admin", "/admin/"], ["/admin?tab=posts", "/admin/?tab=posts"], ["/admin/", null], ["/administrator", null]]) {
+    const trace = [];
+    registered[0]({ url }, {
+      writeHead: (status, headers) => trace.push({ status, headers }),
+      end: () => trace.push("end"),
+    }, () => trace.push("next"));
+    assert.deepEqual(trace, location === null ? ["next"] : [{ status: 301, headers: { Location: location } }, "end"]);
+  }
 });

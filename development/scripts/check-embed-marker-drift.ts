@@ -76,7 +76,7 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
-import { scanEmbedMarkers, describeRejection } from "../../apps/website/src/contracts/core/embeds/marker.js";
+import { scanEmbedMarkers, describeRejection } from "@jini-ai/cms/widgets/markers";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const dirFlagIndex = process.argv.indexOf("--dir");
@@ -156,8 +156,8 @@ function findRetiredAttrFindings(file: string, html: string): Finding[] {
 /** Check 2 for one file: every `data-embed-config` marker must parse and carry a `type`, asked of
  * `scanEmbedMarkers`'s own `rejected` list — never a second, drift-prone parser. */
 function findRejectedMarkerFindings(file: string, html: string): Finding[] {
-  const { rejected } = scanEmbedMarkers(html);
-  return rejected.map((r) => ({ file, line: lineAt(html, r.index), message: describeRejection(r) }));
+  const { rejected } = scanEmbedMarkers({ html });
+  return rejected.map((r) => ({ file, line: lineAt(html, r.index), message: describeRejection({ rejection: r }) }));
 }
 
 /** The retired post-template-slot placeholder value — see check 3b's own doc above. */

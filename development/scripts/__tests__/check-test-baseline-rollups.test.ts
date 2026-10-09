@@ -1,7 +1,39 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { isFileLevelRollup } from "../check-test-baseline.js";
+
+test("CLI ignores TAP roll-ups, gates genuine new failures, and captures descriptions only", (t) => {
+  const scratch = mkdtempSync(path.join(tmpdir(), "test-baseline-cli-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const baseline = path.join(scratch, "baseline.json");
+  const tap = path.join(scratch, "fixture.tap");
+  writeFileSync(baseline, JSON.stringify({ _comment: ["fixture"], knownFailures: ["known debt"] }));
+  const oldFailures = "TAP version 13\nnot ok 1 - src/fixture.test.ts\n    not ok 1 - known debt\n";
+  writeFileSync(tap, oldFailures + "    not ok 2 - a real regression\n");
+  const run = (...extra: string[]) => spawnSync(process.execPath, [
+    "--import", "tsx", path.resolve(import.meta.dirname, "../check-test-baseline.ts"), baseline, tap, ...extra,
+  ], { encoding: "utf8" });
+  const failing = run();
+  assert.equal(failing.status, 1, failing.stderr);
+  assert.match(failing.stderr, /1 NEW failing test\(s\)/);
+  assert.match(failing.stderr.split("1 NEW failing test(s)")[1], /\n  - a real regression\n/);
+  assert.doesNotMatch(failing.stderr.split("1 NEW failing test(s)")[1], /src\/fixture\.test\.ts|known debt/);
+  writeFileSync(tap, oldFailures);
+  const known = run();
+  assert.equal(known.status, 0, known.stderr);
+  assert.match(known.stderr, /informational, NOT gated/);
+  writeFileSync(tap, oldFailures + "    not ok 2 - a real regression\n");
+  const captured = run("--capture");
+  assert.equal(captured.status, 0, captured.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(baseline, "utf8")), {
+    _comment: ["fixture"], knownFailures: ["a real regression", "known debt"],
+  });
+});
 
 /**
  * @file Coverage for `isFileLevelRollup`, the classifier that stops `check:route-test-baseline`

@@ -4,6 +4,6 @@
     "rootDir": "..",
     "noEmit": true
   },
-  "include": ["scripts/*.ts", "scripts/lib/**/*.ts"],
+  "include": ["scripts/*.ts", "scripts/lib/**/*.ts", "../apps/website/src/server/http/cookie.d.ts"],
   "exclude": ["node_modules", "dist", "**/__tests__/**", "**/*.test.ts"]
 }
