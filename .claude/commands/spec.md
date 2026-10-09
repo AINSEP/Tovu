@@ -29,7 +29,7 @@ That contract owns:
 - Numbered workflow steps
 - Clarification rules
 - Validation command
-- Readiness gate (hard gate before `/plan`)
+- Readiness gate (hard gate before `/architect`)
 
 Do not duplicate provider-specific rules here. The compatibility contract is the single source of truth.
 
@@ -67,7 +67,7 @@ When the active provider is `bmad`:
 4. Resolve the spec artifact target. Default to `<ADS_MEMORY_ROOT>/specs/<NNN>-<feature-name>/` unless the user explicitly specified another durable project-owned location.
 5. Create `<ADS_MEMORY_ROOT>/reports/pipeline/<NNN>-<feature-name>/`. Record `spec_provider`, `provider_native_root`, `provider_output_root`, `spec_entrypoint_path`, `spec_readiness_artifact`, `spec_hash`, validator status, and any provider-specific fields in `pipeline-state.md`.
 6. Follow the provider's compatibility contract for artifact creation, clarification, and validation.
-7. Once the provider's readiness gate passes: output the spec package path and readiness for `/plan`.
+7. Once the provider's readiness gate passes: output the spec package path and readiness for `/architect`.
 
 ---
 
@@ -79,4 +79,4 @@ When the active provider is `bmad`:
 - Content hash
 - Provider readiness gate result (all checks passing / items failing)
 - Open questions (if any)
-- Recommended next command (`/plan`)
+- Recommended next command (`/architect`)
