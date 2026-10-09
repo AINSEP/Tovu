@@ -76,7 +76,7 @@ import {
 import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
-import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
@@ -1882,6 +1882,10 @@ async function composeSiteRouteDeps(
   // One array shared by `routeDeps.themes` (below) and the theme-files apply's refresh hook, so a
   // published theme's partials/pages re-render without a restart (`rescanThemes` refills IN PLACE).
   const siteThemes = discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" });
+  // Records what the folder looked like at discovery, so the first theme change ANOTHER process
+  // makes (the agent daemon's `theme_duplicate`, or the web server's admin Duplicate seen from the
+  // daemon) is noticed by this one. See `theme-roster-sync.ts`.
+  syncThemeRoster({ themes: siteThemes, themesDir: resolvedThemesDir });
   // `theme` joins the Trash here rather than in `trashAdapters`' literal above: its adapter rescans
   // `siteThemes` after every move, and the Trash resolves adapters at call time, so this `set` is seen
   // by every later trash/restore/purge (`theme_trash`, `trash_restore_item`, the admin Trash screen).

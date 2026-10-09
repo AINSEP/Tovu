@@ -32,6 +32,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  */
 import { resolve } from "node:path";
 import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
+import { syncThemeRoster } from "./theme-roster-sync.js";
 import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -1008,11 +1009,20 @@ export function buildThemesRegistrations(
     },
   };
 
+  // Every handler here reads the roster, and another process (the web server's admin Duplicate or
+  // Trash, a second daemon, a CLI) may have changed the themes folder since this one last looked —
+  // so each call syncs first: an id created elsewhere is found, an id trashed elsewhere is not.
+  // No-op when nothing changed. See `theme-roster-sync.ts`.
+  const syncedHandlers = Object.fromEntries(Object.entries(handlers).map(([id, handler]): [string, ToolHandler] => [id, (ctx, options) => {
+    syncThemeRoster({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+    return handler(ctx, options);
+  }]));
+
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "themes",
     catalogModule: "features/theme/agent-tools.ts",
     catalog: CATALOG_BY_ID,
-    handlers,
+    handlers: syncedHandlers,
     derivedRisk: themesDerivedRisk,
   });
 }

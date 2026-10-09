@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from "express";
-import { loadTheme, readThemePreviewRefresh, requestThemePreviewRefresh } from "#src/features/theme/index";
+import { requestThemePreviewRefresh, syncThemeRoster } from "#src/features/theme/index";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -11,17 +11,21 @@ export function freshThemePreviewHtml(
   return html.replaceAll("/theme-assets/", `/theme-preview-assets/${encodeURIComponent(revision)}/`);
 }
 
-/** A query token opts into authenticated preview rendering; ordinary public caching is untouched. */
+/**
+ * A query token opts into authenticated preview rendering; ordinary public caching is untouched.
+ *
+ * `syncThemes` runs ahead of EVERY request except a theme asset's — public pages, the admin API
+ * (the Themes screen lists the roster; the active-theme PATCH validates against it) and previews
+ * alike — and must be a cheap no-op when nothing changed (`syncThemeRoster`). It used to run for
+ * public GETs only and to re-load just the themes this process already had, which is how a theme the
+ * agent daemon created and activated stayed unknown here until a manual Rescan (2026-10-08). Asset
+ * requests skip it: a page load fans out into dozens of them, and the page request ahead of them has
+ * already synced.
+ */
 export function createThemePreviewMiddleware(
-  { authenticate, refreshThemes, readRevision, rememberRevision }: { authenticate: RequestHandler; refreshThemes: () => void; readRevision?: () => string | null; rememberRevision?: (required: { revision: string }, optional: {}) => void },
+  { authenticate, syncThemes, rememberRevision }: { authenticate: RequestHandler; syncThemes: () => void; rememberRevision?: (required: { revision: string }, optional: {}) => void },
   _optional: Record<string, never> = {},
 ): RequestHandler {
-  let loadedRevision: string | null | undefined = readRevision?.();
-  const reloadChanged = (revision: string | null) => {
-    if (revision === loadedRevision) return;
-    refreshThemes();
-    loadedRevision = revision;
-  };
   return (req, res, next) => {
     const isAsset = /^\/(?:theme-assets|theme-preview-assets)(?:\/|$)/.test(req.path ?? "");
     const revision = req.query.__tovu_preview;
@@ -29,8 +33,7 @@ export function createThemePreviewMiddleware(
       try {
         // The outer desktop guest uses public URLs. Daemon writes must update its render maps too,
         // while visitor caching and the asset response bytes keep their ordinary public behavior.
-        if (readRevision && req.method === "GET" && !/^\/(?:api|admin|theme-assets|theme-preview-assets)(?:\/|$)/.test(req.path ?? ""))
-          reloadChanged(readRevision());
+        if (!isAsset) syncThemes();
       } catch (error) { next(error); return; }
       next();
       return;
@@ -42,9 +45,7 @@ export function createThemePreviewMiddleware(
       }
       try {
         // The daemon and external editors do not update this process's boot-time source maps.
-        if (!isAsset) {
-          reloadChanged(readRevision ? readRevision() : revision);
-        }
+        if (!isAsset) syncThemes();
         rememberRevision?.({ revision }, {});
         res.locals ??= {};
         res.locals.themePreviewRevision = revision;
@@ -76,16 +77,8 @@ export function registerThemePreviewRefresh(
         authenticatedRevisions.add(revision);
         if (authenticatedRevisions.size > 512) authenticatedRevisions.delete(authenticatedRevisions.values().next().value!);
       },
-      readRevision: () => readThemePreviewRefresh({ themesDir: deps.themesDir })?.revision ?? null,
-      refreshThemes: () => {
-        for (let index = 0; index < deps.themes.length; index++) {
-          const theme = deps.themes[index];
-          deps.themes[index] = loadTheme({
-            themeDir: theme.dir,
-            id: theme.manifest.id,
-            source: theme.source,
-          });
-        }
+      syncThemes: () => {
+        syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
       },
     }),
   );

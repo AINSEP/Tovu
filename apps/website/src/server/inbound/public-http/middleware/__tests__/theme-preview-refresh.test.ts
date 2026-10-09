@@ -31,7 +31,7 @@ test("authenticated preview refreshes registry before rendering and overrides pu
       order.push("authenticate");
       next();
     },
-    refreshThemes: () => order.push("refresh"),
+    syncThemes: () => order.push("refresh"),
   });
   await handler({ query: { __tovu_preview: "revision-1" } } as never, res as never, () => {
     order.push("render");
@@ -43,7 +43,7 @@ test("authenticated preview refreshes registry before rendering and overrides pu
   assert.equal(sent, '<script src="/theme-preview-assets/revision-1/test/js/main.js"></script>');
 });
 
-test("normal visitor does not authenticate, reload themes, rewrite assets, or change caching", async () => {
+test("normal visitor does not authenticate, rewrite assets, or change caching (the roster sync still runs)", async () => {
   const headers: Record<string, string> = {};
   let sent = "";
   const res = {
@@ -56,9 +56,10 @@ test("normal visitor does not authenticate, reload themes, rewrite assets, or ch
       return res;
     },
   };
+  let syncs = 0;
   const handler = createThemePreviewMiddleware({
     authenticate: () => assert.fail("public auth"),
-    refreshThemes: () => assert.fail("public reload"),
+    syncThemes: () => { syncs++; },
   });
   handler({ query: {} } as never, res as never, () => {
     res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
@@ -66,12 +67,13 @@ test("normal visitor does not authenticate, reload themes, rewrite assets, or ch
   });
   assert.equal(sent, "/theme-assets/test/css/theme.css");
   assert.equal(headers["Cache-Control"], "public, max-age=60, stale-while-revalidate=300");
+  assert.equal(syncs, 1);
 });
 
 test("denied preview never refreshes themes or renders", () => {
   const handler = createThemePreviewMiddleware({
     authenticate: () => {},
-    refreshThemes: () => assert.fail("unauthenticated reload"),
+    syncThemes: () => assert.fail("unauthenticated reload"),
   });
   handler({ query: { __tovu_preview: "revision-1" } } as never, {} as never, () =>
     assert.fail("unauthenticated render"),
@@ -124,26 +126,9 @@ test("preview asset handler disables storage and validators while normal asset o
   assert.deepEqual(options, [{ cacheControl: false, etag: false, lastModified: false }, {}]);
 });
 
-test("unchanged durable revision reloads themes once across HTML and asset requests", () => {
-  let loads = 0;
-  let durable = "boot";
-  const handler = createThemePreviewMiddleware({
-    authenticate: (_req, _res, next) => next(),
-    refreshThemes: () => { loads++; },
-    readRevision: () => durable,
-  });
-  const request = (revision: string) => {
-    const res = { locals: {}, send: () => res, set: () => res };
-    handler({ query: { __tovu_preview: revision } } as never, res as never, () => {});
-  };
-  durable = "saved-1";
-  request("frame-1");
-  request("frame-2");
-  assert.equal(loads, 1);
-  durable = "saved-2";
-  request("frame-3");
-  assert.equal(loads, 2);
-});
+// "Reload once per durable change" moved to `syncThemeRoster`'s own suite
+// (`features/theme/__tests__/theme-roster-sync.test.ts`): the middleware now only decides WHEN to
+// sync (every non-asset request), and the roster sync decides WHETHER anything changed.
 
 test("authenticated preview CSS versions absolute local fonts, images and imports only", async (t) => {
   const fs = await import("node:fs");
@@ -163,7 +148,7 @@ test("authenticated preview CSS versions absolute local fonts, images and import
   });
   const previewHandler = createThemePreviewMiddleware({
     authenticate: (req, _res, next) => { assert.equal(req.path, "/about", "anonymous subresource requests must remain public"); next(); },
-    refreshThemes: () => {}, rememberRevision: ({ revision }) => { authenticated.add(revision); },
+    syncThemes: () => {}, rememberRevision: ({ revision }) => { authenticated.add(revision); },
   });
   const headers: Record<string, string> = {};
   let sent = "";
@@ -181,16 +166,88 @@ test("authenticated preview CSS versions absolute local fonts, images and import
   assert.equal(sent, css);
 });
 
-test("outer public site reload adopts daemon saves once without changing public cache policy", () => {
-  let durable = "boot", loads = 0;
-  const handler = createThemePreviewMiddleware({
-    authenticate: () => assert.fail("public reload must not authenticate"),
-    readRevision: () => durable, refreshThemes: () => { loads++; },
-  });
-  const res = { set: () => assert.fail("public cache changed"), send: () => res };
-  const request = () => handler({ query: {}, path: "/about", method: "GET" } as never, res as never, () => {});
-  request(); const baseline = loads;
-  durable = "daemon-save";
-  request(); request();
-  assert.equal(loads, baseline + 1);
+/** A minimal valid declarative theme folder (same fixture shape as `theme-trash.test.ts`). */
+function writeDeclarativeTheme(fs: typeof import("node:fs"), dir: string, id: string): void {
+  fs.mkdirSync(`${dir}/templates`, { recursive: true });
+  fs.writeFileSync(`${dir}/theme.json`, JSON.stringify({ id, name: id, version: "1.0.0", tier: "declarative", engine: 1 }));
+  fs.writeFileSync(`${dir}/tokens.json`, '{"--ink":"#000"}');
+  fs.writeFileSync(`${dir}/styles.css`, "body{margin:0}");
+  fs.writeFileSync(`${dir}/templates/home.json`, '{"type":"doc","content":[]}');
+  fs.writeFileSync(`${dir}/templates/entry.json`, '{"type":"doc","content":[]}');
+}
+
+/** The web server's registered middleware over a real themes folder, driven like Express would. */
+async function bootServerRoster(t: import("node:test").TestContext) {
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const { discoverAllBuiltInThemes } = await import("#src/features/theme/index");
+  const { registerThemePreviewRefresh } = await import("../theme-preview-refresh.js");
+  const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-roster-sync-"));
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  writeDeclarativeTheme(fs, path.join(themesDir, "static", "tovu-starter"), "tovu-starter");
+  const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
+  let middleware: Function = () => assert.fail("middleware not registered");
+  const app = { use: (handler: Function) => { middleware = handler; }, post: () => {} };
+  registerThemePreviewRefresh({ app: app as never, deps: { themes, themesDir, workspaceId: "ws", authorize: async () => ({ allowed: true }) } as never });
+  const request = (requestPath: string, method = "GET") =>
+    new Promise<void>((resolve, reject) =>
+      middleware({ query: {}, path: requestPath, method }, { locals: {} }, (error?: unknown) => (error ? reject(error) : resolve())),
+    );
+  return { fs, path, themesDir, themes, request };
+}
+
+test("cross-process: a theme another process created resolves on the server's next public request (no fallback)", async (t) => {
+  const { resolveActiveTheme, requestThemePreviewRefresh } = await import("#src/features/theme/index");
+  const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
+  await request("/");
+
+  // The agent daemon's `theme_duplicate`: a new folder on disk plus the marker bump — nothing in
+  // THIS process's roster is touched.
+  writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
+  requestThemePreviewRefresh({ themesDir });
+
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
+  await request("/");
+  const resolved = resolveActiveTheme({ themes }, "editorial-rose");
+  assert.notEqual(resolved, null);
+  assert.equal(typeof resolved === "object" && resolved?.manifest.id, "editorial-rose");
+  assert.deepEqual(warnings, [], "the active theme must resolve without a fallback warning");
+});
+
+test("cross-process: the admin Themes API sees a new theme without a manual rescan", async (t) => {
+  const { validThemeIds } = await import("#src/features/theme/index");
+  const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
+  await request("/api/admin/v1/workspaces/ws/presentation");
+
+  // An out-of-band folder (a CLI or a copy by hand): no marker bump at all.
+  writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
+
+  await request("/api/admin/v1/workspaces/ws/presentation");
+  assert.deepEqual(validThemeIds(themes).sort(), ["editorial-rose", "tovu-starter"]);
+});
+
+test("cross-process: a theme another process trashed drops out of the server's roster", async (t) => {
+  const { requestThemePreviewRefresh } = await import("#src/features/theme/index");
+  const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
+  await request("/");
+  writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
+  await request("/");
+  assert.ok(themes.some((theme) => theme.manifest.id === "editorial-rose"));
+
+  fs.rmSync(path.join(themesDir, "static", "editorial-rose"), { recursive: true });
+  requestThemePreviewRefresh({ themesDir });
+  await request("/admin/themes");
+  assert.deepEqual(themes.map((theme) => theme.manifest.id), ["tovu-starter"]);
+});
+
+test("theme asset requests never touch the roster", async (t) => {
+  const { requestThemePreviewRefresh } = await import("#src/features/theme/index");
+  const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
+  await request("/");
+  writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
+  requestThemePreviewRefresh({ themesDir });
+  await request("/theme-assets/editorial-rose/styles.css");
+  assert.deepEqual(themes.map((theme) => theme.manifest.id), ["tovu-starter"]);
 });
