@@ -605,7 +605,6 @@ function buildDocsPagerItems(
   return items;
 }
 
-export async function resolveStaticMenusForRender(
 /**
  * One stored menu's render content: its author-written HTML when the menu is in HTML mode (owner
  * 2026-10-08, Jini `menu-html.ts`), else its resolved item tree.
@@ -619,6 +618,7 @@ async function resolveMenuContent(
   return resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref });
 }
 
+export async function resolveStaticMenusForRender(
   deps: TemplateRenderDeps,
   /** `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */
   theme: DiscoveredTheme | null,
