@@ -10,11 +10,13 @@ export const KNOWN_SERVER_LABELS: ReadonlySet<string> = new Set([
   "published", "draft", "active", "trashed", "pending", "approved", "spam", "trash",
   "owner", "recipient", "recipients", "built-in", "site", "tier-1", "tier-2", "tier-3",
   "valid", "invalid", "success", "disabled", "exact", "prefix", "wildcard", "manual", "auto_slug_change", "import",
+  "paused", "delivering", "delivered", "failed", "dead", "canceled",
 ]);
 
 const ENGLISH_LABELS: Readonly<Record<string, string>> = {
   active: "Active", disabled: "Disabled", pending: "Pending", approved: "Approved", spam: "Spam", trash: "Trash",
   exact: "Exact match", prefix: "Starts with", wildcard: "Wildcard", manual: "Manual", auto_slug_change: "URL change", import: "Imported",
+  paused: "Paused", delivering: "Delivering", delivered: "Delivered", failed: "Failed", dead: "Failed permanently", canceled: "Canceled",
 };
 
 export function serverLabel(value: string, locale: string): string {

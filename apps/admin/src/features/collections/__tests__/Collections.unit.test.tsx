@@ -182,7 +182,7 @@ describe("empty and populated list", () => {
     expect(screen.getByText("recipe")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument(); // field count
     expect(screen.getByText("1")).toBeInTheDocument(); // queryable count
-    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Manage entries" })).toHaveAttribute("href", "/admin/collections/recipe");
   });
 });

@@ -69,10 +69,10 @@ describe("delivery table", () => {
     render(
       <IntegrationDeliveries subscriptionId="sub1" useIntegrationDeliveriesHook={() => baseController()} />,
     );
-    expect(screen.getByText("delivered")).toBeInTheDocument();
+    expect(screen.getByText("Delivered")).toBeInTheDocument();
     expect(screen.getByText("200")).toBeInTheDocument();
     expect(screen.getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Status", "Attempts", "Last response", "Timestamp"]);
-    expect(screen.getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["delivered", "3", "200", displayTimestamp(DELIVERY)]);
+    expect(screen.getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["Delivered", "3", "200", displayTimestamp(DELIVERY)]);
     expect(screen.getAllByRole("cell").length).toBeGreaterThan(0);
   });
 

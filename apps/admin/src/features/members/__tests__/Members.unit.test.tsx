@@ -118,11 +118,11 @@ describe("Disable — via RowMenu, confirm-gated", () => {
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/disable"))).toBe(true);
     expect(fetchMock.mock.calls[1][0]).toBe("/api/admin/v1/workspaces/workspace-local/members/m1/disable");
     expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "POST" });
-    await screen.findByText("disabled");
+    await screen.findByText("Disabled");
     const aliceRow = screen.getByText("alice@example.com").closest("tr")!;
     const bobRow = screen.getByText("bob@example.com").closest("tr")!;
-    expect(within(aliceRow).getByText("disabled")).toBeInTheDocument();
-    expect(within(bobRow).getByText("active")).toBeInTheDocument();
+    expect(within(aliceRow).getByText("Disabled")).toBeInTheDocument();
+    expect(within(bobRow).getByText("Active")).toBeInTheDocument();
     expect(dialog).not.toHaveAttribute("open");
   });
 
@@ -139,7 +139,7 @@ describe("Disable — via RowMenu, confirm-gated", () => {
     await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
 
     expect(dialog).not.toHaveAttribute("open");
-    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/disable"))).toBe(false);
   });
 });
