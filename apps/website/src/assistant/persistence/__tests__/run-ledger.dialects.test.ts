@@ -174,6 +174,17 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
     assert.equal((await row(kernel, "a1")).content, "Final");
   });
 
+  test("checkpoint marks a queued row running: a run that is streaming must not read as queued", async () => {
+    const { kernel, ledger } = make();
+    await seed(kernel, [{ id: "a1", content: "", runStatus: "queued", position: 0 }]);
+
+    assert.equal(await ledger.checkpoint({ ...RUN, content: "Half", events: [{ kind: "text", text: "Half" }] }), true);
+    assert.equal((await row(kernel, "a1")).run_status, "running");
+
+    await ledger.settle(settlement("Final"));
+    assert.equal((await row(kernel, "a1")).run_status, "succeeded");
+  });
+
   test("boot cancels unfinished rows when a recovery port is unavailable, preserving saved work", async () => {
     const { kernel, ledger } = make();
     await seed(kernel, [
