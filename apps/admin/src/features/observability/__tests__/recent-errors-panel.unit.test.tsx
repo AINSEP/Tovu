@@ -3,8 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { Observability } from "../Observability";
+import { createFakeRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
 import type { ObservabilityStatusController } from "../hooks/use-observability-status.hooks";
-import type { RecentServerErrorsController } from "../hooks/use-recent-server-errors.hooks";
+import type { RecentServerErrorRow, RecentServerErrorsController } from "../hooks/use-recent-server-errors.hooks";
 
 /** @file The Recent errors tab, driven through both hook seams — no fetch, no real port. */
 
@@ -17,7 +18,26 @@ function errorsController(overrides: Partial<RecentServerErrorsController> = {})
     loading: false,
     error: null,
     refresh: () => {},
+    clipboard: createFakeRecentServerErrorsPort(),
     t: (key: string) => key,
+    ...overrides,
+  };
+}
+
+function row(overrides: Partial<RecentServerErrorRow> = {}): RecentServerErrorRow {
+  return {
+    key: "server\u0000boom",
+    when: "Oct 5, 2026, 12:00:01 PM",
+    at: "2026-10-05T12:00:01.000Z",
+    firstWhen: null,
+    firstAt: null,
+    source: "server",
+    scope: null,
+    summary: "boom",
+    message: "boom",
+    segments: [{ text: "boom" }],
+    count: 1,
+    copyText: "Time: 2026-10-05T12:00:01.000Z\nSource: server\nMessage:\nboom",
     ...overrides,
   };
 }
@@ -31,19 +51,69 @@ async function openRecentErrors(controller: RecentServerErrorsController) {
 }
 
 describe("Observability — Recent errors tab", () => {
-  it("lists error rows newest first with time, source and the full message", async () => {
+  it("lists one collapsed row per error, newest first, with time, source, tag, count and summary", async () => {
     const region = await openRecentErrors(errorsController({
       rows: [
-        { key: "b", when: "Oct 5, 2026, 12:00:02 PM", source: "daemon", message: "newer\n  at stack" },
-        { key: "a", when: "Oct 5, 2026, 12:00:01 PM", source: "server", message: "older" },
+        row({ key: "b", when: "Oct 5, 2026, 12:00:02 PM", at: "2026-10-05T12:00:02.000Z", source: "daemon", scope: "assistant", summary: "daemon unreachable — fetch failed", count: 3 }),
+        row({ key: "a" }),
       ],
     }));
     const items = within(region).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual([
-      "Oct 5, 2026, 12:00:02 PMassistantnewer\n  at stack",
-      "Oct 5, 2026, 12:00:01 PMserverolder",
+    const toggles = items.map((item) => within(item).getByRole("button", { expanded: false }));
+    expect(toggles.map((toggle) => toggle.textContent)).toEqual([
+      "Oct 5, 2026, 12:00:02 PMassistantassistant×3daemon unreachable — fetch failed",
+      "Oct 5, 2026, 12:00:01 PMserverboom",
     ]);
+    expect(within(items[0]).getByText("×3")).toHaveAttribute("title", "Times this error occurred: 3");
+    expect(within(items[0]).getByText("Oct 5, 2026, 12:00:02 PM")).toHaveAttribute("dateTime", "2026-10-05T12:00:02.000Z");
     expect(within(region).queryByText("No errors recorded.")).not.toBeInTheDocument();
+  });
+
+  it("opens and closes the full message, with shortened paths carrying the full path", async () => {
+    const fullPath = "/Users/me/Tovu/apps/website/src/a.ts:1:2";
+    const region = await openRecentErrors(errorsController({
+      rows: [row({
+        firstWhen: "Oct 5, 2026, 11:00:00 AM",
+        firstAt: "2026-10-05T11:00:00.000Z",
+        count: 2,
+        segments: [{ text: "boom\n    at f (" }, { text: "apps/website/src/a.ts:1:2", fullPath }, { text: ")" }],
+      })],
+    }));
+    const toggle = within(region).getByRole("button", { expanded: false });
+    const detail = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(detail).not.toBeVisible();
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(detail).toBeVisible();
+    expect(within(detail).getByText("apps/website/src/a.ts:1:2")).toHaveAttribute("title", fullPath);
+    expect(within(detail).getByText("Oct 5, 2026, 11:00:00 AM")).toHaveAttribute("dateTime", "2026-10-05T11:00:00.000Z");
+    expect(detail.querySelector("code")!.textContent).toBe("boom\n    at f (apps/website/src/a.ts:1:2)");
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(detail).not.toBeVisible();
+  });
+
+  it("shows a placeholder summary for an empty message and no first-seen line for a single error", async () => {
+    const region = await openRecentErrors(errorsController({ rows: [row({ summary: "", message: "", segments: [] })] }));
+    const toggle = within(region).getByRole("button", { expanded: false });
+    expect(toggle).toHaveTextContent("(empty message)");
+    await userEvent.click(toggle);
+    expect(within(region).queryByText(/First seen/)).not.toBeInTheDocument();
+  });
+
+  it("Copy puts the row's paste-ready text on the clipboard and says Copied", async () => {
+    const clipboard = createFakeRecentServerErrorsPort();
+    const region = await openRecentErrors(errorsController({ rows: [row()], clipboard }));
+    const copy = within(region).getByRole("button", { name: "Copy" });
+    expect(copy).toHaveAttribute("title", "Copy the time, source and full message, ready to paste.");
+
+    await userEvent.click(copy);
+    expect(clipboard.copied).toEqual(["Time: 2026-10-05T12:00:01.000Z\nSource: server\nMessage:\nboom"]);
+    expect(await within(region).findByRole("button", { name: "Copied" })).toHaveAttribute("data-copied", "true");
+    // Copy is its own button, not part of the disclosure: copying never opens the row.
+    expect(within(region).getByRole("button", { expanded: false })).toBeInTheDocument();
   });
 
   it("says no errors were recorded when capture is on and the list is empty", async () => {

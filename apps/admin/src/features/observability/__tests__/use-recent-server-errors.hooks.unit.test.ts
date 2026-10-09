@@ -26,13 +26,57 @@ describe("useRecentServerErrors", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(port.queries).toEqual([{ level: "error", limit: RECENT_ERRORS_LIMIT }]);
-    expect(result.current.rows.map((row) => [row.key, row.source, row.message])).toEqual([
-      ["2026-10-05T12:00:02.000Z-2", "daemon", "newer\n  at stack"],
-      ["2026-10-05T12:00:01.000Z-1", "server", "older"],
+    expect(result.current.rows.map((row) => [row.source, row.message, row.count])).toEqual([
+      ["daemon", "newer\n  at stack", 1],
+      ["server", "older", 1],
     ]);
     expect(result.current.rows[0].when).not.toBe("2026-10-05T12:00:02.000Z");
+    expect(result.current.rows[0].at).toBe("2026-10-05T12:00:02.000Z");
+    expect(result.current.rows[0].firstWhen).toBeNull();
+    expect(result.current.rows[0].firstAt).toBeNull();
     expect(result.current.logs).toEqual(LOGS);
     expect(result.current.error).toBeNull();
+  });
+
+  it("groups repeats into one row with summary, shortened-path segments and copy text", async () => {
+    const message = "[assistant] daemon unreachable\nTypeError: fetch failed\n    at f (/Users/me/Tovu/apps/website/src/a.ts:1:2)";
+    const logs: AdminServerLogs = {
+      entries: [
+        { seq: 1, at: "2026-10-05T12:00:01.000Z", level: "error", source: "server", message },
+        { seq: 2, at: "2026-10-05T12:00:02.000Z", level: "error", source: "server", message: "other" },
+        { seq: 3, at: "2026-10-05T12:00:03.000Z", level: "error", source: "server", message },
+      ],
+      matched: 3,
+      buffered: 3,
+      truncated: false,
+      capturing: true,
+    };
+    const port = createFakeRecentServerErrorsPort({ logs });
+    const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const [row, other] = result.current.rows;
+    expect(result.current.rows).toHaveLength(2);
+    expect(other.message).toBe("other");
+    expect(row).toMatchObject({ at: "2026-10-05T12:00:03.000Z", source: "server", scope: "assistant", summary: "daemon unreachable — fetch failed", count: 2 });
+    expect(row.firstWhen).not.toBeNull();
+    expect(row.firstWhen).not.toBe(row.when);
+    expect(row.firstAt).toBe("2026-10-05T12:00:01.000Z");
+    expect(row.segments).toContainEqual({ text: "apps/website/src/a.ts:1:2", fullPath: "/Users/me/Tovu/apps/website/src/a.ts:1:2" });
+    expect(row.copyText).toBe(
+      `Time: 2026-10-05T12:00:03.000Z\nSource: server\nOccurrences: 2 (first 2026-10-05T12:00:01.000Z, last 2026-10-05T12:00:03.000Z)\nMessage:\n${message}`,
+    );
+  });
+
+  it("hands the port to the rows as their clipboard and keeps rows stable across re-renders", async () => {
+    const port = createFakeRecentServerErrorsPort({ logs: LOGS });
+    const { result, rerender } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const rows = result.current.rows;
+    rerender();
+    expect(result.current.rows).toBe(rows);
+    await expect(result.current.clipboard.copyText("x")).resolves.toBe(true);
+    expect(port.copied).toEqual(["x"]);
   });
 
   it("starts loading with no rows while the read is pending", () => {

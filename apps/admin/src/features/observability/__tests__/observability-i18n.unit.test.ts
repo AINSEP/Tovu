@@ -17,3 +17,10 @@ it("inherits common copy and falls back to the source key for unknown locales an
   expect(t({ locale: "unknown", key: "Observability Overview" })).toBe("Observability Overview");
   expect(t({ locale: "es", key: "new observability message" })).toBe("new observability message");
 });
+
+it("translates the Recent errors row controls", () => {
+  // Regression target: add the Copy/Copied keys to English only, leaving other locales on the English fallback.
+  expect(t({ locale: "es", key: "Copy" })).toBe("Copiar");
+  expect(t({ locale: "de", key: "Copied" })).toBe("Kopiert");
+  expect(t({ locale: "ja", key: "First seen" })).toBe("初回発生");
+});

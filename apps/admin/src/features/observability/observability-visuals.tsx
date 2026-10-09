@@ -52,3 +52,31 @@ export function AlertIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+/** Recent errors row toggle — a right-pointing chevron; CSS turns it down when the row is open. */
+export function ChevronIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+/** Recent errors Copy button — two stacked sheets. */
+export function CopyIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+      <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+    </svg>
+  );
+}
+
+/** Recent errors Copy button, just after a successful copy — a check mark. */
+export function CheckIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </svg>
+  );
+}

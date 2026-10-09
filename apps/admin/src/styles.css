@@ -6197,26 +6197,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .observability-providers-empty h3 { margin: 0; font-size: 14.5px; font-weight: 650; color: var(--jini-text-strong); }
 .observability-providers-empty p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--jini-text-muted); }
 
-/* Recent errors tab — newest first. Messages keep their line breaks (stack traces) but wrap, so a
-   long line never forces the panel to scroll sideways. */
-.observability-errors-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
-.observability-errors-toolbar p { margin: 0; }
-.observability-errors-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.observability-error {
-  padding: 9px 12px;
-  border: 1px solid var(--jini-border); border-left: 3px solid var(--jini-danger);
-  border-radius: var(--jini-radius-sm); background: var(--jini-bg-panel);
-}
-.observability-error-meta { display: flex; gap: 8px; align-items: baseline; margin: 0 0 4px; font-size: 12px; color: var(--jini-text-muted); }
-.observability-error-source {
-  padding: 0 6px; border-radius: var(--jini-radius-pill);
-  background: var(--jini-bg-subtle); color: var(--jini-text-muted); font-size: 11px;
-}
-.observability-error-message {
-  margin: 0; max-height: 12rem; overflow: auto;
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--jini-text-strong);
-  white-space: pre-wrap; overflow-wrap: anywhere;
-}
+/* Recent errors tab: its rules (and their "why") moved to `features/observability/recent-errors.css`,
+   imported by `recent-errors-panel.tsx`. */
 
 /* ------------------------------------------------------------------------
    Phone card rows for every `.list-table` (mobile catalog P-4, 2026-10-06).
