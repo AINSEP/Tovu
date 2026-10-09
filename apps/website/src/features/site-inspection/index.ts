@@ -68,10 +68,12 @@ export {
   fetchPublishedPage,
   MAX_MAX_BODY_BYTES,
   MAX_PATH_LENGTH,
+  openLoopbackSiteServer,
   PublishedPagePathError,
   resolveSameOriginPath,
   type FetchPublishedPageDeps,
   type FetchPublishedPageOptions,
+  type LoopbackSiteServer,
   type PublishedPageCookieShape,
   type PublishedPageResult,
 } from "./published-page.js";

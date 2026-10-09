@@ -241,6 +241,10 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "site-evidence",
     "site-inspection",
     "sites",
+    // 2026-10-08: `web_fetch_page` (`features/web`), registered right after `sites`.
+    "web",
+    // 2026-10-08: `web_screenshot_page` (`features/web-screenshot`), registered right after `web`.
+    "web-screenshot",
     "source-control",
     "static-publish",
     "credential-save",
@@ -250,6 +254,10 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // (F7b S6, e6d6963f0) â€” each its own domain key, registered right after `themes` (this list is
     // registration order, not alphabetical).
     "theme-set-active",
+    // 2026-10-08: `theme_duplicate` â€” own domain key, registered right after `theme-set-active`.
+    "theme-duplicate",
+    // 2026-10-08: `theme_import_file_from_url` â€” own domain key, registered right after `theme-duplicate`.
+    "theme-import-file",
     "change-sets",
     // 2026-10-01 (ee5629af7, owner Q1): human-confirmed permanent deletes through the authenticated
     // human-confirm exchange. This supersedes the "no purge tool, ever" line in the `trash` note
@@ -261,6 +269,9 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     // human-only, from the Trash screen's confirm modal. See its own `agent-tools.ts` header and
     // `features/trash/__tests__/tool-registrations.purge-ban.test.ts`.
     "trash",
+    // 2026-10-08: `theme_trash` â€” own domain key, registered right after `trash` (it is
+    // `trash_item`'s `theme` delegate, so it must precede that derived pass).
+    "theme-trash",
     "widgets",
     "workspace",
   ]);

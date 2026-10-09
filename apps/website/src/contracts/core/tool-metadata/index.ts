@@ -46,6 +46,8 @@ import { toolMetadata as source_control } from './source-control.js';
 import { toolMetadata as taxonomy } from './taxonomy.js';
 import { toolMetadata as theme } from './theme.js';
 import { toolMetadata as trash } from './trash.js';
+import { toolMetadata as web } from './web.js';
+import { toolMetadata as web_screenshot } from './web-screenshot.js';
 import { toolMetadata as webhooks } from './webhooks.js';
 import { toolMetadata as widgets } from './widgets.js';
 import { toolMetadata as workspace } from './workspace.js';
@@ -103,6 +105,8 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'taxonomy', tools: taxonomy },
   { domain: 'theme', tools: theme },
   { domain: 'trash', tools: trash },
+  { domain: 'web', tools: web },
+  { domain: 'web-screenshot', tools: web_screenshot },
   { domain: 'webhooks', tools: webhooks },
   { domain: 'widgets', tools: widgets },
   { domain: 'workspace', tools: workspace },

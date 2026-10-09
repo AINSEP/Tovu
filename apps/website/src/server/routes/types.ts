@@ -1392,8 +1392,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * Nullary and closed over this composition's `routeDeps`: a per-call `RouteDeps`
    * argument would force the full composition type into the export engine's contract.
    * See `exportSiteBound` for the shared closure-identity rule when overriding test deps.
+   *
+   * `optional.themeId` (2026-10-08) builds an app that renders the site's pages through that theme
+   * instead of the active one, without activating it — `web_screenshot_page` looking at a theme copy
+   * (see `CreateAppOptions.themeIdOverride`). It is an option of the app being built, never request
+   * input, so the serving app has no way to receive it.
    */
-  createSiteApp: () => Express;
+  createSiteApp: (optional?: { themeId?: string }) => Express;
   /**
    * The same storefront product resolver used by the live `/products` routes, injected
    * for the export route manifest. Its `SiteProduct` return type belongs to the server

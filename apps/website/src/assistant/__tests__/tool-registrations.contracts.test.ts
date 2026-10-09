@@ -62,6 +62,8 @@ import { sitesAgentToolCatalog } from "../../features/sites/index.js";
 import { siteBackupAgentToolCatalog } from "../../features/site-backup/tool-registrations.js";
 import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
 import { siteEvidenceAgentToolCatalog } from "../../features/site-evidence/agent-tools.js";
+import { webAgentToolCatalog } from "../../features/web/agent-tools.js";
+import { webScreenshotAgentToolCatalog } from "../../features/web-screenshot/agent-tools.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
 import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
@@ -70,6 +72,8 @@ import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/
 import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-theme-tool.js";
+import { duplicateThemeAgentToolCatalog } from "../../features/theme/duplicate-theme-tool.js";
+import { importThemeFileAgentToolCatalog } from "../../features/theme/import-theme-file-tool.js";
 import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
@@ -209,6 +213,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   post: postAgentToolCatalog as unknown as AgentToolDefinition[],
   themes: getThemesAgentToolCatalog() as unknown as AgentToolDefinition[],
   "theme-set-active": setActiveThemeAgentToolCatalog as unknown as AgentToolDefinition[],
+  "theme-duplicate": duplicateThemeAgentToolCatalog as unknown as AgentToolDefinition[],
+  "theme-import-file": importThemeFileAgentToolCatalog as unknown as AgentToolDefinition[],
   "change-sets": getChangeSetsAgentToolCatalog() as unknown as AgentToolDefinition[],
   "deploy-ops": deployOpsAgentToolCatalog as unknown as AgentToolDefinition[],
   deployments: deploymentsAgentToolCatalog as unknown as AgentToolDefinition[],
@@ -217,6 +223,8 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "source-control": sourceControlAgentToolCatalog as unknown as AgentToolDefinition[],
   "site-evidence": siteEvidenceAgentToolCatalog as unknown as AgentToolDefinition[],
   "site-inspection": siteInspectionAgentToolCatalog as unknown as AgentToolDefinition[],
+  web: webAgentToolCatalog as unknown as AgentToolDefinition[],
+  "web-screenshot": webScreenshotAgentToolCatalog as unknown as AgentToolDefinition[],
   sites: sitesAgentToolCatalog as unknown as AgentToolDefinition[],
   "site-backup": siteBackupAgentToolCatalog as unknown as AgentToolDefinition[],
   "custom-credentials": customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[],

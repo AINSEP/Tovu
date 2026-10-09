@@ -248,6 +248,31 @@ export function parsePublishContentDevHosts(raw: string | undefined): string[] {
     .filter((entry) => entry !== "");
 }
 
+/**
+ * `features/web`'s `web_fetch_page`: an assistant-supplied PUBLIC page URL on any host. Its own literal
+ * because it is the only policy here that allows plain `http` (plenty of small-business sites still
+ * serve it, and the fetch is a credential-free read). Redirects are followed by the guard itself, which
+ * re-runs scheme, credential, DNS and private-address checks on every hop, so a redirect to loopback,
+ * RFC1918, link-local/metadata or IPv6 ULA/mapped addresses is refused at the hop that introduces it.
+ * 5 MiB covers heavy marketing pages and large sitemaps; the transport stops reading at the cap.
+ */
+export const WEB_FETCH_EGRESS_POLICY: EgressPolicy = {
+  allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [], maxRedirects: 5,
+  connectTimeoutMs: 15_000, maxResponseBytes: 5 * 1024 * 1024, maxDecompressedBytes: 5 * 1024 * 1024,
+};
+
+/**
+ * `features/web-screenshot`'s `web_screenshot_page`: every request the screenshot browser makes, for
+ * any PUBLIC host, http allowed (small sites still serve it). Unlike {@link WEB_FETCH_EGRESS_POLICY},
+ * `maxRedirects: 0`: the screenshot router follows each hop itself as a new guarded request, so
+ * every hop of the page and of every subresource is re-checked (see
+ * `features/web-screenshot/request-guard.ts`'s header). 15 MiB is the per-resource cap.
+ */
+export const WEB_SCREENSHOT_EGRESS_POLICY: EgressPolicy = {
+  allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [], maxRedirects: 0,
+  connectTimeoutMs: 15_000, maxResponseBytes: 15 * 1024 * 1024, maxDecompressedBytes: 15 * 1024 * 1024,
+};
+
 /** Live-page reads reuse the media-import pinned-peer guard with manual feature-owned redirects. */
 export const LIVE_PAGE_EGRESS_POLICY: EgressPolicy = {
   allowedSchemes: ["https"], denyPrivateAddresses: true, devHostAllowlist: [], maxRedirects: 0,

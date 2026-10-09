@@ -30,7 +30,14 @@ import { contributeDatabaseTransferTools } from "#src/features/database-transfer
 import { contributeDomainDnsTools } from "#src/features/domain-dns/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import type { ObservabilityPort } from "#src/platform/observability/index";
-import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { contributeWebTools } from "#src/features/web/tool-registrations";
+import { htmlToMarkdown } from "#src/features/web/html-to-markdown";
+import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
+import { createPlaywrightPageCapture } from "#src/features/web-screenshot/playwright-page-capture";
+import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-image";
+import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
+import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
 import { DOMAIN_DNS_EGRESS_POLICY, createPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
 import { contributeDeployOpsTools } from "#src/features/deployments/deploy-ops/tool-registrations";
 import type { DeployOpsRegistry } from "#src/features/deployments/index";
@@ -78,7 +85,7 @@ import { contributeSettingsTools } from "#src/features/settings/tool-registratio
 import { contributeUiLocalesTools } from "#src/features/settings/ui-locales-tool";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
-import { contributeSiteInspectionTools } from "#src/features/site-inspection/index";
+import { contributeSiteInspectionTools, openLoopbackSiteServer } from "#src/features/site-inspection/index";
 import { contributeSitesTools } from "#src/features/sites/index";
 import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
@@ -425,6 +432,27 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeSiteEvidenceTools() });
   contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient(LIVE_PAGE_EGRESS_POLICY, { observability })) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
+  // `web_fetch_page` (2026-10-08): reads any PUBLIC page for every assistant path (daemon CLIs and
+  // BYOK alike), through its own guarded client — every redirect hop is re-checked for private addresses.
+  contributions.contributors.register({ contribution: contributeWebTools({ httpClient: createHttpClient(WEB_FETCH_EGRESS_POLICY, { observability }), htmlToMarkdown }) });
+  // `web_screenshot_page`: SEEING a public page (or this site's own render, through the same per-call
+  // loopback server `fetch_published_page` uses) for visual parity. Every request the headless page
+  // makes is fetched through this guarded client; Chromium launches on the first call, not here.
+  contributions.contributors.register({ contribution: contributeWebScreenshotTools(
+    { ports: {
+      capture: createPlaywrightPageCapture({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }),
+      encodeTiles: encodeScreenshotTiles,
+      nowMs: () => Date.now(),
+      observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
+    } },
+    {
+      // `themeId` renders an unactivated theme copy through a `createSiteApp({ themeId })` app.
+      openOwnSiteFor: (routeDeps) => createOwnSiteOpener({ themes: routeDeps.themes, openLoopback: (_required, optional) => openLoopbackSiteServer({ deps: routeDeps }, optional) }),
+      // Resolved per call, not at build time: `siteBinding` is read only when a capture is saved,
+      // so building the registry never depends on it (same rule as `features/sites/tool-registrations.ts`).
+      saveCaptureFilesFor: (routeDeps) => (request) => createCaptureFileWriter({ rootDir: captureRootFor({ siteDir: routeDeps.siteBinding.dir }) })(request),
+    },
+  ) });
   contributions.contributors.register({ contribution: contributeSourceControlTools() });
   contributions.contributors.register({ contribution: contributeStaticPublishTools() });
   // One save registration routes metadata to existing domain owners; each keeps its own permission.

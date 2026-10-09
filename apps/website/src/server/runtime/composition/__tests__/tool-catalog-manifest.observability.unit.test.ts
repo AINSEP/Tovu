@@ -9,7 +9,7 @@ import { createContributionRegistry } from "@jini-ai/core";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, type DerivedToolContributor, type ToolContributor } from "#src/assistant/index";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { LIVE_PAGE_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { createDefaultHttpClient } from "#src/platform/http/client";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
@@ -22,7 +22,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 /**
  * @file `installFirstPartyToolContributors` threads `options.observability` into the egress it
- * builds itself: both guarded HTTP clients (domain DNS, live page) and the daemon admissions read
+ * builds itself: every guarded HTTP client (domain DNS, live page, web fetch, web screenshot) and the daemon admissions read
  * behind `external_mcp_get_admissions`. Hand-written fakes for the two injectable collaborators,
  * plus one run through the real admissions read against a loopback stand-in daemon.
  */
@@ -46,7 +46,7 @@ async function callGetAdmissions(contributions: ReturnType<typeof freshContribut
   return registration.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: {}, signal: new AbortController().signal } as never);
 }
 
-test("installFirstPartyToolContributors builds both guarded HTTP clients with the observability port it was given", () => {
+test("installFirstPartyToolContributors builds every guarded HTTP client with the observability port it was given", () => {
   const observability = createNoopObservabilityPort({});
   const built: { policy: unknown; options: unknown }[] = [];
   const createHttpClient = ((policy, options) => {
@@ -56,8 +56,9 @@ test("installFirstPartyToolContributors builds both guarded HTTP clients with th
 
   installFirstPartyToolContributors({ contributions: freshContributions() }, { observability, createHttpClient });
 
-  assert.equal(built.length, 2);
-  assert.deepEqual(new Set(built.map((call) => call.policy)), new Set([DOMAIN_DNS_EGRESS_POLICY, LIVE_PAGE_EGRESS_POLICY]));
+  // 2026-10-08: `web_fetch_page` and `web_screenshot_page` each build their own guarded client.
+  assert.equal(built.length, 4);
+  assert.deepEqual(new Set(built.map((call) => call.policy)), new Set([DOMAIN_DNS_EGRESS_POLICY, LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY]));
   for (const call of built) assert.equal((call.options as { observability: unknown }).observability, observability);
 });
 

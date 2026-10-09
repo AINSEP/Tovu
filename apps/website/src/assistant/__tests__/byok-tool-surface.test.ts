@@ -176,6 +176,21 @@ test("a query that matches nothing reports that it matched nothing, rather than 
   assert.match(String(parsed.note), /No tool matched/);
 });
 
+// 2026-10-08: only the Claude Code CLI had its own WebFetch; BYOK reaches `web_fetch_page` through these
+// three meta-tools. The execute leg uses a loopback IP literal, so the PRODUCTION guarded client the
+// manifest wires refuses it with no DNS lookup and no socket.
+test("BYOK can find, describe and run web_fetch_page, and the wired client refuses a private address", async () => {
+  const s = surface();
+  const found = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "fetch a web page" }));
+  const { hits } = JSON.parse(textOf(found)) as { hits: ReadonlyArray<{ id: string }> };
+  assert.ok(hits.some(hit => hit.id === "web_fetch_page"), `expected web_fetch_page; got ${hits.map(hit => hit.id).join(", ")}`);
+  const described = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "web_fetch_page" }));
+  assert.deepEqual(JSON.parse(textOf(described)).inputSchema, s.registry.list({}).find(tool => tool.id === "web_fetch_page")?.inputSchema);
+  const refused = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "web_fetch_page", input: { url: "http://127.0.0.1/admin" } }));
+  assert.equal(refused.isError, true);
+  assert.match(textOf(refused), /web_fetch_page: egress to '127\.0\.0\.1' rejected: resolved address is loopback\. Only public internet pages can be fetched\./);
+});
+
 test("describe_tool returns a real tool's input schema, and refuses an unknown id with a next step", async () => {
   const s = surface();
   const found = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace" }));

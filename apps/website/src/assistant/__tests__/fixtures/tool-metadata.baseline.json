@@ -150,6 +150,7 @@
     "preview_reload": "preview reload refresh hard cache theme css stylesheet template navigate page changes saved",
     "theme_write_file": "theme stylesheet css template edit change design code file overwrite replace whole file copy duplicate clone font fonts typography color colors colour primary brand palette style styles look",
     "theme_edit_file": "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section font fonts typography color colors colour primary brand palette style styles look",
+    "theme_import_file_from_url": "theme import download fetch font fonts woff woff2 ttf otf typeface webfont self-host image logo icon favicon binary asset file from url into theme folder",
     "theme_read_file": "theme stylesheet css template view read design code file",
     "theme_list_files": "theme files templates stylesheets css list design",
     "theme_list": "theme themes design appearance skin installed",
@@ -261,7 +262,10 @@
     "custom_credential_verify": "verify verifying valid invalid expired revoked revoke working works work test testing check checking credential token api key secret still good bad broken status health healthy alive dead stale current",
     "custom_credential_make_request": "call calling request requests curl wget http https api endpoint third-party thirdparty external outside service services vendor provider dns registrar hosting deployment domain credential credentials token tokens use using saved fetch send get post put patch delete hit query invoke run execute",
     "custom_credential_set_username": "credential username set add fix repair update change login sign in basic auth account name saved api key token 401 unauthorized broken not working",
-    "agent_plugin_connect": "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin"
+    "agent_plugin_connect": "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin",
+    "web_screenshot_page": "screenshot screenshots screen capture captures snapshot picture image see look looks looking like view visual visually appearance layout design style styling render rendered rendering page pages webpage website websites site url link compare comparison parity side-by-side match matches mobile tablet desktop responsive viewport existing competitor reference import copy",
+    "web_fetch_page": "web webpage webpages page pages website websites site url urls link internet online public external remote fetch fetching read reading open visit browse scrape scraping crawl download get view html markdown text sitemap sitemaps robots css stylesheet import copy migrate existing competitor reference",
+    "theme_duplicate": "theme duplicate copy clone fork new theme from existing create make start redesign variant based on scaffold"
   },
   "queries": {
     "publish_content_publish": [
@@ -1683,6 +1687,38 @@
       "Can you put the FAQ right after the hero instead of at the bottom?",
       "Rearrange the blocks on this page into a different order.",
       "Shift the contact block up so it comes first."
+    ],
+    "web_fetch_page": [
+      "Fetch a web page.",
+      "Read a website.",
+      "Open this URL and tell me what it says.",
+      "Turn this existing website into pages and posts.",
+      "Read the sitemap.xml of another site.",
+      "Copy the content and theme of a site at this link."
+    ],
+    "web_screenshot_page": [
+      "Screenshot a web page.",
+      "See how a page looks.",
+      "Take a screenshot of this website.",
+      "What does this site look like?",
+      "What does the website look like on a mobile screen?",
+      "How does our site look on desktop?",
+      "Compare our page to the original site visually.",
+      "Check visual parity with the site we are importing.",
+      "Show me the mobile view of this URL."
+    ],
+    "theme_duplicate": [
+      "Duplicate this theme.",
+      "Copy the active theme into a new theme.",
+      "Make a new theme from an existing one.",
+      "Create a new theme based on tovu-theme called Roastery.",
+      "Start a redesign without touching the live theme."
+    ],
+    "theme_import_file_from_url": [
+      "Download the source site's font files into the new theme.",
+      "Self-host this woff2 font in the theme.",
+      "Save this logo image into the theme's assets folder.",
+      "Import the favicon from that URL into the theme."
     ]
   },
   "approvals": {
@@ -2781,6 +2817,10 @@
       "class": "edit",
       "confirmation": "direct"
     },
+    "theme_import_file_from_url": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
     "theme_list": {
       "class": "read",
       "confirmation": "direct"
@@ -2922,6 +2962,18 @@
       "confirmation": "direct"
     },
     "workspace_update": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "web_fetch_page": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "web_screenshot_page": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "theme_duplicate": {
       "class": "edit",
       "confirmation": "direct"
     }

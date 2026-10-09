@@ -245,6 +245,7 @@ import { registerSiteChatStatic } from "../../inbound/public-http/middleware/sit
 import { registerThemePreviewStatic } from "../../inbound/public-http/middleware/theme-preview-static.js";
 import { registerThemeStaticAssets } from "../../inbound/public-http/middleware/theme-static-assets.js";
 import { registerThemePagePreview } from "../../inbound/public-http/middleware/theme-page-preview.js";
+import { applyRenderThemeOverride } from "../../inbound/public-http/middleware/render-theme-override.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
@@ -1436,7 +1437,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // after `createRouteDeps()` has returned, by which point `routeDeps` is fully constructed) — see
     // `routes/types.ts`'s `exportSiteBound` doc, now generalized, for the TEST GOTCHA this closure
     // shape carries (spread-override is silently inert; mutate the object in place instead).
-    createSiteApp: () => createApp(routeDeps),
+    createSiteApp: ({ themeId } = {}) => createApp(routeDeps, themeId === undefined ? {} : { themeIdOverride: themeId }),
     // 2026-08-16 — see `routes/types.ts`'s `resolveStorefrontProducts` doc (edge 2 of the
     // export<->server decoupling): a direct reference, same reasoning as `createSiteApp` above
     // (`resolveStorefrontProducts` is declared in `./routes/site/products`, already imported by
@@ -1684,6 +1685,14 @@ export interface CreateAppOptions {
    * close does not land under those reads. Never rejects (the pass is fail-open).
    */
   onBootWork?: (work: Promise<void>) => void;
+  /**
+   * Render the site's pages through this theme id instead of the stored active one, for every request
+   * this app serves. Only `RouteDeps.createSiteApp({ themeId })` sets it, for a throwaway loopback app
+   * (`web_screenshot_page` seeing an unactivated theme copy); the serving app never has it, and no
+   * header, query or cookie can set it. The caller checks the theme exists — the render itself still
+   * falls back like it does for a bad stored id.
+   */
+  themeIdOverride?: string;
 }
 
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
@@ -1706,6 +1715,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `createApp()` function; see `ADS-memory/.local-artifacts/metrics/
   // 2026-08-28-observability-groundwork.md` §1-2 for why that distinction matters here).
   applyRequestTracking(app, { observability: routeDeps.observability });
+  // Only a `createSiteApp({ themeId })` loopback app has this; see `render-theme-override.ts`.
+  if (options.themeIdOverride !== undefined) applyRenderThemeOverride(app, { themeId: options.themeIdOverride });
   // ADR-041/043/044/045 — must precede the normal traffic handlers so a
   // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have
   // handled it. See site-serving-gate.ts's own header for the allowlist rationale.

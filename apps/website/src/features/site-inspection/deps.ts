@@ -73,13 +73,12 @@ export interface SiteProfileSourceDeps {
  */
 export interface SiteInspectionToolDeps extends SiteProfileSourceDeps, LiveOriginSourceDeps {
   /**
-   * The site's own app factory (`RouteDeps.createSiteApp`), used by `fetchPublishedPage`.
-   * Method syntax and an `unknown` parameter so this declaration satisfies both the historical
-   * `(routeDeps: RouteDeps) => Express` shape and the current nullary `() => Express` one, and
-   * typed as Node's `RequestListener` because that is all `fetchPublishedPage` does with it — see
-   * `published-page.ts`'s `FetchPublishedPageDeps` for the full note on both points.
+   * The site's own app factory (`RouteDeps.createSiteApp`), used by `fetchPublishedPage` and
+   * `web_screenshot_page`'s own-site mode (which may pass a `themeId` render override). Typed as
+   * Node's `RequestListener` because that is all `fetchPublishedPage` does with it — see
+   * `published-page.ts`'s `FetchPublishedPageDeps` for the full note.
    */
-  createSiteApp(routeDeps: unknown): RequestListener;
+  createSiteApp(optional?: { themeId?: string }): RequestListener;
   /** Passed through to `fetchPublishedPage` to trace its loopback render (`RouteDeps.observability`). */
   readonly observability?: ObservabilityPort;
   /**

@@ -106,14 +106,13 @@ export interface FetchPublishedPageDeps {
   /**
    * The SAME site-app factory the static exporter renders through (`RouteDeps.createSiteApp`).
    *
-   * Declared with METHOD syntax, and passed the deps bag itself, so this port satisfies BOTH shapes
-   * that field has had: the older `(routeDeps: RouteDeps) => Express` (which needs the argument) and
-   * the newer nullary `() => Express` (which ignores it). Method-syntax parameters are bivariant, so
-   * a real `RouteDeps`-typed implementation assigns to this narrower declaration without a cast, and
-   * the object handed in at runtime IS the composition root's real deps bag.
+   * Takes the optional render override (`{ themeId }`, 2026-10-08: `web_screenshot_page` seeing a
+   * theme copy without activating it). It used to be handed the deps bag itself, for a historical
+   * `(routeDeps: RouteDeps) => Express` shape; both composition roots have long been nullary-closed
+   * over their deps, so nothing reads that argument any more.
    *
    * Typed as Node's `RequestListener` rather than Express's `Express` because that is what this
-   * module actually consumes — the sole use is `createServer(deps.createSiteApp(deps))`, and
+   * module actually consumes — the sole use is `createServer(deps.createSiteApp(...))`, and
    * `http.createServer` takes a request listener. Naming `Express` here made the feature import a
    * web framework to describe a two-argument callback, which is the `features/` boundary violation
    * `src/features/__tests__/features-no-server-imports.boundary.test.ts` fails on. A real Express
@@ -121,7 +120,7 @@ export interface FetchPublishedPageDeps {
    * explicit `(req: http.IncomingMessage, res: http.ServerResponse)` call signature, which is
    * exactly why `createServer(app)` type-checked before this change and still does.
    */
-  createSiteApp(routeDeps: unknown): RequestListener;
+  createSiteApp(optional?: { themeId?: string }): RequestListener;
   /** Native server factory; injected fakes can exercise rendering without opening a socket. */
   readonly createServer?: (listener: RequestListener) => Server;
   /** HTTP transport; omitted, uses the global fetch read at call time. */
@@ -409,6 +408,41 @@ function resolveMaxBytes(requested: number | undefined): number {
   return Math.min(requested, MAX_MAX_BODY_BYTES);
 }
 
+/** This site's own app, listening on a per-call loopback origin until `close` is awaited. */
+export interface LoopbackSiteServer {
+  /** e.g. `http://127.0.0.1:53142` — fixed host, ephemeral port, no trailing slash. */
+  readonly origin: string;
+  close(required?: {}, optional?: {}): Promise<void>;
+}
+
+/**
+ * Boots the site's real app on an ephemeral `127.0.0.1` port. Shared by `fetch_published_page` and
+ * `web_screenshot_page`'s own-site mode, so both observe the one render path the static exporter uses.
+ * The caller owns the lifetime: `close()` in a `finally` (see {@link fetchPublishedPage} for why a
+ * per-call server rather than a long-lived one).
+ * @param required.deps - Supplies `createSiteApp` and an optional `createServer`.
+ * @param optional.themeId - Render this site through that installed theme instead of the active one
+ *   (`createSiteApp({ themeId })`); the caller checks it exists. Never reachable from a visitor: it is
+ *   an option of this one throwaway app, not anything a request carries.
+ * @complexity O(1) beyond one app construction.
+ */
+export async function openLoopbackSiteServer(
+  { deps }: { deps: Pick<FetchPublishedPageDeps, "createSiteApp" | "createServer"> },
+  { themeId }: { themeId?: string } = {},
+): Promise<LoopbackSiteServer> {
+  const server = (deps.createServer ?? createServer)(deps.createSiteApp(themeId === undefined ? {} : { themeId }));
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  return {
+    origin: `${LOOPBACK_HOST}:${address.port}`,
+    async close() {
+      server.closeAllConnections?.();
+      await closeServer(server);
+    },
+  };
+}
+
 /**
  * Fetches one route of this site's own published surface and reports exactly what came back.
  *
@@ -443,11 +477,8 @@ export async function fetchPublishedPage(
   const maxBytes = resolveMaxBytes(options.maxBytes);
   const timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
 
-  const server = (deps.createServer ?? createServer)(deps.createSiteApp(deps));
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-  const address = server.address() as AddressInfo;
-  const baseUrl = `${LOOPBACK_HOST}:${address.port}`;
+  const site = await openLoopbackSiteServer({ deps });
+  const baseUrl = site.origin;
 
   try {
     // Validated against the origin this call just minted — see `resolveSameOriginPath`'s doc.
@@ -492,7 +523,6 @@ export async function fetchPublishedPage(
       truncated: raw.truncated || shaped.truncated,
     };
   } finally {
-    server.closeAllConnections?.();
-    await closeServer(server);
+    await site.close();
   }
 }
