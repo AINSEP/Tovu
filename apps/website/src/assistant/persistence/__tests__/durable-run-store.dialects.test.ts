@@ -25,6 +25,38 @@ function harness(kernel: ChatKernel) {
 }
 
 describeEachChatDialect("durable attempts migration and fencing", harness, (make) => {
+  test("mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice", async () => {
+    const h = make();
+    await h.history.create({ id: "chat" });
+    await h.history.appendMessage({ conversationId: "chat", message: { id: "prior-question", role: "user", content: "The site name is Luvira." } });
+    await h.history.appendMessage({ conversationId: "chat", message: { id: "prior-answer", role: "assistant", content: "I will use Luvira." } });
+    const accepted = await h.accept();
+    await h.store.captureSession({ runId: accepted.runId, sessionId: "thread-1", confirmed: true, child: { pid: 10, startedAt: "start" } }, {});
+    await h.ledger.checkpoint({ ...accepted, content: "", events: [
+      { kind: "raw", line: "thread/resume failed: no rollout found for thread id thread-1" },
+      { kind: "status", label: "Run failed — the agent process exited without answering" },
+    ] });
+    const launches: string[] = [];
+    const recovery = createDurableRecovery({
+      store: h.store, now: () => TIME + 1000, mintRunId: () => "reconstructed", probe: async () => "dead", attach: () => {},
+      cancelAttempt: async () => {}, verifyChildDead: async () => true, supportsNativeResume: () => true,
+      launch: async ({ request }) => { launches.push(request.contextRef); }, settle: async () => { throw new Error("must continue"); },
+    }, {});
+    assert.equal(await recovery.recover({ messageId: "answer", trigger: "attempt-failed" }, {}), "continued");
+    assert.equal(launches.length, 1);
+    const request = JSON.parse(launches[0]!);
+    assert.equal(request.recoveryMode, "reconstruction");
+    assert.equal(request.recoverySessionId, undefined);
+    assert.ok(request.prompt.includes("user: The site name is Luvira.\n\nassistant: I will use Luvira."));
+    const current = (await h.store.load({ messageId: "answer" }, {}))!;
+    assert.deepEqual(current.message.events, [{ kind: "status", code: "run_recovering", label: "" }]);
+    assert.deepEqual(current.attemptBase, current.message.events);
+    assert.equal(current.runId, "reconstructed");
+    const staleWrite = await h.ledger.checkpoint({ ...accepted, content: "old failure", events: [{ kind: "status", label: "old failure" }] });
+    assert.equal(staleWrite, false);
+    assert.deepEqual((await h.store.load({ messageId: "answer" }, {}))!.message.events, current.message.events);
+  });
+
   for (const browserFirst of [false, true]) {
     test(`first-turn acceptance persists user before answer when browserFirst=${browserFirst}`, async () => {
       const h = make(); await h.history.create({ id: "chat" });
