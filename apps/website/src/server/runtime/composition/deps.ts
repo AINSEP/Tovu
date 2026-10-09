@@ -49,6 +49,7 @@ import { buildContentPublishPorts } from "#src/server/runtime/composition/conten
 import { createSqlitePublishContentSeedHash } from "./publish-content-seed-hash.js";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
 import { createDefaultHttpClient } from "#src/platform/http/client";
+import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import {
   CUSTOM_CREDENTIALS_EGRESS_POLICY,
   SITE_BACKUP_EGRESS_POLICY,
@@ -680,6 +681,13 @@ export interface CreateSiteRouteDepsOverrides {
    * (and stopped the sweep on a supplied store).
    */
   onStoreOpened: (store: SiteStore) => void;
+  /**
+   * HARNESS ONLY: exact loopback origins (`http://127.0.0.1:<port>`) the assistant's URL tools may
+   * reach — a site-import journey's offline fixture site. Supplied only by
+   * `development/e2e/support/site-import-api.ts`; `index.ts` and `tovu serve` never pass it, and
+   * omitted it builds exactly the production clients (`platform/http/test-origin-allowlist.ts`).
+   */
+  outboundTestOrigins: readonly string[];
 }
 
 /**
@@ -1851,7 +1859,8 @@ async function composeSiteRouteDeps(
   // THIRD instance, and the only one built from a policy other than SINGLE_HOP_HTTPS. See
   // `routes/types.ts`'s `mediaImportHttpClient` doc and `MEDIA_IMPORT_EGRESS_POLICY`'s own doc for
   // why fetching an image file cannot use the fixed-method, no-redirect, 1 MB policy above.
-  const mediaImportHttpClient = createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY, { observability });
+  const outboundTestOrigins = overrides?.outboundTestOrigins ?? [];
+  const mediaImportHttpClient = createTestOriginHttpClientFactory({ allowedOrigins: outboundTestOrigins })(MEDIA_IMPORT_EGRESS_POLICY, { observability });
 
   // `features/publish-content`'s outbound push/pull leg needs its own guarded `HttpClientPort` — a
   // FOURTH instance. It is the only one whose policy is built rather than imported as a literal,
@@ -2467,6 +2476,7 @@ async function composeSiteRouteDeps(
     // 2026-09-06 — see `routes/types.ts`'s `mediaImportHttpClient` doc. A third instance, built
     // above from `MEDIA_IMPORT_EGRESS_POLICY` rather than `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
     mediaImportHttpClient,
+    ...(outboundTestOrigins.length > 0 ? { outboundTestOrigins } : {}),
     mediaGenerationHttpClient: guardedOutboundHttpClient,
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
     // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`

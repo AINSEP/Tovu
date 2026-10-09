@@ -70,6 +70,9 @@ export interface MediaImportToolDeps {
    * discipline `CredentialedRequestDeps.httpClient` documents for the identical shape of dependency.
    */
   mediaImportHttpClient: HttpClientPort;
+  /** HARNESS ONLY (`RouteDeps.outboundTestOrigins`): loopback origins that may be imported over
+   *  plain `http:`; the same list opened `mediaImportHttpClient` to them. Absent in production. */
+  outboundTestOrigins?: readonly string[];
   /** Test-only override for where the FULL egress refusal (resolved address included) is logged;
    *  defaults to `console.warn`. See {@link withCallerSafeEgressRefusal}. */
   mediaImportEgressRefusalLog?: (line: string) => void;
@@ -115,7 +118,7 @@ const DOMAIN = "media-import";
  *
  * @complexity O(1) — two `instanceof` checks.
  */
-function isImportShapeRejection({ error }: { error: unknown }): boolean {
+export function isImportShapeRejection({ error }: { error: unknown }): boolean {
   return error instanceof MediaImportValidationError || error instanceof EgressRefusedError;
 }
 
@@ -129,14 +132,21 @@ function isImportShapeRejection({ error }: { error: unknown }): boolean {
  * `10.0.4.7`). That full message is logged server-side instead; it carries a hostname, an address,
  * and a class, never request content (`platform/http/errors.ts` documents it as the log-facing half).
  *
+ * Exported for `theme_import_file_from_url` (`features/theme/import-theme-file-tool.ts`), which
+ * fetches through the same client and needs the identical narrowing; `toolId` names it in the log.
+ *
  * @complexity O(1) beyond `work` itself.
  */
-async function withCallerSafeEgressRefusal<T>(log: (line: string) => void, work: () => Promise<T>): Promise<T> {
+export async function withCallerSafeEgressRefusal<T>(
+  log: (line: string) => void,
+  work: () => Promise<T>,
+  { toolId = "media_import_from_url" }: { toolId?: string } = {},
+): Promise<T> {
   try {
     return await work();
   } catch (err) {
     if (!(err instanceof EgressRefusedError)) throw err;
-    log(`[media-import] media_import_from_url egress refused: ${err.message}`);
+    log(`[media-import] ${toolId} egress refused: ${err.message}`);
     throw new EgressRefusedError({ message: err.callerSafeMessage }, { callerSafeMessage: err.callerSafeMessage });
   }
 }
@@ -284,7 +294,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
         isShapeRejection: isImportShapeRejection,
         fn: () =>
           withCallerSafeEgressRefusal(logEgressRefusal, async () => {
-            const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient }, url });
+            const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url });
 
             return persistImportedMedia({
               routeDeps,

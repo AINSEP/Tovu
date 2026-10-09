@@ -64,6 +64,7 @@ import {
   fetchImage as fetchPackageImage,
   validateImageBytes as validatePackageImageBytes,
   type FetchedImage,
+  type ImageImportPolicy,
 } from "@jini-ai/cms/media/import";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { sniffContentType, TOVU_MAX_UPLOAD_BYTES, type SniffedContentType } from "../media/index.js";
@@ -109,22 +110,53 @@ const IMPORT_POLICY = {
   sniffer: { sniff: ({ bytes }: { bytes: Uint8Array }) => sniffContentType({ bytes }) },
 };
 
-export interface FetchImageDeps { readonly httpClient: HttpClientPort; }
+export interface FetchImageDeps {
+  readonly httpClient: HttpClientPort;
+  /**
+   * HARNESS ONLY: exact loopback origins (`http://127.0.0.1:<port>`) whose plain-`http:` URLs are
+   * imported as if they were `https:` — a site-import journey's offline fixture site. The same list
+   * must have opened `httpClient` to them (`platform/http/test-origin-allowlist.ts`); every other
+   * URL keeps the package's https-only refusal. Absent in every production composition.
+   */
+  readonly plainHttpTestOrigins?: readonly string[];
+}
+
+/**
+ * The package refuses non-https URLs before any I/O. For a harness-listed origin only, hand it the
+ * `https:` twin of the URL and turn that twin back into the real `http:` origin at the send and in
+ * the returned source URL, so every other package check (status, bytes, sniffing) still runs.
+ */
+function plainHttpTwin(url: string, origins: readonly string[] | undefined): { packageUrl: string; toReal: (value: string) => string } {
+  const identity = { packageUrl: url, toReal: (value: string) => value };
+  if (!origins?.length || !URL.canParse(url)) return identity;
+  const parsed = new URL(url);
+  if (parsed.protocol !== "http:" || !origins.includes(parsed.origin)) return identity;
+  const twinOrigin = `https://${parsed.host}`;
+  return {
+    packageUrl: `${twinOrigin}${url.slice(parsed.origin.length)}`,
+    toReal: (value) => (value.startsWith(`${twinOrigin}/`) || value === twinOrigin ? `${parsed.origin}${value.slice(twinOrigin.length)}` : value),
+  };
+}
 
 /**
  * Imports binary media through Tovu's injected guarded HTTP client. The client checks DNS, pins
  * peers, and rechecks redirects; the package validates complete bytes and records the final URL.
+ * @param optional.policy - Byte cap, accepted sniffed types and sniffer; defaults to this tool's
+ * media policy. `theme_import_file_from_url` passes its own (fonts + still images, smaller cap) so
+ * it shares this transport path, harness twin and backstop instead of copying them.
+ * @param optional.accept - The request's `Accept` header; defaults to images and video.
  * @returns Validated bytes/type/source URL; package and guarded transport errors propagate.
  * @complexity One bounded GET plus redirects, fixed-window content sniffing.
  * @example await fetchImage({ deps: { httpClient }, url: "https://example.com/image.png" });
  */
 export function fetchImage(
   { deps, url }: { deps: FetchImageDeps; url: string },
-  _optional: Record<string, never> = {},
+  { policy = IMPORT_POLICY, accept = "image/*, video/*" }: { policy?: ImageImportPolicy; accept?: string } = {},
 ): Promise<FetchedImage> {
-  return fetchPackageImage({
-    ...IMPORT_POLICY,
-    url,
+  const twin = plainHttpTwin(url, deps.plainHttpTestOrigins);
+  const fetched = fetchPackageImage({
+    ...policy,
+    url: twin.packageUrl,
     httpClient: {
       send: ({ request }) => {
         // Keep Tovu's independent transport backstop (60 MiB) above its accept limit (50 MiB).
@@ -133,12 +165,15 @@ export function fetchImage(
         const { maxResponseBytes: _packageResponseCap, ...hostRequest } = request;
         return deps.httpClient.send({
           ...hostRequest,
-          headers: { ...request.headers, Accept: "image/*, video/*" },
+          url: twin.toReal(hostRequest.url),
+          headers: { ...request.headers, Accept: accept },
         });
       },
     },
     outboundGuard: { send: ({ httpClient, request }) => httpClient.send({ request }) },
   }, { timeoutMs: MEDIA_IMPORT_TIMEOUT_MS });
+  if (twin.packageUrl === url) return fetched;
+  return fetched.then((image) => ({ ...image, url: new URL(twin.toReal(image.url.href)) }));
 }
 
 /** Applies the same Tovu byte/type policy to guarded local reads. No I/O occurs here.

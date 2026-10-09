@@ -71,6 +71,7 @@ import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src
 import { readRunPageContext, withPageContextBlock } from "#src/assistant/run-page-context";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import type { AgentRunStatus } from "#src/platform/observability/index";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
@@ -376,7 +377,10 @@ export function createAssistantByokModule(
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
   };
-  installFirstPartyToolContributors({ contributions }, { observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir });
+  // `outboundTestOrigins` is set only by the site-import journey harness; absent, this factory is
+  // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
+  installFirstPartyToolContributors({ contributions }, { observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
+    createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }) });
   // The public contract and both roots require complete BYOK dependencies;
   // no cast may conceal a missing runtime port.
   const resolvedToolSurface =

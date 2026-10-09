@@ -579,3 +579,35 @@ test("parseable HTTP finalUrl is kept as provenance for already-fetched bytes", 
   assert.equal(client.calls.length, 1);
   assert.equal(client.calls[0].url, URL_UNDER_TEST);
 });
+
+// ---------------------------------------------------------------------------
+// Harness-only plain-http origins (site-import journey fixture site)
+// ---------------------------------------------------------------------------
+
+const FIXTURE_ORIGIN = "http://127.0.0.1:41234";
+
+test("a harness-listed origin is imported over plain http: the real http URL is sent and recorded", async () => {
+  const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
+  const fetched = await fetchImage({ deps: { httpClient: client, plainHttpTestOrigins: [FIXTURE_ORIGIN] }, url: `${FIXTURE_ORIGIN}/media/hero.png?v=1` });
+  assert.deepEqual(client.calls.map((call) => call.url), [`${FIXTURE_ORIGIN}/media/hero.png?v=1`]);
+  assert.equal(fetched.url.href, `${FIXTURE_ORIGIN}/media/hero.png?v=1`);
+  assert.equal(fetched.contentType, "image/png");
+});
+
+test("plain http stays refused before the network for any origin the harness did not list, and with no list at all", async () => {
+  for (const [url, origins] of [
+    ["http://127.0.0.1:41235/a.png", [FIXTURE_ORIGIN]],
+    ["http://cdn.example.com/a.png", [FIXTURE_ORIGIN]],
+    [`${FIXTURE_ORIGIN}/a.png`, undefined],
+    [`${FIXTURE_ORIGIN}/a.png`, []],
+  ] as const) {
+    const client = new FakeHttpClient([imageResponse(REAL_PNG)]);
+    await assert.rejects(fetchImage({ deps: { httpClient: client, plainHttpTestOrigins: origins }, url }), MediaImportValidationError, url);
+    assert.equal(client.calls.length, 0, url);
+  }
+});
+
+test("a listed origin still gets every byte check: HTML served as an image is refused", async () => {
+  const client = new FakeHttpClient([imageResponse(HTML_BODY)]);
+  await assert.rejects(fetchImage({ deps: { httpClient: client, plainHttpTestOrigins: [FIXTURE_ORIGIN] }, url: `${FIXTURE_ORIGIN}/a.png` }), MediaImportValidationError);
+});

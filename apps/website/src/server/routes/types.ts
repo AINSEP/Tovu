@@ -537,6 +537,11 @@ export interface CredentialsDeps {
    * lives here.
    */
   mediaImportHttpClient: HttpClientPort;
+  /**
+   * HARNESS ONLY (`CreateSiteRouteDepsOverrides.outboundTestOrigins`): exact loopback origins the
+   * assistant's URL tools may reach. Absent in every production composition.
+   */
+  outboundTestOrigins?: readonly string[];
   /** Canonical guard for media generation and all returned-asset downloads; private peers refused. */
   mediaGenerationHttpClient: import("@jini-ai/core/primitives").HttpClientPort;
 }
