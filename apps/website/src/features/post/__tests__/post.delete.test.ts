@@ -13,7 +13,6 @@ import {
   listAdminPosts,
   listPublishedPosts,
   updatePost,
-  PostConflictError,
   PostNotFoundError,
   type PostRecord,
   type PostRepoPort,
@@ -238,27 +237,27 @@ test("updatePost refuses to edit a trashed row — there is no edit-through-the-
 });
 
 // ---------------------------------------------------------------------------
-// 4. The slug stays reserved — the invariant that keeps createPost agreeing with the unique index
+// 4. A trashed row's slug yields to a new write — moved aside first, so the unique index never trips
 // ---------------------------------------------------------------------------
 
-test("a trashed row KEEPS its slug: creating a new post with that explicit slug conflicts cleanly", async () => {
+// Owner order 2026-10-08 reversed the old "a trashed row blocks its slug" rule: the trashed holder
+// is moved aside (`<slug>-trashed`) so the new write takes the slug. Full certification lives in
+// `post.trashed-slug-release.test.ts`; these two keep the delete-side view of the same rule.
+test("a trashed row yields its slug: creating a new post with that explicit slug moves the trashed row aside", async () => {
   const repo = new InMemoryPostRepo([seed({ slug: "hello-world" })]);
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
-  // Must be a domain-level PostConflictError, NOT a pass-through that later dies on the SQLite
-  // posts_workspace_slug_unique index — that is the whole reason findBySlug stays trash-blind.
-  await assert.rejects(
-    () => createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World", slug: "hello-world" } }),
-    PostConflictError,
-  );
+  const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World", slug: "hello-world" } });
+  assert.equal(post.slug, "hello-world");
+  assert.equal((await repo.findById({ workspaceId: WS, id: "post-1" }))?.slug, "hello-world-trashed");
 });
 
-test("a DERIVED slug suffixes past a trashed row's slug instead of colliding with it", async () => {
+test("a DERIVED slug takes a trashed row's slug instead of suffixing past it", async () => {
   const repo = new InMemoryPostRepo([seed({ slug: "hello-world" })]);
   await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "post-1" } });
 
   const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new-1", title: "Hello World" } });
-  assert.equal(post.slug, "hello-world-2");
+  assert.equal(post.slug, "hello-world");
 });
 
 // ---------------------------------------------------------------------------

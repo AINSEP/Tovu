@@ -86,7 +86,10 @@ export interface PostRecord {
    * A trashed row STILL HOLDS ITS SLUG, deliberately. `posts_workspace_slug_unique` is a real
    * database constraint, so if trashing freed the slug for reuse, `createPost` would pass its own
    * uniqueness check and then die on a SQLite constraint violation instead of a clean
-   * `PostConflictError`. Keeping the slug reserved also keeps a restore lossless. The repo port
+   * `PostConflictError`. Keeping the slug reserved also keeps a restore lossless. It holds the
+   * slug only until a new write claims it, though (owner order 2026-10-08: the Trash never blocks
+   * a slug): `createPost`/`updatePost` then move it aside to `<slug>-trashed` first — see
+   * `releaseTrashedSlug`, which keeps it restorable. The repo port
    * therefore stays trash-BLIND (`findById`/`findBySlug`/`list` all still return trashed rows, so
    * uniqueness checks and reverters can see them); every trash-AWARE read filter lives in this
    * file's own domain functions, exactly the way `kind` filtering already does.
@@ -1310,10 +1313,12 @@ function resolveCreateFields(input: CreatePostInput): ResolvedCreateFields {
  * Creates a post. Caller-supplied `slug`/`bodyJson`/`status` are validated (via
  * `resolveCreateFields`) and used when present (SPEC-002 api.spec.md §4); each falls back to its
  * documented default when absent:
- * - `slug` absent → derived from `title`, disambiguated on collision (existing behavior).
+ * - `slug` absent → derived from `title`, disambiguated past LIVE holders on collision.
  * - `slug` present → validated (format, length, reserved-word) the same way `updatePost` validates
- *   format, then checked for uniqueness (`PostConflictError` on collision, mirroring `PAGE_UPDATE`'s
- *   `SLUG_CONFLICT` mapping at the route layer — no new conflict-handling invented here).
+ *   format, then checked for uniqueness (`PostConflictError` when a LIVE row holds it, mirroring
+ *   `PAGE_UPDATE`'s `SLUG_CONFLICT` mapping at the route layer).
+ * - On either path a slug only a TRASHED row holds is taken: that row is moved aside to
+ *   `<slug>-trashed` in the same transaction (`releaseTrashedSlug`, still restorable).
  * - `bodyJson` absent → `DEFAULT_BODY_JSON`; present → validated as a JSON object (`isJsonObject`,
  *   the same check `updatePost` applies; this codebase has no deeper TipTap schema validation
  *   anywhere else, per `features/entries/write-service.ts`'s disclosure, so none is invented here).
@@ -1339,20 +1344,23 @@ export async function createPost(
   });
 
   let slug: string;
+  // A slug only a trashed row holds is free (see `trashedSlugHolderOrConflict`); that row is moved
+  // aside inside the write transaction below, before this post is saved onto its slug.
+  let trashedHolder: PostRecord | null;
   if (explicitSlug !== undefined) {
-    const duplicate = await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug: explicitSlug });
-    if (duplicate) {
-      throw new PostConflictError(`slug '${explicitSlug}' already exists`);
-    }
+    trashedHolder = await trashedSlugHolderOrConflict(deps.repo, { workspaceId: input.workspaceId, slug: explicitSlug });
     slug = explicitSlug;
   } else {
     const base = deriveSlugBase(title);
     slug = base;
     let suffix = 1;
-    while (await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug })) {
+    let holder = await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug });
+    while (holder && !isTrashed(holder)) {
       suffix += 1;
       slug = `${base}-${suffix}`;
+      holder = await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug });
     }
+    trashedHolder = holder;
   }
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
@@ -1398,6 +1406,7 @@ export async function createPost(
   // `PostRepoPort.transaction`'s own doc) — a revision must never be recorded for a save that
   // didn't really land, and a save must never land unaccompanied by its revision.
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
+    if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
     await deps.repo.save(post);
     return deps.repo.appendRevision({
       postId: post.id,
@@ -1459,8 +1468,34 @@ function validateUpdatePostInput(
   return { title, slug };
 }
 
-/** Enforces the same slug-uniqueness rule `createPost`'s explicit-slug path applies — a slug
- * already claimed by a DIFFERENT record is a conflict; claiming your own current slug is not. */
+/**
+ * The one slug-uniqueness rule `createPost`'s explicit-slug path and `updatePost`'s rename share:
+ * a slug a DIFFERENT, LIVE record holds is a conflict; your own current slug is not; and a slug
+ * only a TRASHED record holds is free — that record is returned for {@link releaseTrashedSlug} to
+ * move aside inside the caller's write transaction.
+ *
+ * Owner order 2026-10-08: an item in the Trash never blocks a slug for new content (a site import
+ * once put its homepage at `/start` because a trashed page still held `/`).
+ *
+ * @returns the trashed holder to release, or `null` when the slug is free or already `selfId`'s.
+ * @throws PostConflictError `slug '<slug>' already exists` when a live record holds it.
+ * @complexity O(1) — one indexed lookup.
+ */
+async function trashedSlugHolderOrConflict(
+  repo: PostRepoPort,
+  required: { workspaceId: UUID; slug: string },
+  optional: { selfId?: UUID } = {}
+): Promise<PostRecord | null> {
+  const holder = await repo.findBySlug({ workspaceId: required.workspaceId, slug: required.slug });
+  if (!holder || holder.id === optional.selfId) return null;
+  if (isTrashed(holder)) return holder;
+  throw new PostConflictError(`slug '${required.slug}' already exists`);
+}
+
+/** The STRICT slug-uniqueness rule `importPostEntity` (publish) keeps: a slug claimed by any
+ * DIFFERENT record, trashed or not, is a conflict. Publish plans its own address clashes —
+ * `planRetire`/{@link retirePostForReplacement} offer to move the holder, and its precheck refuses a
+ * trashed holder up front — so this is only its write-time backstop, not the authoring rule above. */
 async function assertSlugAvailableForUpdate(
   repo: PostRepoPort,
   workspaceId: UUID,
@@ -1470,6 +1505,47 @@ async function assertSlugAvailableForUpdate(
   const duplicate = await repo.findBySlug({ workspaceId, slug });
   if (duplicate && duplicate.id !== id) {
     throw new PostConflictError(`slug '${slug}' already exists`);
+  }
+}
+
+/** What a released trashed row's slug becomes: `<slug>-trashed` (`/` → `home-trashed`). */
+const TRASHED_SLUG_SUFFIX = "-trashed";
+
+/**
+ * Moves a TRASHED row off `holder.slug` so a new write can take it: renames it to
+ * `<slug>-trashed` (`/` → `home-trashed`, cut to fit {@link MAX_SLUG_LENGTH}), suffixed `-2`,
+ * `-3`, … past any slug already taken — the same loop `createPost`'s derived-slug path uses.
+ *
+ * Changes ONLY the slug. `version`, `updatedAt` and the trash marker stay exactly as the Trash
+ * recorded them, because the Trash index stores the row's version at trash time and Restore and
+ * purge both compare against it (`@jini-ai/cms/trash` `restore` → the post adapter's `unhide`): a
+ * version bump here would leave the row in the Trash forever, neither restorable nor purgeable.
+ * Restore therefore still works and brings the row back at its renamed address. For the same
+ * reason no revision is appended — a Trash restore appends none either — and the Trash list keeps
+ * showing the original slug as the item's subtitle, which is the record of where it used to live.
+ *
+ * Must run inside the caller's write transaction, BEFORE the claiming row is saved, so the real
+ * `posts_workspace_slug_unique` index never sees two rows on one slug.
+ *
+ * @throws PostConflictError when the holder changed (restored, edited) since it was read.
+ * @complexity O(s) lookups for s already-taken renamed slugs (in practice 1), plus one
+ * conditional write.
+ */
+async function releaseTrashedSlug(repo: PostRepoPort, holder: PostRecord): Promise<void> {
+  const stem = (holder.slug === ROOT_SLUG ? "home" : holder.slug).slice(
+    0,
+    MAX_SLUG_LENGTH - TRASHED_SLUG_SUFFIX.length - DERIVED_SLUG_SUFFIX_ROOM
+  );
+  const base = `${stem}${TRASHED_SLUG_SUFFIX}`;
+  let slug = base;
+  let suffix = 1;
+  while (await repo.findBySlug({ workspaceId: holder.workspaceId, slug })) {
+    suffix += 1;
+    slug = `${base}-${suffix}`;
+  }
+  const { applied } = await repo.saveIfVersion({ record: { ...holder, slug }, ifVersion: holder.version });
+  if (!applied) {
+    throw new PostConflictError(`slug '${holder.slug}' changed while it was being taken from the Trash`);
   }
 }
 
@@ -1638,7 +1714,7 @@ export async function updatePost(
   // (idempotently) where the record is built.
   normalizePublishAt(input.publishAt);
   normalizeFeaturedMediaId(input.featuredMediaId);
-  await assertSlugAvailableForUpdate(deps.repo, input.workspaceId, slug, input.id);
+  const trashedHolder = await trashedSlugHolderOrConflict(deps.repo, { workspaceId: input.workspaceId, slug }, { selfId: input.id });
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
   // repo.save() below. The draft the filters see carries the entry's already-written ext (every
@@ -1665,6 +1741,7 @@ export async function updatePost(
   // (a no-op when nothing landed) and rethrows unchanged, so `PostVersionConflictError`/
   // `PostNotFoundError` reach the caller exactly as they did before this change.
   const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
+    if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
     await captureSlugChange(deps.slugChangeCapture, existing, post, input.actorId ?? SYSTEM_ACTOR_ID);
     return deps.repo.appendRevision({
