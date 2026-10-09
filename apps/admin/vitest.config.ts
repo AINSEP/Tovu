@@ -64,7 +64,8 @@ export default defineConfig({
      * work loop, so the test that triggered it still passed), which is why it went unnoticed: any
      * admin test that mounts `App` renders the assistant dock, and therefore `ChatPane`.
      */
-    dedupe: ["react", "react-dom"],
+    // Match production: Jini's adapter, application probes and Devtools share one context.
+    dedupe: ["react", "react-dom", "@tanstack/react-query", "@tanstack/query-core"],
     alias: {
       "@": path.resolve(__dirname, "src"),
       "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),

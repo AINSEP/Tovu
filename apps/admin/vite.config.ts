@@ -133,7 +133,11 @@ export default defineConfig({
     //
     // Safe because every copy is the same version (19.2.7 across all five, verified) — dedupe
     // picks one instance rather than reconciling different Reacts.
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    // The optional Jini adapter and lazy Devtools must share the same QueryClient
+    // context, including when a coordinator links a locally built Jini package.
+    // `@jini-ai/ui` too: the fetch-query binding is one React context, so a published
+    // (non-symlinked) install with nested copies would give hooks a context no provider fills.
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core", "@jini-ai/ui"],
     alias: {
       "@": path.resolve(__dirname, "src"),
       "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),

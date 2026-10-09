@@ -36,7 +36,9 @@ afterEach(() => {
  * per-test, e.g. `vi.spyOn(window, "matchMedia").mockReturnValue({ ...impl, matches: true })`
  * (and restore it afterward — nothing here does that automatically).
  */
-Object.defineProperty(window, "matchMedia", {
+// Guarded for the few suites that opt into `@vitest-environment node` (e.g. the in-memory Vite
+// build in `devtools-bundle.unit.test.ts`): esbuild cannot run under jsdom, and node has no window.
+if (typeof window !== "undefined") Object.defineProperty(window, "matchMedia", {
   writable: true,
   configurable: true,
   value: vi.fn().mockImplementation((query: string) => ({
