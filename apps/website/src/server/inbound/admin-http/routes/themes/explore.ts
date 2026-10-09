@@ -21,6 +21,7 @@ import {
   resolveThemeFileWriteScope,
   resolveThemeOriginalSource,
   restoreBuiltThemeGeneratedTree,
+  saveThemeAsOriginal,
   themeFileDiffersFromOriginal,
   themeOriginalResetRefusal,
   writeThemeFile,
@@ -867,6 +868,32 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
       reloadTheme(deps, theme.manifest.id);
 
       res.json(buildFileResetResponse(deps, theme, path, resetResult));
+    } catch (err) {
+      sendThemeFileError(res, err);
+    }
+  });
+};
+
+/**
+ * POST — save the theme's CURRENT files as its stored original (Explore's "Save as original", owner
+ * 2026-10-08), into the hidden catalog Reset reads. For a theme that has none, which is the only time
+ * the screen offers it; one that already has an original is refused (`ORIGINAL_EXISTS`) rather than
+ * replaced, since that original is what Reset should keep restoring to. See `saveThemeAsOriginal`.
+ */
+export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = (app, deps) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/original", async (req, res) => {
+    try {
+      if (!(await authorizeThemeAccess(deps, req, res))) return;
+
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
+
+      const saved = saveThemeAsOriginal({ theme, themesRoot: deps.themesDir, packageThemesRoot: deps.packageThemesDir });
+      if (!saved.ok) {
+        res.status(409).json({ error: saved.message, code: saved.code });
+        return;
+      }
+      res.json({ themeId: theme.manifest.id, saved: true });
     } catch (err) {
       sendThemeFileError(res, err);
     }

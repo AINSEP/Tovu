@@ -27,6 +27,7 @@ import {
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
   registerAdminThemePagePublishRoute,
+  registerAdminThemeSaveOriginalRoute,
 } from "#src/server/inbound/admin-http/routes/themes/explore";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 import type { ServerModuleHandle } from "./types.js";
@@ -113,6 +114,7 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminThemeFileRenameRoute(app, deps);
       registerAdminThemeFileDeleteRoute(app, deps);
       registerAdminThemePagePublishRoute(app, deps);
+      registerAdminThemeSaveOriginalRoute(app, deps);
       registerAdminThemeDetailRoute(app, deps);
     },
   };

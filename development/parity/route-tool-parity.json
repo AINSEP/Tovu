@@ -1301,6 +1301,9 @@
         "theme_reset_file"
       ]
     },
+    "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/original": {
+      "gap": "no tool saves a theme's current files as its stored original; no existing theme tool takes it as an option"
+    },
     "POST /api/admin/v1/workspaces/:workspaceId/themes/:themeId/page/publish": {
       "tools": [
         "theme_set_page_published"

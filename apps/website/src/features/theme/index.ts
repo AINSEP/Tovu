@@ -215,6 +215,8 @@ export {
   type SyncThemeOriginalsResult,
   type SyncThemeOriginalsThemeResult,
 } from "./sync-originals.js";
+// Explore's "Save as original" (2026-10-08): a theme's current files become its stored original.
+export { saveThemeAsOriginal, type SaveThemeOriginalRefusal } from "./save-theme-original.js";
 
 // Shared admin and assistant page-publication service.
 export { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
