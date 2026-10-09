@@ -1,6 +1,6 @@
 import { ToolInputError } from "@jini-ai/core";
 import { federatedApprovalClassFor } from "../tool-approval-policy.js";
-import type { ToolApprovalClass } from "../../contracts/headless/assistant-tool-approval-policy.js";
+import { approvalClassAsks, type ToolApprovalClass } from "../../contracts/headless/assistant-tool-approval-policy.js";
 import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, federatedCallConfirmationForAction, writeShapedInputNames } from "@jini-ai/mcp/federation";
 import type { ToolRegistration, ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
@@ -169,12 +169,20 @@ export function buildFederatedMcpRegistrations(params: {
 }): FederatedRegistrationResult {
   const toolByName = new Map(params.tools.map(tool => [tool.name, structuredClone(tool)]));
   const classify = (name: string, input: unknown) => federatedApprovalClassFor({ ...toolByName.get(name), input });
-  const needsApproval = (name: string, input: unknown) => !['read', 'edit'].includes(classify(name, input));
-  const deps: FederationDeps = { ...params.deps, ...(params.deps.confirmCall ? {
-    // A mandatory destructive/publish approval must never be skipped by a remembered grant.
-    confirmCall: (ctx, request) => params.deps.confirmCall!(ctx, needsApproval(request.remoteName, request.arguments)
-      ? { ...request, destructive: true, approvalClass: classify(request.remoteName, request.arguments) } : request),
-  } : {}) };
+  const needsApproval = (name: string, input: unknown) => approvalClassAsks({ class: classify(name, input) });
+  const deps: FederationDeps = { ...params.deps,
+    confirmCall: async (ctx, request) => {
+      // Jini still owns admission, liveness and authorization before this callback. Explicit
+      // trash/restore uses the native policy table even without a human confirmation channel.
+      // Unclassified SQL, delivery and access operations retain Jini's existing safety gate.
+      const declaredClass = federatedApprovalClassFor({ ...toolByName.get(request.remoteName), input: request.arguments }, { fallbackClass: 'delete' });
+      if (!approvalClassAsks({ class: declaredClass })) return { confirmed: true };
+      if (!params.deps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${request.toolId}: this protected action requires confirmation, and nothing here can ask a person. Nothing was sent.` });
+      // A mandatory destructive/publish approval must never be skipped by a remembered grant.
+      return params.deps.confirmCall(ctx, needsApproval(request.remoteName, request.arguments)
+        ? { ...request, destructive: true, approvalClass: classify(request.remoteName, request.arguments) } : request);
+    },
+  };
   const built = buildJiniRegistrations({ ...params, deps: toJiniFederationDeps({ deps }) });
   return { ...built, registrations: built.registrations.map((registration, index) => {
     const admitted = built.report.admitted[index]!;
@@ -191,8 +199,8 @@ export function buildFederatedMcpRegistrations(params: {
         // confirmation never substitutes for admission, liveness or the permission evaluator.
         await deps.assertConnectionUsable?.(params.config.connectionId, { remoteName: admitted.remoteName, declaredAnnotations: admitted.declaredAnnotations, origin: params.config.origin });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: FEDERATED_TOOL_PERMISSION }, { entityType: FEDERATED_ENTITY_TYPE, entityId: params.config.connectionId });
-        if (!deps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${admitted.toolId}: this action requires human approval. Nothing was sent.` });
-        const outcome = await deps.confirmCall({ ...ctx, ...options }, {
+        if (!params.deps.confirmCall) throw new ToolInputError({ message: `EXTERNAL_MCP_NO_CONFIRMATION_CHANNEL: ${admitted.toolId}: this action requires human approval. Nothing was sent.` });
+        const outcome = await deps.confirmCall!({ ...ctx, ...options }, {
           connectionId: params.config.connectionId, connectionLabel: params.config.label, toolId: admitted.toolId,
           remoteName: admitted.remoteName, arguments: structuredClone(args), destructive: true, approvalClass: classify(admitted.remoteName, args),
           declaredAnnotations: admitted.declaredAnnotations, origin: params.config.origin,

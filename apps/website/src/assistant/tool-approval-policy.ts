@@ -50,21 +50,32 @@ export function applyToolApprovalPolicy(
 }
 
 /** A remote declaration can add friction, never grant admission or permissions. MCP has no standard
- * publish hint: use the advertised behavior and the actual selected action, not the tool id.
+ * publish hint: use the advertised behavior (description/remote name) and actual selected action,
+ * not the generated tool id.
+ * `fallbackClass` lets the adapter preserve Jini's safety decision for unclassified operations;
+ * only a recognized reversible action may override a generic destructive hint.
  * NEEDS-JINI: preserve an explicit per-action approval class in the shared MCP descriptor protocol. */
 export function federatedApprovalClassFor(
-  { description, annotations, input }: { description?: string; annotations?: { destructiveHint?: boolean }; input: unknown }, _optional = {},
+  { description, name, annotations, input }: { description?: string; name?: string; annotations?: { destructiveHint?: boolean }; input: unknown },
+  { fallbackClass = 'edit' }: { fallbackClass?: ToolApprovalClass } = {},
 ): ToolApprovalClass {
   const args = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
   const action = [args.action, args.operation, args.method].filter(v=>typeof v === 'string').join(' ').replace(/[_-]/g, ' ').toLowerCase();
+  const declaredAction = (name ?? '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' ').toLowerCase();
+  const restores = /\brestore\b/.test(action) || /^(?:This tool\s+)?Restores?\b/i.test(description ?? '') || /\brestore\b/.test(declaredAction);
   if (/\btrash\b/.test(action)) return 'trash';
   if (/\b(?:delete|purge|destroy|truncate)\b/.test(action)) return 'delete';
-  if (/\brestore\b/.test(action) && (args.overwrite === true || args.replaceExisting === true || /\bover existing\b/.test(action))) return 'restore-over-existing';
-  if (/\b(?:publish|unpublish|deploy)\b/.test(action) || args.status === 'published' || typeof args.published === 'boolean') return 'publish';
+  if (restores && (args.overwrite === true || args.replaceExisting === true || /\bover existing\b/.test(action))) return 'restore-over-existing';
+  if (/\b(?:publish|unpublish|deploy|send|deliver)\b/.test(action) || args.status === 'published' || typeof args.published === 'boolean') return 'publish';
   // Exact declaration verbs, not incidental mentions such as "reads published content".
-  if (/^(?:This tool\s+)?(?:publishes|unpublishes|deploys|publish|unpublish|deploy)\b/i.test(description ?? '')) return 'publish';
+  if (/^(?:This tool\s+)?(?:publishes|unpublishes|deploys|sends|delivers|publish|unpublish|deploy|send|deliver)\b/i.test(description ?? '')) return 'publish';
   if (/\b(?:trashes|moves? .{0,80} to (?:the )?trash)\b/i.test(description ?? '')) return 'trash';
   if (/\brestores?\b.{0,80}\b(?:over|replaces?|replacing|overwrites?|overwriting)\b.{0,40}\b(?:existing|current)\b/i.test(description ?? '')) return 'restore-over-existing';
-  if (/\b(?:deletes|purges|permanently removes)\b/i.test(description ?? '') || annotations?.destructiveHint === true) return 'delete';
-  return 'edit';
+  if (/\b(?:deletes|purges|permanently removes)\b/i.test(description ?? '')) return 'delete';
+  if (restores) return 'edit';
+  if (/\btrash\b/.test(declaredAction)) return 'trash';
+  if (/\b(?:publish|unpublish|deploy|send|deliver)\b/.test(declaredAction)) return 'publish';
+  if (/\b(?:delete|purge|destroy|truncate)\b/.test(declaredAction)) return 'delete';
+  if (annotations?.destructiveHint === true) return 'delete';
+  return fallbackClass;
 }
