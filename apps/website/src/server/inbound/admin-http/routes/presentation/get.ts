@@ -3,7 +3,9 @@ import {
   PresentationSettingsNotFoundError,
 } from "#src/features/presentation/index";
 import { findStoredTheme, validThemeIds } from "#src/features/theme/index";
-import { themePreviewImage } from "#src/features/theme/theme-preview-image";
+import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
+import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
+import { registerAdminThemePreviewRoute } from "../themes/preview.js";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -18,6 +20,9 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * Programmer handoff since this reuses a write-shaped permission name for a read route.
  */
 export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, deps) => {
+  // The image route behind every card URL this listing hands out, registered with it so the two
+  // cannot be mounted apart.
+  registerAdminThemePreviewRoute({ app, deps });
   app.get("/api/admin/v1/workspaces/:workspaceId/presentation", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -69,13 +74,16 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
       // Slug-collision override (2026-08-10) — every page id the active theme ships, so the editor
       // can warn when a post's own slug is currently claimed by one of the theme's own pages.
       const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
+      // Card previews are captures of each theme's own render where this site can take them (see
+      // `routes/themes/preview.ts`); elsewhere the shipped `screenshots/` file, as before.
+      const capturesEnabled = deps.siteBinding !== undefined && themePreviewServiceForHost({ binding: deps.siteBinding }) !== undefined;
       // Themes admin screen (2026-08-10) — tier alongside id for every valid theme, so the Themes
       // screen can group cards by tier without a second round trip. Filtered to `status === "valid"`
       // to match `validThemeIds`'s own filter above (an invalid theme is not one an operator can pick).
       const availableThemes = deps.themes
         .filter((t) => t.status === "valid")
         .map((t) => ({ id: t.manifest.id, name: t.manifest.name, tier: t.manifest.tier, apiVersion: t.manifest.apiVersion,
-          previewImageUrl: themePreviewImage({ dir: t.dir, id: t.manifest.id }, { assetsServed: t.manifest.tier === "static" || t.manifest.tier === "templated" }) }));
+          previewImageUrl: themeCardPreviewUrl({ theme: { dir: t.dir, id: t.manifest.id, tier: t.manifest.tier }, workspaceId: deps.workspaceId }, { capturesEnabled }) }));
 
       res.json(
         toAdminPresentationResponse({

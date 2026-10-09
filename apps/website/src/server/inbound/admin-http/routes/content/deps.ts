@@ -116,6 +116,9 @@ export type ContentRouteDeps = Pick<
   | "siteTitlePreservationStore"
   | "workspaceRepo"
   | "siteDisplayName"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo"
+  /** `presentation/get.ts` + `themes/preview.ts`: whether this served site captures Themes card
+   *  previews (`theme-preview-host.ts`). Optional: an in-memory or test runtime has no site folder. */
+  | "siteBinding">>;
 
 export type ContentRouteRegistrar = (app: Express, deps: ContentRouteDeps) => void;
