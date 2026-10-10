@@ -61,17 +61,16 @@ export function VisitorAssistantPanel({
         <li className="visitor-step">
           <div className="visitor-step-head">
             <h3 className="visitor-step-title">{t("Connect an AI provider")}</h3>
-          </div>
-          {/* One short line, the full explanation in the ⓘ. Every sentence of it is load-bearing —
-              this screen exists because an operator could not tell the two API keys apart. */}
-          <p className="visitor-step-hint">
-            {t("This key is for your visitors, not for you.")}
+            {/* One plain sentence (owner, 2026-10-09: "the tool tips are confusing"). The old tip
+                explained how this key differs from the admin's own BYOK key; that comparison now
+                lives only on the Admin tab, where the BYOK key actually is. */}
             <InfoTip
-              label={`${t("This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.")} ${t("It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.")}`}
+              label={t("For visitors who want to talk to your site with AI.")}
               triggerLabel={t("About the visitor key")}
               agentHandle="ai-assistant-visitor-key-info"
             />
-          </p>
+          </div>
+          <p className="visitor-step-hint">{t("This key is for your visitors, not for you.")}</p>
           <CredentialForm useVisitorCredentialFormHook={() => credential} t={t} />
         </li>
 
@@ -79,15 +78,17 @@ export function VisitorAssistantPanel({
           <div className="visitor-step-head">
             <h3 className="visitor-step-title"><label htmlFor={widgetId}>{t("Widget")}</label></h3>
             <InfoTip
-              label={`${t("Applies to this site. Changing the widget keeps the assistant's on/off setting.")} ${t("Standard is the full widget, about 200 KB gzipped. Lightweight (beta) is a smaller build, about 30 KB gzipped, that loads faster.")}`}
+              label={t("React is the full widget. Pure JS is smaller and loads faster.")}
               triggerLabel={moreInfo(t("Widget"))}
               agentHandle="ai-assistant-visitor-widget-info"
             />
             <select id={widgetId} className="jini-input visitor-compact-select" value={panel.widget} disabled={saving}
               onChange={(event) => panel.chooseWidget(event.target.value)}
               {...agentHandle({ handle: "ai-assistant-visitor-widget" }, { role: "field", label: "Visitor chat widget" })}>
-              <option value="react">{t("Standard")}</option>
-              <option value="vanilla">{t("Lightweight (beta)")}</option>
+              {/* Labels name the build and its gzipped size; the stored values stay "react"/"vanilla".
+                  "beta" was dropped: nothing in code marks the vanilla build as beta any more. */}
+              <option value="react">React (~200 KB)</option>
+              <option value="vanilla">{t("Pure JS")} (~30 KB)</option>
             </select>
           </div>
         </li>

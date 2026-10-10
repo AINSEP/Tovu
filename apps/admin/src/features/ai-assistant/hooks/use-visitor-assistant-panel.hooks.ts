@@ -40,8 +40,8 @@ export function useVisitorAssistantPanel(
     canEnable,
     enableBlockedReason: canEnable ? null : "Save a key in step 1 first.",
     enableInfo: settings.publicEnabled
-      ? "Visitors can chat with the assistant. It is served on every public page."
-      : "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget.",
+      ? "Visitors can chat with it on every public page."
+      : "When off, your site loads no assistant code and has no chat endpoint.",
     widget: settings.widget ?? "react",
     chooseWidget: (value) => void setWidget({ widget: value === "vanilla" ? "vanilla" : "react" }),
   };

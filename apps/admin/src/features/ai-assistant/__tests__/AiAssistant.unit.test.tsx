@@ -78,8 +78,8 @@ it("wcmp: the visitor Widget selector defaults to React and saves Lightweight wi
   render(<AiAssistant />);
   const select = await screen.findByRole("combobox", { name: "Widget" });
   expect(select).toHaveValue("react");
-  expect(screen.getByRole("option", { name: "Standard" })).toBeInTheDocument();
-  expect(screen.getByRole("option", { name: "Lightweight (beta)" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "React (~200 KB)" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Pure JS (~30 KB)" })).toBeInTheDocument();
   await user.selectOptions(select, "vanilla");
   await waitFor(() => expect(select).toHaveValue("vanilla"));
   expect(state).toEqual({ publicEnabled: false, widget: "vanilla" });
@@ -178,7 +178,7 @@ describe("the public on/off switch", () => {
     render(<AiAssistant />);
 
     await waitFor(() => expect(theSwitch()).toBeInTheDocument());
-    expect(screen.getByText(/ships no assistant code and exposes no assistant endpoint/i)).toBeInTheDocument();
+    expect(screen.getByText(/loads no assistant code and has no chat endpoint/i)).toBeInTheDocument();
   });
 
   it("says the owner's own BYOK key is stored on the server, not in this browser", async () => {
