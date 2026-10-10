@@ -1,4 +1,5 @@
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, PARTIAL_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
+import { postAuthorForDisplay } from "../post/author.js";
 import { renderHtmlMenu } from "#src/features/navigation/html-render";
 import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
@@ -631,6 +632,18 @@ export function injectFeaturedImage(html: string, image: StaticFeaturedImage | n
   } });
 }
 
+/** Fill a static post byline using the same marker substitution as the other post metadata. */
+export function injectPostAuthor(
+  required: { html: string; post?: { author?: string | null; showAuthor?: boolean } },
+  _optional: Record<string, never> = {},
+): string {
+  const author = required.post ? postAuthorForDisplay({ post: required.post }) : null;
+  return substituteMarkers({ html: required.html, resolve: (marker) => {
+    if (marker.type !== "post-author") return undefined;
+    return author ? withInnerContentFinal({ marker, inner: `By ${escapeHtml(author)}` }) : "";
+  } });
+}
+
 /** `nav.html` → `nav`; the partial-id key `loadStaticTierAssets` stores root partials under. */
 function partialIdFromSource(source: string): string {
   return source.endsWith(".html") ? source.slice(0, -".html".length) : source;
@@ -775,10 +788,12 @@ export function renderStaticPage(
     collectionLists?: ReadonlyMap<string, string | undefined>;
     /** The current post's featured image ({@link injectFeaturedImage}); omitted ⇒ no image. */
     featuredImage?: StaticFeaturedImage | null;
+    /** Current post metadata; absent on other static surfaces, which removes the byline marker. */
+    postAuthor?: { author?: string | null; showAuthor?: boolean };
   },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { theme, pageId, htmlOverride, menus, postPreviews, collectionLists, featuredImage } = required;
+  const { theme, pageId, htmlOverride, menus, postPreviews, collectionLists, featuredImage, postAuthor } = required;
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
@@ -810,6 +825,7 @@ export function renderStaticPage(
   html = injectPostPreviewsEmbeds(html, postPreviews ?? []);
   html = injectCollectionEmbeds(html, collectionLists ?? new Map());
   html = injectFeaturedImage(html, featuredImage);
+  html = injectPostAuthor({ html, post: postAuthor });
   html = withEntryListStyleOnce(html);
   html = rewritePageLinks(html);
   return html;

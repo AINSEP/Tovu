@@ -1,0 +1,5 @@
+.jini-consent-settings-fields { border:0; padding:0; margin:1rem 0; min-width:0; display:grid; gap:.75rem; }
+.jini-consent-settings-fields legend { font-weight:600; margin-bottom:.75rem; }
+.jini-consent-settings-field { display:grid; gap:.35rem; min-width:0; }
+.jini-consent-settings-field .jini-input { width:100%; min-width:0; max-width:100%; font:inherit; }
+.jini-consent-settings-field textarea { resize:vertical; }
