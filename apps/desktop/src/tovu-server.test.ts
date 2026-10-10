@@ -218,21 +218,21 @@ test("buildServeEnv overwrites an inherited TOVU_HOST -- a developer's shell exp
 // local process). Set in buildCliEnv (not buildServeEnv) so BOTH the `init` spawn
 // (site-dir-store.ts's initSiteDir) and the `serve` spawn (buildServeEnv, below) get it.
 test("buildCliEnv seeds TOVU_ADMIN_USER=admin and a random 64-hex TOVU_ADMIN_PASSWORD", () => {
-  const env = buildCliEnv({}, "/s");
+  const env = buildCliEnv({ baseEnv: {}, siteDir: "/s" });
   assert.equal(env.TOVU_ADMIN_USER, "admin");
   assert.match(env.TOVU_ADMIN_PASSWORD!, /^[0-9a-f]{64}$/);
 });
 
 test("buildCliEnv overwrites an inherited TOVU_ADMIN_USER/TOVU_ADMIN_PASSWORD pair, including the default tovu-dev password -- a PAIR, like TOVU_HOST above, not merely defaulted like the daemon token", () => {
-  const env = buildCliEnv({ TOVU_ADMIN_PASSWORD: "tovu-dev", TOVU_ADMIN_USER: "x" }, "/s");
+  const env = buildCliEnv({ baseEnv: { TOVU_ADMIN_PASSWORD: "tovu-dev", TOVU_ADMIN_USER: "x" }, siteDir: "/s" });
   assert.equal(env.TOVU_ADMIN_USER, "admin");
   assert.notEqual(env.TOVU_ADMIN_PASSWORD, "tovu-dev");
   assert.match(env.TOVU_ADMIN_PASSWORD!, /^[0-9a-f]{64}$/);
 });
 
 test("buildCliEnv gives two calls two different random passwords", () => {
-  const a = buildCliEnv({}, "/s");
-  const b = buildCliEnv({}, "/s");
+  const a = buildCliEnv({ baseEnv: {}, siteDir: "/s" });
+  const b = buildCliEnv({ baseEnv: {}, siteDir: "/s" });
   assert.notEqual(a.TOVU_ADMIN_PASSWORD, b.TOVU_ADMIN_PASSWORD);
 });
 
@@ -321,9 +321,9 @@ test("buildServeEnv sets TOVU_SITE_DIR to the site being served — app.ts's own
   assert.equal(env.TOVU_SITE_DIR, "/Users/x/my-site");
 });
 
-test("buildServeEnv keeps an operator-set TOVU_SITE_DIR instead of replacing it", () => {
+test("buildServeEnv pins TOVU_SITE_DIR to the requested site despite an inherited selection", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: { TOVU_SITE_DIR: "/operator/pinned" } });
-  assert.equal(env.TOVU_SITE_DIR, "/operator/pinned");
+  assert.equal(env.TOVU_SITE_DIR, "/Users/x/my-site");
 });
 
 // Regression for the 2026-09-19 live blocker: the Publish Content dialog's Connect button reported
@@ -397,9 +397,9 @@ test("TOVU_AGENT_CWD and TOVU_SITE_DIR name the same site, so the agent's filesy
   assert.equal(env.TOVU_AGENT_CWD, env.TOVU_SITE_DIR);
 });
 
-test("buildServeEnv keeps an operator-set TOVU_AGENT_CWD instead of replacing it", () => {
+test("buildServeEnv pins TOVU_AGENT_CWD to the requested site despite an inherited working directory", () => {
   const env = buildServeEnv({ repoRoot: makeTempRepo(), siteDir: "/Users/x/my-site", baseEnv: { TOVU_AGENT_CWD: "/operator/pinned" } });
-  assert.equal(env.TOVU_AGENT_CWD, "/operator/pinned");
+  assert.equal(env.TOVU_AGENT_CWD, "/Users/x/my-site");
 });
 
 // S4 (plan-desktop-bundled-npx-2026-09-24.md §6): `main.ts`'s own `writeNodeToolchain` call hands
@@ -525,6 +525,29 @@ test("startTovuServer hands the spawned `tovu serve` a TOVU_AGENT_CWD, so the da
   // No `cwd` is passed to `spawn` — the fix is the explicit env var the server already reads, not a
   // change to the child's own working directory, which other code resolves the site from.
   assert.equal(recorded!.cwd, undefined);
+});
+
+test("two concurrent desktop launches deliver different site roots and no inherited installed-store overrides to spawn", async () => {
+  const root = makeTempRepo();
+  const parent = Object.freeze({ TOVU_PLUGINS_DIR: "/shared/plugins", TOVU_SKILLS_DIR: "/shared/skills",
+    TOVU_AGENT_PLUGINS_DIR: "/shared/agent-plugins", TOVU_SITE_DIR: "/shared/site", TOVU_AGENT_CWD: "/shared/site" });
+  const envs: NodeJS.ProcessEnv[] = [];
+  const children = [fakeChild(), fakeChild()];
+  const siteDirs = ["/tmp/site-alpha", "/tmp/site-beta"];
+  const pending = siteDirs.map((siteDir, index) => startTovuServer({ repoRoot: root, siteDir,
+    port: 3601 + index, baseEnv: parent, mirror: silentMirror(), spawnFn: (_command, _args, options) => {
+      envs.push(options.env!);
+      return children[index]!;
+    } }));
+  children.forEach((child, index) => child.stdout.write(`tovu serve: dir=${siteDirs[index]} port=${3601 + index} schemaVersion=42 workspaceId=workspace-local\n`));
+  const handles = await Promise.all(pending);
+  assert.deepEqual(handles.map(handle => handle.port), [3601, 3602]);
+  envs.forEach((env, index) => {
+    assert.equal(env.TOVU_SITE_DIR, siteDirs[index]);
+    assert.equal(env.TOVU_AGENT_CWD, siteDirs[index]);
+    for (const key of ["TOVU_PLUGINS_DIR", "TOVU_SKILLS_DIR", "TOVU_AGENT_PLUGINS_DIR"]) assert.equal(env[key], undefined);
+  });
+  assert.equal(parent.TOVU_SITE_DIR, "/shared/site");
 });
 
 test("startTovuServer in source mode runs the TS entry under --import tsx instead of the compiled CLI", async () => {

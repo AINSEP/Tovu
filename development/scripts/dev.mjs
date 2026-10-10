@@ -36,7 +36,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
+import { omitEnvironmentKeys } from "@jini-ai/platform";
 
+import { devSitesHome } from "./dev-sites-home.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
 import { listenersOn } from "./port-listeners.mjs";
@@ -241,12 +243,29 @@ export function classifyChildExit({ shuttingDown, planned }) {
   return planned ? "planned" : "crash";
 }
 
+/**
+ * Keep installed stores site-local across initial boots and site-switch restarts.
+ * Direct `tovu serve` runs retain their explicit overrides; this launcher never forwards them.
+ * Warnings disclose names only. Inputs are unchanged; the result is a fresh child environment.
+ * @complexity O(n) time/space in the number of environment entries.
+ * @example buildDevChildEnv({ parent: process.env, env: { TOVU_SITE: "alpha" } });
+ */
+export function buildDevChildEnv({ parent, env }, { warn = console.warn } = {}) {
+  const isolated = omitEnvironmentKeys({ env: { ...parent, ...env },
+    keys: ["TOVU_PLUGINS_DIR", "TOVU_SKILLS_DIR", "TOVU_AGENT_PLUGINS_DIR"],
+  }, { caseInsensitive: process.platform === "win32" });
+  if (isolated.omitted.length) {
+    warn(`tovu dev: dropped inherited ${isolated.omitted.join(", ")}; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.`);
+  }
+  return isolated.env;
+}
+
 function start(name, command, args, env) {
   const child = spawn(command, args, {
     cwd: REPO_ROOT,
     stdio: "inherit",
     detached: true, // own process group — required for killGroup to reap grandchildren
-    env: { ...process.env, ...env },
+    env: buildDevChildEnv({ parent: process.env, env }),
   });
   child.on("error", (error) => {
     console.error(`\ntovu dev: failed to start ${name}:`, error.message);
@@ -453,6 +472,16 @@ export function buildApiEnv({ scheme, apiPort, vitePort, supervisorPid }, { env 
     // hitting any other TLS port with a raw HTTP request would.
     TOVU_ADMIN_DEV_PROXY_URL: `${scheme}://localhost:${vitePort}`,
     PORT: String(apiPort),
+    // Passwordless local owner sessions are safe only on a loopback listener. Keep an explicit
+    // production/LAN setting so the server's hard guard refuses it and explains the misconfiguration.
+    // Default OFF: a header-stripping tunnel is indistinguishable from a local client, and curl
+    // can forge fetch metadata. Opt-in is for a single-human dev origin, never a tunneled site.
+    // Pin development only for that opt-in; ordinary dev API consumers keep their prior NODE_ENV.
+    ...(env.NODE_ENV !== undefined || env.TOVU_DEV_OWNER_SIGNIN === "1"
+      ? { NODE_ENV: env.NODE_ENV ?? "development" } : {}),
+    ...(env.TOVU_HOST !== undefined || env.TOVU_DEV_OWNER_SIGNIN === "1"
+      ? { TOVU_HOST: env.TOVU_HOST ?? "127.0.0.1" } : {}),
+    TOVU_DEV_OWNER_SIGNIN: env.TOVU_DEV_OWNER_SIGNIN ?? "0",
     // Backs `apps/website/src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
     // full rationale). Deliberately this process's own pid, not left for the child to infer via its
     // OS `ppid`: `tsx watch` is a Node-based wrapper that does not exec-replace, so the API's real
@@ -523,8 +552,27 @@ function resolveMkcertRootCaPath(tlsActive) {
   return undefined;
 }
 
+/** Explain this completed early-exit path and its alternative through the dev output owner. */
+export function announceRunningDevSite({ record }, { log = console.log } = {}) {
+  const url = record.port > 0 ? `${record.scheme}://localhost:${record.port}/admin/` : null;
+  log(`tovu dev: Running in ${record.app} (${record.port > 0 ? `port ${record.port}` : "starting"}).${url ? ` ${url}` : " Wait for this site to finish starting."}`);
+  log("tovu dev: Attached to the existing site; no new server started. Choose another site with TOVU_SITE=<site-name> npm run dev.");
+  return url;
+}
+
 async function main() {
   warnInheritedAdminPassword({ env: process.env });
+  const selectedSite = devSitesHome({ repoRoot: REPO_ROOT });
+  if (selectedSite.warning) console.warn(`tovu dev: ${selectedSite.warning.message} Open admin Sites settings to choose appData or ${selectedSite.warning.localHome}.`);
+  if (selectedSite.running) {
+    const record = selectedSite.running;
+    const url = announceRunningDevSite({ record });
+    if (url) {
+      const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer.exe" : "xdg-open";
+      spawn(opener, [url], { stdio: "ignore" }).on("error", () => console.warn(`Open this website at ${url}`));
+    }
+    return;
+  }
   preflight();
 
   const tlsActive = resolveDevTlsActive({

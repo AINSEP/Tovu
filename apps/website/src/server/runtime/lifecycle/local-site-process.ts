@@ -1,3 +1,5 @@
+import { listSites } from "#src/platform/site-dir/site-registry";
+import { runningSiteUrl } from "#src/platform/site-dir/site-running";
 import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 /** Host adapter: Jini owns native process lifecycle; Tovu owns site boot and credential isolation. */
@@ -8,30 +10,40 @@ import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createNodeDaemonProcessAdapter } from "@jini-ai/sidecar/supervisor/node";
-import { listProcessSnapshots, readFlagValue } from "@jini-ai/platform";
+import { listProcessSnapshots, readFlagValue, omitEnvironmentKeys } from "@jini-ai/platform";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
 import type { LocalSiteProcessPort, LocalSiteProcess } from "#src/platform/site-dir/local-site-supervisor";
 import { LocalSiteError, assertLocalSiteName } from "#src/platform/site-dir/local-site-supervisor";
 import { readSiteDir } from "#src/platform/site-dir/read-site-dir";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
 import { resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
+import { resolveLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 
 /** Allowlist OS necessities, then supply site-scoped values. Never inherit deploy/provider secrets.
  * HOME permits the site's own key resolver and local CLI authentication; no shell env file is loaded.
- * @complexity O(1): the allowlist is fixed regardless of parent environment size.
+ * Warn when dropping installed-store overrides; bundled product sources are not installed state.
+ * @complexity O(n) time/space for the isolated parent copy; the OS allowlist is fixed.
  */
 export function localSiteChildEnv(
   { parent, siteDir, name, port, daemonPort, repoRoot, buildRoot }: { parent: NodeJS.ProcessEnv; siteDir: string; name: string; port: number; daemonPort: number; repoRoot: string; buildRoot: string },
-  _optional = {},
+  { pathExists, warn = console.warn }: { pathExists?: (path: string) => boolean; warn?: (message: string) => void } = {},
 ): NodeJS.ProcessEnv {
+  const isolated = omitEnvironmentKeys({ env: parent,
+    keys: ["TOVU_PLUGINS_DIR", "TOVU_SKILLS_DIR", "TOVU_AGENT_PLUGINS_DIR"],
+  }, { caseInsensitive: process.platform === "win32" });
+  if (isolated.omitted.length) {
+    warn(`tovu local sites: dropped inherited ${isolated.omitted.join(", ")}; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.`);
+  }
   const env: NodeJS.ProcessEnv = {};
   for (const key of ["PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TEMP", "TMP", "SystemRoot", "WINDIR", "COMSPEC", "PATHEXT", "LANG", "LC_ALL"]) {
-    if (parent[key] !== undefined) env[key] = parent[key];
+    if (isolated.env[key] !== undefined) env[key] = isolated.env[key];
   }
   return { ...env, NODE_ENV: "development", PORT: String(port), TOVU_HOST: "127.0.0.1",
     TOVU_SITE: name, TOVU_SITE_DIR: siteDir, TOVU_AGENT_CWD: siteDir,
     TOVU_REPO_ROOT: repoRoot, TOVU_LOCAL_ADMIN_BUILD_ROOT: buildRoot, TOVU_LOCAL_SITE_OWNER_PID: String(process.pid),
     TOVU_ENABLE_SITE_SWITCHER: "0",
+    // Carry a proven local capability, never a raw flag from a deployed/misconfigured parent.
+    TOVU_DEV_OWNER_SIGNIN: resolveLocalOwnerSignIn({ env: parent }, { pathExists }).enabled ? "1" : "0",
     TOVU_API_URL: `http://127.0.0.1:${port}`, JINI_AGENT_DAEMON_PORT: String(daemonPort),
     JINI_AGENT_DAEMON_URL: `http://127.0.0.1:${daemonPort}`,
     ...(parent.TOVU_DISABLE_DEV_TLS === undefined ? {} : { TOVU_DISABLE_DEV_TLS: parent.TOVU_DISABLE_DEV_TLS }),
@@ -58,7 +70,18 @@ export function createLocalSiteProcessPort(
   const scheme = tls.active ? "https" : "http";
   let buildRoot: string | undefined;
   const registry = { readLive: async () => null, write: async () => {}, removeIfCurrent: async () => {} };
+  function stateForSite(site: ReturnType<typeof listSites>[number]) {
+    const record = site.running;
+    return record ? { name: site.name, status: record.port > 0 ? "running" as const : "starting" as const,
+      pid: record.pid, port: record.port || null, daemonPort: null, adminUrl: runningSiteUrl({ record }), app: record.app, external: true } : null;
+  }
+  function existing({ name }: { name: string }) {
+    const site = listSites({ cwd: switcherBase, env }).find((entry) => entry.name === name);
+    return site ? stateForSite(site) : null;
+  }
   return {
+    existing,
+    listExisting: () => listSites({ cwd: switcherBase, env }).flatMap((site) => { const state = stateForSite(site); return state ? [state] : []; }),
     async isPortFree({ port }) {
       try { await allocatePort({}, { port, host: "127.0.0.1" }); } catch { return false; }
       try { await allocatePort({}, { port, host: "::1" }); }
@@ -72,10 +95,11 @@ export function createLocalSiteProcessPort(
     schedule({ run, delayMs }) { const timer = setTimeout(run, delayMs); timer.unref(); return () => clearTimeout(timer); },
     async launch({ name, port, daemonPort }): Promise<LocalSiteProcess> {
       assertLocalSiteName({ name });
-      const siteDir = path.join(switcherBase, "sites", name);
+      const site = listSites({ cwd: switcherBase, env }).find((entry) => entry.name === name);
+      if (!site) throw new LocalSiteError("SITE_NOT_FOUND");
+      const siteDir = site.dir;
       // Realpath containment is checked by the directory owner before either boot or Trash.
-      const { assertManagedSiteDirectory } = await import("#src/platform/site-dir/site-trash");
-      assertManagedSiteDirectory({ base: switcherBase, name });
+      // The validated registry owns arbitrary adopted paths; Trash separately requires containment.
       readSiteDir({ dir: siteDir });
       buildRoot ??= mkdtempSync(path.join(os.tmpdir(), "tovu-local-sites-"));
       const childEnv = localSiteChildEnv({ parent: env, name, siteDir, port, daemonPort, repoRoot, buildRoot });

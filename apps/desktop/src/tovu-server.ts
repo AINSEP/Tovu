@@ -20,6 +20,7 @@ import fs from "node:fs";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
+import { omitEnvironmentKeys } from "@jini-ai/platform";
 import type { SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 
@@ -273,17 +274,27 @@ function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
  * site that has already been seeded, because `seedIdentity` seeds exactly once, idempotently — this
  * only changes what a genuinely NEW site's first owner credential is.
  *
- * @param siteDir the site dir the child will operate on (`init`'s target dir, or `serve`'s), set
- *   into `TOVU_SITE_DIR` unless the operator already pinned one. Optional so a caller with no
+ * @param input.siteDir the site dir the child will operate on (`init`'s target dir, or `serve`'s), set
+ *   into `TOVU_SITE_DIR`, replacing any inherited site selection. Optional so a caller with no
  *   specific site in mind (none exists today) still gets a valid env.
  * @complexity O(n) in the number of inherited environment variables, plus one `randomBytes` call.
  */
-function buildCliEnv(baseEnv: NodeJS.ProcessEnv | undefined, siteDir: string | undefined): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...(baseEnv ?? process.env) };
+function buildCliEnv({ baseEnv, siteDir }: { baseEnv?: NodeJS.ProcessEnv; siteDir?: string },
+  { warn = console.warn }: { warn?: (message: string) => void } = {},
+): NodeJS.ProcessEnv {
+  // Desktop launches many sites: a relocation exported for one CLI run must not become shared state.
+  const isolated = omitEnvironmentKeys({ env: baseEnv ?? process.env,
+    keys: ["TOVU_PLUGINS_DIR", "TOVU_SKILLS_DIR", "TOVU_AGENT_PLUGINS_DIR",
+      ...(siteDir ? ["TOVU_SITE_DIR", "TOVU_AGENT_CWD"] : [])],
+  }, { caseInsensitive: process.platform === "win32" });
+  const env = isolated.env;
+  if (isolated.omitted.length) {
+    warn(`tovu desktop: dropped inherited ${isolated.omitted.join(", ")}; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.`);
+  }
 
   env.ELECTRON_RUN_AS_NODE = "1";
 
-  if (!env.TOVU_SITE_DIR && siteDir) {
+  if (siteDir) {
     env.TOVU_SITE_DIR = siteDir;
   }
 
@@ -355,7 +366,7 @@ interface BuildServeEnvInput {
  *   same PAIR for the same reason — this shell set only the admin half until 2026-09-11, which is
  *   why site-chat 503'd in every compiled-mode desktop run.
  *
- * - **`TOVU_SITE_DIR` is set unless the operator already pinned one.** Confirmed live, 2026-09-05:
+ * - **`TOVU_SITE_DIR` is pinned to the requested site, replacing inherited selections.** Confirmed live, 2026-09-05:
  *   `apps/website/src/server/runtime/composition/app.ts` used to have a MODULE-LOAD-TIME side
  *   effect — `export const app = createApp();`, evaluated the instant `cli/main.ts`'s static import
  *   chain reached that file, before `cli/commands/serve.ts`'s own `runServeCommand()` body ever ran
@@ -410,9 +421,9 @@ interface BuildServeEnvInput {
  * @param input.baseEnv environment to layer onto (defaults to `process.env`).
  * @complexity O(n) in the number of inherited environment variables.
  */
-function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
+function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { warn?: (message: string) => void } = {}): NodeJS.ProcessEnv {
   const repoRoot = input.repoRoot;
-  const env = buildCliEnv(input.baseEnv, input.siteDir);
+  const env = buildCliEnv({ baseEnv: input.baseEnv, siteDir: input.siteDir }, { warn });
   delete env.TOVU_PUBLIC_URL;
   // Ownership comes from the host that registers this connection, never from its display name.
   env.TOVU_BUILT_IN_MCP_SERVER_IDS = JSON.stringify([SITES_MCP_SERVER_ID]);
@@ -479,8 +490,8 @@ function buildServeEnv(input: BuildServeEnvInput): NodeJS.ProcessEnv {
   // {@link buildCliEnv}), so moving the real cwd would change more than the agent's working
   // directory. It also keeps the server side free of any knowledge that a desktop shell exists —
   // this is a variable `agent-daemon-server.ts` already reads for its own reasons, not a new hook.
-  // An operator-set value wins, same rule as `TOVU_AGENT_DAEMON_TOKEN` above.
-  if (!env.TOVU_AGENT_CWD && input.siteDir) {
+  // Pin to this launch's site: inherited working directories can put the agent in another site's tree.
+  if (input.siteDir) {
     env.TOVU_AGENT_CWD = input.siteDir;
   }
 
@@ -770,6 +781,7 @@ interface StartTovuServerInput {
 
 /** What a resolved {@link startTovuServer} call hands back. */
 interface TovuServerHandle {
+  external?: boolean;
   port: number;
   pid: number;
   origin: string;

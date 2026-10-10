@@ -146,7 +146,7 @@ async function listTokenSignInPlugins(input: {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-token-sign-in-"));
   try {
     const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: input.cliMode, cliArgs: ["agent-plugins", "token-sign-in", "--json"] });
-    const child = spawnFn(plan.command, plan.args, { env: buildCliEnv(input.baseEnv, scratch), stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawnFn(plan.command, plan.args, { env: buildCliEnv({ baseEnv: input.baseEnv, siteDir: scratch }), stdio: ["ignore", "pipe", "pipe"] });
     const { code, stdout, stderr } = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
       let out = "";
       let err = "";

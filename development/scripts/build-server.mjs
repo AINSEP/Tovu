@@ -20,6 +20,18 @@ export function buildServer({ repoRoot }, { npmCli = process.env.npm_execpath,
   rmSync(path.join(repoRoot, 'dist/src'), { recursive: true, force: true });
   runNode({ args: [tscCli, '-p', 'tsconfig.json'] });
   runNode({ args: [path.join(repoRoot, 'development/scripts/emit-dist-package-json.mjs')] });
+  stageServerRuntimeAssets({ repoRoot });
+}
+
+/**
+ * Replace compiled runtime assets from their current product sources, including the complete
+ * bundled-agent-plugin catalog. Can run independently when unrelated compilation work is in flight.
+ * Never change installed plugins in a site; this refreshes only product installation inputs.
+ * @throws Filesystem errors retain their native path and cause.
+ * @complexity O(f + b) I/O for f source entries and b bytes copied; recursive copy is owned by Node.
+ * @example stageServerRuntimeAssets({ repoRoot }); // CLI: node development/scripts/build-server.mjs --assets-only
+ */
+export function stageServerRuntimeAssets({ repoRoot }, _options = {}) {
   for (const relative of ['dist/content', 'dist/src/platform/db/drizzle', 'dist/src/platform/db/drizzle-database-journal']) {
     rmSync(path.join(repoRoot, relative), { recursive: true, force: true });
   }
@@ -32,5 +44,8 @@ export function buildServer({ repoRoot }, { npmCli = process.env.npm_execpath,
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  buildServer({ repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..') });
+  const input = { repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..') };
+  // A content-only refresh is a build step, not a claim that compiled server code is release-ready.
+  if (process.argv.includes('--assets-only')) stageServerRuntimeAssets(input);
+  else buildServer(input);
 }
