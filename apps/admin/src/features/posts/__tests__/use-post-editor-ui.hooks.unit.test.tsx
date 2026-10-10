@@ -13,7 +13,8 @@ it("saves with the requested status and opens and closes each dialog independent
   const { result } = renderHook(() => {
     const [deleting, setConfirmingDelete] = useState(false);
     const [template, setShowTemplateModal] = useState(false);
-    return { deleting, template, ...usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal }) };
+    const [, setConfirmingUnchangedSave] = useState(false);
+    return { deleting, template, ...usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal, dirty: true, setConfirmingUnchangedSave }) };
   });
   await act(async () => { await result.current.onPublish(); });
   await act(async () => { await result.current.onSave(); });
@@ -25,6 +26,28 @@ it("saves with the requested status and opens and closes each dialog independent
   expect([result.current.deleting, result.current.template]).toEqual([false, true]);
   act(() => result.current.onCloseTemplateModal());
   expect([result.current.deleting, result.current.template]).toEqual([false, false]);
+});
+
+// Owner, 2026-10-10: Save is never disabled. With nothing changed it opens a warning instead of
+// saving; "Save anyway" closes it and saves (the server writes nothing if it's truly identical).
+it("with nothing changed, Save opens the warning; Save anyway saves once; Cancel saves nothing", async () => {
+  const save = vi.fn(async (_status?: "draft" | "published") => {});
+  const { result } = renderHook(() => {
+    const [, setConfirmingDelete] = useState(false);
+    const [, setShowTemplateModal] = useState(false);
+    const [warning, setConfirmingUnchangedSave] = useState(false);
+    return { warning, ...usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal, dirty: false, setConfirmingUnchangedSave }) };
+  });
+  act(() => { void result.current.onSave(); });
+  expect(result.current.warning).toBe(true);
+  expect(save).not.toHaveBeenCalled();
+  act(() => result.current.onUnchangedSaveCancel());
+  expect(result.current.warning).toBe(false);
+  expect(save).not.toHaveBeenCalled();
+  act(() => { void result.current.onSave(); });
+  await act(async () => { result.current.onUnchangedSaveConfirm(); });
+  expect(result.current.warning).toBe(false);
+  expect(save.mock.calls).toEqual([[]]);
 });
 
 it("rebinds Escape after frame navigation and callback changes, and detaches on collapse and unmount", async () => {

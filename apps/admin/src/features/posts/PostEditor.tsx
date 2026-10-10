@@ -7,6 +7,7 @@ import DragHandle from "@tiptap/extension-drag-handle-react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import { usePreviewPaneWidth, useDevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
@@ -950,6 +951,7 @@ function PostEditorActions({
   onDeleteClick,
   onOpenSettings,
   kindLabel,
+  dirty,
   t,
 }: {
   message: string | null;
@@ -966,6 +968,8 @@ function PostEditorActions({
   onDeleteClick: () => void;
   /** Opens the post settings modal (author, publish time, featured image). */
   onOpenSettings: () => void;
+  /** Nothing changed since the last load/save: Save stays clickable and gets a tip (owner, 2026-10-10). */
+  dirty: boolean;
   kindLabel: "post" | "page";
   t: Translate;
 }) {
@@ -1027,6 +1031,14 @@ function PostEditorActions({
         >
           {t("Save")}
         </button>
+        {dirty ? null : (
+          <InfoTip
+            label={t("No changes yet. Save still works, in case a change wasn't picked up.")}
+            triggerLabel={t("About saving")}
+            placement="bottom"
+            agentHandle="post-save-unchanged-tip"
+          />
+        )}
         <button
           type="button"
           className="btn-danger"
@@ -1504,6 +1516,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     error,
     saving,
     confirmingDelete,
+    confirmingUnchangedSave,
     deleting,
     confirmLeave,
     dirty,
@@ -1519,6 +1532,8 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     onSave,
     onDeleteClick,
     onDeleteCancel,
+    onUnchangedSaveConfirm,
+    onUnchangedSaveCancel,
     onViewTemplateClick,
     onCloseTemplateModal,
     recoverableDraft,
@@ -1630,6 +1645,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         onDeleteClick={onDeleteClick}
         onOpenSettings={settingsDialog.openDialog}
         kindLabel={kindLabel}
+        dirty={dirty}
         t={t}
       />
       {/* Author, scheduled publishing and featured image (2026-10-05) used to be two rows here; they
@@ -1687,6 +1703,18 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
       {/* Categories & Tags — the same box the collection-entry editor mounts; it saves on its own
           button, separately from the post's Save/Publish. */}
       <TermPicker contentType={post.kind} contentId={post.id} />
+      {/* Save with nothing changed (owner, 2026-10-10): a warning, not a disabled button. "Save anyway"
+          still sends the content; the server writes nothing if it really is identical. */}
+      <ConfirmDialog
+        open={confirmingUnchangedSave}
+        agentHandle="post-save-unchanged-confirm"
+        title={t("Nothing changed")}
+        body={<p>{t("Nothing has changed since the last save. Save anyway?")}</p>}
+        confirmLabel={t("Save anyway")}
+        pending={saving}
+        onConfirm={onUnchangedSaveConfirm}
+        onCancel={onUnchangedSaveCancel}
+      />
       <ConfirmDialog
         open={confirmingDelete}
         agentHandle="post-delete-confirm"

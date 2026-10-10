@@ -4,6 +4,7 @@ import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButto
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { agentHandle } from "@jini-ai/agentic";
 import {
   InteractiveHtmlEditor,
@@ -291,6 +292,15 @@ function PageEditorActions({
         >
           {saving ? t("Saving…") : dirty ? `${t("Save")} •` : t("Save")}
         </button>
+        {/* Nothing changed (owner, 2026-10-10): Save stays clickable and gets a tip, same as Edit post. */}
+        {dirty ? null : (
+          <InfoTip
+            label={t("No changes yet. Save still works, in case a change wasn't picked up.")}
+            triggerLabel={t("About saving")}
+            placement="bottom"
+            agentHandle="page-save-unchanged-tip"
+          />
+        )}
         <button
           type="button"
           className="btn-danger"
@@ -771,6 +781,10 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     remove,
     confirmingDelete,
     setConfirmingDelete,
+    onSave,
+    confirmingUnchangedSave,
+    onUnchangedSaveConfirm,
+    onUnchangedSaveCancel,
     deleting,
     confirmLeave,
     onBackLinkClick,
@@ -867,7 +881,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         setStatus={setStatus}
         saving={saving}
         onPublish={() => save("published")}
-        onSave={() => save()}
+        onSave={onSave}
         onDeleteClick={() => setConfirmingDelete(true)}
         t={t}
       />
@@ -906,6 +920,18 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           its own button, separately from the page's Save/Publish. */}
       <TermPicker contentType={page.kind} contentId={page.id} />
 
+      {/* Save with nothing changed (owner, 2026-10-10): a warning, not a disabled button — same as
+          Edit post. "Save anyway" still sends the content; the server writes nothing if it's identical. */}
+      <ConfirmDialog
+        open={confirmingUnchangedSave}
+        agentHandle="page-save-unchanged-confirm"
+        title={t("Nothing changed")}
+        body={<p>{t("Nothing has changed since the last save. Save anyway?")}</p>}
+        confirmLabel={t("Save anyway")}
+        pending={saving}
+        onConfirm={onUnchangedSaveConfirm}
+        onCancel={onUnchangedSaveCancel}
+      />
       <ConfirmDialog
         open={confirmingDelete}
         agentHandle="page-delete-confirm"

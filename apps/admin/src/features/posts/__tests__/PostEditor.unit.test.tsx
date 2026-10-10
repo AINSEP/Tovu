@@ -282,7 +282,9 @@ describe("Delete confirmation", () => {
     // (`use-post-editor.hooks.ts`/`lib/post-title-extension.ts`), so a page-wide `getByText` for
     // "hello world" is ambiguous — there are legitimately two matches now, not a regression in the
     // dialog's own copy, which is what this assertion actually means to check.
-    const dialog = document.querySelector(".confirm-dialog") as HTMLElement;
+    // Found from its own title, not the first `.confirm-dialog`: the editor also mounts the
+    // "Nothing changed. Save anyway?" dialog (2026-10-10), so there are two in the DOM.
+    const dialog = screen.getByText(/move to trash\?/i).closest(".confirm-dialog") as HTMLElement;
     expect(within(dialog).getByText(/hello world/i)).toBeInTheDocument();
 
     // Cancel leaves the post untouched — no DELETE fetched. `ConfirmDialog` stays mounted (its own
@@ -880,6 +882,9 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     onSave: () => save(),
     onDeleteClick: () => setConfirmingDelete(true),
     onDeleteCancel: () => setConfirmingDelete(false),
+    confirmingUnchangedSave: false,
+    onUnchangedSaveConfirm: vi.fn(),
+    onUnchangedSaveCancel: vi.fn(),
     onViewTemplateClick: () => setShowTemplateModal(true),
     onCloseTemplateModal: () => setShowTemplateModal(false),
     post,

@@ -142,6 +142,10 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     remove: vi.fn(),
     confirmingDelete: false,
     setConfirmingDelete: vi.fn(),
+    onSave: vi.fn(),
+    confirmingUnchangedSave: false,
+    onUnchangedSaveConfirm: vi.fn(),
+    onUnchangedSaveCancel: vi.fn(),
     deleting: false,
     // Hook behavior is covered in use-page-editor.unit.test.ts; these spies also prove
     // that the component delegates the click to its controller.
@@ -498,11 +502,35 @@ describe("status, publish, save", () => {
     expect(ctrl.save).toHaveBeenCalledWith("published");
   });
 
-  it("clicking Save calls save() with no status override", async () => {
+  // Save goes through the controller's `onSave` (2026-10-10): with nothing changed it opens the
+  // "Nothing changed" warning instead of saving — that branch is `unchangedSaveHandlers`' own test.
+  it("clicking Save calls the controller's onSave, not save() directly", async () => {
     const user = userEvent.setup();
     const { ctrl } = renderEditor();
     await user.click(screen.getByRole("button", { name: /^save/i }));
-    expect(ctrl.save).toHaveBeenCalledWith();
+    expect(ctrl.onSave).toHaveBeenCalledTimes(1);
+    expect(ctrl.save).not.toHaveBeenCalled();
+  });
+
+  it("shows the 'no changes yet' tip beside Save only while nothing changed", () => {
+    const tip = () => document.querySelector('[data-agent-element="page-save-unchanged-tip"]');
+    const { unmount } = renderEditor({ dirty: false });
+    expect(tip()).not.toBeNull();
+    expect(tip()!.closest(".content-action-group")).not.toBeNull();
+    unmount();
+    renderEditor({ dirty: true });
+    expect(tip()).toBeNull();
+  });
+
+  it("the 'Nothing changed' warning's Save anyway and Cancel call their controller handlers", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ confirmingUnchangedSave: true });
+    expect(screen.getByText("Nothing has changed since the last save. Save anyway?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save anyway" }));
+    expect(ctrl.onUnchangedSaveConfirm).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+    expect(ctrl.onUnchangedSaveCancel).toHaveBeenCalledTimes(1);
+    expect(ctrl.save).not.toHaveBeenCalled();
   });
 
   it("Save reads 'Saving…' while a save is in flight", () => {

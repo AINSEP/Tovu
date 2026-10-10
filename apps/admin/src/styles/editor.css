@@ -218,6 +218,8 @@
 .page > .editor-action-row.content-action-row { justify-content: flex-start; }
 .content-action-group { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; min-width: 0; }
 .editor-action-row .content-action-group .btn-danger { margin-left: 0; order: 0; }
+/* The "no changes yet" ⓘ after Save keeps the group's 5px rhythm (its own inline-after-label margin off). */
+.content-action-group > .info-tip { margin-left: 0; }
 .content-action-row > .post-settings-trigger { margin-left: auto; }
 
 /* Owner, 2026-10-10 ("too much whitespace" on the Edit page screen): the toolbar sat 40px under the

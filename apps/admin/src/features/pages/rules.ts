@@ -528,6 +528,12 @@ export function pageSaveSuccessMessage(t: (locale: string, key: string) => strin
     : t(locale, "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet.");
 }
 
+/** The message when a Save came back with the version it was based on — the server found nothing
+ *  different and wrote nothing (no-op save guard, 2026-10-10). Same copy as the Posts editor's. */
+export function pageUnchangedSaveMessage(t: (locale: string, key: string) => string, locale: string, version: number): string {
+  return t(locale, "No changes found · nothing new saved (version {version})").replace("{version}", String(version));
+}
+
 /** The exact English copy {@link pagePartialSaveMessage} wraps in `t()` — also the dictionary key
  *  added to `page-editor-i18n.ts`'s `PAGE_EDITOR_DICT` for every locale, matching this app's "the key
  *  IS the source string" convention. Kept as a separate constant (rather than inlined in the template

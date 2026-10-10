@@ -122,8 +122,10 @@ describe("save() on a doc-format Page (the F01 regression)", () => {
     const { result } = await mountLoaded("privacy-policy", DOC_PAGE);
     expect(result.current.html).toBe(""); // the documented "no way to render doc format" load behavior
 
+    // A real write bumps the version; an unchanged one means the server found nothing to save
+    // (no-op save guard, 2026-10-10) and the editor would say so instead.
     fetchMock.mockResolvedValueOnce(
-      jsonResponse({ post: { ...DOC_PAGE, title: "Privacy Policy (updated)" } })
+      jsonResponse({ post: { ...DOC_PAGE, title: "Privacy Policy (updated)", version: DOC_PAGE.version + 1 } })
     );
 
     act(() => {
@@ -208,8 +210,9 @@ describe("save() on an html-format Page", () => {
       result.current.setHtml("<p>hello, edited</p>");
     });
 
-    fetchMock.mockResolvedValueOnce(jsonResponse({ post: HTML_PAGE }));
-    fetchMock.mockResolvedValueOnce(jsonResponse({ post: HTML_PAGE }));
+    // Each real write bumps the version (an unchanged one now reads as "No changes found").
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...HTML_PAGE, version: HTML_PAGE.version + 1 } }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...HTML_PAGE, version: HTML_PAGE.version + 2 } }));
     await act(async () => {
       await result.current.save();
     });
@@ -385,6 +388,61 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     ]);
     expect(result.current.message).toBe("en:Saved");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // No-op save guard (2026-10-10): both write routes answer with the SAME version when nothing
+  // differs, so the editor says nothing new was saved; a real write keeps the plain "Saved".
+  it("says 'No changes found' when the save comes back with the same version, 'Saved' when it bumps", async () => {
+    const deps = fakeDeps({ page: HTML_PAGE });
+    const { updatePost, updatePageHtml } = deps.port;
+    deps.port.updatePost = async (_target, patch) => {
+      deps.port.updatePostCalls.push(patch);
+      return { post: deps.port.current };
+    };
+    deps.port.updatePageHtml = async (_id, html) => {
+      deps.port.updatePageHtmlCalls.push(html);
+      return { post: deps.port.current };
+    };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    const version = deps.port.current.version;
+
+    await act(async () => { await result.current.save(); });
+    expect(deps.port.updatePostCalls).toHaveLength(1);
+    expect(result.current.message).toBe(`en:No changes found · nothing new saved (version ${version})`);
+
+    deps.port.updatePost = updatePost;
+    deps.port.updatePageHtml = updatePageHtml;
+    act(() => result.current.setHtml("<p>really edited</p>"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.message).toBe("en:Saved");
+  });
+
+  // Owner, 2026-10-10: Save is never disabled. With nothing changed it opens the warning instead of
+  // writing; Cancel writes nothing; "Save anyway" closes it and writes once. With changes it saves.
+  it("onSave with nothing changed opens the warning; Cancel writes nothing; Save anyway writes once", async () => {
+    const deps = fakeDeps({ page: HTML_PAGE });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    expect(result.current.dirty).toBe(false);
+
+    act(() => result.current.onSave());
+    expect(result.current.confirmingUnchangedSave).toBe(true);
+    act(() => result.current.onUnchangedSaveCancel());
+    expect(result.current.confirmingUnchangedSave).toBe(false);
+    expect(deps.port.updatePostCalls).toEqual([]);
+
+    act(() => result.current.onSave());
+    await act(async () => { result.current.onUnchangedSaveConfirm(); });
+    await waitFor(() => expect(result.current.saving).toBe(false));
+    expect(result.current.confirmingUnchangedSave).toBe(false);
+    expect(deps.port.updatePostCalls).toHaveLength(1);
+
+    act(() => result.current.setTitle("Changed"));
+    await waitFor(() => expect(result.current.dirty).toBe(true));
+    await act(async () => { result.current.onSave(); });
+    await waitFor(() => expect(deps.port.updatePostCalls).toHaveLength(2));
+    expect(result.current.confirmingUnchangedSave).toBe(false);
   });
 
   it("remove() calls port.deletePage then the injected navigate", async () => {

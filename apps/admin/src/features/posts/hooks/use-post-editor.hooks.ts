@@ -220,6 +220,8 @@ export interface PostEditorController extends PostEditorUiController {
   saving: boolean;
   confirmingDelete: boolean;
   setConfirmingDelete: (open: boolean) => void;
+  /** The "Nothing changed. Save anyway?" warning is open. */
+  confirmingUnchangedSave: boolean;
   deleting: boolean;
   /** `false` when the operator declined to discard unsaved edits — the caller must then
    *  `preventDefault()` the navigation. */
@@ -485,7 +487,12 @@ export async function uploadDroppedFile(port: PostEditorPort, file: File): Promi
  * so `save`'s own cognitive-complexity score doesn't carry this string's branching on top of the
  * stale-settlement guard added the same day.
  */
-function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefined, saved: AdminPost, t: Translate): string {
+function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefined, saved: AdminPost, t: Translate, expectedVersion?: number): string {
+  // The server skips a save whose content matches what's stored and answers with the SAME version
+  // (2026-10-10, no-op save guard), so an unchanged version means nothing new was written.
+  if (statusOverride === undefined && expectedVersion !== undefined && saved.version === expectedVersion) {
+    return interpolate({ template: t("No changes found · nothing new saved (version {version})"), vars: { version: saved.version } });
+  }
   // A Publish whose time is still ahead does not go live yet (2026-10-05) — saying "Published" next
   // to the "Scheduled" badge contradicted it. The time is shown in local time, as the operator typed it.
   if (statusOverride === "published" && isScheduledPost({ status: saved.status, publishAt: saved.publishAt ?? null }, Date.now())) {
@@ -626,6 +633,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // `confirmingDelete` itself so the dialog can stay open, disabled, mid-request rather than
   // closing before the request resolves.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The "Nothing changed. Save anyway?" warning (owner, 2026-10-10) — see `usePostEditorUi`'s onSave.
+  const [confirmingUnchangedSave, setConfirmingUnchangedSave] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // Tab state for the toolbar's Edit/Preview pair (2026-08-11) — defaults to "edit" so opening a
   // post shows exactly what every post editor has always shown, not a behavior change bundled
@@ -1051,7 +1060,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       setStatus(nextStatus);
       setAuthor(current => current === author ? saved.author ?? "" : current);
       setShowAuthor(current => current === showAuthor ? saved.showAuthor ?? false : current);
-      setMessage(formatSaveSuccessMessage(statusOverride, saved, t));
+      setMessage(formatSaveSuccessMessage(statusOverride, saved, t, expectedVersion));
       setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author: saved.author ?? "", showAuthor: saved.showAuthor ?? false });
       // The real content just landed — any parked standing draft is now obsolete. Not awaited: this
       // is best-effort background bookkeeping (errors are already caught inside the hook), not part
@@ -1198,7 +1207,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // UI-subhook pass (2026-08-20) — the interaction layer, composed here so `PostEditor.tsx` reads
   // one controller instead of calling a second hook itself. See `use-post-editor-ui.hooks.ts`'s file
   // header for which handlers deliberately stayed OUT of this hook (and why).
-  const ui = usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal });
+  const ui = usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal, dirty: isDirty, setConfirmingUnchangedSave });
 
   return {
     ...ui,
@@ -1237,6 +1246,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     error,
     saving,
     confirmingDelete,
+    confirmingUnchangedSave,
     setConfirmingDelete,
     deleting,
     confirmLeave,

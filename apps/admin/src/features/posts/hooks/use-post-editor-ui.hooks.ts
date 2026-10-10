@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { unchangedSaveHandlers } from "@/lib/unchanged-save-warning";
+
 /**
  * @file The post/page editor's UI-interaction layer — every onClick/onChange handler `PostEditor.tsx`
  * wires to a button or control, split out of that component per the owner's explicit direction
@@ -29,13 +31,21 @@ export interface PostEditorUiDependencies {
   save: (statusOverride?: "draft" | "published") => Promise<void>;
   setConfirmingDelete: (open: boolean) => void;
   setShowTemplateModal: (open: boolean) => void;
+  /** Whether the editor thinks anything changed since the last load/save. */
+  dirty: boolean;
+  setConfirmingUnchangedSave: (open: boolean) => void;
 }
 
 export interface PostEditorUiController {
   /** `PostEditorHeader`'s Publish button — saves and sets status to `"published"` in one action. */
   onPublish: () => void;
-  /** `PostEditorHeader`'s Save button — saves whatever `status` is currently set to. */
+  /** The Save button. With changes it saves; with none it opens the "Nothing changed. Save anyway?"
+   *  warning instead (owner, 2026-10-10): the button is never disabled, in case a real change wasn't
+   *  picked up, and the server decides whether anything actually differs. */
   onSave: () => void;
+  /** The warning's "Save anyway": closes it and saves; the server skips the write if nothing differs. */
+  onUnchangedSaveConfirm: () => void;
+  onUnchangedSaveCancel: () => void;
   /** `PostEditorHeader`'s Delete button — opens the `ConfirmDialog`, doesn't delete anything yet. */
   onDeleteClick: () => void;
   /** `ConfirmDialog`'s cancel action for the delete confirmation. */
@@ -55,13 +65,14 @@ export interface PostEditorUiController {
  * @complexity Time/space: O(1) — six closures, no branching, no iteration.
  */
 export function usePostEditorUi(deps: PostEditorUiDependencies): PostEditorUiController {
-  const { save, setConfirmingDelete, setShowTemplateModal } = deps;
+  const { save, setConfirmingDelete, setShowTemplateModal, dirty, setConfirmingUnchangedSave } = deps;
   return {
     // `() => save("published")`/`() => save()` — same unawaited-Promise shape `PostEditor.tsx`'s
     // inline arrows already had (`save`'s own errors are caught and surfaced via `setError` inside
     // `usePostEditor`, so nothing here needs to observe the returned promise).
     onPublish: () => save("published"),
-    onSave: () => save(),
+    // Save / "Nothing changed. Save anyway?" — shared with the Pages editor.
+    ...unchangedSaveHandlers({ dirty, save: () => save(), setConfirmingUnchangedSave }),
     onDeleteClick: () => setConfirmingDelete(true),
     onDeleteCancel: () => setConfirmingDelete(false),
     onViewTemplateClick: () => setShowTemplateModal(true),

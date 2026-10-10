@@ -529,6 +529,29 @@ describe("usePostEditor — save", () => {
     expect(result.current.dirty).toBe(false); // re-baselined against the just-saved state
   });
 
+  // No-op save guard (2026-10-10): the server skips a write whose content matches what's stored and
+  // answers with the SAME version, so the editor must say nothing new was saved; a real write bumps
+  // the version and keeps the normal "Saved · version N".
+  it("says 'No changes found' when the save comes back with the same version, 'Saved · version N' when it bumps", async () => {
+    const port = createFakePostEditorPort({ post: POST }); // POST.version === 3
+    const realUpdate = port.updatePost.bind(port);
+    port.updatePost = async (_target, patch) => {
+      port.updatePostCalls.push(patch);
+      return { post: port.post }; // the server's no-op answer: the stored row, version unchanged
+    };
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+
+    await act(async () => { await result.current.save(); });
+    expect(port.updatePostCalls[0].expectedVersion).toBe(3);
+    expect(result.current.message).toBe("No changes found · nothing new saved (version 3)");
+
+    port.updatePost = realUpdate;
+    act(() => result.current.setSlug("new-slug"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.message).toBe("Saved · version 4");
+  });
+
   it("save('published') forces status to published in the same call, without a separate status change", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
     const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));

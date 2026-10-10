@@ -11,6 +11,7 @@ import {
 } from "@/components/DevicePreview/DevicePreview.hooks";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
+import { unchangedSaveHandlers } from "@/lib/unchanged-save-warning";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useDirtyGuard, type Translate, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
@@ -34,6 +35,7 @@ import {
   pagePartialSaveMessage,
   pagePreviewFormTarget,
   pageSaveSuccessMessage,
+  pageUnchangedSaveMessage,
   PAGES_RESOURCE,
   pageRefreshMayHaveUnsavedEdits,
   readPageVersionConflict,
@@ -260,6 +262,14 @@ export interface PageEditorController {
   remove: () => Promise<void>;
   confirmingDelete: boolean;
   setConfirmingDelete: (value: boolean) => void;
+  /** The Save button. With changes it saves; with none it opens the "Nothing changed. Save anyway?"
+   *  warning (owner, 2026-10-10) — see `unchangedSaveHandlers`. Never disabled for "no changes". */
+  onSave: () => void;
+  /** The "Nothing changed. Save anyway?" warning is open. */
+  confirmingUnchangedSave: boolean;
+  /** The warning's "Save anyway": closes it and saves; the server skips the write if nothing differs. */
+  onUnchangedSaveConfirm: () => void;
+  onUnchangedSaveCancel: () => void;
   deleting: boolean;
   /** Call before an in-app navigation the operator triggered (the back link). `true` means it's
    *  safe to proceed. `beforeunload` is wired automatically by the same `useDirtyGuard` call this
@@ -462,7 +472,7 @@ function schedulePendingHtmlPreviewSubmit(input: { active: boolean; form: HTMLFo
  *  `settlement` doc — so every branch here runs unconditionally once reached. */
 function applySavedPage(
   updated: AdminPost,
-  form: { templateChoice: string | null; html: string; nextStatus?: "draft" | "published" },
+  form: { templateChoice: string | null; html: string; nextStatus?: "draft" | "published"; basisVersion: number },
   canSaveHtml: boolean,
   setters: {
     setPage: (page: AdminPost) => void;
@@ -481,7 +491,10 @@ function applySavedPage(
   setters.setSavedTemplateChoice(form.templateChoice);
   if (canSaveHtml) setters.setSavedHtml(form.html);
   if (form.nextStatus) setters.setStatus(form.nextStatus);
-  setters.setMessage(pageSaveSuccessMessage(t, locale, canSaveHtml));
+  // The server skips a save whose content matches what's stored and answers with the SAME version
+  // (2026-10-10, no-op save guard), so an unchanged version means nothing new was written.
+  const unchanged = form.nextStatus === undefined && updated.version === form.basisVersion;
+  setters.setMessage(unchanged ? pageUnchangedSaveMessage(t, locale, updated.version) : pageSaveSuccessMessage(t, locale, canSaveHtml));
 }
 
 /**
@@ -704,6 +717,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [previewExpanded, setPreviewExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The "Nothing changed. Save anyway?" warning (owner, 2026-10-10) — see `unchangedSaveHandlers`.
+  const [confirmingUnchangedSave, setConfirmingUnchangedSave] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // A save the server refused because this editor's basis version had already been superseded
   // (2026-09-07). Distinct from `error`: `error` means "try again", this means "trying again
@@ -913,7 +928,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         if (!settlement.isCurrent({ generation })) return;
         applySavedPage(
           updated,
-          { templateChoice, html: bodyHtml, nextStatus },
+          { templateChoice, html: bodyHtml, nextStatus, basisVersion: basis.version },
           plan.canSaveHtml,
           { setPage, setSlug, setStatus, setSavedTemplateChoice, setSavedHtml, setMessage },
           t,
@@ -1273,6 +1288,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     remove,
     confirmingDelete,
     setConfirmingDelete,
+    confirmingUnchangedSave,
+    ...unchangedSaveHandlers({ dirty, save: () => save(), setConfirmingUnchangedSave }),
     deleting,
     confirmLeave,
     onBackLinkClick,
