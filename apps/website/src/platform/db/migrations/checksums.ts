@@ -24,5 +24,7 @@ export const MIGRATION_CHECKSUMS: Readonly<Record<string, string>> = {
   "0006_submission_ip_retention": "46d094a528ef15a53db38f942c1984194e203afaae931da2c1e8ce61d07f89e7",
   "0007_publish_backstop": "2cb8d296d59a3b5c68cd66d995b8a36c6e5221cabe592e7ffb8a7fc4fabbfc5d",
   "0008_posts_publish_at_featured_media": "8e8c5e9e817d50991eb5ec93bcaf6f947f6626b207774da00587c06efc4eb149",
+  "0009_posts_author": "d1459a9e838af891cfb4feafab4a989b5a5e712885656668047b472841438cd2",
   "chat/0002_durable_run_attempts": "c5737dcb73f4c5711ad44db8531e268551c0b7c94f219dee609539138acd9414",
+  "0010_members_credentials_revoked_at": "51b21e04877cf8293e02af18121767ea6b95b7ada284e6d82468f93be607e571",
 };

@@ -1,4 +1,6 @@
 import { CONTENT_MIGRATIONS, type MigrationStep } from "../migrations/index.js";
+import { POSTS_AUTHOR_SQLITE_STATEMENTS } from "../migrations/0009_posts_author.js";
+import { MEMBERS_CREDENTIALS_REVOKED_AT_SQL } from "../migrations/0010_members_credentials_revoked_at.js";
 import { readFrozenChain } from "../migrations/legacy-sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
@@ -102,6 +104,10 @@ export function bootstrapFreshContentDb(
       client.exec("ALTER TABLE posts ADD COLUMN publish_at text");
       client.exec("ALTER TABLE posts ADD COLUMN featured_media_id text");
     },
+    "0009_posts_author": () => {
+      for (const statement of POSTS_AUTHOR_SQLITE_STATEMENTS) client.exec(statement);
+    },
+    "0010_members_credentials_revoked_at": () => client.exec(MEMBERS_CREDENTIALS_REVOKED_AT_SQL),
   };
   if (migrations.length !== Object.keys(operations).length ||
       migrations.some(step => !Object.hasOwn(operations, step.id))) {

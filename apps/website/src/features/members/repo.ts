@@ -1,3 +1,4 @@
+import { MemberAuthError, MemberConflictError } from "./types.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
   MagicLinkTokenRepoPort,
@@ -63,6 +64,7 @@ export class SqlMemberRepo implements MemberRepoPort {
         .selectAll()
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
+        .where("status", "<>", "trash")
         .limit(1)
         .executeTakeFirst()
     );
@@ -104,7 +106,8 @@ export class SqlMemberRepo implements MemberRepoPort {
         )
       : undefined;
     const rows = await this.kernel.run((db) => {
-      let query = db.selectFrom("members").selectAll().where("workspace_id", "=", required.workspaceId);
+      let query = db.selectFrom("members").selectAll().where("workspace_id", "=", required.workspaceId)
+        .where("status", "<>", "trash");
       if (anchor) query = query.where("id", ">", anchor.id);
       return query.orderBy("id").limit(limit).execute();
     });
@@ -113,13 +116,24 @@ export class SqlMemberRepo implements MemberRepoPort {
 
   async save(record: MemberRecord): Promise<void> {
     const row = toMemberRow(record);
-    await this.kernel.run((db) =>
+    const result = await this.kernel.run((db) =>
       db
         .insertInto("members")
         .values(row)
-        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
-        .execute()
+        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row))
+          // A stale profile/sign-in write cannot undo Trash or its credential revocation.
+          .where("members.status", "<>", "trash")
+          .where("members.version", "<=", record.version)
+          // Even a same-version stale save must not erase a newer credential cutoff.
+          .where(eb => record.credentialsRevokedAt
+            ? eb.or([eb("members.credentials_revoked_at", "is", null),
+                eb("members.credentials_revoked_at", "<=", record.credentialsRevokedAt)])
+            : eb("members.credentials_revoked_at", "is", null)))
+        .executeTakeFirst()
     );
+    if (Number(result.numInsertedOrUpdatedRows) === 0) {
+      throw new MemberConflictError("member changed or is in Trash; re-read it before updating");
+    }
   }
 }
 
@@ -234,8 +248,9 @@ export class SqlMemberSubscriptionRepo implements MemberSubscriptionRepoPort {
 }
 
 /**
- * Sessions. `revoke` / `revokeAllForMember` are single UPDATE statements — atomic on their own, so
- * they need no lock; a session revoked twice keeps the latest `revokedAt`, as before.
+ * Sessions. Single-session revoke is atomic on its own. Bulk credential revocation takes the
+ * member lock and updates the cutoff and sessions together; a repeated revoke never lowers it.
+ * @complexity O(s) for bulk revocation, s = sessions of the member; two bulk updates, no per-row I/O.
  */
 export class SqlMemberSessionRepo implements MemberSessionRepoPort {
   constructor(protected readonly kernel: ContentKernel) {}
@@ -267,13 +282,22 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
 
   async save(record: MemberSessionRecord): Promise<void> {
     const row = toMemberSessionRow(record);
-    await this.kernel.run((db) =>
-      db
-        .insertInto("member_sessions")
-        .values(row)
+    await this.kernel.transaction(async () => {
+      // Share the marker lock: a sign-in started before Trash must not mint a late credential,
+      // even if restoration completes before its session write. Only credential revocation fences
+      // that stale mint; ordinary edits and sign-ins leave other pending credentials usable.
+      await this.kernel.lockKey(`trash:member:${record.workspaceId}:${record.memberId}`);
+      const member = await this.kernel.run(db => db.selectFrom("members")
+        .select(["status", "credentials_revoked_at"]).where("workspace_id", "=", record.workspaceId)
+        .where("id", "=", record.memberId).executeTakeFirst());
+      if (member && (member.status === "trash" || member.status === "disabled"
+        || (member.credentials_revoked_at !== null && member.credentials_revoked_at > record.createdAt))) {
+        throw new MemberAuthError("member changed before the session was saved; request a new sign-in link");
+      }
+      await this.kernel.run((db) => db.insertInto("member_sessions").values(row)
         .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
-        .execute()
-    );
+        .execute());
+    });
   }
 
   async revoke(required: { workspaceId: string; id: string; revokedAt: string }): Promise<void> {
@@ -288,15 +312,21 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
   }
 
   async revokeAllForMember(required: { workspaceId: string; memberId: string; revokedAt: string }): Promise<void> {
-    await this.kernel.run((db) =>
-      db
-        .updateTable("member_sessions")
+    await this.kernel.transaction(async () => {
+      // Same lock as Trash and session minting: all sessions and the pending-link cutoff commit
+      // together. A late request may persist a token after this update, but the cutoff rejects it.
+      await this.kernel.lockKey(`trash:member:${required.workspaceId}:${required.memberId}`);
+      await this.kernel.run(db => db.updateTable("members")
+        .set({ credentials_revoked_at: required.revokedAt })
+        .where("workspace_id", "=", required.workspaceId).where("id", "=", required.memberId)
+        .where(eb => eb.or([eb("credentials_revoked_at", "is", null),
+          eb("credentials_revoked_at", "<", required.revokedAt)]))
+        .execute());
+      await this.kernel.run(db => db.updateTable("member_sessions")
         .set({ revoked_at: required.revokedAt })
-        .where("workspace_id", "=", required.workspaceId)
-        .where("member_id", "=", required.memberId)
-        .where("revoked_at", "is", null)
-        .execute()
-    );
+        .where("workspace_id", "=", required.workspaceId).where("member_id", "=", required.memberId)
+        .where("revoked_at", "is", null).execute());
+    });
   }
 }
 

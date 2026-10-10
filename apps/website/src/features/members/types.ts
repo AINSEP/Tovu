@@ -34,7 +34,9 @@ export type MemberPrincipalKind = Extract<PrincipalKind, "member">;
  * is an ADR-021 principal and `change_set.actorId` / revision history must not
  * dangle (ADR-021 §5). `pending` = created but email not yet verified.
  */
-export type MemberStatus = "pending" | "active" | "disabled";
+// Trash is a persisted marker; normal by-id/list readers hide it. Email lookup retains the
+// marker so a sign-in request cannot recreate an account that still reserves its email.
+export type MemberStatus = "pending" | "active" | "disabled" | "trash";
 
 /**
  * Front-end member account. `id` is the member's principal id (ULID); the row
@@ -51,6 +53,8 @@ export interface MemberRecord {
   name?: string;
   /** Set once the email is verified (magic-link click or explicit verify). */
   emailVerifiedAt?: ISODateTime;
+  /** Credential cutoff: only Trash/restore or explicit revocation changes it. */
+  credentialsRevokedAt?: ISODateTime;
   /** Lifecycle state (disable-only). */
   status: MemberStatus;
   /** Operator-only private note (never exposed on the member origin). */

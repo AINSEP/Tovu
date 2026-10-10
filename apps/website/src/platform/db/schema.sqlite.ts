@@ -210,6 +210,9 @@ export const posts = sqliteTable(
     /** Featured image (2026-10-05, migration 0008) — a `media.id`, or `NULL` for none. No FK: a
      *  trashed/deleted asset simply resolves to "no image" at render time, like every other media ref. */
     featuredMediaId: text("featured_media_id"),
+    /** Display credit is optional; existing posts keep unknown authors and hidden bylines. */
+    author: text("author"),
+    showAuthor: integer("show_author", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),
@@ -664,6 +667,8 @@ export const members = sqliteTable(
     email: text("email").notNull(),
     name: text("name"),
     emailVerifiedAt: text("email_verified_at"),
+    /** Cutoff for pending credentials; ordinary profile edits and sign-ins do not change it. */
+    credentialsRevokedAt: text("credentials_revoked_at"),
     status: text("status").notNull(),
     note: text("note"),
     fieldsJson: text("fields_json"),

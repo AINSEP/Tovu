@@ -97,11 +97,11 @@ async function resolveOrCreateSignInMember(required: {
   workspaceId: string;
   email: string;
   nowIso: string;
-}): Promise<MemberRecord | null> {
+}, optional: { name?: string } = {}): Promise<MemberRecord | null> {
   const { deps, workspaceId, email, nowIso } = required;
   const existing = await deps.members.findByEmail({ workspaceId, email });
   if (existing) {
-    return existing.status === "disabled" ? null : existing;
+    return existing.status === "disabled" || existing.status === "trash" ? null : existing;
   }
 
   const member: MemberRecord = {
@@ -109,6 +109,7 @@ async function resolveOrCreateSignInMember(required: {
     workspaceId,
     email,
     status: "pending",
+    ...(optional.name !== undefined ? { name: optional.name } : {}),
     createdAt: nowIso,
     updatedAt: nowIso,
     version: 1,
@@ -127,6 +128,36 @@ async function resolveOrCreateSignInMember(required: {
   });
   await deps.members.save(member);
   return member;
+}
+
+/**
+ * Creates an operator-requested pending member through the sign-up creation owner.
+ * The principal remains kind member; no email verification, consent, token or session is granted.
+ * @param required - Injected service ports and workspace-scoped email.
+ * @param optional - Optional nonblank display name.
+ * @returns The pending member, without a sign-in token or mail side effect.
+ * @throws MemberValidationError for malformed input; MemberConflictError for an existing email.
+ * @complexity O(1), two indexed email lookups and at most two saves.
+ * @example createMember({ deps, input: { workspaceId: "ws", email: "ada@example.com" } }, { name: "Ada" })
+ */
+export async function createMember(required: {
+  deps: MembersWriteServiceDeps;
+  input: { workspaceId: string; email: string };
+}, optional: { name?: string } = {}): Promise<{ member: MemberRecord }> {
+  const { deps, input } = required;
+  const email = assertValidEmail(input.email);
+  const name = optional.name?.trim();
+  if (name !== undefined && !name) throw new MemberValidationError("name must not be blank when provided");
+  const existing = await deps.members.findByEmail({ workspaceId: input.workspaceId, email });
+  if (existing?.status === "trash") {
+    throw new MemberConflictError(`member with email '${email}' is in Trash; restore it from the admin Trash screen`);
+  }
+  if (existing) {
+    throw new MemberConflictError(`member with email '${email}' already exists`);
+  }
+  const member = await resolveOrCreateSignInMember({ deps, workspaceId: input.workspaceId, email, nowIso: clockNowIso({ clock: deps.clock }) }, { name });
+  if (!member) throw new MemberConflictError(`member with email '${email}' already exists`);
+  return { member };
 }
 
 /**
@@ -283,8 +314,13 @@ async function completeSignIn(required: {
     // (gap (1) above) — defensive, not a validation outcome.
     throw new MemberNotFoundError(`member '${tokenRecord.memberId}' was not found`);
   }
-  if (existingMember.status === "disabled") {
+  if (existingMember.status === "disabled" || existingMember.status === "trash") {
     throw new MemberAuthError("this account has been disabled");
+  }
+  // A link minted before Trash/restore (including a request racing credential revocation) must
+  // not sign the restored account back in. Profile edits and other sign-ins keep links valid.
+  if (existingMember.credentialsRevokedAt && existingMember.credentialsRevokedAt > tokenRecord.createdAt) {
+    throw new MemberAuthError("sign-in link predates credential revocation; request a new sign-in link");
   }
 
   const member: MemberRecord = {
@@ -377,6 +413,7 @@ async function disableMember(required: {
   const member: MemberRecord = {
     ...existing,
     status: "disabled",
+    credentialsRevokedAt: nowIso,
     updatedAt: nowIso,
     version: existing.version + 1,
   };

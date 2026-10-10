@@ -675,6 +675,7 @@ export const members = pgTable("members", {
   email: text("email").notNull(),
   name: text("name"),
   emailVerifiedAt: text("email_verified_at"),
+  credentialsRevokedAt: text("credentials_revoked_at"),
   status: text("status").notNull(),
   note: text("note"),
   fieldsJson: jsonText("fields_json"),
@@ -877,6 +878,8 @@ export const posts = pgTable("posts", {
   createdAt: text("created_at"),
   publishAt: text("publish_at"),
   featuredMediaId: text("featured_media_id"),
+  author: text("author"),
+  showAuthor: boolean("show_author").notNull().default(false),
 }, (t) => [
     check("posts_body_format_shape", sql`(body_format = 'doc' AND body_json IS NOT NULL AND body_html IS NULL) OR (body_format = 'html' AND body_html IS NOT NULL AND body_json IS NULL)`),
     uniqueIndex("posts_workspace_slug_unique").on(t.workspaceId, t.slug),

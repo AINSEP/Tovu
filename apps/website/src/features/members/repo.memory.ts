@@ -13,6 +13,7 @@
  * follow-up build. Kept dumb on purpose: repos never throw domain errors
  * (`MemberNotFoundError` etc.) — only the write service and resolver do.
  */
+import { MemberConflictError } from "./types.js";
 import type {
   ConsentPurpose,
   MagicLinkTokenRecord,
@@ -57,7 +58,7 @@ export class InMemoryMemberRepo implements MemberRepoPort {
 
   async findById(required: { workspaceId: string; id: string }): Promise<MemberRecord | null> {
     return (
-      this.rows.find((row) => row.workspaceId === required.workspaceId && row.id === required.id) ??
+      this.rows.find((row) => row.workspaceId === required.workspaceId && row.id === required.id && row.status !== "trash") ??
       null
     );
   }
@@ -80,7 +81,7 @@ export class InMemoryMemberRepo implements MemberRepoPort {
     limit?: number;
   }): Promise<MemberRecord[]> {
     const rows = this.rows
-      .filter((row) => row.workspaceId === required.workspaceId)
+      .filter((row) => row.workspaceId === required.workspaceId && row.status !== "trash")
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
     const afterIndex = required.afterId ? rows.findIndex((row) => row.id === required.afterId) : -1;
@@ -97,6 +98,13 @@ export class InMemoryMemberRepo implements MemberRepoPort {
       return;
     }
 
+    // Match the durable adapter: stale writes cannot resurrect a trashed member.
+    const existing = this.rows[index]!;
+    if (existing.status === "trash" || existing.version > record.version
+      || (existing.credentialsRevokedAt !== undefined
+        && (record.credentialsRevokedAt === undefined || existing.credentialsRevokedAt > record.credentialsRevokedAt))) {
+      throw new MemberConflictError("member changed or is in Trash; re-read it before updating");
+    }
     this.rows[index] = record;
   }
 }

@@ -631,6 +631,7 @@ export interface MembersTable {
   email: string;
   name: string | null;
   email_verified_at: string | null;
+  credentials_revoked_at: string | null;
   status: string;
   note: string | null;
   fields_json: string | null;
@@ -806,6 +807,8 @@ export interface PostsTable {
   created_at: string | null;
   publish_at: string | null;
   featured_media_id: string | null;
+  author: string | null;
+  show_author: GeneratedBool;
 }
 
 export interface PresentationSettingsTable {

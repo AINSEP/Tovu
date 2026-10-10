@@ -199,6 +199,43 @@ test("requestSignInLink -> completeSignIn happy path: hashes both tokens at rest
   assert.equal((await resolver.resolveContext({ ...context, nowIso: storedSession.expiresAt })).isAuthenticated, false);
 });
 
+test("two devices can use links issued before either device signs in", async () => {
+  const { deps, clock, sent } = makeDeps();
+  const email = "two-devices@example.test";
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email } });
+  clock.advanceMs(1000);
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email } });
+  clock.advanceMs(1000);
+  const first = await completeSignIn({ deps, input: {
+    workspaceId: WORKSPACE_ID, token: extractRawToken(sent[0].message.text!), userAgent: "device-one",
+  } });
+  clock.advanceMs(1000);
+  const second = await completeSignIn({ deps, input: {
+    workspaceId: WORKSPACE_ID, token: extractRawToken(sent[1].message.text!), userAgent: "device-two",
+  } });
+  assert.equal(second.member.id, first.member.id);
+  assert.equal(second.member.emailVerifiedAt, first.member.emailVerifiedAt);
+  assert.deepEqual((await deps.sessions.listByMember({ workspaceId: WORKSPACE_ID, memberId: first.member.id }))
+    .map(session => session.userAgent), ["device-one", "device-two"]);
+  const resolver = new DefaultMemberAccessResolver(deps);
+  for (const sessionToken of [first.rawSessionToken, second.rawSessionToken]) {
+    assert.equal((await resolver.resolveContext({ workspaceId: WORKSPACE_ID, sessionToken, nowIso: clock.nowIso() })).isAuthenticated, true);
+  }
+});
+
+test("profile edits keep pending sign-in links usable", async () => {
+  const { deps, clock, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "profile@example.test" } });
+  const pending = (await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "profile@example.test" }))!;
+  clock.advanceMs(1000);
+  await updateProfile({ deps, input: { workspaceId: WORKSPACE_ID, memberId: pending.id, name: "New Name", note: "Operator edit" } });
+  clock.advanceMs(1000);
+  const result = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(sent[0].message.text!) } });
+  assert.equal(result.member.name, "New Name");
+  assert.equal(result.member.note, "Operator edit");
+  assert.ok(await deps.sessions.findByTokenHash({ workspaceId: WORKSPACE_ID, tokenHash: result.session.tokenHash }));
+});
+
 test("completeSignIn rejects an expired magic-link token", async () => {
   const { deps, clock, sent } = makeDeps();
 
