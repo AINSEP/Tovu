@@ -18,6 +18,7 @@ import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/
 import { installInternalLinkInterceptor, navigate } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { takeBootToken } from "./lib/boot-token-fragment";
+import { readInitialAdminSession, tryLocalOwnerSession } from "./lib/local-owner-signin";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
 import {
@@ -87,35 +88,54 @@ export interface UseAdminSession {
  * @example
  * const { user, checking, handleLogin, logout } = useAdminSession();
  */
-export function useAdminSession(): UseAdminSession {
+export function useAdminSession(_required: Record<string, never> = {}, {
+  sessionApi = api, location = window.location, history = window.history,
+  subscribeUnauthenticated = onUnauthenticated,
+  subscribeSettingsChanges = subscribeToSettingsChanges,
+}: {
+  sessionApi?: Pick<typeof api, "me" | "redeemBootSession" | "signInLocalOwner" | "logout">;
+  location?: Pick<Location, "hostname" | "hash" | "pathname" | "search">;
+  history?: Pick<History, "replaceState">;
+  subscribeUnauthenticated?: typeof onUnauthenticated;
+  subscribeSettingsChanges?: typeof subscribeToSettingsChanges;
+} = {}): UseAdminSession {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [effectivePermissions, setEffectivePermissions] = useState<readonly string[] | undefined>(undefined);
   // Ignore a previous session read after logout/relogin; grants must never cross identities.
   const sessionEpoch = useRef(0);
+  const localRecovery = useRef(0);
+  const localSignInSuppressed = useRef(false);
+
+  function acceptSession(r: Awaited<ReturnType<typeof api.me>>) {
+    setPublishToLiveAvailable(readPublishToLiveAvailability(r));
+    setAdminDraftIdentity({ id: r.user.id });
+    setUser(r.user);
+    // No `?? []`: an absent field stays "not known", so the nav filter shows everything instead
+    // of hiding every gated section (see `UseAdminSession.effectivePermissions`).
+    setEffectivePermissions(r.effectivePermissions);
+  }
 
   useEffect(() => {
     // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
     // stripped SYNCHRONOUSLY, before either network call below fires — see `takeBootToken`'s own
     // doc for why the fragment must not survive past this line. `null` (no fragment, the ordinary
-    // case for every ELSE launch path) skips straight to the existing `api.me()` chain, unchanged.
+    // case for other launch paths) checks the current session, then tries guarded local bootstrap.
     const readEpoch = ++sessionEpoch.current;
-    const bootToken = takeBootToken(window.location, window.history);
-    const redeemed = bootToken ? api.redeemBootSession(bootToken).catch(() => undefined) : Promise.resolve(undefined);
+    const bootToken = takeBootToken(location, history);
+    localRecovery.current++;
+    const initial = bootToken
+      ? sessionApi.redeemBootSession(bootToken).catch(() => undefined).then(() => sessionApi.me())
+      : readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
 
-    redeemed
-      .then(() => api.me())
+    initial
       .then((r) => {
         if (sessionEpoch.current !== readEpoch) return;
-        setPublishToLiveAvailable(readPublishToLiveAvailability(r));
-        setAdminDraftIdentity({ id: r.user.id });
-        setUser(r.user);
-        // No `?? []`: an absent field stays "not known", so the nav filter shows everything instead
-        // of hiding every gated section (see `UseAdminSession.effectivePermissions`).
-        setEffectivePermissions(r.effectivePermissions);
+        acceptSession(r);
       })
       .catch(() => { if (sessionEpoch.current === readEpoch) { setUser(null); setEffectivePermissions([]); } })
-      .finally(() => setChecking(false));
+      .finally(() => { localRecovery.current--; if (sessionEpoch.current === readEpoch) setChecking(false); });
+    return () => { if (sessionEpoch.current === readEpoch) sessionEpoch.current++; };
   }, []);
 
   /**
@@ -123,11 +143,30 @@ export function useAdminSession(): UseAdminSession {
    * longer valid — expired, revoked, or the server restarted and dropped in-memory state. Clearing
    * `user` here re-triggers `App.tsx`'s existing `if (!user) return <Login .../>` gate, the same
    * screen the boot check above already shows for a not-yet-authenticated tab. No new UI: a
-   * mid-session 401 now degrades to the exact same place a fresh unauthenticated load already goes,
+   * mid-session 401 on a deployed site degrades to the same place a fresh unauthenticated load goes,
    * instead of leaving whichever screen hit the 401 spinning with no explanation (the live bug this
    * fixes, 2026-08-17 — see `onUnauthenticated`'s own doc comment in `lib/api.ts`).
    */
-  useEffect(() => onUnauthenticated(() => { sessionEpoch.current++; setUser(null); setEffectivePermissions([]); }), []);
+  useEffect(() => {
+    const unsubscribe = subscribeUnauthenticated(() => {
+      // A switch/restart invalidates the previous site's cookie. Recover through the same bootstrap
+      // as mount; suppress its own me failure so a refused bootstrap cannot recursively retry forever.
+      // With single-human dev opt-in, an empty session on the next site becomes its OWNER even
+      // if the previous site's human was a non-owner. Same-origin theme/plugin JS can bootstrap too.
+      if (localRecovery.current > 0) return;
+      if (localSignInSuppressed.current) { sessionEpoch.current++; setUser(null); setEffectivePermissions([]); return; }
+      const readEpoch = ++sessionEpoch.current;
+      localRecovery.current++;
+      setUser(null); setEffectivePermissions([]); setChecking(true);
+      tryLocalOwnerSession({ hostname: location.hostname, port: sessionApi }).then((r) => {
+        if (sessionEpoch.current !== readEpoch || !r) return;
+        acceptSession(r);
+        publishSettingsRefresh();
+      }).finally(() => { localRecovery.current--; if (sessionEpoch.current === readEpoch) setChecking(false); });
+    });
+    // Also invalidate a recovery read if the whole shell unmounts while the new site answers.
+    return () => { sessionEpoch.current++; unsubscribe(); };
+  }, []);
 
   /**
    * The settings change feed, open for as long as an operator is signed in.
@@ -142,7 +181,7 @@ export function useAdminSession(): UseAdminSession {
    */
   useEffect(() => {
     if (!user) return;
-    return subscribeToSettingsChanges(WORKSPACE_ID);
+    return subscribeSettingsChanges(WORKSPACE_ID);
   }, [user]);
 
   /**
@@ -162,6 +201,7 @@ export function useAdminSession(): UseAdminSession {
    * feed above on `user`; this is the read side of it.
    */
   function handleLogin(next: AdminUser) {
+    localSignInSuppressed.current = false;
     const readEpoch = ++sessionEpoch.current;
     setAdminDraftIdentity({ id: next.id });
     setUser(next);
@@ -171,16 +211,19 @@ export function useAdminSession(): UseAdminSession {
     publishSettingsRefresh();
     // A fresh sign-in skipped the boot effect's `/auth/me`, which is what says whether this is the
     // live site (`publish-availability.store.ts`); a failed read leaves the default in place.
-    api
+    sessionApi
       .me()
       .then((r) => { if (sessionEpoch.current !== readEpoch) return; setPublishToLiveAvailable(readPublishToLiveAvailability(r)); setEffectivePermissions(r.effectivePermissions); })
       .catch(() => undefined);
   }
 
   async function logout() {
+    // Late 401s from unmounting screens must not undo an explicit sign-out in this tab.
+    localSignInSuppressed.current = true;
     sessionEpoch.current++;
+    setChecking(false);
     setEffectivePermissions([]);
-    await api.logout().catch(() => undefined);
+    await sessionApi.logout().catch(() => undefined);
     setAdminDraftIdentity({ id: null });
     setUser(null);
     setEffectivePermissions([]);

@@ -21,7 +21,8 @@ import { parseAuthenticatedJsonBody } from "../shared/json-body-parsers.js";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { redeemBootSessionToken } from "#src/features/identity/boot-session-token";
+import { createBootSessionTokenStore, redeemBootSessionToken } from "#src/features/identity/boot-session-token";
+import { allowsLocalOwnerSignInRequest, resolveLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
 import { canPublishToLive } from "#src/features/publish-content/live-site-policy";
@@ -186,18 +187,44 @@ function apiKeyServiceDepsFrom(deps: SessionAuthDeps): ApiKeyServiceDeps {
   };
 }
 
-function readSessionToken(req: Request): string | null {
-  return readRequestCookie({ request: req, name: SESSION_COOKIE }) ?? null;
+function readSessionToken({ req, localOwnerSignIn }: { req: Request; localOwnerSignIn: LocalOwnerSignInPolicy }, _optional = {}): string | null {
+  // The port cookie is a dev capability, never a second production authentication name.
+  const localToken = localOwnerSignIn.enabled ? readRequestCookie({ request: req, name: localSessionCookieName(req) }) : undefined;
+  return localToken ?? readRequestCookie({ request: req, name: SESSION_COOKIE }) ?? null;
+}
+
+/** Revoke only the two session cookies this listener clears, using Jini's idempotent revoker.
+ * Clearing a browser cookie alone leaves a captured bearer usable until expiry.
+ * @complexity O(1): at most two session lookups/revocations; other tabs' sessions stay valid.
+ */
+async function revokeRequestSessions({ deps, req }: { deps: SessionAuthDeps; req: Request }, _optional = {}): Promise<void> {
+  const tokens = new Set([readRequestCookie({ request: req, name: SESSION_COOKIE }),
+    readRequestCookie({ request: req, name: localSessionCookieName(req) })]);
+  for (const rawToken of tokens) {
+    if (rawToken) await logout({ deps: authServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, rawToken } });
+  }
+}
+
+/** Cookies ignore ports. Local browser sites need separate names to remain signed in together. */
+function localSessionCookieName(req: Request): string {
+  return `${SESSION_COOKIE}_local_${req.socket?.localPort ?? 0}`;
 }
 
 /** REQ-06: `HttpOnly`, `SameSite=Strict`, `Secure`, bound to the admin origin. */
-function setSessionCookie(res: Response, rawToken: string, expiresAtIso: string): void {
+function setSessionCookie(res: Response, rawToken: string, expiresAtIso: string, { name = SESSION_COOKIE }: { name?: string } = {}): void {
   const maxAge = Math.max(0, new Date(expiresAtIso).getTime() - Date.now());
-  res.cookie(SESSION_COOKIE, rawToken, { httpOnly: true, path: "/", maxAge, sameSite: "strict", secure: true });
+  res.cookie(name, rawToken, { httpOnly: true, path: "/", maxAge, sameSite: "strict", secure: true });
+  // A deliberate password sign-in supersedes local owner bootstrap, including a non-owner login.
+  if (name === SESSION_COOKIE && readRequestCookie({ request: res.req, name: localSessionCookieName(res.req) })) {
+    res.clearCookie(localSessionCookieName(res.req), { httpOnly: true, path: "/", sameSite: "strict", secure: true });
+  }
 }
 
 function clearSessionCookie(res: Response): void {
   res.clearCookie(SESSION_COOKIE, { httpOnly: true, path: "/", sameSite: "strict", secure: true });
+  if (readRequestCookie({ request: res.req, name: localSessionCookieName(res.req) })) {
+    res.clearCookie(localSessionCookieName(res.req), { httpOnly: true, path: "/", sameSite: "strict", secure: true });
+  }
 }
 
 /** Pull the raw key out of an `Authorization` header, or `null` when there is no key-shaped one. */
@@ -214,7 +241,8 @@ function readApiKeyCredential(req: Request): string | null {
  * seeding.
  *
  * The cookie is tried first and the `Authorization` header only when no session resolved, so an
- * existing browser request's behavior is bit-for-bit what it was before Bearer support landed.
+ * ordinary browser request without a local port cookie keeps its existing behavior. Local dev
+ * cookies use the same validator and repos; only their browser cookie name differs.
  * Both paths are all-or-nothing: `validateSession` and `authenticateApiKey` each return `null` for
  * every rejection reason (missing, invalid, expired, revoked, disabled principal) rather than a
  * distinguishable error, so the 401 below cannot be used as an oracle either way.
@@ -226,9 +254,10 @@ function readApiKeyCredential(req: Request): string | null {
  */
 export async function currentCredential(
   deps: SessionAuthDeps,
-  req: Request
+  req: Request,
+  { localOwnerSignIn = resolveLocalOwnerSignIn({ env: process.env }) }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
 ): Promise<AuthenticatedCredential | null> {
-  const rawToken = readSessionToken(req);
+  const rawToken = readSessionToken({ req, localOwnerSignIn });
   if (rawToken) {
     await deps.identityReady;
     const resolved = await validateSession({
@@ -261,8 +290,10 @@ export async function currentCredential(
  * @complexity O(1) — see `currentCredential`.
  * @overallScore 100
  */
-export async function currentPrincipal(deps: SessionAuthDeps, req: Request): Promise<OperatorPrincipalRecord | null> {
-  return (await currentCredential(deps, req))?.principal ?? null;
+export async function currentPrincipal(deps: SessionAuthDeps, req: Request,
+  options: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
+): Promise<OperatorPrincipalRecord | null> {
+  return (await currentCredential(deps, req, options))?.principal ?? null;
 }
 
 /**
@@ -351,7 +382,9 @@ export function rejectUnlessSessionCredential(
  * `res.locals` is server-side and per-request: no client can set the marker.
  * Credential-store failures go to Express's error handler through `next(error)`.
  */
-export function requireAdminSession(deps: SessionAuthDeps) {
+export function requireAdminSession(deps: SessionAuthDeps,
+  { localOwnerSignIn = resolveLocalOwnerSignIn({ env: process.env }) }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
+) {
   return async function requireAdminSessionMiddleware(
     req: Request,
     res: Response,
@@ -363,7 +396,7 @@ export function requireAdminSession(deps: SessionAuthDeps) {
         return;
       }
 
-      const credential = await currentCredential(deps, req);
+      const credential = await currentCredential(deps, req, { localOwnerSignIn });
       if (!credential) {
         res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
         return;
@@ -418,7 +451,7 @@ function isLoopbackPeer(req: Request): boolean {
  *
  * @complexity O(1) — one session write (inside the shared minter).
  */
-async function mintSessionForPrincipal(deps: RouteDeps, principalId: string): Promise<{ rawToken: string; expiresAt: string }> {
+async function mintSessionForPrincipal(deps: SessionAuthDeps, principalId: string): Promise<{ rawToken: string; expiresAt: string }> {
   const { session, rawToken } = await createSessionForPrincipal({
     deps: authServiceDepsFrom(deps),
     input: { workspaceId: deps.workspaceId, principalId },
@@ -426,8 +459,47 @@ async function mintSessionForPrincipal(deps: RouteDeps, principalId: string): Pr
   return { rawToken, expiresAt: session.expiresAt };
 }
 
-/** Registers login/logout/me routes. Login is the only ungated admin route. */
-export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
+/** Shared desktop/browser exchange: consume once, verify the real session, then set its cookie.
+ * Resolves null after sending the existing rejection body. Repository failures propagate.
+ * @complexity O(1): a bounded number of principal/session lookups and one session write.
+ */
+export async function redeemOwnerBootSession(
+  { deps, res, token }: { deps: SessionAuthDeps; res: Response; token: unknown },
+  { redeem = redeemBootSessionToken, cookieName = SESSION_COOKIE }: { redeem?: (token: unknown) => boolean; cookieName?: string } = {},
+): Promise<OperatorPrincipalRecord | null> {
+  if (!redeem(token)) {
+    res.status(401).json({ error: "invalid or spent boot token", code: "UNAUTHENTICATED" });
+    return null;
+  }
+  await deps.identityReady;
+  const principalId = await deps.ownerPrincipalId;
+  const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
+  if (!principal || principal.status !== "active" || !isOperatorPrincipal(principal)) {
+    res.status(500).json({ error: "internal error" });
+    return null;
+  }
+  const { rawToken, expiresAt } = await mintSessionForPrincipal(deps, principalId);
+  // The fork guard promised in `mintSessionForPrincipal`'s doc: prove the row this route just
+  // wrote is one the library itself will accept, BEFORE setting a cookie on it. Without this, a
+  // future change to the library's private token hashing would leave every desktop launch
+  // silently unauthenticated with nothing pointing at the cause.
+  const confirmed = await validateSession({
+    deps: authServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, rawToken },
+  });
+  if (!confirmed?.principal) {
+    res.status(500).json({ error: "internal error" });
+    return null;
+  }
+  // The ordinary desktop cookie also replaces/clears local bootstrap; revoke what it supersedes.
+  if (cookieName === SESSION_COOKIE) await revokeRequestSessions({ deps, req: res.req });
+  setSessionCookie(res, rawToken, expiresAt, { name: cookieName });
+  return principal;
+}
+
+/** Registers login/logout/me and the loopback boot exchange before the admin session gate. */
+export function registerAuthRoutes(app: Express, deps: RouteDeps,
+  { localOwnerSignIn = resolveLocalOwnerSignIn({ env: process.env }) }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
+): void {
   // REQ-14/AC-18: LOGIN_STRICT (10 req/60s per client IP) brute-force guard on
   // AUTH_LOGIN. One limiter instance per `registerAuthRoutes` call, so each
   // `createApp()`/`createRouteDeps()` pair (and therefore each test's server)
@@ -469,6 +541,8 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
         sessionTtlMs: SESSION_TTL_MS,
       });
 
+      // Credentials succeeded; revoke both superseded bearers before clearing/replacing cookies.
+      await revokeRequestSessions({ deps, req });
       setSessionCookie(res, rawToken, session.expiresAt);
       res.json({ user: { id: principal.id, username } });
     } catch (err) {
@@ -485,13 +559,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
     // session store leaves the request hanging instead of answering like the login route does.
     try {
       await deps.identityReady;
-      const rawToken = readSessionToken(req);
-      if (rawToken) {
-        await logout({
-          deps: authServiceDepsFrom(deps),
-          input: { workspaceId: deps.workspaceId, rawToken },
-        });
-      }
+      await revokeRequestSessions({ deps, req });
       clearSessionCookie(res);
       res.json({ ok: true });
     } catch {
@@ -522,46 +590,48 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
    * a password login. Nothing downstream can tell the difference, and no bypass flag is threaded
    * anywhere.
    */
-  app.post("/api/admin/v1/auth/boot-session", async (req, res) => {
+  app.post("/api/admin/v1/auth/boot-session", async (req, res, next) => {
     // Checked before the token is even looked at, so a remote caller cannot probe redemption.
     if (!isLoopbackPeer(req)) {
       res.status(403).json({ error: "boot-session is loopback-only", code: "FORBIDDEN" });
       return;
     }
-    if (!redeemBootSessionToken(req.body?.token)) {
-      res.status(401).json({ error: "invalid or spent boot token", code: "UNAUTHENTICATED" });
+    try {
+      const principal = await redeemOwnerBootSession({ deps, res, token: req.body?.token });
+      if (principal) res.json({ user: { id: principal.id } });
+    } catch (error) { next(error); }
+  });
+
+  // The browser has no private parent stdout pipe. A launcher-armed, same-origin loopback
+  // request uses a request-scoped one-time token; no raw boot token is exposed to JS or logs.
+  // Separate stores prevent concurrent tabs, or the desktop's still-armed token, burning each other.
+  app.post("/api/admin/v1/auth/local-boot-session", async (req, res, next) => {
+    if (!localOwnerSignIn.enabled) {
+      res.status(404).json({ error: "local owner sign-in is disabled", code: "NOT_FOUND" });
       return;
     }
-
-    await deps.identityReady;
-    const principalId = await deps.ownerPrincipalId;
-    const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
-    if (!principal || principal.status !== "active") {
-      res.status(500).json({ error: "internal error" });
+    if (!isLoopbackPeer(req) || !allowsLocalOwnerSignInRequest({
+      host: req.headers.host, origin: req.get("origin"), fetchSite: req.get("sec-fetch-site"),
+      fetchMode: req.get("sec-fetch-mode"), headers: req.headers,
+    })) {
+      res.status(403).json({ error: "local owner sign-in requires a same-origin loopback request", code: "FORBIDDEN" });
       return;
     }
-
-    const { rawToken, expiresAt } = await mintSessionForPrincipal(deps, principalId);
-
-    // The fork guard promised in `mintSessionForPrincipal`'s doc: prove the row this route just
-    // wrote is one the library itself will accept, BEFORE setting a cookie on it. Without this, a
-    // future change to the library's private token hashing would leave every desktop launch
-    // silently unauthenticated with nothing pointing at the cause.
-    const confirmed = await validateSession({
-      deps: authServiceDepsFrom(deps),
-      input: { workspaceId: deps.workspaceId, rawToken },
-    });
-    if (!confirmed?.principal) {
-      res.status(500).json({ error: "internal error" });
-      return;
-    }
-
-    setSessionCookie(res, rawToken, expiresAt);
-    res.json({ user: { id: principal.id } });
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      // Keep an existing human session; auto sign-in must never promote a non-owner account.
+      const existing = await currentPrincipal(deps, req, { localOwnerSignIn });
+      if (existing) { res.json({ user: { id: existing.id } }); return; }
+      const store = createBootSessionTokenStore();
+      const principal = await redeemOwnerBootSession({ deps, res, token: store.mint() }, {
+        redeem: store.redeem, cookieName: localSessionCookieName(req),
+      });
+      if (principal) res.json({ user: { id: principal.id } });
+    } catch (error) { next(error); }
   });
 
   app.get("/api/admin/v1/auth/me", async (req, res) => {
-    const principal = await currentPrincipal(deps, req);
+    const principal = await currentPrincipal(deps, req, { localOwnerSignIn });
     if (!principal) {
       res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
       return;
@@ -623,7 +693,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
     return result;
   };
   app.get("/api/admin/v1/auth/me/password-status", async (req, res) => {
-    const principal = await currentPrincipal(deps, req);
+    const principal = await currentPrincipal(deps, req, { localOwnerSignIn });
     if (!principal) {
       res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
       return;

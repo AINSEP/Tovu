@@ -13,12 +13,15 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
  *
  * How it relates to the project:
  * `cli/commands/serve.ts` mints and emits it; `admin-http/dev-auth.ts`'s
- * `POST /api/admin/v1/auth/boot-session` redeems it. Nothing else touches it.
+ * `POST /api/admin/v1/auth/boot-session` redeems it. Browser dev uses this same factory with a
+ * request-scoped store after local-launch admission (`POST /auth/local-boot-session`), so its
+ * internal token never leaves server memory and cannot replace the launcher's process token.
  *
  * **This module knows nothing about who launches the server, and must stay that way.** There is no
  * "am I in Electron" branch here and no `TOVU_DESKTOP_*` name anywhere in this file or its callers'
  * server-side halves. The contract is only: *hand me a valid single-use loopback token and I will
- * start a session.* Whoever does that is not this server's business, which is what keeps the
+ * start a session.* Browser dev's admission policy lives outside this store. Whoever redeems is
+ * not this store's business, which is what keeps the
  * desktop shell deletable without leaving a server that misses it.
  *
  * Security properties, each one load-bearing:

@@ -152,3 +152,46 @@ test("boot-session route coexisting with the login route changes nothing about o
   const { cookie } = await bootAuthenticated(app, t);
   assert.match(cookie, /^tovu_session=\S+$/);
 });
+
+test("fxdev: desktop boot exchange refuses a disabled or member owner before minting", async (t) => {
+  // The shared browser/desktop redeemer deliberately tightens desktop auth too: a member must
+  // never receive an operator cookie, even if a corrupt owner binding points at that principal.
+  for (const override of [{ status: "disabled" as const }, { kind: "member" as const }]) {
+    const { app, deps } = buildTestApp();
+    await deps.identityReady;
+    const id = await deps.ownerPrincipalId;
+    const owner = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id });
+    assert.ok(owner);
+    await deps.principalRepo.save({ ...owner, ...override });
+    const base = await startTestServer(app, t);
+    const token = mintBootSessionToken();
+    const res = await fetch(`${base}/api/admin/v1/auth/boot-session`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({ token }),
+    });
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: "internal error" });
+    assert.equal(res.headers.has("set-cookie"), false);
+    const replay = await fetch(`${base}/api/admin/v1/auth/boot-session`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({ token }),
+    });
+    assert.equal(replay.status, 401);
+  }
+});
+
+test("fxdev: desktop exchange forwards a revocation failure and never issues a replacement cookie", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const failure = new Error("session storage unavailable");
+  deps.sessionRepo.revoke = async () => { throw failure; };
+  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    assert.equal(error, failure);
+    res.status(500).json({ error: "internal error" });
+  });
+  const token = mintBootSessionToken();
+  const res = await fetch(`${baseUrl}/api/admin/v1/auth/boot-session`, { method: "POST",
+    headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ token }),
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+  assert.equal(res.headers.has("set-cookie"), false);
+});

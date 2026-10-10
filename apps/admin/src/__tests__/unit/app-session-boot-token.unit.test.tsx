@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "../../features/publish-content/hooks/publish-availability.store";
@@ -108,7 +108,7 @@ it("a bad/expired token falls through to the normal login — no error screen, /
   expect(result.current.user).toBeNull();
 });
 
-it("no fragment: never calls boot-session, only the existing /auth/me chain runs", async () => {
+it("no fragment: an unauthenticated loopback browser tries local bootstrap and falls back to login when refused", async () => {
   const calls: string[] = [];
   const fetchMock = vi.fn(async (url: string) => {
     calls.push(String(url));
@@ -120,7 +120,7 @@ it("no fragment: never calls boot-session, only the existing /auth/me chain runs
 
   await waitFor(() => expect(result.current.checking).toBe(false));
 
-  expect(calls).toEqual(["/api/admin/v1/auth/me"]);
+  expect(calls).toEqual(["/api/admin/v1/auth/me", "/api/admin/v1/auth/local-boot-session"]);
   expect(result.current.user).toBeNull();
 });
 
