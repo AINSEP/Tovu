@@ -272,7 +272,9 @@ describe("Delete confirmation", () => {
 
     render(<PostEditor postId="p1" />);
 
-    const deleteButton = await screen.findByRole("button", { name: /^delete$/i });
+    // Delete lives in the top bar's More menu since the 2026-10-09 redesign.
+    await user.click(await screen.findByRole("button", { name: "More actions" }));
+    const deleteButton = await screen.findByRole("menuitem", { name: /^delete$/i });
     await user.click(deleteButton);
 
     expect(confirmSpy).not.toHaveBeenCalled();
@@ -301,7 +303,8 @@ describe("Delete confirmation", () => {
 
     render(<PostEditor postId="p1" />);
 
-    await user.click(await screen.findByRole("button", { name: /^delete$/i }));
+    await user.click(await screen.findByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: /^delete$/i }));
     await screen.findByText(/move to trash\?/i);
     await user.click(screen.getByRole("button", { name: /move to trash/i }));
 

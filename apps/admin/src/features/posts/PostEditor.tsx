@@ -21,6 +21,13 @@ import type {
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { usePostPreviewIframeEscape } from "./hooks/use-post-editor-ui.hooks";
+import {
+  usePostEditorChrome,
+  type PostEditorChromeController,
+  type PostEditorMenuId,
+} from "./hooks/use-post-editor-chrome.hooks";
+import "../../styles/post-editor.css";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
@@ -200,9 +207,12 @@ function Toolbar({
   editor,
   mentionablePosts,
   currentPostId,
+  menus,
   t,
 }: {
   editor: Editor;
+  /** The redesign's Text / Insert / ⋯ popovers — open state lives in `usePostEditorChrome`. */
+  menus: ToolbarMenus;
   /** Mention feature (2026-08-11) — every other post/page this workspace has, unfiltered (this
    *  component excludes `currentPostId` at render time). See `use-post-editor.hooks.ts`'s own
    *  field doc for why an empty array here means "loading or fetch failed", not "no other posts". */
@@ -218,16 +228,15 @@ function Toolbar({
   const chain = () => editor.chain().focus();
 
   return (
-    <div className="editor-toolbar" role="toolbar" aria-label={t("Formatting")}>
+    <div className="editor-toolbar post-editor-toolbar" role="toolbar" aria-label={t("Formatting")}>
+      {/* One row (2026-10-09 redesign): the marks an author reaches for most stay on the row; the
+          rest live in the Text / Insert / ⋯ popovers below. The popovers stay MOUNTED and are hidden
+          by CSS only (`styles/post-editor.css`), so every control keeps its title/aria-label and the
+          tests and the in-app assistant still find it. */}
       <div className="grp">
         <button className={toolbarBtnClass(s.bold)} title={t("Bold (⌘B)")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
         <button className={toolbarBtnClass(s.italic)} title={t("Italic (⌘I)")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
-        <button className={toolbarBtnClass(s.strike)} title={t("Strikethrough")} aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
         <button className={toolbarBtnClass(s.underline)} title={t("Underline (⌘U)")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
-        <button className={toolbarBtnClass(s.highlight)} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
-        <button className={toolbarBtnClass(s.subscript)} title={t("Subscript")} aria-pressed={s.subscript} onClick={() => chain().toggleSubscript().run()}>X₂</button>
-        <button className={toolbarBtnClass(s.superscript)} title={t("Superscript")} aria-pressed={s.superscript} onClick={() => chain().toggleSuperscript().run()}>X²</button>
-        <button className={toolbarBtnClass(s.code)} title={t("Inline code")} aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
         {/* Link (2026-08-11) — a prompt-based toggle, same "simplest thing that works" idiom as
             "Insert image by URL" just below rather than a dedicated dialog: a click while the
             selection already sits inside a link removes it (no second prompt needed to know the
@@ -259,290 +268,364 @@ function Toolbar({
         <button className={toolbarBtnClass(s.h3)} title={t("Heading 3")} aria-pressed={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>H3</button>
       </div>
       <div className="grp">
-        <button className={toolbarBtnClass(s.bullet)} title={t("Bullet list")} aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• {t("List")}</button>
-        <button className={toolbarBtnClass(s.ordered)} title={t("Numbered list")} aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. {t("List")}</button>
-        <button className={toolbarBtnClass(s.taskList)} title={t("Task list")} aria-pressed={s.taskList} onClick={() => chain().toggleTaskList().run()}>☐ {t("List")}</button>
-        <button className={toolbarBtnClass(s.quote)} title={t("Quote")} aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; {t("Quote")}</button>
-        <button className={toolbarBtnClass(s.codeBlock)} title={t("Code block")} aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
-        {/* Code block language (coordinator MSG #1, 2026-08-11) — every option is one of lowlight's
-            own registered `common` grammar keys (`rules.ts`'s `CODE_LANGUAGE_OPTIONS`), so picking
-            one always produces real in-editor highlighting. `setCodeBlock` both converts the
-            current block to a code block (if it wasn't already one) AND sets its language in one
-            call — the same `chain().setCodeBlock({...})` call works whether or not the cursor was
-            already inside a code block, so this needs no separate "am I in one?" branch. */}
-        <select
-          className="tb-select"
-          title={t("Code language")}
-          aria-label={t("Code language")}
-          value={s.codeBlockLanguage}
-          onChange={(e) => chain().setCodeBlock({ language: e.target.value }).run()}
-        >
-          {CODE_LANGUAGE_OPTIONS.map((opt) => (
-            <option key={opt.label} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <button className="tb-btn" title={t("Divider")} onClick={() => chain().setHorizontalRule().run()}>―</button>
-        {/* Table (owner, 2026-08-11: "anything and everything") — same "quickest thing that
-            works" idiom as "Img by URL"/"Divider" just above: a fixed 3x3-with-header-row insert,
-            no rows/cols prompt. `insertTable`'s own defaults (`rows: 3, cols: 3,
-            withHeaderRow: true`) are passed explicitly rather than relied on implicitly. */}
-        <button
-          className="tb-btn"
-          title={t("Insert table")}
-          onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-        >
-          {t("Table")}
-        </button>
-      </div>
-      {/* Icons, not word labels (owner, 2026-08-11: "How come it just doesn't use the icons? ...
-          Not a huge deal, but would be nice to have") — house SVG convention (`viewBox="0 0 18 18"`,
-          `stroke="currentColor"`, no icon dependency), same shape `App.tsx`'s sidebar-collapse
-          button and `Media.tsx`'s file-type icons already use. `currentColor` is what makes these
-          free: they inherit the toolbar's own color token (and therefore dark mode, and the `.on`
-          active-state color swap `.tb-btn.on` already applies) with zero icon-specific CSS.
-          `B`/`I`/`U`/`H1` above stay letters — mixing letters for marks and icons for alignment
-          matches the Word/Docs/Notion convention rather than converting everything at once.
-          Losing the visible text label means the button needs its own accessible name: `aria-label`
-          now carries what `title` alone used to (a screen reader ignores `title`), and `title` stays
-          for the hover tooltip sighted users still get. */}
-      <div className="grp">
-        <button
-          className={toolbarBtnClass(s.alignLeft)}
-          title={t("Align left")}
-          aria-label={t("Align left")}
-          aria-pressed={s.alignLeft}
-          onClick={() => chain().setTextAlign("left").run()}
-        >
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-            <path d="M2.5 4h13M2.5 7.5h8M2.5 11h13M2.5 14.5h8" strokeLinecap="round" />
-          </svg>
-        </button>
-        <button
-          className={toolbarBtnClass(s.alignCenter)}
-          title={t("Align center")}
-          aria-label={t("Align center")}
-          aria-pressed={s.alignCenter}
-          onClick={() => chain().setTextAlign("center").run()}
-        >
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-            <path d="M2.5 4h13M5 7.5h8M2.5 11h13M5 14.5h8" strokeLinecap="round" />
-          </svg>
-        </button>
-        <button
-          className={toolbarBtnClass(s.alignRight)}
-          title={t("Align right")}
-          aria-label={t("Align right")}
-          aria-pressed={s.alignRight}
-          onClick={() => chain().setTextAlign("right").run()}
-        >
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-            <path d="M2.5 4h13M7.5 7.5h8M2.5 11h13M7.5 14.5h8" strokeLinecap="round" />
-          </svg>
-        </button>
-        <button
-          className={toolbarBtnClass(s.alignJustify)}
-          title={t("Justify")}
-          aria-label={t("Justify")}
-          aria-pressed={s.alignJustify}
-          onClick={() => chain().setTextAlign("justify").run()}
-        >
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-            <path d="M2.5 4h13M2.5 7.5h13M2.5 11h13M2.5 14.5h13" strokeLinecap="round" />
-          </svg>
-        </button>
+        <button className={toolbarBtnClass(s.bullet)} title={t("Bullet list")} aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}aria-label={t("Bullet list")}><i className="ri-list-unordered" aria-hidden="true" /></button>
+        <button className={toolbarBtnClass(s.ordered)} title={t("Numbered list")} aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}aria-label={t("Numbered list")}><i className="ri-list-ordered-2" aria-hidden="true" /></button>
+        <button className={toolbarBtnClass(s.quote)} title={t("Quote")} aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}aria-label={t("Quote")}><i className="ri-double-quotes-l" aria-hidden="true" /></button>
       </div>
       <div className="grp">
-        <button className="tb-btn" title={t("Undo (⌘Z)")} disabled={!s.canUndo} onClick={() => chain().undo().run()}>↺</button>
-        <button className="tb-btn" title={t("Redo (⌘⇧Z)")} disabled={!s.canRedo} onClick={() => chain().redo().run()}>↻</button>
-      </div>
-      {/* Text/background color (owner, 2026-08-11: "anything and everything"; consolidated to fewer
-          controls 2026-08-11 toolbar-polish pass) — native `<input type="color">` swatches, no
-          color-picker dependency, same "no icon dependency" spirit the align-icon SVGs above
-          follow. A native color input only ever emits a strict 6-digit hex, so
-          `chain().setColor()`/`setBackgroundColor()` never receive anything `safeCssColor`
-          (render.ts) would reject — the allowlist there is defense-in-depth against `bodyJson`
-          written some OTHER way (a direct API call, pasted content), not something this UI can
-          trigger on its own. `hexOrDefault` only affects what the swatch DISPLAYS when nothing is
-          selected or the current mark's color isn't a plain hex string (e.g. inherited from pasted
-          `rgb(...)`/keyword content) — it never touches what gets applied on change.
+        <ToolbarMenu id="text" label={t("Text")} title={t("Text")} menus={menus}>
+          {/* Text/background color (owner, 2026-08-11: "anything and everything"; consolidated to fewer
+              controls 2026-08-11 toolbar-polish pass) — native `<input type="color">` swatches, no
+              color-picker dependency, same "no icon dependency" spirit the align-icon SVGs above
+              follow. A native color input only ever emits a strict 6-digit hex, so
+              `chain().setColor()`/`setBackgroundColor()` never receive anything `safeCssColor`
+              (render.ts) would reject — the allowlist there is defense-in-depth against `bodyJson`
+              written some OTHER way (a direct API call, pasted content), not something this UI can
+              trigger on its own. `hexOrDefault` only affects what the swatch DISPLAYS when nothing is
+              selected or the current mark's color isn't a plain hex string (e.g. inherited from pasted
+              `rgb(...)`/keyword content) — it never touches what gets applied on change.
 
-          The "×" clear button used to be unconditional — a swatch AND a separate always-visible ×
-          for each of text/background, four controls for two concepts, and an ambiguous glyph on
-          top of that (owner: this reads as "four buttons" when it's really two ideas). Each × now
-          renders ONLY while that color is actually set (`s.color !== null` / `s.backgroundColor !==
-          null`, the same live cursor-state `hexOrDefault` already reads) — with nothing set, this
-          row is exactly the two swatches; the clear affordance appears exactly when there is
-          something to clear. Accessible names are unchanged (`aria-label`s below are verbatim what
-          they were before this pass) since an existing e2e suite selects by them. */}
-      <div className="grp">
-        <label className="tb-color" title={t("Text color")}>
-          <input
-            type="color"
-            aria-label={t("Text color")}
-            value={hexOrDefault(s.color, "#000000")}
-            onChange={(e) => chain().setColor(e.target.value).run()}
-          />
-        </label>
-        {s.color !== null ? (
-          <button className="tb-btn" title={t("Clear text color")} aria-label={t("Clear text color")} onClick={() => chain().unsetColor().run()}>×</button>
-        ) : null}
-        <label className="tb-color" title={t("Background color")}>
-          <input
-            type="color"
-            aria-label={t("Background color")}
-            value={hexOrDefault(s.backgroundColor, "#ffffff")}
-            onChange={(e) => chain().setBackgroundColor(e.target.value).run()}
-          />
-        </label>
-        {s.backgroundColor !== null ? (
-          <button className="tb-btn" title={t("Clear background color")} aria-label={t("Clear background color")} onClick={() => chain().unsetBackgroundColor().run()}>×</button>
-        ) : null}
-      </div>
-      {/* Font family/size, line height (owner, 2026-08-11: "anything and everything"; made
-          self-describing 2026-08-11 toolbar-polish pass) — closed preset `<select>`s (`rules.ts`'s
-          `FONT_FAMILY_OPTIONS`/`FONT_SIZE_OPTIONS`/`LINE_HEIGHT_OPTIONS`), not free-text inputs:
-          every value they can produce already passes `render.ts`'s own allowlist by construction.
-          `""` (the leading option every list starts with — see `rules.ts`'s own comment for exactly
-          how its LABEL was derived from a live measurement) unsets the attribute entirely rather
-          than setting it to an empty string.
+              The "×" clear button used to be unconditional — a swatch AND a separate always-visible ×
+              for each of text/background, four controls for two concepts, and an ambiguous glyph on
+              top of that (owner: this reads as "four buttons" when it's really two ideas). Each × now
+              renders ONLY while that color is actually set (`s.color !== null` / `s.backgroundColor !==
+              null`, the same live cursor-state `hexOrDefault` already reads) — with nothing set, this
+              row is exactly the two swatches; the clear affordance appears exactly when there is
+              something to clear. Accessible names are unchanged (`aria-label`s below are verbatim what
+              they were before this pass) since an existing e2e suite selects by them. */}
+          <div className="grp">
+            <label className="tb-color" title={t("Text color")}>
+              <input
+                type="color"
+                aria-label={t("Text color")}
+                value={hexOrDefault(s.color, "#000000")}
+                onChange={(e) => chain().setColor(e.target.value).run()}
+              />
+            </label>
+            {s.color !== null ? (
+              <button className="tb-btn" title={t("Clear text color")} aria-label={t("Clear text color")} onClick={() => chain().unsetColor().run()}>×</button>
+            ) : null}
+            <label className="tb-color" title={t("Background color")}>
+              <input
+                type="color"
+                aria-label={t("Background color")}
+                value={hexOrDefault(s.backgroundColor, "#ffffff")}
+                onChange={(e) => chain().setBackgroundColor(e.target.value).run()}
+              />
+            </label>
+            {s.backgroundColor !== null ? (
+              <button className="tb-btn" title={t("Clear background color")} aria-label={t("Clear background color")} onClick={() => chain().unsetBackgroundColor().run()}>×</button>
+            ) : null}
+          </div>
+          {/* Font family/size, line height (owner, 2026-08-11: "anything and everything"; made
+              self-describing 2026-08-11 toolbar-polish pass) — closed preset `<select>`s (`rules.ts`'s
+              `FONT_FAMILY_OPTIONS`/`FONT_SIZE_OPTIONS`/`LINE_HEIGHT_OPTIONS`), not free-text inputs:
+              every value they can produce already passes `render.ts`'s own allowlist by construction.
+              `""` (the leading option every list starts with — see `rules.ts`'s own comment for exactly
+              how its LABEL was derived from a live measurement) unsets the attribute entirely rather
+              than setting it to an empty string.
 
-          Each select is now paired with a short visible `.tb-select-label` (owner: three controls
-          that all read "Default" gave no clue which was font/size/line-height without hovering for
-          the `title`). The label is `aria-hidden` — the select's own `aria-label` below already
-          carries the accessible name, so a screen reader is not told the same thing twice. */}
-      <div className="grp">
-        <span className="tb-select-group">
-          <span className="tb-select-label" aria-hidden="true">{t("Font")}</span>
-          <select
-            className="tb-select"
-            title={t("Font family")}
-            aria-label={t("Font family")}
-            value={s.fontFamily}
-            onChange={(e) => (e.target.value ? chain().setFontFamily(e.target.value).run() : chain().unsetFontFamily().run())}
-          >
-            {FONT_FAMILY_OPTIONS.map((opt) => (
-              <option key={opt.label} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </span>
-        <span className="tb-select-group">
-          <span className="tb-select-label" aria-hidden="true">{t("Size")}</span>
-          <select
-            className="tb-select"
-            title={t("Font size")}
-            aria-label={t("Font size")}
-            value={s.fontSize}
-            onChange={(e) => (e.target.value ? chain().setFontSize(e.target.value).run() : chain().unsetFontSize().run())}
-          >
-            {FONT_SIZE_OPTIONS.map((opt) => (
-              <option key={opt.label} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </span>
-        <span className="tb-select-group">
-          <span className="tb-select-label" aria-hidden="true">{t("Line")}</span>
-          <select
-            className="tb-select"
-            title={t("Line height")}
-            aria-label={t("Line height")}
-            value={s.lineHeight}
-            onChange={(e) => (e.target.value ? chain().setLineHeight(e.target.value).run() : chain().unsetLineHeight().run())}
-          >
-            {LINE_HEIGHT_OPTIONS.map((opt) => (
-              <option key={opt.label} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </span>
+              Each select is now paired with a short visible `.tb-select-label` (owner: three controls
+              that all read "Default" gave no clue which was font/size/line-height without hovering for
+              the `title`). The label is `aria-hidden` — the select's own `aria-label` below already
+              carries the accessible name, so a screen reader is not told the same thing twice. */}
+          <div className="grp">
+            <span className="tb-select-group">
+              <span className="tb-select-label" aria-hidden="true">{t("Font")}</span>
+              <select
+                className="tb-select"
+                title={t("Font family")}
+                aria-label={t("Font family")}
+                value={s.fontFamily}
+                onChange={(e) => (e.target.value ? chain().setFontFamily(e.target.value).run() : chain().unsetFontFamily().run())}
+              >
+                {FONT_FAMILY_OPTIONS.map((opt) => (
+                  <option key={opt.label} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </span>
+            <span className="tb-select-group">
+              <span className="tb-select-label" aria-hidden="true">{t("Size")}</span>
+              <select
+                className="tb-select"
+                title={t("Font size")}
+                aria-label={t("Font size")}
+                value={s.fontSize}
+                onChange={(e) => (e.target.value ? chain().setFontSize(e.target.value).run() : chain().unsetFontSize().run())}
+              >
+                {FONT_SIZE_OPTIONS.map((opt) => (
+                  <option key={opt.label} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </span>
+            <span className="tb-select-group">
+              <span className="tb-select-label" aria-hidden="true">{t("Line")}</span>
+              <select
+                className="tb-select"
+                title={t("Line height")}
+                aria-label={t("Line height")}
+                value={s.lineHeight}
+                onChange={(e) => (e.target.value ? chain().setLineHeight(e.target.value).run() : chain().unsetLineHeight().run())}
+              >
+                {LINE_HEIGHT_OPTIONS.map((opt) => (
+                  <option key={opt.label} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </span>
+          </div>
+          {/* Icons, not word labels (owner, 2026-08-11: "How come it just doesn't use the icons? ...
+              Not a huge deal, but would be nice to have") — house SVG convention (`viewBox="0 0 18 18"`,
+              `stroke="currentColor"`, no icon dependency), same shape `App.tsx`'s sidebar-collapse
+              button and `Media.tsx`'s file-type icons already use. `currentColor` is what makes these
+              free: they inherit the toolbar's own color token (and therefore dark mode, and the `.on`
+              active-state color swap `.tb-btn.on` already applies) with zero icon-specific CSS.
+              `B`/`I`/`U`/`H1` above stay letters — mixing letters for marks and icons for alignment
+              matches the Word/Docs/Notion convention rather than converting everything at once.
+              Losing the visible text label means the button needs its own accessible name: `aria-label`
+              now carries what `title` alone used to (a screen reader ignores `title`), and `title` stays
+              for the hover tooltip sighted users still get. */}
+          <div className="grp">
+            <button
+              className={toolbarBtnClass(s.alignLeft)}
+              title={t("Align left")}
+              aria-label={t("Align left")}
+              aria-pressed={s.alignLeft}
+              onClick={() => chain().setTextAlign("left").run()}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <path d="M2.5 4h13M2.5 7.5h8M2.5 11h13M2.5 14.5h8" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button
+              className={toolbarBtnClass(s.alignCenter)}
+              title={t("Align center")}
+              aria-label={t("Align center")}
+              aria-pressed={s.alignCenter}
+              onClick={() => chain().setTextAlign("center").run()}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <path d="M2.5 4h13M5 7.5h8M2.5 11h13M5 14.5h8" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button
+              className={toolbarBtnClass(s.alignRight)}
+              title={t("Align right")}
+              aria-label={t("Align right")}
+              aria-pressed={s.alignRight}
+              onClick={() => chain().setTextAlign("right").run()}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <path d="M2.5 4h13M7.5 7.5h8M2.5 11h13M7.5 14.5h8" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button
+              className={toolbarBtnClass(s.alignJustify)}
+              title={t("Justify")}
+              aria-label={t("Justify")}
+              aria-pressed={s.alignJustify}
+              onClick={() => chain().setTextAlign("justify").run()}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <path d="M2.5 4h13M2.5 7.5h13M2.5 11h13M2.5 14.5h13" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        </ToolbarMenu>
+        <ToolbarMenu id="insert" label={t("Insert")} title={t("Insert")} icon="ri-add-line" menus={menus}>
+          <div className="grp">
+            {/* Single "Embed" control (quick-and-dirty pass, 2026-08-05 — owner explicitly skipped
+                formal spec/ADR process for this one) replacing the previously-separate "Media" and
+                "Insert widget" buttons: Form and Menu are just the `contact-form`/`menu` widget TYPES
+                (`WidgetConfigFields.tsx`), not separate mechanisms, so they used to be buried behind
+                "Insert widget"'s type dropdown. `EmbedInsertControl` (`components/EmbedInsertControl/EmbedInsertControl.tsx`)
+                surfaces Media/Form/Menu as one-click shortcuts plus a "Widget…" choice for the rest,
+                composing the same `MediaPickerDialog`/`WidgetPickerDialog`/`WidgetAddControl` pieces
+                `CollectionEntryEditor.tsx`/`WidgetRegionEditor.tsx` still use directly and unchanged. */}
+            <EmbedInsertControl editor={editor} />
+            {/* "Insert image by URL" — REMOVED and then RESTORED on 2026-08-12, same day. Read this before
+                removing it again.
+                It writes a node carrying only `attrs.src`. `render.ts`'s `"image"` case historically never
+                read `src` (ADR-027 §4/D7), so the control looked like it worked in the editor and silently
+                rendered a placeholder on the live site — that part of the bug report was real.
+                The first fix removed the control. The owner reversed that: *"I don't wanna remove the image
+                by URL… why is that even bad to refuse an attribute source? If the user is saying they want
+                it, why bar it?"* He is right, and the blanket refusal was the actual defect. This file
+                already had the correct pattern for exactly this problem — `safeHref` (render.ts) does not
+                REFUSE link hrefs, it validates the scheme and passes good ones through. The image case was
+                the outlier in refusing everything.
+                So `render.ts` now has `safeImageSrc`, the image-shaped sibling of `safeHref`: an `https?:`
+                allowlist that rejects `javascript:`/`data:`/`blob:`/`file:` and the app's own authenticated
+                admin media URLs, degrading anything else to the same visible placeholder as before.
+                NOTE the rejected alternative and why it is NOT the cheap option it sounds like: fetching
+                the URL server-side to mint a real `{assetId, transformName}` ref would need `src/platform/http`
+                (ADR-038); consuming only its UTF-8 `bodyText` would corrupt binary image bytes. It would also introduce SSRF surface that scheme
+                validation does not — because with validation the SERVER never fetches anything; the
+                reader's browser loads the URL directly.
+     */}
+            <button
+              className="tb-btn"
+              title={t("Insert image by URL")}
+              onClick={menus.closeMenuAfter(() => {
+                const src = window.prompt("Image URL:");
+                if (!src) return;
+                const alt = window.prompt("Alt text (optional):") ?? "";
+                chain().setImage({ src, alt: alt || undefined }).run();
+              })}
+            >
+              {t("Img by URL")}
+            </button>
+            {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — a "prompt for a URL" idiom, the
+                same shape as "Insert image by URL" just above.
+                `setYoutubeVideo` itself rejects an unrecognized URL
+                (returns `false`, no-ops) before insertion — the render.ts side independently
+                re-validates anyway, see `extractYoutubeVideoId`'s own doc for why. */}
+            <button
+              className="tb-btn"
+              title={t("Insert YouTube video")}
+              onClick={menus.closeMenuAfter(() => {
+                const src = window.prompt("YouTube video URL:");
+                if (!src) return;
+                chain().setYoutubeVideo({ src }).run();
+              })}
+            >
+              YouTube
+            </button>
+            {/* Mention another post (coordinator MSG A#1 licensing sweep, 2026-08-11) — a single
+                action `<select>` (`value=""` always, matching a menu-styled dropdown-button rather than
+                a retained current-selection field): choosing a post inserts a mention node immediately
+                and the control snaps back to its placeholder. `id` stores the mentioned post's SLUG
+                (what `render.ts`'s `"mention"` case builds a link from), `label` its title. Excludes
+                `currentPostId` — mentioning the post you're currently writing has no meaning. */}
+            <select
+              className="tb-select"
+              title={t("Mention a post")}
+              aria-label={t("Mention a post")}
+              value=""
+              onChange={(e) => {
+                const target = mentionablePosts.find((p) => p.slug === e.target.value);
+                if (!target) return;
+                chain().insertContent({ type: "mention", attrs: { id: target.slug, label: target.title } }).run();
+              }}
+            >
+              <option value="">{t("Mention…")}</option>
+              {mentionablePosts
+                .filter((p) => p.id !== currentPostId)
+                .map((p) => (
+                  <option key={p.id} value={p.slug}>{p.title}</option>
+                ))}
+            </select>
+          </div>
+          <div className="grp">
+            <button className={toolbarBtnClass(s.codeBlock)} title={t("Code block")} aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
+            {/* Code block language (coordinator MSG #1, 2026-08-11) — every option is one of lowlight's
+                own registered `common` grammar keys (`rules.ts`'s `CODE_LANGUAGE_OPTIONS`), so picking
+                one always produces real in-editor highlighting. `setCodeBlock` both converts the
+                current block to a code block (if it wasn't already one) AND sets its language in one
+                call — the same `chain().setCodeBlock({...})` call works whether or not the cursor was
+                already inside a code block, so this needs no separate "am I in one?" branch. */}
+            <select
+              className="tb-select"
+              title={t("Code language")}
+              aria-label={t("Code language")}
+              value={s.codeBlockLanguage}
+              onChange={(e) => chain().setCodeBlock({ language: e.target.value }).run()}
+            >
+              {CODE_LANGUAGE_OPTIONS.map((opt) => (
+                <option key={opt.label} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <button className="tb-btn" title={t("Divider")} onClick={menus.closeMenuAfter(() => chain().setHorizontalRule().run())}>―</button>
+            {/* Table (owner, 2026-08-11: "anything and everything") — same "quickest thing that
+                works" idiom as "Img by URL"/"Divider" just above: a fixed 3x3-with-header-row insert,
+                no rows/cols prompt. `insertTable`'s own defaults (`rows: 3, cols: 3,
+                withHeaderRow: true`) are passed explicitly rather than relied on implicitly. */}
+            <button
+              className="tb-btn"
+              title={t("Insert table")}
+              onClick={menus.closeMenuAfter(() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
+            >
+              {t("Table")}
+            </button>
+          </div>
+        </ToolbarMenu>
+        <ToolbarMenu id="more-format" title={t("More formatting")} icon="ri-more-line" menus={menus}>
+          <div className="grp">
+            <button className={toolbarBtnClass(s.strike)} title={t("Strikethrough")} aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
+            <button className={toolbarBtnClass(s.highlight)} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
+            <button className={toolbarBtnClass(s.subscript)} title={t("Subscript")} aria-pressed={s.subscript} onClick={() => chain().toggleSubscript().run()}>X₂</button>
+            <button className={toolbarBtnClass(s.superscript)} title={t("Superscript")} aria-pressed={s.superscript} onClick={() => chain().toggleSuperscript().run()}>X²</button>
+            <button className={toolbarBtnClass(s.code)} title={t("Inline code")} aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
+            <button className={toolbarBtnClass(s.taskList)} title={t("Task list")} aria-pressed={s.taskList} onClick={() => chain().toggleTaskList().run()} aria-label={t("Task list")}><i className="ri-list-check-3" aria-hidden="true" /></button>
+          </div>
+        </ToolbarMenu>
       </div>
       <div className="grp">
-        {/* Single "Embed" control (quick-and-dirty pass, 2026-08-05 — owner explicitly skipped
-            formal spec/ADR process for this one) replacing the previously-separate "Media" and
-            "Insert widget" buttons: Form and Menu are just the `contact-form`/`menu` widget TYPES
-            (`WidgetConfigFields.tsx`), not separate mechanisms, so they used to be buried behind
-            "Insert widget"'s type dropdown. `EmbedInsertControl` (`components/EmbedInsertControl/EmbedInsertControl.tsx`)
-            surfaces Media/Form/Menu as one-click shortcuts plus a "Widget…" choice for the rest,
-            composing the same `MediaPickerDialog`/`WidgetPickerDialog`/`WidgetAddControl` pieces
-            `CollectionEntryEditor.tsx`/`WidgetRegionEditor.tsx` still use directly and unchanged. */}
-        <EmbedInsertControl editor={editor} />
-        {/* "Insert image by URL" — REMOVED and then RESTORED on 2026-08-12, same day. Read this before
-            removing it again.
-            It writes a node carrying only `attrs.src`. `render.ts`'s `"image"` case historically never
-            read `src` (ADR-027 §4/D7), so the control looked like it worked in the editor and silently
-            rendered a placeholder on the live site — that part of the bug report was real.
-            The first fix removed the control. The owner reversed that: *"I don't wanna remove the image
-            by URL… why is that even bad to refuse an attribute source? If the user is saying they want
-            it, why bar it?"* He is right, and the blanket refusal was the actual defect. This file
-            already had the correct pattern for exactly this problem — `safeHref` (render.ts) does not
-            REFUSE link hrefs, it validates the scheme and passes good ones through. The image case was
-            the outlier in refusing everything.
-            So `render.ts` now has `safeImageSrc`, the image-shaped sibling of `safeHref`: an `https?:`
-            allowlist that rejects `javascript:`/`data:`/`blob:`/`file:` and the app's own authenticated
-            admin media URLs, degrading anything else to the same visible placeholder as before.
-            NOTE the rejected alternative and why it is NOT the cheap option it sounds like: fetching
-            the URL server-side to mint a real `{assetId, transformName}` ref would need `src/platform/http`
-            (ADR-038); consuming only its UTF-8 `bodyText` would corrupt binary image bytes. It would also introduce SSRF surface that scheme
-            validation does not — because with validation the SERVER never fetches anything; the
-            reader's browser loads the URL directly.
- */}
-        <button
-          className="tb-btn"
-          title={t("Insert image by URL")}
-          onClick={() => {
-            const src = window.prompt("Image URL:");
-            if (!src) return;
-            const alt = window.prompt("Alt text (optional):") ?? "";
-            chain().setImage({ src, alt: alt || undefined }).run();
-          }}
-        >
-          {t("Img by URL")}
-        </button>
-        {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — a "prompt for a URL" idiom, the
-            same shape as "Insert image by URL" just above.
-            `setYoutubeVideo` itself rejects an unrecognized URL
-            (returns `false`, no-ops) before insertion — the render.ts side independently
-            re-validates anyway, see `extractYoutubeVideoId`'s own doc for why. */}
-        <button
-          className="tb-btn"
-          title={t("Insert YouTube video")}
-          onClick={() => {
-            const src = window.prompt("YouTube video URL:");
-            if (!src) return;
-            chain().setYoutubeVideo({ src }).run();
-          }}
-        >
-          YouTube
-        </button>
-        {/* Mention another post (coordinator MSG A#1 licensing sweep, 2026-08-11) — a single
-            action `<select>` (`value=""` always, matching a menu-styled dropdown-button rather than
-            a retained current-selection field): choosing a post inserts a mention node immediately
-            and the control snaps back to its placeholder. `id` stores the mentioned post's SLUG
-            (what `render.ts`'s `"mention"` case builds a link from), `label` its title. Excludes
-            `currentPostId` — mentioning the post you're currently writing has no meaning. */}
-        <select
-          className="tb-select"
-          title={t("Mention a post")}
-          aria-label={t("Mention a post")}
-          value=""
-          onChange={(e) => {
-            const target = mentionablePosts.find((p) => p.slug === e.target.value);
-            if (!target) return;
-            chain().insertContent({ type: "mention", attrs: { id: target.slug, label: target.title } }).run();
-          }}
-        >
-          <option value="">{t("Mention…")}</option>
-          {mentionablePosts
-            .filter((p) => p.id !== currentPostId)
-            .map((p) => (
-              <option key={p.id} value={p.slug}>{p.title}</option>
-            ))}
-        </select>
+        <button className="tb-btn" title={t("Undo (⌘Z)")} aria-label={t("Undo (⌘Z)")} disabled={!s.canUndo} onClick={() => chain().undo().run()}><i className="ri-arrow-go-back-line" aria-hidden="true" /></button>
+        <button className="tb-btn" title={t("Redo (⌘⇧Z)")} aria-label={t("Redo (⌘⇧Z)")} disabled={!s.canRedo} onClick={() => chain().redo().run()}><i className="ri-arrow-go-forward-line" aria-hidden="true" /></button>
       </div>
+    </div>
+  );
+}
+
+/** The redesign's popover open state, as `Toolbar` and the top bar consume it. */
+type ToolbarMenus = Pick<PostEditorChromeController, "openMenu" | "toggleMenu" | "closeMenuAfter">;
+
+/**
+ * A toolbar trigger plus its popover. `data-post-menu` is how `usePostEditorChrome` tells an outside
+ * pointerdown from one inside. Mounted always, shown by `.is-open` — see `Toolbar`'s comment.
+ */
+function ToolbarMenu({
+  id,
+  label,
+  title,
+  icon,
+  menus,
+  children,
+}: {
+  id: PostEditorMenuId;
+  label?: string;
+  title: string;
+  icon?: string;
+  menus: ToolbarMenus;
+  children: ReactNode;
+}) {
+  const open = menus.openMenu === id;
+  return (
+    <span className="post-menu" data-post-menu={id}>
+      <button
+        type="button"
+        className={`${toolbarBtnClass(open)} post-menu-trigger`}
+        title={title}
+        aria-label={label ? undefined : title}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => menus.toggleMenu(id)}
+      >
+        {icon ? <i className={icon} aria-hidden="true" /> : null}
+        {label ? <span>{label}</span> : null}
+        {label ? <i className="ri-arrow-down-s-line post-menu-caret" aria-hidden="true" /> : null}
+      </button>
+      <div className={`post-popover post-popover-${id}${open ? " is-open" : ""}`} role="group" aria-label={title}>
+        {children}
+      </div>
+    </span>
+  );
+}
+
+/**
+ * The live character count, in a small footer under the body (2026-10-09 redesign; it used to trail
+ * the toolbar row). Its own `useEditorState` so the footer re-renders on its own.
+ */
+function PostEditorCharacterCount({ editor, t }: { editor: Editor; t: Translate }) {
+  const characterCount = useEditorState({ editor, selector: ({ editor }) => (editor ? TOOLBAR_PROBES.characterCount(editor) : 0) });
+  return (
+    <div className="post-editor-footer">
       {/* CharacterCount (owner, 2026-08-11: "anything and everything") — a plain readout, not a
           button: nothing to click, just the live count `editor.storage.characterCount` already
-          tracks. Right-aligned via `margin-left: auto` (styles.css) so it reads as status text
-          trailing the row rather than one more control competing with the buttons before it. */}
+          tracks. It reads as status text under the writing area rather than one more control
+          competing with the toolbar's buttons. */}
       <span className="editor-toolbar-count" aria-live="polite">
-        {s.characterCount} {s.characterCount === 1 ? t("character") : t("characters")}
+        {characterCount} {characterCount === 1 ? t("character") : t("characters")}
       </span>
     </div>
   );
@@ -636,85 +719,274 @@ function BubbleFormattingMenu({ editor, t }: { editor: Editor; t: Translate }) {
 }
 
 /**
- * The editor header — the back link and the kicker/title/description block, and since the
- * 2026-09-06 layout experiment nothing else: the save status, status select and the
- * publish/save/delete buttons moved out to `PostEditorActions` below the toolbar.
+ * The sticky top bar (2026-10-09 redesign, owner: "looks horrid"; agreed brief in
+ * `ADS-memory/.local-artifacts/ui-briefs/editpost-redesign.md`): back · title · status chip · save
+ * feedback on the left; Editor/Preview, Publish, Save, Post settings and More (⋯) on the right.
  *
- * Most of the branching this doc used to describe went with them; see `PostEditorActions`. What
- * stays is the back link's kind-aware `href`/label pair and its unsaved-work guard, which is why
- * `kindLabel`, `confirmLeave` and `t` are the props that remained.
+ * History it replaces: the 2026-09-06 layout experiment split this into a header (back link plus a
+ * kicker/title/description block) and `PostEditorActions`, a separate row of status/Publish/Save/
+ * Delete under the view toolbar (owner request then: "put the published save and delete buttons
+ * under the gray desktop/tablet/mobile row"). The redesign folds both back into one bar that stays
+ * on screen while the body scrolls, with Save and Delete as icons (owner's ask) and Delete moved
+ * into More, where it sits apart from Save.
+ *
+ * `.editor-action-row` is no longer used here; `features/pages/PageEditor.tsx`'s own
+ * `PageEditorActions` still uses it. The two editors were deliberately never merged: this one's copy
+ * runs through `t` and every control carries an `agentHandle` tag, and Pages' has neither.
  */
-function PostEditorHeader({
+function PostEditorTopBar({
   kindLabel,
+  title,
+  status,
+  setStatus,
+  scheduled,
+  message,
+  dirty,
+  saving,
+  onPublish,
+  onSave,
+  onDeleteClick,
   confirmLeave,
+  view,
+  setView,
+  onViewTabsKeyDown,
+  chrome,
   t,
 }: {
   kindLabel: "post" | "page";
+  title: string;
+  status: "draft" | "published";
+  setStatus: (value: "draft" | "published") => void;
+  scheduled: boolean;
+  message: string | null;
+  dirty: boolean;
+  /** M4 (2026-09-20) — disables Publish and Save while a request is already in flight, so a
+   *  same-tick Save-then-Publish (or a double click) can no longer send two writes against the same
+   *  `expectedVersion`. See `PostEditorController.saving`'s own doc. Deliberately not threaded onto
+   *  Delete, which already gates on `ConfirmDialog`'s own `pending`. */
+  saving: boolean;
+  onPublish: () => void;
+  onSave: () => void;
+  onDeleteClick: () => void;
   confirmLeave: () => boolean;
+  view: PostEditorView;
+  setView: (view: PostEditorView) => void;
+  onViewTabsKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
+  chrome: PostEditorChromeController;
   t: Translate;
 }) {
+  const settingsLabel = t(kindLabel === "page" ? "Page settings" : "Post settings");
   return (
-    // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
-    // 2026-09-06 layout experiment, applied to BOTH editors rather than only Pages: these two
-    // headers are the same row rendered by two components, and an operator moving between a post
-    // and a page would otherwise find the back link jumping sides. The header's right rail is
-    // deliberately EMPTY now that the actions live below the toolbar — see that modifier's own
-    // comment for why the empty rail has to stay reserved.
     <div
-      className="page-header page-header-split"
+      className="post-topbar"
       {...agentHandle({ handle: "post-header" }, {
         role: "region",
         label:
-          "Editor header — the back link and the post/page title. Save, Delete and the " +
-          "Draft/Published field are NOT here: they are in the action row below the view toolbar.",
+          "Editor top bar — back link, title, the Draft/Published field, Editor/Preview, Publish, Save, " +
+          "the settings panel toggle (author, publish time, featured image, template, categories) and " +
+          "More actions (View live, Duplicate, Copy link, Delete).",
       })}
     >
-      {/* Left rail — the back link on its own, ahead of the title in DOM order as well as
-          visually, so tab order and the reading order match what is on screen. */}
-      <div className="page-header-lead">
-        {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
-            edits — confirmed live on this exact screen (edit the title, click this link, the
-            edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
-            document-level click interceptor from firing `navigate()`, since that listener's
-            first check is `event.defaultPrevented` — no change to `router.ts` needed. `btn-secondary`
-            sits directly on this `<a>` (matches Forms/Posts' own "back"/"new" link idiom); a nested
-            `<button>` used to carry that class instead, which is invalid HTML — `<a>` has no
-            interactive content model — so it moved onto the real navigating element itself.
+      <h1 className="visually-hidden">{t(kindLabel === "page" ? "Edit page" : "Edit post")}</h1>
+      {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
+          edits — confirmed live on this exact screen (edit the title, click this link, the
+          edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
+          document-level click interceptor from firing `navigate()`, since that listener's
+          first check is `event.defaultPrevented` — no change to `router.ts` needed.
 
-            Kind-aware `href`/label, reusing the same `post.kind` check `remove()` already makes
-            for its post-delete redirect just below — bug found during the page-header pass: this
-            link used to be hardcoded to "/admin/posts"/"← Posts" even while editing a *page*, so
-            it silently returned an operator to the wrong list. Deriving both from `kindLabel`
-            (not two independent ternaries) is what stops them drifting apart again.
+          Kind-aware `href`/label, reusing the same `post.kind` check `remove()` already makes
+          for its post-delete redirect — bug found during the page-header pass: this link used to
+          be hardcoded to "/admin/posts"/"← Posts" even while editing a *page*, so it silently
+          returned an operator to the wrong list. Deriving both from `kindLabel` (not two
+          independent ternaries) is what stops them drifting apart again.
 
-            Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
-            button reads the same short way now). `aria-label` keeps the kind-aware destination —
-            "Back: Pages"/"Back: Posts", colon-joined rather than concatenated into a sentence so
-            it needs no new per-locale phrase key and still starts with the exact visible text
-            (WCAG 2.5.3 Label in Name). `agentHandle`'s own `label` (a stable, untranslated
-            identifier — never live text) is unchanged. */}
-        <a
-          className="btn-secondary"
-          href={`/admin/${kindLabel}s`}
-          onClick={(e) => {
-            if (!confirmLeave()) e.preventDefault();
-          }}
-          aria-label={`${t("Back")}: ${kindLabel === "page" ? t("Pages") : t("Posts")}`}
-          {...agentHandle({ handle: "post-back-to-list" }, { role: "link", label: `Back to the list of all ${kindLabel}s` })}
+          An arrow icon since the 2026-10-09 redesign (it read "← Back" from 2026-09-22). `aria-label`
+          keeps the kind-aware destination — "Back: Pages"/"Back: Posts", colon-joined rather than
+          concatenated into a sentence so it needs no new per-locale phrase key. `agentHandle`'s own
+          `label` (a stable, untranslated identifier — never live text) is unchanged. */}
+      <a
+        className="post-icon-btn"
+        href={`/admin/${kindLabel}s`}
+        onClick={(e) => {
+          if (!confirmLeave()) e.preventDefault();
+        }}
+        aria-label={`${t("Back")}: ${kindLabel === "page" ? t("Pages") : t("Posts")}`}
+        title={`${t("Back")}: ${kindLabel === "page" ? t("Pages") : t("Posts")}`}
+        {...agentHandle({ handle: "post-back-to-list" }, { role: "link", label: `Back to the list of all ${kindLabel}s` })}
+      >
+        <i className="ri-arrow-left-line" aria-hidden="true" />
+      </a>
+      <button type="button" className="post-topbar-title" title={t("Edit title")} onClick={chrome.focusTitle}>
+        {title || t("Post title")}
+      </button>
+      <label className="post-status-chip" data-status={scheduled ? "scheduled" : status}>
+        <span className="post-status-dot" aria-hidden="true" />
+        <select
+          value={status}
+          aria-label={t("Status")}
+          onChange={(e) => setStatus(e.target.value as "draft" | "published")}
+          {...agentHandle({ handle: "post-status" }, {
+            role: "field",
+            label:
+              "Whether this post is a draft or published — set with page.select_option, not click. " +
+              "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
+              "NOT the same as Delete, which moves the whole entry to the trash.",
+          })}
         >
-          ← {t("Back")}
-        </a>
-      </div>
-      <div className="page-header-text">
-        <p className="page-kicker">{t("Content")}</p>
-        <h1 className="page-title">{t(kindLabel === "page" ? "Edit page" : "Edit post")}</h1>
-        <p className="page-description">
-          {t(
-            kindLabel === "page"
-              ? "Update this page's title, body, and publish status."
-              : "Update this post's title, body, and publish status.",
-          )}
-        </p>
+          <option value="draft">{t("Draft")}</option>
+          <option value="published">{t("Published")}</option>
+        </select>
+      </label>
+      <span className="post-topbar-message" aria-live="polite">
+        {chrome.linkCopied ? t("Link copied") : message}
+      </span>
+      <div className="post-topbar-actions">
+        {/* Edit/Preview tabs (2026-08-11, owner: "Let's have a preview button... a tab that shows
+            either tiptap so they can edit, or how it looks when it's rendered"). Icons with the
+            label beside them; the label is hidden visually on narrow screens but stays the tab's
+            accessible name. */}
+        <div className="segmented post-view-tabs" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
+          {VIEW_TABS.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              role="tab"
+              aria-selected={view === entry.key}
+              className={view === entry.key ? "is-active" : undefined}
+              tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
+              onClick={() => setView(entry.key)}
+              {...agentHandle({ handle: entry.handle }, { role: "button", label: entry.agentLabel })}
+            >
+              <i className={entry.key === "edit" ? "ri-edit-line" : "ri-eye-line"} aria-hidden="true" />
+              <span className="post-view-tab-label">{t(entry.label)}</span>
+            </button>
+          ))}
+        </div>
+        {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
+            while there is something to publish — once `status` is already "published" (same
+            "omit rather than disable" precedent `Posts.tsx`'s `RowMenu` uses for its own
+            Publish/Unpublish toggle) it disappears rather than rendering disabled with nothing
+            left to do, and plain Save takes over as the primary action. The status chip still
+            covers the reverse direction (unpublish), unchanged. */}
+        {status === "draft" ? (
+          <button
+            type="button"
+            className="post-publish-btn"
+            onClick={onPublish}
+            disabled={saving}
+            {...agentHandle({ handle: "post-publish" }, {
+              role: "button",
+              label:
+                "Publish this post/page immediately — saves the current title, slug and body and " +
+                "sets status to Published in one action. Only shown while the post is a draft; once " +
+                "published, use Save for further edits.",
+            })}
+          >
+            {t("Publish")}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={`post-icon-btn post-save-btn${status === "draft" ? "" : " is-primary"}`}
+          aria-label={t("Save")}
+          title={t("Save (⌘S)")}
+          data-dirty={dirty || undefined}
+          data-saved={chrome.savedFlash || undefined}
+          onClick={onSave}
+          disabled={saving}
+          {...agentHandle({ handle: "post-save" }, { role: "button", label: "Save this post's title, slug, status and body" })}
+        >
+          <i className={saving ? "ri-loader-4-line post-spin" : chrome.savedFlash ? "ri-check-double-line" : "ri-check-line"} aria-hidden="true" />
+          {chrome.savedFlash ? <span className="post-save-flash" aria-hidden="true">{t("Saved")}</span> : null}
+        </button>
+        <button
+          type="button"
+          className="post-icon-btn"
+          aria-label={settingsLabel}
+          title={settingsLabel}
+          aria-pressed={chrome.settingsOpen}
+          aria-controls="post-settings"
+          onClick={chrome.toggleSettings}
+          {...agentHandle({ handle: "post-settings-toggle" }, {
+            role: "button",
+            label:
+              "Show or hide the settings panel: author, publish time, featured image, template, " +
+              "categories and tags.",
+          })}
+        >
+          <i className="ri-settings-3-line" aria-hidden="true" />
+        </button>
+        <span className="post-menu" data-post-menu="actions">
+          <button
+            type="button"
+            className="post-icon-btn"
+            aria-label={t("More actions")}
+            title={t("More actions")}
+            aria-haspopup="menu"
+            aria-expanded={chrome.openMenu === "actions"}
+            onClick={() => chrome.toggleMenu("actions")}
+            {...agentHandle({ handle: "post-more-actions" }, {
+              role: "button",
+              label: "Open the menu with View live, Duplicate, Copy link and Delete",
+            })}
+          >
+            <i className="ri-more-2-fill" aria-hidden="true" />
+          </button>
+          <div className={`row-menu-popup post-popover post-actions-menu${chrome.openMenu === "actions" ? " is-open" : ""}`} role="menu" aria-label={t("More actions")}>
+            <a
+              role="menuitem"
+              className="row-menu-item"
+              href={chrome.liveUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={chrome.closeMenu}
+              {...agentHandle({ handle: "post-view-live" }, { role: "link", label: "Open this post on the public site in a new tab" })}
+            >
+              <i className="ri-external-link-line" aria-hidden="true" />
+              {t("View live")}
+            </a>
+            {chrome.canDuplicate ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="row-menu-item"
+                disabled={chrome.duplicating}
+                onClick={chrome.closeMenuAfter(chrome.duplicate)}
+                {...agentHandle({ handle: "post-duplicate" }, { role: "button", label: "Make a draft copy of this post and open it" })}
+              >
+                <i className="ri-file-copy-line" aria-hidden="true" />
+                {t("Duplicate")}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              role="menuitem"
+              className="row-menu-item"
+              onClick={chrome.closeMenuAfter(chrome.copyLink)}
+              {...agentHandle({ handle: "post-copy-link" }, { role: "button", label: "Copy this post's public URL" })}
+            >
+              <i className="ri-link" aria-hidden="true" />
+              {t("Copy link")}
+            </button>
+            <div className="post-menu-separator" role="separator" />
+            <button
+              type="button"
+              role="menuitem"
+              className="row-menu-item btn-danger"
+              onClick={chrome.closeMenuAfter(onDeleteClick)}
+              {...agentHandle({ handle: "post-delete" }, {
+                role: "button",
+                label:
+                  "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
+                  "field): the entry disappears from every list and the site. Asks for confirmation " +
+                  "before deleting. Open More actions first.",
+              })}
+            >
+              <i className="ri-delete-bin-line" aria-hidden="true" />
+              {t("Delete")}
+            </button>
+          </div>
+        </span>
       </div>
     </div>
   );
@@ -877,153 +1149,37 @@ function PostVersionConflictBanner({
 }
 
 /**
- * The status select, save feedback and the publish/save/delete buttons — their own row, below the
- * view/template toolbar rather than in the header (owner request, 2026-09-06: "put the published
- * save and delete buttons under the gray desktop/tablet/mobile row").
- *
- * This is where most of `PostEditorHeader`'s branching went when the controls moved: the
- * message/error spans, the publish button's conditional render, and the save button's className.
- * As a top-level function they are scored in their own scope instead of accumulating onto
- * `PostEditor`'s or the header's.
- *
- * `.editor-action-row` (`styles.css`) is shared with `features/pages/PageEditor.tsx`'s own
- * `PageEditorActions`, but the two components are deliberately NOT merged: this one's copy runs
- * through `t` and every control carries an `agentHandle` tag, and Pages' has neither — a shared
- * component would have to make both optional, which is more machinery than the two small siblings
- * it would replace.
- */
-function PostEditorActions({
-  message,
-  error,
-  status,
-  setStatus,
-  saving,
-  onPublish,
-  onSave,
-  onDeleteClick,
-  t,
-}: {
-  message: string | null;
-  error: string | null;
-  status: "draft" | "published";
-  setStatus: (value: "draft" | "published") => void;
-  /** M4 (2026-09-20) — disables Publish and Save while a request is already in flight, so a
-   *  same-tick Save-then-Publish (or a double click) can no longer send two writes against the same
-   *  `expectedVersion`. See `PostEditorController.saving`'s own doc. Deliberately not threaded onto
-   *  Delete, which already gates on `ConfirmDialog`'s own `pending`. */
-  saving: boolean;
-  onPublish: () => void;
-  onSave: () => void;
-  onDeleteClick: () => void;
-  t: Translate;
-}) {
-  return (
-    <div
-      className="editor-action-row"
-      {...agentHandle({ handle: "post-actions" }, {
-        role: "region",
-        label: "Save status, the Draft/Published field, and the Publish, Save and Delete buttons",
-      })}
-    >
-      {message ? <span className="save-ok">{message}</span> : null}
-      {error ? <span className="save-error">{error}</span> : null}
-      <select
-        value={status}
-        aria-label={t("Status")}
-        onChange={(e) => setStatus(e.target.value as "draft" | "published")}
-        {...agentHandle({ handle: "post-status" }, {
-          role: "field",
-          label:
-            "Whether this post is a draft or published — set with page.select_option, not click. " +
-            "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
-            "NOT the same as Delete, which moves the whole entry to the trash.",
-        })}
-      >
-        <option value="draft">{t("Draft")}</option>
-        <option value="published">{t("Published")}</option>
-      </select>
-      {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
-          while there is something to publish — once `status` is already "published" (same
-          "omit rather than disable" precedent `Posts.tsx`'s `RowMenu` uses for its own
-          Publish/Unpublish toggle) it disappears rather than rendering disabled with nothing
-          left to do, and plain Save takes over as the primary action. The status select still
-          covers the reverse direction (unpublish), unchanged. */}
-      {status === "draft" ? (
-        <button
-          type="button"
-          onClick={onPublish}
-          disabled={saving}
-          {...agentHandle({ handle: "post-publish" }, {
-            role: "button",
-            label:
-              "Publish this post/page immediately — saves the current title, slug and body and " +
-              "sets status to Published in one action. Only shown while the post is a draft; once " +
-              "published, use Save for further edits.",
-          })}
-        >
-          {t("Publish")}
-        </button>
-      ) : null}
-      <button
-        type="button"
-        className={status === "draft" ? "btn-secondary" : undefined}
-        onClick={onSave}
-        disabled={saving}
-        {...agentHandle({ handle: "post-save" }, { role: "button", label: "Save this post's title, slug, status and body" })}
-      >
-        {t("Save")}
-      </button>
-      <button
-        type="button"
-        className="btn-danger"
-        onClick={onDeleteClick}
-        {...agentHandle({ handle: "post-delete" }, {
-          role: "button",
-          label:
-            "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
-            "field beside it): the entry disappears from every list and the site. Asks for " +
-            "confirmation before deleting.",
-        })}
-      >
-        {t("Delete")}
-      </button>
-    </div>
-  );
-}
-
-/**
- * The toolbar's right-hand group: the Desktop/Tablet/Mobile preview-width toggle (shared
- * `DevicePreviewToggle`, Preview tab only — same as `PageEditor.tsx`'s own `PageEditorToolbarEnd`,
- * 2026-09-22 owner ask) followed by the post-template picker (`PostEditorTemplatePicker` below).
+ * The Preview tab's own row: the Desktop/Tablet/Mobile preview-width toggle (shared
+ * `DevicePreviewToggle` — same as `PageEditor.tsx`'s own `PageEditorToolbarEnd`, 2026-09-22 owner
+ * ask) and the reload button. Renders nothing on the Editor tab ("device sizes appear only in
+ * preview", 2026-10-09 redesign brief). The post-template picker that used to follow these moved
+ * into the settings panel (`PostEditorSettingsPanel`).
  *
  * @complexity O(1).
  */
-function PostEditorToolbarEnd({
+function PostEditorPreviewBar({
   view,
   device,
   setDevice,
-  ...pickerProps
+  t,
 }: {
   view: PostEditorView;
   device: DevicePreviewDevice;
   setDevice: (value: DevicePreviewDevice) => void;
-} & Parameters<typeof PostEditorTemplatePicker>[0]) {
+  t: Translate;
+}) {
+  if (view !== "preview") return null;
   return (
-    <div className="page-editor-toolbar-end">
-      {view === "preview" ? (
-        <>
-          <DevicePreviewToggle device={device} setDevice={setDevice} t={pickerProps.t} handlePrefix="post-preview-width" />
-          <WiredThemePreviewReloadButton />
-        </>
-      ) : null}
-      <PostEditorTemplatePicker {...pickerProps} />
+    <div className="post-preview-bar">
+      <DevicePreviewToggle device={device} setDevice={setDevice} t={t} handlePrefix="post-preview-width" />
+      <WiredThemePreviewReloadButton />
     </div>
   );
 }
 
 /**
- * The post-template picker in the toolbar's right-hand group (`PostEditorToolbarEnd` above renders
- * it after the device-width toggle).
+ * The post-template picker, in the settings panel since the 2026-10-09 redesign (it sat in the
+ * Editor/Preview toolbar's right-hand group before that, after the device-width toggle).
  *
  * Extracted out of `PostEditor` (complexity-ceiling pass, 2026-08-20) because this is where most of
  * that component's remaining branching lived once `PostEditorHeader` had already absorbed the header
@@ -1070,7 +1226,11 @@ function PostEditorTemplatePicker({
 }) {
   if ((bodyFormat ?? "doc") !== "doc") return null;
   return (
-    <div className="editor-template-picker">
+    <div className="editor-template-picker post-settings-field">
+      {/* Visible caption (2026-10-09 redesign); `aria-hidden` because the select's own `aria-label`
+          already names it. */}
+      <span className="field-label" aria-hidden="true">{t("Template")}</span>
+      <div className="post-template-row">
       {availableTemplates.length > 0 ? (
         <>
           {/* Read-only inspection, not editing (`TemplateSourceModal.tsx`'s own file header —
@@ -1124,6 +1284,7 @@ function PostEditorTemplatePicker({
           <option value="">{t("No templates for this theme")}</option>
         </select>
       )}
+      </div>
     </div>
   );
 }
@@ -1145,7 +1306,7 @@ function PostEditorTemplatePicker({
  * Extracted out of `PostEditor` (complexity-ceiling pass, 2026-08-20) — this block was the other
  * major source of that component's own branching (whether to render at all, then the tri-state
  * value/onChange mapping nested inside), same "top-level function scores its own branches
- * independently" reasoning `PostEditorToolbarEnd` above states. `overridesThemePageFromSelectValue`
+ * independently" reasoning `PostEditorTemplatePicker` above states. `overridesThemePageFromSelectValue`
  * (`rules.ts`) is the onChange half of the tri-state mapping, pulled out as a pure function so it has
  * exactly one implementation shared with that function's own test fixture — see its doc.
  */
@@ -1210,11 +1371,13 @@ function PostEditorBody({
   editor,
   mentionablePosts,
   currentPostId,
+  menus,
   t,
 }: {
   editor: Editor | null;
   mentionablePosts: AdminPost[];
   currentPostId: string;
+  menus: ToolbarMenus;
   t: Translate;
 }) {
   return (
@@ -1225,7 +1388,7 @@ function PostEditorBody({
         label: "Formatting toolbar and the post body editor",
       })}
     >
-      {editor ? <Toolbar editor={editor} mentionablePosts={mentionablePosts} currentPostId={currentPostId} t={t} /> : null}
+      {editor ? <Toolbar editor={editor} mentionablePosts={mentionablePosts} currentPostId={currentPostId} menus={menus} t={t} /> : null}
       {editor ? <BubbleFormattingMenu editor={editor} t={t} /> : null}
       {/* Drag handle (owner, 2026-08-11: "anything and everything") — a grip icon that appears
           beside whichever top-level block the cursor is hovering, letting an author reorder
@@ -1255,6 +1418,7 @@ function PostEditorBody({
       >
         <EditorContent editor={editor} />
       </div>
+      {editor ? <PostEditorCharacterCount editor={editor} t={t} /> : null}
     </div>
   );
 }
@@ -1342,6 +1506,8 @@ export interface PostEditorProps {
    * TipTap or serving a post — the existing suite currently has to stand up both.
    */
   usePostEditorHook?: typeof useWiredPostEditor;
+  /** Same seam for the redesign's chrome (menus, settings panel, ⌘S, Copy link, Duplicate). */
+  usePostEditorChromeHook?: typeof usePostEditorChrome;
 }
 
 /**
@@ -1405,7 +1571,7 @@ function PostEditorNotices({
   );
 }
 
-export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: PostEditorProps) {
+export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor, usePostEditorChromeHook = usePostEditorChrome }: PostEditorProps) {
   const {
     post,
     editor,
@@ -1474,188 +1640,198 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
   // controller the same way `ThemeExplore.tsx`'s own `device` is.
   const { device, setDevice, width: previewWidth } = useDevicePreviewDevice();
 
+  // The redesign's chrome (menus, settings panel, ⌘S, Saved flash, Copy link, Duplicate) — its own
+  // hook and port, so `usePostEditorHook`'s controller and fakes stay unchanged.
+  const chrome = usePostEditorChromeHook({
+    post,
+    title,
+    setTitle,
+    bodyJson,
+    templateChoice,
+    author,
+    showAuthor,
+    featuredMediaId,
+    dirty,
+    saving,
+    message,
+    error,
+    onSave,
+    confirmLeave,
+    t,
+  });
+
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">{t("Loading editor…")}</div>;
 
   const kindLabel = post.kind === "page" ? "page" : "post";
 
   return (
-    <div className="page">
-      <PostEditorHeader kindLabel={kindLabel} confirmLeave={confirmLeave} t={t} />
-
-      <PostEditorNotices
-        recoverableDraft={recoverableDraft}
-        serverUpdatedAt={post.updatedAt}
-        restoreRecoveredDraft={restoreRecoveredDraft}
-        discardRecoveredDraft={discardRecoveredDraft}
-        autosaveStaleBasis={autosaveStaleBasis}
-        saveConflict={saveConflict}
-        saveOverwritingConflict={saveOverwritingConflict}
-        dismissSaveConflict={dismissSaveConflict}
-        t={t}
-      />
-      {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
-          the bare `type="text"` announcement (slug, which had no placeholder either). The
-          wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without
-          adding a visible caption above this screen's large title/slug controls (see
-          `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap costs no layout). */}
-      {/* Title + slug share one row (owner, 2026-08-11: "put the slug input right next to the title
-          ... like we did the pages"), title capped at half the width with the slug group
-          right-justified in the other half. Deliberately the same SHAPE as the Pages editor's
-          `.page-title-row` but a separate class: Pages and Posts are separate features with separate
-          stylesheets, and `styles/pages.css` says in its own header why their shared chrome lives in
-          `editor.css` rather than being copied between them. The template picker used to keep its own
-          row below this one; it now lives in the Edit/Preview toolbar row instead (see the comment on
-          `.page-editor-toolbar` just below) — the row that carried it, `.editor-slug-row`, is gone. */}
-      <div className="editor-title-row">
-        <label className="a11y-label-wrap">
-          <span className="visually-hidden">{t("Post title")}</span>
-          <input
-            className="editor-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("Post title")}
-            {...agentHandle({ handle: "post-title" }, { role: "field", label: "This post's title" })}
-          />
-        </label>
-        <div className="editor-slug">
-          /{" "}
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">{t("URL slug")}</span>
-            <input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              {...agentHandle({ handle: "post-slug" }, { role: "field", label: "URL slug this post is published at" })}
-            />
-          </label>
-          <a
-            href={siteUrl(`/${post.slug}`)}
-            target="_blank"
-            rel="noreferrer"
-            {...agentHandle({ handle: "post-view-live" }, { role: "link", label: "Open this post on the public site in a new tab" })}
-          >
-            {t("view ↗")}
-          </a>
-          {/* The internal id used to be surfaced here as a read-only field (2026-08-10). Removed
-              2026-08-11: the slug immediately to the left is now the record's routing key
-              (`getAdminPostByIdOrSlug` resolves slug FIRST, id second) and is the only identity an
-              author ever types or reads. Two id generators have been in play — seed literals like
-              `post-about` and `idGen.newId()` UUIDs — so the stored id is neither stable in shape
-              nor meaningful, and displaying it beside the real handle presented an implementation
-              detail as though it were the record's identity. It is still reachable through the API
-              and the row list; it just no longer competes with the slug for the author's attention. */}
-        </div>
-      </div>
-      {/* Edit/Preview toolbar (2026-08-11, owner: "Let's have a preview button... a tab that shows
-          either tiptap so they can edit, or how it looks when it's rendered" + "Keeping the template
-          chooser on the right... that's how the others work"). Deliberately the SAME structure as
-          the Pages editor's `.page-editor-toolbar` (`features/pages/PageEditor.tsx`) — tabs left,
-          `.page-editor-toolbar-end` right — reusing its classes directly (`styles/pages.css`) rather
-          than parallel Post-only ones: those classes already have a second consumer beyond Pages
-          (`ThemeExplore.tsx`), so this is a third, not a fork. The template picker moved into
-          `.page-editor-toolbar-end` verbatim from the old `.editor-slug-row` below it — only its
-          MARKUP location changed; where its options/value come from is untouched (a concurrent
-          agent owns that wiring). */}
-      <div className="page-editor-toolbar">
-        <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
-          {VIEW_TABS.map((entry) => (
-            <button
-              key={entry.key}
-              type="button"
-              role="tab"
-              aria-selected={view === entry.key}
-              className={view === entry.key ? "is-active" : undefined}
-              tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
-              onClick={() => setView(entry.key)}
-              {...agentHandle({ handle: entry.handle }, { role: "button", label: entry.agentLabel })}
-            >
-              {t(entry.label)}
-            </button>
-          ))}
-        </div>
-        {/* Preview fullscreen, Level 1 (2026-09-15) — no expand toggle lives in this toolbar. It was
-            here until `a380c716` and is now ONE control floating on the preview itself
-            (`.post-preview-fab`, `PostPreview` below), rendered in the same place both collapsed and
-            expanded so the way out is always visible: the expanded surface is a `position: absolute;
-            inset: 0` panel that would cover anything in this toolbar anyway. */}
-        {/* Template picker (Post-template-picker feature, 2026-08-10) — see `PostEditorToolbarEnd`'s
-            own doc for the full eligibility/ordering/empty-theme rules this extracts. */}
-        <PostEditorToolbarEnd
-          view={view}
-          device={device}
-          setDevice={setDevice}
-          bodyFormat={post.bodyFormat}
-          availableTemplates={availableTemplates}
-          templateChoice={templateChoice}
-          setTemplateChoice={setTemplateChoice}
-          onViewTemplateClick={onViewTemplateClick}
-          t={t}
-        />
-      </div>
-
-      {/* Directly under the toolbar, not in the header — see `PostEditorActions`' own doc. Placed
-          ABOVE the slug-collision warning so the row keeps the position the owner asked for
-          (immediately below the toolbar) whether or not that conditional notice is showing. */}
-      <PostEditorActions
-        message={message}
-        error={error}
+    <div className={`page post-editor-page${chrome.settingsOpen ? " has-settings" : ""}`}>
+      <PostEditorTopBar
+        kindLabel={kindLabel}
+        title={title}
         status={status}
         setStatus={setStatus}
+        scheduled={scheduled}
+        message={message}
+        dirty={dirty}
         saving={saving}
         onPublish={onPublish}
         onSave={onSave}
         onDeleteClick={onDeleteClick}
+        confirmLeave={confirmLeave}
+        view={view}
+        setView={setView}
+        onViewTabsKeyDown={onViewTabsKeyDown}
+        chrome={chrome}
         t={t}
       />
-      <PostAuthorFields author={author} setAuthor={setAuthor} showAuthor={showAuthor} setShowAuthor={setShowAuthor} t={t} />
-      {/* Scheduled publishing + featured image (2026-10-05) — under the publish row they qualify. */}
-      <PostPublishingFields
-        publishAtInput={publishAtInput}
-        setPublishAtInput={setPublishAtInput}
-        scheduled={scheduled}
-        featuredMediaId={featuredMediaId}
-        setFeaturedMediaId={setFeaturedMediaId}
-        t={t}
-      />
-      {/* Slug-collision override — see `PostEditorSlugCollisionWarning`'s own doc for the tri-state
-          contract and history this extracts. */}
-      <PostEditorSlugCollisionWarning
-        hasSlugCollision={hasSlugCollision}
-        overridesThemePage={overridesThemePage}
-        setOverridesThemePage={setOverridesThemePage}
-        t={t}
-      />
-      {view === "preview" ? (
-        // `bodyJson`/`templatePreviewUrl`/`previewFormRef`/`previewFormTarget` come straight off the
-        // hook now (2026-08-14) — see `use-post-editor.hooks.ts`'s own docs on each for why they
-        // moved out of this component. `editor` itself is no longer needed here (2026-09-11 — the
-        // raw editor-buffer fallback that used to read `editor.getHTML()` was removed, see
-        // `PostPreview`'s own doc).
-        <PostPreview
-          bodyJson={bodyJson}
-          slug={slug}
-          status={status}
-          scheduled={scheduled}
-          dirty={dirty}
-          contentDirty={contentDirty}
-          templatePreviewUrl={templatePreviewUrl}
-          previewFormRef={previewFormRef}
-          previewFormTarget={previewFormTarget}
+      {/* A failed save is never tucked into the bar: it gets its own line under it at every width. */}
+      {error ? <p className="save-error post-save-error" role="alert">{error}</p> : null}
+      {chrome.chromeError ? (
+        <p className="save-error post-save-error" role="alert">
+          {chrome.chromeError}
+          <button type="button" className="post-icon-btn" aria-label={t("Dismiss")} title={t("Dismiss")} onClick={chrome.dismissChromeError}>
+            <i className="ri-close-line" aria-hidden="true" />
+          </button>
+        </p>
+      ) : null}
+
+      <div className="post-editor-layout">
+        <div className="post-editor-main">
+          <PostEditorNotices
+            recoverableDraft={recoverableDraft}
+            serverUpdatedAt={post.updatedAt}
+            restoreRecoveredDraft={restoreRecoveredDraft}
+            discardRecoveredDraft={discardRecoveredDraft}
+            autosaveStaleBasis={autosaveStaleBasis}
+            saveConflict={saveConflict}
+            saveOverwritingConflict={saveOverwritingConflict}
+            dismissSaveConflict={dismissSaveConflict}
+            t={t}
+          />
+          {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
+              the bare `type="text"` announcement (slug, which had no placeholder either). The
+              wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without
+              adding a visible caption above this screen's large title/slug controls (see
+              `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap costs no layout). */}
+          {/* Title, then the slug as a small grey line under it (2026-10-09 redesign). The title is a
+              one-row textarea that grows (`field-sizing`), so a long title wraps instead of being cut
+              off; `singleLineTitle` keeps it one line. It replaced the 2026-08-11 layout that put
+              title and slug side by side, title capped at half the width ("put the slug input right
+              next to the title ... like we did the pages"). */}
+          <div className="post-heading">
+            <label className="a11y-label-wrap">
+              <span className="visually-hidden">{t("Post title")}</span>
+              <textarea
+                ref={chrome.titleRef}
+                className="post-title-input"
+                rows={1}
+                value={title}
+                onChange={(e) => chrome.onTitleChange(e.target.value)}
+                onKeyDown={chrome.onTitleKeyDown}
+                placeholder={t("Post title")}
+                {...agentHandle({ handle: "post-title" }, { role: "field", label: "This post's title" })}
+              />
+            </label>
+            <div className="post-slug-line">
+              <span aria-hidden="true">/</span>
+              <label className="a11y-label-wrap">
+                <span className="visually-hidden">{t("URL slug")}</span>
+                <input
+                  className="post-slug-input"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  {...agentHandle({ handle: "post-slug" }, { role: "field", label: "URL slug this post is published at" })}
+                />
+              </label>
+              <i className="ri-pencil-line" aria-hidden="true" />
+              {/* The internal id used to be surfaced here as a read-only field (2026-08-10). Removed
+                  2026-08-11: the slug immediately to the left is now the record's routing key
+                  (`getAdminPostByIdOrSlug` resolves slug FIRST, id second) and is the only identity an
+                  author ever types or reads. Two id generators have been in play — seed literals like
+                  `post-about` and `idGen.newId()` UUIDs — so the stored id is neither stable in shape
+                  nor meaningful, and displaying it beside the real handle presented an implementation
+                  detail as though it were the record's identity. It is still reachable through the API
+                  and the row list; it just no longer competes with the slug for the author's attention.
+                  The "view ↗" link that sat here is "View live" in the top bar's More menu now. */}
+            </div>
+          </div>
+          {/* Slug-collision override — see `PostEditorSlugCollisionWarning`'s own doc for the tri-state
+              contract and history this extracts. */}
+          <PostEditorSlugCollisionWarning
+            hasSlugCollision={hasSlugCollision}
+            overridesThemePage={overridesThemePage}
+            setOverridesThemePage={setOverridesThemePage}
+            t={t}
+          />
+          <PostEditorPreviewBar view={view} device={device} setDevice={setDevice} t={t} />
+          {/* Preview fullscreen, Level 1 (2026-09-15) — no expand toggle lives in the top bar or the
+              preview bar. It is ONE control floating on the preview itself (`.post-preview-fab`,
+              `PostPreview` below), rendered in the same place both collapsed and expanded so the way
+              out is always visible: the expanded surface is a `position: absolute; inset: 0` panel
+              that would cover anything in a toolbar anyway. */}
+          {view === "preview" ? (
+            // `bodyJson`/`templatePreviewUrl`/`previewFormRef`/`previewFormTarget` come straight off the
+            // hook now (2026-08-14) — see `use-post-editor.hooks.ts`'s own docs on each for why they
+            // moved out of this component. `editor` itself is no longer needed here (2026-09-11 — the
+            // raw editor-buffer fallback that used to read `editor.getHTML()` was removed, see
+            // `PostPreview`'s own doc).
+            <PostPreview
+              bodyJson={bodyJson}
+              slug={slug}
+              status={status}
+              scheduled={scheduled}
+              dirty={dirty}
+              contentDirty={contentDirty}
+              templatePreviewUrl={templatePreviewUrl}
+              previewFormRef={previewFormRef}
+              previewFormTarget={previewFormTarget}
+              t={t}
+              width={previewWidth}
+              expanded={previewExpanded}
+              onToggleExpanded={togglePreviewExpanded}
+            />
+          ) : (
+            <PostEditorBody editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} menus={chrome} t={t} />
+          )}
+        </div>
+        <PostEditorSettingsPanel
+          open={chrome.settingsOpen}
+          onClose={chrome.closeSettings}
+          label={t(kindLabel === "page" ? "Page settings" : "Post settings")}
           t={t}
-          width={previewWidth}
-          expanded={previewExpanded}
-          onToggleExpanded={togglePreviewExpanded}
-        />
-      ) : (
-        <PostEditorBody editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} t={t} />
-      )}
-      {/* Content analysis (AW-7 Tier 2) — renders nothing unless the `content-analyzer` plugin is
-          enabled. Gets the live `title`/`bodyJson` so "Analyze now" covers unsaved edits, and `post`
-          so a save's freshly stored analysis replaces it. */}
-      <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} />
-      {/* Categories & Tags — the same box the collection-entry editor mounts; it saves on its own
-          button, separately from the post's Save/Publish. */}
-      <TermPicker contentType={post.kind} contentId={post.id} />
+        >
+          <PostAuthorFields author={author} setAuthor={setAuthor} showAuthor={showAuthor} setShowAuthor={setShowAuthor} t={t} />
+          {/* Scheduled publishing + featured image (2026-10-05). */}
+          <PostPublishingFields
+            publishAtInput={publishAtInput}
+            setPublishAtInput={setPublishAtInput}
+            scheduled={scheduled}
+            featuredMediaId={featuredMediaId}
+            setFeaturedMediaId={setFeaturedMediaId}
+            t={t}
+          />
+          {/* Template picker (Post-template-picker feature, 2026-08-10) — see `PostEditorTemplatePicker`'s
+              own doc for the full eligibility/ordering/empty-theme rules. Its options/value wiring is
+              untouched; only its MARKUP location moved, from the view toolbar into this panel. */}
+          <PostEditorTemplatePicker
+            bodyFormat={post.bodyFormat}
+            availableTemplates={availableTemplates}
+            templateChoice={templateChoice}
+            setTemplateChoice={setTemplateChoice}
+            onViewTemplateClick={onViewTemplateClick}
+            t={t}
+          />
+          {/* Categories & Tags — the same box the collection-entry editor mounts; it saves on its own
+              button, separately from the post's Save/Publish. */}
+          <TermPicker contentType={post.kind} contentId={post.id} />
+          {/* Content analysis (AW-7 Tier 2) — renders nothing unless the `content-analyzer` plugin is
+              enabled. Gets the live `title`/`bodyJson` so "Analyze now" covers unsaved edits, and `post`
+              so a save's freshly stored analysis replaces it. */}
+          <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} />
+        </PostEditorSettingsPanel>
+      </div>
       <ConfirmDialog
         open={confirmingDelete}
         agentHandle="post-delete-confirm"
@@ -1680,6 +1856,47 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         t={t}
       />
     </div>
+  );
+}
+
+/**
+ * The settings panel (2026-10-09 redesign): author, publish time, featured image, template,
+ * categories and tags — everything about the post that is not its title or body. A column beside
+ * the editor on wide screens, a drawer from the right below 1280px (`styles/post-editor.css`).
+ * Always mounted and hidden by CSS when closed, so its fields stay in the DOM for the tests and the
+ * in-app assistant (which opens it through `post-settings-toggle` first).
+ */
+function PostEditorSettingsPanel({
+  open,
+  onClose,
+  label,
+  t,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  label: string;
+  t: Translate;
+  children: ReactNode;
+}) {
+  return (
+    <aside
+      id="post-settings"
+      className={`post-settings${open ? " is-open" : ""}`}
+      aria-label={label}
+      {...agentHandle({ handle: "post-settings" }, {
+        role: "region",
+        label: "Settings panel: author, publish time, featured image, template, categories and tags",
+      })}
+    >
+      <div className="post-settings-head">
+        <h2 className="post-settings-title">{label}</h2>
+        <button type="button" className="post-icon-btn" aria-label={t("Close settings")} title={t("Close settings")} onClick={onClose}>
+          <i className="ri-close-line" aria-hidden="true" />
+        </button>
+      </div>
+      <div className="post-settings-body">{children}</div>
+    </aside>
   );
 }
 
