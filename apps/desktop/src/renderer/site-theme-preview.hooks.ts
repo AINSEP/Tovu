@@ -32,8 +32,7 @@ export function subscribeWorkspaceThemePreview(
   if (!ownPublicUrl(url)) return undefined;
   let closed = false, previous: string | undefined;
   const dispose = bridge.watchSitePreview({ siteDir, listener: (frame: SiteThemePreviewRefresh) => {
-    if (closed || frame.siteDir !== siteDir || frame.revision === previous || !/^[\w-]{1,100}$/.test(frame.revision)) return;
-    if (frame.path !== undefined && !publicPath(frame.path)) return;
+    if (closed || !refreshFrameAccepted({ frame, siteDir, previous })) return;
     previous = frame.revision;
     try {
       // Navigation may precede React's next render; check the actual guest before touching it.
@@ -44,4 +43,14 @@ export function subscribeWorkspaceThemePreview(
     } catch { /* An unattached guest must never blank the host window; its normal load will recover. */ }
   } });
   return () => { closed = true; dispose(); };
+}
+
+/** Accept a new revision only for this site and, for tool navigation, a public path.
+ * @complexity O(n) in revision and path length.
+ */
+function refreshFrameAccepted(
+  { frame, siteDir, previous }: { frame: SiteThemePreviewRefresh; siteDir: string; previous: string | undefined }, _options = {},
+): boolean {
+  if (frame.siteDir !== siteDir || frame.revision === previous || !/^[\w-]{1,100}$/.test(frame.revision)) return false;
+  return frame.path === undefined || publicPath(frame.path);
 }

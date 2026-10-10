@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { useAdminSession } from "../../App.hooks";
 import { api } from "../../lib/api";
 import * as apiModule from "../../lib/api";
+import { Login } from "../../features/auth";
 
 /**
  * @file The live bug, 2026-08-17: `useAdminSession` only ever checked auth ONCE, at boot
@@ -30,6 +31,62 @@ import * as apiModule from "../../lib/api";
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it.each([false, true])("settings 401 after a site switch shows login without boot retries (password sign-in: %s)", async (passwordSignIn) => {
+  let switched = false;
+  let signedIn = !passwordSignIn;
+  const fetchMock = vi.fn(async (url: string) => {
+    const path = String(url);
+    if (path.endsWith("/auth/login")) {
+      signedIn = true;
+      return new Response(JSON.stringify({ user: { id: "site-a-owner", username: "admin" } }));
+    }
+    if (path.endsWith("/auth/local-boot-session")) {
+      return new Response(JSON.stringify({ error: "local owner sign-in is disabled", code: "NOT_FOUND" }), { status: 404 });
+    }
+    if (switched || !signedIn) {
+      return new Response(JSON.stringify({ error: "unauthenticated", code: "UNAUTHENTICATED" }), { status: 401 });
+    }
+    if (path.endsWith("/auth/me")) {
+      return new Response(JSON.stringify({ user: { id: "site-a-owner", username: "admin" } }));
+    }
+    if (path.includes("/settings/effective?")) return new Response(JSON.stringify({ data: [] }));
+    throw new Error(`unexpected URL ${path}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  function SessionGate() {
+    const session = useAdminSession({}, { subscribeSettingsChanges: () => () => {} });
+    if (session.checking) return <div>Loading Tovu…</div>;
+    if (!session.user) return <Login onLogin={session.handleLogin} />;
+    return <div>Signed in as {session.user.id}</div>;
+  }
+  render(<SessionGate />);
+  if (passwordSignIn) {
+    fireEvent.change(await screen.findByLabelText("Password"), { target: { value: "owner-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  }
+  await screen.findByText("Signed in as site-a-owner");
+  // Let handleLogin's identity read settle before invalidating the site's cookie.
+  await act(async () => {});
+  const requestsBeforeSwitch = fetchMock.mock.calls.length;
+  switched = true;
+  await act(async () => {
+    await Promise.all([
+      api.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined),
+      api.getSettingsEffective({ namespace: "core.appearance" }).catch(() => undefined),
+    ]);
+  });
+  await screen.findByLabelText("Username");
+  expect(screen.getByLabelText("Password")).toBeTruthy();
+  await act(async () => {
+    await api.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined);
+  });
+  expect(screen.queryByText("Loading Tovu…")).toBeNull();
+  expect(screen.getByLabelText("Username")).toBeTruthy();
+  const bootCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/local-boot-session"));
+  expect(bootCalls).toHaveLength(passwordSignIn ? 1 : 0);
+  expect(fetchMock.mock.calls.slice(requestsBeforeSwitch).filter(([url]) => String(url).includes("/auth/"))).toHaveLength(0);
 });
 
 it("a 401 from an unrelated screen's own api call clears the session, not just that one call", async () => {

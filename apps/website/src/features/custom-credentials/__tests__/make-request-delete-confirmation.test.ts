@@ -86,6 +86,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   const deps: CustomCredentialsToolDeps = {
+    loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
     customCredentialSetRepo: repo,

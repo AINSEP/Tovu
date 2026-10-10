@@ -11,7 +11,6 @@ import {
   updateSourceControlCredential,
   type SourceControlCredentialSummary,
 } from "#src/features/source-control/index";
-import { loadInstalledSourceControlProviders } from "#src/features/source-control/provider-registry";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -93,7 +92,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     clock: deps.clock,
     idGen: deps.idGen,
     observability: deps.observability,
-    ...(deps.loadSourceControlProviders ? { loadSourceControlProviders: deps.loadSourceControlProviders } : {}),
+    loadSourceControlProviders: deps.loadSourceControlProviders,
   };
 
   /** Shared workspace-path-param + `source-control.credentials.write` authorization check every
@@ -130,7 +129,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
   app.get(PROVIDERS_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
-      const registry = await (deps.loadSourceControlProviders ?? loadInstalledSourceControlProviders)(deps.workspaceId);
+      const registry = await deps.loadSourceControlProviders(deps.workspaceId);
       for (const refusal of registry.refusals) console.warn(`[source-control-providers] ${refusal}`);
       res.status(200).json({
         providers: registry.list().map(({ descriptor }) => ({

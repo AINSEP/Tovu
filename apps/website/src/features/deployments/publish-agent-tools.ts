@@ -47,7 +47,6 @@ import { askThenReport, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type
 // redacting it into a message-stripped 500.
 import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
-import { loadDeployTargetRegistry } from "./deploy-targets/registry.js";
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 // Credential saves go through `publish-credentials/store.ts`, the same store the admin's Static Site
@@ -297,9 +296,9 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
    *  never sets this — `publishStaticSite`'s own default (the real Jini adapters) applies. */
   buildTarget?: StaticPublishDeps["buildTarget"];
   /** `RouteDeps.loadDeployTargets` — this workspace's deploy registry, which decides which config
-   *  fields a target takes and judges them. Defaults to the installed deploy Agent Plugin
+   *  fields a target takes and judges them. Production composition injects the installed deploy Agent Plugin
    *  (`loadDeployTargetRegistry`); a test injects a registry read from the plugin's source. */
-  loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
   /** Post-save connection checks share the verifier's HTTP seam; fixtures never need real egress. */
   readonly fetchFn?: typeof fetch;
   /** Test-only override for `RouteDeps.publishHistoryStore` (2026-08-16 rework — that field is now
@@ -315,9 +314,9 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   readonly observability?: ObservabilityPort;
 }
 
-/** {@link StaticPublishToolDeps.loadDeployTargets}, or the installed deploy Agent Plugin. */
+/** {@link StaticPublishToolDeps.loadDeployTargets}, bound by composition to installed plugins or trusted source. */
 function deployTargetsLoader(deps: StaticPublishToolDeps): (workspaceId: string) => Promise<DeployTargetRegistry> {
-  return deps.loadDeployTargets ?? ((workspaceId) => loadDeployTargetRegistry({ workspaceId }));
+  return deps.loadDeployTargets;
 }
 
 /**

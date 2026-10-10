@@ -159,9 +159,8 @@ still unconverted, and the drift is CONTINUOUS — every feature hook written si
 existed (2026-07-31) has still reached for `api`/`useAdminLocale` directly except the four that
 predate this document. A cleanup pass alone will always be behind the next feature branch.
 
-`eslint.config.mjs` (~lines 50–135) already has the exact shape of rule needed, enforcing a similar
-boundary for `@tanstack/react-query` via `no-restricted-imports` + `no-restricted-syntax`, with a
-single-file exemption for the one place allowed to import it. The equivalent for this convention:
+For this convention, `no-restricted-imports` can enforce the allowed dependency boundary with
+exemptions for the files that bind host dependencies. The rule would look like this:
 
 ```js
 {

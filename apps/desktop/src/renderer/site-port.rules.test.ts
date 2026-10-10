@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { sitePortPresentation } from './site-port.rules.js';
-import { cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable } from './SiteGrid.hooks.js';
+import { cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import { sourceFunction } from './source-test-harness.js';
 import {
@@ -47,7 +47,7 @@ const workspaceSource = fs.readFileSync(new URL('./use-site-workspace.hooks.ts',
 // REGRESSION: fails if SiteCard renders project.port instead of connection.portLabel.
 test('the rendered card keeps the running port and blanks the stopped port', () => {
   const SiteCard = sourceFunction(gridSource, 'SiteCard', {
-    cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation,
+    cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation,
     useSitePreview: () => null, CardActions: () => null, SiteCardMenu: () => null, MissingFolderNotice: () => null,
   });
   for (const [status, port, expected] of [

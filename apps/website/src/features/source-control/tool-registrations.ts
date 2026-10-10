@@ -24,7 +24,6 @@ import {
 } from "./commit-site.js";
 import {
   buildSourceControlProvider,
-  loadInstalledSourceControlProviders,
   switchedOffPluginSentence,
   type LoadSourceControlProviders,
   type SourceControlProviderDescriptor,
@@ -97,13 +96,13 @@ function reportedProviderIds(registry: SourceControlProviderRegistry, savedProvi
 /** The loader for the workspace's plugin-provided hosts ({@link SourceControlToolDeps.loadSourceControlProviders}),
  *  resolved once here so `credential-setup.ts` takes it as a required port. */
 function providerLoader(deps: SourceControlToolDeps): LoadSourceControlProviders {
-  return deps.loadSourceControlProviders ?? loadInstalledSourceControlProviders;
+  return deps.loadSourceControlProviders;
 }
 
 /** The injected adapter, or the plugin provider's for `providerId`; a caller-safe refusal otherwise. */
 async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: string): Promise<{ ok: true; adapter: SourceControlCommitAdapter } | { ok: false; message: string }> {
   if (deps.gitAdapter) return { ok: true, adapter: deps.gitAdapter };
-  const built = await buildSourceControlProvider({ ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}), observability: deps.observability, workspaceId: deps.workspaceId, providerId });
+  const built = await buildSourceControlProvider({ load: deps.loadSourceControlProviders, observability: deps.observability, workspaceId: deps.workspaceId, providerId });
   return built.ok ? { ok: true, adapter: { commit: built.provider.commitSite } } : { ok: false, message: built.message };
 }
 
@@ -233,8 +232,8 @@ export interface SourceControlToolDeps {
   /** Overrides the plugin provider's commit adapter, which is the default when this is omitted.
    *  Tests inject a fake here. */
   readonly gitAdapter?: SourceControlCommitAdapter;
-  /** This workspace's git-host providers; the installed, enabled Agent Plugins when omitted. */
-  readonly loadSourceControlProviders?: LoadSourceControlProviders;
+  /** This workspace's git-host providers; the installed, enabled Agent Plugins supplied by composition. */
+  readonly loadSourceControlProviders: LoadSourceControlProviders;
 }
 
 const EXECUTE_COMMIT_TOOL_ID = "source_control_execute_commit";

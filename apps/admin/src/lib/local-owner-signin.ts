@@ -11,7 +11,8 @@ export function isLocalOwnerSignInHost({ hostname }: { hostname: string }, _opti
 }
 
 /** Try the server's guarded bootstrap, then read the ordinary identity/permissions response.
- * Disabled/denied/unreachable bootstraps return null and leave the normal login flow in charge.
+ * Any rejected bootstrap (including every non-2xx API response) returns null, without a retry
+ * or identity read, and leaves the normal login flow in charge. Only the initial page read uses it.
  * @complexity O(1): at most two bounded API requests, no raw boot token returned to JavaScript.
  */
 export async function tryLocalOwnerSession<T>(
@@ -24,7 +25,11 @@ export async function tryLocalOwnerSession<T>(
   } catch { return null; }
 }
 
-/** Preserve a valid session; bootstrap only an unauthenticated local browser. @complexity O(1). */
+/** Preserve a valid session; bootstrap only an unauthenticated local browser on initial load.
+ * The session hook retains this read across effect replays and never invokes it on later 401s.
+ * A refused bootstrap preserves the original 401 so the hook settles on ordinary login.
+ * @complexity O(1) time/space: at most one bootstrap and two identity reads.
+ */
 export async function readInitialAdminSession<T>(
   required: { hostname: string; port: LocalOwnerSessionPort<T> },
   { onLocalSignIn }: { onLocalSignIn?: () => void } = {},

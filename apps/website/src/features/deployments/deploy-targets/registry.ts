@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { parseDescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import { defineExecutablePluginContribution, loadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
@@ -57,10 +57,11 @@ const targetContribution = defineExecutablePluginContribution<DeployTargetDescri
  *
  * @throws Nothing for a plugin-level fault (see this file's header); only a filesystem fault listing
  * the workspace's package directory itself propagates.
+ * @param required - Contribution loader from this boot's lifecycle; no site-dependent module default.
  * @complexity O(p) installed plugins, each one small file read plus one import per declared target.
  */
-export async function loadDeployTargetRegistry(ctx: { readonly workspaceId: string }, _optional: Record<string, never> = {}): Promise<DeployTargetRegistry> {
-  const load = await loadPluginContributions({ ...ctx, definition: targetContribution });
+export async function loadDeployTargetRegistry(ctx: { readonly workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<DeployTargetRegistry> {
+  const load = await required.loadContributions({ ...ctx, definition: targetContribution });
   return buildRegistry(load.items, load.refusals);
 }
 

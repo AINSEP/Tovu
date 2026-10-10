@@ -91,6 +91,8 @@ async function buildDelegatedToolDeps(clientError: Error) {
   });
 
   const routeDeps: CustomCredentialsToolDeps = {
+    loadAuthSchemes: async () => [],
+    loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
     clock,
@@ -204,6 +206,8 @@ async function executeThroughGuardedClient() {
   const transport = new UnreachableTransport();
   const audit = new InMemoryCredentialedRequestAuditLog();
   const routeDeps: CustomCredentialsToolDeps = {
+    loadAuthSchemes: async () => [],
+    loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
     clock,

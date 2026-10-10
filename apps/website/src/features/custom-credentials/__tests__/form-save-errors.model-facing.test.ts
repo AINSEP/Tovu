@@ -102,6 +102,8 @@ async function buildHarness(options: HarnessOptions = {}) {
   const keyring = options.keyring ?? seedKeyring;
   const logLines: string[] = [];
   const deps: CustomCredentialsToolDeps = {
+    loadAuthSchemes: async () => [],
+    loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: options.repo ? options.repo(repo) : repo,

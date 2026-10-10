@@ -65,6 +65,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   const deps: CustomCredentialsToolDeps = {
+    loadAuthSchemes: async () => [],
+    loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,

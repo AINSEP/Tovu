@@ -164,6 +164,31 @@ export type TrashRegistry = ReadonlyMap<TrashEntityType, TrashEntry>;
 export function buildTrashRegistry(): TrashRegistry {
   return new Map<TrashEntityType, TrashEntry>([
     [
+      "member",
+      {
+        entityType: "member",
+        label: "Member",
+        permission: "member.manage",
+        table: "members",
+        idColumn: "id",
+        workspaceColumn: "workspace_id",
+        marker: { kind: "status", column: "status", trashed: "trash", restoreFallback: "disabled" },
+        versionColumn: "version",
+        touchColumn: "updated_at",
+        display: { title: "members.email" },
+        // Financial truth must survive account removal. Refuse these members rather than cascade
+        // orders or leave the 60-day sweeper fighting commerce_orders' RESTRICT foreign key.
+        blocker: { table: "commerce_orders", parentIdColumn: "member_id", code: "MEMBER_HAS_ORDERS" },
+        purgeFirst: [
+          { table: "member_sessions", parentIdColumn: "member_id" },
+          { table: "member_magic_tokens", parentIdColumn: "member_id" },
+          { table: "member_subscriptions", parentIdColumn: "member_id" },
+          { table: "member_consents", parentIdColumn: "member_id" },
+        ],
+        // member_revisions is an append-only audit ledger, not an account's disposable child.
+      },
+    ],
+    [
       "form",
       {
         entityType: "form",

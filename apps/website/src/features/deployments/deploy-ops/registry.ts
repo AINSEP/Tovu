@@ -1,5 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
-import { defineExecutablePluginContribution, loadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDeployOps } from "./types.js";
 
 /** Installed modules use the same activation, bundled digest and disk containment gates as deploy targets. */
@@ -74,12 +74,13 @@ export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPacka
  * Load only the active, bundled-digest-trusted installed deploy package; never fall back to source.
  * @param ctx - Workspace whose installed packages and activation records are checked fresh.
  * @returns Loaded modules and refusals, including filesystem faults; no expected failure escapes.
+ * @param required - Contribution loader from this boot's lifecycle; no site-dependent module default.
  * @complexity Time: O(installed packages + platforms). Space: O(platforms + refusals).
- * @example await loadDeployOpsRegistry({ workspaceId });
+ * @example await loadDeployOpsRegistry({ workspaceId }, { loadContributions: lifecycle.loadPluginContributions });
  */
-export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, _optional: Record<string, never> = {}): Promise<DeployOpsRegistry> {
+export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<DeployOpsRegistry> {
   try {
-    const load = await loadPluginContributions({ ...ctx, definition: opsContribution }, {
+    const load = await required.loadContributions({ ...ctx, definition: opsContribution }, {
       packageRefusal: ({ plugin }) => plugin.pluginId === "deploy" ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only the bundled deploy plugin may contribute`,
     });
     return buildRegistry(load.items, load.refusals);

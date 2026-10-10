@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describeAddFailure } from './use-add-site.hooks.js';
-import { deriveSitesHomeView, performSiteStart, countRunningSites } from './App.hooks.js';
+import { appPresentation, deriveSitesHomeView, performSiteStart, countRunningSites } from './App.hooks.js';
 import { chromeVisibility } from './expanded-mode.js';
 import { elements, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
@@ -72,7 +72,7 @@ test('D-24: Add feedback stays on the websites view when switching to a site tab
   const renderApp = sourceFunction(readFileSync(new URL('./App.tsx', import.meta.url), 'utf8'), 'App', {
     useTheme: () => ['light', noop], useSiteRescan: () => ({}), useApplySiteRecord: () => noop,
     useAddSite: () => ({ adding: false, addError: message, addSite: noop }),
-    deriveSitesHomeView, chromeVisibility, countRunningSites, findSection: () => ({}),
+    appPresentation, deriveSitesHomeView, chromeVisibility, countRunningSites, findSection: () => ({}),
     useFindInPage: () => ({}), useZoom: () => ({}), useRunnerNavigation: noop,
     useProjectMutations: () => ({}), FindBar: () => null, TopNav: () => null, TabStrip: () => null,
     MainArea: (props: any) => { areaProps = props; return null; },

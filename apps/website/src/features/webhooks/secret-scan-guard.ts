@@ -416,6 +416,6 @@ function main(): void {
 // exported functions are imported directly by `__tests__/secret-scan-guard.test.ts`, and an
 // unguarded `main()` would scan the real repo (and `process.exit(1)` if it ever regresses) as a
 // side effect of that import.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

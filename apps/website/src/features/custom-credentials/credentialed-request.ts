@@ -519,7 +519,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * Defaults to {@link ConsoleCredentialedRequestAuditLog}.
  *
  * The self-describing token scheme rules for this workspace (see this file's header,
- *  "Self-describing token schemes"). Defaults to the workspace's installed, bundled-digest-trusted
+ *  "Self-describing token schemes"). Production composition injects the workspace's installed, bundled-digest-trusted
  *  plugins (`loadCredentialSchemeRegistry`); the hermetic root and tests pass the bundled plugin's
  *  source rules instead.
  *
@@ -690,7 +690,6 @@ import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-di
 // otherwise supplies types, and feature code must receive its guarded client from composition.
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
-import { loadCredentialSchemeRegistry } from "./auth-schemes.js";
 import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
 import type { CustomCredentialSetRepoPort } from "./types.js";
 
@@ -743,7 +742,7 @@ export interface CredentialedRequestDeps {
   readonly httpClient: HttpClientPort;
   readonly clock: Clock;
   readonly audit?: CredentialedRequestAuditPort;
-  readonly loadAuthSchemes?: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
+  readonly loadAuthSchemes: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
 }
 
 export interface MakeCredentialedRequestInput extends JiniRequestInput {
@@ -776,9 +775,7 @@ function adaptRequestDeps(deps: CredentialedRequestDeps): JiniRequestDeps {
     // Keep installed-plugin digest trust checks in the host; generic scheme precedence needs no
     // provider catalog. One loaded rule set is shared by header building and failure diagnostics.
     schemeRegistry: {
-      load: async (input) => deps.loadAuthSchemes
-        ? deps.loadAuthSchemes(input)
-        : (await loadCredentialSchemeRegistry(input)).rules,
+      load: async (input) => deps.loadAuthSchemes(input),
     },
   };
 }

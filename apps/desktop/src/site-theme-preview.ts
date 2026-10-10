@@ -41,12 +41,30 @@ export function openSiteThemePreviewStream(
     if (closed) return;
     try {
       const frame: unknown = JSON.parse(event.data);
-      if (!frame || typeof frame !== 'object' || !('revision' in frame) || typeof frame.revision !== 'string' || !/^[\w-]{1,100}$/.test(frame.revision)) return;
-      if ('path' in frame && typeof frame.path !== 'string') return;
-      onFrame({ revision: frame.revision, ...('path' in frame ? { path: frame.path as string } : {}) });
+      const refresh = themePreviewFrame({ frame });
+      if (refresh) onFrame(refresh);
     } catch { /* A bad frame must never break independent settings notifications or the host window. */ }
   });
   return () => { closed = true; source.close(); };
+}
+
+/** Validate the Tovu feed's refresh frame; unsupported frames are ignored.
+ * @complexity O(n) in revision length.
+ */
+function themePreviewFrame({ frame }: { frame: unknown }, _options = {}): ThemePreviewFrame | undefined {
+  const input = { frame };
+  if (!hasPreviewRevision(input)) return undefined;
+  const valid = input.frame;
+  if ('path' in valid && typeof valid.path !== 'string') return undefined;
+  return { revision: valid.revision, ...('path' in valid ? { path: valid.path as string } : {}) };
+}
+
+/** Narrow a raw feed frame to the revision contract before reading optional fields.
+ * @complexity O(n) in revision length.
+ */
+function hasPreviewRevision(input: { frame: unknown }, _options = {}): input is { frame: { revision: string } } {
+  const { frame } = input;
+  return !!frame && typeof frame === 'object' && 'revision' in frame && typeof frame.revision === 'string' && /^[\w-]{1,100}$/.test(frame.revision);
 }
 
 export interface SiteThemePreviewPorts {

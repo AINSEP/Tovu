@@ -104,6 +104,7 @@ async function buildHarness(): Promise<Harness> {
 
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolDeps: CustomCredentialsToolDeps = {
+    loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: repo,

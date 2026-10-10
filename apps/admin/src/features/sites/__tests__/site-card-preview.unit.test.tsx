@@ -49,8 +49,8 @@ describe("Sites card preview band", () => {
     expect(bands[0]!.getAttribute("aria-hidden")).toBe("true");
     expect(bands[1]!.querySelector("img")).toBeNull();
     expect(bands[1]!.textContent).toBe("B");
-    // The band precedes the status strip, so the picture sits on top of the card.
-    expect(bands[0]!.nextElementSibling?.className).toBe("site-card-head");
+    // The band sits on top of the card, directly above the body (no status strip since 2026-10-09).
+    expect(bands[0]!.nextElementSibling?.className).toBe("site-card-body");
   });
 
   it("swaps a failed image for the placeholder until a new capture changes the URL", () => {

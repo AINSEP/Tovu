@@ -24,6 +24,7 @@ import type {
   ToolResultMediaBlock,
 } from '@jini-ai/chat/core';
 import type { RunAgentPayload, RunProtocolEvent } from '@jini-ai/protocol';
+import { parseUsageEvent } from '@jini-ai/chat/core/run-events';
 import { desktopVerbForAgentToolName } from '../contracts/workspace-chat.js';
 import type { WorkspaceChatEventMessage, WorkspaceChatRunState } from '../contracts/workspace-chat.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
@@ -143,14 +144,9 @@ function translateToolResult(payload: Extract<RunAgentPayload, { type: 'tool_res
   };
 }
 
+// Share the usage owner with web chat, including cumulative/session cost guards.
 function translateUsage(payload: Extract<RunAgentPayload, { type: 'usage' }>): AgentEvent | null {
-  return {
-    kind: 'usage',
-    ...(payload.usage?.input_tokens === undefined ? {} : { inputTokens: payload.usage.input_tokens }),
-    ...(payload.usage?.output_tokens === undefined ? {} : { outputTokens: payload.usage.output_tokens }),
-    ...(payload.costUsd === undefined ? {} : { costUsd: payload.costUsd }),
-    ...(payload.durationMs === undefined ? {} : { durationMs: payload.durationMs }),
-  };
+  return parseUsageEvent({ payload: { ...payload } });
 }
 
 function translateRaw(payload: Extract<RunAgentPayload, { type: 'raw' }>): AgentEvent | null {

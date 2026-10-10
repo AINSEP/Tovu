@@ -25,7 +25,7 @@ function fixture(hostname = "localhost") {
     deny: () => { allowed = false; }, onMe: (run: () => void) => { onMe = run; } };
 }
 
-it("mount and a site-switch 401 both recover the local owner with that site's permissions", async () => {
+it("mount bootstraps once; a site-switch 401 clears the old identity and permissions without another bootstrap", async () => {
   const f = fixture();
   const { result } = renderHook(() => useAdminSession({}, f.options));
   await waitFor(() => expect(result.current.checking).toBe(false));
@@ -33,9 +33,10 @@ it("mount and a site-switch 401 both recover the local owner with that site's pe
   expect(result.current.user?.id).toBe("site-a-owner");
   f.switchTo("site-b-owner");
   act(() => { f.notify(); f.notify(); });
-  await waitFor(() => expect(result.current.user?.id).toBe("site-b-owner"));
-  expect(f.calls).toEqual(["me", "bootstrap", "me", "bootstrap", "me"]);
-  expect(result.current.effectivePermissions).toEqual(["site-b-owner"]);
+  expect(result.current.user).toBeNull();
+  expect(result.current.checking).toBe(false);
+  expect(f.calls).toEqual(["me", "bootstrap", "me"]);
+  expect(result.current.effectivePermissions).toEqual([]);
 });
 
 it("deployed browser origins keep the ordinary login/logout behavior", async () => {
@@ -49,7 +50,7 @@ it("deployed browser origins keep the ordinary login/logout behavior", async () 
   expect(f.calls).toEqual(["me"]);
 });
 
-it("a refused local recovery settles on login and suppresses recursive me notifications", async () => {
+it("a later 401 settles on login even when local sign-in has become disabled", async () => {
   const f = fixture();
   const { result } = renderHook(() => useAdminSession({}, f.options));
   await waitFor(() => expect(result.current.checking).toBe(false));
@@ -57,17 +58,18 @@ it("a refused local recovery settles on login and suppresses recursive me notifi
   act(() => f.notify());
   await waitFor(() => expect(result.current.checking).toBe(false));
   expect(result.current.user).toBeNull();
-  expect(f.calls).toEqual(["me", "bootstrap", "me", "bootstrap"]);
+  expect(f.calls).toEqual(["me", "bootstrap", "me"]);
 });
 
-it("a me notification during recovery cannot launch recursive bootstraps", async () => {
+it("repeated 401 notifications never launch another bootstrap or identity read", async () => {
   const f = fixture();
   const { result } = renderHook(() => useAdminSession({}, f.options));
   await waitFor(() => expect(result.current.checking).toBe(false));
   f.onMe(f.notify);
-  act(() => f.notify());
+  act(() => { f.notify(); f.notify(); f.notify(); });
   await waitFor(() => expect(result.current.checking).toBe(false));
-  expect(f.calls).toEqual(["me", "bootstrap", "me", "bootstrap", "me"]);
+  expect(result.current.user).toBeNull();
+  expect(f.calls).toEqual(["me", "bootstrap", "me"]);
 });
 
 it("explicit sign-out suppresses late 401 auto sign-in in this tab", async () => {

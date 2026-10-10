@@ -27,6 +27,7 @@ import { readFileSync } from "node:fs";
 import { hookHarness, sourceFunction } from "./source-test-harness.js";
 
 import {
+  appPresentation,
   computeCanCreate,
   countRunningSites,
   navLinkClick,
@@ -284,4 +285,26 @@ test("a start that RESOLVES but reports failure (useSiteStart's bridge-missing/c
   return handleStart().then(() => {
     assert.deepEqual(calls, ["start"], "onStarted must not fire after a failed start");
   });
+});
+
+// The extraction must keep one routing answer for Find, Zoom, tabs and Add feedback.
+// Without the refactor this new boundary is absent; a miswired caller is covered in site-error-feedback.
+test("root presentation keeps chrome, guest targets and duplicate-site notices aligned", () => {
+  const input = {
+    showSiteTab: true, showSitesHome: false, appearanceOpen: false,
+    activeTab: '/a', visibleWorkspaceId: '/a', addNotice: { siteId: '/a', message: 'Already tracked.' },
+  };
+  assert.deepEqual(appPresentation(input), {
+    onSitesHome: false, selectedTab: '/a', guestTarget: '/a', tabNotice: 'Already tracked.',
+  });
+  assert.equal(appPresentation({ ...input, addNotice: { siteId: '/b', message: 'Other site.' } }).tabNotice, undefined);
+  assert.equal(appPresentation({ ...input, addNotice: null }).tabNotice, undefined);
+  assert.equal(appPresentation({ ...input, addNotice: { siteId: '/a', message: '' } }).tabNotice, '');
+  assert.deepEqual(appPresentation({ ...input, showSiteTab: false, showSitesHome: true }), {
+    onSitesHome: true, selectedTab: null, guestTarget: null, tabNotice: undefined,
+  });
+  assert.deepEqual(appPresentation({ ...input, appearanceOpen: true, visibleWorkspaceId: null }), {
+    onSitesHome: false, selectedTab: '/a', guestTarget: null, tabNotice: 'Already tracked.',
+  });
+  assert.equal(appPresentation({ ...input, showSitesHome: true, appearanceOpen: true }).onSitesHome, false);
 });

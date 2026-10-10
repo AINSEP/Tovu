@@ -1,7 +1,7 @@
 import { parseCredentialSchemesFile, type CredentialSchemeRule, type CredentialSchemeRegistry } from "@jini-ai/integrations/credentialed-http";
 
 // Token-prefix rationale: Jini/packages/integrations/src/credentialed-http/auth-schemes.ts; plugin trust stays here.
-import { loadPluginContributions, loadPluginContributionsFromSource, type PluginContributionDefinition, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
+import { type LoadPluginContributions, loadPluginContributionsFromSource, type PluginContributionDefinition, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 /**
  * @file Self-describing token schemes: tokens that carry their own `Authorization` scheme word as a
@@ -76,10 +76,11 @@ const schemeContribution: PluginContributionDefinition<CredentialSchemeRule, Cre
  *
  * @throws Nothing for a plugin-level fault; only a filesystem fault listing the workspace's package
  * directory itself propagates.
+ * @param required - Contribution loader from this boot's lifecycle; no site-dependent module default.
  * @complexity O(p) installed plugins, one small file read per contributing plugin.
  */
-export async function loadCredentialSchemeRegistry(ctx: { readonly workspaceId: string }, _optional: Record<string, never> = {}): Promise<CredentialSchemeRegistry> {
-  const load = await loadPluginContributions({ ...ctx, definition: schemeContribution }, { requireActive: false });
+export async function loadCredentialSchemeRegistry(ctx: { readonly workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<CredentialSchemeRegistry> {
+  const load = await required.loadContributions({ ...ctx, definition: schemeContribution }, { requireActive: false });
   return dropDuplicateIds(load.items, load.refusals);
 }
 

@@ -196,9 +196,9 @@ export interface SiteBackupToolDeps {
   /** The client a backup talks to its host with (`SITE_BACKUP_EGRESS_POLICY`: a 2-minute idle
    *  ceiling for large blob uploads); {@link customCredentialsHttpClient} when absent. */
   readonly siteBackupHttpClient?: HttpClientPort;
-  /** The git-host providers a backup pushes through (the installed, enabled Agent Plugins when
-   *  omitted — the bundled `github` one today). */
-  readonly loadSourceControlProviders?: LoadSourceControlProviders;
+  /** The git-host providers a backup pushes through (the installed, enabled Agent Plugins supplied by
+   *  composition — the bundled `github` one today). */
+  readonly loadSourceControlProviders: LoadSourceControlProviders;
   /** `RouteDeps.observability`: a backup's raw git-host calls are outbound spans. */
   readonly observability?: ObservabilityPort;
   readonly dbOps: DbOpsPort;
@@ -258,7 +258,7 @@ function backupTarget(credential: ResolvedBackupCredential, owner: string, repo:
 /** Every git-host provider an enabled plugin ships, or the refusal when there is none. */
 async function loadBackupProviders(deps: SiteBackupToolDeps): Promise<{ ok: true; providers: readonly SourceControlProvider[]; noProviderMessage: string } | Refusal> {
   const built = await buildSourceControlProviders({
-    ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
+    load: deps.loadSourceControlProviders,
     workspaceId: deps.workspaceId,
     httpClient: deps.siteBackupHttpClient ?? deps.customCredentialsHttpClient,
     observability: deps.observability,

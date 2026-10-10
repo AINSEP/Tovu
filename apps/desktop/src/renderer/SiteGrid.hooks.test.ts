@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { cardOpenProps, closeMenuThen, isCardOpenKey, isCardOpenable } from "./SiteGrid.hooks.js";
+import { cardOpenClass, cardOpenProps, closeMenuThen, isCardOpenKey, isCardOpenable } from "./SiteGrid.hooks.js";
 import type { SiteRecord } from "../contracts/project.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain
@@ -125,4 +125,16 @@ test("cardOpenProps opens only for accepted keys on the card and leaves descenda
   assert.equal(opened, 1);
   assert.deepEqual(cardOpenProps(false, () => opened++), { role: undefined, tabIndex: undefined, onClick: undefined, onKeyDown: undefined });
   assert.equal(opened, 1);
+});
+
+// This directly exercises the extracted affordance; it fails before the helper exists.
+test("the open-affordance class is absent for every inert card", () => {
+  for (const [status, folderMissing, overlay, expected] of [
+    ['running', false, false, 'is-openable'], ['stopped', false, false, 'is-openable'],
+    ['blocked', false, false, ''], ['provisioning', false, false, ''],
+    ['running', true, false, ''], ['running', false, true, ''],
+  ] as const) {
+    const project = { status, folderMissing } as SiteRecord;
+    assert.equal(cardOpenClass({ openable: isCardOpenable(project, overlay) }), expected);
+  }
 });

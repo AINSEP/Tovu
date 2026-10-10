@@ -115,8 +115,10 @@ async function probeAccountLabel(deps: SourceControlCredentialWriteDeps, workspa
     }
   };
   try {
+    // Write-only callers may omit account discovery; production supplies its boot-bound loader.
+    if (!deps.loadSourceControlProviders) return { accountLabel: null, connection };
     const built = await buildSourceControlProvider({
-      ...(deps.loadSourceControlProviders ? { load: deps.loadSourceControlProviders } : {}),
+      load: deps.loadSourceControlProviders,
       fetchFn,
       observability: deps.observability,
       workspaceId,
@@ -174,7 +176,7 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
   fetchFn?: typeof fetch;
   /** `RouteDeps.observability`: the identity probe is one outbound span. */
   observability?: ObservabilityPort;
-  /** This workspace's git-host providers; the installed, enabled Agent Plugins when omitted. */
+  /** Optional account-label discovery for write-only clients; composition supplies the boot-bound providers. */
   loadSourceControlProviders?: LoadSourceControlProviders;
 }
 

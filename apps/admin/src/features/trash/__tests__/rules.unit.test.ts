@@ -140,6 +140,10 @@ describe("entityTypeLabel", () => {
     expect(entityTypeLabel("en", "taxonomy")).toBe("Taxonomy");
     expect(entityTypeLabel("en", "plugin")).toBe("Plugin");
     expect(entityTypeLabel("en", "user")).toBe("User");
+    expect(entityTypeLabel("en", "member")).toBe("Member");
+    expect(entityTypeLabel("es", "member")).toBe("Miembro");
+    expect(entityTypeLabel("en", "theme")).toBe("Theme");
+    expect(entityTypeLabel("es", "theme")).toBe("Tema");
   });
 
   it("prints an unrecognized kind as itself rather than hiding the row", () => {

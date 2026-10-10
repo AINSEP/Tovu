@@ -85,6 +85,7 @@ async function buildHarness(steps: Step[]) {
 
   const logLines: string[] = [];
   const deps: CustomCredentialsToolDeps = {
+    loadAuthSchemes: async () => [],
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: repo,

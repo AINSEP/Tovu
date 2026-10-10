@@ -29,17 +29,24 @@ export function navigateTabStrip(
   const index = tabs.findIndex((tab) => tab === event.target);
   // Close buttons and overflow arrows keep their own keyboard behaviour.
   if (index < 0) return;
-  let next: number;
-  switch (event.key) {
-    case 'ArrowLeft': next = (index + tabs.length - 1) % tabs.length; break;
-    case 'ArrowRight': next = (index + 1) % tabs.length; break;
-    case 'Home': next = 0; break;
-    case 'End': next = tabs.length - 1; break;
-    default: return;
-  }
+  const next = nextTabIndex({ key: event.key, index, count: tabs.length });
+  if (next === undefined) return;
   event.preventDefault();
   tabs[next]!.focus();
   tabs[next]!.click();
+}
+
+/** Resolve horizontal tab navigation without touching focus or activation.
+ * @complexity O(1) time and space.
+ */
+function nextTabIndex({ key, index, count }: { key: string; index: number; count: number }, _options = {}): number | undefined {
+  switch (key) {
+    case 'ArrowLeft': return (index + count - 1) % count;
+    case 'ArrowRight': return (index + 1) % count;
+    case 'Home': return 0;
+    case 'End': return count - 1;
+    default: return undefined;
+  }
 }
 
 /** Recheck on resize as well as selection: the active tab can leave view without a tab change. */

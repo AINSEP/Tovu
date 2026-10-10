@@ -90,6 +90,8 @@ describe("TRASH_DICT: cross-locale key parity", () => {
     "Taxonomy",
     "Plugin",
     "User",
+    "Member",
+    "Theme",
     "Shared across all workspaces on this site.",
     "Restored.",
     "Nothing was restored.",

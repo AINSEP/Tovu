@@ -966,3 +966,23 @@ test('a pane-unmount detach that loses the race with the demux is a harmless no-
   controller.abort();
   assert.deepEqual(fake.calls.chatDetach, []);
 });
+
+
+test('cumulative usage preserves session identity and rejects malformed metadata over IPC', async () => {
+  const fake = createFakeBridge();
+  const transport = createWorkspaceChatTransport(fake.bridge);
+  const events: AgentEvent[] = [];
+  await transport.startRun(startInput(), dummyHandlers({ onEvent: (event) => events.push(event) }));
+  const subscriptionId = fake.calls.chatStart[0]!.subscriptionId;
+  for (const payload of [
+    { type: 'usage', costUsd: null, cumulativeCostUsd: 25.6, costSessionId: 'claude-session-a' },
+    { type: 'usage', cumulativeCostUsd: 0, costSessionId: 'zero-session' },
+    { type: 'usage', cumulativeCostUsd: 'bad', costSessionId: 17 },
+  ]) fake.emit({ subscriptionId, kind: 'event', event: agentEvent(payload as RunAgentPayload) });
+  assert.deepEqual(events, [
+    { kind: 'usage', cumulativeCostUsd: 25.6, costSessionId: 'claude-session-a' },
+    { kind: 'usage', cumulativeCostUsd: 0, costSessionId: 'zero-session' },
+    { kind: 'usage' },
+  ]);
+  transport.dispose();
+});

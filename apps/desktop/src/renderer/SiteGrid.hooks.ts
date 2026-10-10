@@ -225,3 +225,12 @@ export function closeMenuThen(setOpen: (open: boolean) => void): (act: () => voi
     act();
   };
 }
+
+/** The class for the card's existing open affordance; overlays keep the card inert.
+ * @param input Whether the card can currently open its site.
+ * @returns The existing class token, or an empty suffix for an inert card.
+ * @complexity O(1) time and space.
+ */
+export function cardOpenClass({ openable }: { openable: boolean }, _options = {}): string {
+  return openable ? 'is-openable' : '';
+}

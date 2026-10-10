@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
+import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "../../features/publish-content/hooks/publish-availability.store";
 import { useAdminSession } from "../../App.hooks";
+import { Login } from "../../features/auth";
+import { api } from "../../lib/api";
 
 /**
  * @file `useAdminSession`'s boot-token redemption (run-from-zip plan S2,
@@ -122,6 +125,41 @@ it("no fragment: an unauthenticated loopback browser tries local bootstrap and f
 
   expect(calls).toEqual(["/api/admin/v1/auth/me", "/api/admin/v1/auth/local-boot-session"]);
   expect(result.current.user).toBeNull();
+});
+
+it.each([401, 403, 404, 500])("local bootstrap HTTP %s shows username/password login and attempts boot exactly once, including Strict Mode replay", async (status) => {
+  const fetchMock = vi.fn(async (url: string) => {
+    if (String(url).endsWith("/auth/local-boot-session")) {
+      return new Response(JSON.stringify({ error: "local owner sign-in is disabled", code: "NOT_FOUND" }), {
+        status, headers: { "content-type": "application/json" },
+      });
+    }
+    return meUnauthenticated();
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  // Use App's gate with the real Login, whose locale read can itself receive another 401.
+  function SessionGate() {
+    const session = useAdminSession();
+    if (session.checking) return <div>Loading Tovu…</div>;
+    if (!session.user) return <Login onLogin={session.handleLogin} />;
+    return <div>Signed in</div>;
+  }
+  render(<StrictMode><SessionGate /></StrictMode>);
+  await screen.findByLabelText("Username");
+  expect(screen.getByLabelText("Password")).toBeTruthy();
+  // Repeated settings failures after fallback must not re-enter the loading gate or retry boot.
+  await act(async () => {
+    await Promise.all([
+      api.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined),
+      api.getSettingsEffective({ namespace: "core.appearance" }).catch(() => undefined),
+    ]);
+  });
+  expect(screen.queryByText("Loading Tovu…")).toBeNull();
+  expect(screen.getByLabelText("Username")).toBeTruthy();
+  const bootCalls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/local-boot-session"));
+  expect(bootCalls).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/me"))).toHaveLength(1);
 });
 
 it.each([

@@ -49,6 +49,7 @@ import { EventType, type AGUIEvent } from "@ag-ui/core";
 import { EventEncoder } from "@ag-ui/encoder";
 
 import type { AgentEvent } from "@jini-ai/chat/core";
+import { parseUsageEvent } from "@jini-ai/chat/core/run-events";
 
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -122,15 +123,9 @@ function asString(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v);
 }
 
+// Jini owns usage validation and session cost metadata for every transport.
 function reduceUsagePayload(payload: RunAgentWirePayload): AgentEvent {
-  const usage = (payload.usage ?? {}) as Record<string, unknown>;
-  return {
-    kind: "usage",
-    inputTokens: typeof usage.input_tokens === "number" ? usage.input_tokens : undefined,
-    outputTokens: typeof usage.output_tokens === "number" ? usage.output_tokens : undefined,
-    costUsd: typeof payload.costUsd === "number" ? payload.costUsd : undefined,
-    durationMs: typeof payload.durationMs === "number" ? payload.durationMs : undefined,
-  };
+  return parseUsageEvent({ payload });
 }
 
 /**

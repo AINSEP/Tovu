@@ -2,7 +2,7 @@ import path from "node:path";
 
 import type { MailAdapterModule } from "#src/platform/mail/index";
 
-import { defineExecutablePluginContribution, loadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
+import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
 
 /**
  * @file Loads the mail adapters Agent Plugins contribute — the generic seam that lets a plugin (the
@@ -67,10 +67,11 @@ type AdapterPackage = TrustedPluginPackage;
  * call; Node caches each module import per file URL, and installed digest directories never change.
  *
  * @throws Nothing for a plugin-level fault; only a filesystem fault listing the package directory itself.
+ * @param required - Contribution loader from this boot's lifecycle; no site-dependent module default.
  * @complexity O(p) installed plugins, one small read plus one import per declared adapter.
  */
-export async function loadMailAdapterRegistry(ctx: { readonly workspaceId: string }, _optional: Record<string, never> = {}): Promise<MailAdapterRegistry> {
-  const load = await loadPluginContributions({ ...ctx, definition: adapterContribution }, { orderByPluginId: true });
+export async function loadMailAdapterRegistry(ctx: { readonly workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<MailAdapterRegistry> {
+  const load = await required.loadContributions({ ...ctx, definition: adapterContribution }, { orderByPluginId: true });
   return { list: () => load.items, refusals: load.refusals };
 }
 

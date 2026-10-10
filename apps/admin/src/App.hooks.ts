@@ -18,7 +18,7 @@ import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/
 import { installInternalLinkInterceptor, navigate } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { takeBootToken } from "./lib/boot-token-fragment";
-import { readInitialAdminSession, tryLocalOwnerSession } from "./lib/local-owner-signin";
+import { readInitialAdminSession } from "./lib/local-owner-signin";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
 import { requestPublish } from "./features/publish-content/hooks/publish-request.store";
 import {
@@ -84,6 +84,8 @@ export interface UseAdminSession {
  * the boot screen, `Login`, or the real admin shell. Split out as `App`'s one injectable seam (see
  * this file's own header) so a future test can render `App` already authenticated, with no `fetch`
  * mock and no `waitFor` on the boot screen clearing.
+ * Initial bootstrap is attempted once; subsequent session invalidations show ordinary login.
+ * @complexity O(1) time/space per notification; initial boot uses at most three API requests.
  *
  * @example
  * const { user, checking, handleLogin, logout } = useAdminSession();
@@ -104,8 +106,9 @@ export function useAdminSession(_required: Record<string, never> = {}, {
   const [effectivePermissions, setEffectivePermissions] = useState<readonly string[] | undefined>(undefined);
   // Ignore a previous session read after logout/relogin; grants must never cross identities.
   const sessionEpoch = useRef(0);
-  const localRecovery = useRef(0);
-  const localSignInSuppressed = useRef(false);
+  // Retain the initial read across Strict Mode's effect replay: one bootstrap per page load.
+  const initialSession = useRef<Promise<Awaited<ReturnType<typeof api.me>>> | null>(null);
+  const initialReadPending = useRef(true);
 
   function acceptSession(r: Awaited<ReturnType<typeof api.me>>) {
     setPublishToLiveAvailable(readPublishToLiveAvailability(r));
@@ -122,19 +125,26 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     // doc for why the fragment must not survive past this line. `null` (no fragment, the ordinary
     // case for other launch paths) checks the current session, then tries guarded local bootstrap.
     const readEpoch = ++sessionEpoch.current;
-    const bootToken = takeBootToken(location, history);
-    localRecovery.current++;
-    const initial = bootToken
-      ? sessionApi.redeemBootSession(bootToken).catch(() => undefined).then(() => sessionApi.me())
-      : readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
+    if (initialSession.current === null) {
+      const bootToken = takeBootToken(location, history);
+      if (bootToken) {
+        initialSession.current = sessionApi.redeemBootSession(bootToken).catch(() => undefined).then(() => sessionApi.me());
+      } else {
+        initialSession.current = readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
+      }
+    }
 
-    initial
+    initialSession.current
       .then((r) => {
         if (sessionEpoch.current !== readEpoch) return;
         acceptSession(r);
       })
       .catch(() => { if (sessionEpoch.current === readEpoch) { setUser(null); setEffectivePermissions([]); } })
-      .finally(() => { localRecovery.current--; if (sessionEpoch.current === readEpoch) setChecking(false); });
+      .finally(() => {
+        if (sessionEpoch.current !== readEpoch) return;
+        initialReadPending.current = false;
+        setChecking(false);
+      });
     return () => { if (sessionEpoch.current === readEpoch) sessionEpoch.current++; };
   }, []);
 
@@ -149,22 +159,16 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    */
   useEffect(() => {
     const unsubscribe = subscribeUnauthenticated(() => {
-      // A switch/restart invalidates the previous site's cookie. Recover through the same bootstrap
-      // as mount; suppress its own me failure so a refused bootstrap cannot recursively retry forever.
-      // With single-human dev opt-in, an empty session on the next site becomes its OWNER even
-      // if the previous site's human was a non-owner. Same-origin theme/plugin JS can bootstrap too.
-      if (localRecovery.current > 0) return;
-      if (localSignInSuppressed.current) { sessionEpoch.current++; setUser(null); setEffectivePermissions([]); return; }
-      const readEpoch = ++sessionEpoch.current;
-      localRecovery.current++;
-      setUser(null); setEffectivePermissions([]); setChecking(true);
-      tryLocalOwnerSession({ hostname: location.hostname, port: sessionApi }).then((r) => {
-        if (sessionEpoch.current !== readEpoch || !r) return;
-        acceptSession(r);
-        publishSettingsRefresh();
-      }).finally(() => { localRecovery.current--; if (sessionEpoch.current === readEpoch) setChecking(false); });
+      // The initial reader handles its own 401. Later 401s must never retry local bootstrap:
+      // login's settings readers also run unauthenticated when that endpoint is disabled.
+      if (initialReadPending.current) return;
+      sessionEpoch.current++;
+      setAdminDraftIdentity({ id: null });
+      setUser(null);
+      setEffectivePermissions([]);
+      setChecking(false);
     });
-    // Also invalidate a recovery read if the whole shell unmounts while the new site answers.
+    // Invalidate outstanding identity/permission reads when the shell unmounts.
     return () => { sessionEpoch.current++; unsubscribe(); };
   }, []);
 
@@ -201,7 +205,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    * feed above on `user`; this is the read side of it.
    */
   function handleLogin(next: AdminUser) {
-    localSignInSuppressed.current = false;
+    initialReadPending.current = false;
     const readEpoch = ++sessionEpoch.current;
     setAdminDraftIdentity({ id: next.id });
     setUser(next);
@@ -219,7 +223,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
 
   async function logout() {
     // Late 401s from unmounting screens must not undo an explicit sign-out in this tab.
-    localSignInSuppressed.current = true;
+    initialReadPending.current = false;
     sessionEpoch.current++;
     setChecking(false);
     setEffectivePermissions([]);

@@ -8,12 +8,8 @@ export function siteOperationError(
 ): string {
   const copy = desktopCopy({ locale }).siteErrors;
   const message = humanSiteError({ error, fallback: operation === 'add' ? copy.add : copy.start });
-  if (operation === 'add') {
-    if (message.includes('is a folder of unrelated files')) return copy.invalid;
-    if (message.includes('there is no Tovu site here') || message.includes('has no Tovu site')) return copy.empty;
-    if (message.includes('half-initialized or damaged Tovu site')) return copy.incomplete;
-    if (message.includes('cannot be examined')) return copy.unreadable;
-  }
+  const refusal = operation === 'add' ? addFolderRefusal({ message, copy }) : undefined;
+  if (refusal !== undefined) return refusal;
   // Main can reject with paths embedded anywhere (including quoted paths containing spaces).
   // Summarize those failures rather than trying to remove only the first path segment.
   if (/(?:^|[\s'"(])(?:\/[\w.~][^\s]*|[A-Za-z]:\\)/.test(message)) return copy[operation];
@@ -47,4 +43,17 @@ export function dismissOnEscape(
 }
 export function addedSiteMessage({ added }: { added: SiteRecord & { alreadyTracked?: boolean } }, _optional = {}): string | null {
   return added.alreadyTracked ? `${added.displayName} is already in your list.` : null;
+}
+
+/** Match main's folder refusals to the existing recovery copy.
+ * @complexity O(n) in message length; a fixed number of substring checks.
+ */
+function addFolderRefusal(
+  { message, copy }: { message: string; copy: ReturnType<typeof desktopCopy>['siteErrors'] }, _options = {},
+): string | undefined {
+  if (message.includes('is a folder of unrelated files')) return copy.invalid;
+  if (message.includes('there is no Tovu site here') || message.includes('has no Tovu site')) return copy.empty;
+  if (message.includes('half-initialized or damaged Tovu site')) return copy.incomplete;
+  if (message.includes('cannot be examined')) return copy.unreadable;
+  return undefined;
 }

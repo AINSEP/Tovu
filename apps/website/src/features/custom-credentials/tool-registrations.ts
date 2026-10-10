@@ -127,14 +127,14 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
    *  own `CredentialedRequestDeps.httpClient` doc for why this file never constructs one itself. */
   readonly customCredentialsHttpClient: HttpClientPort;
   /** The git-host providers `custom_credential_write_files` writes through (the installed, enabled
-   *  Agent Plugins when omitted — the bundled `github` one today). */
-  readonly loadSourceControlProviders?: LoadSourceControlProviders;
+   *  Agent Plugins supplied by composition — the bundled `github` one today). */
+  readonly loadSourceControlProviders: LoadSourceControlProviders;
   /** `RouteDeps.observability`: a write's raw git-host calls are outbound spans. */
   readonly observability?: ObservabilityPort;
   /** The self-describing token scheme rules `custom_credential_make_request`/`_verify` apply
-   *  (`CredentialedRequestDeps.loadAuthSchemes`): the installed plugins' when omitted; the hermetic
+   *  (`CredentialedRequestDeps.loadAuthSchemes`): composition supplies the installed plugins; the hermetic
    *  root and tests pass the bundled `deploy` plugin's source rules. */
-  readonly loadAuthSchemes?: CredentialedRequestDeps["loadAuthSchemes"];
+  readonly loadAuthSchemes: CredentialedRequestDeps["loadAuthSchemes"];
   /** Test-only override; defaults to `credentialed-request.ts`'s `ConsoleCredentialedRequestAuditLog`. */
   readonly customCredentialsAudit?: CredentialedRequestAuditPort;
   /** Test-only override for the server-side failure log; defaults to `console.warn`. Receives only
@@ -954,7 +954,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
     httpClient: routeDeps.customCredentialsHttpClient,
     clock: routeDeps.clock,
     ...(routeDeps.customCredentialsAudit !== undefined ? { audit: routeDeps.customCredentialsAudit } : {}),
-    ...(routeDeps.loadAuthSchemes !== undefined ? { loadAuthSchemes: routeDeps.loadAuthSchemes } : {}),
+    loadAuthSchemes: routeDeps.loadAuthSchemes,
   };
 
   const handlers: Record<string, ToolHandler> = {
@@ -1080,7 +1080,7 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
       }
       const built = await buildSourceControlProviderForApi({
-        ...(routeDeps.loadSourceControlProviders ? { load: routeDeps.loadSourceControlProviders } : {}),
+        load: routeDeps.loadSourceControlProviders,
         workspaceId: routeDeps.workspaceId,
         baseUrl: summary.baseUrl,
         httpClient: routeDeps.customCredentialsHttpClient,

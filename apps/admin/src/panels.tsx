@@ -974,7 +974,7 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
     // Recovery.
     id: "observability",
     anyOfPermissions: ["system.read"],
-    render: () => <Observability />,
+    render: (ctx) => <Observability tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Observability",
       group: "Operations",

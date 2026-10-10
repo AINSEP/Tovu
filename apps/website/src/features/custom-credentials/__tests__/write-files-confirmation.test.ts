@@ -87,6 +87,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
   const httpClient = new FakeHttpClient(options.httpSteps ?? planSteps());
 
   const deps: CustomCredentialsToolDeps = {
+    loadAuthSchemes: async () => [],
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,

@@ -5,7 +5,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { makeCredentialedRequest, resolveRequestTarget, CredentialedRequestValidationError, CredentialedRequestTransportError, type CredentialedRequestDeps, listCustomCredentials, CustomCredentialNotFoundError, allowedOriginsFor } from "#src/features/custom-credentials/index";
 import { EgressRefusedError } from "../../../platform/http/index.js";
 import type { AuthorizeFn } from "../../../contracts/core/commands/index.js";
-import { loadDeployOpsRegistry, requirePlatform } from "./registry.js";
+import { requirePlatform } from "./registry.js";
 import type { DeployOpsContext, DeployOpsDeployResult, DeployOpsInput, DeployOpsResponse, DeployOpsSendRequest, DeployOpsLogs, DeployOpsRegistry, DeployOpsStatus, DeployOpsTargets, DeployOpsWaitResult, LoadedDeployOps } from "./types.js";
 
 /** Response text is capped before parsing; the credential layer has already redacted secrets. */
@@ -23,9 +23,9 @@ export interface DeployOpsToolDeps extends OperatorLocaleDeps {
   /** Dedicated guarded client with redirects disabled, constructed by the composition root. */
   deployOpsHttpClient?: CredentialedRequestDeps["httpClient"];
   customCredentialsAudit?: CredentialedRequestDeps["audit"];
-  loadAuthSchemes?: CredentialedRequestDeps["loadAuthSchemes"];
-  /** Test/hermetic seam only. Production defaults to freshly gated installed packages. */
-  loadDeployOps?: (ctx: { workspaceId: string }) => Promise<DeployOpsRegistry>;
+  loadAuthSchemes: CredentialedRequestDeps["loadAuthSchemes"];
+  /** Production injects freshly gated installed packages; tests/hermetic composition inject source. */
+  loadDeployOps: (ctx: { workspaceId: string }) => Promise<DeployOpsRegistry>;
   deployOpsRegistry?: DeployOpsRegistry;
   waitClock?: WaitClock;
   /** This boot's site folder; the default site-key reader resolves the same sources the Security page does. */
@@ -84,7 +84,7 @@ export async function boundContext(deps: DeployOpsToolDeps, platform: LoadedDepl
     httpClient: deps.deployOpsHttpClient,
     clock: deps.clock,
     ...(deps.customCredentialsAudit ? { audit: deps.customCredentialsAudit } : {}),
-    ...(deps.loadAuthSchemes ? { loadAuthSchemes: deps.loadAuthSchemes } : {}),
+    loadAuthSchemes: deps.loadAuthSchemes,
   };
   /** One guarded path for every method, so a write can never get a looser binding than a read. */
   const call = async (method: "GET" | DeployOpsSendRequest["method"], rawUrl: string, body?: unknown): Promise<DeployOpsResponse> => {
@@ -155,7 +155,7 @@ export function runDeployOps(deps: DeployOpsToolDeps, input: DeployOpsInput, ope
  */
 export async function runDeployOps(deps: DeployOpsToolDeps, input: DeployOpsInput, operation: Operation, signal?: AbortSignal): Promise<DeployOpsStatus | DeployOpsLogs | DeployOpsTargets> {
   if (signal?.aborted) throw aborted();
-  const registry = await (deps.loadDeployOps ?? loadDeployOpsRegistry)({ workspaceId: deps.workspaceId });
+  const registry = await deps.loadDeployOps({ workspaceId: deps.workspaceId });
   const platform = requirePlatform(registry, input.platform);
   if (operation === "listTargets" && !platform.module.listTargets) throw new ToolInputError({ message: `Deployment ops platform '${input.platform}' does not support listing targets. Supply a target for deployment_ops_status.` });
   const ctx = await boundContext(deps, platform, input.credentialLabel, signal);
@@ -193,7 +193,7 @@ function normalizeDeployResult(input: DeployRequest, result: DeployOpsDeployResu
 export async function runDeploy(required: { deps: DeployOpsToolDeps; input: DeployRequest }, optional: { signal?: AbortSignal } = {}): Promise<DeployOpsDeployResult> {
   const { deps, input } = required; const { signal } = optional;
   if (signal?.aborted) throw aborted();
-  const registry = await (deps.loadDeployOps ?? loadDeployOpsRegistry)({ workspaceId: deps.workspaceId });
+  const registry = await deps.loadDeployOps({ workspaceId: deps.workspaceId });
   const platform = requirePlatform(registry, input.platform);
   if (!platform.module.deploy) {
     const deployable = registry.list().filter(p => typeof p.module.deploy === "function").map(p => p.descriptor.id);

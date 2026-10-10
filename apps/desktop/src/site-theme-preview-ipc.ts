@@ -30,14 +30,16 @@ export function registerSiteThemePreviewIpc(
   const inputId = (input: unknown) => input && typeof input === 'object' && 'subscriptionId' in input && typeof input.subscriptionId === 'string' && /^[\w-]{1,100}$/.test(input.subscriptionId) ? input.subscriptionId : undefined;
   ipcMain.handle(channels.watch, ({ sender }, input) => {
     const id = inputId(input);
-    if (!allowed(sender) || sender.isDestroyed() || !id || !input || typeof input !== 'object' || !('siteDir' in input) || typeof input.siteDir !== 'string') return;
+    if (!allowed(sender) || sender.isDestroyed() || !id) return;
+    const siteDir = watchSiteDirectory({ input });
+    if (siteDir === undefined) return;
     let owner = owners.get(sender);
     if (!owner) {
       owner = { claims: new Map(), destroy: () => release(sender) };
       owners.set(sender, owner); sender.once('destroyed', owner.destroy);
     }
     if (owner.claims.has(id)) return;
-    owner.claims.set(id, subscriptions.watch({ siteDir: input.siteDir, listener: (frame) => {
+    owner.claims.set(id, subscriptions.watch({ siteDir, listener: (frame) => {
       if (!sender.isDestroyed()) sender.send(channels.event, frame);
     } }));
   });
@@ -52,4 +54,12 @@ export function registerSiteThemePreviewIpc(
     for (const sender of owners.keys()) release(sender);
     ipcMain.removeHandler(channels.watch); ipcMain.removeHandler(channels.unwatch);
   };
+}
+
+/** Read only a string directory from a watch claim; leave sender trust checks at the boundary.
+ * @complexity O(1) time and space.
+ */
+function watchSiteDirectory({ input }: { input: unknown }, _options = {}): string | undefined {
+  if (!input || typeof input !== 'object' || !('siteDir' in input) || typeof input.siteDir !== 'string') return undefined;
+  return input.siteDir;
 }
