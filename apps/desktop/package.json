@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@electron/asar": "^3.4.1",
+    "@jini-ai/devops": "^0.5.3",
     "@jini-ai/agentic": "^0.4.2",
     "@jini-ai/protocol": "^0.4.3",
     "@jini-ai/ui": "^0.4.7",

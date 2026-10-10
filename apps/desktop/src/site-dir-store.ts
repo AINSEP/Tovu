@@ -1,3 +1,4 @@
+import { shareSiteDirectories, rememberSharedSiteOpen, type SitesWorkspace } from "./shared-sites.ts";
 /**
  * @file Where the desktop app's site dir — and therefore its `content.db` — lives, and how a user
  * chooses it.
@@ -156,7 +157,13 @@ function writeDesktopState(statePath: string, state: DesktopState): void {
  * @returns the new list, most-recent first — what was persisted, or what would have been.
  * @complexity O(n) in the MRU length, plus the lock wait.
  */
-function rememberSiteDir(statePath: string, dir: string): string[] {
+function rememberSiteDir(statePath: string, dir: string, { workspace }: { workspace?: SitesWorkspace } = {}): string[] {
+  if (workspace) {
+    // Import old state before the first shared write; all later MRU reads/writes use the catalog.
+    existingRecentSiteDirs(statePath, { workspace });
+    rememberSharedSiteOpen({ workspace, dir });
+    return existingRecentSiteDirs(statePath, { workspace });
+  }
   return withFileLock(statePath, () => {
     const previous = readRecentSiteDirs(statePath);
     const recentSiteDirs = [dir, ...previous.recentSiteDirs.filter((entry) => entry !== dir)].slice(0, MAX_RECENT_SITE_DIRS);
@@ -174,7 +181,12 @@ function rememberSiteDir(statePath: string, dir: string): string[] {
  *
  * @complexity O(n) stat calls, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
-function existingRecentSiteDirs(statePath: string): string[] {
+function existingRecentSiteDirs(statePath: string, { workspace }: { workspace?: SitesWorkspace } = {}): string[] {
+  if (workspace) {
+    const entries = shareSiteDirectories({ workspace, dirs: readDesktopState(statePath).recentSiteDirs, createdBy: "desktop-legacy", migration: `mru:${statePath}` });
+    return entries.sort((a, b) => (b.lastOpened ? Date.parse(b.lastOpened) : 0) - (a.lastOpened ? Date.parse(a.lastOpened) : 0))
+      .map((entry) => entry.path).filter((dir) => classifySiteDirSafely(dir) === "site").slice(0, MAX_RECENT_SITE_DIRS);
+  }
   return readDesktopState(statePath).recentSiteDirs.filter((dir) => classifySiteDirSafely(dir) === "site");
 }
 
@@ -201,14 +213,16 @@ function missingSiteMarkers(dir: string): string[] {
  *   empty, `tovu init` can create a site here), or `"occupied"` (someone's real folder full of
  *   unrelated files — refuse, since `initSite` would throw `INIT_DIR_NOT_EMPTY` and serving would
  *   throw `SITE_DIR_INVALID`).
- * @complexity O(n) in the directory's entry count, and only for a non-site, non-incomplete dir.
+ * @complexity O(1) filesystem probes and one entry read for non-site, non-incomplete dirs.
  */
 function classifySiteDir(dir: string): SiteClassification {
   if (!fs.existsSync(dir)) return "empty";
   const missing = missingSiteMarkers(dir);
   if (missing.length === 0) return "site";
   if (missing.length === 1) return "incomplete";
-  return fs.readdirSync(dir).length === 0 ? "empty" : "occupied";
+  const directory = fs.opendirSync(dir);
+  try { return directory.readSync() === null ? "empty" : "occupied"; }
+  finally { directory.closeSync(); }
 }
 
 /**
@@ -295,7 +309,7 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
   const plan = buildCliSpawnPlan({ repoRoot: input.repoRoot, cliMode: input.cliMode, cliArgs });
   // Init and serve are separate children. No inherited deployment credential may enter init;
   // a custom password travels with the tokens over stdin, never in argv or the child env.
-  const initEnv = buildCliEnv(input.baseEnv, input.dir);
+  const initEnv = buildCliEnv({ baseEnv: input.baseEnv, siteDir: input.dir });
   delete initEnv.TOVU_ADMIN_PASSWORD;
   delete initEnv.TOVU_ADMIN_USER;
 
@@ -303,7 +317,7 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
     env: initEnv,
     stdio: [withTokens || withPassword ? "pipe" : "ignore", "pipe", "pipe"],
   });
-  const payload = withPassword ? JSON.stringify({ adminPassword: input.adminPassword, agentPluginTokens: tokens }) : withTokens ? JSON.stringify(tokens) : null;
+  const payload = initStdinPayload({ adminPassword: input.adminPassword, tokens });
   const tokenDelivery = deliverTokens(child.stdin, payload);
 
   return new Promise((resolve, reject) => {
@@ -329,6 +343,16 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
       });
     });
   });
+}
+
+/** Encode create credentials only for stdin; absent credentials produce no payload.
+ * @complexity O(n) in the serialized token data.
+ */
+function initStdinPayload(
+  { adminPassword, tokens }: { adminPassword: string | undefined; tokens: Readonly<Record<string, string>> }, _options = {},
+): string | null {
+  if (adminPassword !== undefined) return JSON.stringify({ adminPassword, agentPluginTokens: tokens });
+  return Object.keys(tokens).length > 0 ? JSON.stringify(tokens) : null;
 }
 
 /**
@@ -426,6 +450,7 @@ async function resolveOrInitSiteDir(input: ResolveOrInitSiteDirInput): Promise<s
 
 /** Input to {@link adoptSiteDir}. */
 interface AdoptSiteDirInput {
+  sharedSites?: SitesWorkspace;
   dir: string;
   statePath: string;
   repoRoot?: string;
@@ -451,7 +476,7 @@ interface AdoptSiteDirInput {
  */
 async function adoptSiteDir(input: AdoptSiteDirInput): Promise<string> {
   await resolveOrInitSiteDir({ ...input, onMissingSite: "init" });
-  rememberSiteDir(input.statePath, input.dir);
+  rememberSiteDir(input.statePath, input.dir, { workspace: input.sharedSites });
   return input.dir;
 }
 
@@ -499,6 +524,7 @@ type PickDirFn = (rejectedDefault: RejectedDevFallback | null) => string | null 
 
 /** Input to {@link resolveSiteDir}. */
 interface ResolveSiteDirInput {
+  sharedSites?: SitesWorkspace;
   envDir?: string;
   onMissingSite?: OnMissingSite;
   statePath: string;
@@ -562,7 +588,7 @@ async function resolveSiteDir(input: ResolveSiteDirInput): Promise<string> {
     });
   }
 
-  const [mostRecent] = existingRecentSiteDirs(input.statePath);
+  const [mostRecent] = existingRecentSiteDirs(input.statePath, { workspace: input.sharedSites });
   if (mostRecent !== undefined) return mostRecent;
 
   const fallback = resolveDevFallback(input.devFallbackDir);

@@ -17,6 +17,7 @@ import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.ts";
+import { createSiteFolders } from "./site-folders.ts";
 import { writeSiteName } from "./site-config.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
@@ -115,10 +116,6 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
 }
 
 test("every channel literal here matches contracts/project.ts exactly (no drift)", () => {
-  const source = fs.readFileSync(path.join(__dirname, "contracts", "project.ts"), "utf8");
-  for (const [key, channel] of Object.entries(SITE_IPC_CHANNELS)) {
-    assert.ok(source.includes(`'${channel}'`), `contracts/project.ts is missing the '${channel}' literal for ${key}`);
-  }
   assert.deepEqual(SITE_IPC_CHANNELS, CONTRACT_SITE_IPC_CHANNELS);
 });
 
@@ -1104,19 +1101,82 @@ function scanDeps(overrides = {}) {
   };
 }
 
-test("rescanSites makes a site dir that exists on disk but was never registered visible", () => {
+test("rescanSites reads persisted extra folders fresh and leaves all discoveries stopped", async () => {
+  const deps = scanDeps();
+  const folders = createSiteFolders({ statePath: deps.statePath, defaultRoots: deps.siteScanRoots });
+  const wired = { ...deps, siteFolders: folders, openSiteServer: async () => assert.fail('discovery must never start a server') };
+  const outsideRoot = fs.realpathSync(tempDir());
+  const luvira = siteFolder(outsideRoot, "luvira");
+  const plannie = siteFolder(outsideRoot, "plannie");
+  assert.deepEqual(await rescanSites(wired), []);
+  folders.add({ root: outsideRoot });
+  const records = await rescanSites(wired);
+  assert.deepEqual(records.map((record) => record.id), [luvira, plannie]);
+  assert.ok(records.every((record) => record.status === "stopped" && record.desiredState === "stopped" && record.port === 0));
+  assert.equal((wired.openSites as Map<string, unknown>).size, 0);
+  const before = readTrackedSites(wired.projectsPath);
+  assert.equal((await rescanSites(wired)).length, 2);
+  assert.deepEqual(readTrackedSites(wired.projectsPath), before);
+  folders.remove({ root: outsideRoot });
+  assert.equal((await rescanSites(wired)).length, 2, 'removing a root never removes existing cards');
+});
+
+test("handleCreate remembers the chosen parent so a site later created beside it is discovered", async () => {
+  const parent = fs.realpathSync(tempDir());
+  const picked = path.join(parent, "created");
+  const deps = baseDeps({
+    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) },
+    adoptSiteDir: async () => writeSite(picked, "created-id"),
+    siteScanRoots: [] as string[], recentSiteDirs: () => [],
+  });
+  const folders = createSiteFolders({ statePath: deps.statePath, defaultRoots: [] });
+  await handleCreate({ displayName: "Created" }, { ...deps, siteFolders: folders });
+  const sibling = siteFolder(parent, "plannie");
+  const restarted = createSiteFolders({ statePath: deps.statePath, defaultRoots: [] });
+  const records = await rescanSites({ ...deps, classifySiteDir: classifySiteDirSafely, siteFolders: restarted });
+  assert.deepEqual(records.map((record) => record.id).sort(), [picked, sibling].sort());
+});
+
+test("sites folders IPC picks a root, handles cancellation, and removes only the setting", async () => {
+  const deps = scanDeps();
+  const root = fs.realpathSync(tempDir());
+  const folders = createSiteFolders({ statePath: deps.statePath, defaultRoots: [] });
+  const registered = new Map<string, Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]>();
+  let canceled = false;
+  const options: unknown[] = [];
+  registerSiteIpcHandlers({
+    ...deps, siteFolders: folders,
+    ipcMain: { handle: (channel, handler) => { registered.set(channel, handler); } },
+    dialog: { showOpenDialog: async (input) => { options.push(input); return { canceled, filePaths: [root] }; } },
+  } as ProjectIpcDeps);
+  const invoke = (channel: string, input?: unknown) => registered.get(channel)!({}, input);
+  assert.deepEqual(await invoke(SITE_IPC_CHANNELS.listFolders), { roots: [], extraRoots: [] });
+  assert.deepEqual(await invoke(SITE_IPC_CHANNELS.addFolder), { roots: [root], extraRoots: [root] });
+  assert.deepEqual(options[0], {
+    title: "Add sites folder", message: "Choose a folder containing Tovu website folders. Use Rescan to discover them.",
+    buttonLabel: "Add folder", properties: ["openDirectory"],
+  });
+  canceled = true;
+  assert.equal(await invoke(SITE_IPC_CHANNELS.addFolder), null);
+  assert.deepEqual(folders.read({}).extraRoots, [root]);
+  assert.throws(() => invoke(SITE_IPC_CHANNELS.removeFolder, { root: "relative" }), { message: "Choose an absolute sites folder path to remove." });
+  assert.deepEqual(await invoke(SITE_IPC_CHANNELS.removeFolder, { root }), { roots: [], extraRoots: [] });
+  assert.equal(fs.existsSync(root), true);
+});
+
+test("rescanSites makes a site dir that exists on disk but was never registered visible", async () => {
   const deps = scanDeps();
   const alpha = siteFolder(deps.scanRoot, "alpha");
   assert.deepEqual(handleList(deps), [], "precondition: nothing is tracked yet");
-  const records = rescanSites(deps);
+  const records = await rescanSites(deps);
   assert.deepEqual(records.map((r) => r.id), [alpha]);
   assert.deepEqual(handleList(deps).map((r) => r.id), [alpha], "and it survives into the next list");
 });
 
-test("rescanSites records a discovery as adopted, so deleting its card can never erase it", () => {
+test("rescanSites records a discovery as adopted, so deleting its card can never erase it", async () => {
   const deps = scanDeps();
   siteFolder(deps.scanRoot, "alpha");
-  const [record] = rescanSites(deps);
+  const [record] = await rescanSites(deps);
   assert.equal(record!.deleteErasesFiles, false); // this test's own siteFolder call above seeds exactly one discoverable site
   assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, SITE_ORIGIN.adopted);
 });
@@ -1124,38 +1184,38 @@ test("rescanSites records a discovery as adopted, so deleting its card can never
 test("rescanSites never resurrects a project the operator removed on purpose", async () => {
   const deps = scanDeps();
   const alpha = siteFolder(deps.scanRoot, "alpha");
-  rescanSites(deps);
+  await rescanSites(deps);
   await handleDelete(alpha, deps);
   assert.deepEqual(handleList(deps), [], "precondition: the removal took");
   // Repeatedly, because a rescan is an operator-triggered button, not a one-shot boot step.
-  assert.deepEqual(rescanSites(deps), []);
-  assert.deepEqual(rescanSites(deps), []);
+  assert.deepEqual(await rescanSites(deps), []);
+  assert.deepEqual(await rescanSites(deps), []);
   assert.deepEqual(handleList(deps), []);
   assert.equal(fs.existsSync(path.join(alpha, "config.json")), true, "and the folder itself is untouched");
 });
 
-test("rescanSites picks up a recently-opened site that lives outside every scan root", () => {
+test("rescanSites picks up a recently-opened site that lives outside every scan root", async () => {
   const outside = siteFolder(tempDir(), "elsewhere");
   const deps = scanDeps({ recentSiteDirs: () => [outside] });
-  assert.deepEqual(rescanSites(deps).map((r) => r.id), [outside]);
+  assert.deepEqual((await rescanSites(deps)).map((r) => r.id), [outside]);
 });
 
-test("rescanSites leaves an already-tracked project's row as it was, apart from the cached name", () => {
+test("rescanSites leaves an already-tracked project's row as it was, apart from the cached name", async () => {
   const deps = scanDeps();
   const alpha = siteFolder(deps.scanRoot, "alpha");
   trackSite(deps.projectsPath, alpha, SITE_ORIGIN.adopted);
   const before = readTrackedSites(deps.projectsPath);
-  rescanSites(deps);
+  await rescanSites(deps);
   // D-18: listing caches the last known name so a later missing-folder card can still show it;
   // origin, createdAt and identity must stay exactly as tracked.
   assert.deepEqual(readTrackedSites(deps.projectsPath), [{ ...before[0]!, displayName: "alpha" }]);
 });
 
-test("rescanSites ignores a folder under the scan root that is not a site", () => {
+test("rescanSites ignores a folder under the scan root that is not a site", async () => {
   const deps = scanDeps();
   fs.mkdirSync(path.join(deps.scanRoot, "not-a-site"), { recursive: true });
   fs.writeFileSync(path.join(deps.scanRoot, "loose.txt"), "hi");
-  assert.deepEqual(rescanSites(deps), []);
+  assert.deepEqual(await rescanSites(deps), []);
 });
 
 test("registerSiteIpcHandlers registers the rescan channel and it returns the fresh list", async () => {
@@ -1168,7 +1228,7 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
     dialog: {},
     shell: {}
   } as unknown as ProjectIpcDeps); // only the rescan channel is ever invoked below
-  const records = await registered.get(SITE_IPC_CHANNELS.rescan)({}) as ReturnType<typeof rescanSites>;
+  const records = await registered.get(SITE_IPC_CHANNELS.rescan)({}) as Awaited<ReturnType<typeof rescanSites>>;
   assert.deepEqual(records.map((r) => r.id), [alpha]);
 });
 

@@ -302,6 +302,28 @@ test("discoverSiteDirs finds a real site one level under a scan root", () => {
   assert.deepEqual(discoverSiteDirs({ scanRoots: [root], knownDirs: [], classifySiteDir }), [alpha]);
 });
 
+test("discoverSiteDirs enforces exact candidate and root bounds before classification", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-discovery-bound-"));
+  try {
+    fs.mkdirSync(path.join(root, "one")); fs.mkdirSync(path.join(root, "two"));
+    let classified = 0;
+    const input = { scanRoots: [root], knownDirs: [], classifySiteDir: () => { classified++; return "site" as const; } };
+    assert.equal(discoverSiteDirs(input, { maxCandidates: 2 }).length, 2);
+    classified = 0;
+    assert.throws(() => discoverSiteDirs(input, { maxCandidates: 1 }), {
+      message: "Sites discovery is limited to 1 entries. Choose smaller sites folders and try again.",
+    });
+    assert.equal(classified, 0, "an over-budget scan must not produce a partial result");
+    assert.throws(() => discoverSiteDirs({ ...input, scanRoots: [root, root] }, { maxRoots: 1 }), {
+      message: "Sites discovery is limited to 1 folders. Remove unused sites folders and try again.",
+    });
+    assert.throws(() => discoverSiteDirs({ ...input, scanRoots: ['/'] }), {
+      message: "Sites folder is too broad: /. Choose a specific folder containing your Tovu websites.",
+    });
+    assert.equal(classified, 0);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test("discoverSiteDirs ignores an empty folder, a half-initialized site, and a plain file", () => {
   const root = path.join(tempDir(), "sites");
   fs.mkdirSync(path.join(root, "empty"), { recursive: true });

@@ -143,8 +143,8 @@ export function useSiteRescan(setProjects: Dispatch<SetStateAction<readonly Site
     setRescanError(null);
     try {
       setProjects(await bridge.rescanSites());
-    } catch {
-      setRescanError("Couldn't scan for sites.");
+    } catch (failure) {
+      setRescanError(failure instanceof Error ? failure.message : String(failure));
     } finally {
       setRescanning(false);
     }
@@ -1507,5 +1507,26 @@ export function useCreateWebsiteForm(
     formError,
     nameError,
     handleSubmit,
+  };
+}
+
+/** Derive root chrome and guest targets from the existing sites-home view.
+ * Re-adding a tracked site opens its tab; folder failures stay on the websites view.
+ * @param input The current sites-home view and the Add result notice.
+ * @returns Chrome selection, the shared Find/Zoom target, and this tab's notice.
+ * @complexity O(1) time and space.
+ */
+export function appPresentation(
+  { showSiteTab, showSitesHome, appearanceOpen, activeTab, visibleWorkspaceId, addNotice }: {
+    showSiteTab: boolean; showSitesHome: boolean; appearanceOpen: boolean;
+    activeTab: string | null; visibleWorkspaceId: string | null;
+    addNotice: { siteId: string; message: string } | null;
+  }, _options = {},
+): { onSitesHome: boolean; selectedTab: string | null; guestTarget: string | null; tabNotice: string | undefined } {
+  return {
+    onSitesHome: showSitesHome && !appearanceOpen,
+    selectedTab: showSiteTab ? activeTab : null,
+    guestTarget: showSiteTab ? visibleWorkspaceId : null,
+    tabNotice: showSiteTab && addNotice?.siteId === activeTab ? addNotice.message : undefined,
   };
 }

@@ -6,6 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import type { TestContext } from "node:test";
 
+import { createSitesWorkspace, attachRunningSite, shareSiteDirectories } from "./shared-sites.ts";
+import { createSiteFolders } from "./site-folders.ts";
 import { SITE_IPC_CHANNELS, registerSiteIpcHandlers } from "./project-ipc.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { sitesFilePath, trackSite, readTrackedSites, readProjectsFile } from "./tracked-sites.ts";
@@ -15,7 +17,7 @@ import { addSitePointer } from "./add-site-pointer.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
 
 function fixture({ t }: { t: TestContext }) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-ipc-dispatch-"));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-ipc-dispatch-")));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   type Handler = Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1];
   const handlers = new Map<string, Handler>();
@@ -130,6 +132,48 @@ test("registered create refuses hosted databases before opening a folder picker"
   assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
 });
 
+test("created website and its name survive a discovery-settings write failure", async (t) => {
+  const f = fixture({ t });
+  const dir = path.join(f.root, "created-despite-settings-error");
+  f.pickedFolders.push(dir);
+  let attempts = 0;
+  f.deps.siteFolders = {
+    read: () => ({ roots: [], extraRoots: [] }), add: () => ({ roots: [], extraRoots: [] }),
+    remove: () => ({ roots: [], extraRoots: [] }),
+    rememberCreated: () => { attempts++; throw new Error("EACCES: discovery settings are read-only"); },
+  };
+  const created = await f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Still created", database: { kind: "sqlite" } } });
+  assert.equal(attempts, 1); assert.equal(created.id, dir); assert.equal(created.displayName, "Still created");
+  assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), true);
+  assert.equal(readTrackedSites(f.deps.projectsPath)[0]?.displayName, "Still created");
+});
+
+test("registered asynchronous discovery uses the injected worker port and respects dismissals", async (t) => {
+  const f = fixture({ t });
+  const id = f.site({ name: "worker-found" });
+  let finish!: (found: string[]) => void;
+  f.deps.discoverSites = () => new Promise((resolve) => { finish = resolve; });
+  f.deps.classifySiteDir = () => assert.fail("the main thread must not classify worker candidates");
+  f.deps.recentSiteDirs = () => assert.fail("the worker reads recent folders off-thread");
+  const pending = f.invoke({ channel: SITE_IPC_CHANNELS.rescan });
+  assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+  finish([id]);
+  const records = await pending;
+  assert.equal(records[0]?.id, id); assert.equal(records[0]?.status, "stopped");
+  assert.equal(records[0]?.deleteErasesFiles, false);
+  await f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id });
+  f.deps.discoverSites = async () => [id];
+  assert.deepEqual(await f.invoke({ channel: SITE_IPC_CHANNELS.rescan }), []);
+});
+
+test("a discovery timeout rejects without adopting partial candidates", async (t) => {
+  const f = fixture({ t });
+  const message = "Sites discovery timed out. Disconnect unavailable volumes or choose smaller sites folders and try again.";
+  f.deps.discoverSites = async () => { throw new Error(message); };
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.rescan }), { message });
+  assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+});
+
 test("registered delete drains the selected adopted site and removes only its card and preview", async (t) => {
   const f = fixture({ t });
   const id = f.site({ name: "removed" });
@@ -231,4 +275,83 @@ test("registered service discovery returns the CLI-backed lister's result using 
   f.deps.listTokenSignInPlugins = async (input) => { calls.push(input); return result; };
   assert.deepEqual(await f.invoke({ channel: SITE_IPC_CHANNELS.tokenSignInPlugins }), result);
   assert.deepEqual(calls, [{ repoRoot: f.deps.repoRoot, cliMode: "source" }]);
+});
+
+function sharedFixture({ t }: { t: TestContext }) {
+  const f = fixture({ t }); fs.mkdirSync(path.join(f.root, "Documents"));
+  const workspace = createSitesWorkspace({}, { homeDir: f.root, env: {}, platform: "linux", cwd: f.root, sourceRoots: [] });
+  f.deps.sharedSites = workspace;
+  f.deps.siteFolders = createSiteFolders({ statePath: f.deps.statePath, defaultRoots: [], workspace });
+  return { ...f, workspace };
+}
+test("settings save accepts only placement; native setHome owns paths and cancellation", async (t) => {
+  const f = sharedFixture({ t }); const before = f.workspace.config({});
+  for (const payload of [null, [], { sitesHome: "/etc" }, { siteRoots: ["relative"] }, { databases: "other" }, { databases: "appData", extra: true }]) {
+    assert.throws(() => f.invoke({ channel: SITE_IPC_CHANNELS.saveSettings, payload }), { message: 'Sites settings accept only databases: "inSite" or "appData". Choose folders with the native picker.' });
+    assert.deepEqual(f.workspace.config({}), before);
+  }
+  assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.saveSettings, payload: { databases: "appData" } }).databases, "appData");
+  assert.equal(await f.invoke({ channel: SITE_IPC_CHANNELS.setHome, payload: { path: "/etc" } }), null);
+  const home = path.join(f.root, "chosen"); fs.mkdirSync(home); f.pickedFolders.push(home);
+  assert.equal((await f.invoke({ channel: SITE_IPC_CHANNELS.setHome, payload: { path: "/etc" } })).home, home);
+  assert.deepEqual(f.dialogs.at(-1)?.properties, ["openDirectory", "createDirectory"]);
+});
+test("shared-home Create holds its creation lock, reports the destination, and refuses an unmounted volume", async (t) => {
+  const f = sharedFixture({ t }); const adopt = f.deps.adoptSiteDir;
+  f.deps.adoptSiteDir = async (input) => { assert.equal(fs.existsSync(input.dir + ".creation.lock"), true); return adopt(input); };
+  const result = await f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Home site", database: { kind: "sqlite" } } });
+  assert.equal(result.installDir, path.join(f.workspace.home({}), "home-site"));
+  assert.equal(fs.existsSync(result.installDir + ".creation.lock"), false); assert.deepEqual(f.dialogs, []);
+  const home = path.join(f.root, "unmounted", "Sites"); f.workspace.setHome({ path: home });
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "No volume", database: { kind: "sqlite" } } }), {
+    message: `Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`,
+  });
+  assert.equal(fs.existsSync(path.dirname(home)), false); assert.equal(f.adoptions.length, 1);
+});
+test("shared-home Create refuses another app winning the reserved folder without adopting it", async (t) => {
+  const f = sharedFixture({ t }); let classifications = 0;
+  f.deps.classifySiteDir = () => ++classifications === 1 ? "empty" : "site";
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Raced", database: { kind: "sqlite" } } }), {
+    message: "The new website folder was created by another app. Try creating this website again.",
+  });
+  assert.deepEqual(f.adoptions, []); assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+});
+test("registered list skips bad catalog siblings and repeats import without duplicate cards", (t) => {
+  const f = sharedFixture({ t }), first = f.site({ name: "valid", siteId: "same" }), copied = f.site({ name: "copy", siteId: "same" }), bad = f.site({ name: "broken" });
+  fs.writeFileSync(path.join(bad, "config.json"), "{broken");
+  for (const dir of [first, copied, bad]) trackSite(f.deps.projectsPath, dir);
+  // Production's name reader tolerates bad config independently of catalog admission.
+  f.deps.readSiteName = (dir) => path.basename(dir);
+  assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list }).length, 3);
+  assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list }).length, 3);
+  assert.deepEqual(f.workspace.registry({}).list({}).map((row) => row.path), [first]);
+});
+test("removing a local adopted card retains the shared catalog, and external leases cannot be stopped or erased", async (t) => {
+  const f = sharedFixture({ t }), id = f.site({ name: "shared" });
+  trackSite(f.deps.projectsPath, id); shareSiteDirectories({ workspace: f.workspace, dirs: [id], createdBy: "Web" });
+  await f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id });
+  assert.equal(f.workspace.registry({}).list({})[0]?.path, id); assert.equal(fs.existsSync(id), true);
+  trackSite(f.deps.projectsPath, id, "created", { siteId: "shared" });
+  const claim = f.workspace.claim({ path: id, app: "Web", port: 3456 });
+  t.after(() => f.workspace.running({ path: id }).release({ token: claim.record.token }));
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.stop, payload: id }), { message: "Running in Web (port 3456). Stop it in that app." });
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id }), { message: "Running in Web (port 3456). Stop it in that app before deleting." });
+  assert.equal(fs.existsSync(id), true); assert.equal(f.stops(), 0);
+  const server = attachRunningSite({ workspace: f.workspace, dir: id }); assert.equal(server?.adminUrl, "http://localhost:3456/admin/");
+  await server?.stop(); assert.equal(f.workspace.running({ path: id }).read({})?.token, claim.record.token);
+});
+
+test("registered Start attaches through the host port and retains the external owner's lease", async (t) => {
+  const f = sharedFixture({ t }), id = f.site({ name: "external-start" });
+  trackSite(f.deps.projectsPath, id);
+  const claim = f.workspace.claim({ path: id, app: "Web", port: 3456, scheme: "https" });
+  f.deps.openSiteServer = async (dir) => {
+    const server = attachRunningSite({ workspace: f.workspace, dir }); assert.ok(server);
+    f.deps.openSites.set(dir, { server });
+  };
+  const result = await f.invoke({ channel: SITE_IPC_CHANNELS.start, payload: id });
+  assert.equal(result.externalUrl, "https://localhost:3456/admin/"); assert.equal(result.runningApp, "Web");
+  await f.deps.openSites.get(id)?.server.stop?.();
+  assert.equal(f.workspace.running({ path: id }).read({})?.token, claim.record.token);
+  f.workspace.running({ path: id }).release({ token: claim.record.token });
 });

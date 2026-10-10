@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { startDesktopSiteDiscovery } from "./site-discovery.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -181,14 +182,22 @@ test("the sites-home deps object carries the three preview operations, bound to 
   assert.match(depsBlock, /deletePreview: \(siteDir: string\) => deletePreview\(app\.getPath\("userData"\), siteDir\)/);
 });
 
-test("the boot sweep runs against the tracked list, after the boot discovery pass", () => {
-  const sweepCall = source.indexOf("sweepSitePreviewsOnBoot(sitesCtx.projectsPath);");
-  const rescanCall = source.indexOf("rescanSites(projectDeps);");
-  assert.notEqual(sweepCall, -1, "expected a sweepSitePreviewsOnBoot(sitesCtx.projectsPath) call");
-  assert.ok(rescanCall !== -1 && rescanCall < sweepCall, "the sweep must run after the boot scan has populated the tracked list");
+test("boot discovery leaves the home window free and sweeps only after the scan settles", async () => {
+  const effects: string[] = [];
+  let finish!: () => void;
+  const pending = startDesktopSiteDiscovery({ scan: () => new Promise<void>((resolve) => { finish = resolve; }),
+    sweep: () => { effects.push('sweep'); }, report: () => assert.fail('successful scan must not report failure'),
+  });
+  effects.push('home-window-opened');
+  assert.deepEqual(effects, ['home-window-opened']);
+  finish(); await pending;
+  assert.deepEqual(effects, ['home-window-opened', 'sweep']);
+});
 
-  const body = functionBody("sweepSitePreviewsOnBoot");
-  assert.match(body, /readTrackedSites\(projectsPath\)/);
-  assert.match(body, /sweepOrphanedPreviews\(app\.getPath\("userData"\),/);
-  assert.match(body, /catch \(error\)/, "a hygiene sweep must never be able to fail the boot sequence");
+test("a failed boot scan reports the failure and still performs preview hygiene", async () => {
+  const failure = new Error('unavailable volume'), effects: unknown[] = [];
+  await startDesktopSiteDiscovery({ scan: async () => { throw failure; },
+    report: (error) => { effects.push(error); }, sweep: () => { effects.push('sweep'); },
+  });
+  assert.deepEqual(effects, [failure, 'sweep']);
 });

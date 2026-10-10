@@ -38,6 +38,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { assertSpecificSiteRoot } from "./site-scan-policy.ts";
 
 import { readJsonFile, quarantineUnreadableFile, salvageJsonPrefix, withFileLock, writeJsonFileAtomic } from "./durable-json-file.ts";
 import type { QuarantineNotice } from "./durable-json-file.ts";
@@ -472,7 +473,7 @@ function seedDevFallbackSite(projectsPath: string, devFallbackDir: string, class
   // chain whose only handler is `reportBootFailure`. A fallback that cannot be examined is a
   // fallback to decline — never a launch to abort (D-01).
   if (!classifiesAsSite(devFallbackDir, classifySiteDir)) return false;
-  // Through the automatic adder, not `trackSite`: it re-asks `isSiteDirKnown` inside the lock, so a
+  // Through the automatic adder, not `trackSite`: it rechecks known real paths inside the lock, so a
   // dismissal another instance records between the check above and this line still holds. It also
   // records `adopted`, which is the only correct value here — this row points at a folder that
   // already held a site before this app ever ran (`<repo>/sites/tovu-dev` in a checkout, someone's
@@ -512,22 +513,57 @@ interface DiscoverSiteDirsInput {
  * @param deps.knownDirs candidate directories themselves, already-known paths rather than parents.
  * @param deps.classifySiteDir `site-dir-store.ts`'s classifier, injected — see
  *   {@link seedDevFallbackSite} on why this module takes it rather than requiring it.
- * @returns absolute site dirs, deduped and sorted.
- * @complexity O(n) in the roots' combined child count.
+ * @returns absolute site dirs, deduped by real path and sorted. Existing path spellings are kept.
+ * @throws When roots are broad or a limit is exceeded; no partial results are returned.
+ * @complexity O(n log n) time and O(n) space for n candidates, bounded by maxCandidates.
+ * Production calls this synchronous classifier in a cancellable worker, never on main.
  */
-function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }: DiscoverSiteDirsInput): string[] {
+function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }: DiscoverSiteDirsInput, {
+  maxCandidates = 1000, maxRoots = 32,
+}: { maxCandidates?: number; maxRoots?: number } = {}): string[] {
+  if (!Number.isSafeInteger(maxCandidates) || maxCandidates < 1 || !Number.isSafeInteger(maxRoots) || maxRoots < 1) {
+    throw new Error("Sites discovery limits must be positive integers.");
+  }
+  if (scanRoots.length > maxRoots) throw new Error(`Sites discovery is limited to ${maxRoots} folders. Remove unused sites folders and try again.`);
   const candidates: string[] = [];
   for (const root of scanRoots) {
-    let entries: string[];
+    let directory: fs.Dir;
+    // Old saved settings may contain broad roots. Refuse before any privacy/volume probe.
+    assertSpecificSiteRoot({ root });
     try {
-      entries = fs.readdirSync(root);
+      directory = fs.opendirSync(root);
     } catch {
       continue;
     }
-    for (const entry of entries) candidates.push(path.join(root, entry));
+    try {
+      let entry: fs.Dirent | null;
+      while ((entry = directory.readSync()) !== null) {
+        if (candidates.length >= maxCandidates) throw new Error(`Sites discovery is limited to ${maxCandidates} entries. Choose smaller sites folders and try again.`);
+        candidates.push(path.join(root, entry.name));
+      }
+    } finally { directory.closeSync(); }
   }
+  if (candidates.length + knownDirs.length > maxCandidates) throw new Error(`Sites discovery is limited to ${maxCandidates} entries. Choose smaller sites folders and try again.`);
   candidates.push(...knownDirs);
-  return [...new Set(candidates)].filter((dir) => isDiscoverableSite(dir, classifySiteDir)).sort();
+  const sites = new Map<string, string>();
+  for (const dir of candidates) {
+    if (!isDiscoverableSite(dir, classifySiteDir)) continue;
+    const identity = siteDiscoveryIdentity({ siteDir: dir });
+    if (!sites.has(identity)) sites.set(identity, path.resolve(dir));
+  }
+  return [...sites.values()].sort();
+}
+
+/** Physical identity for discovery, retaining a lexical identity for missing tracked/dismissed
+ * paths. Never rewrite existing row ids: windows and partitions already use those spellings.
+ * @complexity O(1) filesystem resolution per path.
+ */
+function siteDiscoveryIdentity({ siteDir }: { siteDir: string }, _options = {}): string {
+  try {
+    return fs.realpathSync(siteDir);
+  } catch {
+    return path.resolve(siteDir);
+  }
 }
 
 /**
@@ -594,12 +630,21 @@ function classifiesAsSite(dir: string, classifySiteDir: ClassifySiteDirFn): bool
  * directories, so `project-delete-guard.ts` must never let a delete erase one.
  *
  * @returns the dirs newly tracked by this call, in `siteDirs` order — empty when nothing was new.
- * @complexity O(n * m) in the discovered count and the tracked-row count, in one read and one write.
+ * @complexity O(n + m) path resolutions in discovered and stored paths, in one read and one write.
  */
 function adoptDiscoveredSites(projectsPath: string, siteDirs: string[]): string[] {
   let adopted: string[] = [];
   updateProjectsFile(projectsPath, (current) => {
-    adopted = [...new Set(siteDirs)].filter((siteDir) => !isKnownIn(current, siteDir));
+    // Compare physical identities inside the lock: an alias must neither duplicate a tracked
+    // card nor bypass its dismissal, even when another window changed the registry mid-scan.
+    const known = new Set([...current.rows.map((row) => row.siteDir), ...current.dismissed]
+      .map((siteDir) => siteDiscoveryIdentity({ siteDir })));
+    adopted = siteDirs.filter((siteDir) => {
+      const identity = siteDiscoveryIdentity({ siteDir });
+      if (known.has(identity)) return false;
+      known.add(identity);
+      return true;
+    });
     if (adopted.length === 0) return null;
     return {
       rows: [...current.rows, ...adopted.map((siteDir) => buildTrackedRow(siteDir, SITE_ORIGIN.adopted, undefined))],

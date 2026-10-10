@@ -205,6 +205,12 @@ button { font: inherit; color: inherit; }
   flex: none;
 }
 
+.topnav__brand-text {
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+}
+
 /* Ring + offset dot, echoing the reference nav's mark. `--primary` is load-bearing everywhere
    else in this file (it means "live"), so the ring itself stays `currentColor` and only the dot
    carries the accent — a brand mark, not a status. */
@@ -236,7 +242,18 @@ button { font: inherit; color: inherit; }
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 0.9375rem;
+  line-height: 1.125rem;
   letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+
+.topnav__version {
+  color: var(--muted);
+  font-size: 0.625rem;
+  line-height: 0.75rem;
+  max-width: 5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -902,6 +919,26 @@ webview { display: flex; }
   font-weight: 600;
   letter-spacing: -0.02em;
 }
+
+.sites-folders { position: relative; }
+.sites-folders > summary { cursor: pointer; list-style: none; }
+.sites-folders > summary::-webkit-details-marker { display: none; }
+.sites-folders__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 20;
+  width: min(28rem, calc(100vw - 2rem));
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  font-size: 0.875rem;
+}
+.sites-folders__panel ul { padding: 0; list-style: none; max-height: 16rem; overflow-y: auto; }
+.sites-folders__panel li { display: flex; align-items: center; gap: 0.5rem; margin-block: 0.5rem; }
+.sites-folders__path { flex: 1; overflow-wrap: anywhere; min-width: 0; }
 
 /* ---------- theme switch ---------- */
 

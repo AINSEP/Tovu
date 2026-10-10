@@ -6,41 +6,41 @@
  * failure mode this module exists to prevent.
  *
  * The drift one: `runner-ipc-stubs.ts` inlines its channel literals because it is CommonJS
- * main-process code and the contracts are TypeScript (see that file's header). This test parses
- * `src/contracts/*.ts` for the real `*_CHANNELS` object literals and compares both
+ * main-process code and the contracts are TypeScript (see that file's header). This test imports
+ * the real `*_CHANNELS` values and compares both
  * directions, so renaming a channel in a contract, or adding a new verb to one, fails here instead
  * of at runtime inside Electron.
  */
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
+import { SITE_IPC_CHANNELS, SITE_HISTORY_CHANNEL, SITE_THEME_PREVIEW_CHANNELS } from "./contracts/project.ts";
+import { RUNNER_AGENT_INVENTORY_CHANNELS } from "./contracts/runtime-inventory.ts";
+import { RUNNER_WORKING_DIRECTORY_CHANNELS } from "./contracts/working-directory.ts";
+import { WORKSPACE_CONVERSATION_CHANNELS } from "./contracts/workspace-conversations.ts";
+import { WORKSPACE_CHAT_CHANNELS } from "./contracts/workspace-chat.ts";
+import { RUNNER_CHAT_ATTACHMENT_CHANNELS } from "./contracts/chat-attachments.ts";
+import { FIND_IN_PAGE_CHANNELS, FIND_TOGGLE_CHANNEL, FIND_RESULT_CHANNEL } from "./contracts/find-in-page.ts";
+import { ZOOM_COMMAND_CHANNEL } from "./contracts/zoom.ts";
 
 import { registerRunnerIpcStubs, notPortedError, RUNNER_STUB_CHANNELS, RUNNER_MAIN_NOT_PORTED } from "./runner-ipc-stubs.ts";
 import type { RunnerNotPortedError } from "./runner-ipc-stubs.ts";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const CONTRACTS_DIR = path.join(__dirname, "contracts");
+import { RUNNER_APP_VERSION_CHANNEL } from "./contracts/app-version.ts";
 
 /**
  * Channels declared by `src/contracts/*.ts`, minus the push-only ones.
  *
- * Reads the `'runner:...'`/`'workspace:...'` string literals straight out of the contract sources
- * rather than importing them: these are `.ts` files with no compiled output guaranteed to exist at
- * test time. The match is anchored on the two namespace prefixes the IPC surface uses today —
- * `runner:` for everything else, `workspace:` since the fleet-chat rename — so a channel added to
- * any contract file under either prefix is picked up with no change here.
+ * Import values through the same runtime contract as production; source formatting cannot
+ * manufacture or hide a channel. A new contract module must join this import list.
  */
 function declaredChannels(): Set<string> {
-  const found = new Set<string>();
-  for (const entry of fs.readdirSync(CONTRACTS_DIR)) {
-    if (!entry.endsWith(".ts")) continue;
-    const source = fs.readFileSync(path.join(CONTRACTS_DIR, entry), "utf8");
-    for (const match of source.matchAll(/'((?:runner|workspace):[a-z-]+(?::[a-z-]+)+)'/g)) found.add(match[1]!);
-  }
+  const found = new Set<string>([
+    ...Object.values(SITE_IPC_CHANNELS), ...Object.values(SITE_THEME_PREVIEW_CHANNELS),
+    ...Object.values(RUNNER_AGENT_INVENTORY_CHANNELS), ...Object.values(RUNNER_WORKING_DIRECTORY_CHANNELS),
+    ...Object.values(WORKSPACE_CONVERSATION_CHANNELS), ...Object.values(WORKSPACE_CHAT_CHANNELS),
+    ...Object.values(RUNNER_CHAT_ATTACHMENT_CHANNELS), ...Object.values(FIND_IN_PAGE_CHANNELS),
+    RUNNER_APP_VERSION_CHANNEL, SITE_HISTORY_CHANNEL, FIND_TOGGLE_CHANNEL, FIND_RESULT_CHANNEL, ZOOM_COMMAND_CHANNEL,
+  ]);
   // Main->renderer sends, not `invoke` targets: there is no handler to register for any of them, so
   // `runner-ipc-stubs.ts` deliberately omits them. `find:query`/`find:stop` are NOT in this list —
   // those two ARE real `invoke` targets, with real handlers in `find-in-page-ipc.ts`; see
@@ -64,6 +64,8 @@ function declaredChannels(): Set<string> {
  * real now.
  */
 const IMPLEMENTED_CHANNELS = new Set([
+  // Read-only native version handler in app-version-ipc.ts, registered before the home window.
+  RUNNER_APP_VERSION_CHANNEL,
   "runner:sites:list",
   "runner:sites:create",
   "runner:sites:delete",
@@ -71,6 +73,11 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:start",
   "runner:sites:stop",
   "runner:sites:rescan",
+  "runner:sites:folders:list",
+  "runner:sites:folders:add",
+  "runner:sites:folders:remove",
+  "runner:sites:home:set",
+  "runner:sites:settings:save",
   "runner:sites:add-site",
   "runner:sites:rename",
   "runner:sites:preview",
@@ -86,8 +93,8 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:find:stop",
 ]);
 
-test("the contract sources really do declare channels (the parse is not silently matching nothing)", () => {
-  assert.ok(declaredChannels().size >= 20, `expected 20+ parsed channels, got ${declaredChannels().size}`);
+test("the runtime contracts declare a nonempty IPC surface", () => {
+  assert.ok(declaredChannels().size >= 20, `expected 20+ channels, got ${declaredChannels().size}`);
 });
 
 test("every channel the contracts declare has a stub or a real handler", () => {
