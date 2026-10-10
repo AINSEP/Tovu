@@ -47,19 +47,14 @@ export function PostPublishingFields({
         />
         {scheduled ? <span className="editor-scheduled-badge">{t("Scheduled")}</span> : null}
       </label>
-      {/* A card in the settings panel (2026-10-09 redesign): the image (or an empty frame), then its
-          Choose/Change and Remove buttons under it. */}
-      <div className="editor-publishing-field editor-featured-field">
+      <div className="editor-publishing-field">
         <span className="field-label">{t("Featured image")}</span>
-        <div className="editor-featured-card">
-        {picker.previewUrl ? null : <span className="editor-featured-empty" aria-hidden="true"><i className="ri-image-line" /></span>}
         {picker.previewUrl && picker.previewFailed ? (
           <span className="editor-featured-preview editor-featured-preview-missing" role="img" aria-label={t("Featured image unavailable")} title={t("Featured image unavailable")} />
         ) : null}
         {picker.previewUrl && !picker.previewFailed ? (
           <img className="editor-featured-preview" src={picker.previewUrl} alt={t("Featured image")} onError={picker.onPreviewError} />
         ) : null}
-        <div className="editor-featured-actions">
         <button
           type="button"
           className="btn-secondary"
@@ -78,8 +73,6 @@ export function PostPublishingFields({
             {t("Remove")}
           </button>
         ) : null}
-        </div>
-        </div>
       </div>
       {picker.pickerOpen ? (
         <MediaPickerDialog onSelect={picker.handleSelect} onCancel={picker.closePicker} accept={picker.accept} agentHandle="post-featured-image-dialog" />
