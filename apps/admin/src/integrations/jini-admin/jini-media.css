@@ -1238,6 +1238,14 @@
 /* Footer: Cancel sits right-aligned under the grid. The kit's own Close button does exactly what
    Cancel does, so it is hidden here rather than shown as a second identical button. */
 .jini-media-picker-dialog > .jini-btn:not(.jini-dialog-close) { align-self: flex-end; flex: none; }
+/* Since 2026-10-10 the footer is one row: a plain back arrow on the left (owner ask), Cancel on the
+   right. Both just close the picker. */
+.jini-media-picker-dialog > .jini-media-picker-footer { display: flex; align-items: center; justify-content: space-between; flex: none; }
+.jini-media-picker-dialog .jini-media-picker-footer > .jini-media-picker-back {
+  background: transparent; border: 0; box-shadow: none; padding: 0 0.35rem; min-height: 0;
+  font-size: 1.4rem; line-height: 1; color: var(--fg-2);
+}
+.jini-media-picker-dialog .jini-media-picker-footer > .jini-media-picker-back:hover { color: var(--fg); background: transparent; }
 .jini-media-picker-dialog > .jini-dialog-close { display: none; }
 
 /* ============================================================

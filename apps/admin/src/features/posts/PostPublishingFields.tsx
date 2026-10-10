@@ -20,10 +20,39 @@ export interface PostPublishingFieldsProps {
   useFeaturedImage?: typeof useWiredPostFeaturedImage;
 }
 
-export function PostPublishingFields({
-  publishAtInput,
-  setPublishAtInput,
-  scheduled,
+/** Both controls in one row — kept for callers that still want them together. */
+export function PostPublishingFields(props: PostPublishingFieldsProps) {
+  return (
+    <div className="editor-publishing-fields">
+      <PostPublishAtField {...props} />
+      <PostFeaturedImageField {...props} />
+    </div>
+  );
+}
+
+/** "Publish at" — the post settings modal's Publish tab. */
+export function PostPublishAtField({ publishAtInput, setPublishAtInput, scheduled, t }: PostPublishingFieldsProps) {
+  return (
+    <label className="editor-publishing-field">
+      <span className="field-label">{t("Publish at")}</span>
+      <input
+        type="datetime-local"
+        value={publishAtInput}
+        onChange={(e) => setPublishAtInput(e.target.value)}
+        {...agentHandle({ handle: "post-publish-at" }, {
+          role: "field",
+          label:
+            "When this post goes live, in your local time. Leave empty to go live as soon as it is published. " +
+            "A published post with a future time stays hidden until then.",
+        })}
+      />
+      {scheduled ? <span className="editor-scheduled-badge">{t("Scheduled")}</span> : null}
+    </label>
+  );
+}
+
+/** "Featured image" — the post settings modal's Image tab. The media picker opens on top of the modal. */
+export function PostFeaturedImageField({
   featuredMediaId,
   setFeaturedMediaId,
   t,
@@ -31,49 +60,32 @@ export function PostPublishingFields({
 }: PostPublishingFieldsProps) {
   const picker = useFeaturedImage(featuredMediaId, setFeaturedMediaId);
   return (
-    <div className="editor-publishing-fields">
-      <label className="editor-publishing-field">
-        <span className="field-label">{t("Publish at")}</span>
-        <input
-          type="datetime-local"
-          value={publishAtInput}
-          onChange={(e) => setPublishAtInput(e.target.value)}
-          {...agentHandle({ handle: "post-publish-at" }, {
-            role: "field",
-            label:
-              "When this post goes live, in your local time. Leave empty to go live as soon as it is published. " +
-              "A published post with a future time stays hidden until then.",
-          })}
-        />
-        {scheduled ? <span className="editor-scheduled-badge">{t("Scheduled")}</span> : null}
-      </label>
-      <div className="editor-publishing-field">
-        <span className="field-label">{t("Featured image")}</span>
-        {picker.previewUrl && picker.previewFailed ? (
-          <span className="editor-featured-preview editor-featured-preview-missing" role="img" aria-label={t("Featured image unavailable")} title={t("Featured image unavailable")} />
-        ) : null}
-        {picker.previewUrl && !picker.previewFailed ? (
-          <img className="editor-featured-preview" src={picker.previewUrl} alt={t("Featured image")} onError={picker.onPreviewError} />
-        ) : null}
+    <div className="editor-publishing-field">
+      <span className="field-label">{t("Featured image")}</span>
+      {picker.previewUrl && picker.previewFailed ? (
+        <span className="editor-featured-preview editor-featured-preview-missing" role="img" aria-label={t("Featured image unavailable")} title={t("Featured image unavailable")} />
+      ) : null}
+      {picker.previewUrl && !picker.previewFailed ? (
+        <img className="editor-featured-preview" src={picker.previewUrl} alt={t("Featured image")} onError={picker.onPreviewError} />
+      ) : null}
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={picker.openPicker}
+        {...agentHandle({ handle: "post-featured-image-choose" }, { role: "button", label: "Choose this post's featured image from the media library" })}
+      >
+        {featuredMediaId ? t("Change") : t("Choose image")}
+      </button>
+      {featuredMediaId ? (
         <button
           type="button"
           className="btn-secondary"
-          onClick={picker.openPicker}
-          {...agentHandle({ handle: "post-featured-image-choose" }, { role: "button", label: "Choose this post's featured image from the media library" })}
+          onClick={picker.clear}
+          {...agentHandle({ handle: "post-featured-image-clear" }, { role: "button", label: "Remove this post's featured image" })}
         >
-          {featuredMediaId ? t("Change") : t("Choose image")}
+          {t("Remove")}
         </button>
-        {featuredMediaId ? (
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={picker.clear}
-            {...agentHandle({ handle: "post-featured-image-clear" }, { role: "button", label: "Remove this post's featured image" })}
-          >
-            {t("Remove")}
-          </button>
-        ) : null}
-      </div>
+      ) : null}
       {picker.pickerOpen ? (
         <MediaPickerDialog onSelect={picker.handleSelect} onCancel={picker.closePicker} accept={picker.accept} agentHandle="post-featured-image-dialog" />
       ) : null}

@@ -69,6 +69,29 @@ export function usePostEditorUi(deps: PostEditorUiDependencies): PostEditorUiCon
   };
 }
 
+/** The gear modal's tabs (owner, 2026-10-10): the byline, the publish time, and the featured image. */
+export type PostSettingsTab = "author" | "publish" | "image";
+
+export interface PostSettingsDialogController {
+  open: boolean;
+  tab: PostSettingsTab;
+  setTab: (tab: PostSettingsTab) => void;
+  openDialog: () => void;
+  closeDialog: () => void;
+}
+
+/**
+ * Open/closed state and active tab for the post settings modal (the gear beside Save/Delete). The
+ * tab survives a close so reopening lands where the operator left off, e.g. after picking an image.
+ *
+ * @complexity O(1).
+ */
+export function usePostSettingsDialog(): PostSettingsDialogController {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<PostSettingsTab>("author");
+  return { open, tab, setTab, openDialog: () => setOpen(true), closeDialog: () => setOpen(false) };
+}
+
 /**
  * Escape in an iframe stays in its own document. Rebind after each preview navigation.
  * @complexity O(1) — listeners belong to a single preview frame.

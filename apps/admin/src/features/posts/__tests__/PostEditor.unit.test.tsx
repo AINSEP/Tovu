@@ -1118,7 +1118,8 @@ describe("Edit/Preview toolbar", () => {
     expect(form, "a clean draft must reach the same hidden-form POST branch a dirty draft/post does").not.toBeNull();
     expect(form).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
     expect(screen.queryByText(/publish this post to preview it with the theme/i), "the old rough-render notice must never show again").not.toBeInTheDocument();
-    expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
+    // The unsaved-edits notice was removed (owner, 2026-10-10); the frame stands alone.
+    expect(screen.queryByText(/previewing your unsaved edits through the live template/i)).toBeNull();
   });
 
   // A published post scheduled for later has no public URL until its go-live time (it 404s), so
@@ -1128,7 +1129,8 @@ describe("Edit/Preview toolbar", () => {
     const preview = screen.getByTitle("Post preview");
     expect(preview).not.toHaveAttribute("src");
     expect(document.querySelector("form[method='post']")).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
-    expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
+    // The unsaved-edits notice was removed (owner, 2026-10-10); the frame stands alone.
+    expect(screen.queryByText(/previewing your unsaved edits through the live template/i)).toBeNull();
   });
 
   // Template-preview fix (2026-08-11) — the reported bug's exact repro: picking a DIFFERENT template
@@ -1175,7 +1177,8 @@ describe("Edit/Preview toolbar", () => {
     expect(form).toHaveAttribute("target", previewName as string);
     expect(form).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
 
-    expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
+    // The unsaved-edits notice was removed (owner, 2026-10-10); the frame stands alone.
+    expect(screen.queryByText(/previewing your unsaved edits through the live template/i)).toBeNull();
   });
 
   // 2026-09-09 widening — a DIRTY draft now gets the same themed POST-form preview a dirty published
@@ -1190,7 +1193,8 @@ describe("Edit/Preview toolbar", () => {
     const form = document.querySelector("form[method='post']");
     expect(form).not.toBeNull();
     expect(form).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
-    expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
+    // The unsaved-edits notice was removed (owner, 2026-10-10); the frame stands alone.
+    expect(screen.queryByText(/previewing your unsaved edits through the live template/i)).toBeNull();
   });
 
   // Visibility-gap fix — mirrors `PageEditor.tsx`'s own equivalent test in
@@ -1202,11 +1206,13 @@ describe("Edit/Preview toolbar", () => {
   // notice placed after the (previously full-pane-height) fallback (confirmed live, QA dispatch
   // 2026-09-06). Asserts DOM order, not mere presence — presence alone already passed before that fix;
   // the bug was the notice being unreachable, not missing.
-  it("places the pending-content-preview notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
+  //
+  // 2026-10-10: the owner had that pending-content notice removed outright ("remove that and move the
+  // preview up"), so nothing sits above the frame for a draft any more.
+  it("shows no pending-content notice above the preview frame for a draft", () => {
     renderPostEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
-    const notice = screen.getByText(/previewing your unsaved edits through the live template/i);
-    const preview = screen.getByTitle("Post preview");
-    expect(notice.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText(/previewing your unsaved edits through the live template/i)).toBeNull();
+    expect(screen.getByTitle("Post preview")).toBeInTheDocument();
   });
 
   // The template picker is a publish-time setting, not tab-specific content — it has to survive the

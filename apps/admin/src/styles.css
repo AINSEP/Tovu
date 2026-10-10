@@ -3150,8 +3150,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .collections-dynamic-field label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 /* Categories & Tags box (`features/taxonomy/TermPicker.tsx`). The frame, heading and lead are the
    shared `.card`/`.card-title`/`.card-lead`; the term rows reuse `.field-label`, `.field-hint` and
-   `.form-checkbox-field`. What is left here is layout only: the gap above the card, and one row
-   per taxonomy (name left, terms right) separated by the card's own hairline. */
+   `.form-checkbox-field`. What is left here is layout only: the gap above the card, and one block
+   per taxonomy separated by the card's own hairline. The taxonomy name sits ABOVE its terms (owner,
+   2026-10-10: a name column on the left squeezed the terms and pushed the add box past the card). */
 .term-picker { margin-top: var(--space-4); }
 .term-picker-groups { margin-top: var(--space-4); border-top: 1px solid var(--border); }
 /* The `<fieldset>` stays for the group's accessible name; its UA border/padding/margin go, and
@@ -3159,7 +3160,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    floated because a non-floated legend is drawn on the fieldset's border and is never a grid item —
    floated, it becomes an ordinary first cell (float itself has no effect inside a grid). */
 .term-picker-group {
-  display: grid; grid-template-columns: minmax(6rem, 10rem) 1fr; align-items: center;
+  display: grid; grid-template-columns: minmax(0, 1fr); align-items: start;
   gap: var(--space-2) var(--space-4);
   margin: 0; padding: var(--space-3) 0; border: 0; border-bottom: 1px solid var(--border); min-width: 0;
 }
@@ -3169,9 +3170,6 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .term-picker-body { display: grid; gap: var(--space-2); justify-items: start; min-width: 0; }
 .term-picker-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); max-width: 100%; }
 .term-picker-add input { width: 18rem; max-width: 100%; }
-@media (max-width: 640px) {
-  .term-picker-group { grid-template-columns: 1fr; }
-}
 /* Same `.editor-actions` flush-spacing fix as `FormEditor.tsx`'s `.form-actions` — see
    `features/taxonomy/TermPicker.tsx` for why this is scoped here rather than added to
    `.editor-actions` itself (that class is shared with ~30 other, structurally different callers

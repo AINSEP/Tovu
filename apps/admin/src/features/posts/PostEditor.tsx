@@ -6,8 +6,9 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import DragHandle from "@tiptap/extension-drag-handle-react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
+import { Icon } from "@jini-ai/ui";
 
-import { usePreviewPaneWidth, useDevicePreviewDevice, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
+import { usePreviewPaneWidth, useDevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
@@ -20,14 +21,13 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
-import { usePostPreviewIframeEscape } from "./hooks/use-post-editor-ui.hooks";
+import { usePostPreviewIframeEscape, usePostSettingsDialog } from "./hooks/use-post-editor-ui.hooks";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
-import { PostPublishingFields } from "./PostPublishingFields";
-import { PostAuthorFields } from "./PostAuthorFields";
+import { PostSettingsDialog } from "./PostSettingsDialog";
 import {
   toolbarBtnClass,
   hexOrDefault,
@@ -636,42 +636,53 @@ function BubbleFormattingMenu({ editor, t }: { editor: Editor; t: Translate }) {
 }
 
 /**
- * The editor header — the back link and the kicker/title/description block, and since the
- * 2026-09-06 layout experiment nothing else: the save status, status select and the
- * publish/save/delete buttons moved out to `PostEditorActions` below the toolbar.
+ * The editor header — the back link, the title and the slug (owner, 2026-10-10: the title and slug
+ * replaced the kicker/"Edit post"/description block). Since the 2026-09-06 layout experiment the
+ * save status, status select and the publish/save/delete buttons live in `PostEditorActions` below
+ * the toolbar.
  *
- * Most of the branching this doc used to describe went with them; see `PostEditorActions`. What
- * stays is the back link's kind-aware `href`/label pair and its unsaved-work guard, which is why
- * `kindLabel`, `confirmLeave` and `t` are the props that remained.
+ * Title and slug have shared one row since 2026-08-11 (owner: "put the slug input right next to the
+ * title ... like we did the pages"), title capped on the left, slug group right-justified. The Pages
+ * editor's `.page-title-row` has the same shape but a separate class: Pages and Posts are separate
+ * features with separate stylesheets.
+ *
+ * The back link keeps its kind-aware `href`/label pair and its unsaved-work guard.
  */
 function PostEditorHeader({
   kindLabel,
   confirmLeave,
+  title,
+  setTitle,
+  slug,
+  setSlug,
+  liveSlug,
   t,
 }: {
   kindLabel: "post" | "page";
   confirmLeave: () => boolean;
+  title: string;
+  setTitle: (value: string) => void;
+  slug: string;
+  setSlug: (value: string) => void;
+  /** The SAVED slug — "view ↗" opens what is live, not what is being typed. */
+  liveSlug: string;
   t: Translate;
 }) {
   return (
-    // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
-    // 2026-09-06 layout experiment, applied to BOTH editors rather than only Pages: these two
-    // headers are the same row rendered by two components, and an operator moving between a post
-    // and a page would otherwise find the back link jumping sides. The header's right rail is
-    // deliberately EMPTY now that the actions live below the toolbar — see that modifier's own
-    // comment for why the empty rail has to stay reserved.
+    // Owner, 2026-10-10: the "CONTENT / Edit post / Update this post's title, body, and publish
+    // status." header told the operator nothing they couldn't see, so the title and slug took its
+    // place. The title is a two-line box with a capped width; the slug keeps the right side. The page
+    // still has an h1 for screen readers, just not a painted one.
     <div
-      className="page-header page-header-split"
+      className="post-editor-header"
       {...agentHandle({ handle: "post-header" }, {
         role: "region",
         label:
-          "Editor header — the back link and the post/page title. Save, Delete and the " +
+          "Editor header — the back link, the title and the URL slug. Save, Delete and the " +
           "Draft/Published field are NOT here: they are in the action row below the view toolbar.",
       })}
     >
-      {/* Left rail — the back link on its own, ahead of the title in DOM order as well as
-          visually, so tab order and the reading order match what is on screen. */}
-      <div className="page-header-lead">
+      <h1 className="visually-hidden">{t(kindLabel === "page" ? "Edit page" : "Edit post")}</h1>
         {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
             edits — confirmed live on this exact screen (edit the title, click this link, the
             edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
@@ -694,7 +705,7 @@ function PostEditorHeader({
             (WCAG 2.5.3 Label in Name). `agentHandle`'s own `label` (a stable, untranslated
             identifier — never live text) is unchanged. */}
         <a
-          className="btn-secondary"
+          className="post-header-back"
           href={`/admin/${kindLabel}s`}
           onClick={(e) => {
             if (!confirmLeave()) e.preventDefault();
@@ -702,19 +713,56 @@ function PostEditorHeader({
           aria-label={`${t("Back")}: ${kindLabel === "page" ? t("Pages") : t("Posts")}`}
           {...agentHandle({ handle: "post-back-to-list" }, { role: "link", label: `Back to the list of all ${kindLabel}s` })}
         >
-          ← {t("Back")}
+          {/* Owner, 2026-10-10: a plain back arrow, no button box. The `aria-label` above names it. */}
+          <Icon name="arrow-left" size={22} aria-hidden="true" />
         </a>
-      </div>
-      <div className="page-header-text">
-        <p className="page-kicker">{t("Content")}</p>
-        <h1 className="page-title">{t(kindLabel === "page" ? "Edit page" : "Edit post")}</h1>
-        <p className="page-description">
-          {t(
-            kindLabel === "page"
-              ? "Update this page's title, body, and publish status."
-              : "Update this post's title, body, and publish status.",
-          )}
-        </p>
+      {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
+          the bare `type="text"` announcement (slug, which had no placeholder either). The
+          wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without
+          adding a visible caption above this screen's large title/slug controls (see
+          `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap costs no layout).
+          A title is one line of text, so Enter does nothing and pasted line breaks become spaces;
+          the box grows to a second line only when the title needs it (CSS `field-sizing`). */}
+      <label className="a11y-label-wrap post-editor-title-wrap">
+        <span className="visually-hidden">{t("Post title")}</span>
+        <textarea
+          className="editor-title post-editor-title"
+          rows={1}
+          value={title}
+          onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, " "))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
+          placeholder={t("Post title")}
+          {...agentHandle({ handle: "post-title" }, { role: "field", label: "This post's title" })}
+        />
+      </label>
+      <div className="editor-slug">
+        /{" "}
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">{t("URL slug")}</span>
+          <input
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            {...agentHandle({ handle: "post-slug" }, { role: "field", label: "URL slug this post is published at" })}
+          />
+        </label>
+        <a
+          href={siteUrl(`/${liveSlug}`)}
+          target="_blank"
+          rel="noreferrer"
+          {...agentHandle({ handle: "post-view-live" }, { role: "link", label: "Open this post on the public site in a new tab" })}
+        >
+          {t("view ↗")}
+        </a>
+        {/* The internal id used to be surfaced here as a read-only field (2026-08-10). Removed
+            2026-08-11: the slug immediately to the left is now the record's routing key
+            (`getAdminPostByIdOrSlug` resolves slug FIRST, id second) and is the only identity an
+            author ever types or reads. Two id generators have been in play — seed literals like
+            `post-about` and `idGen.newId()` UUIDs — so the stored id is neither stable in shape
+            nor meaningful, and displaying it beside the real handle presented an implementation
+            detail as though it were the record's identity. It is still reachable through the API
+            and the row list; it just no longer competes with the slug for the author's attention. */}
       </div>
     </div>
   );
@@ -901,6 +949,8 @@ function PostEditorActions({
   onPublish,
   onSave,
   onDeleteClick,
+  onOpenSettings,
+  kindLabel,
   t,
 }: {
   message: string | null;
@@ -915,107 +965,120 @@ function PostEditorActions({
   onPublish: () => void;
   onSave: () => void;
   onDeleteClick: () => void;
+  /** Opens the post settings modal (author, publish time, featured image). */
+  onOpenSettings: () => void;
+  kindLabel: "post" | "page";
   t: Translate;
 }) {
   return (
     <div
-      className="editor-action-row"
+      className="editor-action-row post-action-row"
       {...agentHandle({ handle: "post-actions" }, {
         role: "region",
         label: "Save status, the Draft/Published field, and the Publish, Save and Delete buttons",
       })}
     >
-      {message ? <span className="save-ok">{message}</span> : null}
-      {error ? <span className="save-error">{error}</span> : null}
-      <select
-        value={status}
-        aria-label={t("Status")}
-        onChange={(e) => setStatus(e.target.value as "draft" | "published")}
-        {...agentHandle({ handle: "post-status" }, {
-          role: "field",
-          label:
-            "Whether this post is a draft or published — set with page.select_option, not click. " +
-            "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
-            "NOT the same as Delete, which moves the whole entry to the trash.",
-        })}
-      >
-        <option value="draft">{t("Draft")}</option>
-        <option value="published">{t("Published")}</option>
-      </select>
-      {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
-          while there is something to publish — once `status` is already "published" (same
-          "omit rather than disable" precedent `Posts.tsx`'s `RowMenu` uses for its own
-          Publish/Unpublish toggle) it disappears rather than rendering disabled with nothing
-          left to do, and plain Save takes over as the primary action. The status select still
-          covers the reverse direction (unpublish), unchanged. */}
-      {status === "draft" ? (
-        <button
-          type="button"
-          onClick={onPublish}
-          disabled={saving}
-          {...agentHandle({ handle: "post-publish" }, {
-            role: "button",
+      {/* Owner, 2026-10-10: Save and Delete sit right next to the status field as one tight
+          group (5px apart) that stays together and resizes as one on narrow screens; the gear
+          for the post settings modal is the only thing on the right. */}
+      <div className="post-action-group">
+        <select
+          value={status}
+          aria-label={t("Status")}
+          onChange={(e) => setStatus(e.target.value as "draft" | "published")}
+          {...agentHandle({ handle: "post-status" }, {
+            role: "field",
             label:
-              "Publish this post/page immediately — saves the current title, slug and body and " +
-              "sets status to Published in one action. Only shown while the post is a draft; once " +
-              "published, use Save for further edits.",
+              "Whether this post is a draft or published — set with page.select_option, not click. " +
+              "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
+              "NOT the same as Delete, which moves the whole entry to the trash.",
           })}
         >
-          {t("Publish")}
+          <option value="draft">{t("Draft")}</option>
+          <option value="published">{t("Published")}</option>
+        </select>
+        {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
+            while there is something to publish — once `status` is already "published" (same
+            "omit rather than disable" precedent `Posts.tsx`'s `RowMenu` uses for its own
+            Publish/Unpublish toggle) it disappears rather than rendering disabled with nothing
+            left to do, and plain Save takes over as the primary action. The status select still
+            covers the reverse direction (unpublish), unchanged. */}
+        {status === "draft" ? (
+          <button
+            type="button"
+            onClick={onPublish}
+            disabled={saving}
+            {...agentHandle({ handle: "post-publish" }, {
+              role: "button",
+              label:
+                "Publish this post/page immediately — saves the current title, slug and body and " +
+                "sets status to Published in one action. Only shown while the post is a draft; once " +
+                "published, use Save for further edits.",
+            })}
+          >
+            {t("Publish")}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={status === "draft" ? "btn-secondary" : undefined}
+          onClick={onSave}
+          disabled={saving}
+          {...agentHandle({ handle: "post-save" }, { role: "button", label: "Save this post's title, slug, status and body" })}
+        >
+          {t("Save")}
         </button>
-      ) : null}
+        <button
+          type="button"
+          className="btn-danger"
+          onClick={onDeleteClick}
+          {...agentHandle({ handle: "post-delete" }, {
+            role: "button",
+            label:
+              "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
+              "field beside it): the entry disappears from every list and the site. Asks for " +
+              "confirmation before deleting.",
+          })}
+        >
+          {t("Delete")}
+        </button>
+      </div>
+      {message ? <span className="save-ok">{message}</span> : null}
+      {error ? <span className="save-error">{error}</span> : null}
       <button
         type="button"
-        className={status === "draft" ? "btn-secondary" : undefined}
-        onClick={onSave}
-        disabled={saving}
-        {...agentHandle({ handle: "post-save" }, { role: "button", label: "Save this post's title, slug, status and body" })}
-      >
-        {t("Save")}
-      </button>
-      <button
-        type="button"
-        className="btn-danger"
-        onClick={onDeleteClick}
-        {...agentHandle({ handle: "post-delete" }, {
+        className="view-template-btn post-settings-trigger"
+        onClick={onOpenSettings}
+        aria-label={t(kindLabel === "page" ? "Page settings" : "Post settings")}
+        title={t(kindLabel === "page" ? "Page settings" : "Post settings")}
+        {...agentHandle({ handle: "post-settings-open" }, {
           role: "button",
-          label:
-            "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
-            "field beside it): the entry disappears from every list and the site. Asks for " +
-            "confirmation before deleting.",
+          label: "Open the post settings: author and show-author, publish time, and featured image",
         })}
       >
-        {t("Delete")}
+        <Icon name="settings" size={16} aria-hidden="true" />
       </button>
     </div>
   );
 }
 
 /**
- * The toolbar's right-hand group: the Desktop/Tablet/Mobile preview-width toggle (shared
- * `DevicePreviewToggle`, Preview tab only — same as `PageEditor.tsx`'s own `PageEditorToolbarEnd`,
- * 2026-09-22 owner ask) followed by the post-template picker (`PostEditorTemplatePicker` below).
+ * The toolbar's right-hand group: the preview reload (Preview tab only) followed by the
+ * post-template picker (`PostEditorTemplatePicker` below). The Desktop/Tablet/Mobile width toggle
+ * (shared `DevicePreviewToggle`, 2026-09-22 owner ask) moved to the LEFT group beside the
+ * Editor/Preview tabs (owner, 2026-10-10: "right next to" them), so it is rendered by `PostEditor`.
  *
  * @complexity O(1).
  */
 function PostEditorToolbarEnd({
   view,
-  device,
-  setDevice,
   ...pickerProps
 }: {
   view: PostEditorView;
-  device: DevicePreviewDevice;
-  setDevice: (value: DevicePreviewDevice) => void;
 } & Parameters<typeof PostEditorTemplatePicker>[0]) {
   return (
     <div className="page-editor-toolbar-end">
-      {view === "preview" ? (
-        <>
-          <DevicePreviewToggle device={device} setDevice={setDevice} t={pickerProps.t} handlePrefix="post-preview-width" />
-          <WiredThemePreviewReloadButton />
-        </>
-      ) : null}
+      {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
       <PostEditorTemplatePicker {...pickerProps} />
     </div>
   );
@@ -1473,6 +1536,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
   // Preview width (2026-09-22) — pure view chrome with nothing to inject, kept out of the injected
   // controller the same way `ThemeExplore.tsx`'s own `device` is.
   const { device, setDevice, width: previewWidth } = useDevicePreviewDevice();
+  const settingsDialog = usePostSettingsDialog();
 
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">{t("Loading editor…")}</div>;
@@ -1480,8 +1544,17 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
   const kindLabel = post.kind === "page" ? "page" : "post";
 
   return (
-    <div className="page">
-      <PostEditorHeader kindLabel={kindLabel} confirmLeave={confirmLeave} t={t} />
+    <div className="page post-editor-page">
+      <PostEditorHeader
+        kindLabel={kindLabel}
+        confirmLeave={confirmLeave}
+        title={title}
+        setTitle={setTitle}
+        slug={slug}
+        setSlug={setSlug}
+        liveSlug={post.slug}
+        t={t}
+      />
 
       <PostEditorNotices
         recoverableDraft={recoverableDraft}
@@ -1494,58 +1567,6 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         dismissSaveConflict={dismissSaveConflict}
         t={t}
       />
-      {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
-          the bare `type="text"` announcement (slug, which had no placeholder either). The
-          wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without
-          adding a visible caption above this screen's large title/slug controls (see
-          `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap costs no layout). */}
-      {/* Title + slug share one row (owner, 2026-08-11: "put the slug input right next to the title
-          ... like we did the pages"), title capped at half the width with the slug group
-          right-justified in the other half. Deliberately the same SHAPE as the Pages editor's
-          `.page-title-row` but a separate class: Pages and Posts are separate features with separate
-          stylesheets, and `styles/pages.css` says in its own header why their shared chrome lives in
-          `editor.css` rather than being copied between them. The template picker used to keep its own
-          row below this one; it now lives in the Edit/Preview toolbar row instead (see the comment on
-          `.page-editor-toolbar` just below) — the row that carried it, `.editor-slug-row`, is gone. */}
-      <div className="editor-title-row">
-        <label className="a11y-label-wrap">
-          <span className="visually-hidden">{t("Post title")}</span>
-          <input
-            className="editor-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("Post title")}
-            {...agentHandle({ handle: "post-title" }, { role: "field", label: "This post's title" })}
-          />
-        </label>
-        <div className="editor-slug">
-          /{" "}
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">{t("URL slug")}</span>
-            <input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              {...agentHandle({ handle: "post-slug" }, { role: "field", label: "URL slug this post is published at" })}
-            />
-          </label>
-          <a
-            href={siteUrl(`/${post.slug}`)}
-            target="_blank"
-            rel="noreferrer"
-            {...agentHandle({ handle: "post-view-live" }, { role: "link", label: "Open this post on the public site in a new tab" })}
-          >
-            {t("view ↗")}
-          </a>
-          {/* The internal id used to be surfaced here as a read-only field (2026-08-10). Removed
-              2026-08-11: the slug immediately to the left is now the record's routing key
-              (`getAdminPostByIdOrSlug` resolves slug FIRST, id second) and is the only identity an
-              author ever types or reads. Two id generators have been in play — seed literals like
-              `post-about` and `idGen.newId()` UUIDs — so the stored id is neither stable in shape
-              nor meaningful, and displaying it beside the real handle presented an implementation
-              detail as though it were the record's identity. It is still reachable through the API
-              and the row list; it just no longer competes with the slug for the author's attention. */}
-        </div>
-      </div>
       {/* Edit/Preview toolbar (2026-08-11, owner: "Let's have a preview button... a tab that shows
           either tiptap so they can edit, or how it looks when it's rendered" + "Keeping the template
           chooser on the right... that's how the others work"). Deliberately the SAME structure as
@@ -1557,21 +1578,26 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           MARKUP location changed; where its options/value come from is untouched (a concurrent
           agent owns that wiring). */}
       <div className="page-editor-toolbar">
-        <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
-          {VIEW_TABS.map((entry) => (
-            <button
-              key={entry.key}
-              type="button"
-              role="tab"
-              aria-selected={view === entry.key}
-              className={view === entry.key ? "is-active" : undefined}
-              tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
-              onClick={() => setView(entry.key)}
-              {...agentHandle({ handle: entry.handle }, { role: "button", label: entry.agentLabel })}
-            >
-              {t(entry.label)}
-            </button>
-          ))}
+        <div className="post-editor-toolbar-start">
+          <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
+            {VIEW_TABS.map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                role="tab"
+                aria-selected={view === entry.key}
+                className={view === entry.key ? "is-active" : undefined}
+                tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
+                onClick={() => setView(entry.key)}
+                {...agentHandle({ handle: entry.handle }, { role: "button", label: entry.agentLabel })}
+              >
+                {t(entry.label)}
+              </button>
+            ))}
+          </div>
+          {view === "preview" ? (
+            <DevicePreviewToggle device={device} setDevice={setDevice} t={t} handlePrefix="post-preview-width" />
+          ) : null}
         </div>
         {/* Preview fullscreen, Level 1 (2026-09-15) — no expand toggle lives in this toolbar. It was
             here until `a380c716` and is now ONE control floating on the preview itself
@@ -1582,8 +1608,6 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
             own doc for the full eligibility/ordering/empty-theme rules this extracts. */}
         <PostEditorToolbarEnd
           view={view}
-          device={device}
-          setDevice={setDevice}
           bodyFormat={post.bodyFormat}
           availableTemplates={availableTemplates}
           templateChoice={templateChoice}
@@ -1605,11 +1629,19 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         onPublish={onPublish}
         onSave={onSave}
         onDeleteClick={onDeleteClick}
+        onOpenSettings={settingsDialog.openDialog}
+        kindLabel={kindLabel}
         t={t}
       />
-      <PostAuthorFields author={author} setAuthor={setAuthor} showAuthor={showAuthor} setShowAuthor={setShowAuthor} t={t} />
-      {/* Scheduled publishing + featured image (2026-10-05) — under the publish row they qualify. */}
-      <PostPublishingFields
+      {/* Author, scheduled publishing and featured image (2026-10-05) used to be two rows here; they
+          moved into the gear's modal (owner, 2026-10-10). */}
+      <PostSettingsDialog
+        dialog={settingsDialog}
+        kindLabel={kindLabel}
+        author={author}
+        setAuthor={setAuthor}
+        showAuthor={showAuthor}
+        setShowAuthor={setShowAuthor}
         publishAtInput={publishAtInput}
         setPublishAtInput={setPublishAtInput}
         scheduled={scheduled}
@@ -1813,8 +1845,11 @@ function PostPreview({
 
   const pane = (
     <>
-      {canShowLiveSite ? null : (
-        <p className="editor-preview-notice">{t(postPreviewNotice({ canShowTemplatePreview }))}</p>
+      {/* Only the "newly selected template" case gets a line of text. The "previewing your unsaved
+          edits" line sat behind the frame and told the operator nothing they needed (owner,
+          2026-10-10), so it was removed and the preview moved up. */}
+      {canShowLiveSite || !canShowTemplatePreview ? null : (
+        <p className="editor-preview-notice">{t(postPreviewNotice())}</p>
       )}
       <div className="editor-shell post-editor-pane">
         <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
@@ -1995,10 +2030,8 @@ function PostPreviewFrame({
  *  rough render of the editor buffer only" — described the raw fallback branch that no longer
  *  exists, so keeping a `canShowPendingContentPreview` parameter here just to pick between two
  *  strings, one of which could never again be shown, would be dead code with extra ceremony around
- *  it rather than less. */
-function postPreviewNotice({ canShowTemplatePreview }: { canShowTemplatePreview: boolean }): string {
-  if (canShowTemplatePreview) {
-    return "Previewing your saved content through the newly selected template — save to update the live post.";
-  }
-  return "Previewing your unsaved edits through the live template — this updates a moment after you stop typing.";
+ *  it rather than less. The unsaved-edits line was removed too (owner, 2026-10-10), leaving only the
+ *  newly-selected-template case. */
+function postPreviewNotice(): string {
+  return "Previewing your saved content through the newly selected template — save to update the live post.";
 }
