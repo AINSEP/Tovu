@@ -1,5 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { CodeWithLines } from "@jini-ai/ui";
+import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
+import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
 import { PreviewModalShell } from "@jini-ai/ui/renderers";
 
 import type { ThemeTier } from "@/lib/api";
@@ -96,6 +97,8 @@ export function TemplateSourceModal({
   useTemplateSourceHook = useWiredTemplateSource,
 }: TemplateSourceModalProps) {
   const fetchState = useTemplateSourceHook(themeId, themeTier, themeApiVersion, templateFilename);
+  // Wrap on by default, same toggle as the plugin files viewer (owner, 2026-10-10).
+  const { wrap, toggleWrap } = useCodeWrap();
 
   // Closing before navigating (not after — `navigate()` doesn't return a completion signal to
   // sequence on) so this modal's own state never lingers mounted-but-stale under whatever screen
@@ -130,7 +133,7 @@ export function TemplateSourceModal({
       </p>
     );
   } else {
-    stageContent = <CodeWithLines text={fetchState.html} />;
+    stageContent = <CodeView text={fetchState.html} wrap={wrap} />;
   }
 
   return (
@@ -141,6 +144,10 @@ export function TemplateSourceModal({
       views={[{ id: "template-source", label: "Template source", custom: stageContent }]}
       onClose={onClose}
       headerExtras={
+        <>
+        {fetchState.status === "loaded" && themeTier === "static" ? (
+          <CodeWrapToggle wrap={wrap} onToggle={toggleWrap} t={t} agentHandleId={`${editAgentHandleId}-wrap-toggle`} className="btn-secondary" />
+        ) : null}
         <button
           type="button"
           onClick={goToTemplateInEditor}
@@ -152,6 +159,7 @@ export function TemplateSourceModal({
         >
           {t("Edit")}
         </button>
+        </>
       }
     />
   );

@@ -220,7 +220,15 @@
 .editor-action-row .content-action-group .btn-danger { margin-left: 0; order: 0; }
 .content-action-row > .post-settings-trigger { margin-left: auto; }
 
+/* Owner, 2026-10-10 ("too much whitespace" on the Edit page screen): the toolbar sat 40px under the
+ * slug (its own 1rem top margin plus the page's 24px gap) and its wrapped rows were 16px apart. */
+.content-editor-page > .page-editor-toolbar { margin-top: calc(var(--space-3) - var(--space-6)); row-gap: var(--space-2); }
+
 @media (max-width: 640px) {
+  /* The "1280px" readout goes on phones, as it did before the device icons moved next to the view
+     tabs (the pressed icon already says which width shows). That also lets a lone reload button
+     (the Blog page has no template picker) stay on the tabs' row instead of taking a row of its own. */
+  .content-editor-toolbar-start .page-editor-width { display: none; }
   /* Title takes the row beside Back; the slug drops to its own full row below. */
   .content-editor-header .content-editor-title { flex: 1 1 0; max-width: none; font-size: 1.3rem; }
   .content-editor-header > .editor-slug { margin-left: 0; flex: 1 1 100%; justify-content: flex-start; }

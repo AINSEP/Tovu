@@ -1,5 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "@jini-ai/agentic";
+import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
 
 /**
@@ -101,26 +102,22 @@ export function TermPicker(props: {
                   // Not a `<form>`: the box can sit inside an editor's own form; the hook's key
                   // handler stops Enter from submitting it.
                   <span className="term-picker-add">
-                    <input
+                    {/* Our own suggestion list, not a native `<datalist>`: Chrome on macOS draws that
+                        as a dark bubble and adds a large ▼ to the box, unstyleable (owner,
+                        2026-10-10: "why does the dropdown look so funny?"). Picking a suggestion
+                        ticks that term right away. */}
+                    <SuggestInput
                       aria-label={t("Term name")}
                       placeholder={t("Type a name, then press Enter")}
                       value={picker.newTermName(id)}
-                      list={suggestions.length > 0 ? `term-picker-suggestions-${id}` : undefined}
+                      suggestions={suggestions}
+                      onPick={(name) => picker.pickSuggestion(id, name)}
                       disabled={loading}
-                      onChange={(e) => picker.setNewTermName(id, e.target.value)}
+                      onValueChange={(value) => picker.setNewTermName(id, value)}
                       onKeyDown={(e) => picker.onNewTermKeyDown(id, e)}
-                      {...agentHandle({ handle: addInputHandles[groupIndex]! }, {
-                        role: "field",
-                        label: `A "${taxonomy.name}" term name to tag this ${subject} with — an existing one is ticked, a new one is created then ticked; press Enter`,
-                      })}
+                      agentHandle={addInputHandles[groupIndex]!}
+                      agentLabel={`A "${taxonomy.name}" term name to tag this ${subject} with — an existing one is ticked, a new one is created then ticked; press Enter`}
                     />
-                    {suggestions.length > 0 ? (
-                      <datalist id={`term-picker-suggestions-${id}`}>
-                        {suggestions.map((name) => (
-                          <option key={name} value={name} />
-                        ))}
-                      </datalist>
-                    ) : null}
                     <button
                       type="button"
                       className="btn-secondary"

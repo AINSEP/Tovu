@@ -68,6 +68,8 @@ export interface TermPickerController {
   onNewTermKeyDown: (taxonomyId: string, event: { key: string; nativeEvent?: { isComposing: boolean }; preventDefault(): void }) => void;
   /** Ticks the typed name's existing term, or creates it and ticks it. */
   addTerm: (taxonomyId: string) => Promise<void>;
+  /** A suggestion was picked from the add box's list: tick that existing term, clear the box. */
+  pickSuggestion: (taxonomyId: string, name: string) => void;
   /** A term is being created in this taxonomy. */
   creating: (taxonomyId: string) => boolean;
   createError: (taxonomyId: string) => string | null;
@@ -181,6 +183,16 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     setAddOpen(taxonomyId, false);
   }
 
+  function pickSuggestion(taxonomyId: string, name: string) {
+    const existing = findTermByName(groupOf(taxonomyId)?.terms ?? [], name);
+    if (!existing) {
+      setNewTermName(taxonomyId, name);
+      return;
+    }
+    tick([existing.id]);
+    setNames((current) => ({ ...current, [taxonomyId]: "" }));
+  }
+
   function onNewTermKeyDown(taxonomyId: string, event: { key: string; nativeEvent?: { isComposing: boolean }; preventDefault(): void }) {
     // Enter/comma can belong to the IME conversion rather than to the term picker.
     if (event.nativeEvent?.isComposing) return;
@@ -255,6 +267,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     setNewTermName,
     onNewTermKeyDown,
     addTerm,
+    pickSuggestion,
     creating: (taxonomyId) => createTarget === taxonomyId && createMutation.status === "pending",
     createError: (taxonomyId) =>
       createTarget === taxonomyId && createMutation.error

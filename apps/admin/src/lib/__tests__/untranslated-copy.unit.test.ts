@@ -140,6 +140,7 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   Commerce: ["fr"],
   Description: ["fr"],
   exact: ["fr"],
+  Image: ["fr"],
   Images: ["fr"],
   Mobile: ["fr"],
   Note: ["fr"],

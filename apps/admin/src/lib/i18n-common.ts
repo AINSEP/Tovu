@@ -524,6 +524,32 @@ const COMMON_EXTRA_I18N: Record<string, Record<string, string>> = Object.fromEnt
   Object.entries(COMMON_EXTRA_VALUES).map(([locale, values]) => [locale, Object.fromEntries(COMMON_EXTRA_KEYS.map((key, index) => [key, values[index]!]))]),
 );
 
+/** "Wrap: on"/"Wrap: off" for every read-only code viewer (plugin files, theme templates). Moved here
+ *  from plugins-i18n on 2026-10-10 when the template viewer got the same toggle. */
+const CODE_WRAP_I18N: Record<string, Record<string, string>> = {
+  "ar": { "Wrap: on": "الالتفاف: مفعّل", "Wrap: off": "الالتفاف: معطّل" },
+  "bn": { "Wrap: on": "র‍্যাপ: চালু", "Wrap: off": "র‍্যাপ: বন্ধ" },
+  "de": { "Wrap: on": "Umbruch: an", "Wrap: off": "Umbruch: aus" },
+  "es": { "Wrap: on": "Ajuste: activado", "Wrap: off": "Ajuste: desactivado" },
+  "fa": { "Wrap: on": "پیچش خط: روشن", "Wrap: off": "پیچش خط: خاموش" },
+  "fr": { "Wrap: on": "Retour à la ligne : activé", "Wrap: off": "Retour à la ligne : désactivé" },
+  "hi": { "Wrap: on": "रैप: चालू", "Wrap: off": "रैप: बंद" },
+  "hu": { "Wrap: on": "Tördelés: be", "Wrap: off": "Tördelés: ki" },
+  "id": { "Wrap: on": "Bungkus: aktif", "Wrap: off": "Bungkus: nonaktif" },
+  "it": { "Wrap: on": "A capo: attivo", "Wrap: off": "A capo: disattivo" },
+  "ja": { "Wrap: on": "折り返し: オン", "Wrap: off": "折り返し: オフ" },
+  "ko": { "Wrap: on": "줄 바꿈: 켜짐", "Wrap: off": "줄 바꿈: 꺼짐" },
+  "pl": { "Wrap: on": "Zawijanie: wł.", "Wrap: off": "Zawijanie: wył." },
+  "pt-BR": { "Wrap: on": "Quebra de linha: ativada", "Wrap: off": "Quebra de linha: desativada" },
+  "ru": { "Wrap: on": "Перенос: вкл.", "Wrap: off": "Перенос: выкл." },
+  "th": { "Wrap: on": "ตัดบรรทัด: เปิด", "Wrap: off": "ตัดบรรทัด: ปิด" },
+  "tr": { "Wrap: on": "Satır kaydırma: açık", "Wrap: off": "Satır kaydırma: kapalı" },
+  "uk": { "Wrap: on": "Перенесення: увімк.", "Wrap: off": "Перенесення: вимк." },
+  "ur": { "Wrap: on": "لپیٹ: آن", "Wrap: off": "لپیٹ: آف" },
+  "zh-CN": { "Wrap: on": "换行：开", "Wrap: off": "换行：关" },
+  "zh-TW": { "Wrap: on": "換行：開", "Wrap: off": "換行：關" },
+};
+
 const DRAFT_RECOVERY_I18N: Record<string, Record<string, string>> = {
   "es": {
     "Restore unsaved changes from": "Restaurar cambios sin guardar de",
@@ -678,5 +704,5 @@ const BUILT_IN_I18N: Record<string, string> = {
 };
 
 export const COMMON_I18N: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(BASE_COMMON_I18N).map(([locale, values]) => [locale, { ...values, "Built-in": BUILT_IN_I18N[locale]!, ...DRAFT_RECOVERY_I18N[locale], ...Object.entries(COMMON_EXTRA_I18N).find(([extraLocale]) => extraLocale === locale)?.[1] }]),
+  Object.entries(BASE_COMMON_I18N).map(([locale, values]) => [locale, { ...values, "Built-in": BUILT_IN_I18N[locale]!, ...DRAFT_RECOVERY_I18N[locale], ...CODE_WRAP_I18N[locale], ...Object.entries(COMMON_EXTRA_I18N).find(([extraLocale]) => extraLocale === locale)?.[1] }]),
 );

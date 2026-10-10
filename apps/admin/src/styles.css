@@ -3169,7 +3169,23 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* The row's right-hand cell: its ticks, then the add input (or a category box's "+ Add term"). */
 .term-picker-body { display: grid; gap: var(--space-2); justify-items: start; min-width: 0; }
 .term-picker-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); max-width: 100%; }
-.term-picker-add input { width: 18rem; max-width: 100%; }
+.term-picker-add .jini-suggest-input { width: 18rem; max-width: 100%; }
+.term-picker-add .jini-suggest-input input { width: 100%; }
+
+/* Jini `SuggestInput` (`@jini-ai/ui/admin-widgets`, 2026-10-10): a free-text input with our own
+   suggestion list, replacing the native `<datalist>` whose dark macOS bubble and ▼ could not be
+   styled. Same white panel look as the admin's other dropdowns (`.select-panel`). */
+.jini-suggest-input { position: relative; display: inline-block; }
+.jini-suggest-input__list {
+  position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
+  margin: 0; padding: 4px; list-style: none; max-height: 16rem; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md);
+}
+.jini-suggest-input__option {
+  padding: 6px 10px; border-radius: var(--r-sm); font-size: var(--text-sm); color: var(--fg); cursor: pointer;
+}
+.jini-suggest-input__option.is-active { background: var(--surface-2); }
 /* Same `.editor-actions` flush-spacing fix as `FormEditor.tsx`'s `.form-actions` — see
    `features/taxonomy/TermPicker.tsx` for why this is scoped here rather than added to
    `.editor-actions` itself (that class is shared with ~30 other, structurally different callers
@@ -5025,7 +5041,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }
 /* Wrap mode (item 1): one grid row per source line instead of `CodeWithLines`'s two monolithic
-   `pre` blocks — see `WrappedFileContent` in `AgentPluginDetailsModal.tsx` for why the two-block
+   `pre` blocks — see `WrappedCode` in `components/CodeView/CodeView.tsx` for why the two-block
    layout can't wrap without desyncing the gutter. `minmax(0, 1fr)` here (not the base rule's
    `minmax(max-content, 1fr)`) is the load-bearing change: `max-content` sizes the column to the
    widest *unwrapped* line, which would defeat wrapping outright. Vertical padding moves to the grid
@@ -5118,13 +5134,29 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   border: 1px solid var(--border); border-radius: var(--r-sm);
 }
 .template-source-modal [data-preview-modal-stage-fullscreen] { position: absolute; z-index: 1; top: var(--space-3); right: var(--space-3); }
+/* The code box is its OWN scroller (owner screenshot, 2026-10-10). When the padded stage scrolled
+   instead, the box's `max-content` grid ran past its own border, and the sticky gutter stuck to the
+   stage's padding edge, so code slid by to the LEFT of the line numbers. */
 .template-source-modal [data-preview-modal-stage-custom] {
-  width: 100%; height: 100%; min-height: 0; overflow: auto; padding: var(--space-4);
+  width: 100%; height: 100%; min-height: 0; overflow: hidden; padding: var(--space-4);
+  display: flex; flex-direction: column;
 }
 .template-source-modal [data-preview-modal-stage-custom] .code-viewer {
   display: grid; grid-template-columns: auto minmax(max-content, 1fr);
+  flex: 1 1 auto; min-height: 0; overflow: auto;
   margin: 0; color: var(--fg-2); background: var(--surface); font: var(--text-xs)/1.6 var(--font-mono);
   border: 1px solid var(--border); border-radius: var(--r-md);
+}
+/* Wrap mode: the same one-row-per-line grid the plugin viewer uses (see `CodeView.tsx`). */
+.template-source-modal [data-preview-modal-stage-custom] .code-viewer--wrap {
+  grid-template-columns: auto minmax(0, 1fr); align-content: start; padding: var(--space-3) 0;
+}
+.template-source-modal [data-preview-modal-stage-custom] .code-viewer--wrap .line-number {
+  position: sticky; left: 0; text-align: right; user-select: none; padding: 0 var(--space-3);
+  color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
+}
+.template-source-modal [data-preview-modal-stage-custom] .code-viewer--wrap .line-content {
+  padding: 0 var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .template-source-modal [data-preview-modal-stage-custom] .code-viewer code { display: block; padding: var(--space-3) var(--space-4); white-space: pre; }
 .template-source-modal [data-preview-modal-stage-custom] .code-viewer .gutter {

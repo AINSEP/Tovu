@@ -53,6 +53,7 @@ function controller(overrides: Partial<TermPickerController> = {}): TermPickerCo
     setNewTermName: vi.fn(),
     onNewTermKeyDown: vi.fn(),
     addTerm: vi.fn(async () => {}),
+    pickSuggestion: vi.fn(),
     creating: () => false,
     createError: () => null,
     suggestions: () => [],
@@ -178,7 +179,7 @@ describe("TermPicker", () => {
     it("an empty taxonomy the admin can add to shows the input instead of 'No terms yet.'", () => {
       renderPicker({ taxonomies: [EMPTY_TAXONOMY], canCreate: true, showAddInput: (id) => id === "tax2" });
       expect(screen.queryByText("No terms yet.")).not.toBeInTheDocument();
-      expect(screen.getByRole("textbox", { name: "Term name" })).toHaveAttribute("placeholder", "Type a name, then press Enter");
+      expect(screen.getByRole("combobox", { name: "Term name" })).toHaveAttribute("placeholder", "Type a name, then press Enter");
     });
 
     it("typing, keys and the Add button all go to the hook, per taxonomy", async () => {
@@ -187,7 +188,7 @@ describe("TermPicker", () => {
       const onNewTermKeyDown = vi.fn();
       const addTerm = vi.fn(async () => {});
       renderPicker({ showAddInput: () => true, newTermName: () => "Noir", setNewTermName, onNewTermKeyDown, addTerm });
-      const input = screen.getByRole("textbox", { name: "Term name" });
+      const input = screen.getByRole("combobox", { name: "Term name" });
       expect(input).toHaveValue("Noir");
       await user.type(input, "x");
       expect(setNewTermName).toHaveBeenCalledWith("tax1", "Noirx");
@@ -241,11 +242,16 @@ describe("TermPicker", () => {
       expect(screen.getByRole("button", { name: "Saving…", hidden: false })).toBeDisabled();
     });
 
-    it("offers the hook's suggestions to the input", () => {
-      renderPicker({ showAddInput: () => true, suggestions: () => ["Fiction", "Non-fiction"] });
+    // Our own suggestion list (Jini `SuggestInput`), not a native `<datalist>` (owner, 2026-10-10).
+    it("offers the hook's suggestions in its own list, and picking one goes to pickSuggestion", () => {
+      const pickSuggestion = vi.fn();
+      renderPicker({ showAddInput: () => true, suggestions: () => ["Fiction", "Non-fiction"], pickSuggestion });
       const input = screen.getByRole("combobox", { name: "Term name" });
-      const list = document.getElementById(input.getAttribute("list")!);
-      expect([...list!.querySelectorAll("option")].map((option) => option.value)).toEqual(["Fiction", "Non-fiction"]);
+      expect(document.querySelector("datalist")).toBeNull();
+      fireEvent.focus(input);
+      expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Fiction", "Non-fiction"]);
+      fireEvent.mouseDown(screen.getByRole("option", { name: "Non-fiction" }));
+      expect(pickSuggestion).toHaveBeenCalledWith("tax1", "Non-fiction");
     });
 
     it("a category box's '+ Add term' opens its input", async () => {
@@ -263,7 +269,7 @@ describe("TermPicker", () => {
 
     it("without the permission, shows neither the input nor the trigger", () => {
       renderPicker({ taxonomies: [TAXONOMY, EMPTY_TAXONOMY] });
-      expect(screen.queryByRole("textbox", { name: "Term name" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Term name" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "+ Add term" })).not.toBeInTheDocument();
       expect(screen.getByText("No terms yet.")).toBeInTheDocument();
     });

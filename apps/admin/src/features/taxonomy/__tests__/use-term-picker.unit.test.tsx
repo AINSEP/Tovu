@@ -420,6 +420,19 @@ describe("adding a term by name", () => {
     const { result } = await mountWith(createFakeTermPickerPort({ taxonomies: [two], assigned: ["t1"] }));
     await waitFor(() => expect(result.current.suggestions("tax1")).toEqual(["Poetry"]));
   });
+
+  it("picking a suggestion ticks that existing term at once, clears the box, and creates nothing", async () => {
+    const two: AdminTaxonomyWithTerms = { ...GENRE, terms: [...GENRE.terms, { ...GENRE.terms[0]!, id: "t2", name: "Poetry" }] };
+    const port = createFakeTermPickerPort({ taxonomies: [two], assigned: ["t1"] });
+    const { result } = await mountWith(port);
+    await waitFor(() => expect(result.current.suggestions("tax1")).toEqual(["Poetry"]));
+    act(() => result.current.setNewTermName("tax1", "Poe"));
+    act(() => result.current.pickSuggestion("tax1", "Poetry"));
+    expect(result.current.selected.has("t2")).toBe(true);
+    expect(result.current.newTermName("tax1")).toBe("");
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.suggestions("tax1")).toEqual([]);
+  });
 });
 
 describe("useWiredTermPicker (real client)", () => {

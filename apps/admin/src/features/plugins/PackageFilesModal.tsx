@@ -1,14 +1,15 @@
-import { CodeWithLines, RemixIcon } from "@jini-ai/ui";
+import { RemixIcon } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/renderers";
 import { agentHandle } from "@jini-ai/agentic";
-import { Fragment, useId, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesStatus, PackageFileView } from "./rules";
 import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tree";
 import { usePackageFileTree } from "./hooks/use-package-file-tree.hooks";
-import { usePackageFileWrap } from "./hooks/use-package-file-wrap.hooks";
+import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
+import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
 
 /**
  * @file The read-only package-files browser BOTH plugin screens open — a VS Code-style file tree
@@ -159,30 +160,6 @@ function PackageFileTree({
 }
 
 /**
- * Wrap-safe stand-in for Jini's `CodeWithLines`, used only while wrapping is on. `CodeWithLines`
- * renders the gutter and the code as two independent `white-space: pre` text blocks that stay
- * aligned only because neither one wraps — the instant a code line wraps to more than one visual
- * row, every later gutter number drifts out of sync with its line. This lays out one CSS grid row
- * per source line instead (`.code-viewer--wrap` in styles.css): a wrapped line's row simply grows
- * taller, and its own gutter number grows with it, so nothing downstream can ever desync.
- */
-function WrappedFileContent({ text }: { text: string }) {
-  const lines = text.split("\n");
-  return (
-    <div className="code-viewer code-viewer--wrap">
-      {lines.map((line, i) => (
-        <Fragment key={i}>
-          <span className="line-number" aria-hidden>
-            {i + 1}
-          </span>
-          <span className="line-content">{line}</span>
-        </Fragment>
-      ))}
-    </div>
-  );
-}
-
-/**
  * Keyed by `file.relativePath` in the parent, so switching the selected file remounts this and
  * resets `wrap` to its default rather than carrying a manual toggle across files.
  *
@@ -206,7 +183,7 @@ function PackageFileContent({
   agentHandleBase: string;
   t: Translate;
 }) {
-  const { wrap, toggleWrap } = usePackageFileWrap();
+  const { wrap, toggleWrap } = useCodeWrap();
   const hasContent = file.content !== null;
 
   return (
@@ -216,14 +193,7 @@ function PackageFileContent({
           <PackageFilePath path={file.relativePath} />
         </h3>
         {hasContent ? (
-          <button
-            type="button"
-            aria-pressed={wrap}
-            onClick={toggleWrap}
-            {...agentHandle({ handle: `${agentHandleBase}-wrap-toggle` }, { role: "button", label: "Toggle line wrapping for this file" })}
-          >
-            {wrap ? t("Wrap: on") : t("Wrap: off")}
-          </button>
+          <CodeWrapToggle wrap={wrap} onToggle={toggleWrap} t={t} agentHandleId={`${agentHandleBase}-wrap-toggle`} />
         ) : null}
       </div>
       <PackageFileBody file={file} wrap={wrap} />
@@ -239,7 +209,7 @@ function PackageFileBody({ file, wrap }: { file: PackageFileView; wrap: boolean 
       </p>
     );
   }
-  return wrap ? <WrappedFileContent text={file.content} /> : <CodeWithLines text={file.content} />;
+  return <CodeView text={file.content} wrap={wrap} />;
 }
 
 export function PackageFilesModal({

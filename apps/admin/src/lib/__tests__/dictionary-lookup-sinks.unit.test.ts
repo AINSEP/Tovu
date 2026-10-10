@@ -24,6 +24,7 @@ const SRC = path.resolve(__dirname, "../..");
 const ALLOWED: Record<string, string> = {
   // Owner-local assembly of the shared fallback dictionary, not a translation-time lookup.
   "lib/i18n-common.ts:DRAFT_RECOVERY_I18N": "common dictionary initialization",
+  "lib/i18n-common.ts:CODE_WRAP_I18N": "common dictionary initialization",
   // `createChatI18nAdapter` feeds `@jini-ai/chat/react`'s own I18nAdapter contract (`t(key, vars)`
   // with `{token}` interpolation), keyed by that package's strings, not by admin copy.
   "components/AssistantDock/assistant-dock-i18n.ts:CHAT_PANE_I18N_DICT": "Jini chat adapter",
