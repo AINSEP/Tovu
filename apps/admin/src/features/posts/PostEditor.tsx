@@ -472,7 +472,7 @@ function Toolbar({
                 chain().setImage({ src, alt: alt || undefined }).run();
               })}
             >
-              {t("Img by URL")}
+              <i className="ri-image-line" aria-hidden="true" />{t("Img by URL")}
             </button>
             {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — a "prompt for a URL" idiom, the
                 same shape as "Insert image by URL" just above.
@@ -488,7 +488,7 @@ function Toolbar({
                 chain().setYoutubeVideo({ src }).run();
               })}
             >
-              YouTube
+              <i className="ri-youtube-line" aria-hidden="true" />YouTube
             </button>
             {/* Mention another post (coordinator MSG A#1 licensing sweep, 2026-08-11) — a single
                 action `<select>` (`value=""` always, matching a menu-styled dropdown-button rather than
@@ -516,7 +516,7 @@ function Toolbar({
             </select>
           </div>
           <div className="grp">
-            <button className={toolbarBtnClass(s.codeBlock)} title={t("Code block")} aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
+            <button className={toolbarBtnClass(s.codeBlock)} title={t("Code block")} aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}><i className="ri-code-box-line" aria-hidden="true" />{t("Code block")}</button>
             {/* Code block language (coordinator MSG #1, 2026-08-11) — every option is one of lowlight's
                 own registered `common` grammar keys (`rules.ts`'s `CODE_LANGUAGE_OPTIONS`), so picking
                 one always produces real in-editor highlighting. `setCodeBlock` both converts the
@@ -534,7 +534,7 @@ function Toolbar({
                 <option key={opt.label} value={opt.value}>{opt.label}</option>
               ))}
             </select>
-            <button className="tb-btn" title={t("Divider")} onClick={menus.closeMenuAfter(() => chain().setHorizontalRule().run())}>―</button>
+            <button className="tb-btn" title={t("Divider")} onClick={menus.closeMenuAfter(() => chain().setHorizontalRule().run())}><i className="ri-separator" aria-hidden="true" />{t("Divider")}</button>
             {/* Table (owner, 2026-08-11: "anything and everything") — same "quickest thing that
                 works" idiom as "Img by URL"/"Divider" just above: a fixed 3x3-with-header-row insert,
                 no rows/cols prompt. `insertTable`'s own defaults (`rows: 3, cols: 3,
@@ -544,7 +544,7 @@ function Toolbar({
               title={t("Insert table")}
               onClick={menus.closeMenuAfter(() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
             >
-              {t("Table")}
+              <i className="ri-table-line" aria-hidden="true" />{t("Table")}
             </button>
           </div>
         </ToolbarMenu>
@@ -771,7 +771,7 @@ function PostEditorTopBar({
   confirmLeave: () => boolean;
   view: PostEditorView;
   setView: (view: PostEditorView) => void;
-  onViewTabsKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
+  onViewTabsKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
   chrome: PostEditorChromeController;
   t: Translate;
 }) {
@@ -782,7 +782,9 @@ function PostEditorTopBar({
       {...agentHandle({ handle: "post-header" }, {
         role: "region",
         label:
-          "Editor top bar — back link, title, the Draft/Published field, Editor/Preview, Publish, Save, " +
+          // Never name the view tabs by their labels here: this region comes first in DOM order, so a
+          // "preview" query would reach it ahead of the Preview tab the assistant is looking for.
+          "Editor top bar — back link, title, the Draft/Published field, the view tabs, Publish, Save, " +
           "the settings panel toggle (author, publish time, featured image, template, categories) and " +
           "More actions (View live, Duplicate, Copy link, Delete).",
       })}

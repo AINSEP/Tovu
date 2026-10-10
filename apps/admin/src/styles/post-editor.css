@@ -19,8 +19,10 @@
 }
 
 /* ---------- top bar ---------- */
+/* Sticky offsets are measured from the scroller's PADDING edge, so `top: 0` would park the bar a
+   gutter below the top; the negative gutter puts it flush. Same for everything sticking under it. */
 .post-topbar {
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: calc(-1 * var(--post-gutter-top)); z-index: 20;
   display: flex; align-items: center; gap: var(--space-2);
   min-height: var(--post-topbar-h); box-sizing: border-box;
   margin: calc(-1 * var(--post-gutter-top)) calc(-1 * var(--post-gutter-x)) 0;
@@ -109,7 +111,8 @@ button.post-publish-btn { height: 34px; padding: 0 0.95rem; }
 
 /* ---------- menus ---------- */
 .post-menu { position: relative; display: inline-flex; }
-.post-popover { display: none; }
+/* `:not(.is-open)` so this outranks `.row-menu-popup`'s `display: flex` (the More menu reuses it). */
+.post-popover:not(.is-open) { display: none; }
 .post-popover.is-open {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
   display: flex; flex-direction: column; gap: 6px;
@@ -162,7 +165,7 @@ input.post-slug-input:focus { background: var(--surface); border-color: var(--bo
    sticking, so the post pane lets them out and rounds its own toolbar/footer corners instead. */
 .editor-shell.post-editor-pane { overflow: visible; }
 .editor-toolbar.post-editor-toolbar {
-  top: var(--post-topbar-h); z-index: 15;
+  top: calc(var(--post-topbar-h) - var(--post-gutter-top)); z-index: 15;
   flex-wrap: wrap; overflow: visible; border-radius: 11px 11px 0 0;
 }
 .post-editor-toolbar .post-menu-trigger { display: inline-flex; align-items: center; gap: 3px; }
@@ -180,7 +183,12 @@ input.post-slug-input:focus { background: var(--surface); border-color: var(--bo
 .post-popover-text .tb-select-group { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .post-popover-text .grp:has(.tb-select-group) { flex-direction: column; align-items: stretch; gap: 4px; }
 .post-popover-insert .grp { flex-direction: column; align-items: stretch; min-width: 11rem; }
-.post-popover-insert .tb-btn { width: 100%; height: 30px; place-items: center start; padding: 0 0.55rem; }
+.post-popover-insert .tb-btn {
+  width: 100%; height: 30px; padding: 0 0.55rem;
+  display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem;
+  font-weight: 500; white-space: nowrap;
+}
+.post-popover-insert .tb-btn > i { font-size: 16px; color: var(--muted); }
 .post-popover-insert .tb-select { width: 100%; }
 .post-popover-insert .embed-insert-control { display: flex; flex-direction: column; }
 
@@ -227,7 +235,7 @@ input.post-slug-input:focus { background: var(--surface); border-color: var(--bo
 @media (min-width: 1280px) {
   .post-editor-page.has-settings .post-editor-layout { grid-template-columns: minmax(0, 1fr) 300px; }
   .post-settings.is-open {
-    display: block; position: sticky; top: calc(var(--post-topbar-h) + var(--space-4));
+    display: block; position: sticky; top: calc(var(--post-topbar-h) - var(--post-gutter-top) + var(--space-4));
     max-height: calc(100vh - var(--post-topbar-h) - 2rem); overflow-y: auto;
     border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
   }
