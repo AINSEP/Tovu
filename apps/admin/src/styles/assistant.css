@@ -581,6 +581,13 @@
   max-width: 80%;
 }
 
+/* The 80% cap is for the user's bubbles. The assistant's replies (text, lists, tables) use the full
+   row like the tool-call rows above them (owner, 2026-10-10: "everything else is squeezed"). Three
+   classes so it beats Jini's injected chat-pane styles regardless of load order. */
+.jini-chat-pane .jini-message-assistant .jini-message-content {
+  max-width: none;
+}
+
 /* Fenced code blocks (`Markdown.tsx`'s bare `<pre><code>`) get their OWN scrollbar instead of
    relying on `.jini-message-list`'s now-`hidden` overflow-x to (mis)handle them -- "wide content
    must scroll inside its own container, never widen the pane." `overflow-wrap` on the ancestor
