@@ -84,8 +84,9 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
   async function installReviewed(source: PluginInstallSource, reviewed: PluginInstallPreview, generation: number) {
     await required.port.install({ ...source, expectedDigest: reviewed.digest });
     if (generation !== sequence.current) return;
-    setInstalledName(reviewed.name); setPreview(null); setFolder(""); setZipFile(null); setReplace(false); clearZipInput();
     await required.onInstalled();
+    if (generation !== sequence.current) return;
+    setInstalledName(reviewed.name); setPreview(null); setFolder(""); setZipFile(null); setReplace(false); clearZipInput();
   }
   const drop = useZipDrop({ isLocked: () => locked.current, onDropFiles: (files) => chooseZip(files[0] ?? null) });
   // A picked folder becomes `<folder>.zip` and then IS the chosen zip: same limit, preview, install.

@@ -1,8 +1,8 @@
 import { render } from "@testing-library/react";
 import { expect, it } from "vitest";
-import { CheckIcon, ChevronIcon, CopyIcon, GaugeIcon, PulseIcon } from "../observability-visuals";
+import { CheckIcon, ChevronIcon, CopyIcon, GaugeIcon, PulseIcon, QueriesIcon } from "../observability-visuals";
 
-it.each([["pulse", PulseIcon], ["gauge", GaugeIcon]] as const)("%s emits decorative SVG with default and requested dimensions", (_name, Icon) => {
+it.each([["pulse", PulseIcon], ["gauge", GaugeIcon], ["queries", QueriesIcon]] as const)("%s emits decorative SVG with default and requested dimensions", (_name, Icon) => {
   // F4.3 regression target: hardcode width/height to 16, or drop aria-hidden. This checks emitted markup, not layout (F1.5).
   const view = render(<Icon />);
   const svg = view.container.querySelector("svg")!;

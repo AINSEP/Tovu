@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { useSkillFiles } from "../use-skill-files.hooks";
 import type { SkillFiles } from "../api";

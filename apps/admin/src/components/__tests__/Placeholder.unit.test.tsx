@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // `Placeholder`'s "Unknown section" branch reads `useWiredAdminLocale()` directly (deliberately

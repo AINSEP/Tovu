@@ -5,6 +5,7 @@ import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
 
 import effectResourceCleanup from './development/eslint-rules/effect-resource-cleanup.mjs';
+import singleFetchQueryProvider from './development/eslint-rules/single-fetch-query-provider.mjs';
 
 // Single source of truth shared with `development/scripts/check-admin-complexity-drift.ts` — see
 // that file's header and the block below for why this list exists and how to shrink it.
@@ -336,7 +337,9 @@ export default [
     files: ['apps/admin/src/**/*.ts', 'apps/admin/src/**/*.tsx'],
     ignores: ['apps/admin/src/lib/fetch-query/provider.tsx'],
     languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true } } },
+    plugins: { fetchQuery: { rules: { 'single-provider': singleFetchQueryProvider } } },
     rules: {
+      'fetchQuery/single-provider': 'error',
       'no-restricted-imports': ['error', {
         paths: ['@jini-ai/ui/fetch-query', '@jini-ai/ui/fetch-query/tanstack'].map((name) => ({
           name,

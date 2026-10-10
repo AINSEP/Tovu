@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -44,7 +44,7 @@ function row(overrides: Partial<RecentServerErrorRow> = {}): RecentServerErrorRo
 
 async function openRecentErrors(controller: RecentServerErrorsController) {
   const useErrors = vi.fn(() => controller);
-  render(<Observability useObservabilityStatusHook={() => statusController} useRecentServerErrorsHook={useErrors} />);
+  render(<Observability useObservabilityStatusHook={() => statusController} useRecentServerErrorsHook={useErrors} useQueriesTabHook={() => ({ visible: false, readOnly: true })} />);
   expect(useErrors).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "Recent errors" }));
   return screen.getByRole("region", { name: "Recent server errors" });

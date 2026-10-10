@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import { describeApiError, type AdminObservabilityStatus } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -41,15 +42,13 @@ export interface ObservabilityStatusController {
  * @complexity One GET on mount.
  */
 export function useObservabilityStatus({ port, locale, t }: ObservabilityStatusDependencies): ObservabilityStatusController {
-  const [status, setStatus] = useState<AdminObservabilityStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void port
-      .getObservabilityStatus()
-      .then((result) => setStatus(result))
-      .catch((e) => setError(describeApiError(e, translateObservability({ locale: locale, key: "failed to load observability status" }))));
-  }, []);
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return await port.getObservabilityStatus(); }
+    catch (error) { throw new Error(describeApiError(error, translateObservability({ locale, key: "failed to load observability status" }))); }
+  }, [port, locale]);
+  const query = useFetchQuery({ key: ["observability", "status"], fetch: queryFetch }, { staleTime: 0 });
+  const status = query.data ?? null;
+  const error = query.error?.message ?? null;
 
   return { status, error, t, locale };
 }

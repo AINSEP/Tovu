@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from 'vitest';
 import { MenuEditor } from '../MenuEditor';
 import { useMenuEditor } from '../hooks/use-menu-editor.hooks';

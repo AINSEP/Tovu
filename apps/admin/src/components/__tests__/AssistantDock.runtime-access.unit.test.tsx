@@ -126,6 +126,7 @@ describe("AssistantDock runtimeAccess.daemonOnline", () => {
     // ever resolves looks like under connection-pool exhaustion.
     const first = daemonOnline();
     const second = daemonOnline();
+    await act(async () => {}); // Query loaders start transport on the shared cache turn.
 
     // The bug this regresses: without single-flight reuse, this would be 2 — one real `fetch` per
     // call — which is how the pending-request backlog grew by one every tick, unbounded, for as
@@ -181,6 +182,7 @@ describe("AssistantDock runtimeAccess.daemonOnline", () => {
       // Attach rejection handlers before advancing time to avoid unhandled rejections.
       const firstSettles = first.catch((error: unknown) => error);
       const overlappingSettles = overlapping.catch((error: unknown) => error);
+      await act(async () => {}); // Start the cache read before advancing its deadline.
       const init = agentsCalls(fetchSpy)[0]?.[1] as RequestInit;
       expect(init.signal).toBeInstanceOf(AbortSignal);
       expect(timeout).toHaveBeenCalledWith(60_000);
@@ -199,4 +201,24 @@ describe("AssistantDock runtimeAccess.daemonOnline", () => {
       vi.useRealTimers();
     }
   });
+});
+
+
+it("keeps daemon health reads independent between provider scopes", async () => {
+  const settle: Array<(response: Response) => void> = [];
+  const fetchFake = vi.fn((url: string) => url === "/api/agents"
+    ? new Promise<Response>(resolve => { settle.push(resolve); })
+    : Promise.resolve(benignResponse()));
+  vi.stubGlobal("fetch", fetchFake);
+  render(<AssistantDock useChats={fakeChats} />);
+  const first = latestRuntimeAccess();
+  render(<AssistantDock useChats={fakeChats} />);
+  const second = latestRuntimeAccess();
+  let firstRead!: Promise<boolean>, secondRead!: Promise<boolean>;
+  await act(async () => { firstRead = first.daemonOnline(); secondRead = second.daemonOnline(); });
+  expect(agentsCalls(fetchFake)).toHaveLength(2);
+  settle[0]!(new Response(null, { status: 200 }));
+  settle[1]!(new Response(null, { status: 503 }));
+  await expect(firstRead).resolves.toBe(true);
+  await expect(secondRead).resolves.toBe(false);
 });

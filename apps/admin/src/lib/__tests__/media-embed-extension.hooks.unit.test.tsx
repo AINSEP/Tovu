@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import type { NodeViewProps } from "@tiptap/react";
 import { describe, expect, it, vi } from "vitest";
 

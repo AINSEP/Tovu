@@ -1,5 +1,5 @@
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it } from "vitest";
 import {
   publishThemePreviewRefresh,

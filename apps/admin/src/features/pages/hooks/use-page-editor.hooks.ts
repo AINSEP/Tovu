@@ -1,3 +1,4 @@
+import { useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import type { CanvasEmbedPlaceholderDescriptor, InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
@@ -645,6 +646,28 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
    * harmless — the NEXT mount (a fresh Interactive-tab visit) picks up the new translator.
    */
   const embedPlaceholderDescriber = useMemo(() => createEmbedPlaceholderDescriber(boundT), [boundT]);
+  const pageKey = useMemo(() => ["pages", "detail", routeSlug] as const, [routeSlug]);
+  const fetchPage = useCallback(() => port.getPage(routeSlug), [port, routeSlug]);
+  const pageLoader = useCachedLoader({ key: pageKey, fetch: fetchPage }, { staleTime: 0 });
+  const readPage = useCallback((id: string) => pageLoader.load({ key: ["pages", "detail", id], fetch: () => port.getPage(id) }), [port, pageLoader]);
+  const invalidate = useInvalidate();
+  const fetchInitial = useCallback(async () => {
+    // Loaded together: an empty template picker must not flash while presentation lags the page.
+    try { return await Promise.all([pageLoader.load(), port.getPresentation()]); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : t(locale, "failed to load page")); }
+  }, [port, pageLoader, routeSlug, locale]);
+  const initialKey = useMemo(() => ["pages", "editor", routeSlug] as const, [routeSlug]);
+  const initial = useCachedLoader({ key: initialKey, fetch: fetchInitial }, { staleTime: 0 });
+  const hydratedRoute = useRef<string | null>(null);
+  const write = useFetchMutation({ run: async ({ input }: { input: () => Promise<unknown> }) => {
+    try { return await input(); }
+    catch (error) {
+      // Metadata already landed even though the body write failed; dependent lists must learn
+      // that accepted version while the editor retains its existing partial-success recovery.
+      if (error instanceof PageBodyWriteError) invalidate({ key: ["pages"] });
+      throw error;
+    }
+  } }, { invalidates: [["pages"]] });
   const [page, setPage] = useState<AdminPost | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -701,21 +724,22 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // stale/legacy bookmark), and must not run at all before the id is known.
   const autosave = useStandingDraftAutosave({ port, entryId: page?.id ?? null, enabled: page !== null, serverUpdatedAt: page?.updatedAt });
 
-  // `t`/`locale` are deliberately not listed — that gap predates this conversion (the effect only
-  // ever ran off `routeSlug` even when `locale` came from `useAdminLocale()` directly) and fixing
-  // it is a behavior change outside this refactor's scope. `port` IS added: unlike the old `api`
-  // import, it is now a function-scoped value ESLint's exhaustive-deps rule can see, and it is
-  // referentially stable in production (`useWiredPageEditor` always passes the same module-level
-  // singleton), so adding it changes nothing about when this effect re-runs.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `t`/`locale` gap predates this conversion, out of scope here; `port` is referentially stable in production.
+  // The previous load effect ran only for the route, even when locale changed. Keep the draft
+  // captured once per route; locale changes may refresh the loader without replacing typed text.
+  // `port` is stable in production (`useWiredPageEditor` uses a module-level singleton).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial captures locale; a hydrated route retains its draft.
   useEffect(() => {
     let cancelled = false;
     // Loaded together, same reasoning as `usePostEditor`'s identical `Promise.all` — the picker
     // needs `activeThemeTemplates` in hand before it can render anything meaningful, and a fast
     // page-load racing a slow presentation-settings load would otherwise flash an empty picker.
-    Promise.all([port.getPage(routeSlug), port.getPresentation()])
+    if (hydratedRoute.current === routeSlug) return;
+    // Reopening must hydrate from this mount's settled read, never the retained cache snapshot.
+    // Once hydrated, background invalidations must not replace the operator's local draft.
+    initial.load()
       .then(([{ post }, { activeThemeTemplates, activeThemeId: themeId, activeThemeApiVersion: themeApiVersion, activeThemeTier: themeTier }]) => {
         if (cancelled) return;
+        hydratedRoute.current = routeSlug;
         setAvailableTemplates(activeThemeTemplates);
         setActiveThemeId(themeId);
         setActiveThemeApiVersion(themeApiVersion);
@@ -736,7 +760,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     return () => {
       cancelled = true;
     };
-  }, [routeSlug, port]);
+  }, [routeSlug, port, initial]);
 
   // HTML tab pretty-printing (owner-reported regression, 2026-08-11 — verified nothing formatted this
   // view before either; see `lib/prettify-html.ts`'s file header). `draftHtml` is a LOCAL, display-only
@@ -882,7 +906,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // every doc-format Page.
       const plan = buildPageSavePlan(basis, { title, slug, status, templateChoice, html: bodyHtml }, nextStatus);
       try {
-        const updated = await writePage(port, basis.id, plan, bodyHtml);
+        const updated = await write.mutate({ input: () => writePage(port, basis.id, plan, bodyHtml) }) as AdminPost;
         // A newer save/publish claimed a later generation while this call was awaiting — that call
         // owns the outcome now, so this stale response must not paint over it (2026-09-05
         // stale-settlement sweep: "last-to-settle wins" rather than "last-clicked wins").
@@ -953,7 +977,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const saveOverwritingConflict = useCallback(async () => {
     if (!page) return;
     const attemptedStatus = saveConflict?.attemptedStatus;
-    const fresh = await port.getPage(page.id).then(({ post }) => post, () => null);
+    const fresh = await readPage(page.id).then(({ post }) => post, () => null);
     if (!fresh) {
       setError(t(locale, "could not re-read the current version — your changes are still here, try again"));
       return;
@@ -973,7 +997,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setDeleting(true);
     setError(null);
     try {
-      await port.deletePage(page.id);
+      await write.mutate({ input: () => port.deletePage(page.id) }) as Awaited<ReturnType<typeof port.deletePage>>;
       navigate("/pages");
     } catch (e) {
       setError(e instanceof Error ? e.message : t(locale, "failed to delete page"));
@@ -1028,7 +1052,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // `isDirty` is wider than `dirty` on the Interactive tab — see `pageRefreshMayHaveUnsavedEdits`.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
     loaded: page,
-    fetchLatest: (id) => port.getPage(id).then(({ post }) => post),
+    fetchLatest: (id) => readPage(id).then(({ post }) => post),
     isDirty: () => pageRefreshMayHaveUnsavedEdits({ dirty, view }),
     isSaving: () => saving,
     applyLatest: applyExternalPage,

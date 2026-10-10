@@ -1,4 +1,4 @@
-import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { lazy, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAdmin, defineAdminModule } from '@jini-ai/admin/core/module';

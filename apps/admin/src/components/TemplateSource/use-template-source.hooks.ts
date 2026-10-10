@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
@@ -97,29 +98,17 @@ export function useTemplateSource(
   templateFilename: string,
   port: TemplateSourcePort,
 ): TemplateSourceFetchState {
-  const [state, setState] = useState<TemplateSourceFetchState>({ status: "loading" });
-
-  useEffect(() => {
-    if (themeTier !== "static") return; // Nothing to fetch — the caller renders the tier explanation instead.
-    // Declared fresh inside the effect body on every run (not a ref/module-level flag) so it is
-    // naturally reset on each mount, including the second real mount StrictMode's dev-mode
-    // mount->unmount->mount produces — see apps/admin/INFO.md's "disposed flag" trap.
-    let cancelled = false;
-    setState({ status: "loading" });
-    port
-      .fetchTemplateSource(templateAssetUrl(themeId, templateFilename, themeApiVersion))
-      .then((html) => {
-        if (!cancelled) setState({ status: "loaded", html });
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) {
-          setState({ status: "error", message: e instanceof Error ? e.message : "failed to load the template" });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [themeId, themeTier, themeApiVersion, templateFilename, port]);
+  // Keyed reads replace the cleanup flag: a prior route's source cannot populate this key.
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return await port.fetchTemplateSource(templateAssetUrl(themeId, templateFilename, themeApiVersion)); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load the template"); }
+  }, [port, themeId, themeApiVersion, templateFilename]);
+  // Query ownership handles StrictMode cleanup/replay without a module-level disposed flag
+  // surviving the second mount (apps/admin/INFO.md's disposed-flag trap).
+  // Nothing to fetch — the caller renders the tier explanation instead for non-static themes.
+  const query = useFetchQuery({ key: ["themes", "template-source", themeId, themeApiVersion ?? 1, templateFilename], fetch: queryFetch }, { enabled: themeTier === "static", staleTime: 0 });
+  const state: TemplateSourceFetchState = query.error ? { status: "error", message: query.error.message }
+    : query.data !== undefined ? { status: "loaded", html: query.data } : { status: "loading" };
 
   return state;
 }

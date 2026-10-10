@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@/__tests__/fetch-query-render";
 import type { DragEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
 

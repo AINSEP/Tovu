@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import type { AdminAnalyticsHit } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -41,16 +42,13 @@ export interface AnalyticsController {
  * @complexity Time/space: O(1) — one fetch on mount, no iteration of its own.
  */
 export function useAnalytics(port: AnalyticsPort, t: (key: string) => string): AnalyticsController {
-  const [hits, setHits] = useState<AdminAnalyticsHit[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    port
-      .listRecentAnalyticsHits()
-      .then((r) => setHits(r.hits))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load recent hits"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return (await port.listRecentAnalyticsHits()).hits; }
+    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load recent hits"); }
   }, [port]);
+  const query = useFetchQuery({ key: ["analytics", "recent-hits"], fetch: queryFetch }, { staleTime: 0 });
+  const hits = query.data ?? null;
+  const error = query.error?.message ?? null;
 
   return { hits, error, t };
 }

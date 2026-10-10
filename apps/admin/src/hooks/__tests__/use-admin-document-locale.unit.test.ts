@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it } from "vitest";
 import { ADMIN_LOCALES } from "../../lib/settings-tabs";
 import { useAdminLocale } from "../use-admin-locale.hooks";

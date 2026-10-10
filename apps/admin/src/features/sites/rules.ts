@@ -1,6 +1,6 @@
 import { ApiError } from "../../lib/api";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
-import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
 
 /**
  * @file Pure logic for the `sites` feature — everything that computes a value rather than rendering

@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useState } from "react";
 
-import { describeApiError, type AdminPost, type AdminSiteKeyState } from "@/lib/api";
+import { describeApiError, type AdminPost } from "@/lib/api";
 import { activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
@@ -139,83 +141,58 @@ export interface DashboardDependencies {
  * @complexity Time/space: O(1) per call — five independent, concurrent round trips on mount.
  */
 export function useDashboard({ port, locale, t }: DashboardDependencies): DashboardController {
-  const [posts, setPosts] = useState<StatState>(PENDING);
-  const [published, setPublished] = useState<number | null>(null);
-  const [pages, setPages] = useState<StatState>(PENDING);
-  const [drafts, setDrafts] = useState<number | null>(null);
-  const [media, setMedia] = useState<StatState>(PENDING);
-  const [comments, setComments] = useState<StatState>(PENDING);
-  const [themeId, setThemeId] = useState<string | null>(null);
-  const [themeName, setThemeName] = useState<string | null>(null);
-  const [themeError, setThemeError] = useState<string | null>(null);
-  const [recent, setRecent] = useState<AdminPost[] | null>(null);
-  // `null` until the status fetch settles (or forever, if it fails — swallowed below since the
-  // banner is advisory) — `shouldShowDefaultPasswordBanner` treats `null` as "don't show", the same
-  // fail-closed default a security nag should have.
-  const [passwordStatus, setPasswordStatus] = useState<{ usesDefaultPassword: boolean; principalId: string } | null>(null);
+  const postsQueryFetch = useQueryFetchCallback(async () => {
+    try { return (await port.listPosts()).posts.map(entry => entry.post); }
+    catch (error) { throw new Error(describeApiError(error, translate({ locale, key: "failed to load posts" }))); }
+  }, [port, locale]);
+  // Posts and pages each feed a stat card and the merged activity list from one shared read.
+  const postsQuery = useFetchQuery({ key: ["posts", "list"], fetch: postsQueryFetch }, { staleTime: 0 });
+  const pagesQueryFetch = useQueryFetchCallback(async () => {
+    try { return (await port.listPages()).posts.map(entry => entry.post); }
+    catch (error) { throw new Error(describeApiError(error, translate({ locale, key: "failed to load pages" }))); }
+  }, [port, locale]);
+  const pagesQuery = useFetchQuery({ key: ["pages", "list"], fetch: pagesQueryFetch }, { staleTime: 0 });
+  const mediaQueryFetch = useQueryFetchCallback(async () => {
+    try { return await port.listMedia(); }
+    catch (error) { throw new Error(describeApiError(error, translate({ locale, key: "failed to load media" }))); }
+  }, [port, locale]);
+  const mediaQuery = useFetchQuery({ key: ["media"], fetch: mediaQueryFetch }, { staleTime: 0 });
+  const commentsQueryFetch = useQueryFetchCallback(async () => {
+    try { return await port.listCommentsQueue({ status: "pending" }); }
+    catch (error) { throw new Error(describeApiError(error, translate({ locale, key: "failed to load comments" }))); }
+  }, [port, locale]);
+  const commentsQuery = useFetchQuery({ key: ["dashboard", "pending-comments"], fetch: commentsQueryFetch }, { staleTime: 0 });
+  const themeQueryFetch = useQueryFetchCallback(async () => {
+    try { return await port.getPresentation(); }
+    catch (error) { throw new Error(describeApiError(error, translate({ locale, key: "failed to load the active theme" }))); }
+  }, [port, locale]);
+  const themeQuery = useFetchQuery({ key: ["themes", "presentation"], fetch: themeQueryFetch }, { staleTime: 0 });
+  // Failed advisory status reads mean no banner, not a stat error or evidence of a safe state.
+  const passwordQueryFetch = useQueryFetchCallback(() => port.getPasswordStatus(), [port, locale]);
+  const passwordQuery = useFetchQuery({ key: ["identity", "password-status"], fetch: passwordQueryFetch }, { staleTime: 0 });
+  // Site-key plan §A.6 — same advisory shape as the password status read:
+  // a failed fetch means no banner, not an error card.
+  const siteKeyQueryFetch = useQueryFetchCallback(() => port.getSiteKeyState(), [port, locale]);
+  const siteKeyQuery = useFetchQuery({ key: ["site-key", "state"], fetch: siteKeyQueryFetch }, { staleTime: 0 });
+  const posts: StatState = { value: postsQuery.data?.length ?? null, error: postsQuery.error?.message ?? null };
+  const published = postsQuery.data?.filter(post => post.status === "published").length ?? null;
+  const pages: StatState = { value: pagesQuery.data?.length ?? null, error: pagesQuery.error?.message ?? null };
+  const drafts = pagesQuery.data?.filter(page => page.status === "draft").length ?? null;
+  const media: StatState = { value: mediaQuery.data?.media.filter(item => item.status === "active").length ?? null, error: mediaQuery.error?.message ?? null };
+  const comments: StatState = { value: commentsQuery.data?.items.length ?? null, error: commentsQuery.error?.message ?? null };
+  const themeId = themeQuery.data?.settings.activeThemeId ?? null;
+  const themeName = themeQuery.data ? activeThemeName(themeQuery.data) : null;
+  const themeError = themeQuery.error?.message ?? null;
+  // Posts and pages feed both counts and activity without another request.
+  const recent = postsQuery.data || pagesQuery.data ? mergeRecent(postsQuery.data ?? null, pagesQuery.data ?? []) : null;
+  // null until the status fetch settles (or forever if it fails): the banner is advisory,
+  // so shouldShowDefaultPasswordBanner treats unknown status as "don't show".
+  const passwordStatus = passwordQuery.data ?? null;
+  // undefined until the site-key status fetch settles (or forever if it fails).
+  // shouldShowSiteKeyBanner treats undefined as "don't show".
+  const siteKeyState = siteKeyQuery.data?.state;
   // Lazy initializer: read once, at mount, not on every render.
   const [dismissedBy, setDismissedBy] = useState<string | null>(readDefaultPasswordBannerDismissedBy);
-  // `undefined` until the site-key status fetch settles (or forever, if it fails — swallowed below,
-  // same as `passwordStatus` above). `shouldShowSiteKeyBanner` treats `undefined` as "don't show".
-  const [siteKeyState, setSiteKeyState] = useState<AdminSiteKeyState | undefined>(undefined);
-
-  // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
-  // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
-  // unchanged behavior, not a new gap introduced by this conversion.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: deliberately `[]`, preserved from the pre-port version; port/locale changes after mount don't re-fetch.
-  useEffect(() => {
-    // Posts and pages each feed both a stat card and the merged activity list, so their handlers
-    // do double duty rather than fetching the same list twice.
-    port
-      .listPosts()
-      .then((r) => {
-        const rows = r.posts.map((entry) => entry.post);
-        setPosts({ value: rows.length, error: null });
-        setPublished(rows.filter((p) => p.status === "published").length);
-        setRecent((prev) => mergeRecent(prev, rows));
-      })
-      .catch((e) => setPosts({ value: null, error: describeApiError(e, translate({ locale: locale, key: "failed to load posts" })) }));
-
-    port
-      .listPages()
-      .then((r) => {
-        const rows = r.posts.map((entry) => entry.post);
-        setPages({ value: rows.length, error: null });
-        setDrafts(rows.filter((p) => p.status === "draft").length);
-        setRecent((prev) => mergeRecent(prev, rows));
-      })
-      .catch((e) => setPages({ value: null, error: describeApiError(e, translate({ locale: locale, key: "failed to load pages" })) }));
-
-    port
-      .listMedia()
-      .then((r) => setMedia({ value: r.media.filter((m) => m.status === "active").length, error: null }))
-      .catch((e) => setMedia({ value: null, error: describeApiError(e, translate({ locale: locale, key: "failed to load media" })) }));
-
-    port
-      .listCommentsQueue({ status: "pending" })
-      .then((r) => setComments({ value: r.items.length, error: null }))
-      .catch((e) => setComments({ value: null, error: describeApiError(e, translate({ locale: locale, key: "failed to load comments" })) }));
-
-    port
-      .getPresentation()
-      .then((r) => {
-        setThemeId(r.settings.activeThemeId);
-        setThemeName(activeThemeName(r));
-      })
-      .catch((e) => setThemeError(describeApiError(e, translate({ locale: locale, key: "failed to load the active theme" }))));
-
-    // No `.catch()` sets an error state here — a failed status read means no banner (see this
-    // file's `passwordStatus` declaration), not a card showing an em-dash. It's advisory, not
-    // a stat the operator came to this screen to see.
-    port.getPasswordStatus().then(setPasswordStatus).catch(() => {});
-
-    // Site-key plan §A.6 — same advisory, swallowed-on-failure shape as the password status read
-    // just above: a failed fetch means no banner, not an error card.
-    port
-      .getSiteKeyState()
-      .then((result) => setSiteKeyState(result.state))
-      .catch(() => {});
-  }, []);
 
   return {
     posts,

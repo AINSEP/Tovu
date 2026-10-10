@@ -1,4 +1,4 @@
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { NO_THEME_ID } from "@/lib/api";

@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -25,6 +27,8 @@ import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 
 export interface PluginPackageFilesDependencies {
   readonly pluginId: string;
+  /** CMS and agent packages have different endpoints even when their identifiers match. */
+  readonly queryRoot?: "plugins" | "agent-plugins";
   /** Any read that yields a listing — `PluginsPort.getPluginFiles`, or an adapter over
    *  `AgentPluginsPort.getAgentPluginFiles`. */
   readonly port: { getPluginFiles(pluginId: string): Promise<PackageFilesListing> };
@@ -61,26 +65,15 @@ interface SettledRead extends PackageFilesRead {
  *
  * @complexity One GET per `pluginId`; O(files) per render to map rows (capped server-side at 200).
  */
-export function usePluginPackageFiles({ pluginId, port, t }: PluginPackageFilesDependencies): PluginPackageFilesController {
-  const [settled, setSettled] = useState<SettledRead | null>(null);
+export function usePluginPackageFiles({ pluginId, port, t, queryRoot = "plugins" }: PluginPackageFilesDependencies): PluginPackageFilesController {
   const [selectedPath, setSelectedPath] = useState("");
-
-  useEffect(() => {
-    let current = true;
-    port.getPluginFiles(pluginId).then(
-      (listing) => {
-        if (current) setSettled({ pluginId, listing, error: null });
-      },
-      (error: unknown) => {
-        if (current) setSettled({ pluginId, listing: null, error: describeApiError(error, t("failed to load package files")) });
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [pluginId]);
-
-  const read = settled?.pluginId === pluginId ? settled : null;
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return await port.getPluginFiles(pluginId); }
+    catch (error) { throw new Error(describeApiError(error, t("failed to load package files"))); }
+  }, [port, pluginId]);
+  const query = useFetchQuery({ key: [queryRoot, "files", pluginId], fetch: queryFetch }, { staleTime: 0 });
+  const read: PackageFilesRead | null = query.data ? { listing: query.data, error: null }
+    : query.error ? { listing: null, error: query.error.message } : null;
   return { ...packageFilesViewState(read, selectedPath, t), selectFile: setSelectedPath, t };
 }
 

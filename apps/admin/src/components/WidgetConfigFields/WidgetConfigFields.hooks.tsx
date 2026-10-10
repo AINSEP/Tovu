@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
+import { useCallback, useRef, useState } from "react";
 
 import type { ContentTypeFieldKind } from "../../lib/api";
 import { isAbortError } from "@jini-ai/ui/panel-kit";
@@ -30,19 +32,6 @@ import { isAbortError } from "@jini-ai/ui/panel-kit";
  * into this browser bundle.
  */
 
-/**
- * Fetches a list once on mount and exposes it alongside a describable error, for the two
- * `WidgetConfigFields.tsx` sub-components (`MenuConfigFields`, `ContactFormConfigFields`) whose
- * config field is a `<select>` over a server-side list.
- *
- * @param fetchList - Called once, on mount; its resolved array becomes `items`.
- * @param errorFallback - Used when the rejection is not an `Error` instance (mirrors the original
- *   inline `e instanceof Error ? e.message : "..."` each call site had before this extraction).
- * @returns `items` (`null` while the fetch is in flight, otherwise the loaded list) and `error` (a
- *   describable failure message, or `null`).
- * @example
- * const { items: menus, error } = useFetchedOptions(() => api.listMenus().then((r) => r.menus), "failed to load menus");
- */
 export interface SocialLink {
   platform: string;
   url: string;
@@ -309,22 +298,35 @@ export function useRecentEntriesConfig(
   };
 }
 
-export function useFetchedOptions<T>(fetchList: () => Promise<T[]>, errorFallback: string) {
-  const [items, setItems] = useState<T[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchList()
-      .then((result) => setItems(result))
-      .catch((e) => {
-        // A page unload cancels an in-flight request with an AbortError (`lib/page-lifecycle.ts`),
-        // not a real load failure — surfacing it would leave a stale error in this field if the
-        // page is later restored from the back/forward cache with the dialog still mounted.
-        if (isAbortError({ error: e })) return;
-        setError(e instanceof Error ? e.message : errorFallback);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return { items, error };
+/**
+ * Fetches a list once on mount and exposes it alongside a describable error, for the two
+ * `WidgetConfigFields.tsx` sub-components (`MenuConfigFields`, `ContactFormConfigFields`) whose
+ * config field is a `<select>` over a server-side list.
+ *
+ * @param fetchList - Called once, on mount; its resolved array becomes `items`.
+ * @param errorFallback - Used when the rejection is not an `Error` instance (mirrors the original
+ *   inline `e instanceof Error ? e.message : "..."` each call site had before this extraction).
+ * @returns `items` (`null` while the fetch is in flight, otherwise the loaded list) and `error` (a
+ *   describable failure message, or `null`).
+ * @example
+ * const { items: menus, error } = useFetchedOptions({ key: ["menus", "options"], fetchList: () => api.listMenus().then((r) => r.menus) }, { errorFallback: "failed to load menus" });
+ */
+export function useFetchedOptions<T>(
+  { fetchList, key }: { fetchList: () => Promise<T[]>; key: QueryKey },
+  { errorFallback = "failed to load options" }: { errorFallback?: string } = {},
+) {
+  // A field's transport is bound once, matching the old mount-only effect. Its cache identity
+  // is explicit and remains independent of translated UI copy or per-render closure identity.
+  const initialFetch = useRef(fetchList).current;
+  const fetch = useCallback(async () => {
+    try { return await initialFetch(); }
+    catch (error) {
+      // A page unload cancels an in-flight request with an AbortError (`lib/page-lifecycle.ts`),
+      // not a real load failure — surfacing it would leave a stale error in this field if the
+      // page is later restored from the back/forward cache with the dialog still mounted.
+      throw error instanceof Error ? error : new Error(errorFallback);
+    }
+  }, [initialFetch, errorFallback]);
+  const query = useFetchQuery({ key, fetch });
+  return { items: query.data ?? null, error: query.error && !isAbortError({ error: query.error }) ? query.error.message : null };
 }

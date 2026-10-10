@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { SiteKeyRecoveryCard } from "../SiteKeyRecoveryCard";

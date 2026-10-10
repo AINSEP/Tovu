@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useEffect, useRef } from "react";
 
 import { defaultAdminLocalePort, DEFAULT_LOCALE } from "./admin-locale-dependencies.hooks";
 import type { AdminLocalePort } from "./admin-locale-port.hooks";
-import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 
 /**
  * Fetches the operator's stored `core.language.locale`, defaulting to `DEFAULT_LOCALE` ("en")
@@ -39,41 +40,25 @@ import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
  * default can be dropped to match the rest of the codebase's convention.
  *
  * @param port - Where to load the locale and hear about relevant refreshes. Defaults to the real
- *   binding (see above). Read only from inside the effect body, never listed in its dependency
- *   array — see `apps/admin/INFO.md`'s Hooks section for why (the natural fake injection
+ *   binding (see above). Captured at mount, so a newly constructed fake on each render cannot
+ *   recreate subscriptions — see `apps/admin/INFO.md`'s Hooks section for why (the natural fake injection
  *   `useAdminLocaleHook={() => useAdminLocale(createFakeAdminLocalePort())}` rebuilds the port
- *   every render, so listing it would refire this effect on every render in a test).
+ *   every render).
  * @returns The current locale, `DEFAULT_LOCALE` until the initial fetch resolves.
  */
 export function useAdminLocale(port: AdminLocalePort = defaultAdminLocalePort): string {
-  const [locale, setLocale] = useState(DEFAULT_LOCALE);
-  // Every refresh notification starts another unordered `loadLanguage()` call — nothing ties a call
-  // to its own settlement order, so a slower earlier fetch resolving after a faster later one used
-  // to win regardless of which was actually the newest ask. See F3, plan-components.md (2026-09-20).
-  const settlement = useSettlementGeneration();
-  // `port` is referentially stable in production (`useWiredAdminLocale` always passes the same
-  // module-level singleton) — see `use-analytics.hooks.ts`'s identical justification for the same
-  // omission. `settlement`'s identity is stable too, for the same reason (its own doc comment).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `port`/`settlement` are referentially stable in production — see comment above; same justification as use-analytics.hooks.ts.
-  useEffect(() => {
-    let cancelled = false;
-    const fetchLocale = () => {
-      const generation = settlement.next();
-      port
-        .loadLanguage()
-        .then((next) => {
-          if (!cancelled && settlement.isCurrent({ generation })) setLocale(next);
-        })
-        .catch(() => undefined);
-    };
-    fetchLocale();
-    const unsubscribe = port.subscribeToSettingsRefresh(fetchLocale);
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, []);
-  return locale;
+  // Capture the injected port at mount: callers may construct a fake on every render.
+  const initialPort = useRef(port).current;
+  const queryFetch = useQueryFetchCallback(() => initialPort.loadLanguage(), [initialPort]);
+  // Refresh notifications can overlap unordered loadLanguage reads (F3, plan-components.md,
+  // 2026-09-20). Invalidating the shared key revokes an older read's ownership; settlement order
+  // must not let a slower earlier fetch override the latest language change.
+  const query = useFetchQuery({ key: ["settings", "core.language"], fetch: queryFetch }, { staleTime: 0 });
+  const invalidate = useInvalidate();
+  // Every consumer observes the same cache; refreshes cannot overwrite a newer replacement.
+  useEffect(() => initialPort.subscribeToSettingsRefresh(() => invalidate({ key: ["settings", "core.language"] })), [initialPort, invalidate]);
+  // A failed read retains earlier data, or the English default before the first success.
+  return query.data ?? DEFAULT_LOCALE;
 }
 
 /**

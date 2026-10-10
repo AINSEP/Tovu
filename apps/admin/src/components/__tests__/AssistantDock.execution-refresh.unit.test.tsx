@@ -1,4 +1,4 @@
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";

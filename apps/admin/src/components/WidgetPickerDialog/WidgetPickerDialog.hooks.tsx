@@ -1,5 +1,7 @@
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useEffect, useId, useRef, useState } from "react";
-import { describeApiError, type AdminWidget, type AdminWidgetType } from "../../lib/api";
+import { describeApiError, type AdminWidgetType } from "../../lib/api";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -69,20 +71,16 @@ export function useExistingInstances(
   port: WidgetPickerPort = defaultWidgetPickerPort,
   locale: string = DEFAULT_LOCALE
 ) {
-  const [instances, setInstances] = useState<AdminWidget[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    port
-      .listWidgets({ widgetType })
-      .then((r) => setInstances(r.widgets))
-      .catch((e) => setError(describeApiError(e, sharedComponentsT({ locale: locale, key: "failed to load existing widgets" }))));
-    // `port`/`locale` are added to the array below — function-scoped values ESLint's exhaustive-deps
-    // rule can see, both referentially/value stable across re-renders in production (the default
-    // parameters resolve to the same module-level singleton and the same string), so this changes
-    // nothing about when the effect re-runs. Same note as `use-pages.hooks.ts`'s identical `port`
-    // addition.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgetType, port, locale]);
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return (await port.listWidgets({ widgetType })).widgets; }
+    catch (error) { throw new Error(describeApiError(error, sharedComponentsT({ locale, key: "failed to load existing widgets" }))); }
+  }, [port, widgetType, locale]);
+  // Widget type keys isolate the picker instances; a slow prior-type response cannot populate
+  // the current picker. Port/locale dependencies refresh the fetch callback without resetting
+  // the cache's ownership or the operator's selection.
+  const query = useFetchQuery({ key: ["widgets", "instances", widgetType], fetch: queryFetch }, { staleTime: 0 });
+  const instances = query.data ?? null;
+  const error = query.error?.message ?? null;
   return { instances, error };
 }
 

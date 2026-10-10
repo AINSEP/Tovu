@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCallback, useMemo, useState } from "react";
 
 import { NO_THEME_ID } from "@/lib/api";
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -152,29 +153,34 @@ function mapThemePageRows(entries: readonly ThemePagesFileEntry[]): ThemePageRow
  * one on each publish toggle.
  */
 export function useThemePages(port: ThemePagesPort): ThemePagesController {
-  const [pages, setPages] = useState<ThemePageRow[] | null>(null);
-  const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [savingPageId, setSavingPageId] = useState<string | null>(null);
-
-  useEffect(() => {
-    port
-      .getPresentation()
-      .then((r) => {
-        const themeId = r.settings.activeThemeId;
-        setActiveThemeId(themeId);
-        // `NO_THEME_ID` ("none") is the operator-chosen no-theme sentinel, not a real theme id —
-        // `getThemeDetail(NO_THEME_ID)` 404s server-side, which used to surface as this hook's
-        // `error` and put an error banner on a screen the operator disabled on purpose. There is no
-        // theme detail to fetch in that state, so this short-circuits straight to the same `[]` an
-        // installed-but-pageless theme resolves to (`ThemePagesTab`'s existing empty state), rather
-        // than making a call that can only ever fail.
-        if (themeId === NO_THEME_ID) return null;
-        return port.getThemeDetail(themeId);
-      })
-      .then((detail) => setPages(detail ? mapThemePageRows(detail.files) : []))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load theme pages"));
+  const key = useMemo(() => ["themes", "page-publish-state"] as const, []);
+  const fetchPages = useCallback(async () => {
+    try {
+      const r = await port.getPresentation();
+      const activeThemeId = r.settings.activeThemeId;
+      // `NO_THEME_ID` is an operator choice, not an id; fetching it would only 404.
+      const detail = activeThemeId === NO_THEME_ID ? null : await port.getThemeDetail(activeThemeId);
+      return { activeThemeId, pages: detail ? mapThemePageRows(detail.files) : [] };
+    } catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load theme pages"); }
   }, [port]);
+  /* Read-lifecycle rationale retained from the preceding implementation.
+   * The query cache now supplies these ordering and lifetime guarantees.
+   * `NO_THEME_ID` ("none") is the operator-chosen no-theme sentinel, not a real theme id —
+   * `getThemeDetail(NO_THEME_ID)` 404s server-side, which used to surface as this hook's
+   * `error` and put an error banner on a screen the operator disabled on purpose. There is no
+   * theme detail to fetch in that state, so this short-circuits straight to the same `[]` an
+   * installed-but-pageless theme resolves to (`ThemePagesTab`'s existing empty state), rather
+   * than making a call that can only ever fail.
+   *
+   */
+  const query = useFetchQuery({ key, fetch: fetchPages }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchPages }, { staleTime: 0 });
+  const pages = query.data?.pages ?? null;
+  const activeThemeId = query.data?.activeThemeId ?? null;
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? query.error?.message ?? null;
+  const publish = useFetchMutation({ run: ({ input }: { input: { themeId: string; pageId: string; published: boolean } }) => port.setPagePublished(input.themeId, input.pageId, input.published) }, { invalidates: [["themes"]] });
+  const [savingPageId, setSavingPageId] = useState<string | null>(null);
 
   const setPagePublished = useCallback(
     async (pageId: string, published: boolean) => {
@@ -182,8 +188,9 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
       setSavingPageId(pageId);
       setError(null);
       try {
-        const r = await port.setPagePublished(activeThemeId, pageId, published);
-        setPages((prev) => (prev ? prev.map((p) => (p.pageId === r.page ? { ...p, published: r.published } : p)) : prev));
+        const r = await publish.mutate({ input: { themeId: activeThemeId, pageId, published } });
+        const current = loader.peek();
+        if (current) loader.replace({ value: { ...current, pages: current.pages.map(p => p.pageId === r.page ? { ...p, published: r.published } : p) } });
       } catch (e) {
         setError(e instanceof Error ? e.message : "failed to update publish state");
       } finally {

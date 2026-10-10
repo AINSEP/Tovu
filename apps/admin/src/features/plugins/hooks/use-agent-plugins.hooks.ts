@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useCallback, useMemo, useState } from "react";
 
 import { describeApiError, type AdminAgentPlugin } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { type Translate } from "@jini-ai/ui/panel-kit";
 import { t as translatePlugins } from "../plugins-i18n";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
@@ -107,31 +108,24 @@ function withId(ids: ReadonlySet<string>, pluginId: string, present: boolean): R
  * settlement holding a stale array would otherwise revert the other row's newer answer.
  */
 export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): AgentPluginsController {
-  const [agentPlugins, setAgentPlugins] = useState<AdminAgentPlugin[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const key = useMemo(() => ["agent-plugins", "list"] as const, []);
+  const fetchList = useCallback(async () => {
+    try { return (await port.listAgentPlugins()).agentPlugins; }
+    catch (error) { throw new Error(describeApiError(error, translatePlugins({ locale, key: "failed to load agent plugins" }))); }
+  }, [port, locale]);
+  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
+  const agentPlugins = query.data ?? null;
+  const setAgentPlugins = (update: (current: AdminAgentPlugin[] | null) => AdminAgentPlugin[]) => loader.replace({ value: update(loader.peek() ?? null) });
+  const invalidate = useInvalidate();
+  const toggle = useFetchMutation({ run: ({ input }: { input: AdminAgentPlugin }) => port.setAgentPluginEnabled(input.pluginId, { enabled: !input.enabled }) }, { invalidates: [["agent-plugins"]] });
+  const error = query.error?.message ?? null;
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [togglingIds, setTogglingIds] = useState<ReadonlySet<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   const [inspectedPlugin, setInspectedPlugin] = useState<InspectedAgentPlugin | null>(null);
-  const settlement = useSettlementGeneration();
 
-  function reload(): Promise<void> {
-    const generation = settlement.next();
-    return port
-      .listAgentPlugins()
-      .then((r) => {
-        if (!settlement.isCurrent({ generation })) return;
-        setAgentPlugins(r.agentPlugins);
-        setError(null);
-      })
-      .catch((e) => {
-        if (settlement.isCurrent({ generation })) setError(describeApiError(e, translatePlugins({ locale: locale, key: "failed to load agent plugins" })));
-      });
-  }
-
-  useEffect(() => {
-    void reload();
-  }, []);
+  const reload = useCallback(async () => { invalidate({ key: ["agent-plugins"] }); }, [invalidate]);
 
   // A completed assistant install/uninstall must update both tabs without a remount. The shared
   // generation guard prevents a slow earlier read resurrecting the just-removed package.
@@ -144,7 +138,7 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     setTogglingIds((ids) => withId(ids, plugin.pluginId, true));
     setToggleError(null);
     try {
-      const { agentPlugin } = await port.setAgentPluginEnabled(plugin.pluginId, { enabled: !plugin.enabled });
+      const { agentPlugin } = await toggle.mutate({ input: plugin });
       setAgentPlugins((current) =>
         (current ?? []).map((entry) => (entry.pluginId === agentPlugin.pluginId ? agentPlugin : entry)),
       );
@@ -164,7 +158,6 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     onInstalled: (plugin: AdminAgentPlugin) => {
       // The install response is newer than any pending list read. Keep its row until a later
       // refresh starts rather than letting an earlier snapshot hide the completed install.
-      settlement.next();
       setAgentPlugins((current) => [...(current ?? []).filter((entry) => entry.pluginId !== plugin.pluginId), plugin]);
     },
     expandedIds,

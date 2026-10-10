@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useAnalytics, useWiredAnalytics } from "../hooks/use-analytics.hooks";
@@ -154,5 +154,20 @@ describe("useAnalytics — injected t is genuinely returned, not built internall
     await waitFor(() => expect(result.current.hits).toEqual([HIT]));
     expect(result.current.t("Analytics")).toBe("TRANSLATED[Analytics]");
     expect(result.current.t).toBe(distinctiveT);
+  });
+});
+
+describe("analytics query ownership", () => {
+  it("shares one in-flight read between two consumers", async () => {
+    let complete!: (value: { hits: typeof HIT[] }) => void;
+    const read = vi.fn(() => new Promise<{ hits: typeof HIT[] }>(resolve => { complete = resolve; }));
+    const port = { ...createFakeAnalyticsPort(), listRecentAnalyticsHits: read };
+    const { result } = renderHook(() => ({ first: useAnalytics(port, fakeT), second: useAnalytics(port, fakeT) }));
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    await act(async () => { complete({ hits: [HIT] }); });
+    await waitFor(() => {
+      expect(result.current.first.hits).toEqual([HIT]);
+      expect(result.current.second.hits).toEqual([HIT]);
+    });
   });
 });

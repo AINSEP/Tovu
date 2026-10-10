@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useEffect } from "react";
 
 import { DEFAULT_INTERFACE, INTERFACE_NAMESPACE, loadInterface, type InterfaceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
-import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file Settings → User Interface's preferences, read live for the admin shell. `App.tsx` turns them
@@ -40,27 +41,11 @@ export const defaultInterfacePreferencesPort: InterfacePreferencesPort = {
  * @complexity O(1) per load.
  */
 export function useInterfacePreferences(port: InterfacePreferencesPort = defaultInterfacePreferencesPort): InterfaceConfig {
-  const [preferences, setPreferences] = useState(DEFAULT_INTERFACE);
-  const settlement = useSettlementGeneration();
-  useEffect(() => {
-    let cancelled = false;
-    const fetchPreferences = () => {
-      const generation = settlement.next();
-      port
-        .loadInterface()
-        .then((next) => {
-          if (!cancelled && settlement.isCurrent({ generation })) setPreferences(next);
-        })
-        .catch(() => undefined);
-    };
-    fetchPreferences();
-    const unsubscribe = port.subscribeToSettingsRefresh(fetchPreferences);
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, [port]);
-  return preferences;
+  const queryFetch = useQueryFetchCallback(() => port.loadInterface(), [port]);
+  const query = useFetchQuery({ key: ["settings", INTERFACE_NAMESPACE], fetch: queryFetch }, { staleTime: 0 });
+  const invalidate = useInvalidate();
+  useEffect(() => port.subscribeToSettingsRefresh(() => invalidate({ key: ["settings", INTERFACE_NAMESPACE] })), [port, invalidate]);
+  return query.data ?? DEFAULT_INTERFACE;
 }
 
 /** `.admin-layout`'s class list: each preference's CSS rules apply only under its class. */

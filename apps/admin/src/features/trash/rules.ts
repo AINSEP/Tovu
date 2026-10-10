@@ -1,4 +1,4 @@
-import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
 import type { AdminTrashItem, AdminTrashPurgeOutcome, AdminTrashRestoreOutcome } from "@/lib/api";
 import { t } from "./trash-i18n";
 import { ApiError, REQUEST_TIMEOUT_CODE, describeApiError } from "@/lib/api";
@@ -70,6 +70,8 @@ export function entityTypeLabel(locale: string, entityType: string): string {
     taxonomy: "Taxonomy",
     plugin: "Plugin",
     user: "User",
+    member: "Member",
+    theme: "Theme",
   };
   const label = known[entityType];
   return label ? t({ locale: locale, key: label }) : entityType;

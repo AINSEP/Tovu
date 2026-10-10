@@ -1,9 +1,10 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminPluginFiles } from "@/lib/api";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePluginPackageFiles } from "../hooks/use-plugin-package-files.hooks";
+import { useAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-modal.hooks";
 import { toPackageFileView } from "../rules";
 
 /**
@@ -129,5 +130,19 @@ describe("toPackageFileView", () => {
     expect(toPackageFileView({ relativePath: "y", sizeBytes: 0, content: null, omitted: null }, identity).unavailableReason).toBe(
       "This file could not be read.",
     );
+  });
+});
+
+
+it("keeps CMS and agent package files separate when their identifiers match", async () => {
+  const cms = createFakePluginsPort({ packageFiles: { shared: listing("shared") } });
+  const agent = { getAgentPluginFiles: async () => listing("shared", { files: [{ relativePath: "agent.json", sizeBytes: 2, content: "{}", omitted: null }] }) };
+  const { result } = renderHook(() => ({
+    cms: usePluginPackageFiles({ pluginId: "shared", port: cms, t: identity }),
+    agent: useAgentPluginDetailsModal({ pluginId: "shared", port: agent, t: identity }),
+  }));
+  await waitFor(() => {
+    expect(result.current.cms.files[0]?.relativePath).toBe("tovu.plugin.json");
+    expect(result.current.agent.files[0]?.relativePath).toBe("agent.json");
   });
 });

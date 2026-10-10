@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { useAdminSession } from '../../../App.hooks';
 import { api } from '../../../lib/api';
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { renderHook, act, cleanup } from "@testing-library/react";
+import { renderHook, act, cleanup } from "@/__tests__/fetch-query-render";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers } from "@jini-ai/chat/react";

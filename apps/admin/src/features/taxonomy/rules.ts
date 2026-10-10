@@ -1,5 +1,5 @@
 import { ApiError, describeApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../../lib/api";
-import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
 
 /**
  * @file Pure logic for the `taxonomy` feature — everything that computes a value rather than

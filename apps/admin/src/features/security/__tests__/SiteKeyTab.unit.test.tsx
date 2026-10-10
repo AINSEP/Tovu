@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import userEvent from "@testing-library/user-event";

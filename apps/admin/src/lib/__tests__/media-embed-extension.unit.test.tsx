@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { Editor } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";

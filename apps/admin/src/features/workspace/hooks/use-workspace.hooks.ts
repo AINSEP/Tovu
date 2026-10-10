@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AdminWorkspace } from "@/lib/api";
 import { describeApiError } from "../rules";
@@ -59,8 +60,15 @@ export interface WorkspaceController {
 export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => t({ locale: locale, key: key });
-  const [workspace, setWorkspace] = useState<AdminWorkspace | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const key = useMemo(() => ["workspace", "current"] as const, []);
+  const fetchWorkspace = useCallback(async () => {
+    try { return (await port.getWorkspace()).workspace; }
+    catch (error) { throw new Error(describeApiError(error, t({ locale, key: "failed to load workspace" }), locale)); }
+  }, [port, locale]);
+  const query = useFetchQuery({ key, fetch: fetchWorkspace }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchWorkspace }, { staleTime: 0 });
+  const error = query.error?.message ?? null;
+  const update = useFetchMutation({ run: ({ input }: { input: { name: string; slug: string } }) => port.updateWorkspace(input) }, { invalidates: [["workspace"]] });
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -68,21 +76,20 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  function reload(): Promise<void> {
-    return port
-      .getWorkspace()
-      .then((r) => {
-        setWorkspace(r.workspace);
-        setName(r.workspace.name);
-        setSlug(r.workspace.slug);
-      })
-      .catch((e) => setError(describeApiError(e, t({ locale: locale, key: "failed to load workspace" }), locale)));
-  }
-
+  const hydrated = useRef(false);
+  const workspace = hydrated.current ? query.data ?? null : null;
   useEffect(() => {
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let cancelled = false;
+    // Await this mount's read before enabling the form. Background invalidation updates workspace
+    // truth, never the operator's rename draft after hydration.
+    void loader.load().then(workspace => {
+      if (cancelled || hydrated.current) return;
+      hydrated.current = true;
+      setName(workspace.name);
+      setSlug(workspace.slug);
+    }).catch(() => {}); // The reactive query exposes this read's error.
+    return () => { cancelled = true; };
+  }, [loader]);
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
@@ -90,8 +97,8 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
     setSaveError(null);
     setSaved(false);
     try {
-      const { workspace: updated } = await port.updateWorkspace({ name, slug });
-      setWorkspace(updated);
+      const { workspace: updated } = await update.mutate({ input: { name, slug } });
+      loader.replace({ value: updated });
       setSaved(true);
     } catch (e) {
       setSaveError(describeApiError(e, t({ locale: locale, key: "failed to save workspace" }), locale));

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCallback, useMemo, useState } from "react";
 
 import { ApiError, describeApiError, type AdminSiteKeyStatus } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
-import { t as defaultT, siteKeyGenerateErrorMessage, siteKeyLoadErrorMessage, siteKeyRevealErrorMessage } from "../security-i18n";
+import { t as defaultT, siteKeyLoadErrorMessage, siteKeyRevealErrorMessage } from "../security-i18n";
 import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
 import type { SiteKeyPort } from "./site-key-port.hooks";
 
@@ -80,24 +81,21 @@ export function classifySiteKeyGenerateError(e: unknown, t: Translate): SiteKeyG
 }
 
 export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): SiteKeyController {
-  const [status, setStatus] = useState<AdminSiteKeyStatus | undefined>(undefined);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const key = useMemo(() => ["site-key", "status"] as const, []);
+  const fetchStatus = useCallback(async () => {
+    try { return await port.status(); }
+    catch (error) { throw new Error(siteKeyLoadErrorMessage(locale, describeApiError(error, t("unknown error")))); }
+  }, [port, locale, t]);
+  const query = useFetchQuery({ key, fetch: fetchStatus }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchStatus }, { staleTime: 0 });
+  const status = query.data;
+  const loadError = query.error?.message ?? null;
+  const generateKey = useFetchMutation({ run: () => port.generate() }, { invalidates: [["site-key"]] });
   const [revealing, setRevealing] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
   const [revealedHex, setRevealedHex] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<SiteKeyGenerateFailure | null>(null);
-
-  const fetchedRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: port/t/locale stable for the mounted controller's lifetime (bound once in useWiredSiteKey); mount guard above prevents double-fetch.
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    port
-      .status()
-      .then((result) => setStatus(result))
-      .catch((err: unknown) => setLoadError(siteKeyLoadErrorMessage(locale, describeApiError(err, t("unknown error")))));
-  }, []);
 
   async function reveal(): Promise<void> {
     if (!status?.active || revealing) return;
@@ -122,10 +120,10 @@ export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): Sit
     setGenerating(true);
     setGenerateError(null);
     try {
-      const result = await port.generate();
+      const result = await generateKey.mutate({ input: {} });
       // Every success (`already-active`, `recovered`, `created`) leaves a key that matches the
       // `.site-meta.json` stamp — the server refuses with a 409 rather than leave a mismatch.
-      setStatus({ active: true, source: "file", fingerprint: result.fingerprint, keyFilePath: result.keyFilePath, runtimeMode: result.runtimeMode, state: "active" });
+      loader.replace({ value: { active: true, source: "file", fingerprint: result.fingerprint, keyFilePath: result.keyFilePath, runtimeMode: result.runtimeMode, state: "active" } });
     } catch (err) {
       setGenerateError(classifySiteKeyGenerateError(err, t));
     } finally {
@@ -134,13 +132,12 @@ export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): Sit
   }
 
   async function refresh(): Promise<void> {
+    query.refetch();
     try {
-      setStatus(await port.status());
+      await loader.load();
       setGenerateError(null);
       setRevealedHex(null);
-    } catch (err) {
-      setLoadError(siteKeyLoadErrorMessage(locale, describeApiError(err, t("unknown error"))));
-    }
+    } catch { /* The shared status query owns the existing load-error channel. */ }
   }
 
   return { status, loadError, revealing, revealError, revealedHex, reveal, hideRevealed, generating, generateError, generate, refresh, t };
@@ -152,6 +149,6 @@ export function useSiteKey(port: SiteKeyPort, t: Translate, locale: string): Sit
  */
 export function useWiredSiteKey(): SiteKeyController {
   const locale = useAdminLocale();
-  const boundT = (key: string): string => defaultT({ locale: locale, key: key });
+  const boundT = useCallback((key: string): string => defaultT({ locale: locale, key: key }), [locale]);
   return useSiteKey(defaultSiteKeyPort, boundT, locale);
 }

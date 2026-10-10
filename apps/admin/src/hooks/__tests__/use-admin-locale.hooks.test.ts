@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
@@ -160,4 +160,17 @@ it("useWiredAdminLocale loads and refreshes the locale through the real settings
   act(() => publishSettingsRefresh(["core.language"]));
   await waitFor(() => expect(result.current).toBe("fr"));
   expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+describe("language query ownership", () => {
+  it("deduplicates injected reads and refreshes all consumers through the shared key", async () => {
+    const fake = createFakeAdminLocalePort({ initialLocale: "fr" });
+    const read = vi.fn(() => fake.loadLanguage());
+    const port = { ...fake, loadLanguage: read };
+    const { result } = renderHook(() => ({ first: useAdminLocale(port), second: useAdminLocale(port) }));
+    await waitFor(() => expect(result.current).toEqual({ first: "fr", second: "fr" }));
+    expect(read).toHaveBeenCalledTimes(1);
+    act(() => fake.publishLocaleChange("de"));
+    await waitFor(() => expect(result.current).toEqual({ first: "de", second: "de" }));
+  });
 });

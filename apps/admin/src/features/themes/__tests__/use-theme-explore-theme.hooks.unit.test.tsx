@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { useThemeExploreTheme } from "../hooks/use-theme-explore-theme.hooks";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";

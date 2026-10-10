@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { AgentPluginMemoryPanel } from '../AgentPluginMemoryPanel';

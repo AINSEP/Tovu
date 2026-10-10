@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 import { SiteKeyTab } from "../SiteKeyTab";
 import { t } from "../security-i18n";

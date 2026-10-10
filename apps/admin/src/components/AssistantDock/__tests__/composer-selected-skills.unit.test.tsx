@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { StartRunInput } from "@jini-ai/chat/core";
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import { Composer, useComposer, ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { deriveConversationTitle } from "@jini-ai/chat/core";

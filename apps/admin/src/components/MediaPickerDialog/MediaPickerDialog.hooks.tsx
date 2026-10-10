@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { acceptsMedia } from "@jini-ai/admin/media";
 import { describeApiError, type AdminMedia } from "../../lib/api";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
@@ -46,17 +47,13 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
  *   and `error` (a describable failure message, or `null`).
  */
 export function useMediaPickerItems(port: MediaPickerPort, locale: string = DEFAULT_LOCALE) {
-  const [items, setItems] = useState<AdminMedia[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    port
-      .listMedia()
-      .then((r) => setItems(r.media.filter((m) => m.status === "active")))
-      .catch((e) => setError(describeApiError(e, sharedComponentsT({ locale: locale, key: "failed to load media" }))));
-    // `locale` is added below for the same reason `useExistingInstances`'s does — see that hook's
-    // identical eslint-disable note in `WidgetPickerDialog.hooks.tsx`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return await port.listMedia(); }
+    catch (error) { throw new Error(describeApiError(error, sharedComponentsT({ locale, key: "failed to load media" }))); }
   }, [port, locale]);
+  const query = useFetchQuery({ key: ["media"], fetch: queryFetch }, { staleTime: 0 });
+  const items = query.data?.media.filter(item => item.status === "active") ?? null;
+  const error = query.error?.message ?? null;
   return { items, error };
 }
 

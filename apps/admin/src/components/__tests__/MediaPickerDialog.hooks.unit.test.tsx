@@ -1,5 +1,5 @@
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError, type AdminMedia } from "../../lib/api";

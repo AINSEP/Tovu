@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import { PublishSectionButton } from "../PublishSectionButton";
 import { setPublishToLiveAvailable } from "../hooks/publish-availability.store";

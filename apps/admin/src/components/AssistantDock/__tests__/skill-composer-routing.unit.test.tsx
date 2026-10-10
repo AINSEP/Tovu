@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { renderHook } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { resolveSkillsAvailable, useSkillAwareAttachmentUploader } from "../hooks/AssistantDock.hooks";
 

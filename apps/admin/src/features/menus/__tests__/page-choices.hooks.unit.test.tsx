@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it, vi } from "vitest";
 import type { AdminMenu } from "@/lib/api";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";

@@ -1,4 +1,5 @@
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
+import { act, cleanup, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaPickerPort } from "@jini-ai/admin/contracts/media-picker";
@@ -84,7 +85,7 @@ describe("useJiniMediaPicker", () => {
     expect(onSelect).toHaveBeenCalledWith(chosen);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("/api/admin/v1/workspaces/workspace-local/media");
-    expect(init?.method).toBe("GET");
+    expect(init?.method ?? "GET").toBe("GET");
   });
 
   it("reports an error when the picked media is no longer active", async () => {
@@ -171,4 +172,17 @@ describe("useJiniMediaPicker", () => {
     renderHook(() => useJiniMediaPicker({ onSelect: vi.fn(), onCancel: vi.fn(), accept: ["image/*"] }), { wrapper: scope(picker) });
     expect(calls[0]!.required).toEqual({ accept: ["image/*"] });
   });
+});
+
+
+it("resolves the selected CMS row through the injected port without transport access", async () => {
+  const { picker, calls } = deferredPicker();
+  const chosen = media("host-port");
+  const port = createFakeMediaPickerPort({ media: [chosen] });
+  const onSelect = vi.fn();
+  const network = vi.fn(); vi.stubGlobal("fetch", network);
+  renderHook(() => useJiniMediaPicker({ onSelect, onCancel: vi.fn() }, { port }), { wrapper: scope(picker) });
+  await act(async () => { calls[0]!.resolve({ id: chosen.id }); });
+  await waitFor(() => expect(onSelect).toHaveBeenCalledExactlyOnceWith(chosen));
+  expect(network).not.toHaveBeenCalled();
 });

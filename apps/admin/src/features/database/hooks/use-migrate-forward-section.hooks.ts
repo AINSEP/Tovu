@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { describeApiError } from "@/lib/api";
-import { useFetchMutation, useInvalidate, type QueryKey } from "@jini-ai/ui/fetch-query";
+import { useFetchMutation, useInvalidate } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { KEYS } from "../rules";
 import { t } from "../database-i18n";

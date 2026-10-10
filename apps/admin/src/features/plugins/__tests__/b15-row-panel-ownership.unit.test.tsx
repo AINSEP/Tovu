@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 

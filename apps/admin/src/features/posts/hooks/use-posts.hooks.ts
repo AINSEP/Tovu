@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useCallback, useMemo, useState } from "react";
 
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "../rules";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";
 import type { PostsListPort } from "./posts-list-port.hooks";
@@ -96,8 +96,25 @@ export interface PostsListDependencies {
 
 export function usePosts(deps: PostsListDependencies): PostsController {
   const { port, navigate } = deps;
-  const [posts, setPosts] = useState<AdminPost[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const key = useMemo(() => ["posts", "list"] as const, []);
+  const fetchList = useCallback(async () => {
+    try { return (await port.listPosts()).posts.map(entry => entry.post); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load posts"); }
+  }, [port]);
+  // Mount reads and content-refresh invalidations can overlap. The shared cache revokes the
+  // older request's ownership before starting the newer read, so a late success or failure
+  // cannot replace the latest list. Background reads retain the rendered table.
+  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
+  const posts = query.data ?? null;
+  function setPosts(update: (current: AdminPost[] | null) => AdminPost[] | null) {
+    const next = update(loader.peek() ?? null);
+    if (next !== null) loader.replace({ value: next });
+  }
+  const invalidate = useInvalidate();
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["posts"]] });
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? query.error?.message ?? null;
   const [creating, setCreating] = useState(false);
   // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
   // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
@@ -106,37 +123,10 @@ export function usePosts(deps: PostsListDependencies): PostsController {
   // closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
   // why); this is what drives its `open` prop.
   const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
-  const settlement = useSettlementGeneration();
 
-  const load = useCallback(() => {
-    // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
-    // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
-    // see the other's claim.
-    const generation = settlement.next();
-    port
-      .listPosts()
-      .then((r) => {
-        // Superseded by a newer `load()` started after this one (mount vs. a content-refresh
-        // notification, or two notifications back to back) — that later call owns `posts` now, and
-        // applying this stale result would let whichever request happens to settle LAST win
-        // regardless of which one was issued last. See this hook's own header.
-        if (!settlement.isCurrent({ generation })) return;
-        setPosts(r.posts.map((entry) => entry.post));
-      })
-      .catch((e) => {
-        if (!settlement.isCurrent({ generation })) return;
-        setError(e instanceof Error ? e.message : "failed to load posts");
-      });
-    // `port`/`settlement` are added — see `use-page-editor.hooks.ts`'s identical note: both are
-    // function-scoped values ESLint's exhaustive-deps rule can see, referentially stable in
-    // production, so this changes nothing about when this callback's identity changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [port, settlement]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
+  // Query ownership replaces the latest-wins read guard described above; background
+  // refreshes keep the table and cache replacements protect newer mutation responses.
+  const load = useCallback(() => invalidate({ key: ["posts"] }), [invalidate]);
   useContentRefreshSubscription(POSTS_RESOURCE, load);
 
   const rowMenuHandleById = usePostRowMenuHandleMap(posts);
@@ -145,7 +135,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     setCreating(true);
     setError(null);
     try {
-      const { post } = await port.createPost("Untitled");
+      const { post } = await write.mutate({ input: () => port.createPost("Untitled") }) as Awaited<ReturnType<typeof port.createPost>>;
       navigate(`/posts/${post.slug}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to create post");
@@ -187,10 +177,10 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     setRowSavingId(post.id);
     setError(null);
     try {
-      const { post: updated } = await port.updatePost(
+      const { post: updated } = await write.mutate({ input: () => port.updatePost(
         { id: post.id },
         { title: post.title, slug: post.slug, bodyJson: post.bodyJson, status: nextStatus, expectedVersion: post.version }
-      );
+      ) }) as Awaited<ReturnType<typeof port.updatePost>>;
       setPosts((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : `failed to ${nextStatus === "published" ? "publish" : "unpublish"} post`);
@@ -226,7 +216,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     setRowSavingId(post.id);
     setError(null);
     try {
-      await port.deletePost(post.id);
+      await write.mutate({ input: () => port.deletePost(post.id) });
       setPosts((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete post");

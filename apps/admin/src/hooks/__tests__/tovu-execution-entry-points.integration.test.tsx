@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { ExecutionConfig, ExecutionPort } from '@jini-ai/ui';
 import { SettingsUi } from '@/features/settings/SettingsUi';

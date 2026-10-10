@@ -1,7 +1,7 @@
 /** The Plugins "Add a plugin" tab (moved from the retired "Install plugin" popup, 2026-10-06):
  *  the trust review is shown before install, installs stay off, and the tab reads as switched off
  *  when the server allows no local installs. */
-import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, it, expect, vi } from "vitest";
 import { createFakePluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";

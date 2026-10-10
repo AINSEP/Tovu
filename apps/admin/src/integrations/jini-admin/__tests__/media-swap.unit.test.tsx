@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, within } from "@/__tests__/fetch-query-render";
 import { useState } from 'react';
 import { KitProvider } from '@jini-ai/ui-kit/react';
 import { AdminModulesProvider } from '../AdminModulesProvider';

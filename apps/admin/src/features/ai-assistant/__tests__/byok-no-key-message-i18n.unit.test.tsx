@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { ByokProviderForm, I18nProvider, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import { afterEach, describe, expect, it, vi } from "vitest";

@@ -9,7 +9,7 @@
  * Driven through the REAL `usePageEditor` (fake port), because the defect lives in the seam between
  * the hook's effect and the view's element tree; a fake controller cannot reproduce it.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PageEditor } from "../PageEditor";

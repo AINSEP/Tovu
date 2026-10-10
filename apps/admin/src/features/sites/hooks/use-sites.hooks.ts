@@ -3,7 +3,8 @@ import { useSiteConfirm, type SiteConfirmController } from "./use-site-confirm.h
 import { useCallback, useRef, useState } from "react";
 
 import { describeApiError, type AdminSiteActivation, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
-import { useFetchMutation, type QueryStatus } from "@jini-ai/ui/fetch-query";
+import { useFetchMutation } from "@jini-ai/ui/fetch-query";
+import type { QueryStatus } from "@jini-ai/core/fetch";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useSitesSnapshot } from "./use-sites-snapshot.hooks";
 import { useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";

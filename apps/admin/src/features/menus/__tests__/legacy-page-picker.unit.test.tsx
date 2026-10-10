@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it } from "vitest";
 import type { AdminMenu } from "@/lib/api";
 import { MenuEditor } from "../MenuEditor";

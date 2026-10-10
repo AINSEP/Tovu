@@ -1,6 +1,6 @@
 import { ApiError, type AdminMedia } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
-import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
 import type { MediaContentTabId } from "./hooks/use-media-tabs.hooks";
 import { t as translate } from "./media-i18n";
 

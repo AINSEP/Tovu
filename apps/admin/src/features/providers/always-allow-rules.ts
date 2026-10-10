@@ -1,5 +1,5 @@
 import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/lib/api";
-import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 
 /**

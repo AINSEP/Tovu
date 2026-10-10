@@ -1,5 +1,5 @@
 import { useThemeExplorePreview } from "../hooks/use-theme-explore-preview.hooks";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";

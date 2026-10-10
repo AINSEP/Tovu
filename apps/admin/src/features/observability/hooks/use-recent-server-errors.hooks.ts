@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useCallback, useMemo } from "react";
 
 import { describeApiError, type AdminServerLogEntry, type AdminServerLogs } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -70,21 +72,15 @@ export interface RecentServerErrorsController {
 }
 
 export function useRecentServerErrors({ port, locale, t }: RecentServerErrorsDependencies): RecentServerErrorsController {
-  const [logs, setLogs] = useState<AdminServerLogs | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    void port
-      .getServerLogs({ level: "error", limit: RECENT_ERRORS_LIMIT })
-      .then((result) => setLogs(result))
-      .catch((e) => setError(describeApiError(e, translateObservability({ locale: locale, key: "failed to load recent server errors" }))))
-      .finally(() => setLoading(false));
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return await port.getServerLogs({ level: "error", limit: RECENT_ERRORS_LIMIT }); }
+    catch (error) { throw new Error(describeApiError(error, translateObservability({ locale, key: "failed to load recent server errors" }))); }
   }, [port, locale]);
-
-  useEffect(refresh, [refresh]);
+  const query = useFetchQuery({ key: ["observability", "server-errors", RECENT_ERRORS_LIMIT], fetch: queryFetch }, { staleTime: 0 });
+  const logs = query.data ?? null;
+  const loading = query.isFetching;
+  const error = query.error?.message ?? null;
+  const refresh = query.refetch;
 
   const rows = useMemo(() => (logs ? toRows(logs.entries, locale) : []), [logs, locale]);
   return { rows, logs, loading, error, refresh, clipboard: port, t };

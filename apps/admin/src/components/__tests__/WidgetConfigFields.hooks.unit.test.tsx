@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { useFetchedOptions, useSocialLinksConfig } from "../WidgetConfigFields/WidgetConfigFields.hooks";
@@ -17,7 +17,7 @@ import { useFetchedOptions, useSocialLinksConfig } from "../WidgetConfigFields/W
 describe("useFetchedOptions", () => {
   it("starts with items/error both null, then resolves items to the fetch result", async () => {
     const fetchList = vi.fn().mockResolvedValue(["a", "b", "c"]);
-    const { result } = renderHook(() => useFetchedOptions(fetchList, "fallback"));
+    const { result } = renderHook(() => useFetchedOptions({ fetchList, key: ["test-options"] }, { errorFallback: "fallback" }));
 
     expect(result.current.items).toBeNull();
     expect(result.current.error).toBeNull();
@@ -29,7 +29,7 @@ describe("useFetchedOptions", () => {
 
   it("surfaces the rejection's own message when it is an Error instance", async () => {
     const fetchList = vi.fn().mockRejectedValue(new Error("network down"));
-    const { result } = renderHook(() => useFetchedOptions(fetchList, "fallback"));
+    const { result } = renderHook(() => useFetchedOptions({ fetchList, key: ["test-options"] }, { errorFallback: "fallback" }));
 
     await waitFor(() => expect(result.current.error).toBe("network down"));
     expect(result.current.items).toBeNull();
@@ -37,7 +37,7 @@ describe("useFetchedOptions", () => {
 
   it("falls back to the given message when the rejection is not an Error instance", async () => {
     const fetchList = vi.fn().mockRejectedValue("string rejection");
-    const { result } = renderHook(() => useFetchedOptions(fetchList, "failed to load menus"));
+    const { result } = renderHook(() => useFetchedOptions({ fetchList, key: ["test-options"] }, { errorFallback: "failed to load menus" }));
 
     await waitFor(() => expect(result.current.error).toBe("failed to load menus"));
   });
@@ -55,7 +55,7 @@ describe("useFetchedOptions", () => {
     const rejection = new DOMException("request cancelled: the page is unloading", "AbortError");
     const pending = Promise.reject(rejection);
     const fetchList = vi.fn().mockReturnValue(pending);
-    const { result } = renderHook(() => useFetchedOptions(fetchList, "fallback"));
+    const { result } = renderHook(() => useFetchedOptions({ fetchList, key: ["test-options"] }, { errorFallback: "fallback" }));
 
     await act(async () => {
       await pending.catch(() => {});
@@ -67,7 +67,7 @@ describe("useFetchedOptions", () => {
 
   it("fetches exactly once per mount, not once per render", async () => {
     const fetchList = vi.fn().mockResolvedValue([]);
-    const { result, rerender } = renderHook(() => useFetchedOptions(fetchList, "fallback"));
+    const { result, rerender } = renderHook(() => useFetchedOptions({ fetchList, key: ["test-options"] }, { errorFallback: "fallback" }));
     await waitFor(() => expect(result.current.items).toEqual([]));
 
     act(() => rerender());

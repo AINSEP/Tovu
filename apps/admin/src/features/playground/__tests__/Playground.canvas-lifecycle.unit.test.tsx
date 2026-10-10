@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { Playground } from "../Playground";

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCallback, useMemo, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -93,12 +94,21 @@ export interface ThemesController {
  * @complexity Time/space: O(1) per call — one settings round trip on mount, one per `activate`.
  */
 export function useThemes({ port, t }: ThemesDependencies): ThemesController {
-  const [settings, setSettings] = useState<PresentationSettings | null>(null);
-  const [themes, setThemes] = useState<string[]>([]);
-  const [themeTiers, setThemeTiers] = useState<Record<string, ThemeTier>>({});
-  const [themeNames, setThemeNames] = useState<Record<string, string>>({});
-  const [themePreviewImages, setThemePreviewImages] = useState<Record<string, string | null | undefined>>({});
-  const [error, setError] = useState<string | null>(null);
+  const key = useMemo(() => ["themes", "presentation"] as const, []);
+  const fetchPresentation = useCallback(async () => {
+    try { return await port.getPresentation(); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load themes"); }
+  }, [port]);
+  const query = useFetchQuery({ key, fetch: fetchPresentation }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchPresentation }, { staleTime: 0 });
+  const settings = query.data?.settings ?? null;
+  const themes = query.data?.availableThemeIds ?? [];
+  const themeTiers = Object.fromEntries(query.data?.availableThemes.map(theme => [theme.id, theme.tier]) ?? []);
+  const themeNames = themeNamesById(query.data?.availableThemes ?? []);
+  const themePreviewImages = Object.fromEntries(query.data?.availableThemes.map(theme => [theme.id, theme.previewImageUrl]) ?? []);
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? query.error?.message ?? null;
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["themes"]] });
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);
@@ -122,26 +132,9 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   /** One `getPresentation()` answer into every piece of screen state it feeds — shared by `rescan`
    *  and `duplicate`, so the two can never refresh different subsets. (The mount effect below keeps
    *  its own inline copy: calling a per-render function from it would trip exhaustive-deps.) */
-  function applyPresentation(r: Awaited<ReturnType<ThemesPort["getPresentation"]>>) {
-    setSettings(r.settings);
-    setThemes(r.availableThemeIds);
-    setThemeTiers(Object.fromEntries(r.availableThemes.map((t) => [t.id, t.tier])));
-    setThemeNames(themeNamesById(r.availableThemes));
-    setThemePreviewImages(Object.fromEntries(r.availableThemes.map((theme) => [theme.id, theme.previewImageUrl])));
+  function applyPresentation(value: Awaited<ReturnType<ThemesPort["getPresentation"]>>) {
+    loader.replace({ value });
   }
-
-  useEffect(() => {
-    port
-      .getPresentation()
-      .then((r) => {
-        setSettings(r.settings);
-        setThemes(r.availableThemeIds);
-        setThemeTiers(Object.fromEntries(r.availableThemes.map((t) => [t.id, t.tier])));
-        setThemeNames(themeNamesById(r.availableThemes));
-        setThemePreviewImages(Object.fromEntries(r.availableThemes.map((theme) => [theme.id, theme.previewImageUrl])));
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load themes"));
-  }, [port]);
 
   /**
    * Ask the server to re-read the themes directory, then reload this screen's data from it.
@@ -156,8 +149,8 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     setError(null);
     setRescanNotice(null);
     try {
-      const r = await port.rescanThemes();
-      applyPresentation(await port.getPresentation());
+      const r = await write.mutate({ input: () => port.rescanThemes() }) as Awaited<ReturnType<typeof port.rescanThemes>>;
+      applyPresentation(await loader.load());
       setRescanNotice(describeRescan(r));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to rescan themes");
@@ -177,8 +170,8 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     setDuplicateNotice(null);
     try {
       const sourceName = themeNames[themeId] ?? themeId;
-      const r = await port.duplicateTheme(themeId, themeCopyName({ name: sourceName, t }));
-      applyPresentation(await port.getPresentation());
+      const r = await write.mutate({ input: () => port.duplicateTheme(themeId, themeCopyName({ name: sourceName, t })) }) as Awaited<ReturnType<typeof port.duplicateTheme>>;
+      applyPresentation(await loader.load());
       setDuplicateNotice(interpolate({ template: t("Duplicated as \"{name}\""), vars: { name: r.theme.name } }));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("failed to duplicate theme"));
@@ -196,12 +189,13 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     setError(null);
     return activateWrites.run({ task: async () => {
       try {
-        const r = await port.setActiveTheme(themeId);
+        const r = await write.mutate({ input: () => port.setActiveTheme(themeId) }) as Awaited<ReturnType<typeof port.setActiveTheme>>;
         // Superseded by a newer activate call started after this one — that later call owns
         // `settings`/`busyTheme` now, and applying this stale result would let whichever request
         // happens to settle LAST win regardless of which theme was actually clicked last.
         if (!activateSettlement.isCurrent({ generation })) return;
-        setSettings(r.settings);
+        const current = loader.peek();
+        if (current) applyPresentation({ ...current, settings: r.settings });
       } catch (e) {
         if (!activateSettlement.isCurrent({ generation })) return;
         setError(e instanceof Error ? e.message : t("failed to switch theme"));

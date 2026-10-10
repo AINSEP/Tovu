@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPost } from "@/lib/api";
@@ -537,5 +537,30 @@ describe("usePostRowMenuHandleMap", () => {
     const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
     expect(result.current.rowMenuHandleById.get(POST.id)).toBe(`posts-row-${POST.id}`);
+  });
+});
+
+describe("posts shared query ownership", () => {
+  it("a publish toggle updates a second mounted list", async () => {
+    const port = createFakePostsListPort({ posts: [POST] });
+    const dependencies = { port, navigate: (_path: string) => {} };
+    const { result } = renderHook(() => ({ first: usePosts(dependencies), second: usePosts(dependencies) }));
+    await waitFor(() => expect(result.current.second.posts).toEqual([POST]));
+    await act(async () => { await result.current.first.togglePostPublish(POST); });
+    await waitFor(() => {
+      expect(result.current.first.posts?.[0]?.status).toBe("draft");
+      expect(result.current.second.posts?.[0]?.status).toBe("draft");
+      expect(result.current.second.posts?.[0]?.version).toBe(POST.version + 1);
+    });
+  });
+  it("a rejected write leaves the second list and its version untouched", async () => {
+    const port = createFakePostsListPort({ posts: [POST], updateError: new Error("write refused") });
+    const dependencies = { port, navigate: (_path: string) => {} };
+    const { result } = renderHook(() => ({ first: usePosts(dependencies), second: usePosts(dependencies) }));
+    await waitFor(() => expect(result.current.second.posts).toEqual([POST]));
+    await act(async () => { await result.current.first.togglePostPublish(POST); });
+    expect(result.current.first.error).toBe("write refused");
+    expect(result.current.second.posts).toEqual([POST]);
+    expect(result.current.second.error).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import type { JSONContent } from "@tiptap/core";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it } from "vitest";
 import type { AdminPost } from "../../lib/api";
 import { usePostEditor } from "../../features/posts/hooks/use-post-editor.hooks";

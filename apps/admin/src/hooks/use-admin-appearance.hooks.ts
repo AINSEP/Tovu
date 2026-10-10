@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useCallback, useEffect, useRef } from "react";
 import { APPEARANCE_NAMESPACE, DEFAULT_APPEARANCE, loadAppearance, type AppearanceConfig } from "../lib/settings-tabs";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
 
@@ -37,21 +38,18 @@ function applyAccent({ accentColor, root }: { accentColor: string; root: HTMLEle
 
 /** Follow the operator's appearance ledger on every admin page, using the existing refresh bus. */
 export function useAdminAppearance(_required: object, { port = defaultPort, root = document.documentElement } = {}) {
+  const previewVersion = useRef(previewVersions.get(root));
+  const fetchAppearance = useCallback(() => port.loadAppearance(), [port]);
+  const query = useFetchQuery({ key: ["settings", APPEARANCE_NAMESPACE], fetch: fetchAppearance }, { staleTime: 0 });
+  const invalidate = useInvalidate();
+  useEffect(() => port.subscribeToSettingsRefresh(() => {
+    previewVersion.current = previewVersions.get(root);
+    invalidate({ key: ["settings", APPEARANCE_NAMESPACE] });
+  }), [port, root, invalidate]);
   useEffect(() => {
-    let cancelled = false;
-    let generation = 0;
-    const refresh = () => {
-      const ticket = ++generation;
-      const previewVersion = previewVersions.get(root);
-      void port.loadAppearance().then((next) => {
-        // An older response must not repaint a newer choice; failed reads retain the last accent.
-        if (!cancelled && ticket === generation && previewVersions.get(root) === previewVersion) applyAccent({ accentColor: next.accentColor, root }, {});
-      }).catch(() => undefined);
-    };
-    refresh();
-    const unsubscribe = port.subscribeToSettingsRefresh(refresh);
-    return () => { cancelled = true; unsubscribe(); };
-  }, [port, root]);
+    // An older response must not repaint a newer choice; failed reads retain the last accent.
+    if (query.data && previewVersions.get(root) === previewVersion.current) applyAccent({ accentColor: query.data.accentColor, root }, {});
+  }, [query.data, root]);
 }
 
 /** Preview the controlled draft before the debounced ledger save completes. */

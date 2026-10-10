@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { PublishSectionButton } from "../PublishSectionButton";

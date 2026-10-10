@@ -3,12 +3,27 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCachedLoader, useFetchMutation, useFetchQuery } from '@jini-ai/ui/fetch-query';
-import { describe, expect, it } from 'vitest';
-import type { ReactNode } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useContext, type ReactNode } from 'react';
 import { FetchQueryProvider } from '../provider';
+import { AdminFetchQueryAdapterContext } from '../adapter-context';
 
 describe('admin TanStack provider composition', () => {
-  const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider devtools={null}>{children}</FetchQueryProvider>;
+  afterEach(() => vi.unstubAllGlobals());
+  const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
+
+  it.each(['tanstack', 'builtin'] as const)('allows same-origin reads and writes with navigator offline using %s', async adapter => {
+    vi.stubGlobal('navigator', { onLine: false });
+    const selectedWrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider adapter={adapter}>{children}</FetchQueryProvider>;
+    let reads = 0;
+    const { result } = renderHook(() => ({
+      query: useFetchQuery({ key: ['offline-local-read'], fetch: async () => { reads++; return 'Local server responded'; } }),
+      write: useFetchMutation({ run: async ({ input }: { input: string }) => `Local write: ${input}` }),
+    }), { wrapper: selectedWrapper });
+    await waitFor(() => expect(result.current.query.data).toBe('Local server responded'));
+    await act(async () => { await expect(result.current.write.mutate({ input: 'saved' })).resolves.toBe('Local write: saved'); });
+    expect(reads).toBe(1);
+  });
 
   it('selects the composition at the real admin entry', () => {
     // jsdom replaces the global URL, so a file URL from import.meta.url is not one node:fs accepts.
@@ -36,19 +51,28 @@ describe('admin TanStack provider composition', () => {
     expect(result.current.client.getQueryData(key)).toBe('value 2');
   });
 
-  it('scopes independent admin roots and puts injected development tools inside the client provider', async () => {
+  it('scopes independent admin roots and puts tab descendants inside the client provider', async () => {
     const clients: unknown[] = [];
-    function Tools({ initialIsOpen }: { initialIsOpen: boolean }) {
+    function Tools() {
       clients.push(useQueryClient());
-      expect(initialIsOpen).toBe(false);
       return null;
     }
-    const withTools = ({ children }: { children: ReactNode }) => <FetchQueryProvider devtools={Tools}>{children}</FetchQueryProvider>;
+    const withTools = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}<Tools /></FetchQueryProvider>;
     const first = renderHook(() => ({ query: useFetchQuery({ key: ['same'], fetch: async () => 'first' }), client: useQueryClient() }), { wrapper: withTools });
     const second = renderHook(() => ({ query: useFetchQuery({ key: ['same'], fetch: async () => 'second' }), client: useQueryClient() }), { wrapper });
     await waitFor(() => expect(first.result.current.query.data).toBe('first'));
     await waitFor(() => expect(second.result.current.query.data).toBe('second'));
     expect(clients).toContain(first.result.current.client);
     expect(first.result.current.client).not.toBe(second.result.current.client);
+  });
+
+  it.each(['tanstack', 'builtin'] as const)('reports the actual selected %s provider without vendor detection', async adapter => {
+    const selectedWrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider adapter={adapter}>{children}</FetchQueryProvider>;
+    const { result } = renderHook(() => ({
+      adapter: useContext(AdminFetchQueryAdapterContext),
+      query: useFetchQuery({ key: ['selected-provider'], fetch: async () => adapter }),
+    }), { wrapper: selectedWrapper });
+    await waitFor(() => expect(result.current.query.data).toBe(adapter));
+    expect(result.current.adapter).toBe(adapter);
   });
 });

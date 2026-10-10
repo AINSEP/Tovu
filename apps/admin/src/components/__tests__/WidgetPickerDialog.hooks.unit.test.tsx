@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeWidgetPickerPort } from "../WidgetPickerDialog/widget-picker-dependencies.hooks";

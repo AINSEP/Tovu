@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { render } from "@testing-library/react";
+import { render } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_PANELS } from "../../panels";

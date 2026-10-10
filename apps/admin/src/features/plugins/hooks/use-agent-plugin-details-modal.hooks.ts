@@ -38,7 +38,7 @@ export interface AgentPluginDetailsModalDependencies {
  * {@link usePluginPackageFiles}.
  */
 export function useAgentPluginDetailsModal({ pluginId, port, t }: AgentPluginDetailsModalDependencies): PluginPackageFilesController {
-  return usePluginPackageFiles({ pluginId, port: { getPluginFiles: (id) => port.getAgentPluginFiles(id) }, t });
+  return usePluginPackageFiles({ pluginId, queryRoot: "agent-plugins", port: { getPluginFiles: (id) => port.getAgentPluginFiles(id) }, t });
 }
 
 /** Binds the real `/api/.../agent-plugins/:id/files` client and a `plugins-i18n.ts` translator for

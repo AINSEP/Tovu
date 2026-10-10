@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useMembers as useJiniMembers, type MembersController as JiniController, type IdentityRefreshPort } from "@jini-ai/user-management/react";
+import { WORKSPACE_ID } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 import { defaultMembersPort, MEMBERS_RESOURCE, toJiniMembersPort } from "./members-dependencies.hooks";
@@ -23,7 +24,7 @@ export function useMembers({ port }: MembersDependencies, _optional: Record<stri
   const locale = useAdminLocale();
   const translate = useCallback((key: string) => t({ locale: locale, key: key }), [locale]);
   const jiniPort = useMemo(() => toJiniMembersPort({ port }), [port]);
-  const controller = useJiniMembers({ port: jiniPort, translate }, { refresh });
+  const controller = useJiniMembers({ port: jiniPort, translate, queryScope: WORKSPACE_ID }, { refresh });
   return { ...controller, locale, stateFor: id => controller.stateFor({ id }) };
 }
 

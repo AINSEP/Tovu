@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery, useFetchMutation, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useCallback, useState } from "react";
 import { ApiError, type AdminMenu } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { type Translate } from "@jini-ai/ui/panel-kit";
 import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
@@ -78,31 +80,24 @@ function describeMenuTrashError(
 }
 
 export function useMenus({ port, t }: MenusDependencies): MenusController {
-  const [menus, setMenus] = useState<AdminMenu[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return (await port.listMenus()).menus; }
+    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load menus"); }
+  }, [port]);
+  const query = useFetchQuery({ key: ["menus", "list"], fetch: queryFetch }, { staleTime: 0 });
+  const menus = query.data ?? null;
+  const invalidate = useInvalidate();
+  const trash = useFetchMutation({ run: ({ input }: { input: string }) => port.trash({ id: input }) }, { invalidates: [["menus"]] });
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? query.error?.message ?? null;
   const [pendingTrash, setPendingTrash] = useState<AdminMenu | null>(null);
   const [trashingId, setTrashingId] = useState<string | null>(null);
 
   // Latest-wins for `load()`: the mount read and each trash re-read can be in flight together with
   // no ordering guarantee. Without it, trashing A then B lets A's older read settle last and put B
   // back to `active`. Same guard `use-widgets-library.hooks.ts` uses for the same shape.
-  const loadSettlement = useSettlementGeneration();
-
-  function load() {
-    const generation = loadSettlement.next();
-    port
-      .listMenus()
-      .then((r) => {
-        if (!loadSettlement.isCurrent({ generation })) return;
-        setMenus(r.menus);
-      })
-      .catch((e) => {
-        if (!loadSettlement.isCurrent({ generation })) return;
-        setError(e instanceof Error ? e.message : "failed to load menus");
-      });
-  }
-
-  useEffect(load, [port]);
+  // The cache now owns the latest-wins reads described above.
+  const load = useCallback(() => invalidate({ key: ["menus"] }), [invalidate]);
 
   /** Opens the "Move to trash?" confirm for `menu` — no network call happens until
    *  {@link confirmTrash}. */
@@ -122,8 +117,7 @@ export function useMenus({ port, t }: MenusDependencies): MenusController {
     setTrashingId(menu.id);
     setError(null);
     try {
-      await port.trash({ id: menu.id });
-      load();
+      await trash.mutate({ input: menu.id });
     } catch (e) {
       const { alreadyGone, message } = describeMenuTrashError(e, "delete failed", t);
       if (alreadyGone) {

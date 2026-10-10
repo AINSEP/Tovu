@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 import { AGENT_ELEMENT_ATTRIBUTE } from "@jini-ai/agentic";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";

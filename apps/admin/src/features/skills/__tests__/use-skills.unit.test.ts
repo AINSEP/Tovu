@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SKILLS_CHANGED_EVENT, type InstalledSkill } from "../api";
 import { useSkills } from "../use-skills.hooks";

@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useState } from "react";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesModalProps } from "../plugins/PackageFilesModal";
 import { packageFilesViewState, type PackageFilesRead } from "../plugins/rules";
@@ -14,25 +16,18 @@ const identity: Translate = key => key;
 
 /** Mirrors the plugin files hook's stale-read guard; defaults to the skill's instructions. */
 export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
-  const [settled, setSettled] = useState<(PackageFilesRead & { toolId: string }) | null>(null);
   const [selection, setSelection] = useState<{ toolId: string | null; path: string } | null>(null);
-  useEffect(() => {
-    let current = true;
-    setSelection(null);
-    setSettled(null);
-    if (toolId !== null) read(toolId).then(
-      listing => { if (current) setSettled({ toolId, listing, error: null }); },
-      error => { if (current) setSettled({ toolId, listing: null, error: error instanceof Error ? error.message : "Could not load skill files." }); },
-    );
-    return () => { current = false; };
-  }, [toolId, read]);
-
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return await read(toolId!); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : "Could not load skill files."); }
+  }, [read, toolId]);
+  const query = useFetchQuery({ key: ["skills", "files", toolId ?? ""], fetch: queryFetch }, { enabled: toolId !== null, staleTime: 0 });
   const skillCopy: Translate = key => {
     if (key === "Loading package files…") return "Loading skill files…";
     if (key === "No files to show for this plugin.") return "No files to show for this skill.";
     return t(key);
   };
-  const loaded = settled?.toolId === toolId ? settled : null;
+  const loaded: PackageFilesRead | null = query.data ? { listing: query.data, error: null } : query.error ? { listing: null, error: query.error.message } : null;
   const selectedPath = selection?.toolId === toolId ? selection.path : "SKILL.md";
   const validPath = loaded?.listing?.files.some(file => file.relativePath === selectedPath) ? selectedPath : "SKILL.md";
   return {

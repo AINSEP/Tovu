@@ -1,5 +1,5 @@
 import { forwardRef, useState, type Ref } from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PageEditor } from "../PageEditor";

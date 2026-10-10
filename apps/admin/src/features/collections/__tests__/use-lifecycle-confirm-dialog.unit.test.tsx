@@ -1,4 +1,4 @@
-import { fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { LifecycleConfirmDialog } from "../Collections";

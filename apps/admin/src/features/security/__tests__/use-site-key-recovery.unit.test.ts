@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AdminSiteKeyStatus } from "@/lib/api";

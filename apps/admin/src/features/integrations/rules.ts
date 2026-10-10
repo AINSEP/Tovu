@@ -2,7 +2,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { describeApiError, type AdminWebhookDelivery, type AdminWebhookSubscription } from "../../lib/api";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
 import { t } from "./integrations-i18n";
 
 /**

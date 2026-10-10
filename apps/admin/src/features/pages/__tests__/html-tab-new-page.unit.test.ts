@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@/lib/api";
 import { usePageEditor } from "../hooks/use-page-editor.hooks";

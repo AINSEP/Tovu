@@ -22,6 +22,14 @@ export interface IconProps {
   size?: number;
 }
 
+/** Queries tab — the stacked records held by the live query cache. */
+export function QueriesIcon({ size = 16 }: IconProps) {
+  return <svg {...LINE_ICON} width={size} height={size}>
+    <ellipse cx="12" cy="5" rx="8" ry="3" />
+    <path d="M4 5v7c0 4 16 4 16 0V5M4 12v7c0 4 16 4 16 0v-7" />
+  </svg>;
+}
+
 /** Overview tab — a waveform, the shape of a trace being recorded. */
 export function PulseIcon({ size = 16 }: IconProps) {
   return (

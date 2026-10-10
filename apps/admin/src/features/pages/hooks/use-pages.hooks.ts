@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useCallback, useMemo, useState } from "react";
 
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { type Translate } from "@jini-ai/ui/panel-kit";
 import { t as translate } from "../pages-i18n";
 import { buildPageRowMenuHandleMap, pageAdminPath, PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
@@ -85,32 +86,42 @@ export interface PagesDependencies {
 }
 
 /**
- * `load`'s extraction below (staleness-bug generalization pass, see
- * `use-content-refresh-subscription.hooks.ts`'s own header): pulled out of the mount effect into a
- * `useCallback` so the same function can also be handed to `useContentRefreshSubscription`, which
- * re-runs it whenever `pages_write_html` (`apps/website/src/features/pages/agent-tools.ts`) writes a
- * page from an assistant run this screen otherwise has no way to learn about — the same fix
- * `use-posts.hooks.ts` (this screen's twin) needed for the reported bug. `setPages` on success rather
- * than resetting to `null` first, unchanged from before this pass, keeps the table rendered across a
- * background refresh instead of flashing back to a loading state on every agent write.
+ * The content-refresh subscription invalidates the shared list whenever pages_write_html
+ * (apps/website/src/features/pages/agent-tools.ts) writes a page from an assistant run this
+ * screen otherwise has no way to learn about. Like the Posts twin, retained query data keeps
+ * the table rendered across background refreshes instead of flashing a first-load skeleton.
  *
- * `settlement` (2026-09-07 fix, `useSettlementGeneration` — same shape `use-sites.hooks.ts`'s
- * `activate`/`use-themes.hooks.ts`'s `activate`/`download` already use): giving `load` a SECOND
- * trigger (the content-refresh subscription, above) means two `listPages()` calls can now be
+ * The 2026-09-07 settlement fix (formerly useSettlementGeneration) remains necessary:
+ * the content-refresh subscription means two listPages calls can be
  * in flight at once with no ordering guarantee on their responses — two assistant writes landing
  * back to back each publish their own refresh notification. Without this guard, whichever request
  * happened to resolve LAST won regardless of which one was issued last, so a slower, earlier
- * (now-stale) response could overwrite the newer list an operator is already looking at. Minted
- * synchronously at the top of `load`, before the request starts, so two calls issued in the same
- * tick each observe the other's claim; checked before `setPages` so a superseded response is
- * dropped instead of applied.
+ * (now-stale) response could overwrite the newer list an operator is already looking at.
+ * Cache invalidation now revokes the older request's ownership synchronously before the new
+ * read starts, so both superseded successes and failures follow the latest request.
  */
 export function usePages(deps: PagesDependencies): PagesController {
   const { port, navigate, t, locale } = deps;
-  const [pages, setPages] = useState<AdminPost[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const key = useMemo(() => ["pages", "list"] as const, []);
+  const fetchList = useCallback(async () => {
+    try { return (await port.listPages()).posts.map(entry => entry.post); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load pages"); }
+  }, [port]);
+  // Mount reads and content-refresh invalidations can overlap. The shared cache revokes the
+  // older request's ownership before starting the newer read, so a late success or failure
+  // cannot replace the latest list. Background reads retain the rendered table.
+  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
+  const pages = query.data ?? null;
+  function setPages(update: (current: AdminPost[] | null) => AdminPost[] | null) {
+    const next = update(loader.peek() ?? null);
+    if (next !== null) loader.replace({ value: next });
+  }
+  const invalidate = useInvalidate();
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["pages"]] });
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? query.error?.message ?? null;
   const [creating, setCreating] = useState(false);
-  const settlement = useSettlementGeneration();
   // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
   // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
@@ -119,35 +130,9 @@ export function usePages(deps: PagesDependencies): PagesController {
   // why); this is what drives its `open` prop.
   const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
 
-  const load = useCallback(() => {
-    // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
-    // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
-    // see the other's claim.
-    const generation = settlement.next();
-    port
-      .listPages()
-      .then((r) => {
-        // Superseded by a newer `load()` started after this one (mount vs. a content-refresh
-        // notification, or two notifications back to back) — that later call owns `pages` now, and
-        // applying this stale result would let whichever request happens to settle LAST win
-        // regardless of which one was issued last. See this hook's own header.
-        if (!settlement.isCurrent({ generation })) return;
-        setPages(r.posts.map((entry) => entry.post));
-      })
-      .catch((e) => {
-        if (!settlement.isCurrent({ generation })) return;
-        setError(e instanceof Error ? e.message : "failed to load pages");
-      });
-    // `port`/`settlement` are added — see `use-page-editor.hooks.ts`'s identical note: both are
-    // function-scoped values ESLint's exhaustive-deps rule can see, referentially stable in
-    // production, so this changes nothing about when this callback's identity changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [port, settlement]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
+  // Query ownership replaces the latest-wins read guard described above; background
+  // refreshes keep the table and cache replacements protect newer mutation responses.
+  const load = useCallback(() => invalidate({ key: ["pages"] }), [invalidate]);
   useContentRefreshSubscription(PAGES_RESOURCE, load);
 
   const rowMenuHandleById = usePageRowMenuHandleMap(pages);
@@ -156,7 +141,7 @@ export function usePages(deps: PagesDependencies): PagesController {
     setCreating(true);
     setError(null);
     try {
-      const { post } = await port.createPage("Untitled");
+      const { post } = await write.mutate({ input: () => port.createPage("Untitled") }) as Awaited<ReturnType<typeof port.createPage>>;
       // The Pages editor, not the Posts one. "New Page" and "ask the assistant to build me a page"
       // are two doors to the same destination — neither of them is a Tiptap screen.
       // `pageAdminPath` (`rules.ts`) — same slug-vs-id-vs-root-slug rule `Pages.tsx`'s own row
@@ -198,10 +183,10 @@ export function usePages(deps: PagesDependencies): PagesController {
     setRowSavingId(page.id);
     setError(null);
     try {
-      const { post: updated } = await port.updatePost(
+      const { post: updated } = await write.mutate({ input: () => port.updatePost(
         { id: page.id },
         { title: page.title, slug: page.slug, bodyJson: page.bodyJson, status: nextStatus, expectedVersion: page.version }
-      );
+      ) }) as Awaited<ReturnType<typeof port.updatePost>>;
       setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : `failed to ${nextStatus === "published" ? "publish" : "unpublish"} page`);
@@ -241,7 +226,7 @@ export function usePages(deps: PagesDependencies): PagesController {
     setRowSavingId(page.id);
     setError(null);
     try {
-      await port.deletePage(page.id);
+      await write.mutate({ input: () => port.deletePage(page.id) });
       setPages((prev) => (prev ? prev.filter((p) => p.id !== page.id) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete page");

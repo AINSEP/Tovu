@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 /**

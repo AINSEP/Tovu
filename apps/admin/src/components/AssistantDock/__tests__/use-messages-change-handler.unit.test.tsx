@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { renderHook } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 
 import type { ChatMessage } from "@jini-ai/chat/core";

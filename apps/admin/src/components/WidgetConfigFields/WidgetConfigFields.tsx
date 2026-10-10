@@ -340,8 +340,8 @@ function RecentEntriesConfigFields({
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
   const base = props.agentHandle;
   const { items: collections, error: collectionsError } = useOptions<AdminContentType>(
-    () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection(ct.key))),
-    t("failed to load collections"),
+    { fetchList: () => defaultWidgetConfigFieldsPort.listContentTypes().then((r) => r.items.filter((ct) => isUserCollection(ct.key))), key: ["collections", "options"] },
+    { errorFallback: t("failed to load collections") },
   );
   const c = useRecentEntriesConfig(props.config, props.onChange);
   const selectedType = findContentType(collections, c.collection);
@@ -432,8 +432,8 @@ function MenuConfigFields({
   t: Translate;
 } & FetchedOptionsSeam) {
   const { items: menus, error } = useOptions<AdminMenu>(
-    () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus),
-    t("failed to load menus"),
+    { fetchList: () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus), key: ["menus", "options"] },
+    { errorFallback: t("failed to load menus") },
   );
 
   if (error) return <div className="notice error">{error}</div>;
@@ -478,8 +478,8 @@ function ContactFormConfigFields({
   t: Translate;
 } & FetchedOptionsSeam) {
   const { items: forms, error } = useOptions<AdminFormDefinition>(
-    () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data),
-    t("failed to load forms")
+    { fetchList: () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data), key: ["forms", "options"] },
+    { errorFallback: t("failed to load forms") },
   );
 
   if (error) return <div className="notice error">{error}</div>;

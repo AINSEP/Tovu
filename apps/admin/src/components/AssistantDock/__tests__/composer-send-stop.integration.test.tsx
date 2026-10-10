@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ChatTransport, RunHandlers } from "@jini-ai/chat/core";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";

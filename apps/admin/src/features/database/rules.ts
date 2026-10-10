@@ -1,5 +1,5 @@
 import type { AdminLedgerRow, AdminSchemaState } from "../../lib/api";
-import type { QueryKey } from "@jini-ai/ui/fetch-query";
+import type { QueryKey } from "@jini-ai/core/fetch";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { t } from "./database-i18n";
 
