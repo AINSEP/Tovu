@@ -1,3 +1,6 @@
+@import "./site-chat-theme.css";
+@import "./page-actions.css";
+
 /**
  * @file Makes the public site chat read as the same product as the admin assistant dock
  * (`apps/admin/src/styles/assistant.css`, `apps/admin/src/components/AssistantDock.tsx`).
@@ -46,44 +49,6 @@
  * weight nobody could verify against a real render.
  */
 
-/* ---------------------------------------------------------------------------------------------
- * 1. Local design tokens — copied verbatim from apps/admin/src/styles.css, scoped to this widget.
- * --------------------------------------------------------------------------------------------- */
-
-.tovu-site-assistant {
-  --bg: #fff;
-  --surface: oklch(100% 0 0);
-  --surface-2: oklch(96.6% 0.006 250);
-  --surface-3: oklch(94% 0.008 250);
-  --fg: oklch(24% 0.022 262);
-  --fg-2: oklch(34% 0.02 262);
-  --muted: oklch(53% 0.016 258);
-  --faint: oklch(66% 0.012 258);
-  --border: oklch(91.5% 0.007 255);
-  --border-strong: oklch(86% 0.01 255);
-
-  --accent: oklch(22% 0.006 260);
-  --accent-ink: oklch(99% 0 0);
-  --accent-text: oklch(26% 0.006 260);
-
-  --primary: oklch(55.29% 0.1129 43.4); /* ~#A85A38 — 5.02:1 vs white */
-  --primary-ink: oklch(99% 0 0);
-
-  --link: oklch(45% 0.13 250);
-  --ok: oklch(48% 0.12 150);
-  --danger: oklch(52% 0.19 25);
-  --danger-bg: oklch(95% 0.04 25);
-
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-ui: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
-
-  --r-sm: 7px;
-  --r-md: 11px;
-  --r-lg: 16px;
-  --r-pill: 999px;
-  --shadow-md: 0 4px 14px rgba(20, 28, 45, 0.07), 0 2px 5px rgba(20, 28, 45, 0.05);
-}
 
 /**
  * DELIBERATELY NO `prefers-color-scheme: dark` block here — a prior version of this file had one
@@ -118,7 +83,7 @@
   bottom: 96px;
   z-index: 2147483000;
   width: min(380px, calc(100vw - 32px));
-  height: min(600px, calc(100vh - 140px));
+  height: min(600px, calc(100dvh - 184px));
   overflow: hidden;
   border-radius: var(--r-lg);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
@@ -178,13 +143,16 @@
 }
 
 @media (max-width: 480px) {
-  .tovu-site-assistant__panel {
+  .tovu-site-assistant .tovu-site-assistant__panel {
     right: 12px;
     left: 12px;
     bottom: 88px;
     width: auto;
+    max-width: none;
+    margin: 0;
+    box-sizing: border-box;
   }
-  .tovu-site-assistant .chat-fab {
+  .tovu-site-assistant .chat-fab.chat-fab {
     right: 12px;
     bottom: 12px;
   }
@@ -267,6 +235,20 @@
   margin: 0;
 }
 
+.tovu-site-assistant .jini-chat-pane__heading { flex: 1; min-width: 0; }
+.tovu-site-assistant .jini-chat-pane__close {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  font: 22px var(--font-ui);
+  cursor: pointer;
+}
+.tovu-site-assistant .jini-chat-pane__greeting { margin: 0; color: var(--fg-2); }
+
 .tovu-site-assistant .jini-chat-pane__body {
   flex: 1;
   min-height: 0;
@@ -310,8 +292,15 @@
   background: var(--surface-3);
 }
 
+.tovu-site-assistant .jini-message-list--empty .jini-chat-pane__suggestions {
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  margin: 0;
+  padding-inline: 0;
+}
+
 .tovu-site-assistant .jini-chat-pane__new-thread,
-.tovu-site-assistant .tovu-site-assistant__reset-cancel {
+.tovu-site-assistant .jini-chat-embed__reset-cancel {
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--fg-2);
@@ -325,17 +314,21 @@
 /* `SiteAssistantHeader.tsx`'s two-step "New thread" confirm — no equivalent in assistant.css, since
  * the admin dock's default header has no confirm step to lay out. This only places the pair in a
  * row where the single button used to sit; the shared visual styling comes from the rule above. */
-.tovu-site-assistant .tovu-site-assistant__reset-confirm {
+.tovu-site-assistant .jini-chat-embed__reset-confirm {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+.tovu-site-assistant .jini-chat-embed__reset-confirm .jini-chat-pane__new-thread {
+  color: var(--danger); border-color: var(--danger); background: var(--danger-bg);
 }
 
 /* ---------------------------------------------------------------------------------------------
  * 5. Message list — bubbles, agent vs. user styling, pending/error/usage rows.
  * --------------------------------------------------------------------------------------------- */
 
-.tovu-site-assistant .jini-message-list {
+.tovu-site-assistant .jini-chat-pane .jini-message-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -437,14 +430,16 @@
   cursor: pointer;
 }
 
-.tovu-site-assistant .jini-composer-send {
-  background: var(--accent);
-  color: var(--accent-ink);
+.tovu-site-assistant .jini-chat-pane .jini-composer-send {
+  background: var(--primary);
+  color: var(--primary-ink);
   border-color: transparent;
   padding: 0 14px;
 }
 
-.tovu-site-assistant .jini-composer-send:disabled {
+.tovu-site-assistant .jini-chat-pane .jini-composer-send:disabled {
+  background: var(--primary);
+  color: var(--primary-ink);
   opacity: 0.5;
   cursor: default;
 }
@@ -476,6 +471,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .tovu-site-assistant .jini-composer-plus-menu {
@@ -500,9 +496,7 @@
 }
 
 /* ---------------------------------------------------------------------------------------------
- * 7. Runtime/agent picker — this widget's `ChatPane` always renders `AgentRuntimePicker` as a
- * composer footer accessory regardless of agent count (`ChatPane.tsx` wires it in unconditionally),
- * so this DOES render here even though the widget only ever offers one fixed agent
+ * 7. Legacy runtime skin. The visitor embed variant omits the runtime picker from its render tree.
  * (`SiteAssistantWidget.tsx`'s `SITE_ASSISTANT_AGENT`) — unlike the conversation switcher/attachment
  * tray, this is not optional to style.
  * --------------------------------------------------------------------------------------------- */
@@ -596,89 +590,6 @@
 }
 
 /* ---------------------------------------------------------------------------------------------
- * 8. Highlight treatment (SPEC-046 §4) — applied to arbitrary PAGE content, not to anything inside
- * `.tovu-site-assistant`, so this section is deliberately NOT ancestor-scoped like every rule above
- * it. `--primary`'s value (`oklch(55.29% 0.1129 43.4)`, ~#A85A38) is repeated here as a literal
- * rather than referenced, because a highlighted element lives OUTSIDE `.tovu-site-assistant` and so
- * cannot inherit that scoped custom property — see this file's header on why the token block itself
- * is scoped, not global.
- *
- * `outline` + `outline-offset` + `box-shadow` ONLY — never `border`. The target is arbitrary theme
- * content this widget does not own; `border` would consume box-model space and reflow the page
- * around it, exactly the failure `box-shadow`/`outline` (which paint outside the box without
- * affecting layout) avoid. `box-shadow` alone would still clip under an `overflow: hidden` ancestor
- * (a common theme card wrapper) — `outline` is the half that keeps working there, which is why both
- * are present rather than either alone.
- * --------------------------------------------------------------------------------------------- */
-
-@keyframes tovu-site-assistant-highlight-pulse {
-  0%,
-  100% {
-    outline-color: rgba(168, 90, 56, 0.95);
-    box-shadow: 0 0 0 4px rgba(168, 90, 56, 0.28);
-  }
-  50% {
-    outline-color: rgba(168, 90, 56, 0.45);
-    box-shadow: 0 0 0 4px rgba(168, 90, 56, 0.1);
-  }
-}
-
-@keyframes tovu-site-assistant-highlight-fade {
-  from {
-    outline-color: rgba(168, 90, 56, 0.95);
-    box-shadow: 0 0 0 4px rgba(168, 90, 56, 0.28);
-  }
-  to {
-    outline-color: rgba(168, 90, 56, 0);
-    box-shadow: 0 0 0 4px rgba(168, 90, 56, 0);
-  }
-}
-
-.tovu-site-assistant__highlight {
-  outline: 3px solid rgba(168, 90, 56, 0.95);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 4px rgba(168, 90, 56, 0.28);
-  /* Keeps a sticky theme header from covering the target once scrolled to (SPEC-046 §4) — a fixed
-     literal rather than a token, for the same scope reason as the colors above. */
-  scroll-margin-top: 96px;
-  /* Two animations on one element: a ~1.2s pulse (2 cycles of 0.6s) that runs once, then a fade
-     starting at the 18s mark and finishing at 20s — `highlight.ts`'s `FADE_ANIMATION_NAME` matches
-     the second by name so cleanup fires on THAT `animationend`, not the pulse's earlier one.
-     `animation-fill-mode: forwards` (via the trailing `forwards` on the fade) holds the fully-faded
-     end state rather than snapping back to the pulse's un-faded color once the animation completes. */
-  animation:
-    tovu-site-assistant-highlight-pulse 0.6s ease-in-out 2,
-    tovu-site-assistant-highlight-fade 2s ease-in 18s forwards;
-}
-
-/* SPEC-046 §4: "no pulse, no smooth scroll; static outline, same duration and fade." The smooth-scroll
-   half of that is `highlight.ts#scrollToElement`'s job (a JS `matchMedia` check, since CSS cannot
-   express `scrollIntoView` behavior); this half removes the pulse animation only, leaving a static
-   outline that still fades out on the same ~20s timeline.
- *
- * `!important` is required here, and it is not decorative: this widget renders on an arbitrary
- * themed page (SPEC-046 §4's own "arbitrary theme content" framing applies to the PAGE this rule
- * lives on too), and the shipped `tovu-official` theme carries its own accessibility reset —
- * `@media (prefers-reduced-motion: reduce) { * { animation: ... !important; ... } }` — a reasonable,
- * common pattern that kills EVERY animation on the page under reduced motion. `!important` always
- * outranks specificity in the CSS cascade regardless of selector weight, so without a matching
- * `!important` here, that theme-level `*` reset silently wins over this class-scoped rule even though
- * `.tovu-site-assistant__highlight` is far more specific than `*` — measured live: `animationName`
- * computed as `"none"` and the outline never faded, staying at full opacity until `highlight.ts`'s
- * `CLEANUP_FALLBACK_MS` JS timer eventually force-removed it ~21s later with a visible pop instead of
- * the intended 2s fade. Once both sides carry `!important`, specificity is what decides, and this
- * rule's class selector wins over the theme's `*` — restoring the actual fade under reduced motion,
- * not just eventual (abrupt) removal. A different theme with an equally-`!important` reset scoped
- * more narrowly than `*` could still win here; this fixes the shipped theme's actual pattern, not
- * every theoretical one — see this file's header for why fighting an arbitrary host theme at all is
- * an accepted tradeoff of shipping on every page. */
-@media (prefers-reduced-motion: reduce) {
-  .tovu-site-assistant__highlight {
-    animation: tovu-site-assistant-highlight-fade 2s ease-in 18s forwards !important;
-  }
-}
-
-/* ---------------------------------------------------------------------------------------------
  * 9. Navigation proposal bar (SPEC-046 D-1) — the clickable affordance rendered when
  * `navigate_to_entry` resolves to a PROPOSED (non-auto) navigation. Sits below `ChatPane` inside the
  * panel, not inside the message list — `ChatPane` is not forked to render it, see
@@ -719,4 +630,13 @@
 
 .tovu-site-assistant__proposal-go:hover {
   opacity: 0.9;
+}
+
+@media (max-width: 640px), (pointer: coarse) {
+  .tovu-site-assistant .jini-composer-send,
+  .tovu-site-assistant .jini-chat-pane__new-thread,
+  .tovu-site-assistant .jini-chat-embed__reset-cancel,
+  .tovu-site-assistant .jini-chat-pane__suggestion,
+  .tovu-site-assistant .jini-chat-pane__queued-cancel,
+  .tovu-site-assistant__proposal-go { min-width: 40px; min-height: 40px; height: auto; }
 }

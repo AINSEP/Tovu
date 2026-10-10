@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatFab, ChatPane, JiniChatProvider, type ChatPaneAgent } from "@jini-ai/chat/react";
 import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 
+import { allowsSitePageAction, navigateSitePageAction } from "./site-page-actions";
 import { SiteAssistantHeader } from "./SiteAssistantHeader";
 import { createSiteAssistantTransport } from "./site-assistant-transport";
 import { clearSiteAssistantState, enqueuePageAction, loadSiteAssistantState, saveSiteAssistantState } from "./session-store";
 import { extractPageActions, splitPageActions, type NavigateAction, type NonNavigateAction } from "./client-directives";
 import { applyHighlight, findTargetElement, scrollToElement } from "./highlight";
+import { readSiteChatOpen, useSiteAssistantActivation, useSiteAssistantComparison, useSiteAssistantSurface } from "./SiteAssistantActivation.hooks";
 
 /**
  * @file The whole public-site chat widget (ADR-054 Task 2) — a floating action button that opens
@@ -82,8 +84,6 @@ import { applyHighlight, findTargetElement, scrollToElement } from "./highlight"
  */
 const SITE_ASSISTANT_AGENT: ChatPaneAgent = { id: "site-assistant", name: "Site Assistant", available: true };
 
-const PANE_TITLE = "Ask this site";
-
 /** A resolved-but-not-yet-executed `navigate` proposal (D-1), plus any bundled highlight/scroll_to
  *  action to enqueue for the destination once the visitor clicks through. */
 interface PendingProposal {
@@ -108,7 +108,13 @@ export function SiteAssistantWidget() {
   // below.
   const [initialState] = useState(() => loadSiteAssistantState());
 
-  const [open, setOpen] = useState(initialState.open);
+  const root = document.getElementById("tovu-site-assistant-root");
+  const comparisonControl = useSiteAssistantComparison({ root });
+  const [open, setOpen] = useState(() => readSiteChatOpen({ persistedOpen: initialState.open, root }));
+  const [paneKey, setPaneKey] = useState(0);
+  const { panelRef, launcherRef, closePanel, i18n, suggestions } = useSiteAssistantSurface({ open, setOpen }, { resetKey: paneKey });
+  const { t } = i18n;
+  const { toggleOpen } = useSiteAssistantActivation({ root, open, setOpen });
   // Stable across renders for the same reason `AssistantDock`'s transport is memoized: rebuilding
   // it would drop any run this widget has in flight.
   const transport = useMemo(() => createSiteAssistantTransport(), []);
@@ -119,7 +125,6 @@ export function SiteAssistantWidget() {
   // a render-prop — so "New thread" here works the identical way a conversation switch does there: a
   // fresh `key` forces a full remount, which is a genuinely empty `ChatPane` instance, not a call
   // into the package's internals. This is composition, not a fork.
-  const [paneKey, setPaneKey] = useState(0);
   const [hasMessages, setHasMessages] = useState(initialState.messages.length > 0);
   // The read side of `initialMessages`: whatever `ChatPane` currently holds, kept in this component
   // so the persistence effect below has something to serialize. Only consulted by `ChatPane` again at
@@ -185,7 +190,7 @@ export function SiteAssistantWidget() {
     if (processedMessageIdsRef.current.has(latest.id)) return;
     processedMessageIdsRef.current.add(latest.id);
 
-    const { navigate, other } = splitPageActions(extractPageActions(latest.events));
+    const { navigate, other } = splitPageActions({ actions: extractPageActions({ events: latest.events, directiveEventName: "client_directive" }).filter(action => allowsSitePageAction({ action })) });
     if (!navigate) {
       if (other) runNonNavigateAction(other);
       return;
@@ -198,9 +203,10 @@ export function SiteAssistantWidget() {
       // destination BEFORE navigating, and flush the transcript synchronously (not via the effect
       // above, which has not necessarily committed yet) — REQ-1/REQ-2 both depend on both writes
       // landing before the browser tears this page down.
-      if (other) enqueuePageAction(other);
-      saveSiteAssistantState({ open, messages });
-      window.location.assign(navigate.target.path);
+      navigateSitePageAction({ action: navigate, beforeNavigate: () => {
+        if (other) enqueuePageAction(other);
+        saveSiteAssistantState({ open, messages });
+      } });
       return;
     }
 
@@ -213,27 +219,34 @@ export function SiteAssistantWidget() {
     if (!pendingProposal) return;
     const { navigate, bundled } = pendingProposal;
     setPendingProposal(null);
-    if (bundled) enqueuePageAction(bundled);
     // Same flush-before-navigate reasoning as the auto path above — `persistedMessages` here is
     // already the latest settled transcript (`handleMessagesChange` updates it on every change).
-    saveSiteAssistantState({ open, messages: persistedMessages });
-    window.location.assign(navigate.target.path);
+    navigateSitePageAction({ action: navigate, beforeNavigate: () => {
+      if (bundled) enqueuePageAction(bundled);
+      saveSiteAssistantState({ open, messages: persistedMessages });
+    } });
   }, [pendingProposal, open, persistedMessages]);
 
   return (
-    <div className="tovu-site-assistant">
-      <ChatFab open={open} onToggle={() => setOpen((current) => !current)} label="chat with this site" />
-      <JiniChatProvider transport={transport}>
-        <div className="tovu-site-assistant__panel" hidden={!open}>
+    <div className="tovu-site-assistant jini-chat-embed">
+      <div ref={launcherRef}>
+        <ChatFab open={open} onToggle={toggleOpen} aria-label={t('Chat with this site')} aria-haspopup="dialog" aria-controls="tovu-site-assistant-panel" />
+      </div>
+      <JiniChatProvider transport={transport} i18n={i18n}>
+        <div id="tovu-site-assistant-panel" className="tovu-site-assistant__panel" hidden={!open} ref={panelRef} role="dialog" aria-modal="true" aria-label={t('Ask this site')}>
           <ChatPane
             key={paneKey}
             transport={transport}
+            agentControl={comparisonControl}
             agents={[SITE_ASSISTANT_AGENT]}
             initialSelection={{ agentId: SITE_ASSISTANT_AGENT.id }}
             initialMessages={persistedMessages}
-            title={PANE_TITLE}
-            header={<SiteAssistantHeader title={PANE_TITLE} hasMessages={hasMessages} onReset={resetConversation} />}
-            placeholder="Ask about this site's posts and pages…"
+            variant="embed"
+            title={t('Ask this site')}
+            header={<SiteAssistantHeader title={t('Ask this site')} hasMessages={hasMessages} onReset={resetConversation} onClose={closePanel} />}
+            placeholder={t("Ask about this site's posts and pages…")}
+            emptyState={<p className="jini-chat-pane__greeting">{t('Ask about posts, pages or docs on this site.')}</p>}
+            suggestions={suggestions}
             onMessagesChange={handleMessagesChange}
           />
           {/* SPEC-046 D-1: rendered below ChatPane, not injected into its message list — ChatPane is
