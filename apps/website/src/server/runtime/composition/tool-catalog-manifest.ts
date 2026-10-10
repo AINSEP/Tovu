@@ -1,3 +1,5 @@
+import { createTovuPluginHost } from "./plugin-host.js";
+import { contributeSiteGuideTools } from "./site-guide-tools.js";
 import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
 import { saveAgentPluginToken } from "#src/features/agent-plugins/access-token-tool";
 import { contributeAgentPluginsInstallTools } from "#src/features/agent-plugins/install-tool";
@@ -32,7 +34,7 @@ import { createDefaultHttpClient } from "#src/platform/http/client";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { contributeWebTools } from "#src/features/web/tool-registrations";
-import { htmlToMarkdown } from "#src/features/web/html-to-markdown";
+import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
 import { createPlaywrightPageCapture } from "#src/features/web-screenshot/playwright-page-capture";
 import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-image";
@@ -397,7 +399,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterTools() });
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
-  contributions.contributors.register({ contribution: contributePluginsTools() });
+  contributions.contributors.register({ contribution: contributePluginsTools({ createPluginHost: createTovuPluginHost }) });
   contributions.contributors.register({ contribution: contributePluginsInstallTools({ readInstallAttachment }) });
   contributions.contributors.register({ contribution: contributeAgentPluginsInstallTools({ readInstallAttachment }) });
   contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
@@ -431,6 +433,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeSiteBackupTools() });
   contributions.contributors.register({ contribution: contributeSiteEvidenceTools() });
   contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient(LIVE_PAGE_EGRESS_POLICY, { observability })) });
+  contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
   // `web_fetch_page` (2026-10-08): reads any PUBLIC page for every assistant path (daemon CLIs and
   // BYOK alike), through its own guarded client — every redirect hop is re-checked for private addresses.

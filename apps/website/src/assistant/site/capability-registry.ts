@@ -54,6 +54,13 @@
 import type { ClientDirective } from "./client-directives.js";
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "./tools.js";
 
+/** Owner's site-guide brief adds one explicitly named read-only seam. This does not accept a
+ * plugin catalog or arbitrary capability names; the host supplies an anonymous-safe guide only. */
+export interface PublicSiteGuidePort {
+  readonly inputSchema: Readonly<Record<string, unknown>>;
+  readonly run: (input: { input: unknown }, options?: Record<string, never>) => Promise<unknown>;
+}
+
 /**
  * Who is asking. A real parameter threaded through every `invoke()` call, not an ambient assumption
  * the registry infers from context — so authorizing a new caller class is always a visible, reviewed
@@ -153,7 +160,7 @@ function buildCapabilities(tools: ReturnType<typeof createSiteAssistantTools>): 
 export interface SiteCapabilityRegistry {
   /** The model-facing tool schemas (Google function-calling shape). Re-exported here so an adapter
    *  never has to import `tools.ts` directly for anything, capability execution included. */
-  readonly schemas: typeof SITE_ASSISTANT_TOOL_SCHEMAS;
+  readonly schemas: readonly { readonly name: string; readonly description: string; readonly parameters: Readonly<Record<string, unknown>> }[];
   invoke(invocation: SiteCapabilityInvocation): Promise<SiteCapabilityOutcome>;
 }
 
@@ -163,15 +170,22 @@ export interface SiteCapabilityRegistry {
  * "anonymous-visitor"` for every tool call the model makes during that turn.
  *
  * @complexity O(1) per `invoke()` call beyond whatever the underlying capability itself costs (a
- *   `Map.get` plus a `Set.has`); construction is O(1) in the fixed, six-entry capability list.
+ *   `Map.get` plus a `Set.has`); construction is O(1) in six content capabilities plus the optional
+ *   explicitly named, anonymous-only guide. Omitted guide ports preserve the original surface.
  * @overallScore 100
  */
-export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps): SiteCapabilityRegistry {
+export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps, options: { siteGuide?: PublicSiteGuidePort } = {}): SiteCapabilityRegistry {
   const tools = createSiteAssistantTools(deps);
-  const capabilities = buildCapabilities(tools);
+  const capabilities = new Map(buildCapabilities(tools));
+  let schemas: SiteCapabilityRegistry["schemas"] = SITE_ASSISTANT_TOOL_SCHEMAS;
+  if (options.siteGuide) {
+    const guide = options.siteGuide;
+    capabilities.set("site_guide", { name: "site_guide", allowedCallers: PUBLIC_READ_ONLY, execute: async input => ({ result: await guide.run({ input }) }) });
+    schemas = [...SITE_ASSISTANT_TOOL_SCHEMAS, { name: "site_guide", description: "Read-only overview or explain(topic) of the capabilities granted to this visitor. Consult before planning or building; administrator topics and private site facts are unavailable.", parameters: guide.inputSchema }];
+  }
 
   return {
-    schemas: SITE_ASSISTANT_TOOL_SCHEMAS,
+    schemas,
 
     async invoke(invocation: SiteCapabilityInvocation): Promise<SiteCapabilityOutcome> {
       const capability = capabilities.get(invocation.name);

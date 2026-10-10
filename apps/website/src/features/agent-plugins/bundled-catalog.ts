@@ -13,9 +13,10 @@
  * available without a trip to the Agent Plugins screen; it writes nothing until the owner approves
  * its plan, and imported entries are drafts. `tovu-theme` (owner auto-mode decision 2026-10-08):
  * `site-import` hands its theme step to this skill, so it must be on wherever `site-import` is; it
- * only ever edits a duplicated theme until the owner approves switching to it.
+ * only ever edits a duplicated theme until the owner approves switching to it. `how-tovu-works`
+ * enriches the core read-only site guide from the first boot; disabling it retains minimal cards.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "resend", "github", "site-import", "tovu-theme"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin that absorbed it. `seed-bundled.ts` never seeds a

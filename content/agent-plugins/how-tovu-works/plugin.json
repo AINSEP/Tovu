@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "how-tovu-works",
+  "version": "0.1.0",
+  "description": "Consult the read-only site_guide before designing or building. Explains Tovu content, forms, widgets, themes, members, SEO, deploy, plugins and shared Jini packages using caller-scoped live facts.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "keywords": [
+    "how-tovu-works",
+    "site-guide",
+    "learn",
+    "capabilities",
+    "forms",
+    "widgets",
+    "planner",
+    "directory",
+    "themes",
+    "Jini"
+  ],
+  "extensions": {
+    "tovu": {
+      "id": "tovu/how-tovu-works",
+      "provides": [
+        "site-guide"
+      ],
+      "displayName": "How Tovu works",
+      "summary": "Teaches the assistant the building blocks of your site before it starts designing. Uses the site's current forms, widgets, themes and plugins, and respects the caller's permissions."
+    }
+  }
+}
