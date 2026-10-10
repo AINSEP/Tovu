@@ -1066,6 +1066,7 @@ export interface WidgetsDeps {
  * not a content-model repo.
  */
 export interface PluginRuntimeDeps {
+  pluginHost?: import("#src/contracts/headless/plugin-host").PluginHostPort;
   pluginInstaller?: import("@jini-ai/plugins/host/node").PluginInstallerPort;
   /**
    * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
@@ -1357,6 +1358,13 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * {@link SiteStoragePaths}.
    */
   siteStoragePaths: SiteStoragePaths;
+  /** Layouts resolved once against siteBinding.dir, including boot-time directory overrides. */
+  agentPluginLayout: import("#src/features/agent-plugins/layout").AgentPluginLayout;
+  /** One ordered federation preset registry per booted host. */
+  federatedMcpPresetRegistry: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
+  /** One lifecycle per boot, sharing the layout used by requests and backup sources. */
+  agentPluginLifecycle: import("#src/features/agent-plugins/lifecycle").TovuAgentPluginLifecycle;
+  skillLayout: import("#src/features/skills/layout").SkillLayout;
   /**
    * Where `features/site-backup`'s `site_backup_plan` reads this site's files from: the site folder
    * (`siteBinding.dir`), and the SAME uploads, themes, agent-plugins and skills roots this process
@@ -1471,19 +1479,21 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `server/app.ts`'s hermetic root reads the bundled plugin's source directory directly.
    */
   loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  /** Fresh installed-plugin trust gates in production; bundled source in the hermetic root. */
+  loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/deploy-ops/types").DeployOpsRegistry>;
   /**
    * This workspace's plugin-contributed git-host providers (`source-control/provider-registry.ts`),
    * read by `source_control_*`, `site_backup_*`, `custom_credential_write_files` and the Source
-   * Control credential route. Omitted by `server/deps.ts`, so those read the installed, activated
+   * Control credential route. `server/deps.ts` injects its boot-bound lifecycle to read the installed, activated
    * Agent Plugins; `server/app.ts`'s hermetic root reads the bundled `github` plugin's source directly.
    */
-  loadSourceControlProviders?: LoadSourceControlProviders;
+  loadSourceControlProviders: LoadSourceControlProviders;
   /**
    * This workspace's self-describing token scheme rules (`custom-credentials/auth-schemes.ts`), read
-   * by `custom_credential_make_request`/`_verify`. Omitted by `server/deps.ts`, so those read the
+   * by `custom_credential_make_request`/`_verify`. `server/deps.ts` injects its boot-bound lifecycle to read the
    * installed plugins; `server/app.ts`'s hermetic root reads the bundled `deploy` plugin's source.
    */
-  loadAuthSchemes?: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
+  loadAuthSchemes: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
   /**
    * 2026-08-16 — cached, non-secret provider-verification results for the saved publish credentials'
    * (or the env-var fallback's) credentials, keyed by `(workspaceId, target)`. Fixes "ready means a

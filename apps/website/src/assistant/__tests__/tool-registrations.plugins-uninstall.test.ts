@@ -1,9 +1,8 @@
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import test from "node:test";
+import { stat } from "node:fs/promises";
+import test, { after } from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
@@ -22,13 +21,12 @@ import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { buildPluginsRegistrations, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
+import { buildPluginsRegistrations, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
 // S4 (2026-09-24) fixtures — case (a) below installs a REAL Agent Plugin on disk to prove the
 // 'agent-plugin' family branch, the same way `mcp-ui-tool-calls-route.agent-plugins-uninstall.
 // integration.test.ts` (now retargeted to this same tool) already did for the deleted standalone tool.
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/lifecycle.js";
-import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -47,6 +45,9 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * full coverage in — kept as its own file rather than appended there, since it exercises a materially
  * different mechanism (`uninstallPlugin`, not `executeCommand`).
  */
+
+const siteLayouts = createTempSiteLayoutFixture({});
+after(siteLayouts.cleanup);
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";
@@ -84,7 +85,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
   // compile the day the tool under test needs a dependency nobody wired here.
   const keyring = new InMemoryKeyring();
 
-  const deps: PluginsToolDeps = {
+  const deps: PluginsToolDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
@@ -108,7 +109,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
     externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
     siteAssistantSecretKeyring: keyring,
-  };
+  });
 
   return { deps, authorizeCalls, uninstallCalls, pluginActivationRepo };
 }
@@ -336,7 +337,7 @@ test("plugins_uninstall: a plugin whose version changed while the dialog was ope
   const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
   let discoveryCalls = 0;
-  const changing: PluginsToolDeps = { ...deps, discoverPlugins: async () => (discoveryCalls++ === 0 ? [SITE_PLUGIN] : [{ ...SITE_PLUGIN, version: "2.0.0" }]) };
+  const changing: PluginsToolDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...deps, discoverPlugins: async () => (discoveryCalls++ === 0 ? [SITE_PLUGIN] : [{ ...SITE_PLUGIN, version: "2.0.0" }]) });
 
   const out = await uninstallWithDecision(changing, { family: "site-runtime", pluginId: SITE_PLUGIN.id }, "confirm");
 
@@ -358,7 +359,7 @@ test("plugins_uninstall: a plugin that disappeared from discovery while the dial
   const { deps, uninstallCalls, pluginActivationRepo } = fakeRouteDeps({ discovery: [SITE_PLUGIN] });
   await pluginActivationRepo.save({ pluginId: SITE_PLUGIN.id, workspaceId: WORKSPACE_ID, version: "1.0.0", enabled: false, updatedAt: NOW });
   let discoveryCalls = 0;
-  const changing: PluginsToolDeps = { ...deps, discoverPlugins: async () => (discoveryCalls++ === 0 ? [SITE_PLUGIN] : []) };
+  const changing: PluginsToolDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...deps, discoverPlugins: async () => (discoveryCalls++ === 0 ? [SITE_PLUGIN] : []) });
 
   await assert.rejects(
     () => uninstallWithDecision(changing, { family: "site-runtime", pluginId: SITE_PLUGIN.id }, "confirm"),
@@ -375,15 +376,10 @@ test("plugins_uninstall: a plugin that disappeared from discovery while the dial
 
 const AGENT_PLUGIN_ID = "operator-plugin";
 
-/** Installs one real, minimal Agent Plugin under a temp `TOVU_AGENT_PLUGINS_DIR` — the directory
- *  `runAgentPluginUninstall` (via `resolveAgentPluginLayout()`) resolves at call time — and runs `fn`
- *  with the installed record, cleaning up the temp dir and env var override afterward regardless of
- *  outcome. Mirrors `mcp-ui-tool-calls-route.agent-plugins-uninstall.integration.test.ts`'s own
- *  `withInstalledPlugin` (that file is retargeted onto this same `plugins_uninstall` tool). */
+/** Installs a real Agent Plugin using the same fixed temporary layout as the tool deps,
+ * then removes its files even when the assertion fails. */
 async function withInstalledAgentPlugin<T>(fn: (packageRoot: string) => Promise<T>): Promise<T> {
-  const dir = await mkdtemp(path.join(tmpdir(), "tovu-plugins-uninstall-agent-plugin-"));
-  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
-  process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  const dir = siteLayouts.deps.agentPluginLayout.root;
   try {
     const manifest = Buffer.from(
       JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: AGENT_PLUGIN_ID, version: "1.0.0" }),
@@ -411,13 +407,11 @@ async function withInstalledAgentPlugin<T>(fn: (packageRoot: string) => Promise<
           yield fileEntry(`skills/${AGENT_PLUGIN_ID}/SKILL.md`, skill);
         },
       },
-      layout: resolveAgentPluginLayout(),
+      layout: siteLayouts.deps.agentPluginLayout,
       workspaceId: WORKSPACE_ID,
     });
     return await fn(installed.packageRoot);
   } finally {
-    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
-    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
   }
 }

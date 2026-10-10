@@ -27,6 +27,8 @@ import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 /** The built-in's in-code manifest-equivalent (ADR Decision item 4). */
 export const WORD_COUNT_MANIFEST: PluginManifest = {
   id: "word-count",
+  extensions: { tovu: { id: "tovu/word-count", provides: ["content-metrics"] } },
+  keywords: ["word", "count", "reading-time"],
   name: "Word Count",
   version: "1.0.0",
   sdkRange: "^0.1.0 || ^0.2.0",

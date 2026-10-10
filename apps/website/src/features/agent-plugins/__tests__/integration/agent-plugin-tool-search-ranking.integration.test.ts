@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -175,7 +176,7 @@ async function buildRealSurfaceWithPluginTool() {
 
   const registry = createToolRegistry({});
   for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
-  await registerInstalledAgentPluginTools(registry, { workspaceId: routeDeps.workspaceId });
+  await registerInstalledAgentPluginTools(registry, testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }));
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };
@@ -236,5 +237,27 @@ test("CRUX: realistic operator queries against the full real catalog (~150 nativ
     // Known unsupported phrasing: FTS5 does not stem "accessible" to "accessibility".
     // Keep this diagnostic without asserting that discovery must remain broken.
     logHits("how do I make this page more accessible", catalog.search({ query: "how do I make this page more accessible" }, { limit: 10 }));
+  });
+});
+
+
+test("owner 2026-10-09: search_tools finds author keywords and provides absent from skill prose", async () => {
+  await withAgentPluginsDir(async () => {
+    const workspaceId = "pid-search";
+    const layout = resolveAgentPluginLayout();
+    const value = {
+      $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "directory-bridge", version: "1.0.0",
+      keywords: ["pidkeyword"], extensions: { tovu: { id: "tovu/directory-bridge", provides: ["source-control"] } },
+    };
+    const archive = Buffer.from("pid-search-archive");
+    await installAgentPlugin({ archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), layout, workspaceId,
+      archiveReader: reader([fileEntry("plugin.json", JSON.stringify(value)), fileEntry("skills/directory-bridge/SKILL.md", "---\nname: directory-bridge\ndescription: Reference instructions\n---\nFollow these instructions.\n")]),
+    });
+    const registry = createToolRegistry({});
+    await registerInstalledAgentPluginTools(registry, { workspaceId, agentPluginLayout: layout });
+    const catalog = buildToolCatalogQuery(registry);
+    for (const query of ["pidkeyword", "source-control"]) {
+      assert.deepEqual(catalog.search({ query }, { limit: 10 }).map(hit => hit.id), ["agent_plugin_directory_bridge"]);
+    }
   });
 });

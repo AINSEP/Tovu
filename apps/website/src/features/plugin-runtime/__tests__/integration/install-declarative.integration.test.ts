@@ -120,3 +120,9 @@ test("CLI consent: a code-free plugin says so and names its content types instea
   assert.match(code, /This plugin runs code with full access to this computer and every site on it\./);
   assert.doesNotMatch(code, /adds content types/);
 });
+
+test("owner 2026-10-09: CLI consent displays the legacy publisher identity warning", () => {
+  const warning = "Plugin 'legacy' has no publisher-qualified id; using 'unknown/legacy'.";
+  const consent = pluginInstallConsent({ preview: { id: "legacy", name: "Legacy", version: "1.0.0", tier: "tier-1", capabilities: [], hooks: [], digest: "d", conflicts: [], contentTypes: [], hasCode: false, warnings: [warning] } });
+  assert.ok(consent.split("\n").includes(warning));
+});

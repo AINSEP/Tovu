@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -19,7 +20,7 @@ import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources } 
  * @file The upgrade path `seed-bundled.ts` claims to support, driven end to end against the REAL
  * bundled `content/agent-plugins/site-compliance/` bytes.
  *
- * Seeding is content-addressed and nothing retires a digest, so shipping a NEW VERSION of an
+ * Seeding was content-addressed without retiring a digest, so shipping a NEW VERSION of an
  * already-installed bundled plugin used to land it ALONGSIDE the old one — and both consumption
  * surfaces then refused the plugin outright as ambiguous (`resolve-agent-plugin-refs.ts`'s
  * "refusing to guess which one to use", `tool-registrations.ts`'s `poisonedPluginIds`). A product
@@ -30,8 +31,8 @@ import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources } 
  * — the plugin keeps working across the upgrade and serves the NEW content — rather than the
  * ledger's file format, so it stays honest about the product behaviour and not the mechanism.
  *
- * Deliberately NOT asserted here: that anything was deleted. Superseded bytes stay on disk; this
- * test proves they do.
+ * Successful publication now prunes superseded package bytes. The ledger still names a build's
+ * authoritative revision in retained legacy stores; these upgrades also assert pruning.
  */
 
 const WORKSPACE_ID = "44444444-4444-4444-8444-444444444444";
@@ -121,7 +122,7 @@ test("a bundled upgrade of an ENABLED plugin keeps its tool registered, on the N
     const firstDigest = await seedFrom(BUNDLED_SOURCE_ROOT);
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator:test" });
 
-    const beforeUpgrade = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
+    const beforeUpgrade = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     assert.equal(
       beforeUpgrade.find((source) => source.pluginId === PLUGIN_ID)?.archiveDigest,
       firstDigest,
@@ -131,7 +132,7 @@ test("a bundled upgrade of an ENABLED plugin keeps its tool registered, on the N
     const secondDigest = await seedFrom(upgradedSourceRoot);
     assert.notEqual(secondDigest, firstDigest, "the upgraded bundle must genuinely change the content digest");
 
-    const afterUpgrade = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
+    const afterUpgrade = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     const source = afterUpgrade.find((candidate) => candidate.pluginId === PLUGIN_ID);
     assert.ok(source, `'${PLUGIN_ID}' must still be wired as a tool after a bundled upgrade`);
     assert.equal(source.archiveDigest, secondDigest, "the tool must be wired to the digest this build ships, not the retired one");
@@ -183,7 +184,7 @@ test("an edited bundled SKILL.md refreshes the site's installed copy even with N
   });
 });
 
-test("the superseded digest's bytes stay on disk — nothing is deleted by an upgrade", async () => {
+test("successful upgrade prunes superseded bytes and keeps the newly published digest", async () => {
   await withUpgradeScenario(async ({ upgradedSourceRoot, seedFrom }) => {
     const firstDigest = await seedFrom(BUNDLED_SOURCE_ROOT);
     const secondDigest = await seedFrom(upgradedSourceRoot);
@@ -194,7 +195,8 @@ test("the superseded digest's bytes stay on disk — nothing is deleted by an up
       .map((plugin) => plugin.archiveDigest)
       .sort();
 
-    assert.deepEqual(digestsOnDisk, [firstDigest, secondDigest].sort(), "both digests must remain installed; superseding is not deleting");
+    assert.notEqual(firstDigest, secondDigest);
+    assert.deepEqual(digestsOnDisk, [secondDigest], "only the accepted revision remains installed after publication");
   });
 });
 
@@ -204,7 +206,7 @@ test("the admin listing reports the version the RUNNING build ships, in EITHER s
   const listedVersionAfter = async (order: readonly ("shipped" | "upgraded")[]): Promise<string | undefined> =>
     withUpgradeScenario(async ({ upgradedSourceRoot, seedFrom }) => {
       for (const which of order) await seedFrom(which === "shipped" ? BUNDLED_SOURCE_ROOT : upgradedSourceRoot);
-      return (await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_ID })).find((candidate) => candidate.pluginId === PLUGIN_ID)?.version;
+      return (await loadAgentPluginSearchCandidates(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }))).find((candidate) => candidate.pluginId === PLUGIN_ID)?.version;
     });
 
   const shippedVersion = await listedVersionAfter(["shipped"]);
@@ -224,7 +226,7 @@ test("MCP federation reads the RUNNING build's package, in EITHER seeding order"
   const serverKeysAfter = async (order: readonly ("shipped" | "upgraded")[]): Promise<readonly string[]> =>
     withUpgradeScenario(async ({ upgradedSourceRoot, seedFrom }) => {
       for (const which of order) await seedFrom(which === "shipped" ? BUNDLED_SOURCE_ROOT : upgradedSourceRoot);
-      return Object.keys(await resolveAgentPluginMcpServers({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID }));
+      return Object.keys(await resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID })));
     });
 
   // Both directions for the same reason the listing test asserts both — see its own comment. This
@@ -244,7 +246,7 @@ test("a bundled upgrade preserves an operator's disabled decision and keeps both
     const upgraded = await seedFrom(upgradedSourceRoot);
     assert.notEqual(upgraded, original);
     assert.deepEqual((await readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN_ID], before);
-    assert.deepEqual((await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID })).filter(source => source.pluginId === PLUGIN_ID), []);
+    assert.deepEqual((await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }))).filter(source => source.pluginId === PLUGIN_ID), []);
     const injected = await resolveAgentPluginRefs([PLUGIN_ID], resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID));
     assert.ok(!injected.ok && injected.reason.includes("is not enabled"));
   });

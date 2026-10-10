@@ -1,3 +1,5 @@
+import { readInstalledAgentPluginIdentity } from "./identity.js";
+import type { PluginHostPort } from "../../contracts/headless/plugin-host.js";
 /**
  * @file `installUploadedAgentPlugin()` — the admin "Add a plugin" upload: one operator-supplied
  * `.zip` of an agent-plugins.org package, installed for one workspace and left switched OFF.
@@ -41,7 +43,7 @@ import {
   type AgentPluginArchiveReaderPort,
   type InstalledAgentPlugin,
 } from "./lifecycle.js";
-import { resolveAgentPluginLayout, type AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 
 const { setAgentPluginActivation, isAgentPluginRecordedAsBundled, resolveAgentPluginActivation } = agentPluginActivations;
@@ -157,8 +159,9 @@ export interface InstallUploadedAgentPluginRequired {
 }
 
 export interface InstallUploadedAgentPluginOptional {
+  readonly pluginHost?: PluginHostPort;
   readonly archiveReader?: AgentPluginArchiveReaderPort;
-  readonly layout?: AgentPluginLayout;
+  readonly layout: AgentPluginLayout;
 }
 
 export interface InstalledUploadedAgentPlugin {
@@ -176,10 +179,10 @@ export interface InstalledUploadedAgentPlugin {
  */
 export async function installUploadedAgentPlugin(
   required: InstallUploadedAgentPluginRequired,
-  optional: InstallUploadedAgentPluginOptional = {},
+  optional: InstallUploadedAgentPluginOptional,
 ): Promise<InstalledUploadedAgentPlugin> {
   const { archive, expectedSha256, workspaceId, actor } = required;
-  const layout = optional.layout ?? resolveAgentPluginLayout();
+  const layout = optional.layout;
   const reader = optional.archiveReader ?? createUploadArchiveReader();
 
   const digest = validateUploadedBytes({ archive, expectedSha256 });
@@ -192,38 +195,43 @@ export async function installUploadedAgentPlugin(
     archiveReader: withinPrefix(reader, prefix), layout, workspaceId }, {
     // The lock belongs to installAgentPlugin. Doing an id check outside it lets two uploads
     // both pass and publish ambiguous digests. Keep check, disabled activation, and swap together.
-    publishGuard: async ({ publish }) => {
-      const existing = await checkExisting({ workspaceRoot: workspaceLayout.root, pluginId, digest, replace: required.replace === true });
-      const same = existing.find(entry => entry.archiveDigest === digest);
-      if (same) { alreadyInstalled = true; return same; }
-      upgradeFrom = existing.flatMap(entry => entry.version ? [entry.version] : []);
-      const staged: StagedTree[] = [];
-      const packagesDir = workspaceLayout.pluginPackagesDir({ pluginId });
-      await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
-      let installed: InstalledAgentPlugin;
-      try {
-        for (const previous of existing) staged.push(await stageForRemoval({ packagesDir, packageRoot: previous.packageRoot }));
-        // Write OFF before publication: a missing activation record otherwise means active.
-        // Replacement already proved this record OFF; preserve it exactly on success or rollback.
-        if (existing.length === 0) await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId, enabled: false, actor }, { origin: "operator-installed" });
-        installed = await publish();
-      } catch (error) {
-        const destination = path.join(packagesDir, digest);
-        // publish can fail while freezing its new tree. Remove that tree before restoring the old
-        // one, so a failed upgrade never leaves two resolvable versions under the same id.
-        if (staged.length > 0) {
-          try { if ((await lstat(destination)).isDirectory()) await removeFrozenPackageTree({ root: destination }); }
-          catch (cleanupError) { if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") throw cleanupError; }
+    publishGuard: async ({ plugin: indexed, publish }) => {
+      const run = async () => {
+        const existing = await checkExisting({ workspaceRoot: workspaceLayout.root, pluginId, digest, replace: required.replace === true });
+        const same = existing.find(entry => entry.archiveDigest === digest);
+        if (same) { alreadyInstalled = true; return same; }
+        upgradeFrom = existing.flatMap(entry => entry.version ? [entry.version] : []);
+        const staged: StagedTree[] = [];
+        const packagesDir = workspaceLayout.pluginPackagesDir({ pluginId });
+        await assertOwnedPluginPath({ workspaceRoot: workspaceLayout.root, entryPath: path.relative(workspaceLayout.root, packagesDir) });
+        let installed: InstalledAgentPlugin;
+        try {
+          for (const previous of existing) staged.push(await stageForRemoval({ packagesDir, packageRoot: previous.packageRoot }));
+          // Write OFF before publication: a missing activation record otherwise means active.
+          // Replacement already proved this record OFF; preserve it exactly on success or rollback.
+          if (existing.length === 0) await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId, enabled: false, actor }, { origin: "operator-installed" });
+          installed = await publish();
+        } catch (error) {
+          const destination = path.join(packagesDir, digest);
+          // publish can fail while freezing its new tree. Remove that tree before restoring the old
+          // one, so a failed upgrade never leaves two resolvable versions under the same id.
+          if (staged.length > 0) {
+            try { if ((await lstat(destination)).isDirectory()) await removeFrozenPackageTree({ root: destination }); }
+            catch (cleanupError) { if ((cleanupError as NodeJS.ErrnoException).code !== "ENOENT") throw cleanupError; }
+          }
+          throw await restoreStagedTrees({ staged, cause: error });
         }
-        throw await restoreStagedTrees({ staged, cause: error });
-      }
-      // Publication is settled. Cleanup must never delete the new version then try to restore
-      // an old tree whose cleanup already succeeded. Quarantine names are excluded from discovery.
-      for (const tree of staged) {
-        try { await removeFrozenPackageTree({ root: tree.quarantined }); }
-        catch { console.warn(`[agent-plugins] retired package cleanup pending for '${pluginId}'`); }
-      }
-      return installed;
+        // Publication is settled. Cleanup must never delete the new version then try to restore
+        // an old tree whose cleanup already succeeded. Quarantine names are excluded from discovery.
+        for (const tree of staged) {
+          try { await removeFrozenPackageTree({ root: tree.quarantined }); }
+          catch { console.warn(`[agent-plugins] retired package cleanup pending for '${pluginId}'`); }
+        }
+        return installed;
+      };
+      if (!optional.pluginHost) return run();
+      const identity = await readInstalledAgentPluginIdentity({ plugin: indexed });
+      return optional.pluginHost.withInstallIdentity({ candidate: { id: identity.id, localId: pluginId, family: "agent-plugin" }, run });
     },
   });
   return { plugin, alreadyInstalled, ...(upgradeFrom.length > 0 ? { upgradeFrom } : {}) };
@@ -251,10 +259,10 @@ export interface AgentPluginUploadPreview {
 
 /** Extracts through the real install validator in staging; preview never publishes code or memory.
  * Host paths from that ephemeral extraction are deliberately absent from this projection. */
-export async function previewUploadedAgentPlugin(required: InstallUploadedAgentPluginRequired, optional: InstallUploadedAgentPluginOptional = {}): Promise<AgentPluginUploadPreview> {
+export async function previewUploadedAgentPlugin(required: InstallUploadedAgentPluginRequired, optional: InstallUploadedAgentPluginOptional): Promise<AgentPluginUploadPreview> {
   validateUploadedBytes(required);
   const reader = optional.archiveReader ?? createUploadArchiveReader();
-  const layout = optional.layout ?? resolveAgentPluginLayout();
+  const layout = optional.layout;
   const { prefix, pluginId } = await locatePackage(reader, required.archive);
   const plugin = await installAgentPlugin({ archive: required.archive, expectedSha256: required.expectedSha256,
     archiveReader: withinPrefix(reader, prefix), layout, workspaceId: required.workspaceId }, { previewOnly: true });

@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, stat } from "node:fs/promises";
@@ -15,7 +16,7 @@ import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/for
 import { installAgentPlugin, type AgentPluginArchiveEntry, type InstalledAgentPlugin } from "../../features/agent-plugins/lifecycle.js";
 import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { buildPluginsRegistrations, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
+import { buildPluginsRegistrations, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
@@ -38,7 +39,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * RETARGETED (S4, 2026-09-24): this file used to prove the deleted standalone `agent_plugins_uninstall`
  * tool, built through the now-deleted `buildAgentPluginUninstallRegistrations`. Both plugin families'
  * uninstall now redeem through the ONE `plugins_uninstall` tool
- * (`features/plugin-runtime/tool-registrations.ts`), so this proof moves to that tool's registry, with
+ * (`../../__tests__/support/plugin-tool-host.js.ts`), so this proof moves to that tool's registry, with
  * `family: "agent-plugin"` picking the same branch the deleted tool used to be. The asserts below are
  * moved, not rewritten — only the registry-building fixture and the tool id/input changed.
  */
@@ -98,7 +99,7 @@ async function withInstalledPlugin<T>(fn: (installed: InstalledAgentPlugin) => P
  *  casting — every other field below is never invoked by this test's own path. */
 function buildToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
   const keyring = new InMemoryKeyring();
-  const deps: PluginsToolDeps = {
+  const deps: PluginsToolDeps = testSiteLayoutContext({
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.now() },
@@ -115,7 +116,7 @@ function buildToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
     externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
     siteAssistantSecretKeyring: keyring,
-  };
+  });
   const registry = createToolRegistry({});
   for (const registration of buildPluginsRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);

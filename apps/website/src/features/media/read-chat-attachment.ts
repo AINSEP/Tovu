@@ -68,7 +68,7 @@
  * case.)
  *
  * Every refusal reaches the caller as one indistinguishable outcome. The `ChatAttachmentRefusal`
- * values below exist so tests can assert *which* check fired; the HTTP layer collapses all of them
+ * contract values exist so tests can assert *which* check fired; the HTTP layer collapses all of them
  * into a single 404 with a single fixed message, so a caller cannot tell "no such attachment" from
  * "someone else's attachment" — the same non-disclosure `AttachmentStore.resolveForRun` documents
  * for its own rejections.
@@ -96,14 +96,9 @@ import { dirname, resolve } from "node:path";
 
 import { isUnchangedAttachment } from "@jini-ai/daemon/http";
 
-/**
- * Accepted `ref` shape. `attachment:` matches the id `AttachmentStore.register` mints
- * (`` `attachment:${randomUUID()}` ``); the tail is deliberately the same `[A-Za-z0-9-]` allowlist
- * `attachmentSidecarFileName` reduces an id to, rather than a UUID-exact pattern, so a later change
- * to that id format does not silently start 404ing every attachment. Narrow enough either way: no
- * `.`, `/`, or `\` can appear.
- */
-export const CHAT_ATTACHMENT_REF_PATTERN = /^attachment:[A-Za-z0-9-]{8,80}$/u;
+import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult, type ChatAttachmentRefusal } from '../../contracts/headless/chat-attachment.js';
+export { CHAT_ATTACHMENT_REF_PATTERN } from '../../contracts/headless/chat-attachment.js';
+export type { ChatAttachmentReadResult, ChatAttachmentRefusal } from '../../contracts/headless/chat-attachment.js';
 
 /**
  * Accepted batch id shape — kept identical to `attachments.ts`'s own `BATCH_ID_PATTERN`, because
@@ -115,23 +110,6 @@ const BATCH_ID_PATTERN = /^[a-zA-Z0-9-]{8,80}$/u;
 /** Mirrors `attachments.ts`'s `SIDECAR_DIRECTORY_NAME`. The leading `.` is load-bearing: no batch
  *  id can spell it, so a batch directory can never collide with the record directory. */
 const SIDECAR_DIRECTORY_NAME = ".records";
-
-/**
- * Which check refused a read. Internal diagnosis only — the HTTP layer maps every one of these to
- * the same 404 body (see this file's authorization doc), so nothing here reaches a caller.
- */
-export type ChatAttachmentRefusal =
-  | "malformed-ref"
-  | "no-record"
-  | "record-unreadable"
-  | "record-outside-upload-root"
-  | "not-owner"
-  | "too-large"
-  | "integrity";
-
-export type ChatAttachmentReadResult =
-  | { readonly ok: true; readonly bytes: Uint8Array }
-  | { readonly ok: false; readonly refusal: ChatAttachmentRefusal };
 
 /** The sidecar fields this module reads, as `attachments.ts`'s `PersistedAttachmentRecord` writes
  *  them. `claimedRunId` and `batchDirectory` are deliberately not persisted by that writer — the

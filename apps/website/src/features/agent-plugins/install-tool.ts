@@ -3,20 +3,22 @@ import { createHash } from "node:crypto";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "#src/assistant/index";
-import type { PluginsToolDeps } from "../plugin-runtime/tool-registrations.js";
-import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "../plugin-runtime/install-source.js";
+import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "../../contracts/headless/plugin-install-source.js";
 import { AgentPluginInstallError, maxAgentPluginInstallArchiveBytes } from "./lifecycle.js";
 import { AgentPluginUploadError, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
 import type { AgentPluginLayout } from "./layout.js";
-import { resolveAgentPluginLayout } from "./layout.js";
 import { agentPluginActivations } from "./activation-effects.js";
 
 /** The assistant uses the same uploaded-package service as the Agent Plugins admin add tab.
  * No opt-in for this family: only bundled digests may run code. Preview verifies the full archive,
  * install verifies the pinned bytes again, and every fresh/replacement install remains disabled. */
-export type AgentPluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "authorize"> & {
+export type AgentPluginsInstallToolDeps = {
+  readonly pluginHost?: import("../../contracts/headless/plugin-host.js").PluginHostPort;
+  readonly workspaceId: string;
+  readonly authorize: AuthorizeFn;
   readonly readInstallAttachment?: InstallAttachmentReader;
-  readonly layout?: AgentPluginLayout;
+  readonly agentPluginLayout: AgentPluginLayout;
 };
 
 export const AGENT_PLUGINS_INSTALL_TOOL_ID = "agent_plugins_install";
@@ -42,14 +44,14 @@ export function buildRegistrations(deps: AgentPluginsInstallToolDeps, _optional:
       if (request.kind !== "zip") throw new ToolInputError({ message: "Agent Plugin source must be a ZIP path or attachmentRef. Upload a chosen folder as a ZIP." });
       const archive = await readPluginInstallArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
       const required = { archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), workspaceId: deps.workspaceId, actor: ctx.principal.id, replace: request.replace };
-      const optional = deps.layout ? { layout: deps.layout } : {};
+      const optional = { layout: deps.agentPluginLayout, ...(deps.pluginHost ? { pluginHost: deps.pluginHost } : {}) };
       try {
         const preview = await previewUploadedAgentPlugin(required, optional);
         const result = await installUploadedAgentPlugin({ ...required, expectedSha256: preview.digest }, optional);
         // Identical bytes are a no-op, including activation. Do not falsely report OFF for a
         // package the operator already enabled; malformed activation remains explicitly unknown.
         const verdict = result.alreadyInstalled
-          ? (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot: (deps.layout ?? resolveAgentPluginLayout()).forWorkspace(deps.workspaceId).root, pluginId: result.plugin.pluginId })).verdict
+          ? (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root, pluginId: result.plugin.pluginId })).verdict
           : "inactive";
         return { installed: true, enabled: verdict === "undetermined" ? null : verdict === "active", alreadyInstalled: result.alreadyInstalled,
           plugin: { id: result.plugin.pluginId, ...(result.plugin.version ? { version: result.plugin.version } : {}), ...(result.upgradeFrom ? { upgradeFrom: result.upgradeFrom } : {}) },

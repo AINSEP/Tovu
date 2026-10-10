@@ -1,3 +1,4 @@
+import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
@@ -37,7 +38,7 @@ const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
 const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../lifecycle.js");
 // The real uninstall owner stages and restores disk trees; only lock acquisition is faulted.
-const lifecycle = createTovuAgentPluginLifecycle({}, {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
   filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
@@ -109,11 +110,11 @@ function fakeCtx(input: Record<string, unknown>, options: { emitSurface?: Surfac
 
 function fakeDeps(): { deps: AgentPluginUninstallToolDeps } {
   return {
-    deps: {
+    deps: testSiteLayoutContext({
       workspaceId: WORKSPACE_A,
       authorize: async () => ({ allowed: true, reason: "matched" }),
       uninstallAgentPlugin: lifecycle.uninstallAgentPlugin,
-    },
+    }),
   };
 }
 

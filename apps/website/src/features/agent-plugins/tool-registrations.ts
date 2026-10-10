@@ -1,3 +1,4 @@
+import { readInstalledAgentPluginIdentity } from "./identity.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildPluginMemoryRegistrations } from "./memory-tools.js";
@@ -24,7 +25,7 @@ import {
 } from "./access-token-tool.js";
 
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
-import { resolveAgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "./layout.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import { isInstalledDigestPresent, listInstalledPlugins } from "./lifecycle.js";
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./lifecycle.js";
@@ -278,7 +279,7 @@ function buildToolSource(plugin: AgentPluginToolIdentity, skills: readonly Agent
     id: toAgentPluginToolId(pluginId),
     pluginId,
     archiveDigest,
-    description: buildPluginToolDescription(pluginId, skills, defaultSkillName, defaultSkillReason),
+    description: buildPluginToolDescription(pluginId, skills, defaultSkillName, defaultSkillReason) + (plugin.publisherId ? ` Plugin discovery: ${[plugin.publisherId, ...(plugin.keywords ?? []), ...(plugin.provides ?? [])].join(" ")}.` : ""),
     skills,
     defaultSkillName,
     ...(defaultSkillReason !== undefined ? { defaultSkillReason } : {}),
@@ -298,8 +299,9 @@ function buildToolSource(plugin: AgentPluginToolIdentity, skills: readonly Agent
  */
 export async function loadInstalledAgentPluginToolSources(ctx: {
   readonly workspaceId: string;
-}): Promise<readonly AgentPluginToolSource[]> {
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
+  readonly agentPluginLayout: AgentPluginLayout;
+}, _optional = {}): Promise<readonly AgentPluginToolSource[]> {
+  const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
   // Superseded installs of a BUNDLED plugin are dropped BEFORE the ambiguity guard below ever sees
   // them, by the build's own recorded answer rather than by picking one — see `bundled-digests.ts`.
   // An id that ledger has no authority over still reaches `assertSingleDigestPerPlugin` unchanged.
@@ -332,7 +334,8 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
       if (plugin.skills.length === 0) continue; // nothing this plugin's tool could ever return
 
       const skills = await resolveSkillsForPlugin(plugin);
-      sourceByPluginId.set(plugin.pluginId, buildToolSource(plugin, skills));
+      const identity = await readInstalledAgentPluginIdentity({ plugin });
+      sourceByPluginId.set(plugin.pluginId, buildToolSource({ ...plugin, publisherId: identity.id, keywords: identity.keywords, provides: identity.provides }, skills));
     } catch (error) {
       // Isolated per plugin so one bad install (digest ambiguity, an unreadable SKILL.md, ...)
       // cannot take every OTHER installed plugin's tool down with it — see this file's header,
@@ -521,6 +524,9 @@ function buildPluginToolResult(source: AgentPluginToolSource, requestedSkill: st
  *  content identifiers — a manifest-declared plugin name and an archive digest — never host paths,
  *  so this stays inside this file's SECURITY property above. */
 export interface AgentPluginToolIdentity {
+  readonly publisherId?: string;
+  readonly keywords?: readonly string[];
+  readonly provides?: readonly string[];
   readonly pluginId: string;
   readonly archiveDigest: string;
 }
@@ -545,8 +551,8 @@ export interface AgentPluginToolGate {
  * @returns A gate whose answer is established fresh per call, and which denies on any fault.
  * @complexity O(p) per call in the recorded plugin count, plus one small file read and one `stat`.
  */
-export function createAgentPluginToolGate(ctx: { readonly workspaceId: string }): AgentPluginToolGate {
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
+export function createAgentPluginToolGate(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): AgentPluginToolGate {
+  const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
   return {
     async isCallable(plugin: AgentPluginToolIdentity): Promise<boolean> {
       // Activation FIRST, installation SECOND — the reverse of uninstall's own order. See the
@@ -662,7 +668,7 @@ export function buildAgentPluginToolRegistrations(
  */
 export async function registerInstalledAgentPluginTools(
   registry: { register: (registration: ToolRegistration) => void },
-  ctx: { readonly workspaceId: string },
+  ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout },
 ): Promise<void> {
   const sources = await loadInstalledAgentPluginToolSources(ctx);
   const gate = createAgentPluginToolGate(ctx);
@@ -671,12 +677,12 @@ export async function registerInstalledAgentPluginTools(
     registry.register({ ...registration, handler: async (execution, optional) => {
       const result = await handler(execution, optional) as { pluginId: string; guidance: string };
       return { ...result, guidance: await appendPluginNotes({
-        workspaceRoot: resolveAgentPluginLayout().forWorkspace(ctx.workspaceId).root,
+        workspaceRoot: ctx.agentPluginLayout.forWorkspace(ctx.workspaceId).root,
         pluginId: result.pluginId, guidance: result.guidance,
       }) };
     } });
   }
-  for (const registration of buildPluginMemoryRegistrations({ sources, workspaceId: ctx.workspaceId, gate })) registry.register(registration);
+  for (const registration of buildPluginMemoryRegistrations({ sources, workspaceId: ctx.workspaceId, agentPluginLayout: ctx.agentPluginLayout, gate })) registry.register(registration);
 }
 
 /**
@@ -763,6 +769,7 @@ const SEARCH_LIMIT_DEFAULT = 10;
  *  domain importing that file's god type back. */
 export interface AgentPluginSearchToolDeps {
   readonly workspaceId: string;
+  readonly agentPluginLayout: AgentPluginLayout;
 }
 
 const SEARCH_AGENT_PLUGIN_LOCAL_DESCRIPTION =
@@ -837,8 +844,8 @@ export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = [
  * "what plugins are installed" has one source of truth with two consumers (a tool and the admin
  * page), matching this file's own `listInstalledPlugins` precedent above.
  */
-export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string }): Promise<readonly AgentPluginSearchCandidate[]> {
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
+export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly AgentPluginSearchCandidate[]> {
+  const workspaceLayout = ctx.agentPluginLayout.forWorkspace(ctx.workspaceId);
   // The first-encountered-digest rule below is a fallback for an ambiguity nothing can resolve. An
   // upgraded BUNDLED plugin is no longer one of those cases: its superseded package is dropped here,
   // so this lists the version the running build ships (`bundled-digests.ts`).
@@ -866,6 +873,7 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
     try {
       const skills = await resolveSkillsForSearchTolerant(plugin);
       const mcpServerIds = await readInstalledMcpServerIds(plugin.packageRoot);
+      const identity = await readInstalledAgentPluginIdentity({ plugin });
 
       candidates.push({
         pluginId: plugin.pluginId,
@@ -873,7 +881,9 @@ export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceI
         ...(plugin.summary !== undefined ? { summary: plugin.summary } : {}),
         ...(plugin.version !== undefined ? { version: plugin.version } : {}),
         ...(plugin.description !== undefined ? { description: plugin.description } : {}),
-        keywords: plugin.keywords ?? [],
+        id: identity.id,
+        provides: identity.provides,
+        keywords: identity.keywords,
         enabled: isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }),
         skills: skills.map((skill) => ({ name: skill.name, summary: skill.summary })),
         mcpServerIds,
@@ -912,7 +922,7 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
       // `search_components`' own `limit` argument.
       const limit = rawLimit === undefined ? SEARCH_LIMIT_DEFAULT : Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX);
 
-      const candidates = await loadAgentPluginSearchCandidates({ workspaceId: routeDeps.workspaceId });
+      const candidates = await loadAgentPluginSearchCandidates(routeDeps);
       const matches = rankInstalledAgentPlugins(query, candidates, limit);
 
       return {
@@ -920,6 +930,8 @@ export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearch
           pluginId: match.pluginId,
           version: match.version ?? null,
           description: match.description ?? null,
+          id: match.id ?? `unknown/${match.pluginId}`,
+          provides: match.provides ?? [],
           keywords: match.keywords,
           enabled: match.enabled,
           skills: match.skills,
@@ -963,7 +975,7 @@ export function contributeAgentPluginSearchTools(): ToolContributor {
  */
 export function buildAgentPluginConnectRegistrations(routeDeps: AgentPluginAccessTokenToolDeps & OperatorLocaleDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    [WRITE_PLUGIN_NOTE]: pluginNoteHandler({ deps: routeDeps, surfaces }),
+    [WRITE_PLUGIN_NOTE]: pluginNoteHandler({ deps: routeDeps, surfaces }, { layout: routeDeps.agentPluginLayout }),
     // Both handlers forward `optional`: it carries `emitSurface`, the only channel their card can use.
     [AGENT_PLUGIN_CONNECT_TOOL_ID]: async (ctx, optional) => {
       const input = requireInputRecord({ input: ctx.input });

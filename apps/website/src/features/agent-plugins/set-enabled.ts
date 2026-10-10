@@ -36,10 +36,12 @@
  * the same tenant-isolation guarantee every other path in this feature goes through.
  */
 
-import { agentPluginLifecycle } from "./lifecycle.js";
-import type { SetAgentPluginEnabledInput, SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
+import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
+import type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
 export { AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
-export type { SetAgentPluginEnabledInput, SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
+export type { SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
+import type { SetAgentPluginEnabledInput } from '../../contracts/headless/plugin-host.js';
+export type { SetAgentPluginEnabledInput } from '../../contracts/headless/plugin-host.js';
 
 /**
  * Records an operator's enable/disable decision for one installed Agent Plugin.
@@ -51,6 +53,14 @@ export type { SetAgentPluginEnabledInput, SetAgentPluginEnabledResult } from "@j
  * @complexity O(d) in installed-digest count for the precondition, plus one whole-file rewrite of
  * the (small) activations record.
  */
+// A stable owner context per booted layout preserves its queues without selecting a site again.
+const lifecycles = new WeakMap<import("./layout.js").AgentPluginLayout, ReturnType<typeof createTovuAgentPluginLifecycle>>();
+
 export function setAgentPluginEnabled(input: SetAgentPluginEnabledInput, _options: Record<string, never> = {}): Promise<SetAgentPluginEnabledResult> {
-  return agentPluginLifecycle.setAgentPluginEnabled(input);
+  let lifecycle = lifecycles.get(input.agentPluginLayout);
+  if (!lifecycle) {
+    lifecycle = createTovuAgentPluginLifecycle({ layout: input.agentPluginLayout });
+    lifecycles.set(input.agentPluginLayout, lifecycle);
+  }
+  return lifecycle.setAgentPluginEnabled(input);
 }

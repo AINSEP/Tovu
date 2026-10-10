@@ -10,11 +10,10 @@ import type { UUID } from "@jini-ai/core/primitives";
  *
  * Deliberately smaller than `PluginsRouteDeps`: this domain's read model,
  * `loadAgentPluginSearchCandidates()` (`features/agent-plugins/tool-registrations.ts`, shared with
- * `search_agent_plugin_local`), resolves its own on-disk layout internally from a bare `workspaceId`
- * via `resolveAgentPluginLayout().forWorkspace(...)` — there is no discovery closure, activation
+ * `search_agent_plugin_local`), uses the layout captured at boot with `agentPluginLayout.forWorkspace(...)` — there is no discovery closure, activation
  * repo, or hook-registry callback for these routes to thread through the way the site/runtime
- * plugin family needs. Only `workspaceId` (to scope the read/write and to check the URL param) and
- * `authorize` are needed.
+ * plugin family needs. `workspaceId` scopes the read/write and checks the URL param;
+ * `agentPluginLayout` binds it to the booted site and `authorize` gates access.
  *
  * `authorize` gates both routes on this family's existing permissions — `admin.plugins.read` for
  * `list.ts` and `admin.plugins.enable` for `set-enabled.ts`, the same pair the `.tovu-plugin`
@@ -34,7 +33,9 @@ import type { UUID } from "@jini-ai/core/primitives";
  * `RouteDeps` and passes it straight through, so this widening needs no composition-root change.
  */
 export interface AgentPluginsRouteDeps {
+  readonly pluginHost?: import("#src/contracts/headless/plugin-host").PluginHostPort;
   workspaceId: UUID;
+  agentPluginLayout: RouteDeps["agentPluginLayout"];
   authorize: AuthorizeFn;
   clock: RouteDeps["clock"];
   externalMcpServerRepo: RouteDeps["externalMcpServerRepo"];

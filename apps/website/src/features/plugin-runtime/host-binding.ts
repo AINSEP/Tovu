@@ -75,6 +75,7 @@ export const pluginHostBinding = {
   capabilityVocabulary: SHARED_EXTENSION_CAPABILITIES,
   declarativeContentTypes,
   coreOwnerName: "Tovu core",
+  identityNamespace: "tovu",
   tierPolicy,
   archiveReader: readSitePluginArchive,
   verifyDigest: async ({ absoluteFilePath }: { absoluteFilePath: string }): Promise<string> =>

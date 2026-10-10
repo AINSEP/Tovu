@@ -20,7 +20,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 const real = await import("../../../agent-plugins/lifecycle.js");
 let listBehavior: typeof real.listInstalledPlugins = real.listInstalledPlugins;
 
-const { buildPluginsRegistrations } = await import("#src/features/plugin-runtime/tool-registrations");
+const { buildPluginsRegistrations } = await import("#src/__tests__/support/plugin-tool-host");
 const { InMemoryPluginActivationRepo } = await import("@jini-ai/plugins/host");
 const { InMemoryChangeSetRepo } = await import("#src/contracts/core/commands/index");
 const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");

@@ -146,6 +146,11 @@ export interface HookAttachOptions {
  * TYPE only, the runtime stub-vs-absent behavior lives in `Jini/packages/plugins/src/host/capability-sdk.ts`).
  */
 export interface PluginSdk {
+  /** Live metadata lookup supplied by the host, shared with agent plugins. No execution grant. */
+  readonly plugins?: {
+    getPlugin(required: { id: string; family?: string }, optional?: Record<string, never>): Promise<{ id: string; version: string | null; enabled: boolean } | null>;
+    findProviders(required: { capability: string }, optional?: { enabledOnly?: boolean }): Promise<readonly { id: string; version: string | null; enabled: boolean }[]>;
+  };
   readonly content: {
     /** Gated by `content.read` (REQ-04). Read-only accessor mirroring the filter's own `entry`
      * argument — present for API completeness so a plugin can read the current draft from any

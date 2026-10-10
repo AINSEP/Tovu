@@ -1,14 +1,12 @@
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError } from "@jini-ai/agent-plugins/lifecycle";
 import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
-import { resolveAgentPluginLayout } from "./layout.js";
-import { resolveOperatorLocale, type OperatorLocaleDeps } from "./operator-locale.js";
+import { resolveOperatorLocale } from "./operator-locale.js";
 import {
   AgentPluginChangedSincePreviewError,
   AgentPluginNotFoundError,
@@ -49,15 +47,8 @@ import { describeAgentPluginUninstallApproval } from "./uninstall-confirmation-u
  * radii (site plugins go to the Trash; Agent Plugins do not).
  */
 
-/** The narrow slice of the route-deps bag this branch's handler reads. Structurally satisfied by
- *  `PluginsToolDeps` (`plugin-runtime/tool-registrations.ts`), which carries both fields among many
- *  others — this interface stays narrow so this module does not have to import that wider type. */
-export interface AgentPluginUninstallToolDeps extends OperatorLocaleDeps {
-  readonly authorize: AuthorizeFn;
-  readonly workspaceId: string;
-  /** The lifecycle owner with host-supplied effects, used for the confirmed write. */
-  readonly uninstallAgentPlugin?: typeof uninstallAgentPlugin;
-}
+import type { AgentPluginUninstallToolDeps } from '../../contracts/headless/plugin-host.js';
+export type { AgentPluginUninstallToolDeps } from '../../contracts/headless/plugin-host.js';
 
 /**
  * Re-classifies `uninstallAgentPlugin`'s own domain errors into `ToolInputError` on their way to the
@@ -226,7 +217,7 @@ export async function runAgentPluginUninstall(
   ctx = { ...ctx, input: structuredClone(ctx.input), principal: { ...ctx.principal }, run: { ...ctx.run } };
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "agent-plugin", entityId: pluginId });
 
-  const request = { layout: resolveAgentPluginLayout(), workspaceId: routeDeps.workspaceId, pluginId };
+  const request = { layout: routeDeps.agentPluginLayout, workspaceId: routeDeps.workspaceId, pluginId };
   const previewed = await previewOrRefusal(request);
   if ("refusal" in previewed) return previewed.refusal;
 

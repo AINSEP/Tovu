@@ -7,7 +7,11 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "summary": "Builds a design (a theme) for your site. The assistant can start a new theme from scratch, or turn a website you already have into a Tovu theme.\n\nWhen it converts an existing site, extra pages stay hidden until you turn them on, and fonts and images it can download are saved into the theme. Files that only exist on your computer need to be added separately; the assistant tells you which ones."
+      "summary": "Builds a design (a theme) for your site. The assistant can start a new theme from scratch, or turn a website you already have into a Tovu theme.\n\nWhen it converts an existing site, extra pages stay hidden until you turn them on, and fonts and images it can download are saved into the theme. Files that only exist on your computer need to be added separately; the assistant tells you which ones.",
+      "id": "tovu/tovu-theme",
+      "provides": [
+        "theme-authoring"
+      ]
     }
   },
   "keywords": [
@@ -29,6 +33,8 @@
     "onboarding",
     "html",
     "static",
-    "port"
+    "port",
+    "tovu-theme",
+    "theme-authoring"
   ]
 }

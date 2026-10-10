@@ -1,3 +1,4 @@
+import { readPluginIdentity } from "@jini-ai/core/plugin-directory";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
 import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, ToolInputError, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
@@ -197,7 +198,8 @@ function buildFieldSources(manifest: PluginManifest): readonly PluginCapabilityF
  * call it and what an empty result means.
  */
 function buildCapabilityToolDescription(manifest: PluginManifest, fields: readonly PluginCapabilityFieldSource[]): string {
-  const fieldText = fields.map((field) => field.description).join(" ");
+  const identity = readPluginIdentity({ manifest: manifest as unknown as Readonly<Record<string, unknown>>, name: manifest.id, namespace: "tovu" });
+  const fieldText = fields.map((field) => field.description).join(" ") + ` Plugin discovery: ${[identity.id, ...identity.keywords, ...identity.provides].join(" ")}.`;
   if (runsFreshFor(manifest)) {
     return (
       `Runs the installed '${manifest.name}' plugin on one existing post or page right now and returns its fresh result ` +

@@ -1,3 +1,4 @@
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -97,7 +98,7 @@ test("existing site: the seeder's own earlier DISABLED deploy record is switched
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.deploy?.enabled, true);
-    assert.equal((await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID })).get("netlify")?.pluginId, "deploy");
+    assert.equal((await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions })).get("netlify")?.pluginId, "deploy");
   });
 });
 
@@ -121,7 +122,7 @@ test("seeded by the real seeder, deploy is ENABLED with no user action and the r
     assert.equal(activations.plugins.deploy?.enabled, true, "publishing must keep working with zero user action");
     assert.equal(activations.plugins["site-compliance"]?.enabled, false, "every other bundled plugin still seeds disabled");
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
     const netlify = registry.get("netlify");
     assert.equal(netlify?.pluginId, "deploy");
@@ -150,9 +151,9 @@ test("upgrade: a site holding an OLDER bundled deploy digest serves the new one 
       await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
       // Layout B (852d711e6): each plugin's digests live under <workspace>/<pluginId>/package/sha256.
       const packages = await readdir(layout.forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: "deploy" }));
-      assert.equal(packages.length, 2, "the superseded digest stays on disk; the registry must still pick one");
+      assert.equal(packages.length, 1, "successful publication prunes the superseded digest");
 
-      const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+      const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
       assert.deepEqual(registry.refusals, []);
       assert.equal(registry.get("netlify")?.descriptor.label, "Netlify (next build)");
     });

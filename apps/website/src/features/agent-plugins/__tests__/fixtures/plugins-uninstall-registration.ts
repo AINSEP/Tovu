@@ -7,7 +7,7 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryExternalMcpServerRepo } from "#src/assistant/external-mcp-store.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { buildPluginsRegistrations, type PluginsToolDeps } from "#src/features/plugin-runtime/tool-registrations";
+import { buildPluginsRegistrations, type PluginsToolDeps } from "#src/__tests__/support/plugin-tool-host";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
@@ -27,6 +27,7 @@ export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallTool
   const pluginsDeps: PluginsToolDeps = {
     authorize: deps.authorize,
     workspaceId: deps.workspaceId,
+    agentPluginLayout: deps.agentPluginLayout,
     ...(deps.uninstallAgentPlugin ? { uninstallAgentPlugin: deps.uninstallAgentPlugin } : {}),
     // The operator's admin language for the dialog copy (`operator-locale.ts`), when the test supplies a ledger.
     ...(deps.settingsRepo ? { settingsRepo: deps.settingsRepo } : {}),

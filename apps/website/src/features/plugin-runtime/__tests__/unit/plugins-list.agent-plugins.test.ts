@@ -9,7 +9,7 @@ import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { buildPluginsRegistrations, type PluginsToolDeps } from "../../tool-registrations.js";
+import { buildPluginsRegistrations, type PluginsToolDeps } from "../../../../__tests__/support/plugin-tool-host.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 

@@ -9,12 +9,8 @@ import { getEffective as settingsGetEffective, LANGUAGE_NAMESPACE, type Settings
  * the admin's own Language selector writes; this reads it the same way `settings_get_effective` does.
  */
 
-/** The route-deps slice this reads. `settingsRepo` is always present on the composed assistant
- *  deps (`SettingsToolDeps`); optional so the many narrow test fixtures that never render copy keep
- *  working, and they get English. */
-export interface OperatorLocaleDeps {
-  readonly settingsRepo?: SettingsRepoPort;
-}
+import type { OperatorLocaleDeps } from '../../contracts/headless/plugin-host.js';
+export type { OperatorLocaleDeps } from '../../contracts/headless/plugin-host.js';
 
 /** Structural signature of `@jini-ai/core/settings`'s `getEffective`, narrowed to what is read here. */
 export type GetEffectiveSetting = (

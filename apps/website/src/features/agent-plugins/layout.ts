@@ -38,50 +38,15 @@ const SAFE_ID_SEGMENT_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
 /** Bounds the segment so a caller cannot drive a pathological path length. Applied to both ids. */
 const MAX_ID_SEGMENT_LENGTH = 64;
 
-/** One workspace's ENTIRE Agent Plugins tree — packages, data, and staging, all rooted under the
- * same `ws/<workspaceId>/` directory, so nothing in it is reachable from another workspace's own
- * layout without walking `..` out of it (see `layout.unit.test.ts`'s disjointness assertion). */
-export interface AgentPluginWorkspaceLayout {
-  /** `<instance root>/ws/<workspaceId>` */
-  readonly root: string;
-  /** `<root>/packages/sha256` — immutable, content-addressed WITHIN this workspace only. */
-  /** Legacy flat store: migration input only. */
-  readonly packages: string;
-  pluginRootDir(required: { pluginId: string }, optional?: Record<string, never>): string;
-  pluginPackagesDir(required: { pluginId: string }, optional?: Record<string, never>): string;
-  pluginMemoryDir(required: { pluginId: string; kind: "learned" | "notes" }, optional?: Record<string, never>): string;
-  /** `<root>/staging` — private atomic-extraction directories for this workspace's own installs. */
-  readonly staging: string;
-  /**
-   * This workspace's writable `PLUGIN_DATA` root: `<root>/<pluginId>/data/`.
-   *
-   * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar — used as a raw
-   * path segment, so an unvalidated caller must not be able to smuggle a traversal segment through.
-   */
-  pluginDataDir(pluginId: string): string;
-}
-
-export interface AgentPluginLayout {
-  /** `<site>/agent-plugins` (or `TOVU_AGENT_PLUGINS_DIR`) — the whole tree this feature owns. Not,
-   * by itself, a usable install/data location for any workspace — see `forWorkspace`. */
-  readonly root: string;
-  /** `<root>/ws` — the folder holding one `forWorkspace(id).root` per workspace. Exposed so a reader
-   * that must visit every workspace (the site backup) enumerates the same folder installs write to. */
-  readonly workspacesDir: string;
-  /**
-   * Resolves the fully workspace-scoped layout for one workspace. This is the ONLY way to reach a
-   * `packages`/`staging`/`pluginDataDir` path — there is deliberately no instance-level equivalent
-   * of any of them, so a caller cannot accidentally hand `install.ts` a path shared across tenants.
-   *
-   * @throws {Error} If `workspaceId` is not a bounded, safe path segment.
-   */
-  forWorkspace(workspaceId: string): AgentPluginWorkspaceLayout;
-}
+import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from '../../contracts/headless/plugin-host.js';
+export type { AgentPluginLayout, AgentPluginWorkspaceLayout } from '../../contracts/headless/plugin-host.js';
 
 export interface ResolveAgentPluginLayoutOptional {
   /** Defaults to `process.cwd()`, matching `mediaUploadsDir()`'s own default base — injectable so
    * this function is testable without `process.chdir()`. */
   readonly cwd?: string;
+  /** Booted site directory; prevents env/cwd from selecting a different site. */
+  readonly siteDir?: string;
   /** Defaults to `process.env`. */
   readonly env?: NodeJS.ProcessEnv;
 }
@@ -101,7 +66,7 @@ export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptio
     throw new Error(`TOVU_AGENT_PLUGINS_DIR must be an absolute path, got '${override}'`);
   }
 
-  const root = path.resolve(override ?? path.join(resolveSiteRoot({ cwd, env }), "agent-plugins"));
+  const root = path.resolve(override ?? path.join(optional.siteDir ?? resolveSiteRoot({ cwd, env }), "agent-plugins"));
   const workspacesDir = path.join(root, "ws");
 
   return {

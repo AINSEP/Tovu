@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -20,7 +21,7 @@ import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { buildPluginsRegistrations, contributePluginsTools, type PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
+import { buildPluginsRegistrations, contributePluginsTools, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -78,7 +79,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
   const saveActivation = pluginActivationRepo.save.bind(pluginActivationRepo);
   pluginActivationRepo.save = async (record) => { order.push("activation.save"); await saveActivation(record); };
 
-  const deps = {
+  const deps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
@@ -99,7 +100,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
       order.push(`removePlugin:${required.id}`);
       return { ok: true as const, version: null };
     },
-  };
+  });
 
   return { deps: deps as unknown as RegistryDepsWithoutLimiter, authorizeCalls, order, pluginActivationRepo };
 }

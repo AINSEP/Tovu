@@ -50,7 +50,7 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
       )
         return;
 
-      const candidates = await loadAgentPluginSearchCandidates({ workspaceId: deps.workspaceId });
+      const candidates = await loadAgentPluginSearchCandidates(deps);
 
       res.json({
         agentPlugins: candidates.map((candidate) => ({
@@ -59,6 +59,8 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
           summary: candidate.summary ?? null,
           version: candidate.version ?? null,
           description: candidate.description ?? null,
+          id: candidate.id ?? `unknown/${candidate.pluginId}`,
+          provides: candidate.provides ?? [],
           keywords: candidate.keywords,
           enabled: candidate.enabled,
           skills: candidate.skills,

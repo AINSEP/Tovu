@@ -19,6 +19,7 @@ export function pluginInstallConsent(required: { preview: PluginInstallPreview }
     `Trust: ${p.tier} (local / unverified publisher)`,
     `Capabilities: ${p.capabilities.join(", ") || "—"}`,
     `Hooks: ${p.hooks.join(", ") || "—"}`,
+    ...(p.warnings ?? []),
     ...(p.upgradeFrom ? [`Replaces installed version ${p.upgradeFrom}.`] : []),
     pluginInstallRiskSentence({ preview: p }),
     PLUGIN_INSTALL_STAYS_OFF, "",

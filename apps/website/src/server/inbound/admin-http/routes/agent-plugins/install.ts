@@ -97,8 +97,8 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
         res.status(400).json({ code: "VALIDATION_ERROR", error: "replace must be true or false." });
         return;
       }
-      const { plugin, alreadyInstalled } = await installUploadedAgentPlugin({ archive: req.body as Buffer, expectedSha256, workspaceId: deps.workspaceId, actor: principal.id, replace: replace === "true" });
-      const candidate = (await loadAgentPluginSearchCandidates({ workspaceId: deps.workspaceId })).find((entry) => entry.pluginId === plugin.pluginId);
+      const { plugin, alreadyInstalled } = await installUploadedAgentPlugin({ archive: req.body as Buffer, expectedSha256, workspaceId: deps.workspaceId, actor: principal.id, replace: replace === "true" }, { layout: deps.agentPluginLayout, ...(deps.pluginHost ? { pluginHost: deps.pluginHost } : {}) });
+      const candidate = (await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === plugin.pluginId);
       res.status(alreadyInstalled ? 200 : 201).json({
         alreadyInstalled,
         agentPlugin: candidate

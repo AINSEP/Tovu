@@ -1,3 +1,4 @@
+import { createPluginLookupFacade } from "@jini-ai/core/plugin-directory";
 import { createPluginModuleImporter, type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
@@ -155,6 +156,7 @@ function resolvePackageLocation(params: {
 }
 
 export interface ComposePluginRuntimeRequired {
+  readonly getPluginHost?: () => import("#src/contracts/headless/plugin-host").PluginHostPort | undefined;
   readonly workspaceId: string;
   readonly clock: ClockPort;
   readonly activationRepo: PluginActivationRepoPort;
@@ -321,7 +323,16 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
           ...(importModule === undefined ? {} : { importModule }),
         });
     const result = await loadPlugin(
-      { ...pluginHostBinding, record, manifest, entryPath, coreDeps, importModule: moduleImporter },
+      { ...pluginHostBinding, record, manifest, entryPath, coreDeps, importModule: moduleImporter,
+        pluginSdkBinding: { ...pluginHostBinding.pluginSdkBinding,
+          buildSdk: ({ sdk }) => {
+            const host = required.getPluginHost?.();
+            return { ...pluginHostBinding.pluginSdkBinding.buildSdk({ sdk }),
+              ...(host ? { plugins: createPluginLookupFacade({ lookup: host }) } : {}),
+            };
+          },
+        },
+      },
       {},
     );
     if (!result.loaded) {
@@ -452,8 +463,16 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
 
   return {
     ...(installDir === undefined ? {} : { pluginInstaller: {
-      preview: (input) => previewSitePluginInstall({ ...input, deps: { ...pluginHostBinding, installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo, conflicts: installPreviewConflicts } }),
-      install: (input) => installSitePlugin({ ...input, deps: { ...pluginHostBinding, installDir, builtInIds: sources.map((source) => source.manifest.id), repo: activationRepo, conflicts: installPreviewConflicts } }),
+      preview: (input) => previewSitePluginInstall({ ...input, deps: { ...pluginHostBinding, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts } }),
+      install: async (input) => {
+        const deps = { ...pluginHostBinding, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts };
+        const preview = await previewSitePluginInstall({ ...input, deps });
+        // Admission uses this manifest's identity; publication must retain those exact bytes.
+        const run = () => installSitePlugin({ ...input, expectedDigest: input.expectedDigest ?? preview.digest, deps });
+        const host = required.getPluginHost?.();
+        if (!host) return run();
+        return host.withInstallIdentity({ candidate: { id: preview.publisherId ?? `unknown/${preview.id}`, localId: preview.id, family: "site-runtime" }, run });
+      },
     } satisfies PluginInstallerPort }),
     hookRegistry,
     discoverPlugins,

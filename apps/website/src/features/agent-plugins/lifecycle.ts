@@ -18,7 +18,7 @@ import {
   type FilesystemPort,
 } from "@jini-ai/agent-plugins/lifecycle";
 import { createNodeAgentPluginEffects } from "@jini-ai/agent-plugins/lifecycle/node";
-import { resolveAgentPluginLayout, type AgentPluginLayout, type AgentPluginWorkspaceLayout } from "./layout.js";
+import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 
@@ -83,9 +83,10 @@ export function resolveAgentPluginDeliveryMode(env: { readonly TOVU_AGENT_PLUGIN
  * Network installation and MCP provisioning have separate host owners and are not used by this
  * binding. Refuse those unbound capabilities rather than bypassing their guards.
  * @complexity O(1) composition. All operations delegate to the lifecycle owner. */
-export function createTovuAgentPluginLifecycle(_required: Record<string, never>, optional: { readonly filesystem?: FilesystemPort } = {}) {
+export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"] } = {}) {
   const unbound = async (): Promise<never> => { throw new Error("This lifecycle binding does not provide network installation or MCP provisioning"); };
   const policy: AgentPluginLifecycleOptional = {
+    ...(optional.identityAdmission ? { identityAdmission: optional.identityAdmission } : {}),
     onEvent: ({ event, message }) => console.warn(event.startsWith("migration") ? `[agent-plugins:${event}] ${message}` : message),
     migrateBeforeSeed: ({ layout, workspaceId }) => migrateSiteAgentPluginLayouts({ layout: hostLayout(layout), workspaceId }),
     formatBundledUninstallRecovery: ({ pluginId }) => `used, disable it instead: call plugins_set_enabled with family 'agent-plugin', pluginId '${pluginId}', ` +
@@ -93,8 +94,8 @@ export function createTovuAgentPluginLifecycle(_required: Record<string, never>,
   };
   const owner = createAgentPluginLifecycle({
     ...createNodeAgentPluginEffects({}, optional),
-    // Resolve lazily: boot chooses the site root and tests select their isolated root before use.
-    layout: { get root() { return resolveAgentPluginLayout().root; }, forWorkspace: input => ownerLayout(resolveAgentPluginLayout()).forWorkspace(input) },
+    // Boot chooses the site root before binding this owner; requests keep that same layout.
+    layout: ownerLayout(required.layout),
     productName: "Tovu", extensionNamespace: "tovu", bundledArchiveMagic: "TOVUPKG1\n",
     seededEnabledPluginIds: BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED,
     retiredBundledPlugins: RETIRED_BUNDLED_AGENT_PLUGINS,
@@ -134,7 +135,12 @@ export function createTovuAgentPluginLifecycle(_required: Record<string, never>,
   };
 }
 
-export const agentPluginLifecycle = createTovuAgentPluginLifecycle({});
+/** Compatibility exports below accept explicit roots/layouts. Site-dependent operations must use
+ * a lifecycle bound at boot; importing this module must never select a site from process state. */
+const explicitRootLifecycle = createTovuAgentPluginLifecycle({ layout: {
+  root: "", workspacesDir: "",
+  forWorkspace() { throw new Error("Agent Plugin layout must be supplied by the booted site binding"); },
+} });
 export const {
   installAgentPlugin, uninstallAgentPlugin, previewAgentPluginUninstall, stageForRemoval,
   restoreStagedTrees, removeFrozenPackageTree, seedBundledAgentPlugins, retireBundledAgentPlugins,
@@ -142,6 +148,25 @@ export const {
   maxAgentPluginInstallArchiveBytes, normalizePackageEntryPath, assertContainedOnDisk,
   readBundledAgentPluginDigests, normalizeBundledDigests, preferBundledAgentPluginDigests,
   recordBundledAgentPluginDigests, removeBundledAgentPluginDigest, rankInstalledAgentPlugins,
-  packAgentPluginDirectory, createBundledSourceArchiveReader, findTrustedPluginPackages,
-  readTrustedPluginFile, importContainedModule, loadPluginContributions, loadPluginContributionsFromSource,
-} = agentPluginLifecycle;
+  packAgentPluginDirectory, createBundledSourceArchiveReader,
+  readTrustedPluginFile, importContainedModule, loadPluginContributionsFromSource,
+} = explicitRootLifecycle;
+
+/** This boot's lifecycle owner; installed contributions always use its fixed site layout. */
+export type TovuAgentPluginLifecycle = ReturnType<typeof createTovuAgentPluginLifecycle>;
+export type LoadPluginContributions = TovuAgentPluginLifecycle["loadPluginContributions"];
+
+/** Compatibility activation effects take explicit workspace roots and cannot discover a site. */
+export const explicitRootAgentPluginActivations = {
+  setAgentPluginActivation: explicitRootLifecycle.setAgentPluginActivation,
+  recordBundledAgentPluginIfAbsent: explicitRootLifecycle.recordBundledAgentPluginIfAbsent,
+  enableBundledAgentPluginUnlessOperatorDisabled: explicitRootLifecycle.enableBundledAgentPluginUnlessOperatorDisabled,
+  deleteAgentPluginActivation: explicitRootLifecycle.deleteAgentPluginActivation,
+  isAgentPluginActive: explicitRootLifecycle.isAgentPluginActive,
+  filterActiveAgentPlugins: explicitRootLifecycle.filterActiveAgentPlugins,
+  readAgentPluginActivations: explicitRootLifecycle.readAgentPluginActivations,
+  assertAgentPluginActivationsWritable: explicitRootLifecycle.assertAgentPluginActivationsWritable,
+  isAgentPluginRecordedAsBundled: explicitRootLifecycle.isAgentPluginRecordedAsBundled,
+  resolveAgentPluginActivation: explicitRootLifecycle.resolveAgentPluginActivation,
+  normalizeActivations: explicitRootLifecycle.normalizeActivations,
+};

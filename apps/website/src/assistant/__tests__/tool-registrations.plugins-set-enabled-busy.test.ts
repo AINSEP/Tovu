@@ -1,3 +1,4 @@
+import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
@@ -9,7 +10,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../../features/agent-plugins/lifecycle.js";
-import type { PluginsToolDeps } from "#src/features/plugin-runtime/tool-registrations";
+import type { PluginsToolDeps } from "#src/__tests__/support/plugin-tool-host";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -39,14 +40,14 @@ const realFsp = await import("node:fs/promises");
 const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../features/agent-plugins/lifecycle.js");
 // Exercise the owner's real lock-error translation, not a raw error at its preflight boundary.
 let behavior: typeof realFsp.open = realFsp.open;
-const lifecycle = createTovuAgentPluginLifecycle({}, {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
   filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
 const { readAgentPluginActivations, setAgentPluginActivation } = (await import("#src/features/agent-plugins/activation-effects")).agentPluginActivations;
 const { forceRemove } = await import("#src/features/agent-plugins/__tests__/fixtures/force-remove");
-const { buildPluginsRegistrations } = await import("#src/features/plugin-runtime/tool-registrations");
+const { buildPluginsRegistrations } = await import("#src/__tests__/support/plugin-tool-host");
 const { InMemoryExternalMcpServerRepo } = await import("#src/assistant/index");
 const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
 const { InMemoryChangeSetRepo } = await import("#src/contracts/core/commands/index");
@@ -115,7 +116,7 @@ function fakeRouteDeps(): { deps: PluginsToolDeps } {
   const sealer = new AesGcmSecretSealer(keyring);
   let counter = 0;
 
-  const deps = {
+  const deps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
@@ -132,7 +133,7 @@ function fakeRouteDeps(): { deps: PluginsToolDeps } {
     externalMcpServerRepo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
-  };
+  });
 
   return { deps: deps as unknown as PluginsToolDeps };
 }

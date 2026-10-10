@@ -32,6 +32,8 @@ import type { PluginManifest } from "@jini-ai/plugins/host";
  * agent's `search_tools` text, so each names the words an owner would actually ask with. */
 export const CONTENT_ANALYZER_MANIFEST: PluginManifest = {
   id: "content-analyzer",
+  extensions: { tovu: { id: "tovu/content-analyzer", provides: ["content-analysis"] } },
+  keywords: ["seo", "accessibility", "content", "analysis"],
   name: "Content Analyzer",
   version: "1.0.0",
   sdkRange: "^0.1.0 || ^0.2.0",

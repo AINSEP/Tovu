@@ -40,7 +40,10 @@
     "onboarding",
     "getting-started",
     "api-key",
-    "text-to-image"
+    "text-to-image",
+    "higgsfield-media",
+    "media:image",
+    "media:video"
   ],
   "extensions": {
     "tovu": {
@@ -55,7 +58,12 @@
             ]
           }
         }
-      }
+      },
+      "id": "tovu/higgsfield-media",
+      "provides": [
+        "media:image",
+        "media:video"
+      ]
     }
   }
 }
