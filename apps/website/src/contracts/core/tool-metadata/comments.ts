@@ -3,6 +3,11 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** comments registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "comments_get_comment": {
+    search: { keywords: "comment single details read approved spam trash id version" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+
   "comments_approve_comment": {
     search: {
       keywords: "comment approve publish allow accept moderation",

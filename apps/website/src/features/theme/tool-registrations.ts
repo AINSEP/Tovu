@@ -63,7 +63,7 @@ import {
   writeThemeFile,
   type ThemeOriginalSource,
 } from "./theme-files.js";
-import { loadTheme, rescanThemes, type DiscoveredTheme } from "./theme.js";
+import { isPublishableThemePageCandidate, isStandaloneThemePage, loadTheme, rescanThemes, type DiscoveredTheme } from "./theme.js";
 // The shared "can this file's identity (name/existence) change" gate — same-module sibling import
 // (this file lives inside `features/theme`, so a direct import is the module's own internal wiring,
 // not a deep-import-from-outside the `no-deep-imports:features/theme` rule polices). `explore.ts`'s
@@ -472,6 +472,8 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   ["theme_rescan", "mutates-durable-state"],
   // -> routeDeps.themes.map(): reads already-discovered in-memory state, no I/O at all.
   ["theme_list", "none"],
+  // Reload and shared publication predicates: files read, no state changes.
+  ["theme_list_page_publications", "none"],
   // -> listThemeFiles(): readdir under one theme folder, no writes.
   ["theme_list_files", "none"],
   // -> readThemeFile(): one readFileSync under one theme folder, plus a stat for selection metadata; no writes.
@@ -636,6 +638,19 @@ export function buildThemesRegistrations(
       return { themes };
     },
 
+    /** Reloads disk state and delegates eligibility/visibility to the public renderer's predicates. */
+    theme_list_page_publications: async (ctx) => {
+      const themeId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "themeId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme", entityId: themeId });
+      const known = routeDeps.themes.find(theme => theme.manifest.id === themeId);
+      if (!known) throw new ToolInputError({ message: `theme '${themeId}' was not found. Use content_read.theme to find a theme id.` });
+      // The same containment owner as theme_read_file checks the directory before loadTheme reads it.
+      readThemeFile({ themeDir: known.dir, themesRoot: routeDeps.themesDir, relativePath: "theme.json" });
+      const theme = loadTheme({ themeDir: known.dir, id: themeId, source: known.source });
+      if (theme.manifest.tier !== "static") throw new ToolInputError({ message: `theme '${themeId}' is tier '${theme.manifest.tier}' — publish state only applies to static-tier themes` });
+      return { pages: Object.keys(theme.pages).sort().filter(page => isPublishableThemePageCandidate(theme, page))
+        .map(page => ({ themeId, page, published: isStandaloneThemePage(theme, page) })) };
+    },
     theme_list_files: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const themeId = requireString({ input: input, key: "themeId" });

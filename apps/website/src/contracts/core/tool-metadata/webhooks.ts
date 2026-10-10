@@ -3,6 +3,11 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** webhooks registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "webhooks_update_subscription": {
+    search: { keywords: "webhook subscription edit update label target url topics endpoint" },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
+
   "webhooks_create_subscription": {
     search: {
       keywords: "webhook webhooks endpoint callback integration connect notify subscribe outgoing form submission submitted fires",

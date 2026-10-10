@@ -3,6 +3,11 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** taxonomy registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "taxonomy_get_term": {
+    search: { keywords: "term tag category details parent taxonomy id read one" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+
   // --- taxonomy -----------------------------------------------------------------------------------
   "taxonomy_assign_terms": {
     search: {

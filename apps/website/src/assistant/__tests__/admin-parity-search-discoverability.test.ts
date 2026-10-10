@@ -4,6 +4,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { currentToolIdFor } from "../content-read-tool.js";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
 const CASES: Record<string, string[]> = {
@@ -18,7 +19,7 @@ test("admin parity tools rank in the top 3 of the real catalog", async () => {
   for (const [id, queries] of Object.entries(CASES)) {
     for (const query of queries) {
       const hits = catalog.search({ query }, { limit: 3 }).map(hit => hit.id);
-      if (!hits.includes(id)) misses.push(`${id}: "${query}" -> ${hits.join(", ")}`);
+      if (!hits.includes(currentToolIdFor(id))) misses.push(`${id}: "${query}" -> ${hits.join(", ")}`);
     }
   }
   assert.deepEqual(misses, [], `queries that missed the top 3:\n${misses.join("\n")}`);

@@ -81,10 +81,10 @@ function catalogEntry(toolId: string): WorkspaceAgentToolDefinition {
 // 1. Catalog completeness — wired vs. declared-but-excluded, and excluded tools stay excluded
 // ---------------------------------------------------------------------------
 
-test("exactly the 2 wireable workspace entries are registered — get and update, nothing else", () => {
+test("workspace get and list share a card alongside update", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...workspaceRegistrations(deps).keys()].sort(), ["content_read.workspace", "workspace_update"]);
-  assert.equal(getWorkspaceAgentToolCatalog().length, 4, "sanity: the full workspace catalog is still 4 entries");
+  assert.equal(getWorkspaceAgentToolCatalog().length, 5, "sanity: the host addressable-list projection extends the catalog");
 });
 
 test("workspace_create is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
@@ -227,13 +227,13 @@ test("workspace_update: rejects a slug collision the same way the domain functio
 test("workflow: get the current workspace, rename it, get again to confirm the rename is reflected", async () => {
   const { deps } = fakeRouteDeps();
 
-  const before = (await wired(deps, "content_read.workspace").handler(executionContext({}))) as { workspace: { id: string; name: string; slug: string } };
+  const before = (await wired(deps, "content_read.workspace").handler(executionContext({ workspaceId: WORKSPACE_ID }))) as { workspace: { id: string; name: string; slug: string } };
   assert.equal(before.workspace.id, WORKSPACE_ID);
   assert.equal(before.workspace.name, "Original Name");
 
   await wired(deps, "workspace_update").handler(executionContext({ name: "New Name", slug: "new-slug" }));
 
-  const after = (await wired(deps, "content_read.workspace").handler(executionContext({}))) as { workspace: { id: string; name: string; slug: string } };
+  const after = (await wired(deps, "content_read.workspace").handler(executionContext({ workspaceId: WORKSPACE_ID }))) as { workspace: { id: string; name: string; slug: string } };
   assert.equal(after.workspace.id, before.workspace.id, "id is immutable across the rename");
   assert.equal(after.workspace.name, "New Name");
   assert.equal(after.workspace.slug, "new-slug");

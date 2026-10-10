@@ -332,6 +332,12 @@ const RESTORE_TRASHED_FILE_SCHEMA = {
 export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
   return [
     {
+      name: "theme_list_page_publications",
+      description: "Lists standalone page publication states in one static theme. Call to see whether about or pricing is public before toggling it. Returns {pages:[{themeId,page,published}]} sorted by page id; excludes index, 404 and declared template shells. Reads fresh theme files, defaults undeclared publication to false, and refuses missing themes or non-static tiers. Requires theme.set; use theme_set_page_published to change visibility.",
+      sideEffects: "none", authorization: { permission: THEME_READ_PERMISSION },
+      inputSchema: { type: "object", additionalProperties: false, required: ["themeId"], properties: { themeId: THEME_ID_PROPERTY } },
+    },
+    {
       name: "preview_reload",
       description: "Reloads every open admin theme/site preview with fresh page, CSS and JS. Optionally navigates previews to a site-relative public path such as /create-a-theme. Does not change published content.",
       sideEffects: "mutates-durable-state",

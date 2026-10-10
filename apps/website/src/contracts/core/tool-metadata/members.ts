@@ -3,6 +3,15 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** members registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "members_create": {
+    search: { keywords: "member visitor account create add pending roster email" },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
+  "members_update_profile": {
+    search: { keywords: "member visitor profile update edit rename name" },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
+
   "members_disable": {
     search: {
       keywords: "member block ban suspend revoke deactivate lock out",

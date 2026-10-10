@@ -11,6 +11,8 @@
  * absences below.
  *
  * Deliberate absences (the point of a catalog, not an oversight):
+ * Owner 2026-10-09 supersedes the profile/create exclusion below for this CRUD pass;
+ * billing and authentication exclusions remain binding. Historical rationale is retained.
  * - `updateProfile`, `compSubscription`, `setSubscriptionStatus` (`write-service.ts`) have NO
  *   admin HTTP route at all today — `server/modules/members.ts` wires exactly 4 admin registrars
  *   (list/get/disable/request-magic-link) plus 2 public sign-in routes, nothing else. Wiring an
@@ -83,6 +85,22 @@ const MEMBER_ID_ONLY_INPUT_SCHEMA = {
 
 /** Members' fixed agent-tool catalog. */
 export const membersAgentToolCatalog: AgentToolDefinition[] = [
+  {
+    name: "members_create",
+    description: "Creates a pending site visitor member by email, with an optional name. Returns {member}. Use to add a member to the roster without sending mail. Does not verify their email, grant consent or a subscription, or issue a sign-in token/session. Existing email addresses and malformed input are refused. Requires member.manage; use members_request_magic_link separately to send a sign-in link.",
+    sideEffects: "mutates-durable-state", authorization: { permission: "member.manage" },
+    inputSchema: { type: "object", additionalProperties: false, required: ["email"], properties: {
+      email: { type: "string", minLength: 1 }, name: { type: "string", minLength: 1 },
+    } },
+  },
+  {
+    name: "members_update_profile",
+    description: "Updates a site visitor member's public display name by memberId. Returns {member} with its new version. Leaves email, verification, status, subscriptions and operator-only notes unchanged. Call to edit a member profile; missing members, blank names and denied member.manage permission are refused.",
+    sideEffects: "mutates-durable-state", authorization: { permission: "member.manage" },
+    inputSchema: { type: "object", additionalProperties: false, required: ["memberId", "name"], properties: {
+      memberId: MEMBER_ID_SCHEMA, name: { type: "string", minLength: 1 },
+    } },
+  },
   {
     name: "members_list",
     description:

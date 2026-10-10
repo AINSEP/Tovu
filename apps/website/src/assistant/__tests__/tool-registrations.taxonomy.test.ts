@@ -118,7 +118,7 @@ function catalogEntry(toolId: string): TaxonomyAgentToolDefinition {
 }
 
 function taxonomyRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions, includeContentReadCollapse }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || r.descriptor.id === "content_read.taxonomy").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions, includeContentReadCollapse }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || (r.descriptor.id === "content_read.taxonomy" || r.descriptor.id === "content_read.term")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
@@ -129,6 +129,7 @@ function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistrati
 
 const WIRED_TAXONOMY_TOOL_IDS = [
   "content_read.taxonomy",
+  "content_read.term",
   "taxonomy_assign_terms",
   "taxonomy_get_assigned_terms",
   "taxonomy_unassign_terms",
@@ -143,10 +144,10 @@ const WIRED_TAXONOMY_TOOL_IDS = [
 // 1. Catalog completeness — all 8 entries, the merge execute one behind a human confirm (2026-09-24)
 // ---------------------------------------------------------------------------
 
-test("all 9 taxonomy entries are registered", () => {
+test("all 10 taxonomy entries are registered", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...taxonomyRegistrations(deps).keys()].sort(), WIRED_TAXONOMY_TOOL_IDS);
-  assert.equal(taxonomyAgentToolCatalog.length, 9);
+  assert.equal(taxonomyAgentToolCatalog.length, 10);
 });
 
 test("taxonomy_execute_merge_term is registered, classified mutates-durable-state, and refused without its human-confirmed handler", () => {
@@ -197,7 +198,7 @@ test("every wired taxonomy registration publishes its catalog entry's inputSchem
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
-    if (id === "content_read.taxonomy") continue;
+    if (id.startsWith("content_read.")) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -223,7 +224,7 @@ test("the independent risk classification agrees with the catalog for all 9 wire
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
-    if (id === "content_read.taxonomy") continue;
+    if (id.startsWith("content_read.")) continue;
     // Its actor-class rule needs the handler too — checked in section 1 above.
     if (id === "taxonomy_execute_merge_term") continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));

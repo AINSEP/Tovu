@@ -3,6 +3,19 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** content-read registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "content_read.comment": {
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "content_read.term": {
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "content_read.site": {
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+  "content_read.theme_page_publication": {
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+
   // The collapsed cards dispatch the original, independently classified read handlers.
   "content_read.backup_restore_point": {
     approval: { class: 'read', confirmation: 'direct' },

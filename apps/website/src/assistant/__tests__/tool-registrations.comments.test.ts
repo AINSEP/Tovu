@@ -117,7 +117,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 function commentsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
     buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } })
-      .filter((r) => r.descriptor.id.startsWith("comments_") || r.descriptor.id === "content_read.comment_moderation_queue")
+      .filter((r) => r.descriptor.id.startsWith("comments_") || r.descriptor.id.startsWith("content_read.comment"))
       .map((r) => [r.descriptor.id, r]),
   );
 }
@@ -157,7 +157,7 @@ function seedComment(overrides: Partial<CommentRecord> = {}): CommentRecord {
 // 1. The catalog is complete and honest about what Comments can do
 // ---------------------------------------------------------------------------
 
-test("exactly the 7 designed Comments tools are wired — no invented purge tool", async () => {
+test("exactly the 8 designed Comments tools are wired — no invented purge tool", async () => {
   const { deps } = await fakeRouteDeps();
   assert.deepEqual(
     [...commentsRegistrations(deps).keys()].sort(),
@@ -168,6 +168,7 @@ test("exactly the 7 designed Comments tools are wired — no invented purge tool
       "comments_restore_comment",
       "comments_trash_comment",
       "comments_update_settings",
+      "content_read.comment",
       "content_read.comment_moderation_queue",
     ],
   );
@@ -196,7 +197,7 @@ test("every wired Comments registration publishes its catalog entry's inputSchem
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
-    if (id === "content_read.comment_moderation_queue") continue;
+    if (id.startsWith("content_read.")) continue;
     assert.ok(registration.descriptor.inputSchema, `${id} must publish an inputSchema`);
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
@@ -218,7 +219,7 @@ test("the real Comments catalog and tool-registrations' independent risk classif
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
-    if (id === "content_read.comment_moderation_queue") continue;
+    if (id.startsWith("content_read.")) continue;
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
   }
 });

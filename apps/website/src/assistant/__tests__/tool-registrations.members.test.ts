@@ -147,20 +147,20 @@ function signInUrl(message: unknown): URL {
 // 1. Catalog completeness
 // ---------------------------------------------------------------------------
 
-test("exactly the 4 designed Members tools are wired — no invented profile/comp/subscription tool", () => {
+test("owner-approved Members create/profile tools are wired alongside the existing roster tools", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...membersRegistrations(deps).keys()].sort(),
     // members_get_by_id and members_list MERGE into this single card (2026-09-08,
     // assistant/content-read-tool.ts): one wired tool, dispatching on whether memberId was supplied.
-    ["content_read.member", "members_disable", "members_request_magic_link"],
+    ["content_read.member", "members_create", "members_disable", "members_request_magic_link", "members_update_profile"],
   );
 });
 
-test("no wired tool exposes updateProfile/compSubscription/setSubscriptionStatus/consent transitions — no admin route exists for them", () => {
+test("billing and consent transitions remain absent after the approved profile addition", () => {
   const { deps } = fakeRouteDeps();
   for (const id of membersRegistrations(deps).keys()) {
-    assert.equal(/profile|subscription|consent|comp/i.test(id), false, `'${id}' exposes a write-service capability with no admin HTTP route to mirror`);
+    assert.equal(/subscription|consent|comp/i.test(id), false, `'${id}' exposes a write-service capability with no admin HTTP route to mirror`);
   }
 });
 

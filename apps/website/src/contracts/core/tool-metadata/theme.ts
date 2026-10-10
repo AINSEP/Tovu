@@ -3,6 +3,11 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** theme registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "theme_list_page_publications": {
+    search: { keywords: "theme standalone page visibility publication published unpublished about pricing list" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+
   "theme_copy_file": {
     search: {
       keywords: "theme file copy duplicate clone branch variant new name",

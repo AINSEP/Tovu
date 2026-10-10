@@ -64,7 +64,7 @@ function lookupIn(idProperty: string, itemsKey: string, idField = "id"): ListLoo
 }
 
 /**
- * The 28 cards. Permission strings are copied verbatim from each source tool's own
+ * The shipped cards. Permission strings are copied verbatim from each source tool's own
  * `authorization.permission` (two, `external_mcp_list`/`theme_list`, resolve a source-file constant
  * — `EXTERNAL_MCP_MANAGE_PERMISSION` = `"admin.integrations.manage"`,
  * `THEME_READ_PERMISSION` = `"theme.set"` — copied here as the literal value those constants hold).
@@ -73,6 +73,7 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
   { resource: "backup_restore_point", permission: "backup.read", list: { toolId: "backup_list_restore_points" }, listLookup: lookupIn("restorePointId", "items") },
   { resource: "collection_content_type", permission: "admin.collections.read", list: { toolId: "collections_content_type_list" }, listLookup: lookupIn("key", "contentTypes", "key") },
   { resource: "collection_entry", permission: "admin.collections.read", list: { toolId: "collections_entry_list" }, listLookup: lookupIn("id", "items") },
+  { resource: "comment", permission: "comments.read", get: { toolId: "comments_get_comment", idProperty: "commentId" } },
   { resource: "comment_moderation_queue", permission: "comments.read", list: { toolId: "comments_list_moderation_queue" } },
   { resource: "content_post", permission: "content.read", get: { toolId: "content_post_get", idProperty: "id" }, list: { toolId: "content_post_list" } },
   { resource: "custom_credential", permission: "custom-credentials.read", list: { toolId: "custom_credential_list" }, listLookup: lookupIn("label", "credentials", "label") },
@@ -114,8 +115,11 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
   // own inputSchema already requires `entryId`, so no dispatch wrapper is needed or used.
   { resource: "seo_entry_meta", permission: "admin.seo.manage", get: { toolId: "seo_get_entry_meta", idProperty: "entryId" } },
   { resource: "setting_definition", permission: "settings.read.definitions", list: { toolId: "settings_list_definitions" } },
+  { resource: "site", permission: "system.read", get: { toolId: "sites_get_site", idProperty: "name" }, list: { toolId: "sites_list" } },
+  { resource: "term", permission: "admin.taxonomy.manage", get: { toolId: "taxonomy_get_term", idProperty: "termId" } },
   { resource: "taxonomy", permission: "admin.taxonomy.manage", list: { toolId: "taxonomy_list" }, listLookup: { idProperty: "taxonomyId", sources: [{ itemsKey: "items", idPath: ["taxonomy", "id"] }] } },
   { resource: "theme", permission: "theme.set", list: { toolId: "theme_list" }, listLookup: lookupIn("themeId", "themes") },
+  { resource: "theme_page_publication", permission: "theme.set", list: { toolId: "theme_list_page_publications" }, listLookup: lookupIn("page", "pages", "page") },
   { resource: "webhook_subscription", permission: "admin.integrations.manage", list: { toolId: "webhooks_list_subscriptions" }, listLookup: lookupIn("subscriptionId", "subscriptions") },
   {
     resource: "widget_instance",
@@ -124,9 +128,9 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
     list: { toolId: "widgets_list_instances" },
   },
   { resource: "widget_region", permission: "widgets.read", get: { toolId: "widgets_get_region", idProperty: "regionKey" }, list: { toolId: "widgets_list_regions" } },
-  // Get-only, single member, NO id at all: v1 has exactly one addressable workspace, so
-  // `workspace_get` is parameterless (unlike `seo_entry_meta` above) — always calls `get` directly.
-  { resource: "workspace", permission: "workspace.manage", get: { toolId: "workspace_get" } },
+  // v1 has exactly one addressable workspace; the host list calls the same read owner and
+  // the host get adapter accepts only that workspaceId. No other database rows are disclosed.
+  { resource: "workspace", permission: "workspace.manage", get: { toolId: "workspace_get", idProperty: "workspaceId" }, list: { toolId: "workspace_list" } },
 ];
 
 /** `content_read.<resource>` — the card id a caller/model actually names. */
@@ -349,11 +353,15 @@ function lookupInList(required: { resource: string; listToolId: string; lookup: 
 }
 
 /** The synthetic get-side schema a {@link ListLookup} card feeds {@link unionInputSchema}. */
-function listLookupIdSchema(resource: string, lookup: ListLookup): Readonly<Record<string, unknown>> {
+function listLookupIdSchema(required: { resource: string; lookup: ListLookup; listSchema: Readonly<Record<string, unknown>> }, _optional: Record<string, never> = {}): Readonly<Record<string, unknown>> {
+  const { resource, lookup, listSchema } = required;
   return {
+    ...listSchema,
     type: "object",
-    required: [lookup.idProperty],
+    // Lookup still needs the list's context (for example themeId); both branches require it.
+    required: [...((listSchema.required as readonly string[] | undefined) ?? []), lookup.idProperty],
     properties: {
+      ...((listSchema.properties as Record<string, unknown> | undefined) ?? {}),
       [lookup.idProperty]: {
         type: "string",
         minLength: 1,
@@ -436,7 +444,7 @@ function unionInputSchema(
 /**
  * The composition-root final step: takes the already-built flat registration list every domain
  * contributed (`buildAssistantToolRegistrations`'s own loop), replaces the 36 Tier-1 read tools it
- * contains with the 29 `content_read.<resource>` cards defined above, and leaves everything else —
+ * contains with the `content_read.<resource>` cards defined above, and leaves everything else —
  * all 141 other tools — untouched except that a retired id named in their prose is pointed at its
  * card (see {@link createRetiredReadToolIdRewriter}).
  *
@@ -451,7 +459,7 @@ function unionInputSchema(
  * {@link cardIsAvailable}) is skipped entirely — its members pass through unchanged.
  * @throws {Error} If `buildDomainRegistrations`'s own build-time gates refuse (see that function's
  * own throws) — never for a missing member, which {@link cardIsAvailable} filters out first.
- * @complexity O(t) in total tool count — one pass to index, one pass over the 29 cards, one filter.
+ * @complexity O(t) in total tool count — one pass to index, one pass over the cards, one filter.
  * @overallScore 100
  */
 export function deriveContentReadRegistrations(sourceRegistrations: readonly ToolRegistration[]): ToolRegistration[] {
@@ -479,7 +487,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
       const get = lookupInList({ resource: card.resource, listToolId: card.list.toolId, lookup: card.listLookup, list: listReg.handler });
       handler = dispatchByIdPresence(card.listLookup.idProperty, get, listReg.handler);
       inputSchema = unionInputSchema(
-        listLookupIdSchema(card.resource, card.listLookup),
+        listLookupIdSchema({ resource: card.resource, lookup: card.listLookup, listSchema: (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA }),
         (listReg.descriptor.inputSchema as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA,
         card.listLookup.idProperty,
       );

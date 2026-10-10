@@ -3,6 +3,11 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** sites registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "sites_get_site": {
+    search: { keywords: "site local client registry folder name details single serving queued" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+
   // Create and activate sites from chat, matching the admin Sites screen.
   "sites_create_site": {
     search: {

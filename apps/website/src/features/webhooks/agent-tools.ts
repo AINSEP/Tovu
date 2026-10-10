@@ -18,6 +18,8 @@
  * Deliberately absent from this catalog entirely (not merely unwired — there is no operation to
  * even name a tool against, the same framing `identity/agent-tools.ts` uses for role revocation):
  *
+ *   Owner 2026-10-09 authorizes the update tool; the historical exclusion below is superseded
+ *   for subscription edits only. Signing-secret exclusions remain binding.
  *   - Subscription UPDATE. `subscriptions.ts` exports `updateSubscription` (rewrites label/
  *     targetUrl/topics), but NO admin route calls it — `server/routes/admin/integrations/` has no
  *     `update.ts`/PATCH/PUT handler at all. Wiring a tool for it would hand an agent a capability
@@ -144,6 +146,14 @@ const GET_DELIVERIES_SCHEMA = {
  */
 export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
   return [
+    {
+      name: "webhooks_update_subscription",
+      description: "Replaces a webhook subscription's label, HTTPS targetUrl and topics by subscriptionId. Supply all three fields; use content_read.webhook_subscription to read current values first. Returns {subscription}, with signing version metadata but no secret. Status and signing generation stay unchanged. Missing ids, empty labels/topics, malformed targets, denied permission and disallowed egress are refused. Requires admin.integrations.manage.",
+      sideEffects: "mutates-durable-state", authorization: { permission: "admin.integrations.manage" },
+      inputSchema: { type: "object", additionalProperties: false, required: ["subscriptionId", "label", "targetUrl", "topics"], properties: {
+        subscriptionId: { type: "string", minLength: 1 }, label: { type: "string", minLength: 1 }, targetUrl: { type: "string", minLength: 1 }, topics: { type: "array", minItems: 1, items: { type: "string" } },
+      } },
+    },
     {
       name: "webhooks_list_subscriptions",
       description: "Lists the workspace's webhook subscriptions, each annotated with its most recent delivery attempt (if any). Read-only.",

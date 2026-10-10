@@ -2,8 +2,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/members.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
- * @file Members' half of ADR-049 Decision 4 (ADR-030/ADR-PIPE-013): maps `agent-tools.ts`'s four
- * catalog entries onto the member roster reads and the two `write-service.ts` transitions the admin
+ * @file Members' half of ADR-049 Decision 4 (ADR-030/ADR-PIPE-013): maps `agent-tools.ts`'s six
+ * catalog entries onto the member roster reads and the `write-service.ts` transitions the admin
  * routes expose, as `ToolRegistration`s. The entire catalog is wired.
  *
  * Authorization shape: `members/ports.ts`'s `MembersWriteServiceDeps` has no `authorize` field at
@@ -30,7 +30,7 @@ import type {
   MembersWriteServiceDeps,
 } from "./ports.js";
 import { MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
-import { disableMember, requestSignInLink } from "./write-service.js";
+import { createMember, disableMember, requestSignInLink, updateProfile } from "./write-service.js";
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: membersAgentToolCatalog });
 
@@ -107,6 +107,9 @@ export const membersDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   ["members_list", "none"],
   // -> memberRepo.findById: read only.
   ["members_get_by_id", "none"],
+  // Existing member creation and profile chokepoints, without auth tokens or entitlements.
+  ["members_create", "mutates-durable-state"],
+  ["members_update_profile", "mutates-durable-state"],
   // -> disableMember (write-service.ts): status flip + revokes every live session.
   ["members_disable", "mutates-durable-state"],
   // -> requestSignInLink (write-service.ts): may create a pending member row, saves a magic-link
@@ -175,6 +178,21 @@ const MEMBERS_LIST_MAX_LIMIT = 100;
 
 export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    /** Operator creation shares sign-up persistence while withholding tokens and mail. */
+    members_create: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
+      const { member } = await createMember({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, email: requireString({ input, key: "email" }) } }, { name: optionalString({ input, key: "name" }) });
+      return { member: toMemberToolView(member) };
+    },
+    /** Changes the public profile only; operator notes and extension fields stay private. */
+    members_update_profile: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input });
+      const memberId = requireString({ input, key: "memberId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
+      const { member } = await updateProfile({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
+      return { member: toMemberToolView(member) };
+    },
     members_list: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
 

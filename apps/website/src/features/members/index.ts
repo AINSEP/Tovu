@@ -90,6 +90,7 @@ export {
 
 export {
   compSubscription,
+  createMember,
   completeSignIn,
   disableMember,
   membersWriteService,

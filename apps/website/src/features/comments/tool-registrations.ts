@@ -64,6 +64,8 @@ export interface CommentsToolDeps {
 export const commentsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> commentRepo.listModerationQueue: read only.
   ["comments_list_moderation_queue", "none"],
+  // Workspace-scoped findById, projected through the same moderation view.
+  ["comments_get_comment", "none"],
   // -> getCommentsSettings (settings.ts): settingsRepo read only.
   ["comments_get_settings", "none"],
   // -> setCommentsSettings (settings.ts): N ledger set() calls, one per changed field.
@@ -204,6 +206,15 @@ export function buildCommentsRegistrations(
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    /** Reads any status directly; pagination cannot establish that an id is absent. */
+    comments_get_comment: async (ctx) => {
+      const commentId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "commentId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment", entityId: commentId });
+      await routeDeps.commentsReady;
+      const comment = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: commentId });
+      if (!comment) throw new CommentNotFoundError({ commentId });
+      return { comment: toCommentModerationView(comment) };
+    },
     comments_list_moderation_queue: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
 

@@ -3,6 +3,11 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** workspace registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "workspace_list": {
+    search: { keywords: "workspace list available current site id name slug" },
+    approval: { class: 'read', confirmation: 'direct' },
+  },
+
   // --- workspace / settings ------------------------------------------------------------------------------
   "workspace_get": {
     search: {

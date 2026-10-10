@@ -122,6 +122,8 @@ export interface TaxonomyToolDeps {
 export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> listTaxonomiesWithTerms (list.ts): taxonomies.list() + terms.listByTaxonomy() reads only.
   ["taxonomy_list", "none"],
+  // Full live term read, no assignment or revision writes.
+  ["taxonomy_get_term", "none"],
   // -> entryTermRepo.listForContent + taxonomyRepo.list + termRepo.listByTaxonomy,
   //    with contentTypeRepo.findByKey for collection validation; reads only.
   ["taxonomy_get_assigned_terms", "none"],
@@ -194,6 +196,14 @@ export function buildTaxonomyRegistrations(
   const termName = async (id: string) => (await routeDeps.termRepo.findById({ id }))?.name ?? `${id} (not found)`;
 
   const handlers: Record<string, ToolHandler> = {
+    /** Uses the live, workspace-bound repository, including its parent-taxonomy Trash filter. */
+    ...withModelFacingErrors({ handlers: { taxonomy_get_term: async (ctx) => {
+      const termId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "termId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "term", entityId: termId });
+      const term = await routeDeps.termRepo.findByIdFull({ id: termId });
+      if (!term) throw new ToolInputError({ message: `term '${termId}' was not found — call content_read.taxonomy to list valid terms` });
+      return { term };
+    } }, rules: [forbiddenRule({ domainPrefix: "TAXONOMY", error: ForbiddenError })] }),
     taxonomy_list: async (ctx) => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "taxonomy" });
       return listTaxonomiesWithTerms({ taxonomies: routeDeps.taxonomyRepo, terms: routeDeps.termRepo });
