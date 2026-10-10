@@ -12,49 +12,49 @@ const HIGHLIGHT: PageAction = { type: "highlight", target: { slug: "c", title: "
 
 describe("isPageActionDirective", () => {
   it("accepts a well-shaped navigate directive", () => {
-    assert.equal(isPageActionDirective({ kind: "page_action", action: NAV }), true);
+    assert.equal(isPageActionDirective({ value: { kind: "page_action", action: NAV } }), true);
   });
 
   it("accepts scroll_to and highlight directives", () => {
-    assert.equal(isPageActionDirective({ kind: "page_action", action: SCROLL }), true);
-    assert.equal(isPageActionDirective({ kind: "page_action", action: HIGHLIGHT }), true);
+    assert.equal(isPageActionDirective({ value: { kind: "page_action", action: SCROLL } }), true);
+    assert.equal(isPageActionDirective({ value: { kind: "page_action", action: HIGHLIGHT } }), true);
   });
 
   it("rejects a ui_surface directive — no Tier B runtime exists in this bundle", () => {
-    assert.equal(isPageActionDirective({ kind: "ui_surface", toolId: "x", resource: {} }), false);
+    assert.equal(isPageActionDirective({ value: { kind: "ui_surface", toolId: "x", resource: {} } }), false);
   });
 
   it("rejects navigate missing the auto flag", () => {
-    assert.equal(isPageActionDirective({ kind: "page_action", action: { type: "navigate", target: NAV.target } }), false);
+    assert.equal(isPageActionDirective({ value: { kind: "page_action", action: { type: "navigate", target: NAV.target } } }), false);
   });
 
   it("rejects a target missing a required field", () => {
-    assert.equal(isPageActionDirective({ kind: "page_action", action: { type: "scroll_to", target: { slug: "a", title: "A" } } }), false);
+    assert.equal(isPageActionDirective({ value: { kind: "page_action", action: { type: "scroll_to", target: { slug: "a", title: "A" } } } }), false);
   });
 
   it("rejects non-object, null, and unrelated shapes without throwing", () => {
     for (const bad of [null, undefined, 42, "x", [], {}, { kind: "page_action" }]) {
-      assert.doesNotThrow(() => isPageActionDirective(bad));
-      assert.equal(isPageActionDirective(bad), false);
+      assert.doesNotThrow(() => isPageActionDirective({ value: bad }));
+      assert.equal(isPageActionDirective({ value: bad }), false);
     }
   });
 });
 
 describe("isQueuedPageAction (SPEC-046 REQ-2's queued-action boundary)", () => {
   it("accepts a bare, well-shaped PageAction — the shape SiteAssistantWidget.tsx actually enqueues", () => {
-    assert.equal(isQueuedPageAction(NAV), true);
-    assert.equal(isQueuedPageAction(SCROLL), true);
-    assert.equal(isQueuedPageAction(HIGHLIGHT), true);
+    assert.equal(isQueuedPageAction({ value: NAV }), true);
+    assert.equal(isQueuedPageAction({ value: SCROLL }), true);
+    assert.equal(isQueuedPageAction({ value: HIGHLIGHT }), true);
   });
 
   it("rejects a full ClientDirective envelope — that is not what gets enqueued", () => {
-    assert.equal(isQueuedPageAction({ kind: "page_action", action: NAV }), false);
+    assert.equal(isQueuedPageAction({ value: { kind: "page_action", action: NAV } }), false);
   });
 
   it("rejects malformed and non-object entries without throwing (a poisoned queue entry, REQ-2)", () => {
     for (const bad of [null, undefined, 42, "x", [], {}, { type: "navigate" }, { type: "teleport", target: NAV.target }]) {
-      assert.doesNotThrow(() => isQueuedPageAction(bad));
-      assert.equal(isQueuedPageAction(bad), false);
+      assert.doesNotThrow(() => isQueuedPageAction({ value: bad }));
+      assert.equal(isQueuedPageAction({ value: bad }), false);
     }
   });
 });
@@ -64,23 +64,23 @@ describe("wrong-typed page actions at both trust boundaries", () => {
     for (const invalid of [5, {}, null]) {
       it(`rejects a non-string ${field}: ${JSON.stringify(invalid)}`, () => {
         const action = { ...NAV, target: { ...NAV.target, [field]: invalid } };
-        assert.equal(isPageActionDirective({ kind: "page_action", action }), false);
-        assert.equal(isQueuedPageAction(action), false);
+        assert.equal(isPageActionDirective({ value: { kind: "page_action", action } }), false);
+        assert.equal(isQueuedPageAction({ value: action }), false);
       });
     }
   }
   it("rejects a non-boolean navigate auto flag at both boundaries", () => {
     for (const auto of ["true", 1, null]) {
       const action: Omit<PageAction, "auto"> & { auto: string | number | null } = { ...NAV, auto };
-      assert.equal(isPageActionDirective({ kind: "page_action", action }), false);
-      assert.equal(isQueuedPageAction(action), false);
+      assert.equal(isPageActionDirective({ value: { kind: "page_action", action } }), false);
+      assert.equal(isQueuedPageAction({ value: action }), false);
     }
   });
 });
 
 describe("extractPageActions", () => {
   it("returns [] for undefined events", () => {
-    assert.deepEqual(extractPageActions(undefined), []);
+    assert.deepEqual(extractPageActions({ events: undefined, directiveEventName: "client_directive" }), []);
   });
 
   it("extracts client_directive ext events in order, skipping text/tool events", () => {
@@ -90,7 +90,7 @@ describe("extractPageActions", () => {
       { kind: "ext", name: "client_directive", data: { kind: "page_action", action: HIGHLIGHT } },
       { kind: "usage" },
     ];
-    assert.deepEqual(extractPageActions(events), [NAV, HIGHLIGHT]);
+    assert.deepEqual(extractPageActions({ events, directiveEventName: "client_directive" }), [NAV, HIGHLIGHT]);
   });
 
   it("skips an ext event under a different name and a malformed directive payload", () => {
@@ -100,29 +100,29 @@ describe("extractPageActions", () => {
       { kind: "ext", name: "client_directive", data: "not even an object" },
       { kind: "ext", name: "client_directive", data: { kind: "page_action", action: SCROLL } },
     ];
-    assert.deepEqual(extractPageActions(events), [SCROLL]);
+    assert.deepEqual(extractPageActions({ events, directiveEventName: "client_directive" }), [SCROLL]);
   });
 });
 
 describe("splitPageActions", () => {
   it("splits a navigate and a non-navigate action apart", () => {
-    assert.deepEqual(splitPageActions([HIGHLIGHT, NAV]), { navigate: NAV, other: HIGHLIGHT });
+    assert.deepEqual(splitPageActions({ actions: [HIGHLIGHT, NAV] }), { navigate: NAV, other: HIGHLIGHT });
   });
 
   it("navigate is null when no navigate action is present", () => {
-    assert.deepEqual(splitPageActions([SCROLL]), { navigate: null, other: SCROLL });
+    assert.deepEqual(splitPageActions({ actions: [SCROLL] }), { navigate: null, other: SCROLL });
   });
 
   it("other is null when only a navigate action is present", () => {
-    assert.deepEqual(splitPageActions([NAV]), { navigate: NAV, other: null });
+    assert.deepEqual(splitPageActions({ actions: [NAV] }), { navigate: NAV, other: null });
   });
 
   it("both are null for an empty list", () => {
-    assert.deepEqual(splitPageActions([]), { navigate: null, other: null });
+    assert.deepEqual(splitPageActions({ actions: [] }), { navigate: null, other: null });
   });
 
   it("takes the FIRST of each kind — at most one navigate, at most one other, per turn", () => {
     const secondNav: PageAction = { type: "navigate", target: { slug: "z", title: "Z", path: "/z" }, auto: true };
-    assert.deepEqual(splitPageActions([NAV, SCROLL, secondNav, HIGHLIGHT]), { navigate: NAV, other: SCROLL });
+    assert.deepEqual(splitPageActions({ actions: [NAV, SCROLL, secondNav, HIGHLIGHT] }), { navigate: NAV, other: SCROLL });
   });
 });

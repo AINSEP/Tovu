@@ -19,11 +19,10 @@
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 
-/**
- * A `file:` dependency is ALSO installed as a symlink, indistinguishable by `lstat` from an
- * `npm link`. So a symlink alone is not the defect — it is only wrong when the manifest says the
- * package should have come from the registry. While a dep is still declared `file:`, a symlink is
- * exactly what npm is supposed to produce, and blocking on it would break every build.
+/** Registry-only release builds reject manifest file: specs as well as npm-link symlinks.
+ * A file: dependency is also a symlink, indistinguishable from npm link by lstat alone; that
+ * symlink is expected during local development. Release builds now reject its manifest spec
+ * before checking installed links. Local iteration remains available through build:local.
  */
 function registryDependencyNames(packageDir) {
   let manifest;
@@ -33,8 +32,13 @@ function registryDependencyNames(packageDir) {
     return new Set();
   }
   const specs = { ...manifest.dependencies, ...manifest.devDependencies };
+  const local = Object.entries(specs).filter(([name, spec]) => name.startsWith('@jini-ai/') && spec.startsWith('file:'));
+  if (local.length) {
+    console.error(`Build blocked: @jini-ai/* file: dependencies cannot ship without the sibling checkout:\n${local.map(([name]) => `  - ${name}`).join('\n')}\nUse published ranges for releases; build:local is available for local development.`);
+    process.exit(1);
+  }
   const names = Object.entries(specs)
-    .filter(([name, spec]) => name.startsWith("@jini-ai/") && !spec.startsWith("file:"))
+    .filter(([name, spec]) => name.startsWith("@jini-ai/"))
     .map(([name]) => name.slice("@jini-ai/".length));
   return new Set(names);
 }

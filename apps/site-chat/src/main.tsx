@@ -42,12 +42,14 @@ const MOUNT_ID = "tovu-site-assistant-root";
  * microtask) is what a browser's rendering pipeline actually needs here.
  */
 function executeDrainedAction(action: ReturnType<typeof drainQueuedPageAction>): void {
-  if (!isQueuedPageAction(action) || action.type === "navigate") return;
+  const queued = { value: action };
+  if (!isQueuedPageAction(queued) || queued.value.type === "navigate") return;
+  const treatment = queued.value;
   requestAnimationFrame(() => {
-    const element = findTargetElement(action.target.title);
+    const element = findTargetElement(treatment.target.title);
     if (!element) return;
     scrollToElement(element);
-    if (action.type === "highlight") applyHighlight(element);
+    if (treatment.type === "highlight") applyHighlight(element);
   });
 }
 

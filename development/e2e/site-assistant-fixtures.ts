@@ -89,17 +89,14 @@ export async function mockAssistantTurn(
 }
 
 /**
- * Navigates to a public page and waits for the widget's FAB to exist.
- *
- * `domcontentloaded`, never `networkidle`: this app holds streams open, and `networkidle` never
- * resolves against it — it fails by timing out with a misleading message rather than by saying the
- * wait was wrong (measured, SPEC-046 verification 2026-08-04). The real readiness signal is the FAB,
- * because the bundle is `<script defer>` and self-mounting: a visible `.chat-fab` proves the script
- * downloaded, executed without throwing, and React committed — which no load-state event does.
+ * Navigates to a public page and waits for a usable chat control.
+ * `domcontentloaded`, never `networkidle`: the app holds streams open. For built lazy assets,
+ * the loader-ready attribute proves activation listeners are installed before the first click;
+ * for the eager dev/fallback bundle, the FAB proves React committed.
  */
 export async function openSitePage(page: Page, path: string): Promise<void> {
   await page.goto(path, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(".tovu-site-assistant .chat-fab", { state: "visible" });
+  await page.locator(".tovu-site-assistant .chat-fab, [data-jini-chat-loader][data-loader-ready='true']").first().waitFor({ state: "visible" });
 }
 
 /** Opens the chat panel if it is closed. The panel is toggled with the `hidden` attribute rather
@@ -107,7 +104,12 @@ export async function openSitePage(page: Page, path: string): Promise<void> {
 export async function openChatPanel(page: Page): Promise<void> {
   const panel = page.locator(".tovu-site-assistant__panel");
   if (await panel.isVisible()) return;
-  await page.locator(".tovu-site-assistant .chat-fab").click();
+  const loader = page.locator("[data-jini-chat-loader]");
+  if (await loader.isVisible()) {
+    await page.locator("[data-jini-chat-loader][data-loader-ready='true']").click();
+  } else {
+    await page.locator(".tovu-site-assistant .chat-fab").click();
+  }
   await panel.waitFor({ state: "visible" });
 }
 
