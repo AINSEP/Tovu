@@ -18,6 +18,7 @@ import { hookHarness, sourceFunction } from './source-test-harness.js';
 
 import {
   createWorkspaceActions,
+  prepareExternalWorkspace,
   initialSiteWorkspaceState,
   loadResetKey,
   readHistory,
@@ -32,7 +33,8 @@ import {
   type WorkspaceGuest,
 } from './use-site-workspace.hooks.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
-import type { SiteHistoryCommand } from '../contracts/project.js';
+import type { SiteHistoryCommand, SiteRecord } from '../contracts/project.js';
+import { powerControl, restartControl } from './use-site-power.hooks.js';
 
 type NavigationListener = (event: { url: string; isMainFrame?: boolean }) => void;
 
@@ -54,7 +56,7 @@ test('workspace effects follow guest replacement and visible-tab history subscri
     },
     useWebviewLoadFailure: () => ({ failed: false, stalled: false, loaded: true, guest, guestRef: () => {} }),
     siteWorkspaceReducer, initialSiteWorkspaceState, loadResetKey, readHistory, trackGuestNavigation,
-    subscribeSiteHistory, subscribeWorkspaceThemePreview, siteSurfaceUrl, createWorkspaceActions,
+    subscribeSiteHistory, subscribeWorkspaceThemePreview, siteSurfaceUrl, createWorkspaceActions, prepareExternalWorkspace,
     liveSurface: sourceFunction(source, 'liveSurface', { surfaceOfUrl }), runnerInventoryBridge: () => bridge,
   });
   const render = () => harness.render(() => hook({ id: 'site-1', port: 4100, status: 'running' }, hidden));
@@ -490,4 +492,52 @@ test('history steps and navigation listener setup/teardown contain every detache
   let dispose = () => {};
   assert.doesNotThrow(() => { dispose = trackGuestNavigation(guest, () => {}); });
   assert.doesNotThrow(dispose);
+});
+
+
+test('shared running websites retain their HTTPS origin for both admin and public surfaces', () => {
+  const externalUrl = 'https://localhost:3456/admin/';
+  assert.equal(siteSurfaceUrl({ port: 3456, view: 'admin', status: 'running', externalUrl }), externalUrl);
+  assert.equal(siteSurfaceUrl({ port: 3456, view: 'site', status: 'running', externalUrl }), 'https://localhost:3456/');
+});
+
+
+test('a foreign workspace waits for main to attach before using its URL', async () => {
+  const project = { id: '/outside/site', externalUrl: 'https://localhost:3456/admin/' };
+  const calls: string[] = [];
+  const bridge = { startSite: async (id: string) => { calls.push(id); return { ...project, port: 3456, status: 'running' } as import('../contracts/project.js').SiteRecord; } };
+  assert.equal(await prepareExternalWorkspace({ project, bridge }), project.externalUrl);
+  assert.deepEqual(calls, [project.id]);
+  await assert.rejects(prepareExternalWorkspace({ project, bridge: undefined }), { message: 'The desktop bridge is unavailable.' });
+  await assert.rejects(prepareExternalWorkspace({ project, bridge: { startSite: async () => ({ ...project, externalUrl: undefined, port: 4567, status: 'running' } as import('../contracts/project.js').SiteRecord) } }), { message: 'The running server changed. Wait for the site list to refresh.' });
+});
+
+test('foreign running sites have no stop action and cannot restart the owning app', () => {
+  const project = { id: '/outside/site', displayName: 'Site', externalUrl: 'https://localhost:3456/admin/' } as SiteRecord;
+  assert.equal(powerControl('running', { external: true }), null);
+  assert.equal(restartControl({ project, status: 'running', restarting: false }).disabled, true);
+});
+
+test('the workspace mounts no foreign guest until main has admitted its origin', async () => {
+  const harness = hookHarness();
+  const project = { id: '/outside/site', installDir: '/outside/site', port: 3456, status: 'running', externalUrl: 'https://localhost:3456/admin/' } as SiteRecord;
+  let admit!: (record: SiteRecord) => void;
+  const bridge = { startSite: () => new Promise<SiteRecord>((resolve) => { admit = resolve; }), onSiteHistory: () => () => {} };
+  const hook = sourceFunction(readFileSync(new URL('./use-site-workspace.hooks.ts', import.meta.url), 'utf8'), 'useSiteWorkspace', {
+    ...harness.bindings,
+    useReducer(reducer: typeof siteWorkspaceReducer, initial: SiteWorkspaceState) {
+      const [state, setState] = harness.bindings.useState(initial);
+      return [state, (action: SiteWorkspaceAction) => setState((previous: SiteWorkspaceState) => reducer(previous, action))];
+    },
+    useWebviewLoadFailure: () => ({ failed: false, stalled: false, loaded: false, guest: null, guestRef: () => {} }),
+    siteWorkspaceReducer, initialSiteWorkspaceState, loadResetKey, readHistory, trackGuestNavigation,
+    subscribeSiteHistory, subscribeWorkspaceThemePreview, siteSurfaceUrl, createWorkspaceActions, prepareExternalWorkspace,
+    liveSurface: () => 'admin', runnerInventoryBridge: () => bridge,
+  });
+  const render = () => harness.render(() => hook(project, false));
+  try {
+    assert.equal(render().src, ''); assert.equal(render().running, false);
+    admit(project); await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(render().src, project.externalUrl); assert.equal(render().running, true);
+  } finally { harness.cleanup(); }
 });

@@ -2,6 +2,7 @@ import type { ChatMessage } from '@jini-ai/chat/core';
 import type { RunnerAgentSummary } from '../contracts/runtime-inventory.js';
 import type {
   SiteRecord,
+  SiteFolders,
   CreateSiteInput,
   CreatedSiteRecord,
   TokenSignInPlugin,
@@ -26,8 +27,11 @@ import type {
 } from '../contracts/workspace-conversations.js';
 import type { FindInPageQuery, FindInPageResult } from '../contracts/find-in-page.js';
 import type { ZoomDirection } from '../contracts/zoom.js';
+import type { RunnerAppVersionBridge } from '../contracts/app-version.js';
 
 export interface RunnerInventoryBridge {
+  /** Optional for a stale preload; the current bridge resolves Electron's app.getVersion(). */
+  getAppVersion?: RunnerAppVersionBridge['getAppVersion'];
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
   rescanAgents: () => Promise<readonly RunnerAgentSummary[]>;
   daemonOnline: () => Promise<boolean>;
@@ -35,6 +39,12 @@ export interface RunnerInventoryBridge {
   /** Adopts any untracked Tovu site found on disk and returns the refreshed list. Never resurrects
    *  a project the operator removed — see `SITE_IPC_CHANNELS.rescan`. */
   rescanSites: () => Promise<readonly SiteRecord[]>;
+  /** Native picker and persisted discovery settings; optional for older preloads. */
+  listSiteFolders?: () => Promise<SiteFolders>;
+  saveSiteSettings?: (input: import("../contracts/project.js").SiteSettingsPatch) => Promise<SiteFolders>;
+  setSitesHome?: () => Promise<SiteFolders | null>;
+  addSiteFolder?: () => Promise<SiteFolders | null>;
+  removeSiteFolder?: (input: { root: string }) => Promise<SiteFolders>;
   /** "Add Tovu Website" — tracks a folder that ALREADY holds a site. Takes no argument: main owns
    *  the folder picker. The folder is only pointed at — never moved, copied, or written to, and no
    *  site is ever created — so an empty, half-initialized, or unrelated folder REJECTS with an

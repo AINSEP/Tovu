@@ -1,4 +1,7 @@
 import path from "node:path";
+import fs from "node:fs";
+import { selectWorkspaceDirectory } from "@jini-ai/platform/fs";
+import { createSitesWorkspace } from "./sites-home.js";
 
 /**
  * @file The `sites/<name>/` runtime-data root — one resolver, shared by every module that needs to
@@ -20,7 +23,7 @@ import path from "node:path";
  *
  * Architectural role:
  * `site-dir` domain logic, and deliberately so: this IS the install-dir question, asked by callers
- * that have no `<dir>` argument to answer it with. Pure path computation — no I/O, no `src/server`
+ * that have no `<dir>` argument to answer it with. Read-only home/catalog lookup — no database I/O, no `src/server`
  * or `src/cli` import (INV-06), which is what lets `src/features/{skills,agent-plugins}/layout.ts`
  * share it without either feature reaching into the composition root.
  *
@@ -36,6 +39,7 @@ export interface ResolveSiteRootOptional {
   readonly cwd?: string;
   /** Defaults to `process.env`. */
   readonly env?: NodeJS.ProcessEnv;
+  readonly homeDir?: string;
 }
 
 /**
@@ -46,8 +50,8 @@ export interface ResolveSiteRootOptional {
  *   passes; the env-var equivalent of `tovu serve <dir>`. Not required to be absolute (it is passed
  *   through `path.resolve`), matching `TOVU_CONTENT_DB`/`TOVU_THEMES_DIR` rather than the stricter
  *   `TOVU_AGENT_PLUGINS_DIR`, which validates absoluteness for its own frozen-tree reasons.
- * - `TOVU_SITE` — just the folder NAME under `<cwd>/sites/`. The convenience form for running a
- *   second local site without spelling out a full path.
+ * - `TOVU_SITE` — registered ID or folder name in the sites home, with the checkout sites root
+ *   retained as the legacy fallback.
  *
  * Individual `TOVU_*_DIR` variables still override their own subpath independently at their own
  * call sites, so a deployment that relocates exactly one directory (a large uploads volume, say)
@@ -58,7 +62,7 @@ export interface ResolveSiteRootOptional {
  * @returns Absolute path to the site folder. The folder is not required to exist — creating it is
  *   the caller's business (`openContentDb` does not create its parent, so boot fails with
  *   `SQLITE_CANTOPEN` if nothing has).
- * @complexity O(1).
+ * @complexity O(n) registered sites and home directory entries.
  */
 export function resolveSiteRoot(optional: ResolveSiteRootOptional = {}): string {
   const cwd = optional.cwd ?? process.cwd();
@@ -68,5 +72,31 @@ export function resolveSiteRoot(optional: ResolveSiteRootOptional = {}): string 
   // surfacing as a wrong path, not silently swallowed into the default site.
   if (env.TOVU_SITE_DIR !== undefined) return path.resolve(env.TOVU_SITE_DIR);
 
-  return path.resolve(cwd, "sites", env.TOVU_SITE ?? DEFAULT_SITE_NAME);
+  // npm run dev owns this explicit default; a Documents MRU must never redirect its data.
+  if (env.TOVU_SITE === undefined) return path.resolve(cwd, "sites", DEFAULT_SITE_NAME);
+
+  const workspace = createSitesWorkspace({}, optional);
+  return selectWorkspaceDirectory({ home: workspace.home({}), roots: workspace.roots({}), entries: workspace.registry({}).list({}), selected: env.TOVU_SITE,
+    fallback: path.resolve(cwd, "sites", DEFAULT_SITE_NAME),
+    listDirectories: ({ root }) => {
+      try { return fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => path.join(root, entry.name)); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return []; throw error; }
+    },
+    isInitialized: ({ path: dir }) => fs.existsSync(path.join(dir, "config.json")) && fs.existsSync(path.join(dir, ".site-meta.json")),
+  });
+}
+
+/** Pin one process's default selection before boot. MRU updates and home-setting changes belong
+ * to later starts; they must never redirect a running site's uploads/plugins away from its DB.
+ * The marker travels to the daemon, preserving switcher capability for this internal pin only.
+ */
+export const SITE_SELECTION_PINNED_ENV = "TOVU_SITE_SELECTION_PINNED";
+export function pinDefaultSiteRoot(_required: Record<string, never>, optional: ResolveSiteRootOptional = {}): string {
+  const env = optional.env ?? process.env;
+  const dir = resolveSiteRoot(optional);
+  if (env.TOVU_SITE_DIR === undefined) {
+    env.TOVU_SITE_DIR = dir;
+    env[SITE_SELECTION_PINNED_ENV] = "1";
+  }
+  return dir;
 }

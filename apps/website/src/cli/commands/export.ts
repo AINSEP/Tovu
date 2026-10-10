@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases.js";
 import path from "node:path";
 
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
@@ -123,9 +124,11 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
   // Opened right after `bootSiteDir`, so a composition failure closes the store too (a PGlite owner
   // socket left open would keep this process from exiting).
   try {
-    const dbPath = path.join(target, "content.db");
+    const paths = resolveSiteDatabasePaths({ dir: target });
+    const dbPath = paths.contentDbPath;
     const routeDeps = await (optional.createSiteRouteDeps ?? createSiteRouteDeps)(dbPath, {
       db: bootResult.db,
+      chatDbPath: paths.chatDbPath,
       store: bootResult.store,
       workspaceId: bootResult.workspaceId,
       uploadsDir: path.join(target, "uploads"),

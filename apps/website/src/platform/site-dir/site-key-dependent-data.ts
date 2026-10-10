@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -5,7 +6,7 @@ import { findKeyDependentData, scanOpenedKernel } from "../db/key-dependent-data
 import { openPgliteKernel } from "../db/kernel/drivers/pglite.js";
 import { acquireOwnerLock } from "../db/kernel/drivers/pglite-owner.js";
 import { openPostgresKernel } from "../db/kernel/drivers/postgres.js";
-import { CONTENT_DB_FILENAME, PGLITE_DATA_DIR_NAME, STORAGE_SECRET_FILENAME } from "./layout.js";
+import { PGLITE_DATA_DIR_NAME, STORAGE_SECRET_FILENAME } from "./layout.js";
 import { resolveSiteStorage } from "./site-storage.js";
 import type { SiteStorage } from "./types.js";
 
@@ -43,7 +44,7 @@ export async function findSiteKeyDependentData(siteDir: string, optional: { env?
   }
   switch (storage.kind) {
     case "sqlite": {
-      const contentDbPath = join(siteDir, CONTENT_DB_FILENAME);
+      const contentDbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
       return existsSync(contentDbPath) ? findKeyDependentData([contentDbPath]) : false;
     }
     case "pglite":

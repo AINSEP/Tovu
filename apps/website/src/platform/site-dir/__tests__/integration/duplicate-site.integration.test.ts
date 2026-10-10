@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -36,7 +37,7 @@ function mkTempParent(): string {
  *  into an already-`initSite`'d site's `content.db`, and drops one known upload file into
  *  `uploads/`. Mirrors `duplicate-content-db.integration.test.ts`'s own fixture-building approach. */
 function seedSourceExtras(siteDir: string): void {
-  const dbPath = path.join(siteDir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
   // A site's boot drops the ai_chats/ai_chat_messages/assistant_agent_sessions tables from
   // content.db while they are empty (migration step `0002_drop_empty_legacy_chat_tables`). Open the
   // file through `openChatDb`, which creates them when absent (the same DDL as legacy migrations
@@ -113,10 +114,10 @@ test("a duplicate carries content, uploads, and themes, but never chat history, 
     }
 
     // The content database: real content present, chat history NOT present.
-    const copyDb = new Database(path.join(targetDir, "content.db"), { readonly: true });
+    const copyDb = new Database(resolveSiteDatabasePaths({ dir: targetDir }).contentDbPath, { readonly: true });
     try {
       const postCount = (copyDb.prepare(`SELECT COUNT(*) AS c FROM posts`).get() as { c: number }).c;
-      const sourceDb = new Database(path.join(source.dir, "content.db"), { readonly: true });
+      const sourceDb = new Database(resolveSiteDatabasePaths({ dir: source.dir }).contentDbPath, { readonly: true });
       const sourcePostCount = (sourceDb.prepare(`SELECT COUNT(*) AS c FROM posts`).get() as { c: number }).c;
       sourceDb.close();
       assert.ok(sourcePostCount > 0, "test precondition: the starter template seeds posts");
@@ -134,7 +135,7 @@ test("a duplicate carries content, uploads, and themes, but never chat history, 
       source.siteId,
       "duplicating a site must never rewrite the source's own siteId"
     );
-    const sourceDbAfter = new Database(path.join(source.dir, "content.db"), { readonly: true });
+    const sourceDbAfter = new Database(resolveSiteDatabasePaths({ dir: source.dir }).contentDbPath, { readonly: true });
     try {
       const stillHasChat = (sourceDbAfter.prepare(`SELECT COUNT(*) AS c FROM ai_chats`).get() as { c: number }).c;
       assert.equal(stillHasChat, 1, "the source's own chat row must be untouched by duplicating it");
@@ -216,7 +217,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
 
     // A real sealed row, physically inserted into the source's own content.db (same
     // `sealed_ciphertext` column name `findKeyDependentData`'s own scan looks for).
-    const sourceDb = new Database(path.join(source.dir, "content.db"));
+    const sourceDb = new Database(resolveSiteDatabasePaths({ dir: source.dir }).contentDbPath);
     try {
       sourceDb.exec(
         "CREATE TABLE site_key_test_sealed_row (id INTEGER PRIMARY KEY, sealed_ciphertext TEXT, nonce TEXT, alg TEXT, key_id TEXT)"
@@ -247,7 +248,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     // constructed keyring — nothing here reuses the source's in-memory keyring instance.
     const targetKeyring = new EnvOrFileKeyring({ sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: targetMeta.siteKeyId }) });
     const targetSealer = new AesGcmSecretSealer(targetKeyring);
-    const copyDb = new Database(path.join(targetDir, "content.db"), { readonly: true });
+    const copyDb = new Database(resolveSiteDatabasePaths({ dir: targetDir }).contentDbPath, { readonly: true });
     let copiedRow: { sealed_ciphertext: string; nonce: string; alg: string; key_id: string } | undefined;
     try {
       copiedRow = copyDb.prepare("SELECT sealed_ciphertext, nonce, alg, key_id FROM site_key_test_sealed_row").get() as typeof copiedRow;
@@ -269,7 +270,7 @@ test("site-key plan §A.4: a duplicate of a site with a sealed row can still dec
     assert.equal(secondEnsure?.action, "noop");
     assert.equal(secondEnsure?.fingerprint, mintResult?.fingerprint);
     const secondKeyring = new EnvOrFileKeyring({ sources: siteKeySources({ mode: "local", env, home, cwd: process.cwd(), siteKeyId: secondMeta.siteKeyId }) });
-    const secondDb = new Database(path.join(secondDir, "content.db"), { readonly: true });
+    const secondDb = new Database(resolveSiteDatabasePaths({ dir: secondDir }).contentDbPath, { readonly: true });
     try {
       const row = secondDb.prepare("SELECT sealed_ciphertext, nonce, alg, key_id FROM site_key_test_sealed_row").get() as NonNullable<typeof copiedRow>;
       assert.deepEqual(row, copiedRow);
@@ -603,7 +604,7 @@ test("a source with no portable entries: a content.db failure into a pre-existin
     // phase is entered and the failure lands where the finding says it does.
     assert.doesNotThrow(() => readSiteDir({ dir: source.dir }));
     // The failure itself: `duplicateContentDb` cannot read a database that is not there.
-    fs.rmSync(path.join(source.dir, "content.db"), { force: true });
+    fs.rmSync(resolveSiteDatabasePaths({ dir: source.dir }).contentDbPath, { force: true });
 
     const targetDir = path.join(parent, "operator-made-this");
     fs.mkdirSync(targetDir);
@@ -629,7 +630,7 @@ test("after such a failure the operator's retry is not refused as 'not an empty 
   try {
     const source = await initSite({ dir: path.join(parent, "source"), name: "Original" });
     stripPortableEntries(source.dir);
-    const dbPath = path.join(source.dir, "content.db");
+    const dbPath = resolveSiteDatabasePaths({ dir: source.dir }).contentDbPath;
     const savedDb = fs.readFileSync(dbPath);
     fs.rmSync(dbPath, { force: true });
 

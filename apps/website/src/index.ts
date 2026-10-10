@@ -1,3 +1,6 @@
+import { reportSitesSyncWarning } from "./platform/site-dir/sites-home.js";
+import { pinDefaultSiteRoot } from "./platform/site-dir/index.js";
+import { claimSiteRunning } from "./platform/site-dir/site-running.js";
 import { shutdownLocalSiteHosts } from "./server/runtime/lifecycle/local-site-host.js";
 import { createServer as createHttpServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
@@ -265,6 +268,7 @@ async function main(): Promise<void> {
   // boot step below has a chance to reject unguarded — so the guard covers boot itself, not only
   // requests served after `app.listen()`.
   installUnhandledRejectionGuard();
+  if (!useMemory) pinDefaultSiteRoot({}, {});
   // Server log capture (gap A-04): keeps recent console output in memory, redacted, so the admin
   // server-logs route and the `system_read_server_logs` chat tool can show recent errors. Installed
   // right after the rejection guard so boot-time failures are captured too.
@@ -304,6 +308,9 @@ async function main(): Promise<void> {
   // and carries on; never refuses, never throws.
   warnIfNoSiteKeyAtBoot();
 
+  // Claim before the schema guard, which already opens the site's database.
+  const runningLease = useMemory ? undefined : claimSiteRunning({ dir: siteDir(), app: "Web", scheme: devTls.active ? "https" : "http" });
+  if (!useMemory) reportSitesSyncWarning({});
   if (!useMemory) await guardContentDbSchemaOrExit(defaultContentDbPath());
   // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has
   // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
@@ -338,6 +345,7 @@ async function main(): Promise<void> {
   try {
     port = await reserveBootListener({ server, port, bindHost }, { autoStartPort });
     process.env.PORT = String(port);
+    runningLease?.ready({ port });
   } catch (caught) {
     const error = caught as NodeJS.ErrnoException;
     if (error.code === "EADDRINUSE") {

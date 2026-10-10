@@ -26,6 +26,7 @@ import { createSiteThemePreviewBridge } from '../contracts/site-theme-preview-br
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import { createSpeechBridge } from '@jini-ai/desktop-host/speech';
 import { RUNNER_AGENT_INVENTORY_CHANNELS } from '../contracts/runtime-inventory.js';
+import { RUNNER_APP_VERSION_CHANNEL } from '../contracts/app-version.js';
 import {
   SITE_HISTORY_CHANNEL,
   SITE_IPC_CHANNELS,
@@ -75,11 +76,17 @@ function subscribe<Payload>(channel: string, listener: (payload: Payload) => voi
 contextBridge.exposeInMainWorld(
   'tovuRunner',
   Object.freeze({
+    getAppVersion: () => ipcRenderer.invoke(RUNNER_APP_VERSION_CHANNEL),
     listAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.list),
     rescanAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.rescan),
     daemonOnline: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.daemonOnline),
     listSites: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.list),
     rescanSites: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.rescan),
+    listSiteFolders: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.listFolders),
+    saveSiteSettings: (input: import("../contracts/project.js").SiteSettingsPatch) => ipcRenderer.invoke(SITE_IPC_CHANNELS.saveSettings, input),
+    setSitesHome: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.setHome),
+    addSiteFolder: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.addFolder),
+    removeSiteFolder: (input: { root: string }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.removeFolder, input),
     /** "Add Tovu Website" — track a folder that ALREADY holds a site. Takes no argument: main owns
      *  the folder dialog, so the renderer never names a filesystem path. Resolves null on cancel;
      *  otherwise returns the record and alreadyTracked flag. Rejects unusable folders with an

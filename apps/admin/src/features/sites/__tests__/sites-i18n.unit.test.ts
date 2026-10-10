@@ -45,3 +45,10 @@ it("localizes the card polish copy: pill, meta, overflow menu and confirm dialog
   expect(t({ locale: "ar", key: "In Trash" })).toBe("في سلة المهملات");
   expect(t({ locale: "xx", key: "Open {name} in a new tab" })).toBe("Open {name} in a new tab");
 });
+
+it("localizes settings, safety defaults and external-running status using the Sites owner", () => {
+  expect(t({ locale: "de", key: "Sites settings" })).toBe("Website-Einstellungen");
+  expect(t({ locale: "fr", key: "Database location" })).toBe("Emplacement des bases");
+  expect(t({ locale: "ja", key: "Running in {app} (port {port})" })).toBe("{app} で実行中（ポート {port}）");
+  expect(t({ locale: "zh-CN", key: "{provider} syncs this folder. New databases use app-data for safety." })).toBe("{provider} 同步此文件夹。新数据库使用应用数据以保证安全。");
+});

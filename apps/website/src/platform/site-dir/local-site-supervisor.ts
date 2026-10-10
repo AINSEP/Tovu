@@ -7,6 +7,7 @@ export type LocalSiteStatus = "starting" | "running" | "stopped" | "crashed";
 export interface LocalSiteState {
   name: string; status: LocalSiteStatus; pid: number | null; port: number | null;
   daemonPort: number | null; adminUrl: string | null;
+  app?: string; external?: boolean;
 }
 export class LocalSiteError extends Error {
   constructor(readonly code: string) { super(code); this.name = "LocalSiteError"; }
@@ -25,6 +26,8 @@ export interface LocalSiteProcessPort {
   launch(required: { name: string; port: number; daemonPort: number }): Promise<LocalSiteProcess>;
   schedule(required: { run: () => void; delayMs: number }): () => void;
   dispose?(): Promise<void>;
+  existing?(required: { name: string }): LocalSiteState | null;
+  listExisting?(): LocalSiteState[];
 }
 export interface LocalSiteSupervisorPort {
   start(required: { name: string }, optional?: Record<string, never>): Promise<LocalSiteState>;
@@ -106,6 +109,8 @@ export function createLocalSiteSupervisor(
   }
   async function start(name: string): Promise<LocalSiteState> {
     checkName(name);
+    const foreign = processPort.existing?.({ name });
+    if (foreign && !entries.get(name)?.child) return foreign;
     const previous = entries.get(name);
     if (previous?.child) {
       if (previous.state.status === "crashed") throw new LocalSiteError("SITE_STOP_FAILED");
@@ -127,6 +132,8 @@ export function createLocalSiteSupervisor(
       return { ...entry.state };
     } catch (error) {
       await reap(entry, "crashed");
+      const foreign = processPort.existing?.({ name });
+      if (foreign) return foreign;
       if (error instanceof LocalSiteError) throw error;
       throw new LocalSiteError("SITE_START_FAILED");
     }
@@ -136,17 +143,22 @@ export function createLocalSiteSupervisor(
     stop: ({ name }) => serial(async () => {
       checkName(name);
       const entry = entries.get(name);
+      if (!entry?.child && processPort.existing?.({ name })) throw new LocalSiteError("SITE_RUNNING_ELSEWHERE");
       if (!entry) return { name, status: "stopped", pid: null, port: null, daemonPort: null, adminUrl: null };
       // Withdraw exit observation before signalling, so a deliberate stop never becomes a crash.
       entry.state.status = "stopped";
       try { await reap(entry, "stopped"); } catch (error) { entry.state.status = "crashed"; throw error; }
       return { ...entry.state };
     }),
-    list: () => [...entries.values()].map((entry) => ({ ...entry.state })),
+    list: () => {
+      const known = new Map([...entries.values()].map((entry) => [entry.state.name, { ...entry.state }]));
+      for (const state of processPort.listExisting?.() ?? []) if (!entries.get(state.name)?.child) known.set(state.name, state);
+      return [...known.values()];
+    },
     withStoppedSite: ({ name, task }) => serial(async () => {
       checkName(name);
       const entry = entries.get(name);
-      if (entry?.child || entry?.state.status === "starting") throw new LocalSiteError("SITE_RUNNING");
+      if (processPort.existing?.({ name }) || entry?.child || entry?.state.status === "starting") throw new LocalSiteError("SITE_RUNNING");
       return task();
     }),
     killNow() { closed = true; for (const entry of entries.values()) { entry.cancel?.(); entry.state.status = "stopped"; entry.child?.killNow(); } },

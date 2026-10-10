@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import path from "node:path";
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import { AuthInvalidCredentialsError } from "@jini-ai/user-management";
 import { login } from "@jini-ai/user-management/server";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
@@ -16,7 +16,7 @@ export async function assertSiteOwnerLogin(
   _options: Record<string, never> = {},
 ): Promise<void> {
   const { meta } = readSiteDir({ dir });
-  const store = await openSiteStore({ storage: meta.storage ?? { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" });
+  const store = await openSiteStore({ storage: meta.storage ?? { kind: "sqlite" }, dbPath: resolveSiteDatabasePaths({ dir }).contentDbPath, chatDbPath: resolveSiteDatabasePaths({ dir }).chatDbPath, role: "owner" });
   try {
     const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
     const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };

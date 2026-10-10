@@ -21,7 +21,7 @@
  * them with a fake guest. This package has no React renderer; `useSiteWorkspace` only wires them to
  * `useReducer` and two effects.
  */
-import { useEffect, useReducer, type Dispatch } from 'react';
+import { useEffect, useReducer, useState, type Dispatch } from 'react';
 import { useWebviewLoadFailure } from './App.hooks.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
 import type { SiteHistoryCommand, SiteRecord, SiteSurface } from '../contracts/project.js';
@@ -103,9 +103,10 @@ export function loadResetKey(state: SiteWorkspaceState): string {
  * @complexity O(1) time and space.
  */
 export function siteSurfaceUrl(
-  input: { port: number | null | undefined; view: SiteSurface; status?: SiteRecord['status'] },
+  input: { port: number | null | undefined; view: SiteSurface; status?: SiteRecord['status']; externalUrl?: string },
   _optional: Record<string, never> = {},
 ): string {
+  if (input.externalUrl) return input.view === "site" ? new URL("/", input.externalUrl).href : input.externalUrl;
   const { origin } = sitePortPresentation(input);
   return origin ? `${origin}${input.view === 'site' ? '/' : '/admin/'}` : '';
 }
@@ -215,6 +216,7 @@ export function createWorkspaceActions(input: {
   bridge: RunnerInventoryBridge | undefined;
   siteId: string;
   port: number;
+  externalUrl?: string;
 }): WorkspaceActions {
   const { guest, state, dispatch } = input;
   const surface = liveSurface(state);
@@ -243,7 +245,7 @@ export function createWorkspaceActions(input: {
       // A different `src` is the navigation. The same `src` would navigate nowhere, so load it.
       if (option !== state.view) return;
       // `loadURL` rejects when a newer navigation aborts it, which is ordinary, not a failure.
-      const url = siteSurfaceUrl({ port: input.port, view: option });
+      const url = siteSurfaceUrl({ port: input.port, view: option, externalUrl: input.externalUrl });
       if (!url) return;
       loadOrRemount((target) => void target.loadURL(url).catch(() => undefined));
     },
@@ -253,9 +255,25 @@ export function createWorkspaceActions(input: {
   };
 }
 
+/** A Web-owned server must enter main's exact-origin allowlist before a guest navigates.
+ * The existing start IPC attaches when the shared lease is live; it never launches another owner.
+ */
+export async function prepareExternalWorkspace({ project, bridge }: {
+  project: Pick<SiteRecord, 'id' | 'externalUrl'>;
+  bridge: Pick<RunnerInventoryBridge, 'startSite'> | undefined;
+}, _options = {}): Promise<string | null> {
+  if (!project.externalUrl) return null;
+  if (!bridge) throw new Error('The desktop bridge is unavailable.');
+  const record = await bridge.startSite(project.id);
+  const url = siteSurfaceUrl({ port: record.port, status: record.status, view: 'admin', externalUrl: record.externalUrl });
+  if (url !== project.externalUrl) throw new Error('The running server changed. Wait for the site list to refresh.');
+  return url;
+}
+
 export interface SiteWorkspace extends WorkspaceActions {
   /** Running status with a real port; a port-zero record never mounts a guest. */
   running: boolean;
+  attachError: string | null;
   /** The guest's `src`: the requested surface's root. */
   src: string;
   /** The url to show: where the guest is, or where it was sent until it says. */
@@ -280,6 +298,17 @@ export interface SiteWorkspace extends WorkspaceActions {
  */
 export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWorkspace {
   const [state, dispatch] = useReducer(siteWorkspaceReducer, initialSiteWorkspaceState);
+  const [attachedUrl, setAttachedUrl] = useState<string | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    setAttachedUrl(null); setAttachError(null);
+    if (project.externalUrl) void prepareExternalWorkspace({ project, bridge: runnerInventoryBridge() }).then(
+      (url) => { if (active) setAttachedUrl(url); },
+      (error: unknown) => { if (active) setAttachError(error instanceof Error ? error.message : String(error)); },
+    );
+    return () => { active = false; };
+  }, [project.id, project.externalUrl]);
   const { failed, stalled, loaded, guest, guestRef } = useWebviewLoadFailure(loadResetKey(state));
 
   // A new guest node (a remount, or the guest appearing at all) has its own, empty history.
@@ -290,7 +319,7 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWork
 
   useEffect(() => subscribeSiteHistory({ bridge: runnerInventoryBridge(), hidden, guest }), [hidden, guest]);
 
-  const src = siteSurfaceUrl({ port: project.port, view: state.view, status: project.status });
+  const src = project.externalUrl && attachedUrl !== project.externalUrl ? "" : siteSurfaceUrl({ port: project.port, view: state.view, status: project.status, externalUrl: project.externalUrl });
   useEffect(() => subscribeWorkspaceThemePreview({
     bridge: runnerInventoryBridge(), siteDir: project.installDir, port: project.port,
     running: src !== '', url: state.liveUrl ?? src, guest, dispatch,
@@ -305,10 +334,12 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean): SiteWork
     bridge: runnerInventoryBridge(),
     siteId: project.id,
     port: project.port,
+    externalUrl: project.externalUrl,
   });
   return {
     ...actions,
     running: src !== '',
+    attachError,
     src,
     // A stopped tab can still remember the last guest URL until its ref effect runs. Hide it now.
     displayUrl: src ? state.liveUrl ?? src : '',

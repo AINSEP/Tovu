@@ -29,6 +29,8 @@ export interface SiteRecord {
   displayName: string;
   installDir: string;
   port: number;
+  runningApp?: string;
+  externalUrl?: string;
   /**
    * This project's own Electron session-partition string (`desktop-auth.ts`'s `sitePartition`,
    * keyed off `installDir`). The embedded-tab renderer (`App.tsx`'s `SiteWorkspace`) sets this
@@ -140,6 +142,20 @@ export interface RenameSiteInput {
   name: string;
 }
 
+/** Built-in/creation folders plus removable user-added folders, read fresh on every Rescan. */
+export interface SiteFolders {
+  roots: string[];
+  extraRoots: string[];
+  home?: string;
+  databases?: "inSite" | "appData";
+  configPath?: string;
+  warning?: { provider: string; message: string; localHome: string } | null;
+  overrides?: { sitesHome: boolean; siteRoots: boolean };
+}
+
+/** Renderer may choose placement; filesystem paths come only from main-owned native pickers. */
+export type SiteSettingsPatch = { databases: "inSite" | "appData" };
+
 export const SITE_IPC_CHANNELS = {
   list: 'runner:sites:list',
   create: 'runner:sites:create',
@@ -160,6 +176,12 @@ export const SITE_IPC_CHANNELS = {
    * folder dialog, which is them asking explicitly.
    */
   rescan: 'runner:sites:rescan',
+  /** Discovery settings only. Add opens a native picker; remove never deletes sites or cards. */
+  listFolders: 'runner:sites:folders:list',
+  addFolder: 'runner:sites:folders:add',
+  removeFolder: 'runner:sites:folders:remove',
+  setHome: 'runner:sites:home:set',
+  saveSettings: 'runner:sites:settings:save',
   /**
    * "Add Tovu Website" — the operator picks ONE folder that already holds a Tovu site, and it
    * becomes a tracked row. Real (`project-ipc.ts`'s `handleAddSite` over

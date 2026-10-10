@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -221,7 +222,7 @@ async function planSiteRepair(required: RepairSiteRequired): Promise<SiteRepairP
     );
   }
 
-  const dbPath = path.join(target, CONTENT_DB_FILE_NAME);
+  const dbPath = resolveSiteDatabasePaths({ dir: target }).contentDbPath;
   if (!fs.existsSync(dbPath)) {
     throw new SiteRepairRefusedError(
       `repairSite: refusing — no content.db at ${dbPath}; nothing to derive a schema stamp from`,

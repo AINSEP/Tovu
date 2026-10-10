@@ -71,7 +71,7 @@ test("U-004-B1 (symlink at the target): every file initSite creates lands inside
     // Every artifact must be reachable at the symlink's REAL destination.
     const realMetaPath = path.join(realDestination, ".site-meta.json");
     assert.ok(fs.existsSync(realMetaPath), "the commit marker must exist at the symlink's real destination");
-    for (const child of ["config.json", "content.db", "uploads", "themes", "plugins", "overrides"]) {
+    for (const child of ["config.json", "data.nosync/content.db", "uploads", "themes", "plugins", "overrides"]) {
       assert.ok(fs.existsSync(path.join(realDestination, child)), `${child} must exist at the real destination, not merely be reachable through the symlink`);
     }
 

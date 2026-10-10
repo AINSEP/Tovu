@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 
-import { DEFAULT_SITE_NAME, resolveSiteRoot } from "../../site-root.js";
+import { DEFAULT_SITE_NAME, resolveSiteRoot as resolveSiteRootReal } from "../../site-root.js";
+
+/** Path-only legacy assertions use an isolated configured home; never read the owner's registry. */
+const resolveSiteRoot = (optional: Parameters<typeof resolveSiteRootReal>[0] = {}) => resolveSiteRootReal({ ...optional,
+  homeDir: "/__tovu_path_tests__", env: { TOVU_SITE: DEFAULT_SITE_NAME, ...(optional.env ?? process.env), TOVU_SITES_HOME: "/__tovu_path_tests__/sites" } });
 
 /**
  * @file Unit tests for `resolveSiteRoot` — the one place the `sites/<name>/` runtime-data root is

@@ -1,3 +1,5 @@
+import type { SitesWorkspace } from "./sites-home.js";
+import { resolveSiteDatabasePaths } from "./site-databases.js";
 import fs from "node:fs";
 import path from "node:path";
 import type { AtomicFilesystemPort } from "@jini-ai/platform/fs";
@@ -43,6 +45,8 @@ export interface BootSiteDirRequired {
 export interface BootSiteDirOptions {
   /** Resolve this exact workspace id instead of the default (oldest) — `tovu serve --workspace <id>`. */
   workspaceId?: string;
+  /** Shared user config is injectable for isolated app-data/site fixtures. */
+  workspace?: SitesWorkspace;
   /** Atomic metadata effects; defaults to the native filesystem, with Jini owning replacement. */
   metadataFilesystem?: AtomicFilesystemPort;
 }
@@ -122,7 +126,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   const storage = parseSiteStorage(meta.storage);
   if (storage.kind !== "sqlite") return bootStoreSiteDir({ target, storage, config, meta }, options);
 
-  const dbPath = path.join(target, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir: target, siteId: meta.siteId }, { workspace: options.workspace }).contentDbPath;
   if (!fs.existsSync(dbPath)) {
     throw new SiteDirInvalidError(`bootSiteDir: content.db is missing at ${dbPath}`);
   }

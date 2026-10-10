@@ -516,6 +516,7 @@ export interface AdminSiteListEntry {
   /** True when this row is the site the SERVER PROCESS is bound to right now — never a pending
    *  choice. A newly-activated site stays `false` here until the operator restarts. */
   active: boolean;
+  running?: { pid: number; port: number; app: string; scheme: "http" | "https" };
 }
 
 /** What the running server is actually serving — mirrors `SiteBinding` in `site-registry.ts`, plus
@@ -538,11 +539,21 @@ export interface AdminSiteBinding {
 export interface AdminLocalSiteState {
   name: string; status: "starting" | "running" | "stopped" | "crashed";
   pid: number | null; port: number | null; daemonPort: number | null; adminUrl: string | null;
+  app?: string; external?: boolean;
 }
 export interface AdminTrashedSite { id: string; name: string; displayName: string }
 export type AdminLocalSiteAction = "start" | "stop" | "trash" | "restore" | "delete" | "switch";
 
+/** Machine-local config, shared with desktop. Runtime env overrides are displayed explicitly. */
+export interface SitesUserConfig {
+  sitesHome: string; siteRoots: string[]; databases: "inSite" | "appData";
+  configPath: string; appData: string;
+  overrides: { sitesHome: boolean; siteRoots: boolean };
+  warning: { provider: string; message: string; localHome: string } | null;
+}
+export type SitesUserConfigPatch = Partial<Pick<SitesUserConfig, "sitesHome" | "siteRoots" | "databases">>;
 export interface AdminSitesSnapshot {
+  sitesHome?: string;
   localManagementEnabled?: boolean;
   canSwitchNow?: boolean;
   localSites?: AdminLocalSiteState[];
@@ -1083,6 +1094,8 @@ export interface AdminExecutionDetectedAgent {
  */
 export interface PublicAssistantSettings {
   publicEnabled: boolean;
+  /** Optional while older servers and cached responses still carry only the switch. */
+  widget?: "react" | "vanilla";
 }
 
 /**
@@ -1277,6 +1290,8 @@ export interface SeoEntryAnalysis {
 }
 
 export interface AdminPost {
+  author?: string | null;
+  showAuthor?: boolean;
   id: string;
   workspaceId: string;
   // Was missing from this client-side type even though `toHeadlessPost` (server/http/shared/post.ts)
@@ -2621,6 +2636,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ token }),
     }),
+  /** Local dev bootstrap exchanges a server-only one-time boot token for an ordinary cookie.
+   * The server refuses production, deployment, LAN listeners and cross-origin callers.
+   */
+  signInLocalOwner: (_required: Record<string, never>, _optional: Record<string, never> = {}) =>
+    request<{ user: { id: string } }>("/auth/local-boot-session", { method: "POST" }),
   me: () =>
     request<{
       user: AdminUser;
@@ -2682,7 +2702,7 @@ export const api = {
   // gets exactly the last-write-wins behavior this method has always had.
   updatePost: (
     { id }: { id: string },
-    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId">> & {
+    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId" | "author" | "showAuthor">> & {
       expectedVersion?: number;
     } = {}
   ) =>
@@ -3201,7 +3221,7 @@ export const api = {
       body: JSON.stringify({ ...input, ...options }),
     }),
   // SPEC-006 0.6.0 (users/roles/policies CRUD-completion amendment).
-  updateUser: ({ principalId }: { principalId: string }, options: { email?: string } = {}) =>
+  updateUser: ({ principalId }: { principalId: string }, options: { email?: string; username?: string } = {}) =>
     request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}`, {
       method: "PATCH",
       body: JSON.stringify(options),
@@ -3913,6 +3933,9 @@ export const api = {
   // `getDockerfileSource`/`setDockerfileSource` immediately above.
   /** Every site under `sites/`, plus what this server process is ACTUALLY bound to right now and
    *  any pending activate choice — see {@link AdminSitesSnapshot}. */
+  getSitesConfig: () => request<SitesUserConfig>(`/workspaces/${WORKSPACE_ID}/system/sites/config`),
+  setSitesConfig: (input: SitesUserConfigPatch) => request<SitesUserConfig>(`/workspaces/${WORKSPACE_ID}/system/sites/config`, { method: "PUT", body: JSON.stringify(input) }),
+  setSitesHome: (input: { path: string }) => request<{ home: string }>(`/workspaces/${WORKSPACE_ID}/system/sites/home`, { method: "PUT", body: JSON.stringify(input) }),
   listSites: () => request<AdminSitesSnapshot>(`/workspaces/${WORKSPACE_ID}/system/sites`),
   /** Create `sites/<name>/` through the same `initSite` path `tovu init` uses. `409`
    *  `SITE_ALREADY_EXISTS` when the directory is occupied, `400` `VALIDATION_ERROR` for a name

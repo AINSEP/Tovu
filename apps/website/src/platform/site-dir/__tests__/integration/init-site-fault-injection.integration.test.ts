@@ -133,7 +133,7 @@ test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited 
       `fs.rmSync = function(target, options) {`,
       `  if (target === dir) {`,
       `    const configPath = path.join(dir, "config.json");`,
-      `    const dbPath = path.join(dir, "content.db");`,
+      `    const dbPath = path.join(dir, "data.nosync", "content.db");`,
       `    fs.writeFileSync(${JSON.stringify(evidencePath)}, JSON.stringify({`,
       `      config: fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, "utf8")) : null,`,
       `      dbHeader: fs.existsSync(dbPath) ? fs.readFileSync(dbPath).subarray(0, 16).toString() : null,`,

@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -7,7 +8,17 @@ import test from "node:test";
 import { openContentDbReadOnly } from "../../../db/sqlite/content-db.js";
 import { posts as postsTable } from "../../../db/schema.sqlite.js";
 import { ValidationError } from "../../errors.js";
-import { createSite, describeSiteBinding, includeServingSite, listSites, listSitesForBinding, SITE_BINDING_NOT_SWITCHABLE_ENV, SITE_NAME_PATTERN, switcherBaseForBinding } from "../../site-registry.js";
+import { createSite as createSiteReal, describeSiteBinding as describeSiteBindingReal, includeServingSite, listSites as listSitesReal, listSitesForBinding, SITE_BINDING_NOT_SWITCHABLE_ENV, SITE_NAME_PATTERN, switcherBaseForBinding } from "../../site-registry.js";
+
+/** Existing switcher characterizations deliberately configure their checkout fixture as home.
+ * New shared-home tests separately cover the visible default and cross-app registry behavior. */
+function isolatedOptions(optional: Parameters<typeof listSitesReal>[0] = {}) {
+  const cwd = optional.cwd ?? "/repo";
+  return { ...optional, cwd, homeDir: cwd, env: { TOVU_SITES_HOME: path.join(cwd, "sites"), TOVU_SITE: "tovu-dev", ...optional.env } };
+}
+const listSites = (optional: Parameters<typeof listSitesReal>[0] = {}) => listSitesReal(isolatedOptions(optional));
+const describeSiteBinding = (optional: Parameters<typeof describeSiteBindingReal>[0] = {}) => describeSiteBindingReal(isolatedOptions(optional));
+const createSite = (required: Parameters<typeof createSiteReal>[0], optional: Parameters<typeof createSiteReal>[1] = {}) => createSiteReal(required, isolatedOptions(optional));
 
 /**
  * @file 2026-09-04 sites-switcher decision — TDD for `site-registry.ts`'s list/create half.
@@ -21,14 +32,14 @@ import { createSite, describeSiteBinding, includeServingSite, listSites, listSit
  */
 
 function mkSitesRoot(): { cwd: string; sitesDir: string } {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-registry-"));
+  const cwd = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-registry-")));
   const sitesDir = path.join(cwd, "sites");
   fs.mkdirSync(sitesDir);
   return { cwd, sitesDir };
 }
 
 test("listSites: returns [] when sites/ does not exist at all (fresh checkout, before any tovu init)", async () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-registry-nodir-"));
+  const cwd = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-registry-nodir-")));
   try {
     assert.deepEqual(listSites({ cwd }), []);
   } finally {
@@ -110,7 +121,7 @@ test("createSite: the resulting content.db starts without posts or placeholder p
   const { cwd } = mkSitesRoot();
   try {
     const result = await createSite({ name: "root-page-check" }, { cwd });
-    const db = openContentDbReadOnly(path.join(result.dir, "content.db"));
+    const db = openContentDbReadOnly(resolveSiteDatabasePaths({ dir: result.dir }).contentDbPath);
     try {
       const rows = db.select().from(postsTable).all();
       assert.deepEqual(rows, []);
@@ -178,7 +189,7 @@ test("describeSiteBinding: an install-dir-pinned boot marks its binding non-swit
 });
 
 test("describeSiteBinding: agrees with listSites()'s own `active` flag for a real created site", async () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-binding-"));
+  const cwd = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-binding-")));
   try {
     fs.mkdirSync(path.join(cwd, "sites"));
     await createSite({ name: "bound-site" }, { cwd });
@@ -206,7 +217,7 @@ test("describeSiteBinding: agrees with listSites()'s own `active` flag for a rea
 
 /** A serving directory that exists but carries no init markers — exactly `sites/tovu-dev`. */
 function mkUnregisteredServingDir(): { cwd: string; dir: string } {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-unregistered-"));
+  const cwd = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-unregistered-")));
   const dir = path.join(cwd, "sites", "tovu-dev");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "content.db"), "not a real db, but the folder is plainly in use");
@@ -355,7 +366,7 @@ test("listSitesForBinding: a switchable binding lists its own base, with `active
 });
 
 test("listSitesForBinding: an install-dir binding without init markers lists nothing, and never scans a sites/ root", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-registry-install-"));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-registry-install-")));
   try {
     const listed = listSitesForBinding(
       { binding: { dir, name: path.basename(dir), dirOverridden: false, switcherCompatible: false } },

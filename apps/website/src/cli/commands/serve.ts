@@ -1,3 +1,6 @@
+import { reportSitesSyncWarning } from "../../platform/site-dir/sites-home.js";
+import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases.js";
+import { claimSiteRunning } from "../../platform/site-dir/site-running.js";
 import path from "node:path";
 
 import { createServingApp } from "../../server/runtime/composition/serving-app.js";
@@ -201,22 +204,27 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   const logFiles = serverLogFilePaths({ siteDir: target });
   attachServerLogFile({ filePath: logFiles.server }, { alsoRead: [logFiles.daemon] });
   pinPlainHttpIntoEnv();
-  const bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
+  const runningLease = claimSiteRunning({ dir: target, app: process.env.TOVU_RUNNING_APP === "Desktop" ? "Desktop" : "Web" });
+  let bootResult: BootSiteDirResult;
+  try { bootResult = await bootSiteDir({ dir: target }, { workspaceId: input.workspaceId }); }
+  catch (error) { runningLease.release(); throw error; }
   // From here on this command owns what `bootSiteDir` opened: any failure before the listener is
   // bound (bad port/host, a composition or lifecycle failure, the daemon port, `EADDRINUSE`) stops
   // the workers already started and closes the store before the error reaches `cli/main.ts`, so a
   // refused boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
-  const owned: ServeOwnership = { bootResult, composedStore: undefined, workers: [], bootWork: [] };
+  const owned: ServeOwnership = { bootResult, composedStore: undefined, workers: [], bootWork: [], runningLease };
   try {
     await serveBootedSite(input, target, owned, optional);
   } catch (err) {
     await releaseServeOwnership(owned);
+    runningLease.release();
     throw err;
   }
 }
 
 /** What a `tovu serve` run holds open once `bootSiteDir` has succeeded. */
 interface ServeOwnership {
+  runningLease: ReturnType<typeof claimSiteRunning>;
   readonly bootResult: BootSiteDirResult;
   /** The composition's store (`onStoreOpened`); closing it stops the guest-chat sweep first. */
   composedStore: SiteStore | undefined;
@@ -262,9 +270,12 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
   // partially adopted.
   await ensureSiteKeyForBoot({ siteDir: target, findSiteKeyDependentData });
 
-  const dbPath = path.join(target, "content.db");
+  reportSitesSyncWarning({});
+  const paths = resolveSiteDatabasePaths({ dir: target });
+  const dbPath = paths.contentDbPath;
   const deps = await createSiteRouteDeps(dbPath, {
     db: bootResult.db,
+    chatDbPath: paths.chatDbPath,
     store: bootResult.store,
     workspaceId: bootResult.workspaceId,
     onStoreOpened: (store) => (owned.composedStore = store),
@@ -365,6 +376,8 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
     });
 
     server.once("listening", () => {
+      try { owned.runningLease.ready({ port }); }
+      catch (error) { server.close(); reject(error); return; }
       const runtime = runtimeSchemaVersion();
       // BEFORE the documented startup line below, on purpose. A launcher treats that line as the
       // ready signal and stops waiting the moment it sees it, so a token printed after it would

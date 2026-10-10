@@ -1,3 +1,5 @@
+import { resolveSiteDatabasePaths } from "./site-databases.js";
+import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
 import { runBootDataRepairs } from "#src/server/runtime/composition/boot-data-repairs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
@@ -196,7 +198,7 @@ export function validateInitTarget(target: string): void {
  *   caller-independent size (see that function's own `@complexity`).
  * @overallScore 100
  */
-export async function initSite(required: InitSiteRequired, options: ReadTemplateOptional = {}): Promise<InitSiteResult> {
+export async function initSite(required: InitSiteRequired, options: ReadTemplateOptional & { workspace?: SitesWorkspace } = {}): Promise<InitSiteResult> {
   const { dir, name } = required;
   const adminPassword = resolveNewSiteAdminPassword(required);
   const target = resolveInstallDirTarget(dir);
@@ -209,7 +211,11 @@ export async function initSite(required: InitSiteRequired, options: ReadTemplate
 
   const siteId = randomUUID();
   const createdAt = new Date().toISOString();
+  const workspace = options.workspace ?? createSitesWorkspace({});
+  const dbPaths = resolveSiteDatabasePaths({ dir: target, siteId }, { workspace, placement: workspace.config({}).databases });
+  const externalDbDir = storage.kind === "sqlite" && !dbPaths.contentDbPath.startsWith(target + path.sep) ? path.dirname(dbPaths.contentDbPath) : undefined;
   let wroteAnything = false;
+  let createdExternalDbDir = false;
 
   try {
     // Step 3b: a Postgres database must be empty, checked before anything is created or sealed.
@@ -244,7 +250,10 @@ export async function initSite(required: InitSiteRequired, options: ReadTemplate
     // chat runner (`openSiteChatDb`), which takes no copy either.
     // PGlite/Postgres: the store is created (runner to head, content + ai_chat) and seeded instead.
     if (storage.kind === "sqlite") {
-      const dbPath = path.join(target, "content.db");
+      const dbPath = dbPaths.contentDbPath;
+      if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`initSite: database target already exists at ${externalDbDir}`);
+      fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+      createdExternalDbDir = Boolean(externalDbDir);
       const db = openSqliteContentConnection(dbPath);
       try {
         await migrateContentDatabase(sqliteKernel<unknown>(db));
@@ -282,6 +291,7 @@ export async function initSite(required: InitSiteRequired, options: ReadTemplate
 
     return { siteId, dir: target };
   } catch (err) {
+    if (externalDbDir && createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
     return cleanupAndRethrow(err, target, wroteAnything);
   }
 }

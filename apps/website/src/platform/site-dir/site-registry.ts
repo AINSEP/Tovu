@@ -1,16 +1,19 @@
 import fs from "node:fs";
+import { withFileLock } from "@jini-ai/platform/fs";
 import path from "node:path";
 
 import { ValidationError } from "./errors.js";
 import { initSite, type InitSiteResult } from "./init-site.js";
 import { readSiteDir } from "./read-site-dir.js";
-import { resolveSiteRoot, type ResolveSiteRootOptional } from "./site-root.js";
+import { resolveSiteRoot, SITE_SELECTION_PINNED_ENV, type ResolveSiteRootOptional } from "./site-root.js";
+import { createSitesWorkspace, resolveSitesHome } from "./sites-home.js";
+import { readSiteRunning } from "./site-running.js";
 
 /**
  * @file Admin "Sites" screen backend, list + create half (2026-09-04 sites-switcher decision,
  * `ADS-memory/reports/2026-09-04-sites-switcher-decision.md`).
  *
- * `sites/<name>/` has always been a pure filesystem convention — no registry file, no DB table
+ * Historical rationale (before the 2026-10-09 shared-home registry): `sites/<name>/` had always been a pure filesystem convention — no registry file, no DB table
  * (confirmed: `sites/README.md`, no code anywhere builds a "which sites exist" list before this).
  * `listSites` is the first thing that enumerates it, and it does so by directory scan plus the
  * SAME `readSiteDir` validator `serve` already trusts, rather than inventing a second notion of
@@ -27,6 +30,9 @@ import { resolveSiteRoot, type ResolveSiteRootOptional } from "./site-root.js";
  * reflects whatever this process actually booted with. See `active-site.ts` for the one function
  * in this feature slice that DOES write boot-relevant state — and even that one only writes a
  * file a FUTURE boot reads, never anything the live process consults.
+ *
+ * Today the shared catalog owns discovery across apps and arbitrary adopted folders; checkout
+ * scanning remains a compatibility source. Creation targets the configured home.
  *
  * Architectural role: `site-dir` domain logic (INV-06) — no `express`/`cli` import, so a future
  * non-CLI caller (the desktop host, ADR-011) can reuse this directly, same as every sibling module
@@ -58,6 +64,8 @@ export interface SiteListEntry {
    *  the one that would still be served by a request handled right now, not any pending choice a
    *  not-yet-actioned `activateSite` call may have persisted for the NEXT boot. */
   active: boolean;
+  id?: string;
+  running?: import("@jini-ai/platform/fs").DirectoryRunningRecord | null;
 }
 
 export type ListSitesOptional = ResolveSiteRootOptional;
@@ -75,31 +83,46 @@ export type ListSitesOptional = ResolveSiteRootOptional;
  */
 export function listSites(optional: ListSitesOptional = {}): SiteListEntry[] {
   const cwd = optional.cwd ?? process.cwd();
-  const sitesRoot = path.join(cwd, "sites");
+  const workspace = createSitesWorkspace({}, optional);
   const currentSiteDir = resolveSiteRoot(optional);
-
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(sitesRoot, { withFileTypes: true });
-  } catch {
-    // No `sites/` dir at all — a fresh checkout before the first `tovu init`/boot ever ran.
-    // `sites/README.md` is tracked precisely so this stays the rare case, not the common one; an
-    // empty list is the honest answer, not an error.
-    return [];
+  const registry = workspace.registry({});
+  const known = new Set(registry.list({}).map((entry) => entry.path));
+  for (const root of workspace.roots({})) {
+    let entries: fs.Dirent[];
+    try { entries = fs.readdirSync(root, { withFileTypes: true }); }
+    catch (error) {
+      // No sites directory at all is an honest empty discovery result on a fresh checkout.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
+    for (const entry of entries) if (entry.isDirectory()) known.add(path.join(root, entry.name));
   }
-
   const sites: SiteListEntry[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const dir = path.join(sitesRoot, entry.name);
-    try {
-      const { config, meta } = readSiteDir({ dir });
-      sites.push({ name: entry.name, dir, displayName: config.name, createdAt: meta.createdAt, active: dir === currentSiteDir });
-    } catch {
+  const discovered: import("@jini-ai/platform/fs").DirectoryRecord[] = [];
+  const usedNames = new Set<string>();
+  const listedPaths = new Set<string>();
+  for (const candidate of known) {
+    let site: ReturnType<typeof readSiteDir>;
+    try { site = readSiteDir({ dir: candidate }); }
+    catch {
       // Not a valid site (missing/corrupt config.json or .site-meta.json) — skip it rather than
       // fail the whole listing over one stray or half-written directory (see this function's doc).
+      continue;
     }
+    const dir = fs.realpathSync(candidate);
+    if (listedPaths.has(dir)) continue;
+    listedPaths.add(dir);
+    const { config, meta } = site;
+    const basename = path.basename(dir);
+    // Arbitrary adopted folders can share basenames or contain spaces. The marker ID supplies a
+    // safe route identifier in those cases; no caller ever supplies an arbitrary filesystem path.
+    const name = SITE_NAME_PATTERN.test(basename) && basename.length <= 100 && !usedNames.has(basename) ? basename : meta.siteId;
+    usedNames.add(name);
+    discovered.push({ id: meta.siteId, name: config.name, path: dir, createdBy: "discovered", lastOpened: null });
+    sites.push({ id: meta.siteId, name, dir, displayName: config.name, createdAt: meta.createdAt,
+      active: dir === currentSiteDir, running: readSiteRunning({ dir }, { workspace }) });
   }
+  if (discovered.length) registry.merge({ entries: discovered });
   return sites;
 }
 
@@ -136,12 +159,18 @@ export interface CreateSiteResult extends InitSiteResult {
  * @complexity Bounded by `initSite`'s own cost (see that function's doc) plus one name-format
  *   check — never a function of caller-controlled input size.
  */
-export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional = {}): Promise<CreateSiteResult> {
+export async function createSite(required: CreateSiteRequired, optional: ListSitesOptional & { initSite?: typeof initSite } = {}): Promise<CreateSiteResult> {
   const name = validateSiteName(required.name);
-  const cwd = optional.cwd ?? process.cwd();
-  const dir = path.join(cwd, "sites", name);
-  const result = await initSite({ dir, name, adminPassword: required.adminPassword });
-  return { ...result, name };
+  const workspace = createSitesWorkspace({}, optional);
+  const home = workspace.home({});
+  if (!fs.existsSync(path.dirname(home))) throw new ValidationError(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
+  fs.mkdirSync(home, { recursive: true });
+  const dir = path.join(home, name);
+  return withFileLock({ lockPath: `${dir}.creation.lock`, run: async () => {
+    const result = await (optional.initSite ?? initSite)({ dir, name, adminPassword: required.adminPassword }, { workspace });
+    workspace.registry({}).merge({ entries: [{ id: result.siteId, name, path: result.dir, createdBy: "Web", lastOpened: null }] });
+    return { ...result, name };
+  } }, { staleMs: Infinity });
 }
 
 /**
@@ -289,6 +318,8 @@ export interface SiteBinding {
    * by an explicit argument rather than chosen through the switcher.
    */
   switcherCompatible: boolean;
+  /** Repo base is independent of the selected shared home; .env remains repo-owned. */
+  switcherBase?: string;
 }
 
 /**
@@ -302,7 +333,7 @@ export interface SiteBinding {
  * case today), and a screen that only had the list would then render "no sites" while a site is
  * plainly being served.
  *
- * @complexity O(1) — path computation and two env reads, no I/O.
+ * @complexity O(n) registered sites and home entries, plus the binding membership lookup.
  */
 /**
  * Set (to any value) by a boot that was pinned to an explicit install-dir argument — `tovu serve
@@ -326,7 +357,8 @@ export const SITE_BINDING_NOT_SWITCHABLE_ENV = "TOVU_SITE_BINDING_NOT_SWITCHABLE
  *  resolve — the condition that makes a binding safe to switch/duplicate against. @complexity O(1). */
 function isUnderSwitcherSitesRoot(dir: string, optional: ListSitesOptional): boolean {
   const cwd = optional.cwd ?? process.cwd();
-  return path.dirname(dir) === path.resolve(cwd, "sites");
+  return path.dirname(dir) === path.resolve(cwd, "sites") || path.dirname(dir) === resolveSitesHome({}, optional) ||
+    createSitesWorkspace({}, optional).registry({}).list({}).some((entry) => entry.path === dir);
 }
 
 export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBinding {
@@ -335,7 +367,8 @@ export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBindi
   return {
     dir,
     name: path.basename(dir),
-    dirOverridden: env.TOVU_SITE_DIR !== undefined,
+    dirOverridden: env.TOVU_SITE_DIR !== undefined && env[SITE_SELECTION_PINNED_ENV] !== "1",
+    switcherBase: optional.cwd ?? process.cwd(),
     switcherCompatible:
       env[SITE_BINDING_NOT_SWITCHABLE_ENV] === undefined && isUnderSwitcherSitesRoot(dir, optional),
   };
@@ -356,7 +389,7 @@ export function describeSiteBinding(optional: ListSitesOptional = {}): SiteBindi
  * @complexity O(1) — path arithmetic only.
  */
 export function switcherBaseForBinding(binding: SiteBinding): string | null {
-  return binding.switcherCompatible ? path.dirname(path.dirname(binding.dir)) : null;
+  return binding.switcherCompatible ? binding.switcherBase ?? path.dirname(path.dirname(binding.dir)) : null;
 }
 
 /** The served install dir as a one-row listing when `tovu serve` would accept it, else nothing.

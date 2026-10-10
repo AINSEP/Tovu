@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -5,7 +6,7 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { countSealedCredentialsOpening, discardSealedCredentialsNotOpening, resealCredentialsOpeningUnder } from "#src/platform/db/sealed-credential-discard";
-import { CONTENT_DB_FILENAME, STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
+import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { installSiteKey, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
@@ -99,7 +100,7 @@ async function checkStorageSecret(siteDir: string, sealer: AesGcmSecretSealer): 
  *  the site has no database yet. */
 async function withSiteKernel<R>(input: SiteKeyRecoveryInput, use: (kernel: ContentKernel) => Promise<R>, empty: R): Promise<R> {
   if (input.contentKernel !== undefined) return use(input.contentKernel);
-  const dbPath = join(input.siteDir, CONTENT_DB_FILENAME);
+  const dbPath = resolveSiteDatabasePaths({ dir: input.siteDir }).contentDbPath;
   if (!existsSync(dbPath)) return empty;
   const kernel = openSqliteFileKernel<ContentDatabase>(dbPath);
   try {

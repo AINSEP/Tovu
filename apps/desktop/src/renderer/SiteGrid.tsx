@@ -45,7 +45,7 @@ import { useSiteActions } from './use-site-actions.hooks.js';
 import { powerControl, useSitePower } from './use-site-power.hooks.js';
 import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
-import { cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
+import { cardOpenClass, cardOpenProps, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import { sitePortPresentation } from './site-port.rules.js';
 import type { SiteRecord } from '../contracts/project.js';
@@ -181,7 +181,7 @@ function SiteCard({
   const connection = sitePortPresentation({ port: project.port, status });
 
   return (
-    <article className={`card is-${status} ${openable ? 'is-openable' : ''}`} {...openProps}>
+    <article className={`card is-${status} ${cardOpenClass({ openable })}`} {...openProps}>
       <div className="card__tile">
         {/* A capture exists once this site has been opened at least once, this run or a prior one.
             Until then — and forever as the fallback if a capture ever failed — the tile carries the
@@ -374,7 +374,7 @@ function CardActions({
 }) {
   // `null` for `provisioning`/`blocked` — a site with nothing to start yet, or ever. See
   // `powerControl`'s own doc on why that is no button rather than a disabled one.
-  const control = powerControl(status);
+  const control = powerControl(status, { external: Boolean(project.externalUrl) });
   const restart = power.restartControlOf?.(project);
 
   return (

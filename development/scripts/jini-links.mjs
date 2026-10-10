@@ -2,7 +2,7 @@
  * What `link-jini.mjs` links and `unlink-jini.mjs` unlinks, in one place so the two can never
  * disagree about which consumers or which packages are involved.
  *
- * Per consumer (root, `apps/admin`, `apps/site-chat`) the package set is its direct `@jini-ai/*`
+ * Per consumer (root, `apps/admin`, `apps/site-chat`, `apps/desktop`) the package set is its direct `@jini-ai/*`
  * dependencies plus every `@jini-ai/*` npm installed there transitively. A consumer with no direct
  * `@jini-ai/*` dependency is left out entirely.
  */
@@ -18,6 +18,7 @@ const CONSUMER_DIRS = [
   repoRoot,
   path.join(repoRoot, "apps", "admin"),
   path.join(repoRoot, "apps", "site-chat"),
+  path.join(repoRoot, "apps", "desktop"),
 ];
 
 function jiniDepsOf(consumerDir) {

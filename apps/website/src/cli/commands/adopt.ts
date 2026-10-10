@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -194,6 +195,6 @@ export async function runAdoptCommand(input: RunAdoptCommandInput): Promise<void
   process.stdout.write(`adopted site '${config.name}' at ${result.dir}\n`);
   process.stdout.write(markerLines(config.name, result.schemaVersion, result.schemaTag));
   process.stdout.write(`  siteId=${result.siteId}\n`);
-  process.stdout.write(`the database at ${path.join(result.dir, CONTENT_DB_FILE_NAME)} was not modified\n`);
+  process.stdout.write(`the database at ${resolveSiteDatabasePaths({ dir: result.dir }).contentDbPath} was not modified\n`);
   process.stdout.write(`next: tovu serve ${result.dir}\n`);
 }

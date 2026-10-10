@@ -6,6 +6,7 @@ import { findSection, visibleSections, type RunnerSection, type RunnerSectionId 
 import { GearIcon, NavIcon, SectionIcon } from './icons.js';
 import { useTheme, type ThemePreference } from './theme.js';
 import {
+  appPresentation,
   countRunningSites,
   deriveSitesHomeView,
   navLinkClick,
@@ -28,7 +29,10 @@ import { useAddSite } from './use-add-site.hooks.js';
 import { useSiteWorkspace } from './use-site-workspace.hooks.js';
 import { useFindInPage, useComposedGuestRef, type FindInPage, type FindableGuest } from './use-find-in-page.hooks.js';
 import { useZoom, type ZoomableGuest } from './use-zoom.hooks.js';
+import { useAppVersion } from './use-app-version.hooks.js';
 import { SiteGrid } from './SiteGrid.js';
+import { SitesFolders, SitesFoldersDialog } from './SitesFolders.js';
+import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 import { CreateWebsiteOnboarding } from './CreateWebsiteOnboarding.js';
 import { sitePortPresentation } from './site-port.rules.js';
 import type { CreateSiteInput, CreatedSiteRecord, SiteRecord, SiteSurface } from '../contracts/project.js';
@@ -96,11 +100,14 @@ export function App({
   const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm } =
     deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating });
   const { expanded, toggleExpanded } = useExpanded(showSiteTab);
+  const { onSitesHome, selectedTab, guestTarget, tabNotice } = appPresentation({
+    showSiteTab, showSitesHome, appearanceOpen, activeTab, visibleWorkspaceId, addNotice,
+  });
   // The visible project tab's guest when one is on screen, else the Projects screen itself — see
   // `use-find-in-page.hooks.ts`'s own header for why the target routing lives there, not here.
-  const find = useFindInPage(showSiteTab ? visibleWorkspaceId : null);
+  const find = useFindInPage(guestTarget);
   // Same routing, for Cmd+Plus / Cmd+- / Cmd+0 — see `use-zoom.hooks.ts`'s own header.
-  const zoom = useZoom(showSiteTab ? visibleWorkspaceId : null);
+  const zoom = useZoom(guestTarget);
   // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
   // rather than three conditions inlined into the JSX below.
   const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
@@ -123,7 +130,7 @@ export function App({
       {showTopNav && (
       <TopNav
         activeId={activeId}
-        onSitesHome={showSitesHome && !appearanceOpen}
+        onSitesHome={onSitesHome}
         runningCount={runningCount}
         theme={theme}
         onThemeChange={setTheme}
@@ -135,7 +142,7 @@ export function App({
       {showTabStrip && (
         <TabStrip
           projects={openSites}
-          activeTab={showSiteTab ? activeTab : null}
+          activeTab={selectedTab}
           onSelectSitesHome={() => setActiveTab(null)}
           onSelectTab={setActiveTab}
           onCloseTab={closeProjectTab}
@@ -145,7 +152,7 @@ export function App({
       <main className="main">
         {/* Re-adding a tracked site opens its tab; keep that confirmation visible there too.
             Folder failures belong to the websites view and must not carry into site tabs. */}
-        {showSiteTab && addNotice?.siteId === activeTab && <p className="projects-feedback" role="status">{addNotice.message}</p>}
+        {tabNotice !== undefined && <p className="projects-feedback" role="status">{tabNotice}</p>}
         <MainArea
           appearanceOpen={appearanceOpen}
           onCloseAppearance={closeAppearance}
@@ -309,11 +316,15 @@ function TopNav({
   onOpenAppearance: () => void;
   onSelectSection: (id: RunnerSectionId) => void;
 }) {
+  const { version, error } = useAppVersion({});
   return (
     <nav className="topnav" aria-label="Tovu sections">
-      <span className="topnav__brand">
+      <span className="topnav__brand" title={error ?? undefined}>
         <span className="topnav__mark" aria-hidden="true" />
-        <span className="topnav__wordmark">Tovu</span>
+        <span className="topnav__brand-text">
+          <span className="topnav__wordmark">Tovu</span>
+          {version !== null && <span className="topnav__version" title={version}>{version}</span>}
+        </span>
       </span>
 
       <div className="topnav__links">
@@ -399,8 +410,10 @@ function SettingsControl({
   onOpenAppearance: () => void;
 }) {
   const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
-  // Same temporary lock as the section links in `NavLink`: only Projects is live right now.
-  const disabled = true;
+  const sitesSettings = useSiteStorageSettings({});
+  // The menu used to share NavLink's temporary lock. Local sites settings now has a real
+  // shared-config owner, so Settings can open without unlocking unfinished section links.
+  const disabled = false;
   const { toggleOpen, chooseTheme, openAppearancePage } = settingsControlHandlers({
     disabled,
     setOpen,
@@ -409,6 +422,7 @@ function SettingsControl({
   });
 
   return (
+    <>
     <div className="settings" ref={containerRef}>
       <button
         type="button"
@@ -425,6 +439,7 @@ function SettingsControl({
       </button>
       {open && (
         <div className="settings__dropdown" role="menu">
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); sitesSettings.show(); }}>Sites settings</button>
           <ThemeControl
             value={theme}
             onChange={chooseTheme}
@@ -445,6 +460,8 @@ function SettingsControl({
         </div>
       )}
     </div>
+    <SitesFoldersDialog settings={sitesSettings} showTrigger={false} />
+    </>
   );
 }
 
@@ -762,7 +779,7 @@ function SiteWorkspace({
           onSiteUpdated={onSiteUpdated}
         />
       ) : (
-        <SiteStartPanel project={project} onSiteUpdated={onSiteUpdated} />
+        <SiteStartPanel project={project} body={workspace.attachError ?? (project.externalUrl ? "Connecting to the server already running in the other app…" : undefined)} onSiteUpdated={onSiteUpdated} />
       )}
     </section>
   );
@@ -1025,6 +1042,7 @@ function MainHeader({
           <button type="button" className="button button--quiet" onClick={() => void onRescan()} disabled={rescanning}>
             {rescanning ? 'Scanning…' : 'Rescan'}
           </button>
+          <SitesFolders />
           {/* Next to Rescan because the two are the same KIND of action — both only ever add cards
               for websites that already exist. The difference is who chooses: Rescan looks under the
               scan roots automatically, this one asks the operator for one folder. Styled solid on

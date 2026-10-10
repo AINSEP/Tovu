@@ -1,3 +1,5 @@
+import { createSitesWorkspace, type SitesWorkspace } from "./sites-home.js";
+import { resolveSiteDatabasePaths } from "./site-databases.js";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,7 +10,6 @@ import { InternalError, SiteDirInvalidError, ValidationError } from "./errors.js
 import { cleanupAndRethrow, resolveSiteName, validateInitTarget } from "./init-site.js";
 import {
   CHAT_ATTACHMENTS_ENTRY_NAME,
-  CONTENT_DB_FILENAME,
   isPortableSiteEntry,
   PGLITE_DATA_DIR_NAME,
   STORAGE_SECRET_FILENAME,
@@ -189,7 +190,7 @@ export interface DuplicateSiteResult {
  *   `initSite`'s `seedSiteThemes()` call.
  * @overallScore 100
  */
-export async function duplicateSite(required: DuplicateSiteRequired): Promise<DuplicateSiteResult> {
+export async function duplicateSite(required: DuplicateSiteRequired, { workspace = createSitesWorkspace({}) }: { workspace?: SitesWorkspace } = {}): Promise<DuplicateSiteResult> {
   const { sourceDir, targetDir, name } = required;
   const source = resolveInstallDirTarget(sourceDir);
   const target = resolveInstallDirTarget(targetDir);
@@ -210,6 +211,9 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
 
   const siteId = randomUUID(); // NEW identity — never copied from sourceMeta.siteId.
   const createdAt = new Date().toISOString();
+  const paths = resolveSiteDatabasePaths({ dir: target, siteId }, { workspace, placement: workspace.config({}).databases });
+  const externalDbDir = storage.kind === "sqlite" && !paths.contentDbPath.startsWith(target + path.sep) ? path.dirname(paths.contentDbPath) : undefined;
+  let createdExternalDbDir = false;
   let wroteAnything = false;
 
   try {
@@ -255,9 +259,12 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
         targetDataDir: path.join(target, PGLITE_DATA_DIR_NAME),
       });
     } else {
+      if (externalDbDir && fs.existsSync(externalDbDir)) throw new InternalError(`duplicateSite: database target already exists at ${externalDbDir}`);
+      fs.mkdirSync(path.dirname(paths.contentDbPath), { recursive: true });
+      createdExternalDbDir = Boolean(externalDbDir);
       await duplicateContentDb({
-        sourceDbPath: path.join(source, CONTENT_DB_FILENAME),
-        targetDbPath: path.join(target, CONTENT_DB_FILENAME),
+        sourceDbPath: resolveSiteDatabasePaths({ dir: source }, { workspace }).contentDbPath,
+        targetDbPath: paths.contentDbPath,
       });
     }
 
@@ -283,6 +290,7 @@ export async function duplicateSite(required: DuplicateSiteRequired): Promise<Du
 
     return { siteId, dir: target };
   } catch (err) {
+    if (externalDbDir && createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
     return cleanupAndRethrow(err, target, wroteAnything);
   }
 }

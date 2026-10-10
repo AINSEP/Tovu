@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -42,7 +43,7 @@ test("AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with
 
     // REQ-01: exactly the required layout, no more, no less.
     const entries = fs.readdirSync(target).sort();
-    assert.deepEqual(entries, [".site-meta.json", "config.json", "content.db", "overrides", "plugins", "themes", "uploads"].sort());
+    assert.deepEqual(entries, [".site-meta.json", "config.json", "data.nosync", "overrides", "plugins", "themes", "uploads"].sort());
 
     const config = JSON.parse(fs.readFileSync(path.join(target, "config.json"), "utf8"));
     assert.equal(config.name, "Demo");
@@ -103,7 +104,7 @@ test("R1h: a new SQLite site is built through the migration runner, so its first
   const target = path.join(parent, "demo-ledger");
   try {
     await initSite({ dir: target, name: "Demo Ledger" });
-    const dbPath = path.join(target, "content.db");
+    const dbPath = resolveSiteDatabasePaths({ dir: target }).contentDbPath;
 
     const file = new Database(dbPath, { readonly: true });
     const ledger = file.prepare("SELECT id FROM tovu_migrations ORDER BY id").all() as { id: string }[];

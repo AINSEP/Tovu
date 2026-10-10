@@ -20,6 +20,7 @@
   "scripts": {
     "prepare": "node development/scripts/prepare-desktop-hooks.mjs",
     "dev": "node development/scripts/dev.mjs",
+    "sites:move-home": "node --import tsx development/scripts/sites-move-home.ts",
     "desktop": "node development/scripts/dev-desktop.mjs",
     "seed:site": "node --import tsx development/scripts/seed-site.mjs",
     "dev:server": "tsx watch apps/website/src/index.ts",

@@ -1,3 +1,4 @@
+import { resolveSiteDatabasePaths } from "./site-databases.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -136,7 +137,7 @@ async function deriveSchemaStamp(dir: string, storage: SiteStorage): Promise<{ s
     const runtime = runtimeSchemaVersion();
     return { schemaVersion: runtime.index, schemaTag: runtime.tag };
   }
-  const dbPath = path.join(dir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir }).contentDbPath;
   if (!fs.existsSync(dbPath)) throw cannotComplete(dir, `no content.db at ${dbPath} to derive its schema stamp from`);
   const identity = await readAppliedSchemaIdentityOfFile(dbPath);
   if (identity === "none") throw cannotComplete(dir, `${dbPath} has never had a migration applied`);
@@ -185,7 +186,7 @@ function assembleMeta(dir: string, keyOnly: KeyOnlySiteMeta, stamp: { schemaVers
  * @complexity O(m) in the bundled journal's entry count — one read-only db open.
  */
 export async function buildSiteMetaForNewKey(required: { dir: string; siteKeyId: string }): Promise<SiteMetaJson | undefined> {
-  const dbPath = path.join(required.dir, "content.db");
+  const dbPath = resolveSiteDatabasePaths({ dir: required.dir, siteId: required.siteKeyId }).contentDbPath;
   if (!fs.existsSync(dbPath)) return undefined;
   let identity: Awaited<ReturnType<typeof readAppliedSchemaIdentityOfFile>>;
   try {

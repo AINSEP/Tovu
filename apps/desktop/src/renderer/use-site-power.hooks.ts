@@ -48,7 +48,7 @@ export function restartControl({ project, status, restarting }: {
 }, { locale = typeof navigator === 'undefined' ? 'en' : navigator.language }: { locale?: string } = {}) {
   const copy = desktopCopy({ locale });
   const label = restarting ? copy.restarting : copy.restart;
-  return { label, ariaLabel: `${label} ${project.displayName}`, disabled: status !== 'running' || Boolean(project.folderMissing) };
+  return { label, ariaLabel: `${label} ${project.displayName}`, disabled: status !== 'running' || Boolean(project.folderMissing) || Boolean(project.externalUrl) };
 }
 
 /** What the card should render for a site's power control. */
@@ -72,7 +72,8 @@ export interface SitePowerControl {
  *
  * @complexity O(1).
  */
-export function powerControl(status: SiteLifecycleStatus): SitePowerControl | null {
+export function powerControl(status: SiteLifecycleStatus, { external = false }: { external?: boolean } = {}): SitePowerControl | null {
+  if (external) return null;
   if (status === 'running') return { action: 'stop', label: 'Stop', busy: false };
   if (status === 'stopped' || status === 'failed') return { action: 'start', label: 'Start', busy: false };
   if (status === 'starting') return { action: null, label: 'Starting…', busy: true };
@@ -197,7 +198,7 @@ export function useSitePower(
 
   const toggle = useCallback(
     async (project: SiteRecord) => {
-      const action = powerControl(statusOf(project))?.action;
+      const action = powerControl(statusOf(project), { external: Boolean(project.externalUrl) })?.action;
       // `null` covers both "nothing to do for this status" and "a transition is already running",
       // so a second click during a stop cannot queue a second one behind it.
       if (action === undefined || action === null || inFlight.has(project.id)) return;
