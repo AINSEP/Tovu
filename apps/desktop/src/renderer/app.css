@@ -920,25 +920,269 @@ webview { display: flex; }
   letter-spacing: -0.02em;
 }
 
-.sites-folders { position: relative; }
-.sites-folders > summary { cursor: pointer; list-style: none; }
-.sites-folders > summary::-webkit-details-marker { display: none; }
-.sites-folders__panel {
+/* ---------- sites settings dialog ---------- */
+
+/* One section, so Jini's nav column and its collapse toggle are dropped: a lone "Sites" item wasted
+   a third of the dialog, and collapsing it auto-placed the panel into the zeroed track (~45px wide).
+   The dialog also sizes to its content instead of Jini's fixed 1040x720 frame. */
+/* Jini's tokens flip on `data-color-scheme`, but this app themes `data-theme`, so the dialog stayed
+   light in dark mode. Map the chrome onto the app's own tokens (the derived ones: they resolve at
+   :root, so overriding only `--jini-surface` here would change nothing). */
+.sites-settings-dialog.jini-tabbed-dialog {
+  --jini-bg-elevated: var(--surface);
+  --jini-bg-panel: var(--surface);
+  --jini-text: var(--fg);
+  --jini-text-strong: var(--fg);
+  --jini-text-muted: var(--muted);
+  --jini-border: var(--border);
+  --jini-border-strong: var(--border-strong);
+  --jini-accent: var(--primary);
+  width: min(40rem, calc(100vw - 2rem));
+  height: auto;
+  max-height: calc(100vh - 2rem);
+}
+.sites-settings-dialog .jini-tabbed-dialog-body { grid-template-columns: minmax(0, 1fr); }
+.sites-settings-dialog .jini-tabbed-dialog-sidebar,
+.sites-settings-dialog .jini-tabbed-dialog-sidebar-toggle { display: none; }
+.sites-settings-dialog .jini-tabbed-dialog-content { padding-bottom: 0; }
+
+.sites-settings {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  font-size: 0.8125rem;
+  color: var(--fg);
+}
+.sites-settings p { margin: 0; }
+
+/* Label column + control column; stacks below ~30rem of dialog width (375px windows). */
+.sites-settings__row {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: 0.5rem;
+}
+.sites-settings__row--stack { align-items: start; }
+.sites-settings__row--stack > .sites-settings__label { min-height: 34px; }
+.sites-settings__row > .sites-settings__note,
+.sites-settings__row > .sites-settings__list-actions { grid-column: 2; }
+@container (max-width: 30rem) {
+  .sites-settings__row { grid-template-columns: minmax(0, 1fr); }
+  .sites-settings__row > .sites-settings__note,
+  .sites-settings__row > .sites-settings__list-actions { grid-column: 1; }
+  .sites-settings__row--stack > .sites-settings__label { min-height: 0; }
+}
+
+.sites-settings__label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+.sites-settings__label label { cursor: default; }
+
+.sites-settings__control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.sites-settings__control > .button { flex: none; }
+
+.sites-settings__note { color: var(--muted); font-size: 0.75rem; line-height: 1.45; }
+
+/* ⓘ: the explanation lives in the tooltip and in aria-label, not in loose paragraphs. */
+.sites-settings__tip {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--faint);
+  cursor: help;
+}
+.sites-settings__tip::before {
+  content: '';
   position: absolute;
-  right: 0;
-  top: calc(100% + 0.5rem);
-  z-index: 20;
-  width: min(28rem, calc(100vw - 2rem));
-  padding: 1rem;
-  background: var(--surface);
+  inset: 2px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M12 11v5.5M12 7.6v.1'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M12 11v5.5M12 7.6v.1'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.sites-settings__tip:hover, .sites-settings__tip:focus-visible { color: var(--fg); }
+.sites-settings__tip:focus-visible { outline: 2px solid var(--primary-ring); outline-offset: 1px; }
+
+/* Jini's TooltipLayer (mounted once in main.tsx) portals `.jini-tooltip[data-tooltip]` text to <body>
+   and clamps it to the viewport, so tips inside the dialog's scrolling panel and the folder list are
+   never clipped. Same look as the top nav's `data-tip`, but wrapping: these are sentences and paths. */
+.jini-tooltip-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  max-width: min(20rem, calc(100vw - 1rem));
+  padding: 0.3125rem 0.5rem;
+  border-radius: var(--r-sm);
+  background: var(--fg);
+  color: var(--bg);
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+/* Paths never wrap mid-folder: one line, truncated, full path in the tooltip. */
+.sites-settings__path {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.sites-settings__path-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sites-settings__path-head { flex: 0 1 auto; color: var(--muted); }
+.sites-settings__path-tail { flex: 0 0 auto; max-width: 70%; overflow: hidden; text-overflow: ellipsis; }
+.sites-settings__path--field {
+  align-items: center;
+  min-height: 34px;
+  padding: 0 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: transparent;
+}
+
+.sites-settings__roots {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  box-shadow: var(--shadow-md);
-  font-size: 0.875rem;
+  background: var(--surface);
+  max-height: 15rem;
+  overflow-y: auto;
 }
-.sites-folders__panel ul { padding: 0; list-style: none; max-height: 16rem; overflow-y: auto; }
-.sites-folders__panel li { display: flex; align-items: center; gap: 0.5rem; margin-block: 0.5rem; }
-.sites-folders__path { flex: 1; overflow-wrap: anywhere; min-width: 0; }
+.sites-settings__roots:empty { display: none; }
+.sites-settings__root {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.25rem 0.375rem 0.25rem 0.75rem;
+}
+.sites-settings__root + .sites-settings__root { border-top: 1px solid var(--border); }
+.sites-settings__folder { flex: none; color: var(--faint); }
+.sites-settings__badge {
+  flex: none;
+  padding: 0.0625rem 0.4375rem;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Icon-only: the visible word is kept for the DOM/tests, the accessible name is the aria-label.
+   An ×, not a bin, because removing a folder from the list never deletes its files. */
+.sites-settings__remove {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--faint);
+  font-size: 0;
+  cursor: pointer;
+}
+.sites-settings__remove::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.sites-settings__remove:hover:not(:disabled) { background: var(--danger-dim); color: var(--danger); }
+.sites-settings__remove:focus-visible { outline: 2px solid var(--primary-ring); outline-offset: 0; }
+.sites-settings__remove:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.sites-settings__list-actions { display: flex; }
+.sites-settings__add::before { content: '+'; font-size: 1rem; font-weight: 500; line-height: 1; }
+
+.sites-settings__select {
+  min-height: 34px;
+  max-width: 100%;
+  padding: 0 2rem 0 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") right 0.5rem center / 14px no-repeat;
+  color: var(--fg);
+  font: inherit;
+  text-overflow: ellipsis;
+  appearance: none;
+  cursor: pointer;
+}
+.sites-settings__select:hover { border-color: var(--border-strong); }
+.sites-settings__select:focus-visible { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+
+.sites-settings__error { color: var(--danger); font-size: 0.8125rem; line-height: 1.45; overflow-wrap: anywhere; }
+
+.sites-settings__warning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--fg);
+}
+.sites-settings__warning p { margin: 0; }
+.sites-settings__warning-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+/* Outside the dialog it sits in the Websites header's tool row; give it a line of its own. */
+.main__tools > .sites-settings__warning { flex-basis: 100%; text-align: left; }
+
+/* Sticky so Save stays in reach when a long folder list scrolls the panel. */
+.sites-settings__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+  margin: 0 calc(-1 * var(--jini-modal-padding, 24px));
+  padding: 0.875rem var(--jini-modal-padding, 24px) 1.125rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.sites-settings__saved {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--faint);
+  font-size: 0.6875rem;
+}
+.sites-settings__footer-actions { display: flex; gap: 0.5rem; margin-left: auto; }
 
 /* ---------- theme switch ---------- */
 
