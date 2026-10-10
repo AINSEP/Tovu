@@ -39,6 +39,41 @@ function lastDeclaration(rule: string, property: string): string | undefined {
   return declarations.at(-1)?.[1]?.trim();
 }
 
+/** The dock's flex layout replaces Jini's controls overlay at every viewport width.
+ * Check the more-specific capture-wrapper rule too: its shorthand wins over the pane rule.
+ * These are declaration guards; jsdom cannot prove desktop/375px scroll geometry. */
+describe("chat dock composer stays at the bottom", () => {
+  it("keeps a zero length flex basis through the capture wrapper instead of overriding it with flex: 1", () => {
+    const pane = ruleFor(".admin-chat-dock .jini-chat-pane");
+    const capturedPane = ruleFor(".admin-chat-dock > .admin-chat-dock-drop > .jini-chat-pane");
+    expect(lastDeclaration(pane, "display")).toBe("flex");
+    expect(lastDeclaration(pane, "flex-direction")).toBe("column");
+    expect(lastDeclaration(pane, "flex")).toBe("1 1 0");
+    expect(lastDeclaration(pane, "height")).toBe("auto");
+    expect(lastDeclaration(pane, "min-height")).toBe("0");
+    expect(lastDeclaration(capturedPane, "flex")).toBe("1 1 0");
+  });
+
+  it("owns a shrinking flex column so scrollback fills free space and the composer reserves its actual height", () => {
+    const body = ruleFor(".admin-chat-dock .jini-chat-pane__body");
+    expect(lastDeclaration(body, "display")).toBe("flex");
+    expect(lastDeclaration(body, "flex-direction")).toBe("column");
+    expect(lastDeclaration(body, "flex")).toBe("1 1 0");
+    expect(lastDeclaration(body, "min-height")).toBe("0");
+    expect(lastDeclaration(body, "overflow")).toBe("hidden");
+    const list = ruleFor(".admin-chat-dock .jini-chat-pane .jini-message-list");
+    const controls = ruleFor(".admin-chat-dock .jini-chat-pane__controls");
+    expect(lastDeclaration(list, "flex")).toBe("1 1 0");
+    expect(lastDeclaration(list, "height")).toBe("auto");
+    expect(lastDeclaration(list, "min-height")).toBe("0");
+    expect(lastDeclaration(list, "overflow-y")).toBe("auto");
+    expect(lastDeclaration(list, "padding-bottom")).toBe("8px");
+    expect(lastDeclaration(controls, "flex")).toBe("0 0 auto");
+    expect(lastDeclaration(controls, "position")).toBe("static");
+    expect(lastDeclaration(ruleFor(".admin-chat-dock .jini-message-list > *"), "flex-shrink")).toBe("0");
+  });
+});
+
 describe("chat pane horizontal-overflow fix", () => {
   it("stops .jini-message-list from becoming a horizontal scroll container for the whole transcript", () => {
     const rule = ruleFor(".jini-message-list");
