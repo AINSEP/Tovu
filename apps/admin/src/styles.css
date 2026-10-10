@@ -422,14 +422,14 @@ input:focus, select:focus, textarea:focus {
    sits flush next to an `ID` input, per the OD reference. Two chevron images (not one +
    `currentColor`) because `background-image` data URIs can't read a custom property — light and
    dark each get one baked to that theme's `--muted` hex. */
-select {
+select:not(:where([class*="tsqd"] select, [class*="tsqd"])) {
   appearance: none; -webkit-appearance: none; -moz-appearance: none;
   padding-right: 2.25rem; cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23666C75' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 0.7rem center; background-size: 14px;
 }
-select::-ms-expand { display: none; }
-:root[data-theme="dark"] select {
+select:not(:where([class*="tsqd"] select, [class*="tsqd"]))::-ms-expand { display: none; }
+:root[data-theme="dark"] select:not(:where([class*="tsqd"] select, [class*="tsqd"])) {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23999FA6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
@@ -1785,11 +1785,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 
   /* FAB clearance (mobile catalog P-1, 2026-10-06): with the sheet CLOSED the 56px `.chat-fab`
      sits fixed over the bottom-right of the page, and at max scroll it covered the last ~70px —
-     row icons, footnotes, and on the form editor the page's own Save button. Same `::after` spacer
-     as the open-sheet rules below (and for the same reason: padding would force the box taller);
-     88px = FAB + its bottom offset + a gap. Those rules outrank this one, so an open sheet still
-     reserves its own height instead. */
-  .admin-content::after { content: ""; display: block; height: 88px; }
+     row icons, footnotes, and on the form editor the page's own Save button. Closed-sheet padding
+     reserves the FAB plus its inset and a gap, including the device's safe area. An open sheet
+     keeps the taller scrollable spacer below, which avoids growing a short flex pane. */
+  .admin-content::after { content: ""; display: block; flex-shrink: 0; height: var(--assistant-clearance); }
+  .admin-layout:not(:has(.admin-chat-dock.is-open)) .admin-content {
+    padding-bottom: calc(var(--assistant-clearance) + env(safe-area-inset-bottom, 0px));
+  }
+  .admin-layout:not(:has(.admin-chat-dock.is-open)) .admin-content::after { display: none; }
   /* Same clearance for the fixed-height tab panels that scroll on their own (Settings, Agent
      plugins): their last rows sat under the FAB at the panel's own max scroll, which the spacer
      above cannot reach. Page-flow panels scroll with the page, so they are left alone. */
@@ -4156,6 +4159,19 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .settings-ui-section--page-flow .jini-tabbed-dialog-content { max-width: 46rem; }
 /* Recovery holds tables and empty cards, which should align with its full-width tab/header. */
 .settings-ui-section--page-flow.recovery-section .jini-tabbed-dialog-content { max-width: none; }
+.settings-ui-section--page-flow.observability-section .jini-tabbed-dialog-content { max-width: none; }
+.observability-page-title { display: flex; align-items: center; gap: var(--space-2); }
+.observability-queries-scroll { max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+@media (max-width: 640px) {
+  .admin-layout .page:is(.ai-assistant-page, .observability-page) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
+  .admin-layout.wraps-tabs .page:is(.ai-assistant-page, .observability-page) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+    padding-right: 0;
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
+  }
+  .admin-layout .page:is(.ai-assistant-page, .observability-page) .jini-tabbed-dialog-nav-item { padding-inline: 6px; gap: 5px; }
+  .admin-layout .page:is(.ai-assistant-page, .observability-page) .jini-tabbed-dialog-nav-item strong { white-space: nowrap; font-size: 12px; }
+}
 
 /* Vertical separation between the tab's three blocks (switch → intro → form).
    The card and `.notice` boxes were carrying this implicitly through their own
@@ -5951,10 +5967,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   margin-top: auto; padding-top: var(--space-4);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--space-2);
 }
-.site-card-actions > :is(button, a) { height: 34px; padding: 0 0.9rem; display: inline-flex; align-items: center; }
+.site-card-actions > :is(button, a) { height: 37px; padding: 0 0.9rem; display: inline-flex; align-items: center; }
 .site-card-open { gap: 0.35em; text-decoration: none; }
 .site-card-menu { margin-left: auto; display: inline-flex; }
-.site-card-menu .row-menu-trigger { width: 34px; height: 34px; border-color: var(--border); border-radius: var(--r-sm); }
+.site-card-menu .row-menu-trigger { width: 37px; height: 37px; border-color: var(--border); border-radius: var(--r-sm); }
 .site-card-head:has(.status-error) { background: var(--danger-bg); border-bottom-color: transparent; }
 .site-card-select {
   display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
@@ -6323,14 +6339,6 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .settings-ui-section .jini-byok-model-row { flex-direction: column; align-items: stretch; }
   .settings-ui-section .jini-byok-model-row > .jini-field { flex: 0 1 auto; width: 100%; }
   .settings-ui-section .jini-byok-model-row > .jini-byok-test-btn { align-self: flex-start; }
-  /* CustomSelect receives jini-input on its wrapper as well as drawing its own trigger border.
-     Keep only the trigger box so the phone model field matches the neighbouring inputs. */
-  .settings-ui-section .jini-byok-model-row .jini-select.jini-input {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-  }
 
   /* PO-3: labels start their own line; featured-image controls can still sit beside each other. */
   .page > .editor-publishing-fields { justify-content: flex-start; align-items: stretch; }
@@ -6427,3 +6435,11 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    Float the legend into the section's content flow so it shares the existing title spacing. */
 .onboarding-section.site-db-fieldset { margin: 0; min-width: 0; border: 0; border-top: 1px solid var(--border); }
 .site-db-fieldset > legend { float: left; width: 100%; padding: 0; }
+
+/* Native checklist wraps its labels and links at phone width; focus uses existing form styles. */
+.assistant-permanent-deletes fieldset { min-width: 0; border: 0; padding: 0; margin: 1rem 0; }
+.assistant-permanent-deletes legend { font-weight: 600; margin-bottom: .5rem; }
+.assistant-permanent-deletes .permanent-delete-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.assistant-permanent-deletes .permanent-delete-option { display: grid; gap: .25rem; margin: .75rem 0; overflow-wrap: anywhere; }
+.assistant-permanent-deletes .permanent-delete-option label { display: flex; align-items: start; gap: .5rem; }
+.assistant-permanent-deletes input { flex-shrink: 0; }

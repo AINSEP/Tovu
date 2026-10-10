@@ -8,6 +8,8 @@ import type { LocalSitesController } from "../hooks/use-local-sites.hooks";
 import {
   buildSiteCardMenuItems,
   resolveSiteCardMeta,
+  resolveSiteIsDefault,
+  resolveSiteRunningTitle,
   resolveSiteCardView,
   resolveSiteStatusPill,
   resolveTrashCardActions,
@@ -36,7 +38,8 @@ describe("resolveSiteCardView — visible actions per state", () => {
   });
 
   it("serving: Open only, nothing in the menu", () => {
-    expect(view({ site: { ...alpha, dir: "/sites/owner", name: "owner" } })).toEqual({ lifecycle: null, openUrl: "/admin/", menu: [] });
+    expect(view({ site: { ...alpha, dir: "/sites/owner", name: "owner" } })).toEqual({ lifecycle: null, openUrl: "/admin/", menu: [],
+      disabledMenuTitleKey: "Stop or remove isn't available for the site you're using." });
   });
 
   it("the saved default, an in-flight activation, or switching off each drop Make default", () => {
@@ -71,9 +74,20 @@ describe("resolveSiteStatusPill and resolveSiteCardMeta", () => {
   it("adds only facts the pill does not state", () => {
     const starting = snapshot({ localSites: [{ name: "alpha", status: "starting", pid: 1, port: 3201, daemonPort: null, adminUrl: null }] });
     expect(resolveSiteCardMeta({ site: alpha, snapshot: starting, activatingName: null, t })).toBe(":3201");
-    expect(resolveSiteCardMeta({ site: alpha, snapshot: snapshot({ persistedSiteName: "alpha" }), activatingName: "alpha", t })).toBe("Default · Saving…");
+    expect(resolveSiteCardMeta({ site: alpha, snapshot: snapshot({ persistedSiteName: "alpha" }), activatingName: "alpha", t })).toBe("Saving…");
     expect(resolveSiteCardMeta({ site: alpha, snapshot: snapshot(), activatingName: null, t })).toBeNull();
-    expect(resolveSiteCardMeta({ site: { ...alpha, name: "owner" }, snapshot: snapshot(), activatingName: null, t })).toBe("Default");
+    expect(resolveSiteCardMeta({ site: { ...alpha, name: "owner" }, snapshot: snapshot(), activatingName: null, t })).toBeNull();
+  });
+
+  it("marks the default site for the star and puts the running app in the pill's tooltip", () => {
+    // 2026-10-09: "Default" and "Running in …" left the card's text; the facts stay.
+    expect(resolveSiteIsDefault({ ...alpha, name: "owner" }, snapshot())).toBe(true);
+    expect(resolveSiteIsDefault(alpha, snapshot({ persistedSiteName: "alpha" }))).toBe(true);
+    expect(resolveSiteIsDefault(alpha, snapshot())).toBe(false);
+    const running = (port: number) => ({ ...alpha, running: { pid: 1, port, app: "Web", started: "2026-10-09T00:00:00.000Z", scheme: "https" as const } });
+    expect(resolveSiteRunningTitle({ site: running(3000), t })).toBe("Running in Web (port 3000)");
+    expect(resolveSiteRunningTitle({ site: running(0), t })).toBe("Running in Web (starting)");
+    expect(resolveSiteRunningTitle({ site: alpha, t })).toBeUndefined();
   });
 });
 

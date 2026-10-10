@@ -1,0 +1,93 @@
+/* Sites — tab row action + "Sites settings" dialog (2026-10-09, owner: "awful ui").
+ *
+ * The settings entry point was a bare `<button>` directly in `.page`'s flex column, so it picked up
+ * the global primary fill AND the column's stretch: a full-width orange bar. It now sits at the right
+ * end of the tab row as a secondary button. The dialog's form was inline labels with unsized
+ * controls on one ragged line; it is now a stacked form with one left edge and a capped width.
+ */
+
+/* The row owns the hairline the tab bar used to draw, so it runs under the button too. */
+.sites-tabs-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.sites-tabs-row > .tab-bar { border-bottom: none; margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
+/* Same specificity as the global `.btn-secondary` shape rule, later in the cascade. */
+.sites-tabs-row > .sites-settings-button {
+  display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
+  min-height: 37px; padding: 0 0.8rem; margin-bottom: 4px;
+}
+.sites-settings-button svg { color: var(--muted); }
+
+.sites-sync-warning { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.sites-sync-warning p { margin: 0; }
+.sites-sync-warning-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* Dialog: one section, so it is a narrow sheet sized to its form, not the wide two-pane shell —
+ * a sidebar listing only "Sites" repeated the title and left two thirds of the sheet empty. */
+.jini-tabbed-dialog.sites-settings-dialog {
+  width: min(40rem, calc(100vw - 2rem)); height: auto; max-height: calc(100dvh - 2rem);
+}
+.sites-settings-dialog .jini-tabbed-dialog-sidebar,
+.sites-settings-dialog .jini-tabbed-dialog-sidebar-toggle,
+.sites-settings-dialog .jini-tabbed-dialog-kicker { display: none; }
+.sites-settings-dialog .jini-tabbed-dialog-body { grid-template-columns: minmax(0, 1fr); }
+.sites-settings-dialog .jini-tabbed-dialog-content { min-width: 0; }
+
+.sites-settings-form { display: flex; flex-direction: column; gap: var(--space-5); max-width: 36rem; }
+.sites-settings-field { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.sites-settings-field > legend { padding: 0; margin-bottom: 6px; }
+.sites-settings-label {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1);
+  font-size: var(--text-sm); font-weight: 600; color: var(--fg);
+}
+.sites-settings-label label { cursor: default; }
+.sites-settings-field input,
+.sites-settings-field select { width: 100%; min-height: 40px; box-sizing: border-box; font-size: var(--text-sm); }
+.sites-settings-field .field-mono { text-overflow: ellipsis; }
+
+.sites-settings-roots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.sites-settings-root { display: flex; align-items: center; gap: var(--space-2); }
+.sites-settings-root input { flex: 1 1 auto; min-width: 0; }
+.sites-settings-root-remove {
+  flex: none; width: 40px; height: 40px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; color: var(--muted);
+}
+.sites-settings-root-remove:hover:not(:disabled) { color: var(--danger); }
+.sites-settings-add {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: 37px; margin-top: 2px;
+}
+
+.sites-settings-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+  padding-top: var(--space-4); border-top: 1px solid var(--border);
+}
+.sites-settings-saved-in {
+  margin: 0; min-width: 0; font-size: var(--text-xs); color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.sites-settings-footer > button { flex-shrink: 0; min-height: 37px; }
+
+@media (max-width: 40rem) {
+  .sites-tabs-row { flex-wrap: wrap; border-bottom: none; }
+  .sites-tabs-row > .tab-bar { flex-basis: 100%; border-bottom: 1px solid var(--border); }
+  .sites-tabs-row > .sites-settings-button { order: -1; margin: 0 0 0 auto; min-height: 40px; }
+  .sites-settings-field input,
+  .sites-settings-field select { font-size: 16px; }
+  .sites-settings-footer {
+    position: sticky; bottom: 0; z-index: 1; background: var(--jini-bg-elevated);
+    padding-bottom: var(--space-3); flex-direction: column; align-items: flex-start;
+  }
+  .sites-settings-footer > button { min-height: 40px; }
+}
+
+/* Site cards — name row (2026-10-09, owner): the full-width status strip became a small pill at the
+ * right end of the name's row, "Default" became a star beside the name, and "Running in …" moved
+ * into the pill's tooltip. The global `.status`/`.status-ok`/`.status-neutral` pill tones apply. */
+.site-card-title-row { align-self: stretch; display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.site-card-title-row .site-card-name { min-width: 0; overflow-wrap: anywhere; word-break: normal; }
+.site-card-default { flex: none; display: inline-flex; color: var(--warning); cursor: help; }
+.site-card-pill { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 5px; }
+.site-card-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.site-card-pill[title] { cursor: help; }

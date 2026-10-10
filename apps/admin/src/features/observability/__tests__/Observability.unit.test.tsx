@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -28,7 +28,7 @@ function renderObservability(overrides: Partial<ObservabilityStatusController> =
   function useFakeObservabilityStatus(): ObservabilityStatusController {
     return fakeController(overrides);
   }
-  return render(<Observability useObservabilityStatusHook={useFakeObservabilityStatus} />);
+  return render(<Observability useObservabilityStatusHook={useFakeObservabilityStatus} useQueriesTabHook={() => ({ visible: false, readOnly: true })} />);
 }
 
 describe("Observability — Overview tab", () => {
@@ -55,6 +55,7 @@ describe("Observability — Overview tab", () => {
     const title = header?.querySelector(".page-title");
     expect(title?.tagName).toBe("H1");
     expect(title?.textContent).toBe("Observability");
+    expect(title?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     expect(header?.querySelector(".page-description")).not.toBeNull();
     // The shell root still opts into `settings-ui-section--page-flow` (styles.css), whose
     // `.jini-tabbed-dialog-head { display: none }` is what actually retires the shell's own

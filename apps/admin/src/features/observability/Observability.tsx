@@ -2,10 +2,13 @@ import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type S
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
-import { AlertIcon, GaugeIcon, PulseIcon } from "./observability-visuals";
+import { AlertIcon, GaugeIcon, PulseIcon, QueriesIcon } from "./observability-visuals";
 import { useWiredObservabilityStatus, type ObservabilityStatusController } from "./hooks/use-observability-status.hooks";
 import { useWiredRecentServerErrors } from "./hooks/use-recent-server-errors.hooks";
 import { RecentErrorsPanel } from "./recent-errors-panel";
+import { QueriesPanel } from "./queries-panel";
+import { useWiredQueriesTab } from "./hooks/use-queries-tab.hooks";
+import { useObservabilityTab } from "./hooks/use-observability-tab.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 
 const OTEL_DOCS_URL = "https://opentelemetry.io/docs/";
@@ -118,12 +121,16 @@ function ProvidersPanel({ t }: { t: Translate }) {
 }
 
 export interface ObservabilityProps {
+  tabId?: string | null | undefined;
   /** Dependency injection seam for tests — the same convention `AgentPluginsProps.useAgentPluginsHook`
    *  uses. Defaulted to the real hook, so production callers pass nothing and behave exactly as
    *  before. */
   useObservabilityStatusHook?: typeof useWiredObservabilityStatus;
   /** Same seam for the Recent errors tab; called only when that tab is open. */
   useRecentServerErrorsHook?: typeof useWiredRecentServerErrors;
+  /** Adapter/owner visibility seam; the panel itself mounts only on tab selection. */
+  useQueriesTabHook?: typeof useWiredQueriesTab;
+  QueriesPanelComponent?: typeof QueriesPanel;
 }
 
 /**
@@ -131,7 +138,8 @@ export interface ObservabilityProps {
  * API-backed OpenTelemetry status), Recent errors (captured server error lines, gap A-04) and
  * Providers (an honest not-yet-built placeholder) — see
  * `development/todos.md`'s "Observability admin page" entry (owner, 2026-09-09) for the scope this
- * first pass deliberately stops at.
+ * first pass deliberately stops at. The owner-only Queries tab (2026-10-09) adds live
+ * in-process cache tooling only for a TanStack host, loaded when that tab opens.
  *
  * Header structure (2026-09-13, owner report: the title "needs to be more to the top left...
  * should look more like Secrets as far as the spacing" — screenshots `12-observability-header.png`
@@ -148,12 +156,12 @@ export interface ObservabilityProps {
  * against the page the way Secrets' borderless header is. `AiAssistant.tsx` proves the combination
  * in production already — this is a second consumer of an existing pattern, not a new one.
  *
- * Per-tab `title`/`subtitle` stay on the `tabs` array below even though the strip that rendered
- * them is now hidden: `AiAssistant.tsx`'s identical tabs still carry theirs, since the shell
- * contract still reads them for the tab panel's accessible name.
+ * The page header reuses the active tab's translated subtitle. Its hook adapts Jini's tab state
+ * to `?tab=` navigation; the controlled shell renders only that tab's panel.
  */
-export function Observability({ useObservabilityStatusHook = useWiredObservabilityStatus, useRecentServerErrorsHook = useWiredRecentServerErrors }: ObservabilityProps = {}) {
+export function Observability({ tabId, useObservabilityStatusHook = useWiredObservabilityStatus, useRecentServerErrorsHook = useWiredRecentServerErrors, useQueriesTabHook = useWiredQueriesTab, QueriesPanelComponent = QueriesPanel }: ObservabilityProps = {}) {
   const controller = useObservabilityStatusHook();
+  const queriesTab = useQueriesTabHook();
   const { t, locale } = controller;
 
   const tabs: SettingsDialogTab[] = [
@@ -181,10 +189,19 @@ export function Observability({ useObservabilityStatusHook = useWiredObservabili
       subtitle: t("Where a Datadog/Grafana connection will live."),
       panel: <ProvidersPanel t={t} />,
     },
+    ...(queriesTab.visible ? [{
+      id: "queries",
+      label: t("Queries"),
+      icon: <QueriesIcon />,
+      title: t("Observability"),
+      subtitle: t("The live data cache for this admin session."),
+      panel: <QueriesPanelComponent readOnly={queriesTab.readOnly} t={t} />,
+    }] : []),
   ];
 
+  const { activeTabId, onTabChange, subtitle } = useObservabilityTab({ tabs, tabId });
   return (
-    <div className="page">
+    <div className="page observability-page">
       <div
         className="page-header"
         {...agentHandle({ handle: "observability-header" }, {
@@ -194,9 +211,9 @@ export function Observability({ useObservabilityStatusHook = useWiredObservabili
       >
         <div className="page-header-text">
           <p className="page-kicker">{t("Operations")}</p>
-          <h1 className="page-title">{t("Observability")}</h1>
+          <h1 className="page-title observability-page-title"><PulseIcon size={24} />{t("Observability")}</h1>
           <p className="page-description">
-            {t("Whether OpenTelemetry is on, and where a monitoring provider connection will live.")}
+            {subtitle}
           </p>
         </div>
       </div>
@@ -204,6 +221,8 @@ export function Observability({ useObservabilityStatusHook = useWiredObservabili
         <div className="settings-ui-section settings-ui-section--page-flow observability-section" data-theme="light">
           <SettingsDialogShell
             tabs={tabs}
+            activeTabId={activeTabId}
+            onActiveTabIdChange={onTabChange}
             presentation="inline"
             className="jini-tabbed-dialog--inline"
             fullscreenEnabled={false}

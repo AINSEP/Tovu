@@ -24,8 +24,11 @@ import {
   configuredPresetIds as configuredPresetIdsRule,
   describeApiError,
   hasStoredCredential,
+  defaultVisitorCredentialConfig,
   hydrateVisitorCredentialConfig,
   isPresetSuppliedEndpoint,
+  visitorProviderGroups,
+  type VisitorProviderGroup,
 } from "../rules";
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
@@ -73,6 +76,8 @@ export interface VisitorCredentialSettingsSaveWriters {
 }
 
 export interface VisitorCredentialFormController {
+  /** Defaults are not server truth until the initial read succeeds. */
+  loadState: { status: "loading" } | { status: "ready" } | { status: "error"; message: string };
   config: ByokConfig;
   /** Every edit that originates from a CONTROL goes through here, so `dirty` reflects the operator
    *  and never hydration or discovery. */
@@ -110,6 +115,12 @@ export interface VisitorCredentialFormController {
    *  filled/unfilled dot. */
   configuredPresetIds: Set<string>;
   selectPreset: (next: ProviderPreset) => void;
+  /** The Provider `<select>`'s two optgroups (protocols, gateways), each option flagged when
+   *  {@link configuredPresetIds} has it — the old chips' filled dot, now an option suffix. */
+  providerGroups: VisitorProviderGroup[];
+  /** The `<select>`'s change handler: looks the preset up by id and runs {@link selectPreset}, so
+   *  autosave and field population are identical to the chips it replaced. Unknown ids are ignored. */
+  selectPresetById: (presetId: string) => void;
   /** Writes the KEY only — see {@link saveVisitorKey}. */
   saveKey: () => Promise<void>;
   /** Writes provider/baseUrl/model only, never a key — see {@link saveVisitorSettings}. */
@@ -379,18 +390,12 @@ export function useVisitorCredentialForm({
   // OTHER port — `ExecutionPort`, for model discovery/connection tests — not this credential one).
   const apiRef = useRef<VisitorCredentialFormPort>(credentialPort);
 
-  const [config, setConfig] = useState<ByokConfig>(() => ({
-    protocol: "google",
-    providerId: "google-gemini",
-    apiKey: "",
-    baseUrl: "https://generativelanguage.googleapis.com",
-    // Empty, NOT pre-filled with the server's current default. An earlier revision hardcoded
-    // `gemini-flash-latest` here purely to avoid rendering a required-field marker, which was a
-    // cosmetic reason to state something the operator had not chosen — and worse, it invited them to
-    // keep a value this form had invented. The model list is a property OF THE KEY, so it stays
-    // empty until a key produces one. See `discovery` below.
-    model: "",
-  }));
+  // Anthropic until hydration says otherwise (owner, 2026-10-09; it was Google Gemini). The model
+  // stays empty: an earlier revision hardcoded `gemini-flash-latest` purely to avoid a required-field
+  // marker, which invited the operator to keep a value this form had invented. The model list is a
+  // property OF THE KEY, so it stays empty until a key produces one. See `discovery` below, and
+  // `rules.ts`'s `defaultVisitorCredentialConfig` / `hasSavedVisitorCredential`.
+  const [config, setConfig] = useState<ByokConfig>(defaultVisitorCredentialConfig);
 
   const preset = useMemo(() => resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, config), [config]);
   // One port instance for this component's lifetime, matching `SettingsUi.tsx`'s `useRef` usage —
@@ -410,6 +415,7 @@ export function useVisitorCredentialForm({
 
   /** The server's write-only view of what is currently stored (`isSet` + `masked`), never the key. */
   const [stored, setStored] = useState<SiteAssistantCredential | null>(null);
+  const [loadState, setLoadState] = useState<VisitorCredentialFormController["loadState"]>({ status: "loading" });
   const [saveState, setSaveState] = useState<SaveState>({ status: "idle" });
   const [settingsSaveState, setSettingsSaveState] = useState<SaveState>({ status: "idle" });
 
@@ -445,11 +451,12 @@ export function useVisitorCredentialForm({
         if (cancelled) return;
         setStored(data);
         setConfig((current) => hydrateVisitorCredentialConfig(current, data));
+        setLoadState({ status: "ready" });
       })
-      // Silent: a failed read must not put an error next to a key field the operator has not touched
-      // yet. The consequence is only that the stored-state line stays absent, and the save effect's
-      // own error path still reports anything that goes wrong on the write.
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setLoadState({ status: "error", message: describeApiError(error, "Could not load saved settings.") });
+      });
     return () => {
       cancelled = true;
     };
@@ -627,8 +634,14 @@ export function useVisitorCredentialForm({
     setDiscovery({ status: "idle" });
     setConnectionTest({ status: "idle" });
   };
+  const selectPresetById = (presetId: string) => {
+    const next = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === presetId);
+    if (next) selectPreset(next);
+  };
+  const configuredIds = configuredPresetIdsRule(config);
 
   return {
+    loadState,
     config,
     editConfig,
     preset,
@@ -641,8 +654,10 @@ export function useVisitorCredentialForm({
     hasUsableKey: usableKey,
     hasStoredKey,
     storedKeyIsForOtherEndpoint,
-    configuredPresetIds: configuredPresetIdsRule(config),
+    configuredPresetIds: configuredIds,
     selectPreset,
+    providerGroups: visitorProviderGroups(configuredIds),
+    selectPresetById,
     saveKey,
     saveSettings,
     runKeyTest,

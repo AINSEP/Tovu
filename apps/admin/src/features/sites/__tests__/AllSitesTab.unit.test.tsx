@@ -50,12 +50,29 @@ it("shows Saving… on the activating card, hides Make default everywhere meanwh
   rerender(<AllSitesTab {...initial} activatingName="atlas" />);
   expect(within(screen.getByTitle("/sites/atlas")).getByText("Saving…")).toBeInTheDocument();
   expect(within(screen.getByTitle("/sites/boreal")).queryByText("Saving…")).toBeNull();
-  expect(screen.queryByRole("button", { name: "More actions for atlas" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "More actions for boreal" })).toBeNull();
+  expect(screen.getByRole("button", { name: "More actions for atlas" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "More actions for boreal" })).toBeDisabled();
   rerender(<AllSitesTab {...initial} activatingName={null} />);
   expect(screen.queryByText("Saving…")).toBeNull();
   await user.click(screen.getByRole("button", { name: "More actions for boreal" }));
   await user.click(screen.getByRole("menuitem", { name: "Make default" }));
   expect(onActivate.mock.calls).toEqual([["boreal"]]);
   expect(screen.queryByRole("menu")).toBeNull();
+});
+
+it("puts the status pill on the name row with the running app as its tooltip, and no Default line", () => {
+  // 2026-10-09 (owner): no status strip, no "Running in …" line, a star instead of "Default".
+  const sites = [{ name: "luvira", dir: "/sites/luvira", displayName: "luvira", active: true, createdAt: "2026-09-30T00:00:00.000Z",
+    running: { pid: 1, port: 3000, app: "Web", started: "2026-10-09T00:00:00.000Z", scheme: "https" as const } }];
+  render(<AllSitesTab {...props({ sites, t: (key) => key,
+    snapshot: { ...props().snapshot, sites, currentSite: { name: "luvira", dir: "/sites/luvira", dirOverridden: false, listed: true }, persistedSiteName: "luvira" },
+  })} />);
+  expect(screen.queryByText("Running in Web (port 3000)")).toBeNull();
+  expect(screen.getByRole("button", { name: "More actions for luvira" })).toBeDisabled();
+  const row = screen.getByText("luvira", { selector: ".site-card-name" }).parentElement!;
+  expect(row.className).toBe("site-card-title-row");
+  expect(within(row).getByText("Serving now")).toHaveAttribute("title", "Running in Web (port 3000)");
+  expect(within(row).getByRole("img", { name: "Opens by default" })).toBeTruthy();
+  expect(screen.queryByText("Default")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Sites settings" })).toBeNull();
 });

@@ -323,20 +323,29 @@ export function useCreateSiteDatabase(
   }) };
 }
 
+/** Both a local supervised child and a foreign lease feed the existing card lifecycle owner. */
+function siteLocalState({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _options = {}) {
+  const supervised = snapshot.localSites?.find((row) => row.name === site.name);
+  if (supervised || !site.running) return supervised;
+  const record = site.running;
+  return { name: site.name, status: record.port > 0 ? "running" as const : "starting" as const, pid: record.pid,
+    port: record.port || null, daemonPort: null, adminUrl: record.port > 0 ? `${record.scheme}://localhost:${record.port}/admin/` : null, external: true };
+}
+
 /** Card lifecycle facts come from host state, with serving binding taking precedence. */
 export function resolveLocalSiteCard(
   { site, snapshot, busyName }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; busyName: string | null },
   _optional = {},
 ) {
   const serving = site.dir === snapshot.currentSite.dir;
-  const local = snapshot.localSites?.find((row) => row.name === site.name);
+  const local = siteLocalState({ site, snapshot });
   const status = local?.status ?? "stopped";
   const live = status === "starting" || status === "running" || local?.pid != null;
   const busy = busyName !== null;
   const enabled = snapshot.localManagementEnabled === true;
   const statusKeys = { starting: "Starting…", running: "Running", stopped: "Stopped", crashed: "Crashed" };
   return {
-    enabled, serving, status, statusLabel: statusKeys[status], port: local?.port ?? null,
+    enabled, serving, external: local?.external === true, status, statusLabel: statusKeys[status], port: local?.port ?? null,
     action: live ? "stop" as const : "start" as const,
     actionLabel: live ? "Stop" : "Start",
     disabled: busy || !enabled,
@@ -387,6 +396,7 @@ export function resolveSiteCardView(
   _optional = {},
 ) {
   const local = resolveLocalSiteCard({ site, snapshot, busyName });
+  const external = local.external;
   const lifecycle = managed && local.enabled;
   const live = local.action === "stop";
   const menu: SiteCardMenuAction[] = [];
@@ -394,11 +404,12 @@ export function resolveSiteCardView(
   if (lifecycle && local.switchEnabled) menu.push("switch");
   if (lifecycle && !local.serving && !live) menu.push("trash");
   return {
-    lifecycle: lifecycle && !local.serving
+    lifecycle: lifecycle && !local.serving && !external
       ? { action: local.action, labelKey: local.actionLabel, className: live ? "btn-secondary" : "btn-primary", disabled: local.disabled }
       : null,
-    openUrl: lifecycle ? local.openUrl : null,
+    openUrl: lifecycle || external ? local.openUrl : null,
     menu,
+    ...(local.serving ? { disabledMenuTitleKey: "Stop or remove isn't available for the site you're using." } : {}),
   };
 }
 
@@ -415,7 +426,7 @@ export function resolveSiteStatusPill(
     const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
     return { toneClass, label: t(labelKey) };
   }
-  const local = snapshot.localSites?.find((row) => row.name === site.name);
+  const local = siteLocalState({ site, snapshot });
   const status = local?.status ?? "stopped";
   if (status === "running" && local?.port != null) {
     return { toneClass: "status-ok", label: interpolate({ template: t("Running on :{port}"), vars: { port: String(local.port) } }) };
@@ -427,9 +438,23 @@ export function resolveSiteStatusPill(
   return { toneClass: pills[status].toneClass, label: t(pills[status].labelKey) };
 }
 
+/** Whether this card is the site that opens by default — shown as a star beside the name
+ *  (2026-10-09, owner: lose the "Default" line, keep the fact). @complexity O(1). */
+export function resolveSiteIsDefault(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): boolean {
+  return isDefaultSite(site, snapshot);
+}
+
+/** The status pill's tooltip: which app holds the process ("Running in Web (port 3000)"), or
+ *  `undefined`. It was a visible line on the card until the owner dropped it (2026-10-09).
+ *  @complexity O(1). */
+export function resolveSiteRunningTitle({ site, t }: { site: AdminSiteListEntry; t: Translate }, _optional = {}): string | undefined {
+  if (!site.running) return undefined;
+  return interpolate({ template: t(site.running.port > 0 ? "Running in {app} (port {port})" : "Running in {app} (starting)"), vars: { app: site.running.app, port: site.running.port } });
+}
+
 /**
- * The muted line under the name: only facts the pill does not already state — a starting
- * process's port, `Default`, and `Saving…` while this card's Make default is in flight.
+ * The muted line under the name: only facts the pill and the default star do not already state —
+ * a starting process's port, and `Saving…` while this card's Make default is in flight.
  * @returns The joined line, or `null` when there is nothing to add.
  * @complexity O(n) in `snapshot.localSites` (one lookup).
  */
@@ -437,10 +462,9 @@ export function resolveSiteCardMeta(
   { site, snapshot, activatingName, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; activatingName: string | null; t: Translate },
   _optional = {},
 ): string | null {
-  const local = snapshot.localSites?.find((row) => row.name === site.name);
+  const local = siteLocalState({ site, snapshot });
   const parts: string[] = [];
   if (local?.status === "starting" && local.port !== null) parts.push(`:${local.port}`);
-  if (isDefaultSite(site, snapshot)) parts.push(t("Default"));
   if (activatingName === site.name) parts.push(t("Saving…"));
   return parts.length === 0 ? null : parts.join(" · ");
 }

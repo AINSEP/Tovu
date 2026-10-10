@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
 
-import { navigateToAiAssistantTab, resolveAiAssistantRequestedTabId } from "../hooks/use-ai-assistant.hooks";
+import { navigateToAiAssistantTab, resolveAiAssistantRequestedTabId, resolveAiAssistantTabSubtitle, useAiAssistantTab } from "../hooks/use-ai-assistant.hooks";
 
 /**
  * @file `resolveAiAssistantRequestedTabId`/`navigateToAiAssistantTab` — the `?tab=` deep-linking
@@ -50,4 +51,21 @@ describe("navigateToAiAssistantTab", () => {
     // A `replace`, not a `push` — no new history entry was created.
     expect(window.history.length).toBe(initialLength);
   });
+});
+
+it("keeps selection and route changes in sync, including a later deep link", () => {
+  const { result, rerender } = renderHook(({ tabId }) => useAiAssistantTab({ tabId }), { initialProps: { tabId: "invalid" } });
+  expect(result.current.activeTabId).toBe("visitor");
+  act(() => result.current.onTabChange("admin"));
+  expect(result.current.activeTabId).toBe("admin");
+  expect(window.location.search).toBe("?tab=admin");
+  rerender({ tabId: "roadmap" });
+  expect(result.current.activeTabId).toBe("roadmap");
+});
+
+it("reads subtitle copy from the selected tab and uses the default for an unknown id", () => {
+  const tabs = [{ id: "visitor", subtitle: "Visitor copy" }, { id: "admin", subtitle: "Admin copy" }];
+  expect(resolveAiAssistantTabSubtitle({ tabs, activeTabId: "admin" })).toBe("Admin copy");
+  expect(resolveAiAssistantTabSubtitle({ tabs, activeTabId: "unknown" })).toBe("Visitor copy");
+  expect(resolveAiAssistantTabSubtitle({ tabs: [], activeTabId: "visitor" })).toBeUndefined();
 });

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { PublicAssistantSettings } from "@/lib/api";
 import { navigate } from "@/lib/router";
@@ -32,30 +33,31 @@ export interface AiAssistantController {
   saveError: string | null;
   saving: boolean;
   setPublicEnabled: (publicEnabled: boolean) => Promise<void>;
+  setWidget: (input: { widget: "react" | "vanilla" }, options?: Record<string, never>) => Promise<void>;
 }
 
-export function useAiAssistant({ port }: AiAssistantDependencies): AiAssistantController {
-  const [settings, setSettings] = useState<PublicAssistantSettings | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+export function useAiAssistant({ port }: AiAssistantDependencies, _options: Record<string, never> = {}): AiAssistantController {
+  const key = useMemo(() => ["ai-assistant", "settings"] as const, []);
+  const fetchSettings = useCallback(async () => {
+    try { return (await port.getAssistantSettings()).data; }
+    catch (error) { throw new Error(describeApiError(error, "failed to load AI assistant settings")); }
+  }, [port]);
+  const query = useFetchQuery({ key, fetch: fetchSettings }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchSettings }, { staleTime: 0 });
+  const settings = query.data ?? null;
+  const loadError = query.error?.message ?? null;
+  const update = useFetchMutation({ run: ({ input }: { input: Partial<PublicAssistantSettings> }) => port.setAssistantSettings(input) }, { invalidates: [key] });
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    port
-      .getAssistantSettings()
-      .then((r) => setSettings(r.data))
-      .catch((e) => setLoadError(describeApiError(e, "failed to load AI assistant settings")));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [port]);
-
-  async function setPublicEnabled(publicEnabled: boolean) {
+  async function saveSettings(input: Partial<PublicAssistantSettings>, _options = {}) {
     setSaving(true);
     setSaveError(null);
     try {
       // The response, not `publicEnabled` — the server is the authority on what is now true, and a
       // rejected or partially-applied write must not leave this screen lying about it.
-      const { data } = await port.setAssistantSettings({ publicEnabled });
-      setSettings(data);
+      const { data } = await update.mutate({ input });
+      loader.replace({ value: data });
     } catch (e) {
       setSaveError(describeApiError(e, "failed to save AI assistant settings"));
     } finally {
@@ -63,7 +65,9 @@ export function useAiAssistant({ port }: AiAssistantDependencies): AiAssistantCo
     }
   }
 
-  return { settings, loadError, saveError, saving, setPublicEnabled };
+  const setPublicEnabled = (publicEnabled: boolean) => saveSettings({ publicEnabled });
+  const setWidget = (input: { widget: "react" | "vanilla" }, options = {}) => saveSettings(input, options);
+  return { settings, loadError, saveError, saving, setPublicEnabled, setWidget };
 }
 
 /**
@@ -91,6 +95,29 @@ export const AI_ASSISTANT_TAB_IDS = ["visitor", "admin", "roadmap"] as const;
  */
 export function resolveAiAssistantRequestedTabId(tabId: string | null | undefined): string | undefined {
   return tabId && (AI_ASSISTANT_TAB_IDS as readonly string[]).includes(tabId) ? tabId : undefined;
+}
+
+/** Keeps the page subtitle and shell on the same tab, including standalone mounts.
+ * URL changes remain owned by the existing navigation function. No I/O beyond navigation.
+ * @complexity Time/space: O(1), with a fixed three-tab set.
+ */
+export function useAiAssistantTab({ tabId }: { tabId: string | null | undefined }, _options = {}) {
+  const [activeTabId, setActiveTabId] = useState(() => resolveAiAssistantRequestedTabId(tabId) ?? "visitor");
+  useEffect(() => { setActiveTabId(resolveAiAssistantRequestedTabId(tabId) ?? "visitor"); }, [tabId]);
+  const onTabChange = (nextTabId: string) => {
+    setActiveTabId(nextTabId);
+    navigateToAiAssistantTab(nextTabId);
+  };
+  return { activeTabId, onTabChange };
+}
+
+/** Reuses the selected tab's translated copy; unknown ids use the first tab.
+ * @complexity Time: O(n) tabs; space: O(1).
+ */
+export function resolveAiAssistantTabSubtitle({ tabs, activeTabId }: {
+  tabs: readonly { id: string; subtitle?: string | undefined }[]; activeTabId: string;
+}, _options = {}): string | undefined {
+  return (tabs.find(tab => tab.id === activeTabId) ?? tabs[0])?.subtitle;
 }
 
 /**

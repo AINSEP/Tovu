@@ -11,13 +11,15 @@ import {
   resolveSiteCardMeta,
   resolveSiteCardTitle,
   resolveSiteCardView,
+  resolveSiteIsDefault,
+  resolveSiteRunningTitle,
   resolveSiteRegistrationBadge,
   resolveSiteStatusPill,
   resolveSiteSubtitle,
   resolveSitesEmpty,
   resolveSitesRowHandles,
 } from "./Sites.hooks";
-import { SiteFlagIcon } from "./sites-visuals";
+import { SiteFlagIcon, StarIcon } from "./sites-visuals";
 import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
 
 /**
@@ -139,11 +141,17 @@ function SiteCard({
   return (
     <div className={resolveSiteCardClassName(site, snapshot)} title={resolveSiteCardTitle(site)}>
       <SiteCardPreview site={site} snapshot={snapshot} />
-      <div className="site-card-head">
-        <span className={`status ${pill.toneClass}`}>{pill.label}</span>
-      </div>
       <div className="site-card-body">
-        <span className="site-card-name">{site.name}</span>
+        {/* Name, default star and a small right-aligned pill on one row (2026-10-09, owner): the
+            full-width status strip and the "Running in …" line are gone; the latter is the pill's
+            tooltip. */}
+        <div className="site-card-title-row">
+          <span className="site-card-name">{site.name}</span>
+          {resolveSiteIsDefault(site, snapshot) && (
+            <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><StarIcon /></span>
+          )}
+          <span className={`status site-card-pill ${pill.toneClass}`} title={resolveSiteRunningTitle({ site, t })}>{pill.label}</span>
+        </div>
         <SiteCardFacts site={site} snapshot={snapshot} activatingName={activatingName} t={t} />
         <SiteCardActions
           site={site}
@@ -324,11 +332,12 @@ function SiteCardActions({ site, snapshot, handle, switchingEnabled, activatingN
           {t(lifecycle.labelKey)}
         </button>
       )}
-      {items.length === 0 ? null : (
-        <span className="site-card-menu">
-          <RowMenu items={items} triggerLabel={menuLabel} agentHandle={`${handle}-menu`} />
-        </span>
-      )}
+      <span className="site-card-menu">
+        {items.length === 0
+          ? <button type="button" className="btn-ghost row-menu-trigger" aria-label={menuLabel}
+              title={view.disabledMenuTitleKey ? t(view.disabledMenuTitleKey) : undefined} disabled><span aria-hidden="true">⋮</span></button>
+          : <RowMenu items={items} triggerLabel={menuLabel} agentHandle={`${handle}-menu`} />}
+      </span>
     </div>
   );
 }
