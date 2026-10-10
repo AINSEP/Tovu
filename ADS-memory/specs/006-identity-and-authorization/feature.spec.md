@@ -130,9 +130,9 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
 - ~~Admin UI for user/role management (this spec is API + core)~~ — **OQ-06 RESOLVED (0.6.0):**
   `Users.tsx`/`Roles.tsx` already exist and this amendment completes their missing backend surface
 - ADR-014 tool-registry `auth`-axis re-expression (lands with the assistant spec) — OQ-07
-- **(0.6.0)** Changing a user's `username` — the login identity, unlike `email`, has audit/session/
-  lookup-normalization implications (behavior.spec §5.1) not worth reopening for a v1 admin edit
-  screen — OQ-09
+- ~~Changing a user's `username`~~ — **OQ-09 RESOLVED (0.1.14, owner 2026-10-08):**
+  REQ-16/AC-28 now cover rename through HTTP, shared UI and agent tools, with audit/session/
+  lookup-normalization invariants (behavior.spec §5.1).
 - **(0.6.0)** Removing a single permission from a policy (the inverse of `WRITE_POLICY_PERMISSION`)
   — no transition defined; shrinking a policy's permission set in v1 means `DELETE_POLICY` (only
   when unused) + recreate — OQ-10
@@ -353,11 +353,16 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
   clears `disabled_at`. No INV-08 owner-count interaction: enabling a principal can only ever hold or
   increase the active owner-`*` count, never reduce it, so no atomic count-check is needed (unlike
   `DISABLE_PRINCIPAL`).
-- REQ-16 **(0.6.0)**: `UPDATE_USER` edits an existing user's `email` field (set, change, or clear to
-  `null`). Gated by `user.manage` **or** `member.manage` (mirrors `CREATE_USER`'s admin-onboarding
-  gate — editing a profile field is no more sensitive than creating the account). `username` is
-  **not** editable by this transition (OQ-09) and `password` is **not** editable by this transition
-  (see REQ-17) — `UPDATE_USER` touches `email` only.
+- REQ-16 **(0.1.14 amendment, owner 2026-10-08)**: `UPDATE_USER` edits an existing user's email
+  and optionally its username. Email-only self edits retain the `user.manage` OR `member.manage`
+  gate; editing another operator or any username requires `user.manage`. Only an owner may edit
+  an owner target. Normalize usernames with the same NFC/trim/lowercase rule as creation, reserve
+  names across active, disabled and trashed users, and record `identity.user.username_changed`
+  atomically with each actual rename. Keep the principal id, password and existing sessions.
+  HTTP PATCH preserves omitted fields; the existing email tool retains its clear-on-omission
+  contract. Password and other unknown HTTP fields remain ignored. The Users screen and its own
+  profile section share the rename dialog/hook; `identity_user_change_username` exposes the same
+  service and permission rules to agents and is discoverable through `search_tools`.
 - REQ-17 **(0.6.0)**: `RESET_USER_PASSWORD` sets a **new** password for an existing user without
   requiring the old one (an admin override, distinct from the deferred self-service "forgot password"
   flow, OQ-04). Gated by **`user.manage`** (owner-only, the same gate as `DISABLE_PRINCIPAL` — the
@@ -533,11 +538,20 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
   `user.manage` calls `ENABLE_PRINCIPAL`, then its `status` becomes `active`, `disabled_at` clears,
   and it can log in again; given a caller **without** `user.manage`, then it is denied 403 `FORBIDDEN`;
   given a `system`/`api_key` target, then it is rejected 400 `VALIDATION_ERROR` and no row changes.
-- AC-28 (REQ-16) [P1] **(0.6.0)**: Given an existing user, when a caller holding `member.manage` (not
-  `user.manage`) calls `UPDATE_USER` with a new `email`, then the update succeeds (mirrors `CREATE_USER`'s
-  admin-onboarding gate, AC-22); given a request body containing `username` or `password` fields, then
-  those fields are silently ignored (not rejected — `UPDATE_USER`'s contract is `email`-only, not a
-  partial-PATCH-of-anything-sent shape).
+- AC-28 (REQ-16) [P1] **(0.1.14 amendment, owner 2026-10-08)**: Given an existing user, a caller
+  holding `user.manage` can change the username through HTTP PATCH, the admin Users row action,
+  their own profile section, or `identity_user_change_username` discovered by `search_tools`.
+  The stored name is NFC-normalized, trimmed and lowercased; a blank/non-string name is rejected
+  400 `VALIDATION_ERROR`. A normalized name held by another user is rejected 409
+  `RESOURCE_CONFLICT`; a trashed holder produces 409 `USERNAME_IN_TRASH` with restore/purge
+  guidance. Trashed targets produce 409 `USER_IN_TRASH`. Only owners can rename owner targets;
+  delegated managers receive `OWNER_REQUIRED` with the actual owner-only reason. Each actual
+  rename writes one atomic audit entry identifying actor, target and old/new names; normalized
+  no-op retries add no audit. Principal ids, password hashes, roles, policies and existing sessions
+  remain valid; future logins use the new name. Concurrent attempts to reserve the same normalized
+  name produce one success and one conflict. Email-only self edits retain `member.manage` access;
+  that permission alone cannot rename anyone. HTTP PATCH preserves omitted fields and ignores
+  password/other unknown fields. Dialog failures retain drafts and show the actual server reason.
 - AC-29 (REQ-17) [P1] **(0.6.0)**: Given an existing user with two active sessions, when a caller holding
   `user.manage` calls `RESET_USER_PASSWORD`, then the password hash changes, **both** existing sessions
   are revoked (next request on either → 401), and the new password authenticates a fresh login; given a
@@ -718,8 +732,9 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
   Expected: the password still changes; the session-revocation step is a no-op over an empty set
   (idempotent, same discipline as `LOGOUT` on an already-revoked session).
 - EC-17 **(0.6.0)**: `UPDATE_USER` is called with an empty-string or absent `email`.
-  Expected: `email` is set to `null` (cleared) — an empty string is not stored as a distinct
-  "blank but present" state, avoiding a third ambiguous value alongside `null`/populated.
+  Expected: an explicit empty-string email clears the value. HTTP PATCH and username-only updates
+  preserve an omitted email; the legacy email setter/tool still clears an absent email.
+  An empty string is not stored as a distinct "blank but present" state.
 
 ---
 

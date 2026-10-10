@@ -3,6 +3,13 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** identity registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "identity_user_change_username": {
+    search: {
+      keywords: "username login name rename change update user account own profile",
+      queries: ["Change this user's username.", "Rename my login username.", "Can you change an admin's account name?"],
+    },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
   "identity_policy_attach": {
     search: {
       keywords: "permission permissions policy grant allow access rule attach give",

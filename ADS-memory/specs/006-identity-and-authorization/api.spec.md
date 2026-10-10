@@ -125,7 +125,7 @@ note); rows marked **New (0.6.0)** are introduced by this amendment.
 |---|---|---|---|---|---|
 | `USER_LIST` | `GET` | `/users` | List human (`kind='user'`) principals | `user.manage` OR `member.manage` | Pre-existing |
 | `USER_CREATE` | `POST` | `/users` | `CREATE_USER` (REQ-01) | `user.manage` OR `member.manage` | Pre-existing |
-| `USER_UPDATE` | `PATCH` | `/users/:principalId` | `UPDATE_USER` (REQ-16) — `email` only | `user.manage` OR `member.manage` | **New (0.6.0)** |
+| `USER_UPDATE` | `PATCH` | `/users/:principalId` | `UPDATE_USER` (REQ-16) — email/username PATCH | `user.manage`; `member.manage` for email-only self edits; owner-only on owner targets | **0.1.14 amendment** |
 | `USER_DISABLE` | `POST` | `/users/:principalId/disable` | `DISABLE_PRINCIPAL` (REQ-11) | `user.manage` | **New (0.6.0)** (transition pre-existing, route new) |
 | `USER_ENABLE` | `POST` | `/users/:principalId/enable` | `ENABLE_PRINCIPAL` (REQ-15) | `user.manage` | **New (0.6.0)** |
 | `USER_RESET_PASSWORD` | `POST` | `/users/:principalId/reset-password` | `RESET_USER_PASSWORD` (REQ-17) | `user.manage` | **New (0.6.0)** |
@@ -328,8 +328,13 @@ here — see `USER_LIST`/`USER_CREATE`/`ROLE_LIST`/`ROLE_CREATE`/`POLICY_LIST`/`
 email:
   type: string | null
   required: false
-  description: sets, changes, or (if null/absent/empty-string) clears the user's email (EC-17).
-    username and password in the body are ignored (REQ-16) — this endpoint is email-only.
+  description: sets or changes email; empty-string clears it; omission preserves it (EC-17).
+username:
+  type: string
+  required: false
+  description: changes the normalized unique login name, including reservations in Trash.
+    Requires user.manage, and owner authority for owner targets. Keeps sessions and credentials,
+    records an audit entry for an actual change. Password and other unknown fields are ignored.
 
 # USER_DISABLE (POST /users/:principalId/disable) — no body
 # USER_ENABLE (POST /users/:principalId/enable) — no body

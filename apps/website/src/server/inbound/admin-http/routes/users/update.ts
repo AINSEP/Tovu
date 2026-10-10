@@ -1,17 +1,20 @@
 import type { Response } from "express";
 
-import { IdentityForbiddenError, IdentityNotFoundError, OwnerRequiredError } from "@jini-ai/user-management";
+import { IdentityConflictError, IdentityValidationError, IdentityForbiddenError, IdentityNotFoundError, OwnerRequiredError } from "@jini-ai/user-management";
 import { updateUser } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
 
-/** This route's one writable PATCH field — `undefined` means "leave unchanged" — read off an
+/** This route's writable PATCH fields — `undefined` means "leave unchanged" — read off an
  *  untyped body in one place. @complexity O(1). */
-function parseUserUpdateBody(rawBody: unknown): { email: string | undefined } {
+function parseUserUpdateBody(rawBody: unknown): { email: string | undefined; username: string | undefined } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
-  return { email: body.email !== undefined ? String(body.email) : undefined };
+  if (body.username !== undefined && typeof body.username !== "string") {
+    throw new IdentityValidationError({ message: "username must be a string" });
+  }
+  return { email: body.email !== undefined ? String(body.email) : undefined, username: body.username as string | undefined };
 }
 
 /**
@@ -39,6 +42,14 @@ async function assembleUpdatedUserResponse(deps: UsersRouteDeps, principalId: st
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
 function sendUserUpdateError(res: Response, err: unknown): void {
+  if (err instanceof IdentityConflictError) {
+    res.status(409).json({ error: err.message, code: err.code ?? "RESOURCE_CONFLICT", details: { field: "username" } });
+    return;
+  }
+  if (err instanceof IdentityValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
   if (err instanceof UserInTrashError) {
     res.status(409).json({ error: err.message, code: "USER_IN_TRASH" });
     return;
@@ -61,8 +72,7 @@ function sendUserUpdateError(res: Response, err: unknown): void {
 /**
  * PATCH users/:principalId — `UPDATE_USER` (SPEC-006 0.6.0, REQ-16). Gated by `user.manage`;
  * existing self-profile edits also accept `member.manage`. Only owners may edit owner targets.
- * `email`-only — `username` and
- * `password` fields in the body are silently ignored (AC-28), not rejected.
+ * Username changes require `user.manage`; other unknown fields, including password, stay ignored.
  */
 export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/users/:principalId", async (req, res) => {
@@ -82,7 +92,7 @@ export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => 
       }
 
       const serviceDeps = identityServiceDepsFrom(deps);
-      const { email } = parseUserUpdateBody(req.body);
+      const { email, username } = parseUserUpdateBody(req.body);
       const { user } = await deps.transactions.run({
         workspaceId: deps.workspaceId,
         execute: async () => {
@@ -94,7 +104,7 @@ export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => 
           return updateUser({
             deps: serviceDeps,
             input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, principalId },
-          }, { email: email === undefined ? current?.email : email });
+          }, { email: email === undefined ? current?.email : email, username });
         },
       });
 

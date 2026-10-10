@@ -28,7 +28,7 @@ export interface UsersPort {
    *  2026-09-24 gate `/auth/me` computes server-side via `callerMayManageUserTrash`, the exact
    *  function the DELETE route itself is gated on). Drives whether the row-menu Delete item renders
    *  — affordance-hiding only, never the real boundary; see `lib/permissions.ts`'s header. */
-  me(): Promise<{ user: { id: string }; canManageUserTrash: boolean }>;
+  me(): Promise<{ user: { id: string }; canManageUserTrash: boolean; effectivePermissions?: string[] }>;
   listRoles(): Promise<{ roles: AdminRole[] }>;
   listPolicies(): Promise<{ policies: AdminPolicy[] }>;
   createUser(
@@ -37,7 +37,7 @@ export interface UsersPort {
   ): Promise<{ user: AdminIdentityUser }>;
   updateUser(
     target: { principalId: string },
-    options?: { email?: string },
+    options?: { email?: string; username?: string },
   ): Promise<{ user: AdminIdentityUser }>;
   disableUser(principalId: string): Promise<{ user: AdminIdentityUser }>;
   enableUser(principalId: string): Promise<{ user: AdminIdentityUser }>;

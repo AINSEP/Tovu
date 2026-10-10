@@ -52,11 +52,15 @@ password hash, or key hash (INV-05). A `reason` string from `authorize()` (`no_g
 | `VALIDATION_ERROR` | validation | `api` | 400 | no | "Please correct the highlighted fields." |
 | `RESOURCE_NOT_FOUND` | resource | `api` | 404 | no | "That item was not found." |
 | `RESOURCE_CONFLICT` | resource | `api` | 409 | no | "That name is already in use." |
+| `USERNAME_IN_TRASH` | resource | `api` | 409 | no | "A user with this username is in the Trash; restore or delete them permanently first." |
+| `USER_IN_TRASH` | resource | `api` | 409 | no | "This user is in the Trash; restore them first." |
 | `OWNER_REQUIRED` | authz | `api` | 409 | no | "The workspace must keep at least one active owner." |
 | `RATE_LIMIT_EXCEEDED` | throttling | `api` | 429 | yes | "Too many attempts. Try again shortly." |
 | `INTERNAL_ERROR` | internal | `api` | 500 | maybe | "Unexpected server error." |
 
 Notes on the two auth-family codes:
+- Username rename surfaces the actual `OWNER_REQUIRED` message ("only an owner can modify an
+  owner principal"), rather than substituting the unrelated active-owner-floor message.
 - `UNAUTHENTICATED` (401) = the caller could not be identified as an `active` principal: bad
   credentials, no/expired/revoked session cookie, revoked/expired API key, or a valid credential
   whose bound principal is `disabled` (REQ-06, EC-02, EC-03, AC-05, AC-06).

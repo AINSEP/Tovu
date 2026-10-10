@@ -14,7 +14,7 @@ export const defaultUsersPort: UsersPort = {
   // already uses elsewhere on this same response.
   me: async () => {
     const res = await api.me();
-    return { user: { id: res.user.id }, canManageUserTrash: res.canManageUserTrash ?? false };
+    return { user: { id: res.user.id }, canManageUserTrash: res.canManageUserTrash ?? false, effectivePermissions: res.effectivePermissions ?? [] };
   },
   listRoles: () => api.listRoles(),
   listPolicies: () => api.listPolicies(),
