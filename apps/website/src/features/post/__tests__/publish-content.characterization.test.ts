@@ -118,6 +118,34 @@ test("inspect(): the destination's hash equals the pinned pack hash; the other k
   assert.equal(await post.inspect("nope"), null);
 });
 
+test("a published byline round trips and an absent source byline clears the destination", async () => {
+  const source = await site();
+  const destination = await site();
+  const from = contributePostPublish().build(source.deps);
+  const to = contributePostPublish().build(destination.deps);
+  await source.s.posts.save(row({ id: "p-byline", slug: "byline", author: "Ada", showAuthor: true }));
+  const byline = (await packOf(from)).find(e => e.id === "p-byline")!;
+  assert.equal(byline.state.author, "Ada");
+  assert.equal(byline.state.showAuthor, true);
+  await to.apply({ entity: byline, expectedVersion: undefined, principalId: "op", idempotencyKey: "byline-create" });
+  const created = await destination.s.posts.findById({ workspaceId: WORKSPACE_ID, id: "p-byline" });
+  assert.ok(created);
+  assert.equal(created.author, "Ada");
+  assert.equal(created.showAuthor, true);
+  assert.equal((await to.inspect("p-byline"))?.hash, byline.contentHash);
+
+  await source.s.posts.save(row({ id: "p-byline", slug: "byline", author: null, showAuthor: false, version: 4 }));
+  const cleared = (await packOf(from)).find(e => e.id === "p-byline")!;
+  assert.equal("author" in cleared.state, false);
+  assert.equal("showAuthor" in cleared.state, false);
+  assert.notEqual(cleared.contentHash, byline.contentHash);
+  await to.apply({ entity: cleared, expectedVersion: created.version, principalId: "op", idempotencyKey: "byline-clear" });
+  const updated = await destination.s.posts.findById({ workspaceId: WORKSPACE_ID, id: "p-byline" });
+  assert.equal(updated?.author, null);
+  assert.equal(updated?.showAuthor, false);
+  assert.equal((await to.inspect("p-byline"))?.hash, cleared.contentHash);
+});
+
 test("precheck(): exact reason strings", async () => {
   const { deps } = await site();
   const post = contributePostPublish().build(deps);

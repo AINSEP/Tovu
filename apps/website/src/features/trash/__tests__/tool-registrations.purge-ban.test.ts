@@ -1,100 +1,97 @@
+import { PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
+import type { SiteStore } from "#src/server/runtime/composition/open-site-store";
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
+import { NON_TRASH_DELETE_TOOL_IDS } from "../agent-delete-policy.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
-import { isMcpUiToolCallPermitted } from "#src/assistant/mcp-ui-tool-calls";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-
+/** gapb supersedes the earlier confirmed-delete policy: even an approved hard delete is not Trash.
+ * The new contract deliberately replaces the prior assertions requiring those registrations.
+ * Keep the real manifest/assembly seam, so an uninstalled filter fails these tests.
+ */
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
 };
 
-/** Owner Q1 (2026-10-01) supersedes the purge ban: permanent deletion is callable only
- * through an authenticated human confirmation exchange. The handler suite probes bypasses. */
-const IDS = [
-  "trash_empty", "trash_purge_item", "media_purge_asset", "comments_purge_comment",
-  "identity_user_delete", "external_mcp_delete", "custom_credential_delete",
-  "deployment_delete_provider_credential", "source_control_delete_credential",
-];
+/** The durable root owns the table-backed member adapter; the hermetic root intentionally
+ * serves members through an in-memory store. Verify the actual production schema here. */
+async function productionDeps(t: TestContext) {
+  const dir = await mkdtemp(path.join(tmpdir(), "tovu-delete-catalog-"));
+  let store: SiteStore | undefined;
+  let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
+  t.after(async () => {
+    if (deps) await Promise.allSettled(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
+    await store?.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+  deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    siteBinding: { dir, name: "delete-catalog", dirOverridden: true, switcherCompatible: false },
+    onStoreOpened: opened => { store = opened; },
+  });
+  return deps;
+}
 
-for (const id of IDS) {
-  test(`${id} is registered as a durable mutation and its card can answer only an open exchange`, () => {
-    contributions.contributors.clear({});
+for (const collapse of [true, false]) {
+  test(`gapb: real assistant composition exposes only recoverable deletion (content_read collapse=${collapse})`, async t => {
     installFirstPartyToolContributors({ contributions });
-    const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }).find(r => r.descriptor.id === id);
-    assert.ok(registration, `Missing confirmed permanent-delete tool: ${id}`);
-    assert.equal(registration.descriptor.readOnly, false);
-    assert.equal(isMcpUiToolCallPermitted(id, true), true);
-    assert.equal(isMcpUiToolCallPermitted(id, false), false, "a callback must never execute a new delete call");
-    const schema = registration.descriptor.inputSchema as { additionalProperties: boolean; properties: Record<string, unknown> };
-    assert.equal(schema.additionalProperties, false);
-    for (const field of ["confirmed", "decision", "__exchangeId", "confirmationToken"]) {
-      assert.equal(field in schema.properties, false, `the agent cannot supply ${field}`);
+    const deps = toAssistantRegistryDeps({ routeDeps: await productionDeps(t) });
+    const policy = await readAssistantPermanentDeletesPolicy({ ...deps, settingsReady: deps.settingsUiTabsReady });
+    assert.deepEqual(policy, { enabled: false, allowedToolIds: [] }, "the real site setting defaults OFF");
+    const tools = buildAssistantToolRegistrations(deps, undefined,
+      { contributions, includeContentReadCollapse: collapse });
+    const ids = new Set(tools.map(tool => tool.descriptor.id));
+    // Independent expected set: a mistaken removal from the policy cannot weaken this contract.
+    for (const id of ["trash_empty", "trash_purge_item", "media_purge_asset", "comments_purge_comment",
+      "identity_user_delete", "identity_role_delete", "identity_policy_delete", "workspace_delete",
+      "external_mcp_delete", "custom_credential_delete", "webhooks_delete_subscription",
+      "deployment_delete_provider_credential", "source_control_delete_credential", "deployment_ops_unset_secret", "collections_execute_cleanup"]) {
+      assert.equal(ids.has(id), false, `${id} must not be agent-callable`);
+      assert.ok(NON_TRASH_DELETE_TOOL_IDS.has(id));
     }
+    assert.deepEqual([...ids].filter(id => /purge|hard_?delete|permanently/i.test(id)), []);
+    for (const id of ["trash_item", "trash_restore_item", "trash_list_items", "content_post_delete", "media_trash_asset", "comments_trash_comment"]) {
+      assert.ok(ids.has(id), `${id} must remain available`);
+    }
+    const trashItem = tools.find(tool => tool.descriptor.id === "trash_item")!;
+    const schema = trashItem.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
+    assert.ok(schema.properties.entityType.enum.includes("member"), "production composition must wire member Trash");
+    // pdel permits only checked tools after opt-in; recoverable deletion remains the default.
+    const optedIn = buildAssistantToolRegistrations(deps, undefined, { contributions,
+      includeContentReadCollapse: collapse, permanentDeletePolicy: { enabled: true, allowedToolIds: ["trash_empty", "identity_role_delete"] },
+    });
+    for (const tool of PERMANENT_DELETE_TOOLS) {
+      const registration = optedIn.find(entry => entry.descriptor.id === tool.id);
+      assert.equal(Boolean(registration), ["trash_empty", "identity_role_delete"].includes(tool.id), tool.id);
+      if (registration) assert.equal(registration.descriptor.metadata?.approval?.confirmation, "plan", `${tool.id} requires a card`);
+    }
+    for (const id of ["workspace_delete", "collections_execute_cleanup"]) assert.equal(optedIn.some(tool => tool.descriptor.id === id), false);
   });
 }
 
-// The old capability ban becomes a behavioral proof through the real manifest/host adapter.
-// A fake Trash port is the effect seam; catalog/handler/confirmation wiring remain production.
-for (const [id, input] of [
-  ["trash_empty", {}], ["trash_purge_item", { trashItemId: "row-1" }],
-  ["identity_user_delete", { principalId: "target-user" }],
-] as const) {
-  test(`${id}: real composition cannot reach purgeSelected without a human click`, async () => {
-    const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
-    const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-    const deps = createRouteDeps();
-    await deps.identityReady;
-    const owner = await deps.ownerPrincipalId;
-    // Real target/caller identities let the account guard run before the confirmation gate.
-    await deps.principalRepo.save({ id: "target-user", workspaceId: deps.workspaceId,
-      kind: "user", displayName: "Target user", status: "disabled", createdAt: "2026-10-01T00:00:00Z" });
-    let purges = 0;
-    const item = {
-      id: "row-1", workspaceId: deps.workspaceId, entityType: "user", entityId: "target-user",
-      displayTitle: "Target user", displaySubtitle: null, entityVersion: null, priorMarker: "active",
-      actorPrincipalId: owner, actorPluginId: null, trashedAt: "2026-10-01T00:00:00Z", purgeAfter: "2026-12-01T00:00:00Z",
-    };
-    const routeDeps = {
-      ...deps,
-      authorize: async () => ({ allowed: true, reason: "matched" }),
-      trash: { ...deps.trash, list: async () => ({ items: [item], nextCursor: null }), purgeSelected: async (spec: Parameters<typeof deps.trash.purgeSelected>[0]) => {
-        assert.equal(await spec.authorizeItem({ item }), true);
-        assert.deepEqual(spec.ids, ["row-1"]);
-        purges++;
-        return { purged: 1, results: [{ id: "row-1", outcome: "purged" as const }] };
-      } },
-    };
-    const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaceExchanges: store }, { contributions }).find(r => r.descriptor.id === id)!;
-    const ctx = { executionId: "e", principal: { id: owner }, run: { id: "r" }, input, signal: new AbortController().signal };
-    await assert.rejects(registration.handler(ctx), { message: `PERMANENT_DELETE_NO_CONFIRMATION_CHANNEL: ${id}: this execution context has no interactive confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed.` });
-    assert.equal(purges, 0);
-    assert.deepEqual(await registration.handler({ ...ctx }, { emitSurface: async () => {
-      assert.equal(purges, 0);
-      const exchangeId = store.findTypedAnswerTarget({ principalId: owner, toolId: id })!;
-      store.deliver({ exchangeId, principalId: owner, params: { decision: "cancel" } }, { toolId: id });
-    } }), { removed: false, cancelled: true, note: "The user cancelled. Nothing was changed." });
-    assert.equal(purges, 0);
-    assert.deepEqual(await registration.handler({ ...ctx }, { emitSurface: async () => {
-      assert.equal(purges, 0);
-      const exchangeId = store.findTypedAnswerTarget({ principalId: owner, toolId: id })!;
-      store.deliver({ exchangeId, principalId: owner, params: { decision: "confirm" } }, { toolId: id });
-    } }), { removed: true, purged: 1, results: [{ id: "row-1", outcome: "purged" }] });
-    assert.equal(purges, 1);
-  });
-}
 
-test("new purge capabilities cannot enter the catalog outside the reviewed confirmed-delete set", () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
-  const unreviewed = registrations.map(r => r.descriptor.id)
-    .filter(id => /purge|hard_?delete|permanently/i.test(id) && !IDS.includes(id));
-  assert.deepEqual(unreviewed, [], "A new permanent-purge capability must join the confirmed-call contract tests.");
+test("opt-in absorbs the old ban: only checked tools return, forbidden tools never do", () => {
+  installFirstPartyToolContributors({ contributions });
+  const deps = toAssistantRegistryDeps({ routeDeps: createRouteDeps() });
+  const tools = buildAssistantToolRegistrations(deps, undefined, { contributions,
+    permanentDeletePolicy: { enabled: true, allowedToolIds: ["trash_empty", "identity_role_delete", "workspace_delete", "collections_execute_cleanup"] },
+  });
+  const ids = new Set(tools.map(tool => tool.descriptor.id));
+  for (const tool of PERMANENT_DELETE_TOOLS) assert.equal(ids.has(tool.id), ["trash_empty", "identity_role_delete"].includes(tool.id), tool.id);
+  for (const id of ["workspace_delete", "collections_execute_cleanup"]) assert.equal(ids.has(id), false);
+  for (const id of ["trash_empty", "identity_role_delete"]) {
+    const tool = tools.find(tool => tool.descriptor.id === id)!;
+    assert.equal(tool.descriptor.metadata?.approval?.confirmation, "plan");
+  }
 });

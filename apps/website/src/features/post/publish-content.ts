@@ -97,6 +97,10 @@ const POST_FIELD_DISPOSITIONS: Record<keyof PostRecord, "transferred" | "provena
   templateChoice: "transferred",
   overridesThemePage: "transferred",
   memberAccessJson: "transferred",
+  // The public byline is editable content, distinct from the write-once principal provenance below.
+  // Unset bylines keep historical hashes; importing that absence clears the destination's byline.
+  author: "transferred",
+  showAuthor: "transferred",
 
   // Authorship PROVENANCE (Task 15) — packed and applied, but NOT hashed. The source is the
   // authority on who wrote a post and when, so an import copies both rather than re-stamping every
@@ -142,7 +146,7 @@ const POST_FIELD_DISPOSITIONS: Record<keyof PostRecord, "transferred" | "provena
 
 /** Transferred fields left off the wire (and out of the hash) when the row has no value for them,
  *  so adding them did not move the hash of any row that never set them. */
-const OMIT_WHEN_ABSENT: ReadonlySet<keyof PostRecord> = new Set(["publishAt", "featuredMediaId"]);
+const OMIT_WHEN_ABSENT: ReadonlySet<keyof PostRecord> = new Set(["publishAt", "featuredMediaId", "author", "showAuthor"]);
 
 /** The keys {@link toPublishableState} puts on the wire: `"transferred"` plus `"provenance"`.
  *  Derived from {@link POST_FIELD_DISPOSITIONS} rather than re-listed, so the two cannot drift. */
@@ -178,6 +182,7 @@ export function toPublishableState(post: PostRecord): Record<string, unknown> {
   const state: Record<string, unknown> = {};
   for (const field of PACKED_POST_FIELDS) {
     if (OMIT_WHEN_ABSENT.has(field) && post[field] === undefined) continue;
+    if ((field === "author" && post.author === null) || (field === "showAuthor" && post.showAuthor === false)) continue;
     state[field] = post[field] ?? null;
   }
   return state;
@@ -208,6 +213,8 @@ function toImportableRecord(
     // Absent on the wire means "none": the destination's own schedule/featured image is CLEARED, not
     // kept, so a source that went live makes the destination live too.
     ...presentScheduleFields({ publishAt: packed.publishAt ?? null, featuredMediaId: packed.featuredMediaId ?? null }),
+    author: packed.author ?? null,
+    showAuthor: packed.showAuthor ?? false,
     id,
     workspaceId,
     // Recomputed by `importPostEntity` itself; present only because `PostRecord` requires them, and
@@ -238,10 +245,16 @@ type PostRow = PostRecord & { readonly termIds?: readonly string[] };
 /** The post port plus the taxonomy ports `termIds` needs. */
 type PostPorts = PublishContentPorts["post"] & { readonly term?: TaxonomyPublishPorts };
 
-/** Attaches the row's sorted `termIds`, non-enumerable (this file's header), to a copy of `row`. */
+/** Attaches sorted `termIds`, non-enumerable (this file's header), without changing stored fields.
+ * @returns A copy suitable for the gateway's compensation row as well as the transport.
+ * @throws Taxonomy repository failures propagate before a publish write.
+ * @complexity One indexed term read plus O(t log t) time/O(t) space for t assigned terms.
+ */
 async function withTerms(termPorts: TaxonomyPublishPorts | undefined, row: PostRecord): Promise<PostRow> {
   const termIds = await readTermIds(termPorts, row.kind, row.id);
-  return termIds ? Object.defineProperty({ ...row }, "termIds", { value: termIds, enumerable: false }) : row;
+  // The gateway captures this row as its inverse: preserve the stored byline defaults too.
+  const publishRow = { ...row };
+  return termIds ? Object.defineProperty(publishRow, "termIds", { value: termIds, enumerable: false }) : publishRow;
 }
 
 /** The packed state of `row` (what `pack` ships and hashes), for `planRetire`/`retire`'s hashes. */
@@ -283,7 +296,9 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     portsKey: "post",
     list: async (p, workspaceId) => {
       const rows = (await p.repo.list({ workspaceId })).filter((row) => row.kind === kind && !isTrashed(row));
-      return Promise.all(rows.map((row) => withTerms(p.term, row)));
+      // SQL supplies null/false defaults for older rows. Omit those defaults from the wire/hash;
+      // import still clears a destination's old byline when the source leaves these fields absent.
+      return Promise.all(rows.map((row) => withTerms(p.term, { ...row, author: row.author ?? undefined, showAuthor: row.showAuthor || undefined })));
     },
     find: async (p, workspaceId, id) => {
       const row = await p.repo.findById({ workspaceId, id });
@@ -292,6 +307,8 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     isTrashed,
     fields: { ...POST_FIELD_DISPOSITIONS, termIds: "transferred" },
     omitWhenAbsent: ["termIds", ...OMIT_WHEN_ABSENT],
+    // Hash the established transport projection while find() retains the full compensation row.
+    legacyHashState: (row) => withTermIds(toPublishableState(row), row.termIds),
     references: (entity) => postReferences(entity.state),
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.

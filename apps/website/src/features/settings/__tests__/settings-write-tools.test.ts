@@ -1,3 +1,4 @@
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../../contracts/headless/assistant-permanent-deletes-policy.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express, Request, Response } from "express";
@@ -13,6 +14,7 @@ import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "#src/assist
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { createSystemClock } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../../contracts/headless/assistant-subagents-policy.js";
 
 
 function fixture(namespace: string, key: string, schema: SettingDefinitionRecord["schema"] = { type: "string" }) {
@@ -39,6 +41,18 @@ function fixture(namespace: string, key: string, schema: SettingDefinitionRecord
     return registration.handler({ executionId: "exec-1", principal: { id: "caller" }, run: { id: "run-1" }, signal: new AbortController().signal, input, ...contextExtras }, { emitSurface });
   };
   return { settingsRepo, registrations, surfaceExchanges, call, deps, deny: () => { allowed = false; } };
+}
+
+for (const toolId of ["settings_set_value", "settings_clear_value"]) {
+  test(`${toolId} cannot change the assistant's subagent grant, even with full settings permissions`, async () => {
+    const f = fixture(ASSISTANT_SUBAGENTS_NAMESPACE, "enabled", { type: "boolean" });
+    await assert.rejects(f.call(toolId, { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: "enabled", ...(toolId === "settings_set_value" ? { value: true } : {}) }),
+      (error: Error) => error.message.includes(ASSISTANT_SUBAGENTS_WRITE_REASON));
+    assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+    assert.equal(f.surfaceExchanges.size(), 0);
+    const listed = await f.call("settings_list_definitions", {}) as { data: { agentWritable: boolean }[] };
+    assert.equal(listed.data[0]!.agentWritable, false);
+  });
 }
 
 test("normal setting runs directly and both writes are durable, not readOnly", async () => {
@@ -231,3 +245,12 @@ test("the invoking plugin's saved enable grant also covers execution settings wi
   assert.equal(f.surfaceExchanges.size(), 0);
   assert.equal((await f.settingsRepo.getWorkspaceValue({ workspaceId: "ws-1", settingId: "setting-1" }))?.valueJson, "new");
 });
+
+for (const toolId of ["settings_set_value", "settings_clear_value"]) {
+  for (const key of ["policy", "riskAcknowledgment"]) test(`${toolId} cannot widen permanent-delete access or forge its acknowledgment`, async () => {
+    const f = fixture(ASSISTANT_PERMANENT_DELETES_NAMESPACE, key, { type: "json" });
+    await assert.rejects(f.call(toolId, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, key, ...(toolId === "settings_set_value" ? { value: { enabled: true, allowedToolIds: ["trash_empty"] } } : {}) }), (error: Error) => error.message.includes(ASSISTANT_PERMANENT_DELETES_WRITE_REASON));
+    assert.equal((await f.settingsRepo.listRevisions({ settingId: "setting-1" })).length, 0);
+    assert.equal(f.surfaceExchanges.size(), 0);
+  });
+}

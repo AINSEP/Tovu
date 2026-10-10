@@ -140,8 +140,8 @@ test("preview refuses oversized or unverified bytes before opening the archive",
   let opened = 0;
   const archiveReader = { async *entries() { opened++; } };
   const base = { workspaceId: WORKSPACE, actor: "owner", expectedSha256: "f".repeat(64) };
-  await assert.rejects(() => previewUploadedAgentPlugin({ ...base, archive: Buffer.from("bad digest") }, { archiveReader }), (e: unknown) => e instanceof AgentPluginInstallError && e.code === "DIGEST_MISMATCH");
-  await assert.rejects(() => previewUploadedAgentPlugin({ ...base, archive: new Uint8Array(32 * 1024 * 1024 + 1) }, { archiveReader }), (e: unknown) => e instanceof AgentPluginInstallError && e.code === "ARCHIVE_TOO_LARGE");
+  await assert.rejects(() => previewUploadedAgentPlugin({ ...base, archive: Buffer.from("bad digest") }, { archiveReader, layout: resolveAgentPluginLayout() }), (e: unknown) => e instanceof AgentPluginInstallError && e.code === "DIGEST_MISMATCH");
+  await assert.rejects(() => previewUploadedAgentPlugin({ ...base, archive: new Uint8Array(32 * 1024 * 1024 + 1) }, { archiveReader, layout: resolveAgentPluginLayout() }), (e: unknown) => e instanceof AgentPluginInstallError && e.code === "ARCHIVE_TOO_LARGE");
   assert.equal(opened, 0);
 });
 

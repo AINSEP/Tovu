@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { before, after } from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
@@ -28,6 +28,14 @@ import type { RouteDeps } from "#src/server/routes/types";
  * these three tiers can ever satisfy `isEligibleForTemplateBranch`'s `tier === "static"` gate).
  */
 
+// This suite verifies template semantics, while worker-sandbox tests pin termination budgets.
+// Loaded CI can spend more than 5s starting a TS worker; keep the production default bounded.
+const priorRenderTimeout = process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
+before(() => { process.env.TOVU_THEME_RENDER_TIMEOUT_MS = "60000"; });
+after(() => {
+  if (priorRenderTimeout === undefined) delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
+  else process.env.TOVU_THEME_RENDER_TIMEOUT_MS = priorRenderTimeout;
+});
 const WORKSPACE_ID = "workspace-local";
 
 function testDeps(overrides: Partial<RouteDeps> = {}): ReturnType<typeof createRouteDeps> {
@@ -120,7 +128,7 @@ test("integration: GET /:slug renders a Page's assigned category/tag terms as pl
   assert.ok(html.includes(">QA<"), "expected the assigned Category term 'QA' to render in the page HTML");
   assert.ok(html.includes(">e2e<"), "expected the assigned Tag term 'e2e' to render in the page HTML");
   // Plain labels only — never a link, since no term-archive route exists anywhere in this codebase
-  // (`platform/routing/types.ts`'s `TermRefTarget` doc: `urlFor` resolves every `termRef` to `null`).
+  // (`@jini-ai/cms/routing`'s `TermRefTarget` doc: `urlFor` resolves every `termRef` to `null`).
   assert.ok(!/<a[^>]*>QA<\/a>/.test(html), "a term must render as a plain label, not a link, until an archive route exists");
 });
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { act, render, within } from "@testing-library/react";
+import { act, render, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
@@ -69,6 +69,10 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
     editor: null,
     title: "Hello world",
     setTitle: vi.fn(),
+    author: "",
+    setAuthor: vi.fn(),
+    showAuthor: true,
+    setShowAuthor: vi.fn(),
     slug: "hello-world",
     setSlug: vi.fn(),
     status: "draft",

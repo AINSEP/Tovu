@@ -1,3 +1,4 @@
+import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "./src/shared-sites.ts";
 /**
  * @file `apps/desktop` — an Electron shell around the SAME Tovu that `npm run dev` boots, now
  * multi-site: several sites can be open, each in its own window, each spawning its own `tovu serve`.
@@ -129,6 +130,7 @@ import { createSelftestTracker } from "./src/selftest-tracker.ts";
 import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
+import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
 import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
 import { writeSiteName } from "./src/site-config.ts";
@@ -137,6 +139,8 @@ import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from 
 import { registerSiteThemePreviewIpc } from "./src/site-theme-preview-ipc.ts";
 import { createSitePreviewScheduler } from "./src/site-preview-scheduler.ts";
 import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.ts";
+import { createSiteFolders } from "./src/site-folders.ts";
+import { discoverDesktopSites, startDesktopSiteDiscovery } from "./src/site-discovery.ts";
 import { addSitePointer } from "./src/add-site-pointer.ts";
 import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -330,9 +334,13 @@ const DEV_FALLBACK_SITE_DIR = DESKTOP_ROOTS.devFallbackSiteDir;
  * A list because the shell has no single instances root to scan — unlike Tovu-Runner, whose
  * provisioner owns `<userData>/instances` and names every folder in it, this shell's
  * "+ Create website" asks the operator WHERE the site should live, so its projects are scattered
- * wherever they said. `rescanSites` covers the rest through the recently-opened list.
+ * wherever they said. The profile's sites-folders settings also retain creation parents and
+ * user-added roots; `rescanSites` reads them fresh alongside the recently-opened list.
  */
 const SITE_SCAN_ROOTS = DESKTOP_ROOTS.siteScanRoots;
+// Resolve from the payload, not the launcher's cwd; only source checkouts scan repo sites by default.
+const sharedSites = createSitesWorkspace({}, { cwd: PAYLOAD_ROOT, sourceRoots: app.isPackaged ? [] : [path.join(REPO_ROOT, "sites")] });
+let siteDiscoveryAbort: AbortController | undefined;
 
 /**
  * `true` when this launch should open the sites home Projects screen (boot mode 0) rather than a site
@@ -739,6 +747,11 @@ async function authenticateSiteSession(siteDir: string, server: TovuServerHandle
  */
 async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: SiteOpenOptions = {}): Promise<{ server: TovuServerHandle; partition: string }> {
   const partition = sitePartition(siteDir);
+  const attached = attachRunningSite({ workspace: sharedSites, dir: siteDir });
+  if (attached) {
+    rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir });
+    return { server: attached, partition };
+  }
 
   // ALWAYS emitted (DS-01). `emitBootToken` is what makes `server.bootToken` non-null below — see
   // `desktop-auth.ts`'s header for why this replaced a shell-minted, shell-stored password
@@ -760,15 +773,22 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   // rather than set optimistically.
   const adminDevProxyUrl = await resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env });
 
-  const server = await startTovuServer({
+  let server: TovuServerHandle;
+  try { server = await startTovuServer({
     repoRoot: PAYLOAD_ROOT,
     siteDir,
     cliMode: ctx.cliMode,
     port: options.port,
     emitBootToken: true,
     adminDevProxyUrl,
-    nodeToolchainEnv: NODE_TOOLCHAIN_ENV,
-  });
+    nodeToolchainEnv: { ...NODE_TOOLCHAIN_ENV, TOVU_RUNNING_APP: "Desktop" },
+  }); } catch (error) {
+    // A simultaneous Web start can win between our preflight and the child's database claim.
+    const attached = attachRunningSite({ workspace: sharedSites, dir: siteDir });
+    if (attached) return { server: attached, partition };
+    throw error;
+  }
+  rememberSharedSiteOpen({ workspace: sharedSites, dir: siteDir });
   recordSiteOpened(ctx.registryPath, {
     siteDir,
     port: server.port,
@@ -1105,8 +1125,7 @@ function isSupervisedGuestUrl(raw: string): boolean {
   } catch {
     return false;
   }
-  if (url.protocol !== "http:" || url.hostname !== "127.0.0.1") return false;
-  return [...openSites.values()].some((entry) => entry.server && String(entry.server.port) === url.port);
+  return [...openSites.values()].some((entry) => entry.server && new URL(entry.server.origin).origin === url.origin);
 }
 
 /**
@@ -1181,7 +1200,7 @@ function registerGuestNavigationPolicy(): void {
  */
 async function adoptAndOpenSite(dir: string, ctx: SiteOpenCtx): Promise<void> {
   try {
-    const adopted = await adoptSiteDir({ dir, repoRoot: PAYLOAD_ROOT, statePath: ctx.statePath, cliMode: ctx.cliMode });
+    const adopted = await adoptSiteDir({ dir, sharedSites, repoRoot: PAYLOAD_ROOT, statePath: ctx.statePath, cliMode: ctx.cliMode });
     await openSiteWindow(adopted, ctx);
   } catch (error) {
     dialog.showErrorBox("Tovu could not open that site", (error as Error).message);
@@ -1212,7 +1231,7 @@ async function promptAndOpenNewSite(ctx: SiteOpenCtx): Promise<void> {
  * @complexity O(n) in the MRU length (bounded, see `site-dir-store.ts`'s `MAX_RECENT_SITE_DIRS`).
  */
 function buildAppMenu(ctx: SiteOpenCtx): Menu {
-  const recents = existingRecentSiteDirs(ctx.statePath);
+  const recents = existingRecentSiteDirs(ctx.statePath, { workspace: sharedSites });
   const template: MenuItemConstructorOptions[] = [
     // `as const`: a conditional spread otherwise widens this role, and every entry after it, to `string`.
     ...(process.platform === "darwin" ? [{ role: "appMenu" } as const] : []),
@@ -1352,6 +1371,7 @@ async function resolveStartupSiteDirs(ctx: SiteOpenCtx): Promise<string[]> {
     envDir: process.env.TOVU_DESKTOP_SITE_DIR,
     onMissingSite: ENV_SITE_DIR_ON_MISSING,
     statePath: ctx.statePath,
+    sharedSites,
     // Correct for a developer, absent in a packaged app — one tier of a precedence chain rather
     // than a hardcoded default.
     devFallbackDir: DEV_FALLBACK_SITE_DIR,
@@ -1429,6 +1449,8 @@ async function reconcileOrphansOnBoot(registryPath: string): Promise<void> {
  * @complexity O(n) in the number of startup site dirs, beyond each site's own boot cost.
  */
 async function bootOwnServerMode(): Promise<void> {
+  const warning = sharedSites.config({}).warning;
+  if (warning) console.warn(`[tovu-desktop] ${warning.message} Choose appData in Sites settings or use ${warning.localHome}.`);
   const ctx: SiteOpenCtx = {
     cliMode: resolveCliMode(),
     statePath: stateFilePath(app.getPath("userData")),
@@ -1733,7 +1755,8 @@ app
           sitePreviewScheduler.cancel({ siteDir }, {});
           siteThemePreviews.stop({ siteDir }, {});
         },
-        adoptSiteDir,
+        sharedSites,
+        adoptSiteDir: (input: Parameters<typeof adoptSiteDir>[0]) => adoptSiteDir({ ...input, sharedSites }),
         // `handleCreate` classifies the picked folder BEFORE adopting it, so a project's row records
         // whether this app CREATED the directory or merely adopted one that already existed — the
         // fact `project-delete-guard.ts` needs before any delete may erase anything.
@@ -1754,9 +1777,25 @@ app
         readRegistry,
         isLiveServeRow,
         siteScanRoots: SITE_SCAN_ROOTS,
+        discoverSites: async (_required: {}, _options = {}) => {
+          siteDiscoveryAbort?.abort();
+          const current = new AbortController();
+          siteDiscoveryAbort = current;
+          return discoverDesktopSites({ statePath: sitesCtx.statePath,
+            workspaceOptions: { cwd: PAYLOAD_ROOT, sourceRoots: app.isPackaged ? [] : [path.join(REPO_ROOT, "sites")] },
+          }, { signal: current.signal });
+        },
+        siteFolders: createSiteFolders({
+          statePath: sitesCtx.statePath,
+          defaultRoots: SITE_SCAN_ROOTS,
+          home: () => sharedSites.home({}),
+          workspace: sharedSites,
+          createdSiteDirs: () => readTrackedSites(sitesCtx.projectsPath)
+            .filter((row) => row.origin === "created").map((row) => row.siteDir),
+        }),
         // A thunk, not the list: read fresh on every scan, so a site opened during this session is
         // found by a later rescan instead of being frozen out by a snapshot taken at boot.
-        recentSiteDirs: () => existingRecentSiteDirs(sitesCtx.statePath),
+        recentSiteDirs: () => existingRecentSiteDirs(sitesCtx.statePath, { workspace: sharedSites }),
         ctx: sitesCtx,
       };
       // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
@@ -1764,12 +1803,16 @@ app
       registerSiteIpcHandlers(projectDeps);
       // The boot discovery pass, and the answer to "a site created by `tovu init` outside the shell
       // never appears": until this existed the Projects screen rendered `desktop-projects.json` and
-      // nothing else. Runs before `openSitesHomeWindow` so the first render already shows what is
-      // really on disk rather than a list that fills in on the next 4s poll.
-      rescanSites(projectDeps);
-      // Hygiene, run once past the boot scan so it sees the fullest tracked list — see
-      // `sweepSitePreviewsOnBoot`'s own doc for why this is cleanup, not correctness.
-      sweepSitePreviewsOnBoot(sitesCtx.projectsPath);
+      // nothing else. The read-only worker starts here without delaying the window; the normal
+      // list poll picks up its discoveries. A stalled/removable volume cannot hold boot hostage.
+      void startDesktopSiteDiscovery({
+        scan: () => rescanSites(projectDeps),
+        report: (failure) => console.warn(`tovu desktop: ${failure instanceof Error ? failure.message : String(failure)}`),
+        // Hygiene runs after discovery settles, so it sees the fullest tracked list; cleanup,
+        // never correctness. See sweepSitePreviewsOnBoot's own doc.
+        sweep: () => sweepSitePreviewsOnBoot(sitesCtx.projectsPath),
+      });
+      registerAppVersionIpc({ ipcMain, app });
       registerRunnerIpcStubs({ ipcMain });
       // Global, not per-window: see `registerGuestNavigationPolicy`'s own doc for why one
       // registration covers every project tab's `<webview>` guest.
@@ -1818,6 +1861,7 @@ app
  * window opens on the NEXT launch — is what answers that now (see this file's own header).
  */
 app.on("before-quit", (event) => {
+  siteDiscoveryAbort?.abort();
   // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry
   // from `openSites` synchronously and only THEN starts stopping the child, so closing the last
   // window left this reading "nothing open" while a `tovu serve` was still alive — and it is spawned

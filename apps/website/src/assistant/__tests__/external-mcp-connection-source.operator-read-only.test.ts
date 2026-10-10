@@ -1,18 +1,20 @@
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
-import test from "node:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import test, { after } from "node:test";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { recordBundledAgentPluginDigests } from "../../features/agent-plugins/lifecycle.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createApplyConnectDefaults } from "../../features/agent-plugins/apply-connect-defaults.js";
 import * as federation from "../../features/agent-plugins/federate-mcp.js";
-import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../features/agent-plugins/mcp-metadata.js";
 import { createStoredExternalMcpConnectionSource } from "../external-mcp-connection-source.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+
+const siteLayouts = createTempSiteLayoutFixture({});
+after(siteLayouts.cleanup);
 
 const url = "https://mcp.example.com/mcp";
 const workspaceId = "workspace";
@@ -60,12 +62,14 @@ test("each roster read loads the current manifest; URL-only servers never receiv
   const deps = await harness();
   let read = ["inspect"];
   const calls: unknown[] = [];
-  const source = createStoredExternalMcpConnectionSource({ ...deps, workspaceId, log: "[t05]",
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, workspaceId, log: "[t05]",
     resolvePluginReadOnlyRemoteNames: async (input) => {
-      calls.push(input);
+      const { agentPluginLayout, ...identity } = input;
+      assert.equal(agentPluginLayout, siteLayouts.deps.agentPluginLayout, "the fixed fixture layout reaches manifest resolution");
+      calls.push(identity);
       return new Set(federation.findAgentPluginMcpServerDefaults(servers(read), input)?.read ?? []);
     },
-  });
+  }));
   const first = await source.resolve();
   assert.deepEqual([...first.find((c) => c.config.connectionId === "remote")!.config.readOnlyRemoteNames!], ["inspect"]);
   assert.equal(first.find((c) => c.config.connectionId === "url-only")!.config.readOnlyRemoteNames, undefined);
@@ -78,9 +82,9 @@ test("each roster read loads the current manifest; URL-only servers never receiv
 test("plugin resolution failure grants no read metadata and preserves the unrelated roster", async (t) => {
   t.mock.method(console, "warn", () => {});
   const deps = await harness();
-  const source = createStoredExternalMcpConnectionSource({ ...deps, workspaceId, log: "[t05]",
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, workspaceId, log: "[t05]",
     resolvePluginReadOnlyRemoteNames: async () => { throw new Error("manifest unavailable"); },
-  });
+  }));
   const result = await source.resolve();
   assert.deepEqual(result.map((c) => c.config.connectionId).sort(), ["remote", "url-only"]);
   assert.deepEqual(result.map((c) => c.config.readOnlyRemoteNames), [undefined, undefined]);
@@ -93,8 +97,8 @@ test("a read-only manifest does not enable the plugin or change grants on first 
   await deps.repo.upsert({ ...existing, enabled: false, allowedToolNames: "[]", writeAllowedToolNames: "[]" });
   const before = await deps.repo.findByServerId({ workspaceId, serverId: "remote" });
   const effects: string[] = [];
-  const apply = createApplyConnectDefaults({ ...deps, workspaceId, resolveServers: async () => servers(["inspect"]),
-    enablePlugin: async () => { effects.push("enable"); }, notifyRosterChanged: async () => { effects.push("notify"); } });
+  const apply = createApplyConnectDefaults(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, workspaceId, resolveServers: async () => servers(["inspect"]),
+    enablePlugin: async () => { effects.push("enable"); }, notifyRosterChanged: async () => { effects.push("notify"); } }));
   await apply("remote");
   assert.deepEqual(await deps.repo.findByServerId({ workspaceId, serverId: "remote" }), before);
   assert.deepEqual(effects, []);
@@ -102,13 +106,11 @@ test("a read-only manifest does not enable the plugin or change grants on first 
 
 
 test("real manifest resolver grants only a build-seeded plugin at the exact endpoint", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "tovu-t05-read-list-"));
-  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
-  process.env.TOVU_AGENT_PLUGINS_DIR = root;
+  const root = siteLayouts.deps.agentPluginLayout.root;
   try {
     // Paths come from the product layout so the fixture installs where the resolver reads
     // (Layout B moved packages to <workspace>/<pluginId>/package/sha256 in 852d711e6).
-    const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
+    const workspaceLayout = siteLayouts.deps.agentPluginLayout.forWorkspace(workspaceId);
     const workspaceRoot = workspaceLayout.root;
     const digest = "a".repeat(64);
     const packageRoot = path.join(workspaceLayout.pluginPackagesDir({ pluginId }), digest);
@@ -116,17 +118,15 @@ test("real manifest resolver grants only a build-seeded plugin at the exact endp
     await writeFile(path.join(packageRoot, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, extensions: { tovu: { mcpServers: { remote: { tovuDefaultTools: { read: ["inspect"] } } } } } }));
     await writeFile(path.join(packageRoot, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
       mcpServers: { remote: { type: "streamable-http", url } } }));
-    const input = { workspaceId, pluginId, serverId: "remote", url };
+    const input = testSiteLayoutContext({ ...siteLayouts.deps, workspaceId, pluginId, serverId: "remote", url });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], [], "an arbitrary installed plugin is not an operator-reviewed bundled declaration");
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }], now: () => new Date("2026-10-01T12:00:00.000Z") });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], ["inspect"]);
-    assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames({ ...input, url: "https://changed.example/mcp" })], []);
-    assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames({ ...input, serverId: "other" })], []);
+    assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(testSiteLayoutContext({ ...siteLayouts.deps, ...input, url: "https://changed.example/mcp" }))], []);
+    assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(testSiteLayoutContext({ ...siteLayouts.deps, ...input, serverId: "other" }))], []);
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: "b".repeat(64) }], now: () => new Date("2026-10-01T12:00:00.000Z") });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], [], "a stale or missing bundled digest must not trust a different installed package");
   } finally {
-    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
-    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await rm(root, { recursive: true, force: true });
   }
 });

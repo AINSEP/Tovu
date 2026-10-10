@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
@@ -448,10 +448,10 @@ describe("useRecovery — content refresh bus", () => {
       .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
       .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
 
-    act(() => {
-      publishContentRefresh();
-      publishContentRefresh();
-    });
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(resolveFirst).toBeTypeOf("function"));
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(resolveSecond).toBeTypeOf("function"));
 
     // The SECOND (more recent) request settles first, with the newer list.
     const secondPoint: AdminRestorePoint = { ...POINT, id: "rp2" };
@@ -478,14 +478,16 @@ describe("useRecovery — content refresh bus", () => {
     vi.spyOn(port, "listRecoveryRestorePoints")
       .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectEarlier = reject; }))
       .mockResolvedValueOnce({ items: [newer] });
-    act(() => { publishContentRefresh(); publishContentRefresh(); });
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(rejectEarlier).toBeTypeOf("function"));
+    act(() => publishContentRefresh());
     await waitFor(() => expect(result.current.points).toEqual([newer]));
     await act(async () => { rejectEarlier(new Error("stale failure")); });
     expect(result.current.error).toBeNull();
     expect(result.current.points).toEqual([newer]);
   });
 
-  it("clears a previous load error as soon as a retry starts", async () => {
+  it("retains a previous load error during retry and clears it after a successful read", async () => {
     const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
     const list = vi.spyOn(port, "listRecoveryRestorePoints").mockRejectedValueOnce(new Error("offline"));
     const { result } = renderHook(() => useRecovery({ port }));
@@ -493,7 +495,9 @@ describe("useRecovery — content refresh bus", () => {
     let release!: (value: { items: AdminRestorePoint[] }) => void;
     list.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
     act(() => publishContentRefresh());
-    expect(result.current.error).toBeNull();
+    await waitFor(() => expect(release).toBeTypeOf("function"));
+    // Shared query errors remain visible until recovery is confirmed by a successful read.
+    expect(result.current.error).toBe("offline");
     await act(async () => { release({ items: [POINT] }); });
     await waitFor(() => expect(result.current.points).toEqual([POINT]));
     expect(result.current.error).toBeNull();

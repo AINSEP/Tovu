@@ -1,12 +1,16 @@
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { afterEach } from "node:test";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { DuplicateSiteResult, SiteListEntry } from "#src/platform/site-dir/index";
+import type { SiteListEntry } from "#src/platform/site-dir/index";
 
 
 import { sitesAgentToolCatalog } from "../agent-tools.js";
@@ -58,7 +62,7 @@ interface FakeDepsOptions {
   switcherEnabled?: boolean;
   switcherCompatible?: boolean;
   sites?: readonly SiteListEntry[];
-  duplicateSiteResult?: DuplicateSiteResult;
+  duplicateSiteId?: string;
 }
 
 interface FakeDeps {
@@ -66,7 +70,16 @@ interface FakeDeps {
   duplicateSiteCalls: Array<{ sourceDir: string; targetDir: string; name?: string }>;
 }
 
+const fixtureRoots: string[] = [];
+afterEach(() => { for (const root of fixtureRoots.splice(0)) rmSync(root, { recursive: true, force: true }); });
+
 function fakeDeps(options: FakeDepsOptions = {}): FakeDeps {
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "tovu-duplicate-tools-")));
+  fixtureRoots.push(root);
+  // The source may be a legacy checkout site; new copies use an isolated shared home/catalog.
+  const sitesWorkspace = createSitesWorkspace({}, { homeDir: root, cwd: "/tmp/fake-cwd",
+    env: { TOVU_SITES_HOME: path.join(root, "shared-home") },
+  });
   const duplicateSiteCalls: Array<{ sourceDir: string; targetDir: string; name?: string }> = [];
   const sites = options.sites ?? [
     { name: "source-site", dir: "/tmp/fake-cwd/sites/source-site", displayName: "Source Site", createdAt: "2026-09-05T00:00:00.000Z", active: false },
@@ -74,15 +87,16 @@ function fakeDeps(options: FakeDepsOptions = {}): FakeDeps {
 
   const routeDeps: SitesToolDeps = {
     workspaceId: WORKSPACE_ID,
+    sitesWorkspace,
     authorize: async () => ({ allowed: options.allow ?? true, reason: options.allow === false ? "denied" : "matched" }),
     isSiteSwitcherEnabled: () => options.switcherEnabled ?? true,
     listSites: () => sites,
     duplicateSite: async (required) => {
       duplicateSiteCalls.push(required);
-      return options.duplicateSiteResult ?? { siteId: "new-site-id-1234", dir: required.targetDir };
+      return { siteId: options.duplicateSiteId ?? "new-site-id-1234", dir: required.targetDir };
     },
-    // The served binding is the ONLY source of the `sites/` root (`/tmp/fake-cwd/sites`) — there is
-    // no `cwd` dep. A test opts into the install-dir (not-switcher-compatible) case explicitly.
+    // The served binding is the ONLY source of the legacy discovery root (`/tmp/fake-cwd/sites`) —
+    // there is no `cwd` dep. A test opts into the install-dir (not-switcher-compatible) case explicitly.
     siteBinding: options.switcherCompatible === false
       ? { dir: "/some/site", name: "some-site", dirOverridden: true, switcherCompatible: false }
       : { dir: "/tmp/fake-cwd/sites/served", name: "served", dirOverridden: false, switcherCompatible: true },
@@ -123,32 +137,37 @@ test("sites: the contributor registers under its own domain key, idempotently", 
 
 test("sites_duplicate_site: happy path resolves sourceName/targetName to real dirs and calls duplicateSite", async () => {
   const { routeDeps, duplicateSiteCalls } = fakeDeps({
-    duplicateSiteResult: { siteId: "minted-id-9999", dir: "/tmp/fake-cwd/sites/new-client" },
+    duplicateSiteId: "minted-id-9999",
   });
+  const targetDir = path.join(routeDeps.sitesWorkspace!.home({}), "new-client");
   const handler = registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler;
 
   const result = await handler(ctxFor({ sourceName: "source-site", targetName: "new-client", displayName: "New Client" }));
 
   assert.deepEqual(duplicateSiteCalls, [
-    { sourceDir: "/tmp/fake-cwd/sites/source-site", targetDir: "/tmp/fake-cwd/sites/new-client", name: "New Client" },
+    { sourceDir: "/tmp/fake-cwd/sites/source-site", targetDir, name: "New Client" },
   ]);
   assert.deepEqual(result, {
     name: "new-client",
-    dir: "/tmp/fake-cwd/sites/new-client",
+    dir: targetDir,
     siteId: "minted-id-9999",
     sourceName: "source-site",
   });
+  assert.deepEqual(routeDeps.sitesWorkspace!.registry({}).list({}).map(({ id, name, path, createdBy }) => ({ id, name, path, createdBy })),
+    [{ id: "minted-id-9999", name: "New Client", path: targetDir, createdBy: "Web" }]);
 });
 
 test("sites_duplicate_site: displayName is optional — omitting it passes undefined through, not a default string", async () => {
   const { routeDeps, duplicateSiteCalls } = fakeDeps();
+  const targetDir = path.join(routeDeps.sitesWorkspace!.home({}), "new-client");
   const handler = registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler;
 
   const result = await handler(ctxFor({ sourceName: "source-site", targetName: "new-client" }));
 
   assert.equal(duplicateSiteCalls[0]?.name, undefined);
-  assert.deepEqual(duplicateSiteCalls, [{ sourceDir: "/tmp/fake-cwd/sites/source-site", targetDir: "/tmp/fake-cwd/sites/new-client", name: undefined }]);
-  assert.deepEqual(result, { name: "new-client", dir: "/tmp/fake-cwd/sites/new-client", siteId: "new-site-id-1234", sourceName: "source-site" });
+  assert.deepEqual(duplicateSiteCalls, [{ sourceDir: "/tmp/fake-cwd/sites/source-site", targetDir, name: undefined }]);
+  assert.deepEqual(result, { name: "new-client", dir: targetDir, siteId: "new-site-id-1234", sourceName: "source-site" });
+  assert.equal(routeDeps.sitesWorkspace!.registry({}).list({})[0]?.name, "new-client");
 });
 
 test("sites_duplicate_site: refuses when site switching is disabled, without ever calling duplicateSite or authorize", async () => {

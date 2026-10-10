@@ -10,6 +10,7 @@ import {
 } from "#src/platform/site-dir/index";
 
 import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
+import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
 
 import type { ActivateSitePorts, CreateSiteForOwnerPorts } from "./site-admin.js";
 
@@ -53,6 +54,8 @@ import type { ActivateSitePorts, CreateSiteForOwnerPorts } from "./site-admin.js
 export interface SitesToolDeps {
   workspaceId: string;
   authorize: AuthorizeFn;
+  /** Shared home/catalog owner, the same port the Sites HTTP routes accept. Defaults to Node. */
+  sitesWorkspace?: SitesWorkspace;
   /** Defaults to the real `site-dir` implementation. Injectable so a test never touches a real
    *  `sites/` directory. */
   listSites?: (optional?: { cwd?: string }) => readonly SiteListEntry[];

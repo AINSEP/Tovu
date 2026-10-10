@@ -32,7 +32,7 @@ const WORKSPACE_ID = "ws-members-errors";
 const PRINCIPAL_ID = "principal-1";
 const NOW = "2026-09-16T00:00:00.000Z";
 
-function makeRouteDeps(options: { allow?: boolean; allowEveryRequest?: boolean } = {}): MembersToolDeps {
+function makeRouteDeps(options: { allow?: boolean; allowEveryRequest?: boolean } = {}): MembersToolDeps & { principalRepo: InMemoryPrincipalRepo } {
   const allow = options.allow ?? true;
   let counter = 0;
   return {
@@ -264,4 +264,77 @@ test("members_list refuses a bad limit and an unknown afterId with the real reas
 
   assert.deepEqual(output(await call(harness, "members_list", { afterId: "m-1" })), { members: [] });
   assert.deepEqual(output(await call(harness, "members_list", { limit: 500 })), { members: [MEMBER_VIEW] });
+});
+
+
+test("members_create creates only a pending member and member principal, with no authentication or mail", async () => {
+  const deps = makeRouteDeps();
+  let mailCalls = 0;
+  let tokenCalls = 0;
+  deps.mailer.send = async () => { mailCalls++; throw new Error("creation must not send mail"); };
+  deps.magicLinkRepo.save = async () => { tokenCalls++; throw new Error("creation must not mint a token"); };
+  const harness = await buildHarness(deps);
+  assert.deepEqual(output(await call(harness, "members_create", { email: " NEW@Example.com ", name: " New " })), {
+    member: { id: "id-1", email: "new@example.com", name: "New", status: "pending", version: 1, createdAt: NOW, updatedAt: NOW },
+  });
+  const principal = await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: "id-1" });
+  assert.equal(principal?.kind, "member");
+  assert.equal(mailCalls, 0);
+  assert.equal(tokenCalls, 0);
+  assert.deepEqual((await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "id-1" }))?.emailVerifiedAt, undefined);
+  const duplicate = await call(harness, "members_create", { email: "new@example.com" });
+  assert.equal(duplicate.ok, false);
+  if (!duplicate.ok) assert.deepEqual(duplicate.error, { code: "BAD_REQUEST", message: "MEMBERS_CONFLICT: member with email 'new@example.com' already exists" });
+});
+
+test("members_create explains when the reserved email belongs to a member in Trash", async () => {
+  const deps = makeRouteDeps();
+  await seedMember(deps);
+  const existing = await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" });
+  assert.ok(existing);
+  await deps.memberRepo.save({ ...existing, status: "trash", version: existing.version + 1 });
+  const result = await call(await buildHarness(deps), "members_create", { email: existing.email });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.deepEqual(result.error, {
+    code: "BAD_REQUEST",
+    message: `MEMBERS_CONFLICT: member with email '${existing.email}' is in Trash; restore it from the admin Trash screen`,
+  });
+  assert.deepEqual(await deps.memberRepo.findByEmail({ workspaceId: WORKSPACE_ID, email: existing.email }), {
+    ...existing, status: "trash", version: existing.version + 1,
+  });
+});
+
+test("members_update_profile persists the public name and preserves private fields and verification", async () => {
+  const deps = makeRouteDeps();
+  await seedMember(deps);
+  const harness = await buildHarness(deps);
+  assert.deepEqual(output(await call(harness, "members_update_profile", { memberId: "m-1", name: " Renamed " })), {
+    member: { ...MEMBER_VIEW, name: "Renamed", updatedAt: NOW, version: 4 },
+  });
+  const stored = await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" });
+  assert.equal(stored?.note, "operator-only");
+  assert.deepEqual(stored?.fields, { private: "hidden" });
+  const missing = await call(harness, "members_update_profile", { memberId: "missing", name: "Ada" });
+  assert.equal(missing.ok, false);
+  if (!missing.ok) assert.deepEqual(missing.error, { code: "BAD_REQUEST", message: "MEMBERS_NOT_FOUND: member 'missing' was not found" });
+});
+
+test("member create and update reject invalid input and denied permission without writes", async () => {
+  for (const [toolId, input, message] of [
+    ["members_create", { email: "bad" }, "MEMBERS_VALIDATION_FAILED: 'bad' is not a valid email address"],
+    ["members_create", { email: "new@example.com", name: "   " }, "MEMBERS_VALIDATION_FAILED: name must not be blank when provided"],
+    ["members_update_profile", { memberId: "m-1", name: "   " }, "MEMBERS_VALIDATION_FAILED: name must not be blank when provided"],
+  ] as const) {
+    const deps = makeRouteDeps();
+    await seedMember(deps);
+    const result = await call(await buildHarness(deps), toolId, input);
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.deepEqual(result.error, { code: "BAD_REQUEST", message });
+    assert.deepEqual((await deps.memberRepo.list({ workspaceId: WORKSPACE_ID })).map(member => member.id), ["m-1"]);
+    assert.equal((await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" }))?.version, 3);
+    deps.authorize = async () => ({ allowed: false, reason: "insufficient_permission" });
+    const denied = await call(await buildHarness(deps), toolId, input);
+    assert.equal(denied.ok, false);
+    if (!denied.ok) assert.equal(denied.error.message, "MEMBERS_FORBIDDEN: principal 'principal-1' is not authorized for 'member.manage' (insufficient_permission)");
+  }
 });

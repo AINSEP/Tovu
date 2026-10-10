@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -62,7 +63,7 @@ function fakeDeps(options: { allow?: boolean; externalMcpOAuth?: ExternalMcpOAut
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
 
-  const deps: ExternalMcpToolDeps = {
+  const deps: ExternalMcpToolDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -73,7 +74,7 @@ function fakeDeps(options: { allow?: boolean; externalMcpOAuth?: ExternalMcpOAut
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
     ...(options.externalMcpOAuth ? { externalMcpOAuth: options.externalMcpOAuth } : {}),
-  };
+  });
 
   return { deps, authorizeCalls, repo, sealer };
 }

@@ -1,3 +1,5 @@
+import { createSitesWorkspace, type SitesWorkspace } from "#src/platform/site-dir/sites-home";
+import { registerSitesHomeRoutes } from "../sites/sites-home.js";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../sites/local-sites.js";
 import { localSiteSupervisorForHost } from "#src/server/runtime/lifecycle/local-site-host";
 import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets } from "../sites/site-previews.js";
@@ -29,7 +31,6 @@ import {
 } from "#src/features/sites/index";
 import type {
   checkAgentPluginAccessToken as checkAgentPluginAccessTokenReal,
-  listTokenSignInPlugins as listTokenSignInPluginsReal,
 } from "#src/features/agent-plugins/token-sign-in";
 import { sealPendingAgentPluginTokensForNewSite as sealPendingAgentPluginTokensReal } from "#src/server/runtime/composition/pending-agent-plugin-tokens";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -120,6 +121,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * (`composition/pending-agent-plugin-tokens.ts`). Leaving it out creates the site exactly as before.
  */
 export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+  sitesWorkspace?: SitesWorkspace;
   localSiteSupervisor?: LocalSitesRouteDeps["localSiteSupervisor"];
   siteTrash?: LocalSitesRouteDeps["siteTrash"];
   listSiteTrash?: typeof listSiteTrash;
@@ -130,7 +132,7 @@ export type AdminSitesDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "site
   customCredentialsHttpClient?: RouteDeps["customCredentialsHttpClient"];
   checkAgentPluginAccessToken?: typeof checkAgentPluginAccessTokenReal;
   sealPendingAgentPluginTokens?: typeof sealPendingAgentPluginTokensReal;
-  listTokenSignInPlugins?: typeof listTokenSignInPluginsReal;
+  listTokenSignInPlugins?: (workspaceId: string) => ReturnType<typeof listNewSiteAgentPluginTokenSignInPlugins>;
   /** Injectable so a route test proves both branches without touching the real filesystem or
    *  `sites/`. Each defaults to the real `site-dir`/`site-switcher-enabled` implementation. */
   listSites?: (optional?: Parameters<typeof listSitesReal>[0]) => readonly SiteListEntry[];
@@ -177,6 +179,8 @@ function parseCreateSiteName(body: unknown): { ok: true; name: string } | SiteAd
 }
 
 export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
+  const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
+  registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
   const listSites = deps.listSites ?? listSitesReal;
   const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
   const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
@@ -222,13 +226,18 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         ? sitePreviews.versions({ sites, targets: sitePreviewTargets({ servingName: binding.name, localSites }, { serving: servingAddressOf({ req }) }) })
         : {};
       res.status(200).json({
+        sitesHome: isSiteSwitcherEnabled() ? sitesWorkspace.home({}) : undefined,
         switchingEnabled: isSiteSwitcherEnabled(),
         localManagementEnabled: isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null,
         canSwitchNow: isSiteSwitcherEnabled() && devRestart !== null && devRestart.canSwitchSite !== false && !binding.dirOverridden && switcherBase !== null,
         localSites,
         trash: isSiteSwitcherEnabled() && switcherBase !== null && localSiteSupervisor
           ? (deps.listSiteTrash ?? listSiteTrash)({ base: switcherBase }) : [],
-        sites,
+        sites: sites.map((site) => {
+          if (!site.running) return site;
+          const { pid, port, app, started, scheme } = site.running;
+          return { ...site, running: { pid, port, app, started, scheme } };
+        }),
         previewVersions,
         currentSite: { ...binding, listed: serving?.registration === "registered" },
         // An install-dir boot has no switcher `.env`: whatever sits in the cwd's belongs to another tree.

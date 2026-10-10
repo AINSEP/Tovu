@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -81,7 +82,7 @@ async function withAgentPluginsDir<T>(fn: (agentPluginsDir: string) => Promise<T
 }
 
 async function installReal(workspaceId: string, pluginId: string, archiveSeed: string) {
-  const manifest = JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version: "1.0.0" });
+  const manifest = JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version: "1.0.0", extensions: { tovu: { id: `test/${pluginId}`, provides: [] } } });
   const archive = new Uint8Array(Buffer.from(archiveSeed));
   const digest = createHash("sha256").update(archive).digest("hex");
   const entries = [fileEntry("plugin.json", manifest), fileEntry(`skills/${pluginId}/SKILL.md`, `# ${pluginId}\n`)];
@@ -103,13 +104,13 @@ function fakeDeps(options: { allow?: boolean } = {}): { deps: AgentPluginUninsta
   const allow = options.allow ?? true;
   const authorizeCalls: Record<string, unknown>[] = [];
   return {
-    deps: {
+    deps: testSiteLayoutContext({
       workspaceId: WORKSPACE_A,
       authorize: async (params: Record<string, unknown>) => {
         authorizeCalls.push(params);
         return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
       },
-    },
+    }),
     authorizeCalls,
   };
 }
@@ -465,6 +466,9 @@ test("an archive installed for the same id while the dialog is open: confirm rem
     const pending = findRegistration(deps, surfaceExchanges).handler(fakeCtx({ pluginId: "operator-plugin" }, { emitSurface: recorder.emitSurface }), { emitSurface: recorder.emitSurface });
     const surface = await waitForDialog(recorder.first, pending);
     const second = await installReal(WORKSPACE_A, "operator-plugin", "archive-changed-b");
+    // Installing an accepted revision prunes its predecessor; uninstall must preserve the revision
+    // that arrived after confirmation, rather than require the installer to retain obsolete files.
+    await assert.rejects(() => stat(first.packageRoot), { code: "ENOENT" });
     const delivery = surfaceExchanges.deliver({ exchangeId: exchangeIdFromSurface(surface), params: { decision: "confirm" }, principalId: PRINCIPAL_ID }, { toolId: TOOL_ID });
     assert.equal(delivery.ok, true);
     const out = (await pending) as UninstallToolOutput;
@@ -479,7 +483,7 @@ test("an archive installed for the same id while the dialog is open: confirm rem
         "'operator-plugin' changed after the user was asked: the installed archives are no longer the ones the confirmation showed. " +
         "Nothing was removed. Call plugins_uninstall again with family 'agent-plugin' so the user can review and confirm what is installed now.",
     });
-    assert.equal((await stat(first.packageRoot)).isDirectory(), true);
+    await assert.rejects(() => stat(first.packageRoot), { code: "ENOENT" });
     assert.equal((await stat(second.packageRoot)).isDirectory(), true);
   });
 });

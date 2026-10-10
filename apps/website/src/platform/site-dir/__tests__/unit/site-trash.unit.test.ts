@@ -3,7 +3,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { assertManagedSiteDirectory, listSiteTrash, trashSite, restoreSite, permanentlyDeleteTrashedSite } from "../../site-trash.js";
+import { createSitesWorkspace } from "../../sites-home.js";
+import { assertManagedSiteDirectory as assertManagedSiteDirectoryReal, listSiteTrash as listSiteTrashReal, trashSite as trashSiteReal, restoreSite as restoreSiteReal, permanentlyDeleteTrashedSite as permanentlyDeleteTrashedSiteReal } from "../../site-trash.js";
+
+// An explicit fixture home prevents these filesystem tests from writing the owner's catalog.
+const fixtureOptions = (base: string) => ({ homeDir: base, env: { TOVU_SITES_HOME: path.join(base, "sites") } });
+const assertManagedSiteDirectory = (required: Parameters<typeof assertManagedSiteDirectoryReal>[0]) => assertManagedSiteDirectoryReal(required, fixtureOptions(required.base));
+const listSiteTrash = (required: Parameters<typeof listSiteTrashReal>[0]) => listSiteTrashReal(required, fixtureOptions(required.base));
+const trashSite = (required: Parameters<typeof trashSiteReal>[0]) => trashSiteReal(required, fixtureOptions(required.base));
+const restoreSite = (required: Parameters<typeof restoreSiteReal>[0]) => restoreSiteReal(required, fixtureOptions(required.base));
+const permanentlyDeleteTrashedSite = (required: Parameters<typeof permanentlyDeleteTrashedSiteReal>[0]) => permanentlyDeleteTrashedSiteReal(required, fixtureOptions(required.base));
 
 function fixture(t: { after: (fn: () => void) => void }) {
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "site-trash-")));
@@ -34,4 +43,22 @@ test("only confirmed checked Trash entries may be permanently removed; paths and
   assert.equal(listSiteTrash({ base }).length, 1);
   permanentlyDeleteTrashedSite({ base, id: row.id, checked: true, confirmed: true });
   assert.deepEqual(listSiteTrash({ base }), []);
+});
+
+test("home sites use existing Trash; restore registers the directory in the current home", (t) => {
+  const { base, dir } = fixture(t);
+  const options = { homeDir: base, env: { TOVU_SITES_HOME: path.join(base, "sites") } };
+  const row = trashSiteReal({ base, name: "alpha" }, options);
+  // Change the configured home after Trash; restore must use the current destination.
+  options.env.TOVU_SITES_HOME = path.join(base, "new-home");
+  restoreSiteReal({ base, id: row.id }, options);
+  const target = path.join(base, "new-home", "alpha");
+  assert.equal(fs.existsSync(dir), false);
+  assert.equal(fs.readFileSync(path.join(target, "content.db"), "utf8"), "precious content");
+  // home2 moved the shared catalog into app-data; the restored site's destination is still
+  // the current home. Read through the same registry owner both apps use.
+  const workspace = createSitesWorkspace({}, { ...options, cwd: base });
+  assert.equal(workspace.registry({}).list({}).find(entry => entry.id === "id")?.path, target);
+  const registry = JSON.parse(fs.readFileSync(path.join(workspace.config({}).appData, "sites.json"), "utf8"));
+  assert.equal(registry.entries.find((entry: { id: string }) => entry.id === "id")?.path, target);
 });

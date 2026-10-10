@@ -1,3 +1,5 @@
+import { withFileLock as withDirectoryFileLock } from "@jini-ai/platform/fs";
+import { shareSiteDirectories, type SitesWorkspace } from "./shared-sites.ts";
 /**
  * @file Real handlers for the ten `runner:sites:*` IPC verbs the Projects screen needs — see
  * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
@@ -25,6 +27,7 @@ import fsp from "node:fs/promises";
 import { removeSiteTree } from "./remove-site-tree.ts";
 import { uniqueSiteName, duplicateSiteNameError } from "./site-name-policy.ts";
 import { siteNameError } from "./contracts/site-name.ts";
+import type { SiteFoldersPort } from "./site-folders.ts";
 
 import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
@@ -40,6 +43,11 @@ const SITE_IPC_CHANNELS = Object.freeze({
   start: "runner:sites:start",
   stop: "runner:sites:stop",
   rescan: "runner:sites:rescan",
+  listFolders: "runner:sites:folders:list",
+  addFolder: "runner:sites:folders:add",
+  removeFolder: "runner:sites:folders:remove",
+  setHome: "runner:sites:home:set",
+  saveSettings: "runner:sites:settings:save",
   addSite: "runner:sites:add-site",
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
@@ -87,6 +95,7 @@ interface ServerExitLike {
 interface OpenSiteEntry {
   server: {
     port?: number;
+    external?: boolean;
     pid?: number;
     origin?: string;
     stop?: () => Promise<unknown>;
@@ -136,7 +145,7 @@ interface RegistryRow {
  *  caller here actually passes. */
 interface OpenDialogOptions {
   title: string;
-  message: string;
+  message?: string;
   buttonLabel: string;
   properties: Array<"openDirectory" | "createDirectory">;
 }
@@ -269,23 +278,26 @@ function siteLifecycle(running: boolean, transition: "starting" | "stopping" | n
  *
  * @complexity O(1).
  */
-function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
+function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
   const openEntry = deps.openSites.get(row.siteDir);
-  const running = openEntry !== undefined;
+  const sharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
+  const running = openEntry !== undefined || (sharedRunning?.port ?? 0) > 0;
   // `openSites` answers "is it alive", which is a two-valued answer to a four-valued question:
   // both transitions take real wall-clock time, and during either one the two-valued answer is
   // wrong in the direction the operator can SEE — a Start they just pressed reads `stopped` for the
   // whole boot, a Stop reads `running` until the child is gone, and both look like a dead button.
   // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
   // is not exercising them) it reads `null` and nothing here changes.
-  const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? null);
+  const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? (sharedRunning && !sharedRunning.port ? "starting" : null));
   return {
     id: row.siteDir,
     slug: path.basename(row.siteDir),
     // The config is unavailable after a Finder deletion; retain the last known display name.
     displayName: row.displayNameAlias ?? (!fs.existsSync(row.siteDir) && typeof row.displayName === "string" ? row.displayName : deps.readSiteName(row.siteDir)),
     installDir: row.siteDir,
-    port: running ? openEntry.server.port : 0,
+    port: openEntry?.server.port ?? sharedRunning?.port ?? 0,
+    runningApp: sharedRunning?.app,
+    externalUrl: openEntry?.server.external ? `${openEntry.server.origin}/admin/` : sharedRunning && !openEntry && sharedRunning.port > 0 ? `${sharedRunning.scheme}://localhost:${sharedRunning.port}/admin/` : undefined,
     // Independent of `running` — a project's partition is a pure function of its own directory
     // (`desktop-auth.ts`'s `sitePartition`), not of whether a server currently answers on it. The
     // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
@@ -303,7 +315,7 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
     // Only for a settled `stopped`. Mid-transition the prior crash is not what the operator is
     // looking at — a card that says "Starting" and "the server exited (code 1)" in the same breath
     // is reporting two different moments as one.
-    statusDetail: lifecycle.status === "stopped" ? describeLastExit(deps.openSites, row.siteDir) : null,
+    statusDetail: sharedRunning ? `Running in ${sharedRunning.app} (${sharedRunning.port > 0 ? `port ${sharedRunning.port}` : "starting"})` : lifecycle.status === "stopped" ? describeLastExit(deps.openSites, row.siteDir) : null,
     createdAt: row.createdAt,
     updatedAt: row.createdAt,
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
@@ -333,17 +345,27 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
  * @complexity O(n) in the tracked-project count, plus `relocateMovedSites`' scan for a missing row.
  */
 function handleList(
-  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions"> &
-    Partial<Pick<ProjectIpcDeps, "siteScanRoots">> & { relocationGate?: RelocationGate },
+  deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> &
+    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders">> & { relocationGate?: RelocationGate },
 ) {
+  if (deps.sharedSites) {
+    try {
+    // The shared catalog supplies discovery, never the local origin/deletion authority.
+    const rows = readTrackedSites(deps.projectsPath);
+    if (rows.length) shareSiteDirectories({ workspace: deps.sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy", migration: `projects:${deps.projectsPath}` });
+    adoptDiscoveredSites(deps.projectsPath, deps.sharedSites.registry({}).list({}).map((entry) => entry.path));
+    } catch { console.warn("tovu desktop: shared discovery is unavailable; showing local website cards."); }
+  }
   const file = readProjectsFile(deps.projectsPath);
   if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return recordsWithRememberedNames({ rows: file.rows, deps });
   try {
-    relocateMovedSites(deps.projectsPath, { searchRoots: deps.siteScanRoots ?? [] });
+    relocateMovedSites(deps.projectsPath, { searchRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots ?? [] });
   } catch (error) {
     console.warn(`tovu desktop: could not save moved site folders — ${(error as Error).message}`);
   }
-  return recordsWithRememberedNames({ rows: readTrackedSites(deps.projectsPath), deps });
+  const rows = readTrackedSites(deps.projectsPath);
+  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy" });
+  return recordsWithRememberedNames({ rows, deps });
 }
 
 /** Store only the name, never lifecycle status or deletion authority. */
@@ -361,7 +383,7 @@ function rememberSiteName(
   }
 }
 function recordsWithRememberedNames(
-  { rows, deps }: { rows: SiteRow[]; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions"> }, _optional = {},
+  { rows, deps }: { rows: SiteRow[]; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> }, _optional = {},
 ) {
   const records = rows.map((row) => buildSiteRecord(row, deps));
   const names = new Map(records.filter((record) => !record.folderMissing).map((record) => [record.id, record.displayName]));
@@ -387,7 +409,7 @@ function recordsWithRememberedNames(
  *   Tovu site, or `id` is not tracked.
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
-async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
+async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
   const picked = await deps.dialog.showOpenDialog({
     title: "Locate your Tovu website's folder",
     message: `Pick the folder that now holds the website that was at ${id}. Nothing in it will be changed.`,
@@ -403,6 +425,7 @@ async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "c
     throw new Error(`${siteDir} is not a complete Tovu site (${kind}). Pick the folder that holds this website.`);
   }
   const row = repointTrackedSite(deps.projectsPath, id, siteDir).find((entry) => entry.siteDir === siteDir)!; // repointed onto, or merged into, this exact siteDir above
+  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
   return buildSiteRecord(row, deps);
 }
 
@@ -451,27 +474,26 @@ function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
  */
 async function handleCreate(
   input: CreateSiteInput,
-  deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions">
+  deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites">
 ) {
-  const nameError = siteNameError({ name: input.displayName });
-  if (nameError) throw new Error(nameError);
-  const kind = input.database?.kind;
-  if (kind !== undefined && kind !== "sqlite") {
-    throw new Error(`This app only creates SQLite sites, which live in the folder you choose. "${kind}" needs a hosted-database provisioner this app does not have.`);
-  }
-  // Checked before the dialog for the same reason as the database choice: a malformed map is refused
-  // before anyone picks a folder.
-  const agentPluginTokens = cleanCreateTokens(input.agentPluginTokens);
-  if (input.adminPassword !== undefined && (typeof input.adminPassword !== "string" || input.adminPassword.length === 0)) {
-    throw new Error("Admin password must be a nonempty string.");
-  }
+  const agentPluginTokens = validateCreateInput({ input });
 
-  const picked = await deps.dialog.showOpenDialog({
-    title: "Choose a folder for your new site",
-    message: `Pick an empty folder for "${input.displayName}".`,
-    buttonLabel: "Create here",
-    properties: ["openDirectory", "createDirectory"],
-  });
+  const home = deps.sharedSites?.home({});
+  let picked: OpenDialogResult;
+  if (home) {
+    if (!fs.existsSync(path.dirname(home))) throw new Error(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
+    fs.mkdirSync(home, { recursive: true });
+    const folder = input.displayName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "website";
+    let target = path.join(home, folder), suffix = 2;
+    while (fs.existsSync(target)) target = path.join(home, `${folder}-${suffix++}`);
+    picked = { canceled: false, filePaths: [target] };
+  } else {
+    picked = await deps.dialog.showOpenDialog({
+      title: "Choose a folder for your new site",
+      message: `Pick an empty folder for "${input.displayName}".`,
+      buttonLabel: "Create here", properties: ["openDirectory", "createDirectory"],
+    });
+  }
   if (picked.canceled || picked.filePaths.length === 0) {
     // Cancelling is a completed choice, not an IPC failure to log or display.
     return null;
@@ -487,7 +509,9 @@ async function handleCreate(
   const names = otherSiteNames({ deps, siteDir: picked.filePaths[0]! });
   const displayName = uniqueSiteName({ name: wasEmpty ? input.displayName : deps.readSiteName(picked.filePaths[0]!), names });
   const init = { output: "" };
-  const siteDir = await deps.adoptSiteDir({
+  const adopt = async () => {
+    if (home && deps.classifySiteDir(picked.filePaths[0]!) !== "empty") throw new Error("The new website folder was created by another app. Try creating this website again.");
+    return deps.adoptSiteDir({
     dir: picked.filePaths[0]!, // same non-empty check as above
     repoRoot: deps.repoRoot,
     statePath: deps.statePath,
@@ -495,7 +519,9 @@ async function handleCreate(
     adminPassword: input.adminPassword,
     cliMode: deps.cliMode,
     ...initTokenOptions(agentPluginTokens, init),
-  });
+    });
+  };
+  const siteDir = home ? await withDirectoryFileLock({ lockPath: `${picked.filePaths[0]!}.creation.lock`, run: adopt }, { staleMs: Infinity }) : await adopt();
   const origin = wasEmpty ? SITE_ORIGIN.created : SITE_ORIGIN.adopted;
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
@@ -504,10 +530,37 @@ async function handleCreate(
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
   const siteId = readSiteIdentity(siteDir);
   trackSite(deps.projectsPath, siteDir, origin, { siteId });
+  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" });
+  // Create lets the operator pick any folder. Remember its parent beyond MRU eviction/card
+  // removal, so a site created beside it by the CLI or web admin can appear on the next scan.
+  if (wasEmpty) {
+    try { deps.siteFolders?.rememberCreated({ siteDir }); }
+    catch { console.warn("tovu desktop: could not remember the created website folder; the website was created successfully."); }
+  }
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName });
   const displayNameAlias = displayName !== deps.readSiteName(siteDir) ? displayName : undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
   return withCreatedTokens(buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId, displayNameAlias }, deps), init.output);
+}
+
+/** Validate creation before the folder picker; return the existing cleaned token contract.
+ * @throws {Error} for unsupported providers, names, tokens or passwords.
+ * @complexity O(n) in token count, delegated to cleanCreateTokens.
+ */
+function validateCreateInput({ input }: { input: CreateSiteInput }, _options = {}) {
+  const nameError = siteNameError({ name: input.displayName });
+  if (nameError) throw new Error(nameError);
+  const kind = input.database?.kind;
+  if (kind !== undefined && kind !== "sqlite") {
+    throw new Error(`This app only creates SQLite sites, which live in the folder you choose. "${kind}" needs a hosted-database provisioner this app does not have.`);
+  }
+  // Checked before the dialog for the same reason as the database choice: a malformed map is refused
+  // before anyone picks a folder.
+  const agentPluginTokens = cleanCreateTokens(input.agentPluginTokens);
+  if (input.adminPassword !== undefined && (typeof input.adminPassword !== "string" || input.adminPassword.length === 0)) {
+    throw new Error("Admin password must be a nonempty string.");
+  }
+  return agentPluginTokens;
 }
 
 /**
@@ -549,7 +602,7 @@ async function handleTokenSignInPlugins(deps: Pick<ProjectIpcDeps, "repoRoot" | 
  *   complete Tovu site — either way an operator-facing message that names the fix.
  * @complexity O(n) in the tracked-project count, plus one classification.
  */
-async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
+async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePointer" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
   const picked = await deps.dialog.showOpenDialog({
     title: "Choose your Tovu website's folder",
     message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
@@ -564,7 +617,8 @@ async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePoint
     return null;
   }
 
-  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath }); // just checked `filePaths.length === 0` above, so index 0 exists
+  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath });
+  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" }); // just checked `filePaths.length === 0` above, so index 0 exists
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir)!; // addSitePointer just tracked this exact siteDir above, so a row for it always exists
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
@@ -667,7 +721,7 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents, plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree">): Promise<void> {
+async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites">): Promise<void> {
   await deps.serializer.run(id, () => deleteProject(id, deps));
 }
 
@@ -677,7 +731,7 @@ async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" 
  *
  * @complexity see {@link handleDelete}.
  */
-async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree">): Promise<void> {
+async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites">): Promise<void> {
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
@@ -699,6 +753,8 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   // The non-erasing arm is deliberately NOT gated. There it means "take this card off my Projects
   // screen"; a sibling instance keeping its own copy running is not endangered by that.
   if (erasesFiles) {
+    const shared = deps.sharedSites?.running({ path: id }).read({});
+    if (shared && (shared.pid !== openEntry?.server.pid || openEntry?.server.external)) throw new Error(`Running in ${shared.app} (port ${shared.port}). Stop it in that app before deleting.`);
     const foreign = liveForeignServers(deps, id, openEntry?.server.pid);
     if (foreign.length > 0) throw new Error(foreignServerMessage(id, foreign));
   }
@@ -706,25 +762,15 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   deps.cancelPreviewCapture?.({ siteDir: id }, {});
   if (openEntry !== undefined) {
     await openEntry.server.stop!(); // an entry with no `.stop` never reaches this line in practice — `OpenSiteEntry.server.stop` is optional only because other, non-delete tests build entries that omit it
-    deps.openSites.delete(id);
-    // By pid: `recordSiteOpened` can leave a still-draining earlier child's row for this same site dir,
-    // and a close by site dir alone would drop that one too (D-07).
-    deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
-    // A sites-home-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
-    // `main.ts` — so this is optional, not a missing null check.
-    if (openEntry.window && !openEntry.window.isDestroyed!()) openEntry.window.destroy!(); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc: optional only for tests that never invoke it)
+    closeStoppedProject({ id, openEntry, deps });
   }
-
   // The row is the recovery handle for a partial erase: keep it until removal succeeds.
-  if (erasesFiles) {
-    try { await (deps.removeSiteTree ?? removeSiteTree)({ root: id }, {}); }
-    catch (error) {
-      const reason = (error as NodeJS.ErrnoException).code === 'EACCES'
-        ? 'Permission was denied.' : 'The folder could not be removed.';
-      throw new Error(`Could not delete this website. ${reason} Its card has been kept so you can try again.`);
-    }
-  }
+  if (erasesFiles) await eraseProjectDirectory({ id, deps });
   untrackSite(deps.projectsPath, id);
+  if (erasesFiles) {
+    try { deps.sharedSites?.registry({}).remove({ path: id }); }
+    catch { console.warn("tovu desktop: could not remove the erased website from the shared catalog."); }
+  }
   // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
   // not the operator's data, so a row that is merely REMOVED (adopted, files kept) still drops its
   // cached thumbnail: once the row is gone `buildSiteRecord` can never ask for it again
@@ -732,6 +778,37 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   // unlikely), so leaving the file behind would only be litter for the boot sweep to find later.
   deps.deletePreview(id);
 
+}
+
+/** Remove this process's stopped handle and close its window before folder deletion.
+ * @complexity O(1) time and space.
+ */
+function closeStoppedProject(
+  { id, openEntry, deps }: { id: string; openEntry: OpenSiteEntry; deps: Pick<ProjectIpcDeps, "openSites" | "recordSiteClosed" | "registryPath"> }, _options = {},
+): void {
+  deps.openSites.delete(id);
+  // By pid: `recordSiteOpened` can leave a still-draining earlier child's row for this same site dir,
+  // and a close by site dir alone would drop that one too (D-07).
+  deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
+  // A sites-home-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
+  // `main.ts` — so this is optional, not a missing null check.
+  if (openEntry.window && !openEntry.window.isDestroyed!()) openEntry.window.destroy!(); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc: optional only for tests that never invoke it)
+}
+
+/** Erase the folder; translate failures while leaving untracking to the caller.
+ * @throws {Error} with the existing retry instruction on a partial erase.
+ * @complexity O(n) in filesystem entries, delegated to removeSiteTree.
+ */
+async function eraseProjectDirectory(
+  { id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "removeSiteTree"> }, _options = {},
+): Promise<void> {
+  // The row is the recovery handle for a partial erase: keep it until removal succeeds.
+  try { await (deps.removeSiteTree ?? removeSiteTree)({ root: id }, {}); }
+  catch (error) {
+    const reason = (error as NodeJS.ErrnoException).code === 'EACCES'
+      ? 'Permission was denied.' : 'The folder could not be removed.';
+    throw new Error(`Could not delete this website. ${reason} Its card has been kept so you can try again.`);
+  }
 }
 
 /**
@@ -793,7 +870,7 @@ function identityHasChanged(row: SiteRow): boolean {
  *   every boot).
  * @complexity O(n) in the tracked-site count, for the row lookup.
  */
-function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projectsPath" | "classifySiteDir" | "writeSiteName" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
+function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projectsPath" | "classifySiteDir" | "writeSiteName" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
   const id = input?.id;
   const row = readTrackedSites(deps.projectsPath).find((tracked) => tracked.siteDir === id);
   if (row === undefined) {
@@ -827,6 +904,17 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir: row.siteDir });
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir: row.siteDir, displayName: name });
 
+  retitleOpenSite({ siteDir: row.siteDir, name, openSites: deps.openSites });
+
+  return buildSiteRecord(row, deps);
+}
+
+/** Refresh the native Window menu's name after a successful site rename.
+ * @complexity O(1) time and space.
+ */
+function retitleOpenSite(
+  { siteDir, name, openSites }: { siteDir: string; name: string; openSites: ProjectIpcDeps["openSites"] }, _options = {},
+): void {
   // The open window's title, when there is one. There usually is NOT: a card opens its site as a
   // `<webview>` tab inside the sites home window (whose own title is pinned to "Tovu"), and
   // `openSiteServer` is spawn-only. Only "Open Site…"/"Open Recent" produce a titled window
@@ -836,10 +924,8 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
   //
   // "Open Recent" itself needs no refresh: `main.ts` builds those items with the directory path as
   // the label, not the site name, so a rename cannot stale them.
-  const openWindow = deps.openSites.get(row.siteDir)?.window;
+  const openWindow = openSites.get(siteDir)?.window;
   if (openWindow && !openWindow.isDestroyed!()) openWindow.setTitle!(name); // present whenever `window` is (see `OpenSiteEntry.window`'s own doc)
-
-  return buildSiteRecord(row, deps);
 }
 
 /**
@@ -906,7 +992,7 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  * @complexity O(1) beyond `openSiteServer`'s own cost, plus however long an already-queued
  *   operation on the same site takes to settle.
  */
-async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
+async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -972,12 +1058,14 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  * @complexity O(1) beyond `server.stop()`'s own drain (bounded by its 5 s grace), plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions">) {
+async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
+    const running = deps.sharedSites?.running({ path: id }).read({});
+    if (running && !deps.openSites.get(id)) throw new Error(`Running in ${running.app} (port ${running.port}). Stop it in that app.`);
     await markTransition(deps.transitions, id, "stopping", () => stopSiteServer(id, deps));
     return buildSiteRecord(row, deps);
   });
@@ -1037,15 +1125,20 @@ function markTransition<T>(
  * clears a dismissal.
  *
  * @param deps.siteScanRoots directories whose immediate children are candidate sites.
+ * @param deps.siteFolders Profile settings read on every scan: built-in roots, remembered
+ *   creation parents and extra roots. Supersedes the static roots when supplied.
  * @param deps.recentSiteDirs `site-dir-store.ts`'s recently-opened list, as a thunk — the sites
  *   own-server mode has been recording all along, which are the operator's by definition and
  *   generally do not live under any scan root.
- * @returns the same records {@link handleList} would return, after the pass.
- * @complexity O(n) in the scanned child count, times the registry size.
+ * @param deps.discoverSites Production's bounded, cancellable worker; reads roots/MRU off-thread.
+ * @returns A promise for the same records {@link handleList} would return, after the pass.
+ * @throws Discovery limit, timeout or cancellation errors before any candidate is adopted.
+ * @complexity O(n log n) discovery plus O(n + m) adoption for n candidates and m stored rows.
  */
-function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions">) {
-  const found = discoverSiteDirs({
-    scanRoots: deps.siteScanRoots,
+async function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDirs" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites" | "discoverSites">) {
+  // Production injects the read-only worker. Legacy hosts/tests retain the same discovery owner.
+  const found = deps.discoverSites ? await deps.discoverSites({}) : discoverSiteDirs({
+    scanRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots,
     knownDirs: deps.recentSiteDirs(),
     classifySiteDir: deps.classifySiteDir,
   });
@@ -1053,8 +1146,23 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
   return handleList(deps);
 }
 
+/** Main owns the picker; adding a root only changes future discovery, never site files/processes.
+ * @returns Fresh settings, or null on cancellation.
+ * @throws Native picker or persistence errors, preserving their actual message.
+ * @complexity O(n) roots for the settings update.
+ */
+async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialog" | "siteFolders"> }, _options = {}) {
+  if (!deps.siteFolders) throw new Error("Sites folders settings are unavailable in this desktop version.");
+  const picked = await deps.dialog.showOpenDialog({
+    title: "Add sites folder", message: "Choose a folder containing Tovu website folders. Use Rescan to discover them.",
+    buttonLabel: "Add folder", properties: ["openDirectory"],
+  });
+  if (picked.canceled || picked.filePaths.length === 0) return null;
+  return deps.siteFolders.add({ root: picked.filePaths[0]! });
+}
+
 /**
- * Registers the eleven real `runner:sites:*` handlers above.
+ * Registers the real `runner:sites:*` handlers, including discovery-folder settings.
  *
  * @param deps
  * @param deps.openSites live open sites, keyed by site dir — `main.ts`'s own module-level
@@ -1097,7 +1205,7 @@ function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentSiteDir
  * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param deps.ctx `{cliMode, registryPath}` — `openSiteServer`'s own second argument.
- * @complexity O(1) — twelve registrations.
+ * @complexity O(1) — a fixed set of channel registrations.
  */
 function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   const relocationGate = createRelocationGate();
@@ -1108,6 +1216,29 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.start, (_event, id) => handleStart(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.stop, (_event, id) => handleStop(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rescan, () => rescanSites(deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.setHome, async () => {
+    if (!deps.sharedSites) throw new Error("Sites home settings are unavailable in this desktop version.");
+    const picked = await deps.dialog.showOpenDialog({ title: "Choose Tovu Sites home", buttonLabel: "Use this folder", properties: ["openDirectory", "createDirectory"] });
+    if (picked.canceled || !picked.filePaths[0]) return null;
+    const selected = picked.filePaths[0];
+    if (!path.isAbsolute(selected) || !fs.statSync(selected).isDirectory()) throw new Error("Choose an existing absolute sites folder.");
+    deps.sharedSites.setHome({ path: selected });
+    return { ...(deps.siteFolders?.read({}) ?? { roots: [], extraRoots: [] }), home: deps.sharedSites.home({}) };
+  });
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.saveSettings, (_event, input: import("./contracts/project.ts").SiteSettingsPatch) => {
+    if (!deps.sharedSites || !deps.siteFolders) throw new Error("Sites settings are unavailable in this desktop version.");
+    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => key !== "databases") ||
+      (input.databases !== "inSite" && input.databases !== "appData")) throw new Error('Sites settings accept only databases: "inSite" or "appData". Choose folders with the native picker.');
+    deps.sharedSites.updateConfig({ patch: { databases: input.databases } });
+    return deps.siteFolders.read({});
+  });
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.listFolders, () => deps.siteFolders?.read({}) ?? { roots: deps.siteScanRoots, extraRoots: [] });
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.addFolder, () => handleAddSiteFolder({ deps }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.removeFolder, (_event, input: { root: string }) => {
+    if (typeof input?.root !== "string" || !path.isAbsolute(input.root)) throw new Error("Choose an absolute sites folder path to remove.");
+    if (!deps.siteFolders) throw new Error("Sites folders settings are unavailable in this desktop version.");
+    return deps.siteFolders.remove({ root: input.root });
+  });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
@@ -1161,7 +1292,12 @@ interface ProjectIpcDeps<TCtx = unknown> {
   readRegistry: (registryPath: string) => { sites: RegistryRow[]; unreadable: string[] };
   isLiveServeRow: (row: RegistryRow) => boolean;
   siteScanRoots: string[];
+  /** Profile-bound, read fresh at boot and Rescan; optional for older hosts and handler fakes. */
+  siteFolders?: SiteFoldersPort;
+  /** Production discovery runs filesystem probes off-thread; results grant no deletion authority. */
+  discoverSites?: (required: {}, options?: {}) => Promise<string[]>;
   recentSiteDirs: () => string[];
+  sharedSites?: SitesWorkspace;
   ctx: TCtx;
 }
 

@@ -1,19 +1,17 @@
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, symlink, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile, symlink } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import express from "express";
 import { PLUGIN_PACKAGE_FILE_LIMITS } from "@jini-ai/plugins/host/node";
 import { createSkillsModule } from "#src/server/runtime/composition/modules/skills";
-import type { RouteDeps } from "#src/server/routes/types";
 
 const route = "/api/admin/v1/workspaces/:workspaceId/skills/:toolId/files";
 const markdown = "---\nname: example\ndescription: Example skill.\n---\nRead the reference.\n";
 async function harness(work: (call: (toolId?: string, workspaceId?: string, overrides?: { locals?: object }) => Promise<{ code: number; body: any }>, directory: string, outside: string) => Promise<void>, allowed = true, expectedAuthorizations = 1) {
-  const root = await mkdtemp(path.join(tmpdir(), "skill-files-"));
-  const previous = process.env.TOVU_SKILLS_DIR;
-  process.env.TOVU_SKILLS_DIR = root;
+  const siteLayouts = createTempSiteLayoutFixture({});
+  const root = siteLayouts.deps.skillLayout.root;
   try {
     const directory = path.join(root, "ws/workspace-local/example");
     const outside = path.join(root, "outside");
@@ -27,13 +25,13 @@ async function harness(work: (call: (toolId?: string, workspaceId?: string, over
     const handlers = new Map<string, Function>();
     for (const method of ["get", "post", "patch", "delete"] as const) app[method] = ((url: string, handler: Function) => { handlers.set(`${method} ${url}`, handler); return app; }) as typeof app[typeof method];
     let authorizations = 0;
-    const skillsModule = createSkillsModule({ workspaceId: "workspace-local", authorize: async input => {
+    const skillsModule = createSkillsModule(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: "workspace-local", authorize: async input => {
       authorizations++;
       assert.equal(input.principalId, "owner");
       assert.equal(input.permission, "admin.assistant.use");
       assert.equal(input.workspaceId, "workspace-local");
       return { allowed, reason: "test" };
-    } } as RouteDeps);
+    } }));
     assert.ok(skillsModule.registerRoutes, "the skills module registers routes");
     skillsModule.registerRoutes(app);
     await work(async (toolId = "skill_example", workspaceId = "workspace-local", overrides = {}) => {
@@ -46,8 +44,7 @@ async function harness(work: (call: (toolId?: string, workspaceId?: string, over
       return res;
     }, directory, outside);
   } finally {
-    if (previous === undefined) delete process.env.TOVU_SKILLS_DIR; else process.env.TOVU_SKILLS_DIR = previous;
-    await rm(root, { recursive: true, force: true });
+    siteLayouts.cleanup();
   }
 }
 

@@ -972,3 +972,63 @@ test.describe("site-chat FAB is present on every public page that ships it", () 
   }
 });
 });
+
+test.describe('front: built lazy widget regressions', () => {
+  test.use({ pinVisitorWidget: 'react' });
+  test('opens from the loader before React exists, and resumes without stealing page focus', async ({ page }) => {
+    await openSitePage(page, ABOUT_TARGET.path);
+    const loader = page.locator('[data-jini-chat-loader]');
+    // This journey specifically requires the real three-bundle build, rather than the eager proxy.
+    await expect(loader).toBeVisible();
+    await expect(page.locator('.tovu-site-assistant .chat-fab')).toHaveCount(0);
+    await openChatPanel(page);
+    await expect(page.locator('.tovu-site-assistant__panel')).toBeVisible();
+    await expect(loader).toBeHidden();
+    await expect(page.locator('.jini-composer-input')).toBeFocused();
+    await page.addInitScript(() => {
+      // Focus the real page link before the resumed widget mounts. Its bundle remains untouched.
+      document.addEventListener('DOMContentLoaded', () => document.querySelector<HTMLAnchorElement>('a[href]')?.focus(), { once: true });
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.tovu-site-assistant__panel')).toBeVisible();
+    await expect(page.locator('.jini-composer-input')).not.toBeFocused();
+    expect(await page.evaluate(() => !!document.activeElement?.closest('a[href]'))).toBe(true);
+    await page.setViewportSize({ width: 375, height: 812 });
+    expect(await page.locator('.jini-composer-input').evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  });
+});
+
+test.describe('front: vanilla mobile accessibility', () => {
+  // configurePin supplies the real session Cookie (Secure cookies are omitted by APIRequestContext
+  // on HTTP loopback), selects this widget, and resets/deletes this test's settings with its site.
+  test.use({ pinVisitorWidget: 'vanilla' });
+  test('renders 16px inputs and contrasting controls; page Escape leaves the resumed panel open', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openSitePage(page, ABOUT_TARGET.path);
+    await page.locator('[data-jini-chat-loader][data-loader-ready="true"]').click();
+    const panel = page.getByRole('dialog', { name: 'Ask this site' });
+    await expect(panel).toBeVisible();
+    const input = panel.getByRole('textbox');
+    expect(await input.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    const ratios = await panel.evaluate(element => {
+      const luminance = (css: string) => {
+        const channels = css.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => {
+          const channel = value / 255; return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+        });
+        return .2126 * channels[0]! + .7152 * channels[1]! + .0722 * channels[2]!;
+      };
+      const background = luminance(getComputedStyle(element).backgroundColor);
+      return Array.from(element.querySelectorAll('textarea, button:not(:disabled)')).filter(control => !control.closest('[hidden]')).map(control => {
+        const border = luminance(getComputedStyle(control).borderTopColor);
+        return (Math.max(background, border) + .05) / (Math.min(background, border) + .05);
+      });
+    });
+    expect(ratios.length).toBeGreaterThan(1);
+    for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(3);
+    const pageLink = page.locator('a[href]').filter({ visible: true }).first();
+    await pageLink.focus();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeVisible();
+    await expect(pageLink).toBeFocused();
+  });
+});

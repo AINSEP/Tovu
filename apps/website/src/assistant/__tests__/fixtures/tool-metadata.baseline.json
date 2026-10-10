@@ -265,7 +265,17 @@
     "agent_plugin_connect": "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin",
     "web_screenshot_page": "screenshot screenshots screen capture captures snapshot picture image see look looks looking like view visual visually appearance layout design style styling render rendered rendering page pages webpage website websites site url link compare comparison parity side-by-side match matches mobile tablet desktop responsive viewport existing competitor reference import copy",
     "web_fetch_page": "web webpage webpages page pages website websites site url urls link internet online public external remote fetch fetching read reading open visit browse scrape scraping crawl download get view html markdown text sitemap sitemaps robots css stylesheet import copy migrate existing competitor reference",
-    "theme_duplicate": "theme duplicate copy clone fork new theme from existing create make start redesign variant based on scaffold"
+    "theme_duplicate": "theme duplicate copy clone fork new theme from existing create make start redesign variant based on scaffold",
+    "comments_get_comment": "comment single details read approved spam trash id version",
+    "taxonomy_get_term": "term tag category details parent taxonomy id read one",
+    "theme_list_page_publications": "theme standalone page visibility publication published unpublished about pricing list",
+    "sites_get_site": "site local client registry folder name details single serving queued",
+    "workspace_list": "workspace list available current site id name slug",
+    "members_create": "member visitor account create add pending roster email",
+    "members_update_profile": "member visitor profile update edit rename name",
+    "webhooks_update_subscription": "webhook subscription edit update label target url topics endpoint",
+    "site_guide": "how tovu works site guide learn building blocks forms widgets markers themes members SEO deploy plugins Jini",
+    "identity_user_change_username": "username login name rename change update user account own profile"
   },
   "queries": {
     "publish_content_publish": [
@@ -748,6 +758,7 @@
       "Can you change the title of this page?",
       "I need to fix a typo in the latest blog post title.",
       "How do I publish this post by updating its status?",
+      "Publish an existing draft blog post on this website.",
       "Can you rewrite this page's body and slug at the same time?",
       "How do I take a live post back to draft?",
       "Can you unpublish this page for now and put it back in draft?",
@@ -1719,6 +1730,19 @@
       "Self-host this woff2 font in the theme.",
       "Save this logo image into the theme's assets folder.",
       "Import the favicon from that URL into the theme."
+    ],
+    "site_guide": [
+      "How does Tovu work?",
+      "Design a planner directory site."
+    ],
+    "identity_user_change_username": [
+      "Change this user's username.",
+      "Rename my login username.",
+      "Can you change an admin's account name?"
+    ],
+    "deployment_execute_static_publish": [
+      "Publish the site to production hosting.",
+      "Deploy this website and make it live."
     ]
   },
   "approvals": {
@@ -2976,6 +3000,62 @@
     "theme_duplicate": {
       "class": "edit",
       "confirmation": "direct"
+    },
+    "comments_get_comment": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "taxonomy_get_term": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "theme_list_page_publications": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "sites_get_site": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "workspace_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "members_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "members_update_profile": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "webhooks_update_subscription": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "content_read.comment": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.term": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.site": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "content_read.theme_page_publication": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "site_guide": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "identity_user_change_username": {
+      "class": "edit",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [
@@ -3153,5 +3233,27 @@
     "trash_purge_item",
     "webhooks_delete_subscription",
     "widgets_trash_instance"
-  ]
+  ],
+  "chatPermanentDeletes": {
+    "defaultEnabled": false,
+    "allowedToolIds": [
+      "trash_empty",
+      "trash_purge_item",
+      "media_purge_asset",
+      "comments_purge_comment",
+      "identity_user_delete",
+      "deployment_ops_unset_secret",
+      "external_mcp_delete",
+      "custom_credential_delete",
+      "deployment_delete_provider_credential",
+      "source_control_delete_credential",
+      "webhooks_delete_subscription",
+      "identity_role_delete",
+      "identity_policy_delete"
+    ],
+    "alwaysForbiddenToolIds": [
+      "workspace_delete",
+      "collections_execute_cleanup"
+    ]
+  }
 }

@@ -1,3 +1,7 @@
+import { ALL_CHAT_DELETE_TOOLS } from "../../assistant/permanent-delete-tool-gate.js";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
+import { set as setSiteSetting } from "../../features/settings/index.js";
+import { toWriteServiceDeps } from "../inbound/admin-http/routes/settings/shared.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -364,9 +368,10 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
   // The REAL `workspace_get` handler's output, reached under its collapsed `content_read.workspace` id — proves this round-tripped through
   // `toolExecutor.execute` against the real workspace repo, not a stub. `deps.workspaceId` is this
   // test's own seeded workspace id, which only the real handler could have echoed back.
+  // With no id, the collapsed card chooses workspace_list and returns the exact list envelope.
   const resultContent = String(toolResultFrame!.payload.content);
   assert.match(resultContent, new RegExp(deps.workspaceId));
-  assert.deepEqual(JSON.parse(resultContent), { workspace: expectedWorkspace });
+  assert.deepEqual(JSON.parse(resultContent), { workspaces: [expectedWorkspace] });
 
   const textFrame = frames.find((f) => f.event === "agent" && f.payload.type === "text_delta");
   assert.ok(textFrame, "expected a text_delta event with the model's final reply");
@@ -717,7 +722,7 @@ test(`${BYOK_TURN_PATH} (azure protocol): a real tool round-trips through the Op
   assert.equal(toolResultFrame!.payload.isError, false);
   assert.match(String(toolResultFrame!.payload.content), new RegExp(deps.workspaceId));
   const resultContent = String(toolResultFrame!.payload.content);
-  assert.deepEqual(JSON.parse(resultContent), { workspace: expectedWorkspace });
+  assert.deepEqual(JSON.parse(resultContent), { workspaces: [expectedWorkspace] });
 
   const endFrame = frames.find((f) => f.event === "end");
   assert.ok(endFrame, "expected a terminal end frame");
@@ -793,7 +798,7 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
   assert.equal(toolResultFrame!.payload.isError, false);
   assert.match(String(toolResultFrame!.payload.content), new RegExp(deps.workspaceId));
   const resultContent = String(toolResultFrame!.payload.content);
-  assert.deepEqual(JSON.parse(resultContent), { workspace: expectedWorkspace });
+  assert.deepEqual(JSON.parse(resultContent), { workspaces: [expectedWorkspace] });
 
   const endFrame = frames.find((f) => f.event === "end");
   assert.ok(endFrame, "expected a terminal end frame");
@@ -897,6 +902,7 @@ test(`${BYOK_TURN_PATH}: trash_purge_item PARKS via a real emitSurface, and rede
   const otherCookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-park-redeem-confirm-${Date.now()}`;
+  await grantChatDeletes(deps);
   const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
 
   const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
@@ -973,6 +979,7 @@ test(`${BYOK_TURN_PATH}: disconnecting a parked purge aborts the tool, closes it
   const deps = createRouteDeps();
   await deps.identityReady;
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 5_000, maxLifetimeMs: 5_000 });
+  await grantChatDeletes(deps);
   const surface = createByokToolSurface(deps, { surfaceExchangeStore: store, contributions: firstPartyContributions() });
   const execute = surface.executeMetaTool.bind(surface);
   let toolSignal: AbortSignal | undefined;
@@ -992,6 +999,7 @@ test(`${BYOK_TURN_PATH}: disconnecting a parked purge aborts the tool, closes it
   const { baseUrl } = await bootWithStubSurface(deps, observedSurface, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
   const postId = "byok-disconnected-delete";
+  await grantChatDeletes(deps);
   const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
   const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   const reader = res.body!.getReader();
@@ -1018,6 +1026,7 @@ test(`${BYOK_TURN_PATH}: cancelling the same confirmation dialog leaves the post
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-park-redeem-cancel-${Date.now()}`;
+  await grantChatDeletes(deps);
   const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
 
   const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
@@ -1067,6 +1076,7 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   await deps.identityReady;
 
   const shortTtlStore = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: 30, maxLifetimeMs: 60 });
+  await grantChatDeletes(deps);
   const toolSurface = createByokToolSurface(deps, { surfaceExchangeStore: shortTtlStore, contributions: firstPartyContributions() });
 
   const app = express();
@@ -1078,6 +1088,7 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-no-hang-probe-${Date.now()}`;
+  await grantChatDeletes(deps);
   const providerUrl = await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
 
   const startedAt = Date.now();
@@ -1225,4 +1236,65 @@ test('BYOK uses the client redaction signal and leaves placeholder prose and ass
     'Which account?',
     'Connect with [token removed]\n\nThe user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.',
   ]);
+});
+
+async function grantChatDeletes(deps: ReturnType<typeof createRouteDeps>) {
+  await deps.identityReady; await deps.settingsUiTabsReady;
+  await setSiteSetting({ deps: toWriteServiceDeps(deps), input: {
+    namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, key: ASSISTANT_PERMANENT_DELETES_KEY,
+    scope: "workspace", value: ALL_CHAT_DELETE_TOOLS, workspaceId: deps.workspaceId,
+    authWorkspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId,
+  } });
+}
+test("BYOK discovery is OFF by default and updates checked tools without rebuilding the surface", async () => {
+  const deps = createRouteDeps(); await deps.identityReady; await deps.settingsUiTabsReady;
+  const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
+  const principal = { id: await deps.ownerPrincipalId }, run = { id: "pdel-discovery" };
+  const describe = () => surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_empty" } });
+  const off = await describe(); assert.equal(off.isError, true);
+  await grantChatDeletes(deps);
+  assert.equal((await describe()).isError, undefined);
+  await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
+    key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: true, allowedToolIds: ["trash_empty"] },
+    workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: principal.id } });
+  assert.equal((await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_purge_item" } })).isError, true);
+  assert.equal((await describe()).isError, undefined);
+});
+
+
+test("BYOK execute-time revocation refuses a previously discovered handler without opening a card", async () => {
+  const deps = createRouteDeps(); await grantChatDeletes(deps);
+  const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
+  const principal = { id: await deps.ownerPrincipalId }, run = { id: "pdel-revoke" };
+  assert.equal((await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_empty" } })).isError, undefined);
+  await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
+    key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: false, allowedToolIds: ["trash_empty"] },
+    workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: principal.id } });
+  const result = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: "trash_empty", input: {} } }, undefined,
+    async () => assert.fail("revoked access must not open a card"));
+  assert.equal(result.isError, true);
+  assert.ok(JSON.stringify(result.content).includes("permanent deletes from chat are disabled"));
+  assert.ok(JSON.stringify(result.content).includes("/admin/trash"));
+});
+
+test("BYOK a saved-setting revoke while the human reads the card prevents permanent deletion", async t => {
+  const deps = createRouteDeps(); await grantChatDeletes(deps);
+  const postId = "pdel-revoke-at-card";
+  await seedTrashedPostAndStubPurgeTurn(t, deps, postId);
+  const trashItemId = await trashRowFor(deps, postId);
+  assert.ok(trashItemId);
+  const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
+  const principal = { id: await deps.ownerPrincipalId }, run = { id: "pdel-revoke-at-card" };
+  let cards = 0;
+  const result = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: PURGE_TOOL_ID, input: { trashItemId } } }, undefined, async () => {
+    cards++;
+    await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
+      key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: false, allowedToolIds: [PURGE_TOOL_ID] },
+      workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: principal.id } });
+    const exchangeId = surface.surfaceExchanges.findTypedAnswerTarget({ principalId: principal.id, toolId: PURGE_TOOL_ID })!;
+    assert.deepEqual(surface.surfaceExchanges.deliver({ exchangeId, principalId: principal.id, params: { decision: "confirm" } }, { toolId: PURGE_TOOL_ID }), { ok: true });
+  });
+  assert.equal(cards, 1); assert.equal(result.isError, true);
+  assert.ok(JSON.stringify(result.content).includes("permanent deletes from chat are disabled"));
+  assert.equal(await trashRowFor(deps, postId), trashItemId);
 });

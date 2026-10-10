@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
@@ -888,6 +889,21 @@ export function useThemeExplore(
   { port, t }: ThemeExploreDependencies,
   { pageId, fileId }: ThemeExploreOptions = {}
 ): ThemeExploreController {
+  const detailKey = useMemo(() => ["themes", "detail", themeId] as const, [themeId]);
+  const fetchDetail = useCallback(() => port.getThemeDetail(themeId), [port, themeId]);
+  const detailLoader = useCachedLoader({ key: detailKey, fetch: fetchDetail }, { staleTime: 0 });
+  const sourceKey = useMemo(() => ["themes", "source", themeId] as const, [themeId]);
+  const fetchSource = useCallback(async (): ReturnType<ThemeExplorePort["getThemeFile"]> => { throw new Error("Theme file path required"); }, []);
+  const sourceLoader = useCachedLoader({ key: sourceKey, fetch: fetchSource }, { staleTime: 0 });
+  const cachedReads = useMemo<ThemeExplorePort>(() => ({ ...port,
+    getThemeDetail: id => detailLoader.load({ key: ["themes", "detail", id], fetch: () => port.getThemeDetail(id) }),
+    getThemeFile: (id, path) => sourceLoader.load({ key: ["themes", "file", id, path], fetch: () => port.getThemeFile(id, path) }),
+  }), [port, detailLoader, sourceLoader]);
+  const listingKey = useMemo(() => ["themes", "explore", themeId] as const, [themeId]);
+  const fetchListing = useCallback(() => fetchThemeExploreState(themeId, cachedReads), [themeId, cachedReads]);
+  const listingQuery = useFetchQuery({ key: listingKey, fetch: fetchListing }, { staleTime: 0 });
+  const listingLoader = useCachedLoader({ key: listingKey, fetch: fetchListing }, { staleTime: 0 });
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["themes"]] });
   const [detail, setDetail] = useState<ThemeExploreDetail | null>(null);
   const [files, setFiles] = useState<ThemeExploreFile[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -968,7 +984,7 @@ export function useThemeExplore(
   useEffect(() => {
     let cancelled = false;
     const generation = selectionGeneration.next();
-    fetchThemeExploreState(themeId, port)
+    listingLoader.load()
       .then(({ detail: nextDetail, files: nextFiles }) => {
         if (cancelled) return;
         // `?file=`/`?page=` when the caller named one (through the shared resolver), else the
@@ -1030,6 +1046,13 @@ export function useThemeExplore(
     // `requestedSelectionMove`).
   }, [themeId, port, pageId, fileId, selectionGeneration]);
 
+  useEffect(() => {
+    const listing = listingQuery.data;
+    if (!listing || listedThemeRef.current !== themeId) return;
+    setDetail(listing.detail);
+    setFiles(previous => withServerModifiedState(previous, listing.files));
+  }, [listingQuery.data, themeId]);
+
   // The effect below keys off the open file's `readable` flag, not the whole `files` array. A list
   // update that leaves that flag alone (the modified-state refresh after a save or reset, a publish
   // toggle, a rename or delete of another file) must not re-read the open file: that would overwrite
@@ -1042,6 +1065,10 @@ export function useThemeExplore(
   const readPathReadable = files.find((f) => f.path === readPath)?.readable;
   const readPathLoaded = isOpenFileLoaded(loadedFile, themeId, readPath);
 
+  const textKey = useMemo(() => ["themes", "file", themeId, readPath ?? "", fileReadNonce] as const, [themeId, readPath, fileReadNonce]);
+  const fetchText = useCallback(() => cachedReads.getThemeFile(themeId, readPath!), [themeId, readPath, cachedReads]);
+  useFetchQuery({ key: textKey, fetch: fetchText }, { enabled: readPath !== null && readPathReadable !== false && !readPathLoaded, staleTime: 0 });
+  const textLoader = useCachedLoader({ key: textKey, fetch: fetchText }, { staleTime: 0 });
   // `fileReadNonce` is a dependency only so a reset that returned no text can re-run this read. Every
   // outcome opens `readPath` (a no-op when it is already `selected`) and drops a held click in the same
   // render its buffer lands in, so the HTML tab never shows a file as open before its text is there.
@@ -1068,8 +1095,7 @@ export function useThemeExplore(
     // cancels that switch, and must not read the open file again over edits typed since.
     if (readPathLoaded) return;
     let cancelled = false;
-    port
-      .getThemeFile(themeId, readPath)
+    textLoader.load()
       .then((r) => {
         if (cancelled) return;
         setSelected(readPath);
@@ -1108,7 +1134,7 @@ export function useThemeExplore(
     const generation = modifiedRefreshSettlement.next();
     const stillCurrent = () => modifiedRefreshSettlement.isCurrent({ generation }) && openFileRef.current.themeId === themeId;
     try {
-      const { files: serverFiles } = await fetchThemeExploreState(themeId, port);
+      const { files: serverFiles } = await listingLoader.load();
       if (!stillCurrent()) return;
       setFiles((prev) => withServerModifiedState(prev, serverFiles));
     } catch (e) {
@@ -1134,7 +1160,7 @@ export function useThemeExplore(
     if (path === null) return;
     const generation = openFileTextSettlement.next();
     try {
-      const { content } = await port.getThemeFile(started.themeId, path);
+      const { content } = await cachedReads.getThemeFile(started.themeId, path);
       if (!openFileTextSettlement.isCurrent({ generation })) return;
       if (!shouldAdoptRefreshedText({ started, current: openFileRef.current, content })) return;
       setSource(content);
@@ -1163,7 +1189,7 @@ export function useThemeExplore(
     setSaving(true);
     setError(null);
     try {
-      await port.putThemeFile(themeId, selected, source);
+      await write.mutate({ input: () => port.putThemeFile(themeId, selected, source) }) as Awaited<ReturnType<typeof port.putThemeFile>>;
       setSavedSource(source);
       setNotice(translateWith(tRef.current, "Saved {file}", "file", selected));
       setPreviewNonce((n) => n + 1);
@@ -1188,7 +1214,7 @@ export function useThemeExplore(
     setResetting(true);
     setError(null);
     try {
-      const r = await port.resetThemeFile(themeId, selected);
+      const r = await write.mutate({ input: () => port.resetThemeFile(themeId, selected) }) as Awaited<ReturnType<typeof port.resetThemeFile>>;
       // Adopt the server's returned content rather than re-fetching: it is the text of the bytes just
       // restored, so the editor cannot briefly show the pre-reset source. `null` means the file is
       // past the server's text-read limit. Its bytes are restored, but there is no text to edit, so
@@ -1227,9 +1253,9 @@ export function useThemeExplore(
     setSavingOriginal(true);
     setError(null);
     try {
-      await port.saveThemeOriginal(themeId);
+      await write.mutate({ input: () => port.saveThemeOriginal(themeId) }) as Awaited<ReturnType<typeof port.saveThemeOriginal>>;
       setNotice(tRef.current("Saved as this theme's original"));
-      const refetched = await refetchAfterMutation(themeId, port, tRef.current);
+      const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
       if (!refetched.ok) {
         setError(refetched.message);
         return;
@@ -1263,8 +1289,8 @@ export function useThemeExplore(
       setRenaming(true);
       setError(null);
       try {
-        const r = await port.renameThemeFile(themeId, sourcePath, name);
-        const refetched = await refetchAfterMutation(themeId, port, tRef.current);
+        const r = await write.mutate({ input: () => port.renameThemeFile(themeId, sourcePath, name) }) as Awaited<ReturnType<typeof port.renameThemeFile>>;
+        const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
         // Superseded by a newer rename call started after this one — that later call owns
         // `detail`/`files`/`selected`/`notice` now, and applying this stale result would let
         // whichever rename happens to settle LAST win regardless of which file was actually
@@ -1378,11 +1404,11 @@ export function useThemeExplore(
       setCopyingPath(path);
       setError(null);
       try {
-        const r = await port.copyThemeFile(themeId, path);
+        const r = await write.mutate({ input: () => port.copyThemeFile(themeId, path) }) as Awaited<ReturnType<typeof port.copyThemeFile>>;
         // The copy is done whatever the re-read says — see `refetchAfterMutation`. Selecting the new
         // file waits for a list that has it.
         setNotice(translateWith(tRef.current, "Copied to {file}", "file", r.path));
-        const refetched = await refetchAfterMutation(themeId, port, tRef.current);
+        const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
         if (!refetched.ok) {
           setError(refetched.message);
           return;
@@ -1440,14 +1466,14 @@ export function useThemeExplore(
     setDeleting(true);
     setError(null);
     try {
-      await port.deleteThemeFile(themeId, path);
+      await write.mutate({ input: () => port.deleteThemeFile(themeId, path) }) as Awaited<ReturnType<typeof port.deleteThemeFile>>;
       // The file is gone from here on, whatever the re-read says — see `refetchAfterMutation`. The
       // dialog closes and the notice says so; a failed re-read drops the file from the list locally
       // (the one change a delete makes to it) and is reported as its own error.
       setDeleteTarget(null);
       setPendingSelection(null);
       setNotice(translateWith(tRef.current, "Deleted {file}", "file", path));
-      const refetched = await refetchAfterMutation(themeId, port, tRef.current);
+      const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
       const next = refetched.ok ? refetched : { detail, files: files.filter((f) => f.path !== path) };
       if (refetched.ok) setDetail(refetched.detail);
       else setError(refetched.message);
@@ -1523,7 +1549,7 @@ export function useThemeExplore(
       setPublishing(true);
       setError(null);
       try {
-        const r = await port.setPagePublished(themeId, pageId, published);
+        const r = await write.mutate({ input: () => port.setPagePublished(themeId, pageId, published) }) as Awaited<ReturnType<typeof port.setPagePublished>>;
         setFiles((prev) => prev.map((f) => (f.path === file.path ? { ...f, published: r.published } : f)));
         setNotice(translateWith(tRef.current, r.published ? "Published {page}" : "Unpublished {page}", "page", pageId));
       } catch (e) {

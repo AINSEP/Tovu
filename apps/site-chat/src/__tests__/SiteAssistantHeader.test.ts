@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { JSDOM } from "jsdom";
-import { act } from "react";
-import * as React from "react";
-import { createRoot, type Root } from "react-dom/client";
+import type { JSDOM } from "jsdom";
+import type { Root } from "react-dom/client";
+import { act, React, createRoot, installDom } from "./react-dom-harness";
 
-import { SiteAssistantHeader } from "../SiteAssistantHeader";
+// Load the component only after the harness has pinned React and initialized the DOM.
+const { SiteAssistantHeader } = await import("../SiteAssistantHeader");
 
 /**
  * Real `react-dom/client` render into a real JSDOM document, driven with genuine DOM events
@@ -18,45 +18,9 @@ import { SiteAssistantHeader } from "../SiteAssistantHeader";
  *
  * No `@testing-library/react` in this app (see `package.json`) — "no new deps" per the coverage
  * brief — so DOM globals (`window`/`document`/etc.) are installed from a fresh `JSDOM` instance per
- * test and saved/restored, matching `remixicon-override.test.ts`'s pattern. `navigator` is
- * deliberately excluded: Node ≥21 defines a getter-only global `navigator` that a plain assignment
- * throws against, and nothing under test reads it.
+ * test and saved/restored by the shared harness, which also pins linked dependencies to this app's
+ * React and initializes DOM feature detection before the renderer loads.
  */
-
-const DOM_GLOBAL_KEYS = [
-  "window",
-  "document",
-  "HTMLElement",
-  "Element",
-  "Node",
-  "Event",
-  "KeyboardEvent",
-  "MouseEvent",
-  "CustomEvent",
-  "requestAnimationFrame",
-  "cancelAnimationFrame",
-  "getComputedStyle",
-] as const;
-
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-function installDom(): { dom: JSDOM; restore: () => void } {
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "http://localhost/" });
-  const w = dom.window as unknown as Record<string, unknown>;
-  const g = globalThis as Record<string, unknown>;
-  const saved: Record<string, unknown> = {};
-  for (const key of DOM_GLOBAL_KEYS) {
-    saved[key] = g[key];
-    g[key] = w[key];
-  }
-  return {
-    dom,
-    restore: () => {
-      for (const key of DOM_GLOBAL_KEYS) g[key] = saved[key];
-      dom.window.close();
-    },
-  };
-}
 
 describe("SiteAssistantHeader", () => {
   let dom: JSDOM;
@@ -99,14 +63,14 @@ describe("SiteAssistantHeader", () => {
     });
   }
 
-  it("renders the title, eyebrow, and a New thread button, with no confirm step", () => {
+  it("renders the public title and New thread without a workspace kicker", () => {
     renderHeader({ title: "My Site", hasMessages: true, onReset: () => {} });
 
-    assert.equal(container.querySelector(".jini-chat-pane__eyebrow")?.textContent, "Workspace chat");
+    assert.equal(container.querySelector(".jini-chat-pane__eyebrow"), null);
     assert.equal(container.querySelector(".jini-chat-pane__title")?.textContent, "My Site");
     assert.equal(container.querySelectorAll("button").length, 1);
     assert.equal(container.querySelector("button")?.textContent, "New thread");
-    assert.equal(container.querySelector(".tovu-site-assistant__reset-confirm"), null);
+    assert.equal(container.querySelector(".jini-chat-embed__reset-confirm"), null);
   });
 
   it("resets immediately with no confirm step when the transcript is empty", () => {
@@ -116,7 +80,7 @@ describe("SiteAssistantHeader", () => {
     clickButton("New thread");
 
     assert.equal(resetCount, 1);
-    assert.equal(container.querySelector(".tovu-site-assistant__reset-confirm"), null, "empty transcript has nothing to confirm");
+    assert.equal(container.querySelector(".jini-chat-embed__reset-confirm"), null, "empty transcript has nothing to confirm");
   });
 
   it("shows a two-step confirm, without resetting yet, when the transcript has messages", () => {
@@ -126,9 +90,31 @@ describe("SiteAssistantHeader", () => {
     clickButton("New thread");
 
     assert.equal(resetCount, 0, "must not reset until confirmed");
-    assert.ok(container.querySelector(".tovu-site-assistant__reset-confirm"));
+    assert.ok(container.querySelector(".jini-chat-embed__reset-confirm"));
     assert.ok(Array.from(container.querySelectorAll("button")).some((b) => b.textContent === "Cancel"));
-    assert.ok(Array.from(container.querySelectorAll("button")).some((b) => b.textContent === "Discard chat?"));
+    assert.ok(Array.from(container.querySelectorAll("button")).some((b) => b.textContent === "Discard chat"));
+  });
+
+  it("protects a typed draft in an empty transcript and restores focus after Cancel or Escape", () => {
+    let resetCount = 0;
+    renderHeader({ title: "My Site", hasMessages: false, onReset: () => (resetCount += 1) });
+    container.classList.add('jini-chat-pane');
+    const textarea = dom.window.document.createElement('textarea');
+    textarea.className = 'jini-composer-input';
+    textarea.value = 'An unsent question';
+    container.append(textarea);
+
+    for (const cancel of [() => clickButton('Cancel'), pressEscape]) {
+      clickButton('New thread');
+      assert.equal(resetCount, 0);
+      assert.equal(dom.window.document.activeElement?.textContent, 'Cancel');
+      cancel();
+      assert.equal(textarea.value, 'An unsent question');
+      assert.equal(dom.window.document.activeElement?.textContent, 'New thread');
+    }
+    clickButton('New thread');
+    clickButton('Discard draft');
+    assert.equal(resetCount, 1);
   });
 
   it("autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears", () => {
@@ -147,7 +133,7 @@ describe("SiteAssistantHeader", () => {
     clickButton("Cancel");
 
     assert.equal(resetCount, 0);
-    assert.equal(container.querySelector(".tovu-site-assistant__reset-confirm"), null);
+    assert.equal(container.querySelector(".jini-chat-embed__reset-confirm"), null);
     assert.equal(container.querySelector("button")?.textContent, "New thread");
   });
 
@@ -156,22 +142,22 @@ describe("SiteAssistantHeader", () => {
     renderHeader({ title: "My Site", hasMessages: true, onReset: () => (resetCount += 1) });
     clickButton("New thread");
 
-    clickButton("Discard chat?");
+    clickButton("Discard chat");
 
     assert.equal(resetCount, 1);
-    assert.equal(container.querySelector(".tovu-site-assistant__reset-confirm"), null);
+    assert.equal(container.querySelector(".jini-chat-embed__reset-confirm"), null);
   });
 
   it("backs out on Escape (from anywhere in the pane) without resetting", () => {
     let resetCount = 0;
     renderHeader({ title: "My Site", hasMessages: true, onReset: () => (resetCount += 1) });
     clickButton("New thread");
-    assert.ok(container.querySelector(".tovu-site-assistant__reset-confirm"), "sanity: confirm step is open");
+    assert.ok(container.querySelector(".jini-chat-embed__reset-confirm"), "sanity: confirm step is open");
 
     pressEscape();
 
     assert.equal(resetCount, 0);
-    assert.equal(container.querySelector(".tovu-site-assistant__reset-confirm"), null);
+    assert.equal(container.querySelector(".jini-chat-embed__reset-confirm"), null);
   });
 
   it("keeps confirmation open on non-Escape keydown without resetting", () => {
@@ -185,7 +171,7 @@ describe("SiteAssistantHeader", () => {
       act(() => {
         cancel.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
       });
-      assert.ok(container.querySelector(".tovu-site-assistant__reset-confirm"), `${key} must not dismiss confirmation on keydown`);
+      assert.ok(container.querySelector(".jini-chat-embed__reset-confirm"), `${key} must not dismiss confirmation on keydown`);
       assert.equal(resetCount, 0);
     }
   });

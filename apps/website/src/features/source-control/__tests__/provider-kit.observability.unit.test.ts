@@ -21,6 +21,15 @@ import { buildSourceControlProvider, buildSourceControlProviderForApi, type Sour
 const TOKEN = "ghp_fixture0123456789";
 const httpClient: HttpClientPort = { send: () => Promise.reject(new Error("not used")) };
 
+test("the provider kit retains the guarded host HTTP request contract", async () => {
+  const request = { method: "GET" as const, url: "https://api.github.com/user", headers: {}, idleTimeoutMs: 1000 };
+  const response = { status: 200, headers: {}, bodyText: "{}" };
+  const client: HttpClientPort = { send: async actual => { assert.equal(actual, request); return response; } };
+  const kit = createSourceControlProviderKit({ httpClient: client });
+  assert.equal(kit.httpClient, client);
+  assert.equal(await kit.httpClient.send(request), response);
+});
+
 /** A registry with one provider whose module hands its kit back to the test. */
 function capturingRegistry(): { registry: SourceControlProviderRegistry; kit: () => SourceControlProviderKit } {
   let captured: SourceControlProviderKit | undefined;

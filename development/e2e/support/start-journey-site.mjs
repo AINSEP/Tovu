@@ -41,12 +41,16 @@ if (target === "packaged") {
   if (target === "api-with-site-chat") {
     // The migrated public-widget pins test build output. Build once before any test can start,
     // matching the old site-assistant config; no Jini package/dist build is performed.
-    const built = spawnSync(process.execPath, ["apps/site-chat/node_modules/vite/bin/vite.js", "build", "apps/site-chat", "--config", "apps/site-chat/vite.config.ts", "--outDir", process.env.TOVU_SITE_CHAT_DIST],
-      // The journey env's NODE_ENV=development makes plugin-react emit jsxDEV calls, while the
-      // bundle's own `define` resolves React to its production build, whose jsxDEV is undefined
-      // ("jsxDEV is not a function"). Build as the shipped bundle is built: production.
-      { cwd: repoRoot, env: { ...process.env, NODE_ENV: "production" }, stdio: "inherit" });
-    if (built.status !== 0) throw new Error(`journeys site-chat build failed (${built.status ?? built.signal})`);
+    // Use the same three configs/order as site-chat's build:local script. React alone leaves
+    // readiness false and silently serves the eager fallback instead of exercising the loader.
+    for (const config of ["vite.config.ts", "vite.lazy.config.ts", "vite.vanilla.config.ts"]) {
+      const built = spawnSync(process.execPath, ["apps/site-chat/node_modules/vite/bin/vite.js", "build", "apps/site-chat", "--config", `apps/site-chat/${config}`, "--outDir", process.env.TOVU_SITE_CHAT_DIST],
+        // The journey env's NODE_ENV=development makes plugin-react emit jsxDEV calls, while the
+        // bundle's own `define` resolves React to its production build, whose jsxDEV is undefined
+        // ("jsxDEV is not a function"). Build as the shipped bundle is built: production.
+        { cwd: repoRoot, env: { ...process.env, NODE_ENV: "production" }, stdio: "inherit" });
+      if (built.status !== 0) throw new Error(`journeys site-chat ${config} build failed (${built.status ?? built.signal})`);
+    }
   }
   // Dockerfile pins use a disposable cwd because the real route resolves process.cwd().
   process.chdir(apiCwd ?? repoRoot);

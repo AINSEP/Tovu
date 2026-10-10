@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError, type AdminMenu } from "@/lib/api";
@@ -294,7 +294,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     });
 
     expect(result.current.saving).toBe(true);
-    expect(updateCalls).toBe(1);
+    await waitFor(() => expect(updateCalls).toBe(1));
 
     await act(async () => {
       resolveSave();
@@ -327,4 +327,14 @@ describe("useMenuEditor — slug redirect on load", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(navigate).not.toHaveBeenCalled();
   });
+});
+
+
+it('translates a menu load fallback while preserving a real server error message', async () => {
+  const port = createFakeMenusPort();
+  port.getMenu = async () => { throw 'unstructured failure'; };
+  const { result } = renderHook(() => useMenuEditor('m1', { port, navigate: () => {},
+    t: key => key === 'failed to load menu' ? 'Impossible de charger le menu' : key }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.error).toBe('Impossible de charger le menu');
 });

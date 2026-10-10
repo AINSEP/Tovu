@@ -17,6 +17,7 @@ import { PassThrough, Writable } from "node:stream";
 
 import { MAX_RECENT_SITE_DIRS, SiteDirSelectionCancelled, stateFilePath, readDesktopState, rememberSiteDir, existingRecentSiteDirs, classifySiteDir, classifySiteDirSafely, resolveDevFallback, initSiteDir, resolveOrInitSiteDir, adoptSiteDir, resolveSiteDir } from "./site-dir-store.ts";
 import type { RejectedDevFallback } from "./site-dir-store.ts";
+import { createSitesWorkspace } from "./shared-sites.ts";
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-sitedir-"));
@@ -451,7 +452,7 @@ test("initSiteDir sets TOVU_SITE_DIR to the folder being created, closing the sa
   assert.equal(capturedEnv!.TOVU_SITE_DIR, "/a/new/site");
 });
 
-test("initSiteDir keeps an operator-set TOVU_SITE_DIR instead of replacing it", async () => {
+test("initSiteDir pins the new site's directory despite an inherited TOVU_SITE_DIR", async () => {
   let capturedEnv: NodeJS.ProcessEnv | undefined;
   await initSiteDir({
     repoRoot: fakeRepoRoot(),
@@ -462,7 +463,7 @@ test("initSiteDir keeps an operator-set TOVU_SITE_DIR instead of replacing it", 
       return fakeInitChild(0);
     },
   });
-  assert.equal(capturedEnv!.TOVU_SITE_DIR, "/operator/pinned");
+  assert.equal(capturedEnv!.TOVU_SITE_DIR, "/a/new/site");
 });
 
 /** Runs `body` and returns every uncaught exception raised until its child and token stream have closed. */
@@ -543,12 +544,20 @@ test("initSiteDir creates a complete blank site with the requested name through 
   const parent = tempDir();
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const target = path.join(parent, "created-site");
-  await initSiteDir({ repoRoot, dir: target, name: "Created By Test", cliMode: "source" });
+  // Keep the CLI's shared settings/catalog and any app-data databases inside this fixture too.
+  const fixtureEnv = { ...process.env, HOME: parent, USERPROFILE: parent, XDG_CONFIG_HOME: path.join(parent, "config"),
+    XDG_DATA_HOME: path.join(parent, "data"), APPDATA: path.join(parent, "appdata"), LOCALAPPDATA: path.join(parent, "localappdata"),
+    TOVU_SITES_HOME: path.join(parent, "sites"), TOVU_SITE_ROOTS: "" };
+  await initSiteDir({ repoRoot, dir: target, name: "Created By Test", cliMode: "source", baseEnv: fixtureEnv });
 
   assert.equal(classifySiteDir(target), "site");
-  assert.equal(fs.existsSync(path.join(target, "content.db")), true);
+  const { siteId } = JSON.parse(fs.readFileSync(path.join(target, ".site-meta.json"), "utf8"));
+  // The shared workspace owns DB placement (data.nosync or app-data), not the desktop shell.
+  const workspace = createSitesWorkspace({}, { homeDir: parent, env: fixtureEnv, cwd: repoRoot });
+  const contentDbPath = workspace.databasePath({ dir: target, id: siteId, filename: "content.db" });
+  assert.equal(fs.existsSync(contentDbPath), true);
   assert.equal(JSON.parse(fs.readFileSync(path.join(target, "config.json"), "utf8")).name, "Created By Test");
-  const db = new DatabaseSync(path.join(target, "content.db"), { readOnly: true });
+  const db = new DatabaseSync(contentDbPath, { readOnly: true });
   try {
     // Posts and pages share this table; a new site must contain neither kind of sample entry.
     assert.deepEqual(db.prepare("SELECT id FROM posts").all(), []);

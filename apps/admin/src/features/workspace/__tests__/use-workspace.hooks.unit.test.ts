@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminWorkspace } from "@/lib/api";
@@ -164,6 +164,7 @@ describe("useWorkspace — onSave", () => {
     });
     expect(view.result.current.saving).toBe(true);
 
+    await waitFor(() => expect(resolveUpdate).toBeTypeOf("function"));
     await act(async () => {
       resolveUpdate({ workspace: WORKSPACE });
       await Promise.resolve();
@@ -196,6 +197,7 @@ describe("useWorkspace — onSave", () => {
     expect(view.result.current.saving).toBe(true);
     expect(view.result.current.saveError).toBeNull();
     expect(view.result.current.saved).toBe(false);
+    await waitFor(() => expect(resolveUpdate).toBeTypeOf("function"));
     await act(async () => {
       resolveUpdate({ workspace: WORKSPACE });
       await pending;
@@ -203,10 +205,12 @@ describe("useWorkspace — onSave", () => {
     expect(view.result.current.saved).toBe(true);
 
     // A successful attempt also leaves a flag that must clear before the next response.
+    const previousResolve = resolveUpdate;
     act(() => { pending = view.result.current.onSave(fakeSubmitEvent()); });
     expect(view.result.current.saving).toBe(true);
     expect(view.result.current.saveError).toBeNull();
     expect(view.result.current.saved).toBe(false);
+    await waitFor(() => expect(resolveUpdate).not.toBe(previousResolve));
     await act(async () => {
       resolveUpdate({ workspace: WORKSPACE });
       await pending;
@@ -266,5 +270,21 @@ describe("useWiredWorkspace — composes the real port + real useAdminLocale", (
     expect(result.current.workspace?.name).toBe("Wired Rename");
     expect(result.current.workspace?.slug).toBe("wired-rename");
     expect(result.current.saved).toBe(true);
+  });
+});
+
+
+describe("workspace cache and form drafts", () => {
+  it("publishes a sibling save without replacing an unsaved rename", async () => {
+    const port = createFakeWorkspacePort({ workspace: WORKSPACE });
+    const { result } = renderHook(() => ({ first: useWorkspace({ port }), second: useWorkspace({ port }) }));
+    await waitFor(() => expect(result.current.second.name).toBe(WORKSPACE.name));
+    act(() => {
+      result.current.first.setName("Published name");
+      result.current.second.setName("My unsaved name");
+    });
+    await act(async () => { await result.current.first.onSave(fakeSubmitEvent()); });
+    await waitFor(() => expect(result.current.second.workspace?.name).toBe("Published name"));
+    expect(result.current.second.name).toBe("My unsaved name");
   });
 });

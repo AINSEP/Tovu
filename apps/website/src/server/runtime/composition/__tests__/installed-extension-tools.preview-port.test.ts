@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
@@ -35,7 +36,7 @@ async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Pro
   const registry = { register: (registration: ToolRegistration) => void registrations.push(registration) };
   await registerInstalledExtensionTools(
     registry,
-    {
+    testSiteLayoutContext({
       authorize: async () => ({ allowed: true }) as never,
       workspaceId,
       postRepo: new InMemoryPostRepo([
@@ -59,7 +60,7 @@ async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Pro
       ] }),
       discoverPlugins: async () => [RECORD],
       ...extra,
-    },
+    }),
     "[preview-port-test]",
   );
   const tool = registrations.find((registration) => registration.descriptor.id === "plugin_capability_content_analyzer");

@@ -401,18 +401,21 @@ test("apply() 'applied' path: writes through updatePost with expectedVersion, ac
   assert.equal(changeSet?.actorId, "operator-1");
 });
 
-test("apply() restores an existing destination forward when change-set recording fails", async () => {
+for (const byline of [{ author: null, showAuthor: false }, { author: "Hidden credit", showAuthor: false }, { author: "Visible credit", showAuthor: true }]) {
+test(`apply() restores an existing destination forward when change-set recording fails (byline=${byline.author}, visible=${byline.showAuthor})`, async () => {
   const deps = makeApplyDeps([]);
-  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WORKSPACE_ID, id: "post-1", title: "Original", slug: "original", status: "published", actorId: "original-author" } });
+  await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WORKSPACE_ID, id: "post-1", title: "Original", slug: "original", status: "published", actorId: "original-author", ...byline } });
   const prior = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-1" });
   assert.ok(prior);
   const failure = new Error("change-set store is down");
   deps.changeSets.insert = async () => { throw failure; };
   const handler = contributePostPublish().build(deps);
-  const source = makePost({ ...prior, title: "Failed import", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } });
+  const originalHash = (await handler.inspect(prior.id))!.hash;
+  const source = makePost({ ...prior, author: "Failed credit", showAuthor: !byline.showAuthor, title: "Failed import", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } });
   await assert.rejects(() => handler.apply({ entity: packedFrom("post", source), expectedVersion: prior.version, principalId: "operator-1", idempotencyKey: "apply-4" }), error => error === failure);
   const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id });
   assert.deepEqual(restored, { ...prior, updatedAt: new Date(deps.clock.nowMs()).toISOString(), version: 3 });
+  assert.equal((await handler.inspect(prior.id))!.hash, originalHash, "compensation preserves the transport hash too");
   const revisions = await deps.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: prior.id });
   assert.deepEqual(revisions.map(row => [row.seq, row.op]), [[1, "create"], [2, "update"], [3, "restore"]]);
   assert.deepEqual(revisions[2]?.stateJson, restored);
@@ -421,6 +424,7 @@ test("apply() restores an existing destination forward when change-set recording
   assert.deepEqual((await deps.outbox.claimPending({ batchSize: 10, nowIso: new Date(deps.clock.nowMs()).toISOString() })).map(row => row.event.name), ["entry.unpublished", "entry.published"]);
   assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });
+}
 
 test("apply() 'applied' path: a stale expectedVersion rejects with a typed apply conflict, never overwrites", async () => {
   const existing = makePost({ id: "post-1", version: 5, title: "Someone else's edit" });

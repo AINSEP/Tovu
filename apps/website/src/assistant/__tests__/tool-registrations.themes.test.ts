@@ -94,7 +94,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function themesRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id === "content_read.theme" || r.descriptor.id === "preview_reload").map((r) => [r.descriptor.id, r]));
+  return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).filter((r) => r.descriptor.id.startsWith("theme_") || r.descriptor.id.startsWith("content_read.theme") || r.descriptor.id === "preview_reload").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -112,6 +112,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 const WIRED_THEMES_TOOL_IDS = [
   "preview_reload",
   "content_read.theme",
+  "content_read.theme_page_publication",
   "theme_rescan",
   "theme_copy_file",
   "theme_edit_file",
@@ -130,7 +131,7 @@ const WIRED_THEMES_TOOL_IDS = [
  *  entry with `content_read.theme` — it does not touch any domain's own catalog. So assertions
  *  about the WIRED set use `WIRED_THEMES_TOOL_IDS` above and assertions about the CATALOG use this
  *  one; collapsing them back into a single list would make one of the two silently wrong. */
-const CATALOGUED_THEMES_TOOL_IDS = WIRED_THEMES_TOOL_IDS.map((id) => (id === "content_read.theme" ? "theme_list" : id));
+const CATALOGUED_THEMES_TOOL_IDS = WIRED_THEMES_TOOL_IDS.map((id) => id === "content_read.theme" ? "theme_list" : id === "content_read.theme_page_publication" ? "theme_list_page_publications" : id);
 
 // Tools that mutate durable state — everything else in `WIRED_THEMES_TOOL_IDS` is read-only.
 const DESTRUCTIVE_WRITE_TOOL_IDS = [
@@ -150,10 +151,10 @@ const DESTRUCTIVE_WRITE_TOOL_IDS = [
 // ---------------------------------------------------------------------------
 
 // Catalog completeness changes with the declared catalog; safety exclusions below are separate.
-test("exactly the 12 themes entries are registered — nothing else", () => {
+test("exactly the 13 themes entries are registered — nothing else", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...themesRegistrations(deps).keys()].sort(), [...WIRED_THEMES_TOOL_IDS].sort());
-  assert.equal(getThemesAgentToolCatalog().length, 12, "sanity: the full themes catalog is 12 entries");
+  assert.equal(getThemesAgentToolCatalog().length, 13, "sanity: publication reads extend the themes catalog");
 });
 
 // `theme_delete_file` stays excluded pending an explicit owner call —
@@ -195,7 +196,7 @@ test("every wired themes registration publishes its catalog entry's inputSchema 
     // Not a coverage gap: `deriveContentReadRegistrations` runs the IDENTICAL
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
-    if (id === "content_read.theme") continue;
+    if (id.startsWith("content_read.")) continue;
     // A batchable tool publishes its catalog entry plus `items`, via the real `batchDescriptorFor`.
     const batchable = BATCHABLE_TOOLS.find((tool) => tool.toolId === id);
     const catalogDescriptor = { id, description: catalogEntry(id).description, inputSchema: catalogEntry(id).inputSchema };

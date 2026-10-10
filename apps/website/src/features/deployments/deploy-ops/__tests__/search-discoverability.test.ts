@@ -1,3 +1,4 @@
+import { ALL_CHAT_DELETE_TOOLS } from "../../../../assistant/permanent-delete-tool-gate.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -21,9 +22,17 @@ test("deploy ops owner phrasings rank in the top three of the real full catalog"
   contributions.contributors.clear({}); installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps(); await deps.identityReady;
   const registry = createToolRegistry({});
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS });
   for (const registration of registrations) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
+  const unset = registry.list({}).find(tool => tool.id === "deployment_ops_unset_secret")!;
+  assert.ok(unset.description);
+  assert.ok(unset.description.includes("remove it in the provider console; Tovu has no admin screen for this operation."));
+  const offRegistry = createToolRegistry({});
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })) offRegistry.register(registration);
+  const offCatalog = buildToolCatalogQuery(offRegistry);
+  for (const id of ALL_CHAT_DELETE_TOOLS.allowedToolIds) assert.equal(offCatalog.describe({ id }), null, `${id} must be hidden by default`);
+
   for (const id of ["deployment_ops_status", "deployment_ops_logs", "deployment_ops_wait", "deployment_ops_list_targets", "deployment_ops_deploy", "deployment_ops_list_secrets", "deployment_ops_set_secret", "deployment_ops_unset_secret"]) {
     assert.equal((DOC2QUERY[id] ?? []).length >= 4, true, `missing questions for ${id}`);
     for (const query of DOC2QUERY[id]!) assert.equal(catalog.search({ query }, { limit: 3 }).some(hit => hit.id === id), true, `${id}: ${query}: ${JSON.stringify(catalog.search({ query }, { limit: 3 }).map(h => h.id))}`);

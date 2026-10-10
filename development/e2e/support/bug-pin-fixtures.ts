@@ -293,7 +293,7 @@ const PIN_STOCK_THEMES: Record<string, readonly string[]> = {
 };
 
 async function configurePin(
-  { playwright, site, testInfo }: { playwright: Playwright; site: IsolatedJourneySite; testInfo: TestInfo }, _optional = {},
+  { playwright, site, testInfo, visitorWidget }: { playwright: Playwright; site: IsolatedJourneySite; testInfo: TestInfo; visitorWidget: "react" | "vanilla" }, _optional = {},
 ): Promise<void> {
   const api = await playwright.request.newContext({ baseURL: site.adminURL, storageState: site.storageState,
     extraHTTPHeaders: await pinSessionHeaders({ storageState: site.storageState }) });
@@ -317,7 +317,7 @@ async function configurePin(
     }
     if (publicAssistant || shippedTheme) {
       for (const [url, data] of [
-        ...(publicAssistant ? [["assistant/settings", { publicEnabled: true }]] as const : []),
+        ...(publicAssistant ? [["assistant/settings", { publicEnabled: true, widget: visitorWidget }]] as const : []),
         ...(shippedTheme ? [["presentation", { activeThemeId: "tovu-theme" }]] as const : []),
       ] as const) {
         const saved = url === "presentation"
@@ -325,14 +325,17 @@ async function configurePin(
           : await api.put(`/api/admin/v1/workspaces/workspace-local/${url}`, { data });
         expect(saved.ok(), `Pin setup ${url}: ${await saved.text()}`).toBe(true);
         const body = await saved.json();
-        if (url === "assistant/settings") expect(body.data.publicEnabled).toBe(true);
+        if (url === "assistant/settings") {
+          expect(body.data.publicEnabled).toBe(true);
+          expect(body.data.widget).toBe(visitorWidget);
+        }
         else expect(JSON.stringify(body)).toContain('"activeThemeId":"tovu-theme"');
       }
     }
   } finally { await api.dispose(); }
 }
 
-export const test = journeyTest.extend<{ pinApi: boolean; outboundTestOrigins: string[]; pinAdminPassword: string; pinThemeCaptures: boolean }, { pinSites: PinSites }>({
+export const test = journeyTest.extend<{ pinApi: boolean; outboundTestOrigins: string[]; pinAdminPassword: string; pinThemeCaptures: boolean; pinVisitorWidget: "react" | "vanilla" }, { pinSites: PinSites }>({
   /** `false` serves only the prebuilt admin, so its proxy targets an API port nothing listens on
    * (the old login-api-down config's "Vite up, API deliberately unreachable" shape). */
   pinApi: [true, { option: true }],
@@ -341,6 +344,8 @@ export const test = journeyTest.extend<{ pinApi: boolean; outboundTestOrigins: s
   outboundTestOrigins: [[], { option: true }],
   pinAdminPassword: [JOURNEY_ADMIN_PASSWORD, { option: true }],
   pinThemeCaptures: [false, { option: true }],
+  /** Public-widget setup uses the real authenticated route; per-test reset/site teardown owns cleanup. */
+  pinVisitorWidget: ["react", { option: true }],
   pinSites: [async ({ playwright }, use) => {
     const files = new Map<string, { runtime: Promise<PinRuntime>; release: () => void; finished: Promise<void> }>();
     const close = async ({ file }: { file: string }) => {
@@ -382,14 +387,14 @@ export const test = journeyTest.extend<{ pinApi: boolean; outboundTestOrigins: s
       if (failed.length) throw new AggregateError(failed.map((result) => result.reason), "Pin file cleanup failed");
     }
   }, { scope: "worker", timeout: 180_000 }],
-  journeySite: [async ({ playwright, pinApi, pinSites, outboundTestOrigins, pinAdminPassword, pinThemeCaptures }, use, testInfo) => {
+  journeySite: [async ({ playwright, pinApi, pinSites, outboundTestOrigins, pinAdminPassword, pinThemeCaptures, pinVisitorWidget }, use, testInfo) => {
     await pinSites.selectFile({ file: testInfo.file });
     const cold = testInfo.tags.includes("@isolated-site") || testInfo.tags.includes("@real-service") || testInfo.tags.includes("@live") || !pinApi || outboundTestOrigins.length > 0 || pinAdminPassword !== JOURNEY_ADMIN_PASSWORD || pinThemeCaptures;
     const run = async (runtime: PinRuntime) => {
       const { site } = runtime;
       PUBLIC_URL = site.apiURL; ADMIN_URL = site.adminURL;
       if (!cold) await testInfo.attach("pin-site-owner", { body: Buffer.from(site.runtimeDir), contentType: "text/plain" });
-      if (pinApi) await configurePin({ playwright, site, testInfo });
+      if (pinApi) await configurePin({ playwright, site, testInfo, visitorWidget: pinVisitorWidget });
       try { await use(site); }
       finally {
         PUBLIC_URL = ""; ADMIN_URL = "";

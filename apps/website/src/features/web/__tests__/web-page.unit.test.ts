@@ -68,7 +68,7 @@ test("an HTML page comes back as markdown with absolute, deduped links/images an
     requestedUrl: "https://luvira.example/#hero", finalUrl: "https://luvira.example/", status: 200,
     contentType: "text/html; charset=utf-8", title: "Luvira Consulting", description: "Strategy for growth", lang: "en-US",
     format: "markdown",
-    content: "[About](https://luvira.example/about) [Team](https://luvira.example/about) [Contact](https://www.luvira.example/contact) [Partner](https://other.example/x) [Email](mailto:hi@luvira.example) Bad Top [![Logo](https://luvira.example/logo.png)](https://luvira.example/logo)\n\n# Grow _faster_\n\nWe help **small** teams.\n\n![Lazy hero](https://luvira.example/img/lazy.jpg)![dup](https://luvira.example/logo.png)\n\n- Plan\n- Build\n  - Ship",
+    content: "[About](https://luvira.example/about) [Team](https://luvira.example/about) [Contact](https://www.luvira.example/contact) [Partner](https://other.example/x) [Email](mailto:hi@luvira.example) Bad Top [![Logo](https://luvira.example/logo.png)](https://luvira.example/logo)\n\n# Grow *faster*\n\nWe help **small** teams.\n\n![Lazy hero](https://luvira.example/img/lazy.jpg)![dup](https://luvira.example/logo.png)\n\n- Plan\n- Build\n  - Ship",
     truncated: false,
     links: [
       { href: "https://luvira.example/about", text: "About", internal: true },

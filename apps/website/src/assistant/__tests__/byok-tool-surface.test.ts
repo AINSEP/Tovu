@@ -1,3 +1,5 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
+import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -61,8 +63,11 @@ const RUN = { id: "run-meta-tool" };
  *  `RouteDeps`) because that is what `createByokToolSurface` actually declares it needs as of the
  *  double-cast removal — see that function's own doc. */
 function fakeRouteDeps(): ByokToolSurfaceDeps {
-  const deps = {
+  const deps = testSiteLayoutContext({
     workspaceId: "ws-meta-tool",
+    settingsRepo: new InMemorySettingsRepo(),
+    settingsUiTabsReady: Promise.resolve(),
+    getEffective,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-08-05T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -81,7 +86,7 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
     outbox: { enqueue: async () => {} },
     // Catalog construction binds the SEO host port; these cases never execute SEO.
     seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
-  };
+  });
   return deps as unknown as ByokToolSurfaceDeps;
 }
 
@@ -984,4 +989,12 @@ test("BYOK federation: execute_delegated_tool for a connection that failed to co
 
   assert.equal(result.isError, true);
   assert.equal(result.content, "External MCP server 'echo-server' failed to connect: connect ECONNREFUSED");
+});
+
+test("the BYOK discovery registry hides disallowed permanent deletes from both has and list", () => {
+  const s = surface();
+  assert.equal(s.registry.has({ toolId: "trash_empty" }), false);
+  assert.equal(s.registry.list({}).some(tool => tool.id === "trash_empty"), false);
+  assert.equal(s.registry.has({ toolId: "workspace_delete" }), false);
+  assert.equal(s.registry.has({ toolId: "trash_list_items" }), true);
 });

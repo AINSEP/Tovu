@@ -33,10 +33,11 @@ test("npm run dev: an explicit TOVU_PLUGIN_LOCAL_INSTALL=0 reaches the API child
   assert.equal(buildApiEnv(API, { env: { TOVU_PLUGIN_LOCAL_INSTALL: "0" } }).TOVU_PLUGIN_LOCAL_INSTALL, "0");
 });
 
-test("npm run dev: the extracted API env keeps every entry the inline one had", () => {
+test("npm run dev: ordinary startup preserves plugin flags without opting in to owner sign-in", () => {
   assert.deepEqual(buildApiEnv(API, { env: {} }), {
     TOVU_ADMIN_DEV_PROXY_URL: "https://localhost:5173",
     PORT: "3000",
+    TOVU_DEV_OWNER_SIGNIN: "0",
     TOVU_DEV_SUPERVISOR_PID: "42",
     TOVU_ENABLE_SITE_SWITCHER: "1",
     TOVU_PLUGIN_LOCAL_INSTALL: "1",

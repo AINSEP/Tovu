@@ -1,3 +1,5 @@
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
+import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -109,6 +111,8 @@ async function buildHarness(): Promise<Harness> {
     rolePolicyRepo: repos.rolePolicies,
     principalRoleRepo: repos.principalRoles,
     principalPolicyRepo: repos.principalPolicies,
+    isInTrash: async () => false,
+    outbox: { enqueue: async () => {} },
   } as unknown as RegistryDepsWithoutLimiter;
 
   return { deps, repos, ownerPrincipalId };
@@ -176,7 +180,7 @@ const IDENTITY_TOOL_IDS: ReadonlySet<string> = new Set(identityAgentToolCatalog.
 
 function identityRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS })
       .filter(
         (registration) =>
           IDENTITY_TOOL_IDS.has(registration.descriptor.id) || Object.values(IDENTITY_COLLAPSED_ID).includes(registration.descriptor.id),
@@ -226,6 +230,7 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   identity_policy_list: {},
   identity_user_create: { username: "newcomer" },
   identity_user_update_email: { principalId: "target-principal", email: "a@b.test" },
+  identity_user_change_username: { principalId: "target-principal", username: "renamed-target" },
   identity_user_disable: { principalId: "target-principal" },
   identity_user_enable: { principalId: "target-principal" },
   identity_role_create: { name: "Custom Role" },
@@ -308,6 +313,11 @@ async function assertSuccessfulResult(repos: IdentityRepos, toolId: string, resu
       assert.equal(out.user.email, "a@b.test");
       assert.equal((await repos.users.findByPrincipalId({ ...scope, principalId: emailPrincipalId }))?.email, "a@b.test");
       break;
+    case "identity_user_change_username":
+      assert.equal(out.user.principalId, "target-principal");
+      assert.equal(out.user.username, "renamed-target");
+      assert.equal((await repos.users.findByPrincipalId({ ...scope, principalId: "target-principal" }))?.username, "renamed-target");
+      break;
     case "identity_user_disable":
     case "identity_user_enable": {
       const status = toolId === "identity_user_disable" ? "disabled" : "active";
@@ -364,7 +374,7 @@ test("every wired identity tool has an input fixture here — wiring one without
     identityAgentToolCatalog.map((tool) => identityWiredId(tool.name)).sort(),
     "every catalog entry must be wired (under its collapsed id where one applies), and nothing else",
   );
-  assert.equal(wiredIds.length, 15);
+  assert.equal(wiredIds.length, 16);
 });
 
 // ---------------------------------------------------------------------------
@@ -644,5 +654,16 @@ test("every wired identity tool declares user.manage or role.manage — never a 
         `${toolId} declares '${permission}', which is not one of the identity-admin permissions`,
       );
     }
+  }
+});
+
+test("chat delete policy defaults off; checked identity deletes retain a plan confirmation", async () => {
+  const { deps } = await buildHarness();
+  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  for (const id of ["identity_role_delete", "identity_policy_delete"]) {
+    assert.equal(off.some(tool => tool.descriptor.id === id), false);
+    const on = identityRegistrations(deps).get(id)!;
+    assert.ok(on);
+    assert.equal(on.descriptor.metadata?.approval?.confirmation, "plan");
   }
 });

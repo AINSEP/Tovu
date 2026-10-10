@@ -93,6 +93,7 @@ export const toolMetadata = {
         "Can you change the title of this page?",
         "I need to fix a typo in the latest blog post title.",
         "How do I publish this post by updating its status?",
+        "Publish an existing draft blog post on this website.",
         "Can you rewrite this page's body and slug at the same time?",
         "How do I take a live post back to draft?",
         "Can you unpublish this page for now and put it back in draft?",

@@ -30,6 +30,9 @@ import type { FederationRuntime } from "./external-mcp-federation-runtime.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
+import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete-tool-gate.js";
+import { readAssistantPermanentDeletesPolicy } from "./permanent-delete-settings.js";
+import { isChatToolAllowed } from "../contracts/headless/assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-recovery-preset.js";
 import type { ByokToolResultBlock } from "./byok-provider-turn.js";
@@ -46,6 +49,7 @@ export interface ByokMetaToolResult {
 }
 
 export interface ByokToolSurface {
+  /** Discovery view only; use this surface's executor/meta calls for execution against the inner registry. */
   readonly registry: ToolRegistry;
   readonly executor: ToolExecutor;
   /** The 3 descriptors actually sent to the provider — see {@link META_TOOL_DESCRIPTORS}. */
@@ -432,7 +436,9 @@ async function runExecuteDelegatedTool(
  *  Exported so a caller that must cast into this shape (today: `modules/assistant-byok.ts`, whose own
  *  `routeDeps: RouteDeps` parameter is narrower than what it actually always receives at runtime —
  *  see that module's own comment) can cast to a named type instead of repeating this `Omit`. */
-export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter" | "listCatalogTools">;
+export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter" | "listCatalogTools"> & {
+  readonly federatedMcpPresetRegistry?: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
+};
 
 export function createByokToolSurface(
   routeDeps: ByokToolSurfaceDeps,
@@ -489,17 +495,25 @@ export function createByokToolSurface(
   // The input omits exactly the limiter and catalog reader built here. Domain slices already
   // declare the clock; the assembled object is checked against AssistantToolRegistryDeps.
   const registry = createToolRegistry({});
+  const deleteScope = createChatDeleteScope({ readPolicy: () => readAssistantPermanentDeletesPolicy({ ...routeDeps, settingsReady: routeDeps.settingsUiTabsReady }) });
+  // Discovery view only: Jini authorizes invocations against the inner registry's WeakMap
+  // identity. Executors must use `registry`, never this filtered view.
+  const visibleRegistry: ToolRegistry = {
+    register: registry.register,
+    has: ({ toolId }) => registry.has({ toolId }) && isChatToolAllowed({ toolId, policy: deleteScope.policy() }),
+    list: (...args) => registry.list(...args).filter(tool => isChatToolAllowed({ toolId: tool.id, policy: deleteScope.policy() })),
+  };
   // `listCatalogTools` is `site_describe_capabilities`' reader over this surface's OWN registry, the
   // one `search_tools`/`describe_tool` below are seeded from. Spread last, so a reader smuggled in
   // through `routeDeps` cannot replace it.
   const deps: AssistantToolRegistryDeps = {
     ...routeDeps,
     magicLinkPerEmailLimiter,
-    listCatalogTools: () => listToolCatalogEntries(registry),
+    listCatalogTools: () => listToolCatalogEntries(visibleRegistry),
   };
   const surfaceExchanges = options.surfaceExchangeStore ?? createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
 
-  for (const registration of buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions: options.contributions })) {
+  for (const registration of buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS })) {
     registry.register(registration);
   }
 
@@ -516,6 +530,7 @@ export function createByokToolSurface(
   // `undefined`-valued) when this surface's `routeDeps` carries no OAuth service, so an
   // `authMode: "oauth"` row degrades to a reported failure rather than launching credential-free.
   const connectionSource = createStoredExternalMcpConnectionSource({
+    agentPluginLayout: routeDeps.agentPluginLayout,
     repo: routeDeps.externalMcpServerRepo,
     sealer: routeDeps.siteAssistantSecretSealer,
     ...(routeDeps.externalMcpOAuth ? { oauth: routeDeps.externalMcpOAuth.tokenResolver } : {}),
@@ -537,6 +552,7 @@ export function createByokToolSurface(
             ...deps,
             registerInstalled: options.registerInstalledExtensions ?? (async () => {}),
             federation: {
+              presetRegistry: routeDeps.federatedMcpPresetRegistry,
               deps: buildExternalMcpFederationDeps({
                 authorize: routeDeps.authorize,
                 workspaceId: routeDeps.workspaceId,
@@ -650,14 +666,16 @@ export function createByokToolSurface(
       runId: run.id,
     };
 
-    if (call.name === "search_tools") return runSearchTools(catalog, registry, args, catalogAudit);
-    if (call.name === "describe_tool") return runDescribeTool(catalog, args, catalogAudit);
-    // execute_delegated_tool
-    return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
+    return deleteScope.fresh({ run: () => {
+      const visibleCatalog = deleteScope.catalog({ catalog });
+      if (call.name === "search_tools") return runSearchTools(visibleCatalog, visibleRegistry, args, catalogAudit);
+      if (call.name === "describe_tool") return runDescribeTool(visibleCatalog, args, catalogAudit);
+      return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
+    } });
   }
 
   return {
-    registry,
+    registry: visibleRegistry,
     executor,
     metaTools: META_TOOL_DESCRIPTORS,
     surfaceExchanges,

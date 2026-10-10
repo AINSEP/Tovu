@@ -33,6 +33,7 @@ const PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/presentation`;
 function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Express {
   const base = createRouteDeps();
   const deps: ContentRouteDeps = {
+    userRepo: base.userRepo,
     workspaceId: base.workspaceId,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: base.clock,

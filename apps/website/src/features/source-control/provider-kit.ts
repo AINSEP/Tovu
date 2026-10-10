@@ -1,4 +1,4 @@
-import { assertNotRedirected, DeployError, redirectGuardInit } from "@jini-ai/devops/deploy";
+import { createSourceControlProviderKit as createKit } from "@jini-ai/devops/source-control";
 
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
@@ -28,16 +28,21 @@ export function createSourceControlProviderKit(
   options: { readonly httpClient?: HttpClientPort; readonly fetchFn?: typeof fetch; readonly observability?: ObservabilityPort; readonly sleep?: (ms: number) => Promise<void> } = {},
 ): SourceControlProviderKit {
   const send = (url: string, init: RequestInit) => (options.fetchFn ?? fetch)(url, init);
-  return {
-    fetch: options.observability ? trackFetch({ fetch: send, observability: options.observability }) : send,
-    redirectGuardInit: (init) => redirectGuardInit({ init }),
-    assertNotRedirected: (response, hostName) => assertNotRedirected({ resp: response, providerLabel: hostName }),
-    isRedirectRefusal: (error) => error instanceof DeployError,
-    httpClient: options.httpClient ?? NO_HTTP_CLIENT,
-    describeTransportError: (error) => ({
+  const httpClient = options.httpClient ?? NO_HTTP_CLIENT;
+  const kit = createKit({ httpClient: { send: ({ request }) => httpClient.send(request) },
+    fetch: ({ url }, optional = {}) => (options.observability ? trackFetch({ fetch: send, observability: options.observability }) : send)(url, optional.init ?? {}),
+    describeTransportError: ({ error }) => ({
       refusal: error instanceof EgressRefusedError ? error.callerSafeMessage : undefined,
       logDetail: error instanceof EgressRefusedError ? error.message : describeErrorForLog({ err: error }),
     }),
-    sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
+  }, { fetchRedirectPolicy: "caller" });
+  return {
+    fetch: (url, init) => kit.fetch({ url, init }),
+    redirectGuardInit: init => kit.redirectGuardInit({ init }),
+    assertNotRedirected: (response, hostName) => kit.assertNotRedirected({ response, hostName }),
+    isRedirectRefusal: error => kit.isRedirectRefusal({ error }),
+    httpClient,
+    describeTransportError: error => kit.describeTransportError({ error }),
+    sleep: options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms))),
   };
 }

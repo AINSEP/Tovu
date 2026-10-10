@@ -1,18 +1,20 @@
+import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { toolMetadata } from '../../contracts/core/tool-metadata/sites.js';
 import path from "node:path";
 
-import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, ToolInputError, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "#src/assistant/index";
 import {
+  includeServingSite, listSitesForBinding, readPersistedActiveSite, isSiteSwitcherEnabled, switcherBaseForBinding, type ListSitesOptional, type SiteBinding, type SiteListEntry,
   InitDirNotEmptyError,
   SiteDirInvalidError,
   ValidationError,
   SITE_NAME_PATTERN,
 } from "#src/platform/site-dir/index";
 
-import { SITES_WRITE_PERMISSION, sitesAgentToolCatalog } from "./agent-tools.js";
+import { SITES_WRITE_PERMISSION, sitesAgentToolCatalog, sitesReadAgentToolCatalog } from "./agent-tools.js";
 import { resolveSitesDeps, type SitesToolDeps } from "./deps.js";
 import { activateSite, createSiteForOwner, resolveSiteSwitchBase, type SiteAdminRefusal, type SiteAdminRefusalCode } from "./site-admin.js";
 
@@ -191,15 +193,18 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITES_WRITE_PERMISSION }, { entityType: "site-registry" });
 
       return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        // Both the source lookup and the target are rooted at the SERVED tree (`switcherBase`), never
-        // `process.cwd()` — see `deps.ts`'s header for the wrong-tree copy the cwd default caused.
+        // The source lookup is rooted at the SERVED tree (`switcherBase`), never `process.cwd()` —
+        // see `deps.ts`'s header for the wrong-tree copy the cwd default caused. home/home2 place
+        // new copies in the shared home, which can differ from this legacy discovery root.
         const source = resolved.listSites({ cwd: switcherBase }).find((site) => site.name === sourceName);
         if (!source) {
           throw new SourceSiteNotFoundError(sourceName);
         }
 
-        const targetDir = path.join(switcherBase, "sites", targetName);
+        const workspace = routeDeps.sitesWorkspace ?? createSitesWorkspace({}, { cwd: switcherBase });
+        const targetDir = path.join(workspace.home({}), targetName);
         const result = await resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
+        workspace.registry({}).merge({ entries: [{ id: result.siteId, name: displayName ?? targetName, path: result.dir, createdBy: "Web", lastOpened: null }] });
         return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
       } });
     },
@@ -249,4 +254,52 @@ export function contributeSitesTools(): ToolContributor {
     build: buildSitesRegistrations,
     risk: sitesDerivedRisk,
   };
+}
+
+/** The boot binding is supplied by composition, never re-derived from current environment. */
+export interface SitesReadToolDeps { workspaceId: string; authorize: AuthorizeFn; siteBinding: SiteBinding; listSites?: (optional?: ListSitesOptional) => readonly SiteListEntry[]; readPersistedActiveSite?: (optional?: { cwd?: string }) => string | null; isSiteSwitcherEnabled?: () => boolean; }
+
+/** Independently derived from the service calls below. */
+export const sitesReadDerivedRisk: DerivedRiskByToolId = new Map([
+  // listSites + includeServingSite + readPersistedActiveSite + capability flag: reads only.
+  ["sites_list", "none"],
+  ["sites_get_site", "none"],
+]);
+/**
+ * Builds the handler with injectable admin-service dependencies.
+ * @param deps - Workspace, authorization and service ports.
+ * @param _optional - Reserved host options.
+ * @returns List and get registrations; readOnly follows the independently checked risk.
+ * @throws Authorization and service failures propagate; a missing named site is ToolInputError.
+ * @complexity O(1) wiring; handler cost follows the wrapped service.
+ */
+export function buildSitesReadRegistrations(deps: SitesReadToolDeps, _optional: Record<string, never> = {}): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = { sites_list: async ctx => {
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "system.read" }, { entityType: "site-registry" });
+      // Rooted at the served binding, never `process.cwd()` — see `switcherBaseForBinding`'s doc.
+      const binding = deps.siteBinding;
+      const switcherBase = switcherBaseForBinding(binding);
+      const sites = includeServingSite({ sites: listSitesForBinding({ binding }, { listSites: deps.listSites }), binding });
+      const serving = sites.find(site => site.dir === binding.dir);
+      return { switchingEnabled: (deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabled)(), sites,
+        currentSite: { ...binding, listed: serving?.registration === "registered" },
+        persistedSiteName: switcherBase === null ? null : (deps.readPersistedActiveSite ?? readPersistedActiveSite)({ cwd: switcherBase }) };
+    } };
+  /** A list is complete locally, so filtering its card is an authoritative single-site read. */
+  handlers.sites_get_site = async ctx => {
+    const name = requireString({ input: requireInputRecord({ input: ctx.input }), key: "name" });
+    const listed = await handlers.sites_list({ ...ctx, input: {} }) as { sites: readonly SiteListEntry[] };
+    const sites = listed.sites.filter(site => site.name === name);
+    if (!sites.length) throw new ToolInputError({ message: `site '${name}' was not found — call content_read.site without name to list valid sites` });
+    return { ...listed, sites };
+  };
+  return buildDomainRegistrations({ metadata: toolMetadata,
+    domain: "sites-list", catalogModule: "features/sites/agent-tools.ts",
+    catalog: indexCatalogById({ catalog: sitesReadAgentToolCatalog }), derivedRisk: sitesReadDerivedRisk,
+    handlers,
+  });
+}
+/** Installs this distinct domain without replacing its existing sibling tools. */
+export function contributeSitesListTools(): ToolContributor {
+  return { domain: "sites-list", build: deps => buildSitesReadRegistrations(deps), risk: sitesReadDerivedRisk };
 }

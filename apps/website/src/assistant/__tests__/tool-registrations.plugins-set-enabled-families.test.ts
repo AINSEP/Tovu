@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -30,12 +31,13 @@ import {
   contributePluginsTools,
   pluginsDerivedRisk,
   type PluginsToolDeps,
-} from "../../features/plugin-runtime/tool-registrations.js";
+} from "../../__tests__/support/plugin-tool-host.js";
 import { createInMemoryConversationToolApprovalStore } from "../external-mcp-tool-approval-adapters.js";
 import { createNativeApprovalMemory } from "../../contracts/core/native-approval-memory.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { createLiveRunTracker } from "../agent-session-preset.js";
 import { daemonInitializer, evaluateDaemonExpression } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
@@ -161,7 +163,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const sealer = new AesGcmSecretSealer(keyring);
   let counter = 0;
 
-  const deps = {
+  const deps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: { newId: () => `id-${++counter}` },
@@ -179,7 +181,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     externalMcpServerRepo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
-  };
+  });
 
   return { deps: deps as unknown as PluginsToolDeps, authorizeCalls, pluginActivationRepo, externalMcpServerRepo };
 }
@@ -697,9 +699,10 @@ test("daemon-composed approval memory asks on first enable, skips the same versi
   };
   daemonContributions.contributors.register({ contribution: contributePluginsTools() });
   const registrations = evaluateDaemonExpression<ToolRegistration[]>(daemonInitializer("assistantRegistrations"), {
-    routeDeps: { ...deps, conversationToolApprovals: store }, registry: createToolRegistry({}),
+    routeDeps: { ...deps, conversationToolApprovals: store }, visibleRegistry: createToolRegistry({}),
     contributions: daemonContributions, listToolCatalogEntries: () => [], buildAssistantToolRegistrations,
     createNativeApprovalMemory, liveRunTracker, magicLinkPerEmailLimiter: {}, surfaceExchanges: surfaces,
+    ALL_CHAT_DELETE_TOOLS,
   });
   const tool = registrations.find((registration) => registration.descriptor.id === SET_ENABLED);
   assert.ok(tool);

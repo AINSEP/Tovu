@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, test } from 'vitest';
 import { useAgentPluginMemory } from '../hooks/use-agent-plugin-memory.hooks';
 import type { AgentPluginMemoryPort, PluginMemoryListing } from '../hooks/agent-plugin-memory-port.hooks';
@@ -52,7 +52,9 @@ test('every supported plugin locale includes the memory editor and uninstall cho
 test('empty-state messages wait for a successful read and update after saving the first note', async () => {
   let settle!: (value: PluginMemoryListing) => void;
   const pending = new Promise<PluginMemoryListing>(resolve => { settle = resolve; });
-  const port: AgentPluginMemoryPort = { read: () => pending, saveNote: async input => ({ ...listing(input.pluginId, input.text), learned: [] }) };
+  let saved: PluginMemoryListing | null = null;
+  const port: AgentPluginMemoryPort = { read: () => saved ? Promise.resolve(saved) : pending,
+    saveNote: async input => (saved = { ...listing(input.pluginId, input.text), learned: [] }) };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
   expect(result.current.editorDisabled).toBe(true);
   expect(result.current.notesEmptyMessage).toBeNull();

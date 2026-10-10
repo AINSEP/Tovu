@@ -1,8 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
-import { agentPluginActivations } from "../agent-plugins/activation-effects.js";
-const { assertAgentPluginActivationsWritable } = agentPluginActivations;
+import type { AgentPluginHostCapability, PluginHostPort, AgentPluginLayout, OperatorLocaleDeps, AgentPluginUninstallToolDeps, SetAgentPluginEnabledInput } from "../../contracts/headless/plugin-host.js";
 import { type Clock, nowIso } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
@@ -47,7 +46,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  *
  * Workspace scoping: Agent Plugins are resolved for `routeDeps.workspaceId` — the SAME workspace this
  * handler already scopes `pluginActivationRepo.getActivation` to — via
- * `resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId)`, matching every other caller of
+ * `routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId)`, matching every other caller of
  * `listInstalledPlugins` (`resolve-agent-plugin-refs.ts`, `features/agent-plugins/
  * tool-registrations.ts`). Anything else would leak one workspace's installed Agent Plugins into
  * another's `plugins_list` response, which `layout.ts`'s own tenant-isolation header treats as the
@@ -95,14 +94,12 @@ import { PluginChangedSincePreviewError, previewUninstallPlugin, uninstallPlugin
 // The Agent Plugins half of `plugins_list` (see this file's header) — a deliberate, disclosed
 // cross-domain read. `resolve-agent-plugin-refs.ts`/`layout.ts` only, never
 // `features/agent-plugins/tool-registrations.ts` (a separate workstream's file; not touched here).
-import { resolveAgentPluginLayout } from "../agent-plugins/layout.js";
-import { listInstalledPlugins } from "../agent-plugins/lifecycle.js";
-import type { InstalledAgentPlugin } from "../agent-plugins/lifecycle.js";
+import type { InstalledAgentPlugin } from "@jini-ai/agent-plugins/lifecycle";
 // The Agent Plugin half of `plugins_set_enabled` (2026-09-09). `set-enabled.ts` is that feature's own
 // business rule — a DOMAIN module, deliberately not `agent-plugins/tool-registrations.ts` — so this
 // adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
 // "one tool, two families" section below.
-import { AgentPluginNotInstalledError, setAgentPluginEnabled } from "../agent-plugins/set-enabled.js";
+import { AgentPluginNotInstalledError, type SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
 // t91 F1.1/R2 (2026-09-16). `Jini/packages/plugins/src/host/activation.ts` is the domain module that already defines these errors;
 // importing it here adds no `plugin-runtime -> agent-plugins/tool-registrations` edge (same
 // reasoning as the `set-enabled.js` import above).
@@ -110,7 +107,6 @@ import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError 
 // The Agent Plugins MCP-provisioning half of `plugins_set_enabled` (2026-09-15). The route's own
 // enable path calls these same two primitives; see `applyAgentPluginDecision` below for why the
 // in-chat enable must not skip them.
-import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "../agent-plugins/federate-mcp.js";
 import { describeEnableApproval, PLUGINS_SET_ENABLED_TOOL_ID, type PluginFamily } from "./set-enabled-confirmation-ui.js";
 import { describeUninstallApproval, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstall-confirmation-ui.js";
 // The Agent Plugin branch of `plugins_uninstall` (S4, 2026-09-24) — the deleted standalone
@@ -118,9 +114,19 @@ import { describeUninstallApproval, PLUGINS_UNINSTALL_TOOL_ID } from "./uninstal
 // this domain's entry point into that logic, deliberately not `agent-plugins/tool-registrations.ts`
 // (a separate workstream's file; not touched here, same reasoning as the `set-enabled.js` import
 // above). See that file's header for the merge.
-import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from "../agent-plugins/uninstall-tool.js";
 import type { PluginInstallerPort } from "@jini-ai/plugins/host/node";
-import type { OperatorLocaleDeps } from "../agent-plugins/operator-locale.js";
+
+/** The historical cross-family rationale above still applies; the composition root now binds
+ * those owners behind a host capability. A missing binding is an explicit refusal. */
+function requireAgentPluginHost(deps: PluginsToolDeps): AgentPluginHostCapability {
+  const capability = deps.pluginHost?.getHostCapability({ capability: "agent-plugin-lifecycle" });
+  if (!capability) throw new ToolInputError({ message: "The host does not provide agent-plugin lifecycle operations." });
+  return capability;
+}
+async function listInstalledAgentPlugins(deps: PluginsToolDeps): Promise<readonly InstalledAgentPlugin[]> {
+  if (deps.listInstalledAgentPlugins) return deps.listInstalledAgentPlugins(deps.agentPluginLayout.forWorkspace(deps.workspaceId).root);
+  return requireAgentPluginHost(deps).listInstalled({}, {});
+}
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: pluginAgentToolCatalog });
 
@@ -143,7 +149,7 @@ function toAgentPluginListRow(p: InstalledAgentPlugin): AgentPluginListRow {
  *  call over the newer, less-exercised half of this tool. */
 async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<readonly AgentPluginListRow[]> {
   try {
-    const installed = await (routeDeps.listInstalledAgentPlugins ?? listInstalledPlugins)(resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root);
+    const installed = await listInstalledAgentPlugins(routeDeps);
     return installed.map(toAgentPluginListRow);
   } catch {
     return [];
@@ -159,6 +165,8 @@ async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<
  * passing its existing `RouteDeps` object; nothing there changes.
  */
 export interface PluginsToolDeps extends OperatorLocaleDeps {
+  readonly pluginHost?: PluginHostPort;
+  readonly agentPluginLayout: AgentPluginLayout;
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: Clock;
@@ -168,10 +176,10 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   pluginActivationRepo: PluginActivationRepoPort;
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   /** Uses the existing activation owner; injection lets callers model lock failures without module replacement. */
-  assertAgentPluginActivationsWritable?: typeof assertAgentPluginActivationsWritable;
+  assertAgentPluginActivationsWritable?: (required: { workspaceRoot: string }) => Promise<void>;
   /** Bind the same lifecycle owner with host effects; no module replacement is needed for failures. */
-  setAgentPluginEnabled?: typeof setAgentPluginEnabled;
-  listInstalledAgentPlugins?: typeof listInstalledPlugins;
+  setAgentPluginEnabled?: (required: SetAgentPluginEnabledInput) => Promise<SetAgentPluginEnabledResult>;
+  listInstalledAgentPlugins?: (workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>;
   /** Bound to the existing remembered-approval store; only enable escalations get reusable keys. */
   nativeApprovalMemory?: RememberedApprovalPort;
   uninstallAgentPlugin?: AgentPluginUninstallToolDeps["uninstallAgentPlugin"];
@@ -295,7 +303,7 @@ export async function pluginApprovalIdentity(
   let discovery: readonly PluginDiscoveryRecord[] | undefined;
   let schema: Readonly<Record<string, unknown>> = {};
   if (request.family === "agent-plugin") {
-    const plugins = await (routeDeps.listInstalledAgentPlugins ?? listInstalledPlugins)(resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root);
+    const plugins = await listInstalledAgentPlugins(routeDeps);
     const installed = plugins.filter(plugin => plugin.pluginId === request.pluginId);
     if (installed.length === 0) throw new ToolInputError({ message: `Agent Plugin '${request.pluginId}' is not installed` });
     // Every installed digest participates, independent of discovery ordering.
@@ -426,25 +434,7 @@ async function provisionAgentPluginMcpServersBestEffort(
   routeDeps: PluginsToolDeps,
   input: { readonly pluginId: string; readonly principalId: string },
 ): Promise<void> {
-  try {
-    const servers = await resolveAgentPluginMcpServers({ workspaceId: routeDeps.workspaceId, pluginId: input.pluginId });
-    const result = await provisionAgentPluginMcpServers(
-      {
-        repo: routeDeps.externalMcpServerRepo,
-        sealer: routeDeps.siteAssistantSecretSealer,
-        keyring: routeDeps.siteAssistantSecretKeyring,
-        clock: routeDeps.clock,
-      },
-      { workspaceId: routeDeps.workspaceId, pluginId: input.pluginId, servers, principalId: input.principalId },
-    );
-    for (const failure of result.failed) {
-      console.warn(`[agent-plugins] '${input.pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}`);
-    }
-  } catch (error) {
-    console.warn(
-      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  await requireAgentPluginHost(routeDeps).provisionMcp(input, {});
 }
 
 /**
@@ -455,12 +445,15 @@ async function provisionAgentPluginMcpServersBestEffort(
  */
 async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId: string, request: SetEnabledRequest): Promise<unknown> {
   try {
-    const result = await (routeDeps.setAgentPluginEnabled ?? setAgentPluginEnabled)({
+    const input = {
       workspaceId: routeDeps.workspaceId,
       pluginId: request.pluginId,
       enabled: request.enabled,
       actor: principalId,
-    });
+    };
+    const result = await (routeDeps.setAgentPluginEnabled
+      ? routeDeps.setAgentPluginEnabled({ ...input, agentPluginLayout: routeDeps.agentPluginLayout })
+      : requireAgentPluginHost(routeDeps).setEnabled(input));
     // Enabling an Agent Plugin also provisions its auto-admitted MCP servers, exactly as the admin
     // route's enable branch does; disabling has nothing to provision. Without this, the same logical
     // enable produced a partially enabled plugin in chat while the admin toggle produced the
@@ -506,7 +499,11 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
  */
 async function unwritableAgentPluginActivationsResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
   try {
-    await (routeDeps.assertAgentPluginActivationsWritable ?? assertAgentPluginActivationsWritable)({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId).root });
+    if (routeDeps.assertAgentPluginActivationsWritable) {
+      await routeDeps.assertAgentPluginActivationsWritable({ workspaceRoot: routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId).root });
+    } else {
+      await requireAgentPluginHost(routeDeps).assertWritable({}, {});
+    }
     return undefined;
   } catch (error) {
     const refusal = activationsRefusalResult(request, error);
@@ -749,7 +746,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       const family = readFamily(input);
       const pluginId = requireString({ input: input, key: "pluginId" });
 
-      if (family === "agent-plugin") return runAgentPluginUninstall(routeDeps, surfaces, ctx, pluginId, optional);
+      if (family === "agent-plugin") return requireAgentPluginHost(routeDeps).uninstall({ surfaces, ctx, pluginId, executionOptions: optional }, {});
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin", entityId: pluginId });
 
@@ -788,6 +785,11 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
  * domain's round-trip risk. Every importer outside `server/*` is none — nothing else imports this
  * domain by name.
  */
-export function contributePluginsTools(): ToolContributor {
-  return { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk };
+export function contributePluginsTools(
+  required: { createPluginHost?: (required: { deps: PluginsToolDeps }) => PluginHostPort } = {},
+  _optional: Record<string, never> = {},
+): ToolContributor {
+  return { domain: "plugins", build: (deps, surfaces) => buildPluginsRegistrations({
+    ...deps, pluginHost: deps.pluginHost ?? required.createPluginHost?.({ deps }),
+  }, surfaces), risk: pluginsDerivedRisk };
 }

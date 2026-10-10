@@ -1,3 +1,4 @@
+import { installLegacyRevision } from '../fixtures/install-legacy-revision.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -117,7 +118,7 @@ interface SearchResponse {
 }
 
 function findRegistration(workspaceId: string): ToolRegistration {
-  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId });
+  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId, agentPluginLayout: resolveAgentPluginLayout() });
   assert.ok(registration, "search_agent_plugin_local must be registered");
   return registration;
 }
@@ -135,7 +136,7 @@ description: Evidence-based privacy, cookie/consent, and accessibility risk scre
 `;
 
 test("the catalog carries exactly one tool, search_agent_plugin_local, with a required 'query' and optional 'limit'", async () => {
-  const registrations = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A });
+  const registrations = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
   assert.equal(registrations.length, 1);
   const [registration] = registrations;
   assert.ok(registration);
@@ -150,7 +151,7 @@ test("the description sends the model to plugins_set_enabled's 'agent-plugin' fa
   // Tool descriptions ship verbatim to the model. Since a1abe2bb plugins_set_enabled toggles BOTH
   // plugin families, so the old wording steered the model away from the one tool that can turn a
   // plugin found here on or off.
-  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A });
+  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
   const description = registration?.descriptor.description ?? "";
   assert.doesNotMatch(description, /plugins_list\/plugins_set_enabled, which manage the separate \.tovu-plugin/);
   assert.match(description, /plugins_set_enabled with family 'agent-plugin'/);
@@ -298,7 +299,7 @@ test("SINK: a plugin whose SKILL.md is no longer readable does not take another 
 test("two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal", async () => {
   await withAgentPluginsDir(async () => {
     await installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant a compliance" }) }, "archive-a");
-    await installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant b compliance" }) }, "archive-b");
+    await installLegacyRevision({ packagesDir: resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).pluginPackagesDir({ pluginId: "site-compliance" }), install: () => installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant b compliance" }) }, "archive-b") });
 
     const result = await search(WORKSPACE_A, { query: "compliance" });
     assert.equal(result.totalInstalled, 1, "one logical plugin id, even though two digests are on disk");
