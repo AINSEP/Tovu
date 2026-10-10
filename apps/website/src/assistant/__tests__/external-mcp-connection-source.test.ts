@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -42,12 +43,12 @@ test("a repo whose listByWorkspaceId throws makes resolve() return [] and failur
   });
 
   const sealer = new AesGcmSecretSealer(new InMemoryKeyring());
-  const source = createStoredExternalMcpConnectionSource({
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({
     repo: repoWhoseListThrows(new Error("database is locked")),
     sealer,
     workspaceId: WORKSPACE,
     log: "[assistant-byok]",
-  });
+  }));
 
   const resolved = await source.resolve();
 
@@ -75,12 +76,12 @@ test("failures() is replaced on every resolve(), never appended, and a whole-rea
     ...repoWhoseListThrows(new Error("database is locked")),
     listByWorkspaceId: () => (listThrows ? Promise.reject(new Error("database is locked")) : Promise.resolve([badRow])),
   };
-  const source = createStoredExternalMcpConnectionSource({
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({
     repo,
     sealer: new AesGcmSecretSealer(new InMemoryKeyring()),
     workspaceId: WORKSPACE,
     log: "[assistant-byok]",
-  });
+  }));
 
   assert.deepEqual(await source.resolve(), []);
   assert.deepEqual(await source.resolve(), [], "a second read of the same bad row must replace, not append to, the first");
@@ -96,11 +97,11 @@ test("failures() is replaced on every resolve(), never appended, and a whole-rea
 });
 
 test("buildExternalMcpFederationDeps omits onAuthFailed entirely when oauth is absent", () => {
-  const deps = buildExternalMcpFederationDeps({
+  const deps = buildExternalMcpFederationDeps(testSiteLayoutContext({
     authorize: allow,
     workspaceId: WORKSPACE,
     repo: new InMemoryExternalMcpServerRepo(),
-  });
+  }));
 
   assert.equal(deps.onAuthFailed, undefined);
   assert.equal(deps.authorize, allow);
@@ -117,12 +118,12 @@ test("buildExternalMcpFederationDeps wires onAuthFailed to oauth.reportAuthFailu
     },
   };
 
-  const deps = buildExternalMcpFederationDeps({
+  const deps = buildExternalMcpFederationDeps(testSiteLayoutContext({
     authorize: allow,
     workspaceId: WORKSPACE,
     repo: new InMemoryExternalMcpServerRepo(),
     oauth,
-  });
+  }));
 
   assert.equal(typeof deps.onAuthFailed, "function");
   const authError = new Error("401");

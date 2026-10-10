@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,7 +11,7 @@ import { registerInstalledSkillTools } from "../../tool-registrations.js";
 import { createSkillRefreshMiddleware } from "../../live-registration.js";
 import { createByokToolSurface, type ByokToolSurfaceDeps } from "#src/assistant/byok-tool-surface";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
-const ctx = { workspaceId: "ws-hot-test" };
+const ctx = testSiteLayoutContext({ workspaceId: "ws-hot-test" });
 const MD = "---\nname: incident-response\ndescription: Use for outages and incident response.\n---\nAlways check ownership before rollback.\n";
 const principal = { id: "owner" }, run = { id: "run-hot" };
 async function fixture(fn: () => Promise<void>) {
@@ -19,7 +20,7 @@ async function fixture(fn: () => Promise<void>) {
   process.env.TOVU_SKILLS_DIR = dir;
   try { await fn(); } finally { if (prev === undefined) delete process.env.TOVU_SKILLS_DIR; else process.env.TOVU_SKILLS_DIR = prev; await rm(dir, { recursive: true, force: true }); }
 }
-const upload = () => installSkill({ ...ctx, files: [{ path: "SKILL.md", contentBase64: Buffer.from(MD).toString("base64") }] });
+const upload = () => installSkill(testSiteLayoutContext({ ...ctx, files: [{ path: "SKILL.md", contentBase64: Buffer.from(MD).toString("base64") }] }));
 
 test("daemon skill middleware refreshes discovery and refuses removed tools on the same real executor", () => fixture(async () => {
   const registry = createToolRegistry({});
@@ -32,7 +33,7 @@ test("daemon skill middleware refreshes discovery and refuses removed tools on t
   await request();
   assert.equal((await catalog.describe({ id: "skill_incident_response" }))?.id, "skill_incident_response");
   assert.equal((await executor.execute({ principal, run, toolId: "skill_incident_response", input: {} })).status, "completed");
-  await uninstallSkill({ ...ctx, toolId: "skill_incident_response" });
+  await uninstallSkill(testSiteLayoutContext({ ...ctx, toolId: "skill_incident_response" }));
   await request();
   assert.equal(await catalog.describe({ id: "skill_incident_response" }), null);
   await assert.rejects(() => executor.execute({ principal, run, toolId: "skill_incident_response", input: {} }), { message: 'ToolExecutor: unknown tool "skill_incident_response"' });
@@ -52,7 +53,7 @@ test("BYOK meta-tools discover and execute a post-boot installation, then drop a
   assert.equal(JSON.parse(String(describe.content)).id, "skill_incident_response");
   const execute = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: "skill_incident_response", input: {} } });
   assert.deepEqual(JSON.parse(String(execute.content)), { skillName: "incident-response", guidance: MD, bundledFiles: [] });
-  await setSkillEnabled({ ...ctx, toolId: "skill_incident_response", enabled: false });
+  await setSkillEnabled(testSiteLayoutContext({ ...ctx, toolId: "skill_incident_response", enabled: false }));
   const disabled = await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "skill_incident_response" } });
   assert.equal(disabled.isError, true);
   assert.equal(surface.registry.has({ toolId: "skill_incident_response" }), false);

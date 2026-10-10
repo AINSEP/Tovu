@@ -32,13 +32,13 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: getFsFilesAgentToolCatalog() }
 export interface FsFilesToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
+  siteBinding: { readonly dir: string };
   /**
    * Test seam — defaults to the real {@link resolveFsRoots}. Overriding this is how a test points
    * `fs_list_files`/`fs_read_file` at a temporary fixture tree instead of a real `sites/<name>/`
    * directory, mirroring `SiteEvidenceToolDeps.siteEvidenceBrowser`'s identical "optional field,
-   * real implementation by default" shape for the same reason: the real resolver reads
-   * `process.cwd()`/`process.env` and this repo's own `content/` tree, neither of which a unit test
-   * should have to stage. A root mapped to `undefined` (only ever `custom`, unset — see
+   * real implementation by default" shape: the real resolver reads the injected
+   * site binding and this repo's own `content/` tree, which a unit test need not stage. A root mapped to `undefined` (only ever `custom`, unset — see
    * `layout.ts`'s `resolveFsRoots` doc) is refused by {@link resolveRootPathOrThrow} rather than
    * dereferenced.
    */
@@ -77,7 +77,7 @@ function resolveRootPathOrThrow(routeDeps: FsFilesToolDeps, root: string): strin
   }
   // The real resolver needs `workspaceId` to look up THIS workspace's persisted `custom` root
   // (`custom-root-store.ts` keys its map by it) — a test's own `resolveRoots` override ignores it.
-  const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ workspaceId: routeDeps.workspaceId })))();
+  const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ siteDir: routeDeps.siteBinding.dir, workspaceId: routeDeps.workspaceId })))();
   const rootPath = roots[root];
   if (rootPath === undefined) {
     throw new FsRootNotFoundError(`no folder has been set for the '${root}' root yet — ask the operator to set one from the chat composer, then retry`);

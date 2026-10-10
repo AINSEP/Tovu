@@ -7,10 +7,9 @@ import { buildDomainRegistrations, indexCatalogById, requireNoInput, type AgentT
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
-import { resolveSiteRoot } from "../../platform/site-dir/index.js";
 import { createLiveSkillRegistration, type SkillsRefreshRegistry } from "./live-registration.js";
 import { readSkillState } from "./state.js";
-import { resolveSkillLayout } from "./layout.js";
+import type { SkillLayout } from "./layout.js";
 
 /**
  * @file Registers every installed standalone Agent Skill (`<site>/skills/ws/<workspaceId>/<dir>/
@@ -155,11 +154,11 @@ export interface SkillBundledFile {
  *
  * @complexity O(f) in the total file count under the three subdirectories.
  */
-async function listBundledFiles(skillDir: string): Promise<readonly SkillBundledFile[]> {
+async function listBundledFiles(input: { skillDir: string; siteDir: string }, _options = {}): Promise<readonly SkillBundledFile[]> {
   const files: SkillBundledFile[] = [];
   for (const kind of BUNDLED_SUBDIRS) {
-    await walkFiles(path.join(skillDir, kind), (absolutePath) => {
-      const relative = path.relative(resolveSiteRoot(), absolutePath).split(path.sep).join("/");
+    await walkFiles(path.join(input.skillDir, kind), (absolutePath) => {
+      const relative = path.relative(input.siteDir, absolutePath).split(path.sep).join("/");
       if (relative && !relative.startsWith("../") && !path.isAbsolute(relative)) files.push({ kind, path: relative });
     });
   }
@@ -230,6 +229,7 @@ type SkillEntryResolution = { readonly kind: "skip" } | { readonly kind: "resolv
  */
 async function resolveSkillEntry(input: {
   readonly workspaceRoot: string;
+  readonly siteDir: string;
   readonly entry: { readonly name: string; isDirectory: () => boolean };
   readonly seenDirById: Map<string, string>;
   readonly includeDisabled?: boolean;
@@ -270,7 +270,7 @@ async function resolveSkillEntry(input: {
 
   return {
     kind: "resolved",
-    source: { directory: entry.name, id, skillName: frontmatter.name, description: frontmatter.description, markdown, bundledFiles: await listBundledFiles(skillDir) },
+    source: { directory: entry.name, id, skillName: frontmatter.name, description: frontmatter.description, markdown, bundledFiles: await listBundledFiles({ skillDir, siteDir: input.siteDir }) },
   };
 }
 
@@ -285,8 +285,10 @@ async function resolveSkillEntry(input: {
 export async function loadInstalledSkillToolSources(ctx: {
   readonly includeDisabled?: boolean;
   readonly workspaceId: string;
-}): Promise<readonly SkillToolSource[]> {
-  const workspaceRoot = resolveSkillLayout().forWorkspace(ctx.workspaceId).root;
+  readonly skillLayout: SkillLayout;
+  readonly siteBinding: { readonly dir: string };
+}, _optional = {}): Promise<readonly SkillToolSource[]> {
+  const workspaceRoot = ctx.skillLayout.forWorkspace(ctx.workspaceId).root;
 
   let entries;
   try {
@@ -299,7 +301,7 @@ export async function loadInstalledSkillToolSources(ctx: {
   const sources: SkillToolSource[] = [];
   const seenDirById = new Map<string, string>();
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const resolution = await resolveSkillEntry({ workspaceRoot, entry, seenDirById, includeDisabled: ctx.includeDisabled });
+    const resolution = await resolveSkillEntry({ siteDir: ctx.siteBinding.dir, workspaceRoot, entry, seenDirById, includeDisabled: ctx.includeDisabled });
     if (resolution.kind === "resolved") sources.push(resolution.source);
   }
 
@@ -369,7 +371,7 @@ const liveRegistrations = new WeakMap<object, (tools: readonly ToolRegistration[
 
 export async function registerInstalledSkillTools(
   registry: Pick<SkillsRefreshRegistry, "register"> & Partial<Pick<SkillsRefreshRegistry, "has" | "list" | "refreshInstalledSkills">>,
-  ctx: { readonly workspaceId: string },
+  ctx: { readonly workspaceId: string; readonly skillLayout: SkillLayout; readonly siteBinding: { readonly dir: string } },
 ): Promise<void> {
   if (!registry.has || !registry.list) {
     for (const registration of buildSkillToolRegistrations(await loadInstalledSkillToolSources(ctx))) registry.register(registration);

@@ -1,3 +1,5 @@
+import { installLegacyRevision } from '../fixtures/install-legacy-revision.js';
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -81,7 +83,8 @@ async function withWorkspace<T>(fn: (context: { readonly cwd: string; readonly w
  *  call for the same `pluginId` produces a genuinely different digest. */
 async function installRealPackage(pluginId: string, skillMarkdown: string, archiveSeed: string) {
   const archive = new Uint8Array(Buffer.from(archiveSeed));
-  return installAgentPlugin({
+  // These ledger tests deliberately reproduce the retained digests of pre-pruning installs.
+  return installLegacyRevision({ packagesDir: resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId }), install: () => installAgentPlugin({
     archive,
     expectedSha256: createHash("sha256").update(archive).digest("hex"),
     archiveReader: reader([
@@ -90,7 +93,7 @@ async function installRealPackage(pluginId: string, skillMarkdown: string, archi
     ]),
     layout: resolveAgentPluginLayout(),
     workspaceId: WORKSPACE_ID,
-  });
+  }) });
 }
 
 test("normalizeBundledDigests keeps only well-formed entries and rejects a foreign envelope", () => {
@@ -197,7 +200,7 @@ test("an OPERATOR-installed plugin under two digests is still refused — the le
       reason: `Agent Plugin 'ui-ux-design' matches 2 installed packages (digests: ${sorted.join(", ")}) — refusing to guess which one to use`,
     });
     assert.deepEqual(
-      (await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID })).filter((source) => source.pluginId === "ui-ux-design"),
+      (await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }))).filter((source) => source.pluginId === "ui-ux-design"),
       [],
       "an ambiguous operator install must still be excluded from tool registration",
     );
@@ -246,7 +249,7 @@ test("a DISABLED plugin under two digests stays harmless — the activation gate
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
     const injected = await resolveAgentPluginRefs(["ui-ux-design"], layout);
     assert.ok(injected.ok === false && injected.reason.includes("is installed in this workspace but is not enabled"));
-    assert.deepEqual(await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID }), []);
+    assert.deepEqual(await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID })), []);
   });
 });
 
@@ -278,7 +281,7 @@ test("the bundled ledger selects one upgrade's content on both real resolution s
     assert.ok(resolved.promptPrefix.includes(newMarkdown));
     assert.equal(resolved.promptPrefix.includes(oldMarkdown), false);
 
-    const sources = (await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID })).filter((source) => source.pluginId === "ui-ux-design");
+    const sources = (await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }))).filter((source) => source.pluginId === "ui-ux-design");
     assert.equal(sources.length, 1);
     assert.equal(sources[0]?.archiveDigest, published.archiveDigest);
     assert.deepEqual(sources[0]?.skills.map((skill) => skill.markdown), [newMarkdown]);

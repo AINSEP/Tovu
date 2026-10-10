@@ -1,3 +1,5 @@
+import { installLegacyRevision } from '../fixtures/install-legacy-revision.js';
+import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readdir, stat } from "node:fs/promises";
@@ -20,7 +22,7 @@ import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../.
 
 const injected = new Error("injected: activations.json could not be rewritten");
 let failActivationPublication = false;
-const lifecycle = createTovuAgentPluginLifecycle({}, { filesystem: {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, { filesystem: {
   ...filesystem,
   async rename(source, destination) {
     if (failActivationPublication && String(destination).endsWith("/activations.json")) throw injected;
@@ -72,7 +74,7 @@ test("an activation-write failure after staging restores every package tree, fro
     const layout = resolveAgentPluginLayout({ cwd, env: {} });
     const workspace = layout.forWorkspace(WORKSPACE_ID);
     const first = await installTestPackage(layout, "multi-digest", "archive-rollback-a");
-    const second = await installTestPackage(layout, "multi-digest", "archive-rollback-b");
+    const second = await installLegacyRevision({ packagesDir: workspace.pluginPackagesDir({ pluginId: "multi-digest" }), install: () => installTestPackage(layout, "multi-digest", "archive-rollback-b") });
     await setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: "multi-digest", enabled: true, actor: "op-1" });
 
     failActivationPublication = true;

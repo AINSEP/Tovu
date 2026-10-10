@@ -1,7 +1,8 @@
 import path from "node:path";
+import * as sourceControl from "@jini-ai/devops/source-control";
 
 import { parseDescriptorI18n, type DescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import { defineExecutablePluginContribution, loadPluginContributions, loadPluginContributionsFromSource, readTrustedPluginFile, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, readTrustedPluginFile, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
@@ -31,10 +32,6 @@ import type { SourceControlHostFacts, SourceControlProvider, SourceControlProvid
 
 /** The file a plugin ships at its root to contribute git-host providers. */
 export const SOURCE_CONTROL_PROVIDERS_FILENAME = "tovu-source-control.json";
-
-const PROVIDER_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const MAX_ID_LENGTH = 64;
-const MAX_LABEL_LENGTH = 100;
 
 export interface SourceControlProviderDescriptor extends SourceControlHostFacts {
   /** Plugin-relative path of the `.mjs` module. */
@@ -84,11 +81,12 @@ function toRegistry(providers: readonly LoadedSourceControlProvider[], refusals:
  * each call; Node caches each module import per file URL, and installed digest directories never change.
  *
  * @throws Nothing for a plugin-level fault; only a filesystem fault listing the package directory itself.
+ * @param required - Contribution loader from this boot's lifecycle; no site-dependent module default.
  * @complexity O(p) installed plugins, one small read plus one import per declared provider.
  */
-export async function loadSourceControlProviderRegistry(ctx: { readonly workspaceId: string }, _optional: Record<string, never> = {}): Promise<SourceControlProviderRegistry> {
+export async function loadSourceControlProviderRegistry(ctx: { readonly workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<SourceControlProviderRegistry> {
   const switchedOff = new Map<string, string>();
-  const load = await loadPluginContributions({ ...ctx, definition: providerContribution }, {
+  const load = await required.loadContributions({ ...ctx, definition: providerContribution }, {
     orderByPluginId: true,
     // A switched-off plugin's JSON is read as data (no module imported) so a refusal can name it.
     onInactive: async ({ plugin }) => {
@@ -118,9 +116,7 @@ async function declaredProviderIds(plugin: ProviderPackage): Promise<readonly st
 
 /** Validate the default export after Jini's contained import. @complexity O(1). */
 function asProviderModule(candidate: unknown): SourceControlProviderModule | string {
-  if (!isPlainObject(candidate) || typeof candidate.create !== "function") return "its module has no create() function";
-  if (candidate.validateTarget !== undefined && typeof candidate.validateTarget !== "function") return "its module's validateTarget is not a function";
-  return candidate as unknown as SourceControlProviderModule;
+  return sourceControl.sourceControlProviderModuleError({ value: candidate }) ?? candidate as SourceControlProviderModule;
 }
 
 /**
@@ -129,61 +125,17 @@ function asProviderModule(candidate: unknown): SourceControlProviderModule | str
  * @complexity O(n) in the declared provider count.
  */
 export function parseSourceControlProvidersFile(raw: string): ParseResult {
-  let value: unknown;
-  try {
-    value = JSON.parse(raw);
-  } catch {
-    return { ok: false, reason: "not valid JSON" };
-  }
-  if (!isPlainObject(value) || value.schemaVersion !== 1) return { ok: false, reason: "schemaVersion must be 1" };
-  if (!Array.isArray(value.providers)) return { ok: false, reason: "providers must be an array" };
-
-  const descriptors: SourceControlProviderDescriptor[] = [];
-  for (const [index, entry] of value.providers.entries()) {
-    const result = parseDescriptor(entry, `providers[${index}]`);
-    if (typeof result === "string") return { ok: false, reason: result };
-    if (descriptors.some((seen) => seen.id === result.id)) return { ok: false, reason: `providers[${index}].id '${result.id}' is declared twice` };
-    descriptors.push(result);
-  }
-  return { ok: true, descriptors };
-}
-
-/** One descriptor entry, or the reason it is invalid. @complexity O(1). */
-function parseDescriptor(entry: unknown, at: string): SourceControlProviderDescriptor | string {
-  if (!isPlainObject(entry)) return `${at} must be an object`;
-  const { id, label, apiOrigin, maxFileBytes, reservedPaths, workflowPaths, module } = entry;
-  const credential = parseSourceControlCredentialForm(entry.credential, `${at}.credential`);
-  const i18n = parseDescriptorI18n(entry.i18n, `${at}.i18n`);
-  if (typeof id !== "string" || id.length > MAX_ID_LENGTH || !PROVIDER_ID_PATTERN.test(id)) return `${at}.id must be a lowercase hyphenated id`;
-  if (typeof label !== "string" || label.trim() === "" || label.length > MAX_LABEL_LENGTH) return `${at}.label must be a non-empty string`;
-  if (typeof apiOrigin !== "string" || !isHttpsOrigin(apiOrigin)) return `${at}.apiOrigin must be an https origin with no path`;
-  if (maxFileBytes !== undefined && !(Number.isSafeInteger(maxFileBytes) && (maxFileBytes as number) > 0)) return `${at}.maxFileBytes must be a positive integer`;
-  if (reservedPaths !== undefined && !isReservedPathList(reservedPaths)) return `${at}.reservedPaths must be a list of at most ${MAX_RESERVED_PATHS} relative folder paths`;
-  if (workflowPaths !== undefined && !isReservedPathList(workflowPaths)) return `${at}.workflowPaths must be a list of at most ${MAX_RESERVED_PATHS} relative folder paths`;
-  if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
-  if (typeof credential === "string") return credential;
-  if (typeof i18n === "string") return i18n;
-  return {
-    id,
-    label,
-    apiOrigin,
-    ...(maxFileBytes !== undefined ? { maxFileBytes: maxFileBytes as number } : {}),
-    ...(reservedPaths !== undefined ? { reservedPaths } : {}),
-    ...(workflowPaths !== undefined ? { workflowPaths } : {}),
-    module,
-    ...(credential !== undefined ? { credential } : {}),
-    ...(i18n !== undefined ? { i18n } : {}),
-  };
-}
-
-const MAX_RESERVED_PATHS = 20;
-
-/** Relative, slash-separated folder paths: no empty, `.` or `..` segment, no leading slash. @complexity O(n). */
-function isReservedPathList(value: unknown): value is readonly string[] {
-  if (!Array.isArray(value) || value.length > MAX_RESERVED_PATHS) return false;
-  return value.every(
-    (entry) => typeof entry === "string" && entry.length <= 200 && entry.split("/").every((segment) => segment !== "" && segment !== "." && segment !== ".."),
-  );
+  return sourceControl.parseSourceControlProvidersFile({ raw, readExtensions: ({ entry, at }) => {
+    const credential = parseSourceControlCredentialForm(entry.credential, `${at}.credential`);
+    const i18n = parseDescriptorI18n(entry.i18n, `${at}.i18n`);
+    if (typeof credential === "string") return { ok: false, reason: credential };
+    if (typeof i18n === "string") return { ok: false, reason: i18n };
+    return { ok: true, extensions: { ...(credential ? { credential } : {}), ...(i18n ? { i18n } : {}) } };
+  } }, {
+    modulePath: ({ path: modulePath }) => !path.posix.isAbsolute(modulePath),
+    /** Relative, slash-separated folder paths: no empty, `.` or `..` segment, no leading slash. @complexity O(n). */
+    folderPath: ({ path: folderPath }) => folderPath.split("/").every(segment => segment !== "" && segment !== "." && segment !== ".."),
+  }) as ParseResult;
 }
 
 /**
@@ -193,11 +145,7 @@ function isReservedPathList(value: unknown): value is readonly string[] {
  * @complexity O(r) reserved paths.
  */
 export function findReservedPath(folder: string, reservedPaths: readonly string[] | undefined): string | undefined {
-  const lower = folder.toLowerCase();
-  return reservedPaths?.find((reserved) => {
-    const reservedLower = reserved.toLowerCase();
-    return lower === reservedLower || lower.startsWith(`${reservedLower}/`);
-  });
+  return sourceControl.findReservedPath({ folder }, { reservedPaths });
 }
 
 /**
@@ -208,45 +156,17 @@ export function findReservedPath(folder: string, reservedPaths: readonly string[
  * @complexity O(w) workflow paths.
  */
 export function isUnderWorkflowPath(filePath: string, workflowPaths: readonly string[] | undefined): boolean {
-  return workflowPaths?.some((workflowPath) => filePath.startsWith(`${workflowPath}/`)) ?? false;
-}
-
-/** True for `https://host[:port]` exactly — what `new URL(x).origin` gives back. @complexity O(1). */
-function isHttpsOrigin(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && url.origin === value;
-  } catch {
-    return false;
-  }
+  return sourceControl.isUnderWorkflowPath({ filePath }, { workflowPaths });
 }
 
 /** A loaded provider built over `kit`, carrying its plugin's declared host facts and its module's
  *  `validateTarget`. @complexity O(1). */
 export function buildLoadedSourceControlProvider(loaded: LoadedSourceControlProvider, kit: SourceControlProviderKit): SourceControlProvider {
-  const { id, label, apiOrigin, maxFileBytes, reservedPaths, workflowPaths } = loaded.descriptor;
-  const { validateTarget } = loaded.module;
-  return {
-    ...loaded.module.create({ kit }),
-    ...(validateTarget ? { validateTarget } : {}),
-    id,
-    label,
-    apiOrigin,
-    ...(maxFileBytes !== undefined ? { maxFileBytes } : {}),
-    ...(reservedPaths !== undefined ? { reservedPaths } : {}),
-    ...(workflowPaths !== undefined ? { workflowPaths } : {}),
-  };
-}
-
-function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return sourceControl.buildLoadedSourceControlProvider<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations>({ loaded, kit });
 }
 
 /** Loads a workspace's provider registry; injected so a test can read the plugin from source. */
 export type LoadSourceControlProviders = (workspaceId: string) => Promise<SourceControlProviderRegistry>;
-
-/** The installed, enabled, Tovu-shipped providers ({@link loadSourceControlProviderRegistry}). */
-export const loadInstalledSourceControlProviders: LoadSourceControlProviders = (workspaceId) => loadSourceControlProviderRegistry({ workspaceId });
 
 export type BuildSourceControlProviderResult =
   | { readonly ok: true; readonly provider: SourceControlProvider }
@@ -260,7 +180,7 @@ export type BuildSourceControlProviderResult =
  */
 export async function buildSourceControlProvider(
   input: {
-    readonly load?: LoadSourceControlProviders;
+    readonly load: LoadSourceControlProviders;
     readonly workspaceId: string;
     readonly providerId: string;
     readonly httpClient?: HttpClientPort;
@@ -268,11 +188,11 @@ export async function buildSourceControlProvider(
     readonly observability?: ObservabilityPort;
   },
 ): Promise<BuildSourceControlProviderResult> {
-  const registry = await (input.load ?? loadInstalledSourceControlProviders)(input.workspaceId);
-  const loaded = registry.get(input.providerId);
-  if (!loaded) return { ok: false, message: noSourceControlProviderMessage(registry, input.providerId), refusals: registry.refusals };
-  const kit = createSourceControlProviderKit({ ...(input.httpClient ? { httpClient: input.httpClient } : {}), ...(input.fetchFn ? { fetchFn: input.fetchFn } : {}), observability: input.observability });
-  return { ok: true, provider: buildLoadedSourceControlProvider(loaded, kit) };
+  return sourceControl.buildSourceControlProvider<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
+    ...input, kit: createSourceControlProviderKit(input),
+    load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
+    noProviderMessage: ({ registry, providerId }) => noSourceControlProviderMessage(registry, providerId),
+  });
 }
 
 /**
@@ -281,16 +201,18 @@ export async function buildSourceControlProvider(
  * @complexity One registry load plus one `create()` per loaded provider.
  */
 export async function buildSourceControlProviders(input: {
-  readonly load?: LoadSourceControlProviders;
+  readonly load: LoadSourceControlProviders;
   readonly workspaceId: string;
   readonly httpClient: HttpClientPort;
   readonly observability?: ObservabilityPort;
   /** Replaces the providers' retry timer (tests). */
   readonly sleep?: (ms: number) => Promise<void>;
 }): Promise<{ readonly providers: readonly SourceControlProvider[]; readonly refusals: readonly string[]; readonly noProviderMessage: string }> {
-  const registry = await (input.load ?? loadInstalledSourceControlProviders)(input.workspaceId);
-  const kit = createSourceControlProviderKit({ httpClient: input.httpClient, observability: input.observability, ...(input.sleep ? { sleep: input.sleep } : {}) });
-  return { providers: registry.list().map((loaded) => buildLoadedSourceControlProvider(loaded, kit)), refusals: registry.refusals, noProviderMessage: noSourceControlProviderMessage(registry) };
+  return sourceControl.buildSourceControlProviders<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
+    ...input, kit: createSourceControlProviderKit(input),
+    load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
+    noProviderMessage: ({ registry }) => noSourceControlProviderMessage(registry),
+  });
 }
 
 /** Where an operator switches an Agent Plugin on or off, as the admin navigation names it. */
@@ -328,36 +250,30 @@ export function pickSourceControlProviderForApi(
   baseUrl: string,
   noProviderMessage: string = noSourceControlProviderMessage({}),
 ): { ok: true; provider: SourceControlProvider } | { ok: false; message: string } {
-  const origin = originOf(baseUrl);
-  const match = providers.find((provider) => originOf(provider.apiOrigin) === origin) ?? (providers.length === 1 ? providers[0] : undefined);
-  if (match) return { ok: true, provider: match };
-  return {
-    ok: false,
-    message:
-      providers.length === 0
-        ? noProviderMessage
-        : `No enabled Agent Plugin provides source control for ${origin ?? baseUrl}.`,
-  };
+  return sourceControl.pickSourceControlProviderForApi({ providers, baseUrl, noProviderMessage }, {
+    missingProviderMessage: ({ origin, baseUrl }) => `No enabled Agent Plugin provides source control for ${origin ?? baseUrl}.`,
+  });
 }
 
 /** {@link buildSourceControlProviders} then {@link pickSourceControlProviderForApi}. @complexity As those. */
 export async function buildSourceControlProviderForApi(input: {
-  readonly load?: LoadSourceControlProviders;
+  readonly load: LoadSourceControlProviders;
   readonly workspaceId: string;
   readonly baseUrl: string;
   readonly httpClient: HttpClientPort;
   readonly observability?: ObservabilityPort;
 }): Promise<BuildSourceControlProviderResult> {
-  const built = await buildSourceControlProviders(input);
-  const picked = pickSourceControlProviderForApi(built.providers, input.baseUrl, built.noProviderMessage);
-  return picked.ok ? picked : { ...picked, refusals: built.refusals };
+  return sourceControl.buildSourceControlProviderForApi<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
+    ...input, kit: createSourceControlProviderKit(input),
+    load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
+    noProviderMessage: ({ registry }) => noSourceControlProviderMessage(registry),
+  }, { missingProviderMessage: ({ origin, baseUrl }) => `No enabled Agent Plugin provides source control for ${origin ?? baseUrl}.` });
 }
 
 /** The origin of `url`, or `undefined` when it does not parse. */
-export function originOf(url: string): string | undefined {
-  try {
-    return new URL(url).origin;
-  } catch {
-    return undefined;
-  }
+export function originOf(url: string): string | undefined { return sourceControl.originOf({ url }); }
+
+/** Adapt the installed-plugin ABI without changing provider operation signatures. */
+function sharedRegistry(registry: SourceControlProviderRegistry) {
+  return { ...registry, list: (_required: Record<string, never>) => registry.list(), get: ({ providerId }: { providerId: string }) => registry.get(providerId) };
 }

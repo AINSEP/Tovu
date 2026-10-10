@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -31,9 +32,9 @@ test("agent attachment and local ZIP paths install via the real upload service, 
   const bytes = await buildZipFixture([{ path: "plugin.json", content: JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "chat-test", version: "1.0.0" }) }]);
   const reads: unknown[] = [];
   try {
-    const [tool] = buildRegistrations({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }), layout,
+    const [tool] = buildRegistrations(testSiteLayoutContext({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }), agentPluginLayout: layout,
       readInstallAttachment: async (required, optional) => { reads.push({ required, optional }); return { ok: true, bytes }; },
-    });
+    }));
     const result = await tool!.handler(context(), {}) as { installed: boolean; enabled: boolean; warning: string };
     assert.equal(result.installed, true);
     assert.equal(result.enabled, false);
@@ -54,18 +55,18 @@ test("agent attachment and local ZIP paths install via the real upload service, 
 test("agent tool refuses permissions and inaccessible attachments before installation", async () => {
   let reads = 0;
   const readInstallAttachment = async () => { reads++; return { ok: false as const, refusal: "not-owner" as const }; };
-  const [denied] = buildRegistrations({ workspaceId: "workspace-local", authorize: async () => ({ allowed: false, reason: "insufficient_permission" }), readInstallAttachment });
+  const [denied] = buildRegistrations(testSiteLayoutContext({ workspaceId: "workspace-local", authorize: async () => ({ allowed: false, reason: "insufficient_permission" }), readInstallAttachment }));
   await assert.rejects(() => denied!.handler(context(), {}));
   assert.equal(reads, 0);
-  const [allowed] = buildRegistrations({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }), readInstallAttachment });
+  const [allowed] = buildRegistrations(testSiteLayoutContext({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }), readInstallAttachment }));
   await assert.rejects(() => allowed!.handler(context(), {}), ToolInputError);
   assert.equal(reads, 1);
 });
 
 test("agent tool rejects malformed input and invalid archives at preview", async () => {
-  const [tool] = buildRegistrations({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }),
+  const [tool] = buildRegistrations(testSiteLayoutContext({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }),
     readInstallAttachment: async () => ({ ok: true, bytes: Buffer.from("not zip") }),
-  });
+  }));
   for (const value of [input, { source: { kind: "zip" } }, { source: { kind: "zip", path: "/tmp/plugin.zip", attachmentRef: "attachment:agent123" } }]) {
     await assert.rejects(() => tool!.handler(context(value), {}), ToolInputError);
   }

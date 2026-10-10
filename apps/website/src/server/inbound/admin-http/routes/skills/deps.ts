@@ -7,12 +7,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  * (implementation-outline.md, skills-composer-typeahead).
  *
  * A genuine narrowing, mirroring `routes/admin/system/module-status.ts`'s
- * `AdminModuleStatusDeps` — the one registrar this module owns reads only `workspaceId`
+ * `AdminModuleStatusDeps` — the registrars this module owns read `workspaceId`
  * (the path-param guard, and the input to `loadInstalledSkillToolSources`) and `authorize`
- * (the `admin.assistant.use` gate, D-3). No repo, no clock, no id-gen: C-001 is a pure read of
- * `<site>/skills/` via the existing `loadInstalledSkillToolSources`, so this module needs nothing
- * else off `RouteDeps`.
+ * (the `admin.assistant.use` gate, D-3), plus the booted `skillLayout` and `siteBinding`.
+ * No repo, no clock, no id-gen: C-001 is a pure read of `<site>/skills/` through
+ * `loadInstalledSkillToolSources`, using the same binding as installation and tool registration.
  */
-export type SkillsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize">;
+export type SkillsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "skillLayout" | "siteBinding">;
 
 export type SkillsRouteRegistrar = (app: Express, deps: SkillsRouteDeps) => void;

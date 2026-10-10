@@ -6,7 +6,7 @@ import {
 import { externalMcpRecordHasStaticAccessToken } from "../external-mcp/auth-mode.js";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
-import { resolveAgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "./layout.js";
 import type { AgentPluginDefaultTools } from "@jini-ai/agent-plugins/lifecycle";
 import type { McpServerConfig } from "./mcp-metadata.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
@@ -289,12 +289,13 @@ export function planAgentPluginMcpFederation(input: {
  * @complexity O(d) in installed-digest count, plus one `mcp.json` read.
  */
 export async function resolveAgentPluginMcpServers(input: {
+  readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: string;
   readonly pluginId: string;
   /** Read-only trust grants require the build's bundled digest, never an arbitrary install. */
   readonly bundledOnly?: boolean;
-}): Promise<Readonly<Record<string, McpServerConfig>>> {
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(input.workspaceId);
+}, _optional = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
+  const workspaceLayout = input.agentPluginLayout.forWorkspace(input.workspaceId);
   // A bundled plugin that was upgraded in place has its superseded package dropped here, so the
   // servers this provisions come from the digest the running build published rather than whichever
   // one the directory walk happened to reach first (`bundled-digests.ts`).
@@ -333,11 +334,12 @@ export function findAgentPluginMcpServerDefaults(
  * @complexity One installed-package scan and manifest read, plus O(s + r) matching/list conversion.
  */
 export async function resolveAgentPluginReadOnlyRemoteNames(input: {
+  readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: string;
   readonly pluginId: string;
   readonly serverId: string;
   readonly url: string;
-}): Promise<ReadonlySet<string>> {
+}, _optional = {}): Promise<ReadonlySet<string>> {
   const servers = await resolveAgentPluginMcpServers({ ...input, bundledOnly: true });
   return new Set(findAgentPluginMcpServerDefaults(servers, input)?.read ?? []);
 }

@@ -60,6 +60,7 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
         .filter((entry) => !entry.trashed)
         .map((entry) => entry.principal);
       const humanPrincipals = nonTrashedHumanPrincipals;
+      const seededOwnerPrincipalId = await deps.ownerPrincipalId;
 
       // O(n) repo round trips, n = human principal count. Unbounded by a caller-controlled
       // collection (this is an operator-managed roster, not member/content scale — the same
@@ -83,7 +84,8 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
           ]);
 
           const protection = await userAccountProtection({ deps: identityServiceDepsFrom(deps), workspaceId: deps.workspaceId, principalId: principal.id });
-          return { ...protection, ...toAdminUserResponse({
+          // The bootstrap owner is still found by login at reboot; offer rename only when safe.
+          return { ...protection, canRename: principal.id !== seededOwnerPrincipalId, ...toAdminUserResponse({
             principal,
             user: userRow,
             roleIds: roleLinks.map((link) => link.roleId),

@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
 import { catalog as mediaVideoCatalog } from "../../features/media/view-video-tool.js";
 import { catalog as agentPluginsInstallCatalog } from "../../features/agent-plugins/install-tool.js";
@@ -128,7 +129,7 @@ const PRINCIPAL_ID = "principal-under-test";
 
 /** A `RouteDeps` stand-in carrying only the fields `contentTypesDeps()` reads. Permissive by design — authorization is the sibling file's subject. */
 function fakeRouteDeps(existing?: ContentTypeRecord) {
-  const deps = {
+  const deps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => "2026-07-29T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
@@ -148,7 +149,7 @@ function fakeRouteDeps(existing?: ContentTypeRecord) {
     outbox: { enqueue: async () => {} },
     // Catalog construction binds the SEO host port; these cases never execute SEO.
     seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
-  };
+  });
   return deps as unknown as RegistryDepsWithoutLimiter;
 }
 

@@ -38,7 +38,7 @@ import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
  * boot sequence (see this file's own header for the two real callers).
  *
  * Re-registering the same `domain` REPLACES the earlier entry rather than appending — mirrors
- * `registerFederatedMcpPreset`'s identical reasoning: a double import of the same feature module
+ * Jini `createFederatedMcpPresetRegistry().register`'s identical reasoning: a double import of the same feature module
  * should not silently double that domain's tools in the final catalog, and replacing-in-place
  * (rather than throwing) keeps this call idempotent per catalog instance, which both real callers
  * and every contract test that calls it more than once rely on. Registration order is otherwise

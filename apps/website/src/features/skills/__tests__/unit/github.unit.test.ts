@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fetchGitHubSkill } from "../../github.js";
-import { SkillInputError } from "../../validation.js";
+import { fetchGitHubSkill as read, createSkillFetchAdapter, SkillInputError } from "@jini-ai/agentic/skills/install";
+const fetchGitHubSkill = (githubUrl: string, fetchImpl: typeof fetch) => read({ githubUrl, fetch: createSkillFetchAdapter({ fetch: fetchImpl }) });
 
 // Direct tests for the GitHub skill fetcher. install-service.unit.test.ts covers one root-folder
 // install and one refused host; these pin the URL grammar, the request shape and every refusal.

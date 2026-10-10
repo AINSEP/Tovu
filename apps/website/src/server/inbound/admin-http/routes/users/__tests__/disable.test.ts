@@ -60,6 +60,7 @@ async function buildApp(
     ownerPrincipalId: base.ownerPrincipalId,
     removeUser: base.removeUser,
     isInTrash: base.isInTrash,
+    outbox: base.outbox,
     ...depsOverrides,
   };
   const app = express();
@@ -259,6 +260,7 @@ test("INV-08: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when disabling the tar
     ownerPrincipalId: Promise.resolve("unrelated-owner-id-for-inv08-test"),
     removeUser: base.removeUser,
     isInTrash: base.isInTrash,
+    outbox: base.outbox,
   };
   await attachSinglePermissionPolicy(deps, lastOwnerId, "*");
 

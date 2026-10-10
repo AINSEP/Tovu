@@ -43,10 +43,11 @@
  * riskier than the gap. Add `"@electron/asar": "^3.4.1"` to `devDependencies` and run
  * `npm install --prefix apps/desktop` once the tree is quiet.
  */
-import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { extractFile, getRawHeader } from "@electron/asar";
-
+import * as asar from "@electron/asar";
+import { filesUnderPrefixes as files, verifyAsarAgainstSource as verify, toArchiveEntryPath as entryPath, isEmptyVerification as empty, bundledNpmFailures as npmFailures, createNodePackagingFilesystem, createAsarArchiveReader } from "@jini-ai/devops/packaging/electron";
+import type { AsarHeaderNode, AsarMismatch, AsarVerification } from "@jini-ai/devops/packaging/electron";
+export type { AsarHeaderNode, AsarMismatch, AsarVerification };
 /**
  * What the packaging backstop verifies, matched as TOP-LEVEL `app.asar` entries: the shell's own code —
  * `main.ts`, `src/` (main process + the unsandboxed and sandboxed preload sources), and `dist/` (that same
@@ -69,66 +70,6 @@ import { extractFile, getRawHeader } from "@electron/asar";
  * freshness guard in `scripts/stage-payload.ts`.
  */
 export const VERIFIED_PREFIXES: string[] = ["src", "bin", "main.ts", "dist"];
-
-/** A node in an asar header's `files` tree, as far as this module reads one: a directory carries
- *  `files`, a symlink carries `link`, and a file carries `size` and `offset`. */
-interface AsarHeaderNode {
-  files?: Record<string, AsarHeaderNode>;
-  link?: string;
-  size?: number;
-  offset?: string;
-}
-
-/** One file whose shipped bytes do not match source, and why. */
-interface AsarMismatch {
-  relPath: string;
-  reason: string;
-}
-
-/** {@link verifyAsarAgainstSource}'s result. */
-interface AsarVerification {
-  checkedCount: number;
-  mismatches: AsarMismatch[];
-}
-
-/**
- * Every leaf FILE path (POSIX, no leading slash) under one of `prefixes` in an asar header's `files`
- * metadata tree. Pure and dependency-free — takes the already-parsed header object rather than an
- * archive path — so the tree-walk itself (files vs. directories vs. symlinks, and a prefix that
- * names a file directly, like `"main.ts"`, vs. one that names a directory, like `"src"`) is testable
- * against a plain object literal fixture, with no real `.asar` file anywhere near the test.
- *
- * @param headerFiles the `files` object from `getRawHeader(archivePath).header`.
- * @param prefixes top-level entry names to include, e.g. `["src", "bin", "main.ts"]`. A prefix
- *   absent from the archive is silently skipped — that is a scope decision for the caller, not
- *   something this function should fail on.
- * @returns POSIX-style relative paths, e.g. `"src/tracked-sites.ts"`.
- * @complexity O(n) in archive entries under the given prefixes.
- */
-export function filesUnderPrefixes(headerFiles: Record<string, AsarHeaderNode> | undefined, prefixes: string[]): string[] {
-  const collected: string[] = [];
-
-  function walk(node: AsarHeaderNode, currentPath: string): void {
-    if (node && typeof node === "object" && node.files) {
-      for (const [name, child] of Object.entries(node.files)) {
-        walk(child, `${currentPath}/${name}`);
-      }
-      return;
-    }
-    // A leaf is either a file (`size`/`offset`) or a symlink (`link`). Symlinks carry no bytes of
-    // their own to compare and this repo's desktop archive has none under src/bin, so they are
-    // simply excluded rather than treated as an error.
-    if (node && typeof node === "object" && !("link" in node)) {
-      collected.push(currentPath);
-    }
-  }
-
-  for (const prefix of prefixes) {
-    const node = headerFiles?.[prefix];
-    if (node) walk(node, prefix);
-  }
-  return collected;
-}
 
 /** One mismatch, rendered — every failing path named individually and why. A gate that says
  *  "corrupt" without saying which files sends the next person hunting through a multi-hundred-MB
@@ -154,99 +95,16 @@ export function formatMismatchReport(mismatches: AsarMismatch[]): string {
   ].join("\n");
 }
 
-/**
- * Compares every file {@link filesUnderPrefixes} finds under `prefixes` in `asarPath` against the
- * same relative path under `sourceRoot`, byte-for-byte via `Buffer#equals` — never length, never a
- * hash. This is the one impure function in this module: it reads a real archive and a real
- * filesystem. It is kept here anyway (rather than moved into `scripts/`, this repo's usual home for
- * anything that touches disk) specifically so it stays under `src/**\/*.test.ts` and can be proven,
- * against a real built-then-corrupted fixture archive, to actually catch the failure it exists for
- * — see `asar-verify.test.ts`.
- *
- * @param asarPath path to the built `app.asar`.
- * @param sourceRoot the source tree root the archive should match (`apps/desktop` in production).
- * @param prefixes top-level archive entries to check, e.g. `["src", "bin", "main.ts"]`.
- * @returns `{ checkedCount, mismatches }` — `mismatches` is `[]` when every file matched. A prefix
- *   with no file under it in the archive is itself a mismatch (named by the prefix), so a whole
- *   directory left out of `files:` fails the gate instead of shrinking what it checks.
- * @complexity O(n) in files checked, each a full read of both copies.
- */
+/** Compare content through shared verification, binding the host filesystem and archive SDK. */
 export function verifyAsarAgainstSource(asarPath: string, sourceRoot: string, prefixes: string[]): AsarVerification {
-  const { header } = getRawHeader(asarPath);
-  const relPaths = filesUnderPrefixes(header.files, prefixes);
-
-  // Per prefix, not just in total: a whole missing `bin/` hides behind a non-zero count from `src`.
-  const mismatches: AsarMismatch[] = prefixes
-    .filter((prefix) => filesUnderPrefixes(header.files, [prefix]).length === 0)
-    .map((prefix) => ({ relPath: prefix, reason: "nothing under this checked prefix is in app.asar" }));
-  for (const relPath of relPaths) {
-    const sourcePath = path.join(sourceRoot, relPath);
-    let sourceBuf: Buffer;
-    try {
-      sourceBuf = readFileSync(sourcePath);
-    } catch {
-      mismatches.push({ relPath, reason: "shipped in app.asar but missing from the source tree" });
-      continue;
-    }
-    // No leading slash: `extractFile`'s path argument is resolved relative to the archive root by
-    // splitting on the OS path separator (`filesystem.js`'s `searchNodeFromDirectory`), and a
-    // leading "/" produces a spurious empty first segment that walks into a fresh, empty directory
-    // node instead of the real root — silently "not found" for every nested path. This is the
-    // opposite convention from `listPackage()`'s OUTPUT, which prefixes every entry with "/" for
-    // display; that display format is not the input format `extractFile` expects.
-    let shippedBuf: Buffer;
-    try {
-      shippedBuf = extractFile(asarPath, toArchiveEntryPath(relPath));
-    } catch (error) {
-      mismatches.push({
-        relPath,
-        reason: `present in the asar header but extractFile could not read it (${(error as Error).message})`,
-      });
-      continue;
-    }
-    if (!sourceBuf.equals(shippedBuf)) {
-      mismatches.push({
-        relPath,
-        reason: "content differs from source (sizes can still match — this is compared byte-for-byte, never by length)",
-      });
-    }
-  }
-
-  return { checkedCount: relPaths.length, mismatches };
+  return verify({ archivePath: asarPath, sourceRoot, prefixes, separator: path.sep, fs: createNodePackagingFilesystem({}), archive: createAsarArchiveReader({ asar }) }, {
+    readFailureMessage: ({ error }) => `present in the asar header but extractFile could not read it (${(error as Error).message})`,
+    contentMismatchMessage: "content differs from source (sizes can still match — this is compared byte-for-byte, never by length)",
+  });
 }
-
-/**
- * `checkedCount === 0` is never a clean pass — the walk found nothing to compare at all, which
- * almost always means a path-separator mismatch (see {@link toArchiveEntryPath}) or a stale
- * `VERIFIED_PREFIXES` entry hid every real file from the check before a single byte was compared.
- * Exported so `scripts/verify-package.ts` can turn "verified nothing" into a hard `exit 1` instead
- * of a false green, and so that decision — not the process exit itself — is unit-testable.
- *
- * @param checkedCount `verifyAsarAgainstSource`'s returned count.
- * @complexity O(1).
- */
-export function isEmptyVerification(checkedCount: number): boolean {
-  return checkedCount === 0;
-}
-
-/**
- * Converts a POSIX-style archive-relative path (as {@link filesUnderPrefixes} always produces,
- * e.g. `"src/sub/b.js"`) to the separator `extractFile` actually needs on this host.
- * `@electron/asar`'s own `searchNodeFromDirectory` walks the parsed header tree by splitting the
- * path it is given on the HOST OS's `path.sep` — so on win32, a `/`-joined relPath has no backslash
- * to split on, is treated as a single segment name that does not exist at the archive root, and the
- * lookup fails even though the entry is genuinely present in the header. Kept as a pure,
- * injectable-separator function (rather than reading `path.sep` internally with no override) so the
- * win32 branch is provable on any host OS, including this suite's macOS/Linux CI.
- *
- * @param relPath POSIX-style, e.g. `"src/sub/b.js"`.
- * @param sep the separator to convert to; defaults to this host's real `path.sep`.
- * @complexity O(n) in path length.
- */
-export function toArchiveEntryPath(relPath: string, sep: string = path.sep): string {
-  return sep === "/" ? relPath : relPath.split("/").join(sep);
-}
-
+export const filesUnderPrefixes = (headerFiles: Record<string, AsarHeaderNode> | undefined, prefixes: string[]) => files({ headerFiles, prefixes });
+export const isEmptyVerification = (checkedCount: number) => empty({ checkedCount });
+export const toArchiveEntryPath = (relPath: string, sep: string = path.sep) => entryPath({ relPath, separator: sep });
 /**
  * The bundled npm's missing load-bearing files across `resourcesDirs`, as report lines — checked on
  * disk, not in the asar, because `extraResources` ships `Resources/npm/` as real files outside it
@@ -261,12 +119,8 @@ export function toArchiveEntryPath(relPath: string, sep: string = path.sep): str
  * @complexity O(n) in `resourcesDirs.length`.
  */
 export function bundledNpmFailures(resourcesDirs: string[]): string[] {
-  if (resourcesDirs.length === 0) return ["no packaged resources directory was found to check for the bundled npm"];
-  return resourcesDirs.flatMap((dir) =>
-    [path.join(dir, "npm", "bin", "npx-cli.js"), path.join(dir, "npm", "node_modules", "@npmcli", "arborist", "package.json")]
-      .filter((file) => !existsSync(file))
-      .map((file) => `${file} (under ${dir})`),
-  );
+  const fs = createNodePackagingFilesystem({});
+  const requiredFiles = ["npm/bin/npx-cli.js", "npm/node_modules/@npmcli/arborist/package.json"];
+  if (!resourcesDirs.length) return npmFailures({ resourcesDirs, requiredFiles, fs });
+  return resourcesDirs.flatMap(dir => npmFailures({ resourcesDirs: [dir], requiredFiles, fs }).map(file => `${file} (under ${dir})`));
 }
-
-export type { AsarHeaderNode, AsarMismatch, AsarVerification };

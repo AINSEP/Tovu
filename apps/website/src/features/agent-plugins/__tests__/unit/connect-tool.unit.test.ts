@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp } from "node:fs/promises";
@@ -108,7 +109,7 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
   const emissions: SurfaceEmission[] = [];
   const ctx = fakeCtx(emissions);
 
-  const deps: AgentPluginConnectToolDeps = {
+  const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     clock: CLOCK,
@@ -119,7 +120,7 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
     pollIntervalMs: 5,
     waitTimeoutMs: 30,
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
-  };
+  });
 
   const result = await runAgentPluginConnect(deps, surfaces, ctx, "widget-store");
   assert.deepEqual(result, { status: "waiting-for-sign-in" });
@@ -149,7 +150,7 @@ test("agent_plugin_connect: a fake callback flipping the row to connected resolv
   const emissions: SurfaceEmission[] = [];
   const ctx = fakeCtx(emissions);
 
-  const deps: AgentPluginConnectToolDeps = {
+  const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     clock: CLOCK,
@@ -160,7 +161,7 @@ test("agent_plugin_connect: a fake callback flipping the row to connected resolv
     pollIntervalMs: 5,
     waitTimeoutMs: 2000,
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
-  };
+  });
 
   const connectPromise = runAgentPluginConnect(deps, surfaces, ctx, "widget-store");
 
@@ -178,7 +179,7 @@ test("agent_plugin_connect: a plugin with no OAuth server is refused", async () 
   const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const ctx = fakeCtx([]);
 
-  const deps: AgentPluginConnectToolDeps = {
+  const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     clock: CLOCK,
@@ -186,13 +187,13 @@ test("agent_plugin_connect: a plugin with no OAuth server is refused", async () 
     siteAssistantSecretSealer: store.sealer,
     siteAssistantSecretKeyring: store.keyring,
     resolveInstalledPlugin: async () => ({ servers: { plain: { type: "streamable-http", url: "https://example.com/mcp" } } }),
-  };
+  });
 
   await assert.rejects(runAgentPluginConnect(deps, surfaces, ctx, "widget-store"), /declares no OAuth-authenticated MCP server/);
 });
 
 function baseDeps(store: ReturnType<typeof makeStoreDeps>, overrides: Partial<AgentPluginConnectToolDeps>): AgentPluginConnectToolDeps {
-  return {
+  return testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     clock: CLOCK,
@@ -202,7 +203,7 @@ function baseDeps(store: ReturnType<typeof makeStoreDeps>, overrides: Partial<Ag
     pollIntervalMs: 5,
     waitTimeoutMs: 30,
     ...overrides,
-  } as AgentPluginConnectToolDeps;
+  }) as AgentPluginConnectToolDeps;
 }
 
 test("agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts", async () => {

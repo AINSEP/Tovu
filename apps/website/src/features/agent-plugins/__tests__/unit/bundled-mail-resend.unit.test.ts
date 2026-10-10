@@ -1,3 +1,4 @@
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -85,7 +86,7 @@ test("seeded by the real seeder, resend is ENABLED with no user action and the r
     const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
     assert.equal(activations.plugins.resend?.enabled, true, "a site configured for Resend must keep sending with zero user action");
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
     assert.equal(registry.list()[0]?.pluginId, "resend");
     assert.equal(typeof registry.list()[0]?.module.create, "function");
@@ -100,7 +101,7 @@ test("an operator who switched resend off stays switched off across boots, and t
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.resend?.enabled, false);
-    assert.deepEqual((await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID })).list(), []);
+    assert.deepEqual((await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions })).list(), []);
   });
 });
 

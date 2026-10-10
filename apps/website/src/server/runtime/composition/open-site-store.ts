@@ -9,7 +9,7 @@ import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE, startPgliteOwner, type Pgli
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
-import type { ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
+import type { ContentDbOpenOptions, ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
 import { openSiteChatDb } from "#src/platform/db/sqlite/chat-db";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { PGLITE_DATA_DIR_NAME } from "#src/platform/site-dir/layout";
@@ -81,6 +81,8 @@ export interface OpenSiteStoreRequired {
 }
 
 export interface OpenSiteStoreOptional {
+  /** SQLite acquisition belongs to the embedding host, including reopen after recovery. */
+  sqliteOpen?: ContentDbOpenOptions["open"];
   /** An already opened, migrated and prepared content.db (the install-dir `serve` path). SQLite only. */
   db?: ContentDb;
   /** Postgres: where `secretRef: { env }` is read; PGlite: where a client reads {@link PG_SOCKET_ENV} (default `process.env`). */
@@ -106,10 +108,11 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
   if (storage.kind === "pglite") return openPgliteSiteStore(storage, required, optional);
   if (storage.kind === "postgres") return openPostgresSiteStore(storage, required, optional);
   const ownsDb = optional.db === undefined;
-  const db = optional.db ?? (await openSiteContentDb(required.dbPath));
+  const sqliteOptions = optional.sqliteOpen ? { open: optional.sqliteOpen } : {};
+  const db = optional.db ?? (await openSiteContentDb({ dbPath: required.dbPath }, sqliteOptions));
   let chatDb: Awaited<ReturnType<typeof openSiteChatDb>>;
   try {
-    chatDb = await openSiteChatDb(required.chatDbPath);
+    chatDb = await openSiteChatDb({ filePath: required.chatDbPath }, sqliteOptions);
   } catch (err) {
     if (ownsDb) closeSqliteConnection(db);
     throw err;

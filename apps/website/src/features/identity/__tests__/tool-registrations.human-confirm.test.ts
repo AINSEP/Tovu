@@ -5,7 +5,6 @@ import test from "node:test";
 
 import type { SurfaceEmission, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { type IdentityRepos } from "@jini-ai/user-management";
-import { type IdentityToolDeps } from "@jini-ai/user-management/server";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
 
@@ -17,7 +16,8 @@ import {
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
 
-import { buildGatedIdentityRegistrations } from "../tool-registrations.js";
+import { buildGatedIdentityRegistrations, type TovuIdentityToolDeps } from "../tool-registrations.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -33,7 +33,7 @@ const WORKSPACE_ID = "ws-identity-confirm";
 const HASHER = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding }, { memoryCost: 8, timeCost: 1, parallelism: 1 });
 
 interface Harness {
-  deps: IdentityToolDeps;
+  deps: TovuIdentityToolDeps;
   repos: IdentityRepos;
   ownerPrincipalId: string;
   store: SurfaceExchangeStore;
@@ -56,7 +56,9 @@ async function buildHarness(): Promise<Harness> {
   const idGen = { newId: () => `id-${++n}` };
   const clock = { nowIso: () => "2026-09-24T00:00:00.000Z", nowMs: () => Date.parse("2026-09-24T00:00:00.000Z") };
   const { ownerPrincipalId } = await seedIdentity({ deps: { repos, hasher: HASHER, clock, idGen }, input: { workspaceId: WORKSPACE_ID, ownerPassword: "seed-owner-pw", ownerUsername: "admin" } });
-  const deps: IdentityToolDeps = {
+  const deps: TovuIdentityToolDeps = {
+    outbox: new InMemoryOutbox(),
+    isInTrash: async () => false,
     transactions: repos.transactions,
     tokens: new NodeSessionTokens({}),
     workspaceId: WORKSPACE_ID,
@@ -75,7 +77,7 @@ async function buildHarness(): Promise<Harness> {
     principalPolicyRepo: repos.principalPolicies,
   };
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const tools = new Map(buildGatedIdentityRegistrations(deps, { surfaceExchanges: store }).map((r) => [r.descriptor.id, r]));
+  const tools = new Map(buildGatedIdentityRegistrations(deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).map((r) => [r.descriptor.id, r]));
   return { deps, repos, ownerPrincipalId, store, tools };
 }
 
@@ -273,7 +275,7 @@ test("identity_user_create: a buffered submit followed by abort never hashes or 
   const controller = new AbortController();
   let hashes = 0;
   const deps = { ...h.deps, passwordHasher: { hash: async () => { hashes++; return "unused"; }, verify: HASHER.verify.bind(HASHER) } };
-  const tool = buildGatedIdentityRegistrations(deps, { surfaceExchanges: h.store }).find(r => r.descriptor.id === "identity_user_create")!;
+  const tool = buildGatedIdentityRegistrations(deps, { surfaceExchanges: h.store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === "identity_user_create")!;
   const result = await tool.handler({ ...ctx(h, { username: "buffered" }), signal: controller.signal }, { emitSurface: async () => {
     const exchangeId = h.store.findTypedAnswerTarget({ principalId: h.ownerPrincipalId, toolId: "identity_user_create" })!;
     assert.deepEqual(h.store.deliver({ exchangeId, principalId: h.ownerPrincipalId, params: { password: "buffered-only-canary" } }, { toolId: "identity_user_create" }), { ok: true });
@@ -300,7 +302,7 @@ test("identity_user_create: an already-aborted run opens no password card", asyn
 test("identity_user_create: a hasher error containing the password becomes fixed safe text", async () => {
   const h = await buildHarness();
   const deps = { ...h.deps, passwordHasher: { hash: async ({ password }: { password: string }) => { throw new Error(`Hasher failed for ${password}`); }, verify: HASHER.verify.bind(HASHER) } };
-  h.tools = new Map(buildGatedIdentityRegistrations(deps, { surfaceExchanges: h.store }).map(r => [r.descriptor.id, r]));
+  h.tools = new Map(buildGatedIdentityRegistrations(deps, { surfaceExchanges: h.store, assertChatDeleteAllowed: async () => {} }).map(r => [r.descriptor.id, r]));
   const dialog = await raise(h, "identity_user_create", { username: "hasher-failed" });
   const control = dialog.html.match(/<input\b[^>]*name="password"[^>]*>/)?.[0];
   assert.ok(control);
@@ -317,3 +319,44 @@ test("identity_user_create: a hasher error containing the password becomes fixed
   assert.equal(await h.repos.users.findByUsername({ workspaceId: WORKSPACE_ID, username: "hasher-failed" }), null);
   assert.equal(h.store.size(), 0);
 });
+
+test("role deletion refuses a renamed target after the card opens", async () => {
+  const h = await buildHarness(); await seedTargets(h);
+  const raised = await raise(h, "identity_role_delete", { roleId: "r-editor" });
+  const role = (await h.repos.roles.findById({ workspaceId: WORKSPACE_ID, id: "r-editor" }))!;
+  await h.repos.roles.save({ ...role, name: "Renamed role" });
+  raised.answer({ decision: "confirm" });
+  await assert.rejects(raised.pending, { message: "identity_role_delete: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+  assert.ok(await h.repos.roles.findById({ workspaceId: WORKSPACE_ID, id: "r-editor" }));
+});
+
+for (const changed of [false, true]) {
+  test(`policy deletion ${changed ? 'refuses changed permissions' : 'accepts reordered dependency sets'}`, async () => {
+    const h = await buildHarness(); await seedTargets(h);
+    for (const [id, permission] of [["perm-b", "content.read"], ["perm-a", "content.write"]]) {
+      await h.repos.policyPermissions.save({ id, permission, workspaceId: WORKSPACE_ID, policyId: "pol-review" });
+    }
+    let reads = 0;
+    const list = h.deps.policyPermissionRepo.listByPolicyId.bind(h.deps.policyPermissionRepo);
+    const deps = { ...h.deps, policyPermissionRepo: {
+      listByPolicyId: async (input: Parameters<typeof list>[0]) => {
+        const rows = await list(input);
+        return ++reads === 1 ? rows : [...rows].reverse();
+      },
+      save: h.deps.policyPermissionRepo.save.bind(h.deps.policyPermissionRepo),
+      delete: h.deps.policyPermissionRepo.delete.bind(h.deps.policyPermissionRepo),
+      deleteByPolicyId: h.deps.policyPermissionRepo.deleteByPolicyId.bind(h.deps.policyPermissionRepo),
+    } };
+    h.tools = new Map(buildGatedIdentityRegistrations(deps, { surfaceExchanges: h.store, assertChatDeleteAllowed: async () => {} }).map(r => [r.descriptor.id, r]));
+    const card = await raise(h, "identity_policy_delete", { policyId: "pol-review" });
+    if (changed) await h.repos.policyPermissions.save({ id: "perm-a", permission: "content.delete", workspaceId: WORKSPACE_ID, policyId: "pol-review" });
+    card.answer({ decision: "confirm" });
+    if (changed) {
+      await assert.rejects(card.pending, { message: "identity_policy_delete: dependencies changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+      assert.ok(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }));
+    } else {
+      assert.deepEqual(await card.pending, { deleted: { policyId: "pol-review" } });
+      assert.equal(await h.repos.policies.findById({ workspaceId: WORKSPACE_ID, id: "pol-review" }), null);
+    }
+  });
+}

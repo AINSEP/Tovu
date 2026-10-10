@@ -7,7 +7,7 @@ import { pluginMemory } from "./memory.js";
 interface Identity { readonly id: string; readonly pluginId: string; readonly archiveDigest: string; }
 /** Every capability closes over its owning plugin. Caller-controlled ids/kinds are rejected. */
 export function buildPluginMemoryRegistrations(required: {
-  sources: readonly Identity[]; workspaceId: string;
+  sources: readonly Identity[]; workspaceId: string; agentPluginLayout: import("./layout.js").AgentPluginLayout;
   gate: { isCallable(plugin: { pluginId: string; archiveDigest: string }): Promise<boolean> };
 }, _optional: {} = {}): ToolRegistration[] {
   const catalog: AgentToolDefinition[] = [];
@@ -31,7 +31,7 @@ export function buildPluginMemoryRegistrations(required: {
         const allowed = operation === "read" ? ["entryPath"] : ["entryPath", "text"];
         if (Object.keys(input).some(key => !allowed.includes(key))) throw new Error("Memory tool accepts no plugin id, kind, or other fields");
         const entryPath = requireString({ input, key: "entryPath" });
-        const memory = pluginMemory({ workspaceId: required.workspaceId, pluginId: source.pluginId });
+        const memory = pluginMemory({ workspaceId: required.workspaceId, pluginId: source.pluginId }, { layout: required.agentPluginLayout });
         if (operation === "read") return { pluginId: source.pluginId, entryPath, text: await memory.learned.read({ entryPath }) };
         return memory.learned.write({ entryPath, text: requireString({ input, key: "text" }) });
       };

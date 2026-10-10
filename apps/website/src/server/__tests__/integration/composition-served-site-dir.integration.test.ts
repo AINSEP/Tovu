@@ -8,6 +8,7 @@ import test, { after, before, describe } from "node:test";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
+import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { installFirstPartyPublishContentTypes } from "../../runtime/composition/publish-content-manifest.js";
 import { getExportRunSnapshot, startExportRun } from "#src/features/deployments/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -83,7 +84,11 @@ describe("a site composed with an explicit binding, while env/cwd name another s
   const probePluginId = "served-site-probe";
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
 
+  const layoutEnv = ["TOVU_AGENT_PLUGINS_DIR", "TOVU_SKILLS_DIR"] as const;
+  const originalLayoutEnv = new Map(layoutEnv.map(name => [name, process.env[name]]));
+
   before(async () => {
+    for (const name of layoutEnv) delete process.env[name];
     plantSitePlugin(path.join(siteA, "plugins"), probePluginId);
     // No uploadsDir/themesDir overrides: their defaults are under test too.
     deps = await createSiteRouteDeps(path.join(siteA, "content.db"), { siteBinding: bindingFor(siteA) });
@@ -92,6 +97,10 @@ describe("a site composed with an explicit binding, while env/cwd name another s
   after(async () => {
     await settleBoot(deps);
     fs.rmSync(siteA, { recursive: true, force: true });
+    for (const name of layoutEnv) {
+      const previous = originalLayoutEnv.get(name);
+      if (previous === undefined) delete process.env[name]; else process.env[name] = previous;
+    }
   });
 
   test("exportOutputRootDir is the served site's out/export, and a triggered export writes there", async () => {
@@ -126,6 +135,71 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     assert.equal(deps!.siteBackupSources?.siteDir, siteA);
     const expected = process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : path.join(siteA, "uploads");
     assert.equal(deps!.siteBackupSources?.mediaUploadsDir, expected);
+  });
+
+  test("agent-plugin and skill layouts are boot-bound and backups share the same layouts", () => {
+    assert.equal(deps!.agentPluginLayout.root, path.join(siteA, "agent-plugins"));
+    assert.equal(deps!.skillLayout.root, path.join(siteA, "skills"));
+    assert.equal(deps!.siteBackupSources?.agentPlugins, deps!.agentPluginLayout);
+    assert.equal(deps!.siteBackupSources?.skillsDir, deps!.skillLayout.root);
+    const previous = process.env.TOVU_SITE_DIR;
+    try {
+      process.env.TOVU_SITE_DIR = path.join(siteA, "another-site");
+      assert.equal(deps!.agentPluginLayout.forWorkspace(deps!.workspaceId).root, path.join(siteA, "agent-plugins", "ws", deps!.workspaceId));
+      assert.equal(deps!.skillLayout.forWorkspace(deps!.workspaceId).root, path.join(siteA, "skills", "ws", deps!.workspaceId));
+    } finally {
+      if (previous === undefined) delete process.env.TOVU_SITE_DIR; else process.env.TOVU_SITE_DIR = previous;
+    }
+  });
+
+  test("installed contribution registries keep the booted site after env drift and retain their trust gates", async () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-bound-contributions-"));
+    const pluginRoot = path.join(sourceRoot, "deploy");
+    fs.mkdirSync(pluginRoot);
+    const files = {
+      "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "deploy", version: "1.0.0" }),
+      "tovu-source-control.json": JSON.stringify({ schemaVersion: 1, providers: [{ id: "bound-git", label: "Bound Git", apiOrigin: "https://git.fixture.test", module: "fixture.mjs" }] }),
+      "tovu-deploy-targets.json": JSON.stringify({ schemaVersion: 1, targets: [{ id: "bound-target", label: "Bound Target", module: "fixture.mjs", config: [] }] }),
+      "tovu-deploy-ops.json": JSON.stringify({ schemaVersion: 1, platforms: [{ id: "bound-ops", label: "Bound Ops", module: "fixture.mjs", hosts: ["api.fixture.test"] }] }),
+      "tovu-mail-adapters.json": JSON.stringify({ schemaVersion: 1, adapters: [{ id: "bound-mail", label: "Bound Mail", module: "fixture.mjs", credentialLabel: "Fixture Mail Key" }] }),
+      "tovu-credential-schemes.json": JSON.stringify({ schemaVersion: 1, schemes: [{ id: "bound-scheme", prefix: "FixtureV1", scheme: "FixtureV1" }] }),
+      "fixture.mjs": "export default { create() { return {}; }, validateConfig() { return null; }, async status() {}, async logs() {} };",
+    };
+    for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(pluginRoot, name), content);
+    const envNames = ["TOVU_SITE_DIR", "TOVU_AGENT_PLUGINS_DIR", "TOVU_SKILLS_DIR"] as const;
+    const previous = new Map(envNames.map(name => [name, process.env[name]]));
+    const lifecycle = deps!.agentPluginLifecycle;
+    const workspaceId = deps!.workspaceId;
+    const loadMail = () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: lifecycle.loadPluginContributions });
+    try {
+      await lifecycle.seedBundledAgentPlugins({ layout: deps!.agentPluginLayout, workspaceId, sourceRoot });
+      for (const name of envNames) process.env[name] = path.join(sourceRoot, "other-site");
+      const providers = await deps!.loadSourceControlProviders(workspaceId);
+      assert.deepEqual(providers.refusals, []);
+      assert.equal(providers.get("bound-git")?.pluginId, "deploy");
+      assert.ok(providers.get("bound-git")!.module);
+      assert.equal((await deps!.loadDeployTargets(workspaceId)).get("bound-target")?.pluginId, "deploy");
+      assert.equal((await deps!.loadDeployOps({ workspaceId })).get("bound-ops")?.pluginId, "deploy");
+      assert.deepEqual((await loadMail()).list().map(adapter => adapter.descriptor.id), ["bound-mail"]);
+      assert.deepEqual((await deps!.loadAuthSchemes({ workspaceId })).map(rule => rule.id), ["bound-scheme"]);
+      assert.equal(fs.existsSync(path.join(sourceRoot, "other-site")), false);
+
+      await lifecycle.setAgentPluginActivation({ workspaceRoot: path.join(siteA, "agent-plugins", "ws", workspaceId), pluginId: "deploy", enabled: false, actor: "test" });
+      const disabled = await deps!.loadSourceControlProviders(workspaceId);
+      assert.deepEqual(disabled.list(), []);
+      assert.equal(disabled.switchedOff?.get("bound-git"), "deploy");
+      assert.deepEqual((await deps!.loadDeployTargets(workspaceId)).list(), []);
+      assert.deepEqual((await deps!.loadDeployOps({ workspaceId })).list(), []);
+      assert.deepEqual((await loadMail()).list(), []);
+      // Data-only credential schemes keep digest trust but deliberately skip activation.
+      assert.deepEqual((await deps!.loadAuthSchemes({ workspaceId })).map(rule => rule.id), ["bound-scheme"]);
+    } finally {
+      for (const name of envNames) {
+        const value = previous.get(name);
+        if (value === undefined) delete process.env[name]; else process.env[name] = value;
+      }
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+    }
   });
 
   test("site-installed plugins are discovered under the served site's plugins/", async () => {

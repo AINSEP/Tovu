@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -58,7 +59,7 @@ class RefusingHttpClient implements HttpClientPort {
 }
 
 function buildDelegatedToolDeps(clientError: Error, log: (line: string) => void = () => {}) {
-  const routeDeps: MediaImportToolDeps = {
+  const routeDeps: MediaImportToolDeps = testSiteLayoutContext({
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: "2026-09-07T00:00:00.000Z" }),
@@ -71,7 +72,7 @@ function buildDelegatedToolDeps(clientError: Error, log: (line: string) => void 
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     mediaImportHttpClient: new RefusingHttpClient(clientError),
     mediaImportEgressRefusalLog: log,
-  };
+  });
 
   const registry = createToolRegistry({});
   for (const registration of buildMediaImportRegistrations(routeDeps)) registry.register(registration);

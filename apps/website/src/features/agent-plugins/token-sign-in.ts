@@ -1,8 +1,8 @@
 import type { HttpClientPort } from "../../platform/http/index.js";
 
 import { probeToken } from "./access-token-tool.js";
-import { defaultResolveInstalledAgentPlugin, titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
-import { listInstalledAgentPluginServers, type InstalledAgentPluginServers } from "./import-access-token.js";
+import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
+import { type InstalledAgentPluginServers } from "./import-access-token.js";
 import type { AgentPluginTokenAuth } from "@jini-ai/agent-plugins/lifecycle";
 import type { McpServerConfig } from "./mcp-metadata.js";
 
@@ -34,7 +34,7 @@ function soleTokenAuth(servers: Readonly<Record<string, McpServerConfig>>): Agen
  */
 export async function listTokenSignInPlugins(
   workspaceId: string,
-  listPlugins: (workspaceId: string) => Promise<readonly InstalledAgentPluginServers[]> = listInstalledAgentPluginServers,
+  listPlugins: (workspaceId: string) => Promise<readonly InstalledAgentPluginServers[]>,
 ): Promise<readonly TokenSignInPlugin[]> {
   const plugins = await listPlugins(workspaceId);
   return plugins
@@ -55,11 +55,11 @@ export async function checkAgentPluginAccessToken(
   deps: {
     readonly workspaceId: string;
     readonly httpClient: HttpClientPort;
-    readonly resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
+    readonly resolveInstalledPlugin: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
   },
   input: { readonly pluginId: string; readonly token: string },
 ): Promise<TokenCheckOutcome> {
-  const resolvePlugin = deps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin(deps.workspaceId, id));
+  const resolvePlugin = deps.resolveInstalledPlugin;
   let plugin: ResolvedAgentPluginForConnect | null;
   try {
     plugin = await resolvePlugin(input.pluginId);

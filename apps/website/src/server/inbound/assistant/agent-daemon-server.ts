@@ -5,7 +5,6 @@ import { sniffContentType } from "#src/features/media/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { createSupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
-import { loadDeployOpsRegistry } from "#src/features/deployments/index";
 import { createSkillRefreshMiddleware } from "#src/features/skills/live-registration";
 /**
  * @file The standalone agent daemon — a separate OS process from Tovu's own server, per the
@@ -112,8 +111,12 @@ import {
   resolveNewSessionField,
 } from "../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../assistant/agent-session-preset.js";
+import { readAssistantPermanentDeletesPolicy } from "../../../assistant/permanent-delete-settings.js";
+import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "../../../assistant/permanent-delete-tool-gate.js";
+import { isChatToolAllowed } from "../../../contracts/headless/assistant-permanent-deletes-policy.js";
+import { readAssistantSubagentsEnabled } from "../../../assistant/subagent-settings.js";
 import {
-  ASSISTANT_DISALLOWED_TOOLS,
+  resolveAssistantDisallowedTools,
   ASSISTANT_SETTING_SOURCES,
   buildBaseSystemOverlay,
   resolveAssistantRunSettings,
@@ -444,7 +447,7 @@ const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
 };
-installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await loadDeployOpsRegistry({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability,
+installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await routeDeps.loadDeployOps({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability,
   chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
   readInstallAttachment: createPluginInstallAttachmentReader({}, {
     uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir,
@@ -453,6 +456,8 @@ installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await 
 });
 
 const registry = createToolRegistry({});
+const deleteScope = createChatDeleteScope({ readPolicy: () => readAssistantPermanentDeletesPolicy({ ...routeDeps, settingsReady: routeDeps.settingsUiTabsReady }) });
+const visibleRegistry = { list: (...args: Parameters<typeof registry.list>) => registry.list(...args).filter(tool => isChatToolAllowed({ toolId: tool.id, policy: deleteScope.policy() })) };
 let refreshSkillsCatalog = () => {};
 
 // Captured (not looped-and-discarded) so `media_promote_chat_attachment` below can find and delegate
@@ -462,14 +467,14 @@ const assistantRegistrations = buildAssistantToolRegistrations(
   // `listCatalogTools` is `site_describe_capabilities`' reader over THIS registry, the one the
   // `search_tools`/`describe_tool` routes below snapshot. A thunk, read when the tool runs, so it
   // also lists the agent-plugin, skill and federated tools `start()` registers after this line.
-  { ...routeDeps, magicLinkPerEmailLimiter, listCatalogTools: () => listToolCatalogEntries(registry),
+  { ...routeDeps, magicLinkPerEmailLimiter, listCatalogTools: () => listToolCatalogEntries(visibleRegistry),
     ...(routeDeps.conversationToolApprovals ? { nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createNativeApprovalMemory({
       store: routeDeps.conversationToolApprovals, workspaceId: routeDeps.workspaceId, clock: routeDeps.clock,
       conversationIdForRun: ({ runId }) => liveRunTracker.conversationIdForRun({ runId }, {}),
     }) } : {}),
   },
   { surfaceExchanges },
-  { contributions },
+  { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS },
 );
 for (const registration of assistantRegistrations) {
   registry.register(registration);
@@ -696,7 +701,8 @@ const agentExecutor = createAgentExecutor({
   // `claude setup-token`), so an isolated child always ran unauthenticated and every Local CLI run
   // failed with "Not logged in · Please run /login". Leaving this flag off knowingly REOPENS that
   // personal-config leak so the default runtime can log in at all — the tool-restriction gate below
-  // (`ASSISTANT_DISALLOWED_TOOLS`) is a separate mechanism and stays fully enforced either way (see
+  // (`ASSISTANT_DISALLOWED_TOOLS`) is a separate mechanism and stays fully enforced either way,
+  // except the owner's Task opt-in (see
   // its own test, `__tests__/agent-executor.test.ts`'s "still applies disallowedTools ... when
   // CLAUDE_CONFIG_DIR isolation is left at its default" in the daemon package). Flip this back to
   // `true` once a host-provisioned `credentialEnv` exists for this runtime (outranks Keychain login
@@ -998,7 +1004,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
       prompt = assemblePromptWithPluginPrefix(prompt, toolExtensions?.federation.refusalPrefix() ?? "");
 
-      const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(run, pluginRefIds, runLifecycle, routeDeps.workspaceId);
+      const pluginPromptPrefix = await resolveAgentPluginPromptPrefix({ run, pluginRefIds, runLifecycle, workspaceId: routeDeps.workspaceId, agentPluginLayout: routeDeps.agentPluginLayout });
       if (pluginPromptPrefix === null) return;
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
 
@@ -1132,7 +1138,12 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         }
       }
 
-      await agentExecutor.run({
+      // Read immediately before launch: API-process writes must affect the next Claude run.
+      const subagentsEnabled = sessionBinding.agentId === "claude" && await readAssistantSubagentsEnabled({
+        settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
+        settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId,
+      }, {});
+      await deleteScope.fresh({ run: () => agentExecutor.run({
         runId: run.id,
         agentId: sessionBinding.agentId,
         prompt,
@@ -1141,8 +1152,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         permissionMode: resolvePermissionMode(),
         // Finding 2 (SEC-assistant-env-isolation-2026-09-07): the actual, enforced tool-grant
         // restriction — see ASSISTANT_DISALLOWED_TOOLS's own doc for the evidence behind this exact
-        // list. Unconditional, unlike resolveBashProhibitionEnabled()'s prompt-only diagnostic above.
-        disallowedTools: ASSISTANT_DISALLOWED_TOOLS,
+        // list. Only Task may be removed by the owner's Claude-only opt-in; all other restrictions
+        // remain unconditional, unlike resolveBashProhibitionEnabled()'s prompt-only diagnostic.
+        disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled }, {}),
         // Owner call 2026-09-28: no personal or repo CLI settings layers (hooks, plugins, defaults)
         // in assistant runs — see ASSISTANT_SETTING_SOURCES's own doc.
         settingSources: ASSISTANT_SETTING_SOURCES,
@@ -1161,7 +1173,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
         // id that was persisted and the id handed to the CLI can never drift apart.
         ...sessionBinding.sessionFields,
-      });
+      }) });
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
     // every failure path before it rejects — this catch only guards against an unhandled rejection.
@@ -1199,8 +1211,6 @@ const app = express();
 // bridge's routes and stands for that run's principal, never one the caller asserts
 // (`run-scoped-credential.ts`). The proxy token alone still carries a proxy-asserted principal.
 app.use(requireAgentDaemonToken({ runScopedCallers: runCredentials }, {}));
-// Read skills before discovery or execution, including changes made by another process.
-app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], createSkillRefreshMiddleware({ registry, onChanged: () => refreshSkillsCatalog() }));
 // Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
 // admin viewport, posted back to `/api/frontend-sessions/:id/responses`
 // (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after
@@ -1210,6 +1220,14 @@ app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], createSkillRefreshMiddleware(
 // caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
 // unauthenticated attack surface, only a larger authenticated one.
 app.use(express.json({ limit: "6mb" }));
+// Establish async context after body parsing resumes from stream callbacks.
+// Read skills before discovery or execution, including changes made by another process.
+// Package catalog routes are synchronous; native request context supplies a fresh grant
+// without rebinding process-wide state or rebuilding the FTS index for each request.
+app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], (_req, _res, next) => {
+  void deleteScope.fresh({ run: () => next() }).catch(next);
+});
+app.use(["/api/tools", DELEGATED_TOOL_CALLS_PATH], createSkillRefreshMiddleware({ registry, onChanged: () => refreshSkillsCatalog() }));
 // Re-resolve the bearer after parsing, so even a credential that expired while parsing fails
 // closed. Run credentials must match body.runId before any delegated handler or tool can execute;
 // proxy credentials retain their existing authority.
@@ -1356,7 +1374,7 @@ const externalMcpOAuth = createExternalMcpOAuthService({
   // these unset (see `routes/types.ts`'s doc on both fields) — every real composition root sets them.
   pending: routeDeps.externalMcpOAuthPending ?? createPendingAuthorizationStore({ clock: routeDeps.clock }),
   devices: routeDeps.externalMcpOAuthDevices ?? createDeviceAuthorizationStore(),
-  onConnected: createApplyConnectDefaults({ workspaceId: routeDeps.workspaceId, repo: routeDeps.externalMcpServerRepo, clock: routeDeps.clock }),
+  onConnected: createApplyConnectDefaults({ agentPluginLayout: routeDeps.agentPluginLayout, workspaceId: routeDeps.workspaceId, repo: routeDeps.externalMcpServerRepo, clock: routeDeps.clock }),
 });
 
 async function start(): Promise<void> {
@@ -1370,6 +1388,7 @@ async function start(): Promise<void> {
    * for `configFailures`.
    */
   const source = createStoredExternalMcpConnectionSource({
+    agentPluginLayout: routeDeps.agentPluginLayout,
     repo: routeDeps.externalMcpServerRepo,
     sealer: routeDeps.siteAssistantSecretSealer,
     // Resolves (and refreshes, if due) the access token for an `authMode: "oauth"` row before its
@@ -1422,6 +1441,7 @@ async function start(): Promise<void> {
       ...routeDeps,
       registerInstalled: registerInstalledExtensionTools,
       federation: {
+        presetRegistry: routeDeps.federatedMcpPresetRegistry,
         deps: federationDeps,
         resolveConnections: source.resolve,
         // Propagates a reload that actually admitted something new into every OTHER piece of
@@ -1539,7 +1559,7 @@ async function start(): Promise<void> {
       principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
     } }, {}),
   );
-  registerToolCatalogRoutes({ app, deps: { catalog: liveToolCatalog.query }, adapter });
+  registerToolCatalogRoutes({ app, deps: { catalog: deleteScope.catalog({ catalog: liveToolCatalog.query }) }, adapter });
 
   registerFederationReloadRoute(app, { reload: () => extensions.federation.reload() });
   // S6 (2026-09-24): this daemon PROCESS also reacts directly to a roster change, not only over its

@@ -5,7 +5,7 @@
  * `agent-daemon-server.ts` cannot be imported directly by a unit test without inheriting its own
  * import-time side effects (opens a DB connection, builds the tool registry, etc — see that
  * file's own module doc, `const routeDeps = ...` at its top level). This module has none: it
- * imports only `resolveAgentPluginLayout` and `resolveAgentPluginRefs`, both side-effect-free at
+ * imports only the layout type and `resolveAgentPluginRefs`, both side-effect-free at
  * import time, so a test can import it directly and exercise the exact code `onStarted` runs.
  *
  * `agent-daemon-server.ts`'s `onStarted` is the only caller of either export below. Moving them
@@ -14,7 +14,7 @@
  */
 import type { RunStartHandler } from "@jini-ai/daemon/http";
 
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveAgentPluginRefs } from "../../../features/agent-plugins/lifecycle.js";
 
 import { failRunBeforeStart } from "../../../assistant/agent-session-preset.js";
@@ -33,14 +33,19 @@ type OnStartedContext = Parameters<RunStartHandler>[0];
  * access at all (`resolveAgentPluginRefs`'s own empty-array fast path).
  */
 export async function resolveAgentPluginPromptPrefix(
-  run: OnStartedContext["run"],
-  pluginRefIds: readonly string[],
-  runLifecycle: OnStartedContext["lifecycle"],
-  workspaceId: string,
+  input: {
+    run: OnStartedContext["run"];
+    pluginRefIds: readonly string[];
+    runLifecycle: OnStartedContext["lifecycle"];
+    workspaceId: string;
+    agentPluginLayout: AgentPluginLayout;
+  },
+  _options = {},
 ): Promise<string | null> {
+  const { run, pluginRefIds, runLifecycle, workspaceId, agentPluginLayout } = input;
   if (pluginRefIds.length === 0) return "";
 
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
+  const workspaceLayout = agentPluginLayout.forWorkspace(workspaceId);
   const result = await resolveAgentPluginRefs(pluginRefIds, workspaceLayout);
 
   if (!result.ok) {

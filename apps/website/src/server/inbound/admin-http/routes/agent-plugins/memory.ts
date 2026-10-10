@@ -1,5 +1,4 @@
 import { pluginMemory } from "#src/features/agent-plugins/memory";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { listInstalledPlugins } from "../../../../../features/agent-plugins/lifecycle.js";
 import { DEFAULT_PLUGIN_MEMORY_LIMITS } from "@jini-ai/agent-plugins/persistent-state";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -16,11 +15,11 @@ export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = (app,
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,
         permission: write ? "admin.plugins.enable" : "admin.plugins.read", workspaceId: deps.workspaceId }))) return;
       const pluginId = String(req.params.pluginId);
-      const workspace = resolveAgentPluginLayout().forWorkspace(deps.workspaceId);
+      const workspace = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
       if (!(await listInstalledPlugins(workspace.root)).some(plugin => plugin.pluginId === pluginId)) {
         res.status(404).json({ error: "agent plugin was not found", code: "AGENT_PLUGIN_NOT_FOUND" }); return;
       }
-      const memory = pluginMemory({ workspaceId: deps.workspaceId, pluginId });
+      const memory = pluginMemory({ workspaceId: deps.workspaceId, pluginId }, { layout: deps.agentPluginLayout });
       if (write) {
         const body: unknown = req.body;
         if (!body || typeof body !== "object" || Array.isArray(body) ||

@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
@@ -160,10 +161,10 @@ test("learned capability refuses traversal, sibling plugin aliases, notes writes
 
 test("memory tools cannot select a different plugin/kind and obey the per-call revocation gate", async () => {
   let active = true;
-  const registrations = buildPluginMemoryRegistrations({ workspaceId,
+  const registrations = buildPluginMemoryRegistrations(testSiteLayoutContext({ workspaceId,
     sources: [{ id: "agent_plugin_example", pluginId: "example", archiveDigest: "a".repeat(64) }],
     gate: { isCallable: async () => active },
-  });
+  }));
   assert.equal(registrations.length, 2);
   for (const registration of registrations) {
     const authorization = {} as Parameters<typeof registration.policy.authorize>[0];

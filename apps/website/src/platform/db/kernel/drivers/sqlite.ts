@@ -10,6 +10,7 @@ import {
   closeSqliteConnection as jiniCloseSqliteConnection,
   type SqliteKernel,
 } from "@jini-ai/db/kernel/sqlite";
+import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 
 export type { SqliteKernel } from "@jini-ai/db/kernel/sqlite";
@@ -40,3 +41,6 @@ export function sqliteClientOf(source: SqliteConnectionSource): Database.Databas
 export function sqliteConnectionOf<DB>(kernel: StorageKernel<DB>): Database.Database | undefined {
   return jiniSqliteConnectionOf(kernel) as Database.Database | undefined;
 }
+
+/** Host-owned native opener reused by content/chat bootstraps; Jini owns the opener contract. */
+export const openNativeSqlite: SqliteSyncOpener<Database.Database> = (filePath, options) => new Database(filePath, options);

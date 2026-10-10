@@ -39,7 +39,7 @@ import { registerInstalledSkillTools } from "#src/features/skills/tool-registrat
  *  for this one workspace — each family's own loader is the cost driver, not this function. */
 export const registerInstalledExtensionTools: InstalledExtensionRegistrar = async (registry, deps, log) => {
   try {
-    await registerInstalledAgentPluginTools(registry, { workspaceId: deps.workspaceId });
+    await registerInstalledAgentPluginTools(registry, deps);
   } catch (error) {
     console.warn(
       `${log} agent-plugin tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
@@ -47,7 +47,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
   }
 
   try {
-    await registerInstalledSkillTools(registry, { workspaceId: deps.workspaceId });
+    await registerInstalledSkillTools(registry, deps);
   } catch (error) {
     console.warn(
       `${log} skill tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,

@@ -57,7 +57,7 @@ const PROBE_TIMEOUT_MS = 10_000;
  *  Shared with `import-access-token.ts`, which saves a token that did not come from this form. */
 export type AgentPluginTokenTargetDeps = Pick<
   AgentPluginConnectToolDeps,
-  "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "resolveInstalledPlugin"
+  "agentPluginLayout" | "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "resolveInstalledPlugin"
 >;
 
 export interface AgentPluginAccessTokenToolDeps
@@ -128,7 +128,7 @@ export async function requireTargetRow(routeDeps: AgentPluginTokenTargetDeps, ta
  * @throws The signal's abort reason before provisioning when cancelled.
  */
 export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, pluginId: string, principalId: string, optional: { signal?: AbortSignal } = {}): Promise<TokenAuthTarget> {
-  const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin(routeDeps.workspaceId, id));
+  const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId: id, agentPluginLayout: routeDeps.agentPluginLayout }));
   const plugin = await resolvePlugin(pluginId);
   if (!plugin) throw new ToolInputError({ message: `agent_plugin_set_access_token: '${pluginId}' is not an installed Agent Plugin in this workspace.` });
 

@@ -1,3 +1,5 @@
+import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
+import { createFederationRuntime } from "../external-mcp-federation-runtime.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -14,8 +16,8 @@ import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
 import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION, McpAuthFailedError, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor, RemoteToolResult } from "@jini-ai/mcp/federation";
 import {
-  registerFederatedMcpPreset,
-  resetFederatedMcpPresetsForTests,
+  registerFederatedMcpPreset as registerPreset,
+  resetFederatedMcpPresetsForTests as resetPresets,
 } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, federateSession } from "../mcp-federation/registrations.js";
 
@@ -33,6 +35,10 @@ import { buildFederatedMcpRegistrations, federateSession } from "../mcp-federati
  * an `order` array recording every authorize call and every outbound tool call, so "authorized
  * BEFORE anything left the building" is a directly observable sequence rather than an inference.
  */
+
+const presetRegistry = createFederatedMcpPresetRegistry({});
+const registerFederatedMcpPreset = (preset: Parameters<typeof registerPreset>[0]) => registerPreset(preset, { registry: presetRegistry });
+const resetFederatedMcpPresetsForTests = () => resetPresets({ registry: presetRegistry });
 
 const WORKSPACE_ID = "ws-federation";
 const PRINCIPAL_ID = "principal-under-test";
@@ -115,7 +121,7 @@ for (const path of ["direct", "boot"] as const) {
       },
     });
     const registry = fakeRegistry();
-    const attached = path === "boot" ? await attachFederatedMcpTools({
+    const attached = path === "boot" ? await attachFederatedMcpTools({ presetRegistry,
       registry, deps: fakeDeps().deps, connections: [{ config: CONFIG, launch: FAKE_LAUNCH }],
       connect: async () => session, logger: collectingLogger().logger, env: {},
     }) : undefined;
@@ -564,7 +570,7 @@ test("a preset registered from outside core is resolved and connected without co
   });
 
   const registry = fakeRegistry(["database_get_health"]);
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger: collectingLogger().logger,
@@ -585,7 +591,7 @@ test("a preset that declines contributes nothing, silently — 'not configured' 
 
   const { messages, logger } = collectingLogger();
   const registry = fakeRegistry();
-  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, logger, env: {} });
+  const result = await attachFederatedMcpTools({ presetRegistry, registry, deps: fakeDeps().deps, logger, env: {} });
 
   assert.deepEqual(result.registeredToolIds, []);
   assert.deepEqual(messages, [], "an unconfigured preset must not log every boot");
@@ -605,7 +611,7 @@ test("two presets both contribute, and one vendor's broken config does not disab
 
   const { messages, logger } = collectingLogger();
   const registry = fakeRegistry();
-  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, logger, connect: async () => sessionFor(), env: {} });
+  const result = await attachFederatedMcpTools({ presetRegistry, registry, deps: fakeDeps().deps, logger, connect: async () => sessionFor(), env: {} });
 
   assert.deepEqual(result.registeredToolIds, ["mcp__working__list_tables", "mcp__working__get_advisors"]);
   assert.ok(messages.some((message) => message.includes("preset 'broken' configuration is invalid, continuing without federated tools")));
@@ -622,7 +628,7 @@ test("re-registering the same presetId replaces it, so a module imported twice c
 
   const { messages, logger } = collectingLogger();
   const registry = fakeRegistry();
-  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, logger, connect: async () => sessionFor(), env: {} });
+  const result = await attachFederatedMcpTools({ presetRegistry, registry, deps: fakeDeps().deps, logger, connect: async () => sessionFor(), env: {} });
 
   assert.deepEqual(result.registeredToolIds, ["mcp__acme__list_tables", "mcp__acme__get_advisors"]);
   assert.equal(
@@ -656,7 +662,7 @@ function collectingLogger() {
 
 test("with no configuration, the daemon boots exactly as it did before federation existed", async () => {
   const registry = fakeRegistry(["database_get_health"]);
-  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, env: {} });
+  const result = await attachFederatedMcpTools({ presetRegistry, registry, deps: fakeDeps().deps, env: {} });
 
   assert.deepEqual(result.registeredToolIds, []);
   assert.equal(registry.registered.length, 0);
@@ -672,7 +678,7 @@ test("omitting `env` reads the real process.env, not just the explicit `env: {}`
   let seen: NodeJS.ProcessEnv | undefined;
   registerFederatedMcpPreset({ presetId: "env-observer", resolve: (env) => { seen = env; return null; } });
   const registry = fakeRegistry(["database_get_health"]);
-  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps });
+  const result = await attachFederatedMcpTools({ presetRegistry, registry, deps: fakeDeps().deps });
   assert.equal(seen, process.env, "the preset must receive the real environment");
   assert.equal(seen?.[key], "env-from-process");
   assert.deepEqual(result.registeredToolIds, []);
@@ -683,7 +689,7 @@ test("a configured connection registers its admitted tools into the daemon's reg
   const registry = fakeRegistry(["database_get_health"]);
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -701,7 +707,7 @@ test("an unreachable or broken remote is stepped over — Tovu's own catalog is 
   const registry = fakeRegistry(["database_get_health"]);
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -725,7 +731,7 @@ test("a remote that connects but cannot enumerate is stepped over, and its sessi
       throw new Error("remote returned JSON-RPC error -32000: invalid access token");
     } });
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -752,7 +758,7 @@ test("a remote that fails mid-setup AND whose own close() also rejects still res
     },
   };
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -780,7 +786,7 @@ test("an invalid-but-enabled configuration warns and continues rather than throw
   const registry = fakeRegistry();
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, logger, env: {} });
+  const result = await attachFederatedMcpTools({ presetRegistry, registry, deps: fakeDeps().deps, logger, env: {} });
 
   assert.deepEqual(result.registeredToolIds, []);
   assert.ok(messages.some((message) => message.includes("configuration is invalid, continuing without federated tools")));
@@ -790,7 +796,7 @@ test("a remote whose id would collide with a native tool loses the whole connect
   const registry = fakeRegistry(["mcp__supabase__list_tables"]);
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -819,7 +825,7 @@ test("omitting `logger` uses the real console logger — info and warn both reac
   });
 
   const registry = fakeRegistry(["database_get_health"]);
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     // No `logger` — forces the production `consoleLogger` default.
@@ -877,7 +883,7 @@ test("omitting `connect` uses the real defaultConnect — a genuine spawn + hand
   const registry = fakeRegistry();
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -919,7 +925,7 @@ test("defaultConnect's own connect-timeout fires when the child never completes 
   const registry = fakeRegistry();
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -942,7 +948,7 @@ test("defaultConnect: a launch command that does not exist fails the connection 
   const registry = fakeRegistry();
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -976,7 +982,7 @@ test("defaultConnect: a real child writing to stderr does not fail, hang, or lea
   const registry = fakeRegistry();
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -1067,7 +1073,7 @@ test("omitting `connect` routes a HOSTED connection to the HTTP adapter — a re
   const { messages, logger } = collectingLogger();
   const server = await startLoopbackMcpServer({ requireBearer: "at-live-1" });
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -1108,7 +1114,7 @@ test("attachFederatedMcpTools returns one report per connection that reached adm
   const registry = fakeRegistry();
   const { logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -1135,7 +1141,7 @@ test("tags each report with whether it came from a preset or the operator's rost
   const { logger } = collectingLogger();
   const rosterConfig: FederatedMcpConnectionConfig = { ...CONFIG, connectionId: "roster-connection" };
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -1153,7 +1159,7 @@ test("a connection that fails before admission (bad handshake) contributes no re
   const registry = fakeRegistry();
   const { logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -1168,7 +1174,7 @@ test("a connection that fails before admission (bad handshake) contributes no re
 
 test("with no connections at all, reports is empty rather than omitted or throwing", async () => {
   const registry = fakeRegistry();
-  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, env: {} });
+  const result = await attachFederatedMcpTools({ presetRegistry, registry, deps: fakeDeps().deps, env: {} });
 
   assert.deepEqual(result.reports, []);
 });
@@ -1185,7 +1191,7 @@ test("an admitted write-authorized tool is logged as a WARN, naming the connecti
     tools: [{ name: "generate_image", description: "Generates an image.", inputSchema: OBJECT_SCHEMA, annotations: { readOnlyHint: false } }] }, {
     onCall: () => ({ content: [{ type: "text", text: "ok" }] }) });
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -1209,7 +1215,7 @@ test("a write-authorized name absent from the allowlist is logged as drift, sibl
     writeAllowedToolNames: ["forgot_to_allowlist"],
   };
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -1233,7 +1239,7 @@ test("a hosted server that rejects the token is reported as a failed connection,
   const { messages, logger } = collectingLogger();
   const server = await startLoopbackMcpServer({ requireBearer: "the-right-token" });
 
-  const result = await attachFederatedMcpTools({
+  const result = await attachFederatedMcpTools({ presetRegistry,
     registry,
     deps: fakeDeps().deps,
     logger,
@@ -1251,4 +1257,24 @@ test("a hosted server that rejects the token is reported as a failed connection,
   } finally {
     await server.close();
   }
+});
+
+
+test("booted hosts isolate their presets and runtime boot consumes the injected registry", async () => {
+  const { createRouteDeps } = await import("../../server/runtime/composition/app.js");
+  const hostA = createRouteDeps();
+  const hostB = createRouteDeps();
+  assert.ok(hostA.federatedMcpPresetRegistry);
+  assert.ok(hostB.federatedMcpPresetRegistry);
+  registerPreset({ presetId: "host-a", resolve: () => ({ config: { ...CONFIG, connectionId: "host-a" }, launch: FAKE_LAUNCH }) }, { registry: hostA.federatedMcpPresetRegistry });
+  const attached: string[][] = [];
+  for (const host of [hostA, hostB]) {
+    const registry = fakeRegistry();
+    const runtime = createFederationRuntime({ registry, deps: fakeDeps().deps,
+      presetRegistry: host.federatedMcpPresetRegistry, resolveConnections: async () => [],
+      connect: async () => sessionFor(), log: "[host-registry-test]" });
+    await runtime.start();
+    attached.push(registry.list({}).map(tool => tool.id));
+  }
+  assert.deepEqual(attached, [["mcp__host-a__list_tables", "mcp__host-a__get_advisors"], []]);
 });

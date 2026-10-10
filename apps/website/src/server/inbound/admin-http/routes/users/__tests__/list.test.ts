@@ -17,6 +17,21 @@ const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users`;
 const URL_BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/users`;
 
+test("LIST_USERS exposes the seeded-owner rename refusal without blocking other users", async () => {
+  const { app, deps, ownerId } = await buildApp();
+  const { principal: target } = await createUser({ deps: identityServiceDepsFrom(deps), input: {
+    workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "renameable-user", password: "renameable-password",
+  } });
+  const handler = extractRouteHandler(app, "get", ROUTE_PATH);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: ownerId };
+  await handler({ params: { workspaceId: WORKSPACE_ID }, body: {} }, res);
+  assert.equal(capture.statusCode, 200);
+  const users = (capture.jsonBody as { users: Array<{ principalId: string; canRename: boolean }> }).users;
+  assert.equal(users.find(user => user.principalId === ownerId)?.canRename, false);
+  assert.equal(users.find(user => user.principalId === target.id)?.canRename, true);
+});
+
 async function buildApp(
   depsOverrides: Partial<UsersRouteDeps> = {},
   principalId?: string
@@ -45,6 +60,7 @@ async function buildApp(
     tokens: base.tokens,
     ownerPrincipalId: base.ownerPrincipalId,
     isInTrash: base.isInTrash,
+    outbox: base.outbox,
     ...depsOverrides,
   };
   const app = express();

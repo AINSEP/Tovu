@@ -8,7 +8,7 @@ import type { ExternalMcpServerRepoPort } from "#src/assistant/index";
 
 
 import { createApplyConnectDefaults } from "./apply-connect-defaults.js";
-import { resolveAgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "./layout.js";
 
 /**
  * @file After an access token is saved onto a plugin's token-auth row, switches the plugin on the
@@ -45,6 +45,7 @@ export type SavedTokenSwitchOutcome =
 
 export interface SwitchOnSavedTokenDeps {
   readonly workspaceId: string;
+  readonly agentPluginLayout: AgentPluginLayout;
   readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
   readonly clock: ClockPort;
   /** Injected for tests. Defaults to `createApplyConnectDefaults`, the sign-in's own `onConnected`. */
@@ -57,10 +58,10 @@ export interface SwitchOnSavedTokenDeps {
 }
 
 /** Whether `pluginId`'s activation record is a disabled one someone other than the seeder wrote. */
-async function defaultIsPluginOffByOperator(workspaceId: string, pluginId: string): Promise<boolean> {
-  const activations = await readAgentPluginActivations({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(workspaceId).root });
-  if (!Object.hasOwn(activations.plugins, pluginId)) return false;
-  const record = activations.plugins[pluginId];
+async function defaultIsPluginOffByOperator(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
+  const activations = await readAgentPluginActivations({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root });
+  if (!Object.hasOwn(activations.plugins, input.pluginId)) return false;
+  const record = activations.plugins[input.pluginId];
   return record.enabled === false && record.updatedBy !== SEED_ACTOR;
 }
 
@@ -70,14 +71,14 @@ async function defaultIsPluginOffByOperator(workspaceId: string, pluginId: strin
  * anyone else's disabled record is an operator's "off" and stays. Needed on top of connect defaults,
  * which skip a row an operator already set up and so never reach the plugin's activation.
  */
-async function defaultSwitchPluginOn(workspaceId: string, pluginId: string): Promise<boolean> {
-  const workspaceRoot = resolveAgentPluginLayout().forWorkspace(workspaceId).root;
+async function defaultSwitchPluginOn(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
+  const workspaceRoot = input.agentPluginLayout.forWorkspace(input.workspaceId).root;
   const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
-  if (!Object.hasOwn(activations.plugins, pluginId)) return true;
-  const record = activations.plugins[pluginId];
+  if (!Object.hasOwn(activations.plugins, input.pluginId)) return true;
+  const record = activations.plugins[input.pluginId];
   if (record.enabled) return true;
   if (record.updatedBy !== SEED_ACTOR) return false;
-  return (await enableBundledAgentPluginUnlessOperatorDisabled({ workspaceRoot, pluginId, actor: SWITCH_ON_ACTOR })) !== "left-disabled-by-operator";
+  return (await enableBundledAgentPluginUnlessOperatorDisabled({ workspaceRoot, pluginId: input.pluginId, actor: SWITCH_ON_ACTOR })) !== "left-disabled-by-operator";
 }
 
 /**
@@ -91,16 +92,16 @@ export async function switchOnSavedTokenConnection(
   deps: SwitchOnSavedTokenDeps,
   target: { readonly pluginId: string; readonly connectionId: string },
 ): Promise<SavedTokenSwitchOutcome> {
-  const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => defaultIsPluginOffByOperator(deps.workspaceId, pluginId));
+  const isOff = deps.isPluginOffByOperator ?? ((pluginId: string) => defaultIsPluginOffByOperator({ ...deps, pluginId }));
   if (await isOff(target.pluginId)) return { state: "plugin-off-by-operator" };
 
-  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ workspaceId: deps.workspaceId, repo: deps.externalMcpServerRepo, clock: deps.clock });
+  const onConnected = deps.onConnected ?? createApplyConnectDefaults({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, repo: deps.externalMcpServerRepo, clock: deps.clock });
   await onConnected(target.connectionId);
 
   const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
   if (row?.enabled !== true) return { state: "connection-off-by-operator" };
 
-  const switchPluginOn = deps.switchPluginOn ?? ((pluginId: string) => defaultSwitchPluginOn(deps.workspaceId, pluginId));
+  const switchPluginOn = deps.switchPluginOn ?? ((pluginId: string) => defaultSwitchPluginOn({ ...deps, pluginId }));
   return (await switchPluginOn(target.pluginId)) ? { state: "on" } : { state: "plugin-off-by-operator" };
 }
 

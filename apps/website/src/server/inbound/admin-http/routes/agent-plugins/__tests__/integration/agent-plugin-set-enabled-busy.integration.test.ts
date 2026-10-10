@@ -1,3 +1,4 @@
+import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile } from "node:fs/promises";
@@ -33,7 +34,7 @@ const real = await import("@jini-ai/platform/fs/file-lock");
 const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
 const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../../../../../../features/agent-plugins/lifecycle.js");
-const lifecycle = createTovuAgentPluginLifecycle({}, {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
   filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
@@ -103,7 +104,7 @@ async function installReal(pluginId: string, archiveSeed: string) {
 
 function buildTestApp(): { app: express.Express } {
   const baseDeps = createRouteDeps();
-  const routeDeps: AgentPluginsRouteDeps = {
+  const routeDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,
@@ -111,7 +112,7 @@ function buildTestApp(): { app: express.Express } {
     siteAssistantSecretSealer: baseDeps.siteAssistantSecretSealer,
     siteAssistantSecretKeyring: baseDeps.siteAssistantSecretKeyring,
     setAgentPluginEnabled: lifecycle.setAgentPluginEnabled,
-  };
+  });
 
   const app = express();
   app.use(express.json());

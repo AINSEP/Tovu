@@ -1,3 +1,4 @@
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../agent-plugins/activation-effects.js";
@@ -101,7 +102,7 @@ test("lists a provider from an enabled, Tovu-bundled plugin and builds it from i
     const digest = await installPackage("fixture-git", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-git", digest);
 
-    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual(registry.list().map((loaded) => [loaded.descriptor.id, loaded.descriptor.label, loaded.pluginId]), [["fixture-git", "Fixture Git", "fixture-git"]]);
@@ -118,7 +119,7 @@ test("refuses a plugin whose installed digest is not the one Tovu shipped", asyn
     const digest = await installPackage("fixture-git", FIXTURE_FILES);
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fixture-git", enabled: true, actor: "test" }, { origin: "operator-installed" });
 
-    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, [
@@ -132,7 +133,7 @@ test("a switched-off bundled plugin contributes nothing, is not an error, and is
     const digest = await installPackage("fixture-git", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-git", digest, false);
 
-    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, []);
@@ -155,7 +156,7 @@ test("a module without create() is refused, and a module path escaping the plugi
     });
     await markBundled(workspaceRoot, "fixture-git", digest);
 
-    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, [
@@ -248,7 +249,7 @@ test("a module whose validateTarget is not a function is refused", async () => {
     });
     await markBundled(workspaceRoot, "fixture-git", digest);
 
-    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, ["source-control provider 'bad-validate' from 'fixture-git' was not loaded: its module's validateTarget is not a function"]);

@@ -1,8 +1,8 @@
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 
 import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assistant/index";
 import { openExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
@@ -17,7 +17,6 @@ import {
   listInstalledAgentPluginServers,
   type ImportAgentPluginAccessTokensFromEnvDeps,
 } from "../../import-access-token.js";
-import { resolveAgentPluginLayout } from "../../layout.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../mcp-metadata.js";
@@ -28,6 +27,9 @@ import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../mcp-metad
  * row and the plugin is switched on — and a row that already has a credential is never overwritten.
  * Real store and sealer; the plugin declaration and `onConnected` are injected.
  */
+
+const siteLayouts = createTempSiteLayoutFixture({});
+after(siteLayouts.cleanup);
 
 const WORKSPACE = "ws-token-import";
 const TOKEN = "sbp_import_test_token_never_logged";
@@ -73,7 +75,7 @@ async function setup() {
   );
   const connected: string[] = [];
   const pluginsSwitchedOn: string[] = [];
-  const deps: ImportAgentPluginAccessTokensFromEnvDeps = {
+  const deps: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     workspaceId: WORKSPACE,
     clock,
     externalMcpServerRepo: repo,
@@ -89,7 +91,7 @@ async function setup() {
     },
     isPluginOffByOperator: async () => false,
     switchPluginOn: async (pluginId) => (pluginsSwitchedOn.push(pluginId), true),
-  };
+  });
   const readRow = () => repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" });
   const logs = { info: [] as string[], warn: [] as string[] };
   const log = { info: (m: string) => void logs.info.push(m), warn: (m: string) => void logs.warn.push(m) };
@@ -123,7 +125,7 @@ test("a row that already holds a saved token is never overwritten", async () => 
 
 test("a plugin an operator turned off gets the token but stays off", async () => {
   const { deps, connected, readRow } = await setup();
-  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = { ...deps, isPluginOffByOperator: async () => true };
+  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...deps, isPluginOffByOperator: async () => true });
   assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "saved-left-off");
   assert.equal((await readRow())?.authMode, "static_env");
   assert.equal((await readRow())?.enabled, false);
@@ -137,7 +139,7 @@ test("a plugin an operator turned off gets the token but stays off", async () =>
 
 test("a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it)", async () => {
   const { deps, readRow } = await setup();
-  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = { ...deps, isPluginOffByOperator: async () => true };
+  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...deps, isPluginOffByOperator: async () => true });
   assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "saved-left-off");
   const saved = await readRow();
   assert.equal(saved?.enabled, false);
@@ -217,41 +219,37 @@ test("env import reads only a bundled plugin's declaration: an installed plugin 
     },
   };
   const repo = deps.externalMcpServerRepo;
-  const evilDeps: ImportAgentPluginAccessTokensFromEnvDeps = {
+  const evilDeps: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     ...deps,
     resolveInstalledPlugin: async (pluginId) => (pluginId === "exfil" ? { servers: evilServers } : null),
     // Operator-installed: not the digest this build seeded.
     listPlugins: async () => [{ pluginId: "exfil", servers: evilServers, bundled: false }],
-  };
+  });
   await importAgentPluginAccessTokensFromEnv(evilDeps, { OPENAI_API_KEY: "sk-secret-must-stay-home" }, log);
   assert.equal(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "exfil" }), null, "no row may be provisioned or given the env secret");
   assert.deepEqual(logs.info, []);
 
   // An entry that does not say it is bundled is treated as not bundled.
-  const unmarked: ImportAgentPluginAccessTokensFromEnvDeps = { ...evilDeps, listPlugins: async () => [{ pluginId: "exfil", servers: evilServers }] };
+  const unmarked: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...evilDeps, listPlugins: async () => [{ pluginId: "exfil", servers: evilServers }] });
   await importAgentPluginAccessTokensFromEnv(unmarked, { OPENAI_API_KEY: "sk-secret-must-stay-home" }, log);
   assert.equal(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "exfil" }), null);
 });
 
 test("listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded", async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), "tovu-token-import-"));
-  const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
-  process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  const dir = siteLayouts.deps.agentPluginLayout.root;
   try {
-    const layout = resolveAgentPluginLayout();
+    const layout = siteLayouts.deps.agentPluginLayout;
     const contentRoot = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE, sourceRoot: contentRoot });
-    const seeded = await listInstalledAgentPluginServers(WORKSPACE);
+    const seeded = await listInstalledAgentPluginServers(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: WORKSPACE }));
     assert.equal(seeded.find((plugin) => plugin.pluginId === "supabase")?.bundled, true);
 
     // Same packages, no record of what the build seeded: nothing counts as bundled.
     await rm(path.join(layout.forWorkspace(WORKSPACE).root, BUNDLED_DIGESTS_FILENAME));
-    const unrecorded = await listInstalledAgentPluginServers(WORKSPACE);
+    const unrecorded = await listInstalledAgentPluginServers(testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: WORKSPACE }));
     assert.ok(unrecorded.length > 0);
     assert.ok(unrecorded.every((plugin) => plugin.bundled === false));
   } finally {
-    if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
-    else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
   }
 });
@@ -313,7 +311,7 @@ test("env import skips a plugin that still has a token pending from create-site 
 test("a save whose switch-on failed is switched on by the next import, without touching the saved token", async () => {
   const { deps, connected, readRow } = await setup();
   let failOnce = true;
-  const flaky: ImportAgentPluginAccessTokensFromEnvDeps = {
+  const flaky: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     ...deps,
     onConnected: async (serverId) => {
       if (failOnce) {
@@ -322,7 +320,7 @@ test("a save whose switch-on failed is switched on by the next import, without t
       }
       await deps.onConnected?.(serverId);
     },
-  };
+  });
   await assert.rejects(importAgentPluginAccessToken(flaky, { pluginId: "supabase", token: TOKEN }), /activations file busy/);
   const saved = await readRow();
   assert.equal(saved?.authMode, "static_env");
@@ -337,7 +335,7 @@ test("a save whose switch-on failed is switched on by the next import, without t
 
 test("an already-connected row is not switched on when an operator turned the plugin off", async () => {
   const { deps, connected, readRow } = await setup();
-  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = { ...deps, isPluginOffByOperator: async () => true };
+  const offDeps: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...deps, isPluginOffByOperator: async () => true });
   await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN });
   assert.equal(await importAgentPluginAccessToken(offDeps, { pluginId: "supabase", token: TOKEN }), "already-connected");
   assert.deepEqual(connected, []);
@@ -357,6 +355,6 @@ test("a row an operator already set up and switched on still gets its plugin swi
   const refusedRow = await readRefused();
   assert.ok(refusedRow);
   await refusedDeps.externalMcpServerRepo.upsert({ ...refusedRow, enabled: true, allowedToolNames: '["list_projects"]' });
-  const refused: ImportAgentPluginAccessTokensFromEnvDeps = { ...refusedDeps, switchPluginOn: async () => false };
+  const refused: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...refusedDeps, switchPluginOn: async () => false });
   assert.equal(await importAgentPluginAccessToken(refused, { pluginId: "supabase", token: TOKEN }), "saved-left-off", "an operator's off switch that won the race is reported");
 });

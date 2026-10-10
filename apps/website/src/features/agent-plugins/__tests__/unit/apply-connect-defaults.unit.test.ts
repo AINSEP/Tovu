@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -89,7 +90,7 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
 
   const enabledPlugins: string[] = [];
   let rosterNotifications = 0;
-  const onConnected = createApplyConnectDefaults({
+  const onConnected = createApplyConnectDefaults(testSiteLayoutContext({
     workspaceId: WORKSPACE,
     repo,
     clock,
@@ -103,7 +104,7 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     notifyRosterChanged: async () => {
       rosterNotifications += 1;
     },
-  });
+  }));
 
   const service = createExternalMcpOAuthService({
     workspaceId: WORKSPACE,

@@ -36,6 +36,7 @@ const CONNECT_DEFAULTS_ACTOR = "system:connect-defaults";
 
 export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "repo" | "clock"> {
   readonly workspaceId: string;
+  readonly agentPluginLayout: import("./layout.js").AgentPluginLayout;
   /** Injected for tests. Defaults to `federate-mcp.ts`'s `resolveAgentPluginMcpServers`. */
   readonly resolveServers?: (input: { workspaceId: string; pluginId: string }) => Promise<Readonly<Record<string, McpServerConfig>>>;
   /** Injected for tests. Defaults to `set-enabled.ts`'s `setAgentPluginEnabled(…, enabled: true)`. */
@@ -52,9 +53,9 @@ export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "re
  * @complexity O(s) in the plugin's declared server count, plus one row write and one activation write.
  */
 export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps): (serverId: string) => Promise<void> {
-  const resolveServers = deps.resolveServers ?? resolveAgentPluginMcpServers;
+  const resolveServers = deps.resolveServers ?? ((input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout }));
   const enablePlugin =
-    deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string; actor: string }) => setAgentPluginEnabled({ ...input, enabled: true }));
+    deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string; actor: string }) => setAgentPluginEnabled({ ...input, agentPluginLayout: deps.agentPluginLayout, enabled: true }));
   const notifyRosterChanged = deps.notifyRosterChanged ?? (() => notifyExternalMcpRosterChanged());
 
   return async (serverId) => {

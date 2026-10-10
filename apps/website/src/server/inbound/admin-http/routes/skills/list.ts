@@ -38,7 +38,7 @@ export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
       )
         return;
 
-      const skills = await listManagedSkills({ workspaceId: deps.workspaceId });
+      const skills = await listManagedSkills(deps);
       res.json({ skills });
     } catch (error) {
       // Verbatim surfacing is the contract (C-001) — see this file's header for why this diverges

@@ -51,6 +51,7 @@ import { fetchImage, validateImageBytes } from "./fetch-image.js";
 export interface MediaImportToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
+  siteBinding: { readonly dir: string };
   clock: Clock;
   idGen: IdGenerator;
   mediaRepo: MediaRepoPort;
@@ -199,7 +200,7 @@ function resolveLocalImportRoot(required: { routeDeps: MediaImportToolDeps; root
   if (!(FS_ROOT_IDS as readonly string[]).includes(root)) {
     throw new MediaImportValidationError({ message: `'${root}' is not a recognized root — expected one of: ${FS_ROOT_IDS.join(", ")}` });
   }
-  const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ workspaceId: routeDeps.workspaceId })))();
+  const roots = (routeDeps.resolveRoots ?? (() => resolveFsRoots({ siteDir: routeDeps.siteBinding.dir, workspaceId: routeDeps.workspaceId })))();
   const rootPath = roots[root as FsRootId];
   if (rootPath === undefined) {
     throw new MediaImportValidationError({ message: `no folder has been set for the '${root}' root yet. ${LOCAL_FILE_IMPORT_RECOVERY}` });

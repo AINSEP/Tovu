@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -42,7 +43,7 @@ async function withSkillsDir(t: { after: (fn: () => Promise<void>) => void }) {
 }
 
 function deps(overrides: Partial<SkillsInstallToolDeps> = {}): SkillsInstallToolDeps {
-  return { workspaceId: WORKSPACE, authorize: async () => ({ allowed: true, reason: "matched" }), skillFetch: fakeGitHub().fetchImpl, ...overrides };
+  return testSiteLayoutContext({ workspaceId: WORKSPACE, authorize: async () => ({ allowed: true, reason: "matched" }), skillFetch: fakeGitHub().fetchImpl, ...overrides });
 }
 
 const ctx = (input: unknown) => ({ executionId: "e1", principal: { id: PRINCIPAL }, run: { id: "r1" }, input, signal: new AbortController().signal });
@@ -64,7 +65,7 @@ test("installs with no confirmation card, through the shared install service, wr
   const result = await run(deps({ skillFetch: github.fetchImpl }), { githubUrl: SKILL_URL });
   const skill = { toolId: "skill_incident_response", name: "incident-response", description: "Respond to outages.", enabled: true, source: { githubUrl: SKILL_URL, commit: COMMIT } };
   assert.deepEqual(result, { installed: true, skill, note: "Installed the incident-response skill; it is on. Its tool skill_incident_response is picked up by the next search_tools call." });
-  assert.deepEqual(await listManagedSkills({ workspaceId: WORKSPACE }), [skill]);
+  assert.deepEqual(await listManagedSkills(testSiteLayoutContext({ workspaceId: WORKSPACE })), [skill]);
   assert.equal(await readFile(path.join(dir, "ws", WORKSPACE, "incident-response", "SKILL.md"), "utf8"), MD);
   assert.equal(github.requests.length, 3, "fetched once; the write uses the validated bytes, not a second fetch");
 });
@@ -74,12 +75,12 @@ test("installs with no dialog channel at all — nothing to approve, so nothing 
   const [registration] = buildRegistrations(deps()) as [ToolRegistration];
   const result = await registration.handler(ctx({ githubUrl: SKILL_URL }), {});
   assert.equal((result as { installed: boolean }).installed, true);
-  assert.equal((await listManagedSkills({ workspaceId: WORKSPACE })).length, 1);
+  assert.equal((await listManagedSkills(testSiteLayoutContext({ workspaceId: WORKSPACE }))).length, 1);
 });
 
 test("an already-installed skill is refused before anything is written", async (t) => {
   await withSkillsDir(t);
-  await installSkill({ workspaceId: WORKSPACE, files: [{ path: "SKILL.md", contentBase64: Buffer.from(MD).toString("base64") }] });
+  await installSkill(testSiteLayoutContext({ workspaceId: WORKSPACE, files: [{ path: "SKILL.md", contentBase64: Buffer.from(MD).toString("base64") }] }));
   await assert.rejects(() => run(deps(), { githubUrl: SKILL_URL }),
     (error: unknown) => error instanceof ToolInputError && error.message === "Skill 'incident-response' is already installed. Remove it from the Skills screen before installing another version.");
 });

@@ -17,7 +17,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `/api/admin/v1/workspaces/:workspaceId/fs-files/custom-root` — the operator-facing surface for the
  * `fs-files` domain's `custom` root (`features/fs-files/layout.ts`, `custom-root-store.ts`).
  *
- * Shape copied from `routes/system/site-key.ts`: a `Pick<RouteDeps, "workspaceId" | "authorize">`
+ * Shape copied from `routes/system/site-key.ts`: a `Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding">`
  * deps slice (no settings ledger, no repo — the value is persisted by `custom-root-store.ts`, keyed
  * by `workspaceId`), the same `rejectUnlessAuthorized` two-step, one file for every verb.
  *
@@ -42,8 +42,8 @@ import type { RouteDeps } from "#src/server/routes/types";
  * is explicit that only the path and a single `stat` are involved. The route inherits that property
  * rather than re-deriving it.
  */
-export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & {
-  /** Test seam — defaults to the real site directory (`custom-root-store.ts`'s own default). Set
+export type AdminFsFilesCustomRootDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> & {
+  /** Test seam — defaults to the booted `siteBinding.dir`. Set
    *  only by this route's own tests, to a temp directory, so they never read or write the real site's
    *  `.fs-custom-root.json`. */
   readonly storeOptional?: CustomFsRootStoreOptional;
@@ -76,7 +76,7 @@ async function rejectUnlessAuthorized(
 export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFsFilesCustomRootDeps): void {
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_READ_PERMISSION)) return;
-    const status = getCustomFsRootStatus(deps.workspaceId, deps.storeOptional);
+    const status = getCustomFsRootStatus(deps.workspaceId, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }));
     // `vanished`/`vanishedPath` are only present (never `false`/absent-by-omission) when a
     // previously-set folder no longer stats as a directory — additive beyond the original
     // `{ path }` shape, so an existing caller reading only `path` sees no change.
@@ -93,8 +93,8 @@ export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFs
     }
 
     try {
-      setCustomFsRoot(deps.workspaceId, path, deps.storeOptional);
-      res.status(200).json({ path: getCustomFsRootStatus(deps.workspaceId, deps.storeOptional).path });
+      setCustomFsRoot(deps.workspaceId, path, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }));
+      res.status(200).json({ path: getCustomFsRootStatus(deps.workspaceId, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir })).path });
     } catch (err) {
       if (err instanceof CustomFsRootError) {
         res.status(400).json({ error: err.message, code: "INVALID_PATH" });
@@ -106,7 +106,7 @@ export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFs
 
   app.delete(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION)) return;
-    setCustomFsRoot(deps.workspaceId, null, deps.storeOptional);
+    setCustomFsRoot(deps.workspaceId, null, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }));
     res.status(200).json({ path: null });
   });
 }

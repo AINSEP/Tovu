@@ -86,18 +86,24 @@ export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; 
   // The global is read per call, not captured here, so a test that swaps `globalThis.fetch` after
   // building a kit is still the one called.
   const fetchFn: typeof fetch = traced(options.fetchFn ?? ((input, init) => fetch(input, init)), options);
-  const reachability = createNodeReachabilityPorts({}, { fetch: fetchFn, lookupImpl: options.lookupImpl });
+  // Each probe operation owns its dispatcher; polling shares it until the operation settles.
+  // Per-publish kits have no shutdown hook, so release connections on success and refusal alike.
+  async function withReachability<T>(run: (ports: ReturnType<typeof createNodeReachabilityPorts>) => Promise<T>): Promise<T> {
+    const reachability = createNodeReachabilityPorts({}, { fetch: fetchFn, lookupImpl: options.lookupImpl });
+    try { return await run(reachability); }
+    finally { await reachability.close(); }
+  }
   return {
     fetch: (url, init, fetchOptions) => fetchWithTimeout(fetchFn, url, init, fetchOptions),
     timeouts: options.timeouts ?? DEPLOY_FETCH_TIMEOUTS,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     // Standalone installed plugins keep their ABI. Every shared helper receives
     // object args and explicit host ports, including native fetch and polling time.
-    checkDeploymentUrl: (url, options) => checkDeploymentUrl({ url, ...reachability }, reachabilityOptions(options)),
-    waitForReachableDeploymentUrl: (urls, options) => waitForReachableDeploymentUrl({
+    checkDeploymentUrl: (url, options) => withReachability(reachability => checkDeploymentUrl({ url, ...reachability }, reachabilityOptions(options))),
+    waitForReachableDeploymentUrl: (urls, options) => withReachability(reachability => waitForReachableDeploymentUrl({
       urls, ...reachability, now: () => Date.now(),
       sleep: ({ ms }) => new Promise(resolve => setTimeout(resolve, ms)),
-    }, reachabilityOptions(options)),
+    }, reachabilityOptions(options))),
     normalizeDeploymentUrl: (url) => normalizeDeploymentUrl({ url }),
     safeDnsLabel: (raw) => safeDnsLabel({ raw }),
     safeProjectLabel: (raw, maxLength) => safeProjectLabel({ raw, maxLength }),

@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -15,25 +16,25 @@ async function fixture(fn: () => Promise<void>) {
   process.env.TOVU_SKILLS_DIR = dir;
   try { await fn(); } finally { if (previous === undefined) delete process.env.TOVU_SKILLS_DIR; else process.env.TOVU_SKILLS_DIR = previous; await rm(dir, { recursive: true, force: true }); }
 }
-const ctx = { workspaceId: "workspace-local" };
+const ctx = testSiteLayoutContext({ workspaceId: "workspace-local" });
 
 test("upload installs exact guidance, records uploaded source, disables and uninstalls through real reads", () => fixture(async () => {
-  assert.deepEqual(await installSkill({ ...ctx, files: [file("folder/SKILL.md", MD), file("folder/references/check.md", "Check this.")] }), { toolId: "skill_incident_response", name: "incident-response", description: "Respond to outages.", enabled: true, source: "uploaded" });
+  assert.deepEqual(await installSkill(testSiteLayoutContext({ ...ctx, files: [file("folder/SKILL.md", MD), file("folder/references/check.md", "Check this.")] })), { toolId: "skill_incident_response", name: "incident-response", description: "Respond to outages.", enabled: true, source: "uploaded" });
   const dir = path.join(process.env.TOVU_SKILLS_DIR!, "ws/workspace-local/incident-response");
   assert.equal(await readFile(path.join(dir, "SKILL.md"), "utf8"), MD);
   assert.deepEqual(await listManagedSkills(ctx), [{ toolId: "skill_incident_response", name: "incident-response", description: "Respond to outages.", enabled: true, source: "uploaded" }]);
-  await setSkillEnabled({ ...ctx, toolId: "skill_incident_response", enabled: false });
+  await setSkillEnabled(testSiteLayoutContext({ ...ctx, toolId: "skill_incident_response", enabled: false }));
   assert.deepEqual(await loadInstalledSkillToolSources(ctx), []);
   assert.equal((await listManagedSkills(ctx))[0]!.enabled, false);
-  await setSkillEnabled({ ...ctx, toolId: "skill_incident_response", enabled: true });
+  await setSkillEnabled(testSiteLayoutContext({ ...ctx, toolId: "skill_incident_response", enabled: true }));
   assert.equal((await loadInstalledSkillToolSources(ctx))[0]!.markdown, MD);
-  await uninstallSkill({ ...ctx, toolId: "skill_incident_response" });
+  await uninstallSkill(testSiteLayoutContext({ ...ctx, toolId: "skill_incident_response" }));
   assert.deepEqual(await listManagedSkills(ctx), []);
 }));
 
 test("zip uses the same validator and never executes script content", () => fixture(async () => {
   const archive = await buildZipFixture([{ path: "incident/SKILL.md", content: MD }, { path: "incident/scripts/check.sh", content: "exit 81\n", mode: 0o100755 }]);
-  assert.equal((await installSkill({ ...ctx, archiveBase64: archive.toString("base64") })).source, "uploaded");
+  assert.equal((await installSkill(testSiteLayoutContext({ ...ctx, archiveBase64: archive.toString("base64") }))).source, "uploaded");
   assert.equal(await readFile(path.join(process.env.TOVU_SKILLS_DIR!, "ws/workspace-local/incident-response/scripts/check.sh"), "utf8"), "exit 81\n");
 }));
 
@@ -47,19 +48,19 @@ for (const [name, files, message] of [
   ["binary markdown", [file("SKILL.md", MD), file("references/check.md", "\u0000binary")], "Skill text file must be valid UTF-8 without null bytes: references/check.md"],
   ["oversized skill", [file("SKILL.md", MD + "a".repeat(128 * 1024))], "SKILL.md exceeds 128 KiB."],
 ] as const) test(`rejects ${name} with no partial installation`, () => fixture(async () => {
-  await assert.rejects(() => installSkill({ ...ctx, files }), { message });
+  await assert.rejects(() => installSkill(testSiteLayoutContext({ ...ctx, files })), { message });
   assert.deepEqual(await listManagedSkills(ctx), []);
 }));
 
 test("duplicate installation refuses without overwriting original guidance", () => fixture(async () => {
-  await installSkill({ ...ctx, files: [file("SKILL.md", MD)] });
-  await assert.rejects(() => installSkill({ ...ctx, files: [file("SKILL.md", MD + "replaced")] }), { message: "Skill 'incident-response' is already installed. Remove it before installing another version." });
+  await installSkill(testSiteLayoutContext({ ...ctx, files: [file("SKILL.md", MD)] }));
+  await assert.rejects(() => installSkill(testSiteLayoutContext({ ...ctx, files: [file("SKILL.md", MD + "replaced")] })), { message: "Skill 'incident-response' is already installed. Remove it before installing another version." });
   assert.equal((await loadInstalledSkillToolSources(ctx))[0]!.markdown, MD);
 }));
 
 test("zip symlinks are rejected before any file is persisted", () => fixture(async () => {
   const archive = await buildZipFixture([{ path: "SKILL.md", content: MD }, { path: "references/link.md", content: "/etc/passwd", mode: 0o120777 }]);
-  await assert.rejects(() => installSkill({ ...ctx, archiveBase64: archive.toString("base64") }), { message: "Skill archives may contain only regular files and directories." });
+  await assert.rejects(() => installSkill(testSiteLayoutContext({ ...ctx, archiveBase64: archive.toString("base64") })), { message: "Skill archives may contain only regular files and directories." });
   assert.deepEqual(await listManagedSkills(ctx), []);
 }));
 
@@ -75,7 +76,7 @@ test("GitHub installation pins the commit, uses bounded safe fetches and records
     if (String(url) === `https://api.github.com/repos/acme/skills/git/blobs/${"b".repeat(40)}`) return Response.json({ encoding: "base64", content: Buffer.from(MD).toString("base64") });
     throw new Error(`Unexpected fetch: ${url}`);
   };
-  const result = await installSkill({ ...ctx, githubUrl: "https://github.com/acme/skills" }, { fetchImpl });
+  const result = await installSkill(testSiteLayoutContext({ ...ctx, githubUrl: "https://github.com/acme/skills" }), { fetchImpl });
   assert.deepEqual(result.source, { githubUrl: "https://github.com/acme/skills", commit: sha });
   assert.equal(requests.length, 3);
   assert.deepEqual((await listManagedSkills(ctx))[0]!.source, result.source);
@@ -83,18 +84,18 @@ test("GitHub installation pins the commit, uses bounded safe fetches and records
 
 test("GitHub SSRF URL refuses before fetching", () => fixture(async () => {
   let fetched = false;
-  await assert.rejects(() => installSkill({ ...ctx, githubUrl: "https://127.0.0.1/repo" }, { fetchImpl: async () => { fetched = true; throw new Error("should not fetch"); } }), { message: "Use an HTTPS GitHub repository URL, optionally ending in /tree/ref/skill-folder." });
+  await assert.rejects(() => installSkill(testSiteLayoutContext({ ...ctx, githubUrl: "https://127.0.0.1/repo" }), { fetchImpl: async () => { fetched = true; throw new Error("should not fetch"); } }), { message: "Use an HTTPS GitHub repository URL, optionally ending in /tree/ref/skill-folder." });
   assert.equal(fetched, false);
 }));
 
 
 test("invalid ZIP refuses as a user validation error without writing", () => fixture(async () => {
-  await assert.rejects(() => installSkill({ ...ctx, archiveBase64: Buffer.from("not a zip").toString("base64") }), { message: "Could not read skill ZIP. Use a valid ZIP with regular files only." });
+  await assert.rejects(() => installSkill(testSiteLayoutContext({ ...ctx, archiveBase64: Buffer.from("not a zip").toString("base64") })), { message: "Could not read skill ZIP. Use a valid ZIP with regular files only." });
   assert.deepEqual(await listManagedSkills(ctx), []);
 }));
 
 test("mixed files exceeding the aggregate byte cap are refused before installation", () => fixture(async () => {
   const files = [file("SKILL.md", MD), ...Array.from({ length: 8 }, (_, i) => file(`references/chunk-${i}.md`, "a".repeat(1024 * 1024)))];
-  await assert.rejects(() => installSkill({ ...ctx, files }), { message: "Skill files exceed 8 MiB combined." });
+  await assert.rejects(() => installSkill(testSiteLayoutContext({ ...ctx, files })), { message: "Skill files exceed 8 MiB combined." });
   assert.deepEqual(await listManagedSkills(ctx), []);
 }));

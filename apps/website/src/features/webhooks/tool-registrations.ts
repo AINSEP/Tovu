@@ -1,10 +1,12 @@
+import { isDeepStrictEqual } from "node:util";
+import { ToolInputError } from "@jini-ai/core";
+import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { toolMetadata } from '../../contracts/core/tool-metadata/webhooks.js';
 /**
- * @file Integrations' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 5 catalog entries onto
+ * @file Integrations' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 6 catalog entries onto
  * the list/create/pause/delete/deliveries operations `server/routes/admin/integrations/*.ts`
- * expose, as `ToolRegistration`s. See `agent-tools.ts`'s own file header for the two whole classes
- * of operation deliberately absent (subscription update; signing-secret rotation/generation/
- * reveal).
+ * expose, as `ToolRegistration`s. The owner's 2026-10-09 update authorization supersedes that catalog's historical update
+ * exclusion; signing-secret rotation/generation/reveal remains excluded.
  *
  * Authorization shape: none of `createSubscription`/`pauseSubscription`/`deleteSubscription`
  * (`subscriptions.ts`) accept an `authorize` dependency at all — `WebhookSubscriptionDeps` has no
@@ -34,6 +36,7 @@ import { getWebhooksAgentToolCatalog } from "./agent-tools.js";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
 import {
   createSubscription,
+  updateSubscription,
   deleteSubscription,
   pauseSubscription,
   WebhookSubscriptionNotFoundError,
@@ -147,6 +150,8 @@ export const webhooksDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   ["webhooks_get_deliveries", "none"],
   // -> createSubscription (subscriptions.ts): validates + repo.insert().
   ["webhooks_create_subscription", "mutates-durable-state"],
+  // Existing updateSubscription validates replacement fields and the outbound origin before save.
+  ["webhooks_update_subscription", "mutates-durable-state"],
   // -> pauseSubscription (subscriptions.ts): status flip + repo.save().
   ["webhooks_pause_subscription", "mutates-durable-state"],
   // -> deleteSubscription (subscriptions.ts): soft-delete status flip + repo.save(). Never
@@ -183,7 +188,7 @@ const WEBHOOKS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 
 export function buildWebhooksRegistrations(
   routeDeps: IntegrationsToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+  surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const isAllowedTarget = (url: string) => routeDeps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: routeDeps.workspaceId }, url: url });
 
@@ -245,6 +250,23 @@ export function buildWebhooksRegistrations(
       return { subscription: toSubscriptionToolView(subscription, null) };
     },
 
+    /** Uses the existing validation/egress owner and never exposes signing material. */
+    webhooks_update_subscription: async (ctx) => {
+      const input = requireInputRecord({ input: ctx.input });
+      const subscriptionId = requireString({ input, key: "subscriptionId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
+      if (!Array.isArray(input.topics) || !input.topics.every(topic => typeof topic === "string")) {
+        throw new WebhookSubscriptionValidationError({ message: "topics must be an array of strings" });
+      }
+      const { subscription } = await updateSubscription({
+        deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
+        input: { workspaceId: routeDeps.workspaceId, id: subscriptionId, label: requireString({ input, key: "label" }), targetUrl: requireString({ input, key: "targetUrl" }), topics: input.topics },
+      });
+      const deliveries = await routeDeps.webhookDeliveryRepo.listBySubscription({
+        workspaceId: routeDeps.workspaceId, subscriptionId, limit: 1,
+      });
+      return { subscription: toSubscriptionToolView(subscription, mostRecentDelivery(deliveries)) };
+    },
     webhooks_pause_subscription: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const subscriptionId = requireString({ input, key: "subscriptionId" });
@@ -267,6 +289,7 @@ export function buildWebhooksRegistrations(
      * time (confirmed by reading it in full — no `expectedVersion`/optimistic-concurrency field
      * anywhere in its input), so whatever the row looks like at confirm time is exactly what gets
      * deleted, or a fresh `WebhookSubscriptionNotFoundError` if it is gone by then.
+     * The owner opt-in now adds a full snapshot check before that service so changed targets re-ask.
      */
     webhooks_delete_subscription: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
@@ -274,7 +297,7 @@ export function buildWebhooksRegistrations(
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
         const existing = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
         if (!existing) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
-        return { subscriptionId, existing };
+        return { subscriptionId, existing: structuredClone(existing) };
       },
       /**
        * Describes `webhooks_delete_subscription`'s confirmation dialog. Jini's approval owner
@@ -288,14 +311,16 @@ export function buildWebhooksRegistrations(
       describe: ({ prepared: { existing } }) => ({
         toolId: WEBHOOKS_DELETE_TOOL_ID, errorCode: "WEBHOOKS",
         title: "Delete this webhook subscription?", description: "The subscription will stop receiving deliveries.",
-        details: [{ label: "Label", value: existing.label }, { label: "Target URL", value: existing.targetUrl }, { label: "Current status", value: existing.status }],
+        details: [{ label: "Count", value: "1" }, { label: "Webhook", value: `${existing.label} (${existing.id})` }, { label: "Target origin", value: new URL(existing.targetUrl).origin }, { label: "Topics", value: existing.topics.join(", ") }, { label: "Current status", value: existing.status }],
         warning: "There is no un-delete for a webhook subscription — reconnecting it means creating a new one, with a new signing secret.",
         danger: true, confirmLabel: "Delete subscription",
       }),
-      run: async ({ ctx, prepared: { subscriptionId } }) => {
+      run: async ({ ctx, prepared: { subscriptionId, existing } }) => {
         // Authorization can be revoked while the human reads the card; the service has no gate.
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
         if (ctx.signal.aborted) return { deleted: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
+        const current = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
+        if (!isDeepStrictEqual(current, existing)) throw new ToolInputError({ message: "webhooks_delete_subscription: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
         const { subscription } = await deleteSubscription({
           deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
           input: { workspaceId: routeDeps.workspaceId, id: subscriptionId },

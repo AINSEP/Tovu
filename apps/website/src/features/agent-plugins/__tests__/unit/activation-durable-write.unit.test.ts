@@ -1,3 +1,4 @@
+import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
@@ -41,7 +42,7 @@ const wrappedRename = (async (from: Parameters<typeof realFsp.rename>[0], to: Pa
 
 const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
 // The same log-only native wrappers are supplied through the owner's filesystem port.
-const { setAgentPluginActivation, resolveAgentPluginActivation } = createTovuAgentPluginLifecycle({}, {
+const { setAgentPluginActivation, resolveAgentPluginActivation } = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
   filesystem: { ...realFsp, open: wrappedOpen, rename: wrappedRename },
 });
 

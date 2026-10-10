@@ -4,6 +4,7 @@ import type { IdentityRepos } from "@jini-ai/user-management";
 import type { AuthServiceDeps } from "@jini-ai/user-management/server";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
+import { createUsernameChangePort } from "#src/features/identity/username-change-ports";
 
 /**
  * @file `RouteDeps` -> `identity` service-deps mapping for the users/roles/policies admin routes,
@@ -61,6 +62,7 @@ export type UsersRouteDeps = Pick<
    *  `trashUser`'s `DeleteUserDeps.removeUser`/`.isInTrash`. */
   | "removeUser"
   | "isInTrash"
+  | "outbox"
 > & Pick<IdentityRouteDepsSlice, "transactions" | "tokens">;
 
 /** Registrar signature for the users/roles/policies route modules (mirrors `RouteRegistrar`). */
@@ -88,12 +90,17 @@ export function identityReposFrom(deps: IdentityServiceRouteDeps): IdentityRepos
 }
 
 /** Assemble the `AuthServiceDeps` bag `grant-service.ts`'s transitions expect from `RouteDeps`. */
-export function identityServiceDepsFrom(deps: IdentityServiceRouteDeps): AuthServiceDeps {
+export function identityServiceDepsFrom(deps: IdentityServiceRouteDeps & Partial<Pick<UsersRouteDeps, "outbox" | "isInTrash" | "ownerPrincipalId">>): AuthServiceDeps {
   return {
     repos: identityReposFrom(deps),
     hasher: deps.passwordHasher,
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
     idGen: deps.idGen,
     tokens: deps.tokens,
+    // Non-Users consumers assemble read/grant services here too. UsersRouteDeps requires all
+    // rename ports; a bare Jini service reports a missing rename port as an internal wiring fault.
+    usernameChanges: deps.outbox && deps.isInTrash && deps.ownerPrincipalId
+      ? createUsernameChangePort({ outbox: deps.outbox, isInTrash: deps.isInTrash, idGen: deps.idGen,
+        seededOwnerPrincipalId: deps.ownerPrincipalId }) : undefined,
   };
 }

@@ -67,6 +67,7 @@ async function buildApp(
     ownerPrincipalId: base.ownerPrincipalId,
     removeUser: base.removeUser,
     isInTrash: base.isInTrash,
+    outbox: base.outbox,
     ...depsOverrides,
   };
   const app = express();

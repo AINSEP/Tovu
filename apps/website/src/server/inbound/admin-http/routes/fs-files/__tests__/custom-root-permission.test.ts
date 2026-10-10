@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -181,12 +182,12 @@ async function rewindAdminToShippingVintage(repos: IdentityRepos): Promise<void>
 /** The real route, mounted over the real `authorize()`, with the acting principal chosen per request
  *  by a header — the same bare-express shape `custom-root.test.ts` uses for its stubbed cases. */
 async function mountRoute(chain: Chain, t: Parameters<typeof startTestServer>[1]): Promise<string> {
-  const deps: AdminFsFilesCustomRootDeps = {
+  const deps: AdminFsFilesCustomRootDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: ((params: { principalId: string; permission: string }) =>
       chain.can(params.principalId, params.permission)) as AdminFsFilesCustomRootDeps["authorize"],
     storeOptional: { siteDir: fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-perm-site-")) },
-  };
+  });
 
   const app = express();
   app.use(express.json());

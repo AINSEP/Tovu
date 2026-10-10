@@ -1,3 +1,4 @@
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../../agent-plugins/activation-effects.js";
@@ -107,7 +108,7 @@ test("lists a target from an enabled, Tovu-bundled plugin and builds a working D
     const digest = await installPackage("fixture-deploy", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-deploy", digest);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual(
@@ -128,7 +129,7 @@ test("refuses a plugin whose installed digest is not the one Tovu shipped", asyn
     const digest = await installPackage("fixture-deploy", FIXTURE_FILES);
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fixture-deploy", enabled: true, actor: "test" }, { origin: "operator-installed" });
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.equal(registry.get("fixture-host"), undefined);
     assert.deepEqual(registry.refusals, [
@@ -144,7 +145,7 @@ test("refuses a module path that escapes the plugin root", async () => {
     });
     await markBundled(workspaceRoot, "fixture-deploy", digest);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.equal(registry.get("fixture-host"), undefined);
     assert.deepEqual(registry.refusals, [
@@ -161,7 +162,7 @@ test("refuses a module that is not an .mjs file, so no host package.json can tur
     });
     await markBundled(workspaceRoot, "fixture-deploy", digest);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.refusals, [
       `deploy targets from 'fixture-deploy' were not loaded: ${DEPLOY_TARGETS_FILENAME} is invalid: targets[0].module must be a relative path ending in .mjs`,
@@ -174,7 +175,7 @@ test("a disabled bundled plugin contributes nothing and is not an error", async 
     const digest = await installPackage("fixture-deploy", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-deploy", digest, false);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, []);
@@ -187,7 +188,7 @@ test("an unreadable activation record fails CLOSED with its reason", async () =>
     await markBundled(workspaceRoot, "fixture-deploy", digest);
     await writeFile(path.join(workspaceRoot, ACTIVATIONS_FILENAME), "{ not json");
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.equal(registry.refusals.length, 1);
@@ -200,7 +201,7 @@ test("plugins without a deploy-targets file are ignored entirely", async () => {
     const digest = await installPackage("plain-skill", { "skills/plain-skill/SKILL.md": "---\nname: plain-skill\ndescription: x\n---\n" });
     await markBundled(workspaceRoot, "plain-skill", digest);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, []);
@@ -212,7 +213,7 @@ test("a malformed descriptor drops that plugin with the parse reason", async () 
     const digest = await installPackage("fixture-deploy", { [DEPLOY_TARGETS_FILENAME]: JSON.stringify({ schemaVersion: 2, targets: [] }) });
     await markBundled(workspaceRoot, "fixture-deploy", digest);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.refusals, [
       `deploy targets from 'fixture-deploy' were not loaded: ${DEPLOY_TARGETS_FILENAME} is invalid: schemaVersion must be 1`,
@@ -232,7 +233,7 @@ test("a module without create() is refused and its siblings still load", async (
     });
     await markBundled(workspaceRoot, "fixture-deploy", digest);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list().map((target) => target.descriptor.id), ["fixture-host"]);
     assert.deepEqual(registry.refusals, ["deploy target 'broken-host' from 'fixture-deploy' was not loaded: its module has no create() function"]);
@@ -247,7 +248,7 @@ test("a module that throws on import is refused with the error message", async (
     });
     await markBundled(workspaceRoot, "fixture-deploy", digest);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.refusals, ["deploy target 'fixture-host' from 'fixture-deploy' was not loaded: boom at import"]);
   });
@@ -260,7 +261,7 @@ test("two bundled plugins declaring the same target id: neither is used", async 
     await markBundled(workspaceRoot, "fixture-deploy", first);
     await markBundled(workspaceRoot, "other-deploy", second);
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.equal(registry.get("fixture-host"), undefined);
     assert.deepEqual(registry.refusals, ["deploy target 'fixture-host' was not loaded: more than one plugin declares it ('fixture-deploy', 'other-deploy')"]);
@@ -275,7 +276,7 @@ test("an altered installation is refused even when the original bundled digest i
     await forceRemove(path.join(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: "fixture-deploy" }), original));
     const changed = await installPackage("fixture-deploy", { ...FIXTURE_FILES, "targets/fixture.mjs": FIXTURE_MODULE + "\n// modified installation\n" });
     assert.notEqual(changed, original);
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.equal(registry.get("fixture-host"), undefined);
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, [

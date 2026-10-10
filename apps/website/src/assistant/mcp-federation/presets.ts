@@ -1,4 +1,4 @@
-import { defaultFederationMessages, type FederationMessages } from "@jini-ai/mcp/federation";
+import { type FederatedMcpPresetRegistry, defaultFederationMessages, type FederationMessages } from "@jini-ai/mcp/federation";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 
 /**
@@ -21,7 +21,9 @@ import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
  * buys module-boundary honesty, not isolation.
  *
  * Architectural role:
- * In-module registry. No I/O; resolution is delegated to whatever a preset registered.
+ * Per-host registry supplied by composition. No I/O; resolution is delegated to whatever a
+ * preset registered. The module-level list above describes the original precedent; the ordered
+ * registry and its replacement rationale now live in Jini `mcp/federation/presets.ts`.
  */
 
 /**
@@ -38,43 +40,19 @@ export type FederatedMcpPresetResolver = (env: NodeJS.ProcessEnv) => ResolvedFed
 
 export interface FederatedMcpPreset {
   /** Stable identity of the PRESET MODULE (not of the connection it resolves). Used to keep a
-   * double import from registering the same vendor twice; see {@link registerFederatedMcpPreset}. */
+   * double import from registering the same vendor twice; see Jini createFederatedMcpPresetRegistry().register. */
   readonly presetId: string;
   readonly resolve: FederatedMcpPresetResolver;
 }
 
-let presets: FederatedMcpPreset[] = [];
-
-/**
- * Registers a preset, called once at composition-root boot by the preset's own module.
- *
- * Re-registering the same `presetId` REPLACES the earlier entry rather than appending. Unlike a
- * `<head>` contributor, a duplicate here would resolve to two connections with the same
- * `connectionId`, and `trust.ts` R1's collision assertion would then drop the second one whole —
- * producing a confusing "registered, then refused for shadowing itself" log for what is really just
- * a module imported from two places. Last registration wins, and registration order is otherwise
- * preserved so a replacement does not silently reorder connections.
- */
-export function registerFederatedMcpPreset(preset: FederatedMcpPreset): void {
-  const existing = presets.findIndex((candidate) => candidate.presetId === preset.presetId);
-  if (existing >= 0) {
-    presets[existing] = preset;
-    return;
-  }
-  presets.push(preset);
+/** Replacement/order rationale lives on Jini createFederatedMcpPresetRegistry().register. */
+export function registerFederatedMcpPreset(preset: FederatedMcpPreset, { registry }: { registry: FederatedMcpPresetRegistry }): void {
+  registry.register({ preset: { presetId: preset.presetId, resolve: ({ env }) => preset.resolve(env) } });
 }
-
-/** Registration order. `bootstrap.ts` resolves in this order, and that order decides which
- * connection claims a contested tool id first (R1). */
-export function listFederatedMcpPresets(): readonly FederatedMcpPreset[] {
-  return presets;
+export function listFederatedMcpPresets({ registry }: { registry: FederatedMcpPresetRegistry }): readonly FederatedMcpPreset[] {
+  return registry.list({}).map(preset => ({ presetId: preset.presetId, resolve: env => preset.resolve({ env }) }));
 }
-
-/** Test-only reset of the module-level registry (mirrors `page-head.ts`'s
- * `resetPageHeadRegistry`, though that one is no longer test-only — see its own doc). */
-export function resetFederatedMcpPresetsForTests(): void {
-  presets = [];
-}
+export function resetFederatedMcpPresetsForTests({ registry }: { registry: FederatedMcpPresetRegistry }): void { registry.reset({}); }
 
 /** The desktop/website wire identity stays host-owned; the transport advertises no capabilities. */
 export const TOVU_MCP_CLIENT_INFO = { name: "tovu-assistant", version: "0.1.0" } as const;

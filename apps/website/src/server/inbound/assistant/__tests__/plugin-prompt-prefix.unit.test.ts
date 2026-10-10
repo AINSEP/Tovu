@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -78,7 +79,7 @@ test("resolveAgentPluginPromptPrefix resolves to an empty prefix and never touch
   // could throw or behave unexpectedly against a nonexistent tree. Passing a bogus workspace id
   // and still getting a clean `""` back is evidence the empty-array fast path returned before any
   // of that ran, matching `resolveAgentPluginRefs`'s own documented empty-array fast path.
-  const result = await resolveAgentPluginPromptPrefix(run, [], lifecycle, "definitely-not-a-real-workspace-id");
+  const result = await resolveAgentPluginPromptPrefix(testSiteLayoutContext({ run: run, pluginRefIds: [], runLifecycle: lifecycle, workspaceId: "definitely-not-a-real-workspace-id" }));
 
   assert.equal(result, "");
   const status = await lifecycle.get({ runId: run.id });
@@ -105,7 +106,7 @@ test("resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design
   await writeFile(skillPath, "# UI/UX Design\n\nUse an 8px grid and give controls visible focus rings.\n");
   const realSkillMarkdown = await readFile(skillPath, "utf8");
 
-  const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(run, [PLUGIN_ID], lifecycle, WORKSPACE_ID);
+  const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(testSiteLayoutContext({ run: run, pluginRefIds: [PLUGIN_ID], runLifecycle: lifecycle, workspaceId: WORKSPACE_ID }));
 
   assert.notEqual(pluginPromptPrefix, null, "resolution against a real, correctly installed plugin must not fail the run");
   const prefix = pluginPromptPrefix as string;
@@ -133,7 +134,7 @@ test("resolveAgentPluginPromptPrefix fails the run closed (via the REAL lifecycl
   await isolatedPluginRoot(t);
   const { lifecycle, run } = await newRealLifecycleWithRun();
 
-  const result = await resolveAgentPluginPromptPrefix(run, ["not-a-real-installed-plugin-id"], lifecycle, WORKSPACE_ID);
+  const result = await resolveAgentPluginPromptPrefix(testSiteLayoutContext({ run: run, pluginRefIds: ["not-a-real-installed-plugin-id"], runLifecycle: lifecycle, workspaceId: WORKSPACE_ID }));
 
   assert.equal(result, null, "an unresolvable pinned plugin ref must abort prompt assembly, not silently continue unaugmented");
 
@@ -149,7 +150,7 @@ test("resolveAgentPluginPromptPrefix tells the user why the run could not start 
   await isolatedPluginRoot(t);
   const { lifecycle, run } = await newRealLifecycleWithRun();
 
-  await resolveAgentPluginPromptPrefix(run, ["not-a-real-installed-plugin-id"], lifecycle, WORKSPACE_ID);
+  await resolveAgentPluginPromptPrefix(testSiteLayoutContext({ run: run, pluginRefIds: ["not-a-real-installed-plugin-id"], runLifecycle: lifecycle, workspaceId: WORKSPACE_ID }));
 
   const kinds: string[] = [];
   const errors: unknown[] = [];

@@ -1,4 +1,5 @@
 import { registerAdminPolicyPermissionRemoveRoute } from "../remove-policy-permission.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { registerAdminUserListRoute } from "../list.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -32,7 +33,7 @@ async function setup() {
   const ownerId = await wiring.ownerPrincipalId;
   const trashed = new Set<string>();
   const deps: UsersRouteDeps = {
-    ...wiring, workspaceId, clock, idGen,
+    ...wiring, workspaceId, clock, idGen, outbox: new InMemoryOutbox(),
     principalRepo: Object.assign(wiring.principalRepo, createSettingsPrincipalLookup({ repo: wiring.principalRepo })),
     isInTrash: async id => trashed.has(id),
     removeUser: async ({ id }) => { trashed.add(id); return { ok: true, version: null }; },

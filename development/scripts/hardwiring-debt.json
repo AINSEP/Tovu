@@ -1,0 +1,929 @@
+{
+  "_comment": "2026-10-09 hardwiring adoption. Identifying-value occurrence hashes; package-boundary React debt. Shrink after cleanup; never regenerate in CI.",
+  "violations": [
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/admin/src/features/auth/Login.tsx",
+      "line": 22,
+      "reason": "Export Login duplicates a Jini function without using its owner.",
+      "fingerprint": "9d6322c1f4d9d3f38aed8bfbe0b2bcadf66ad82c008476fa62541fa069138e94"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/admin/src/features/auth/hooks/login-dependencies.hooks.ts",
+      "line": 33,
+      "reason": "Export createFakeLoginPort duplicates a Jini function without using its owner.",
+      "fingerprint": "7c3eb14873e2857fb7ac0ae9fb0e0273caff6aefb82424dc868b5d941008f3bc"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/admin/src/features/auth/hooks/use-login.hooks.ts",
+      "line": 46,
+      "reason": "Export useLogin duplicates a Jini function without using its owner.",
+      "fingerprint": "98d5650eccb6a25aeb1d6279b56b1f518170e7ebb922596d34160cfd3f812dff"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/admin/src/features/members/hooks/members-dependencies.hooks.ts",
+      "line": 27,
+      "reason": "Export createFakeMembersPort duplicates a Jini function without using its owner.",
+      "fingerprint": "8528b17a15d6bc68fd45b35701e10d60f0710ae76dfa404e19235e26a044e87d"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts",
+      "line": 80,
+      "reason": "Export createFakeRolesPort duplicates a Jini function without using its owner.",
+      "fingerprint": "4f33aeb1d9b2b146a6b924092f0237d03a956c58d0b99b5b5c6795315d594533"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "apps/admin/src/features/security/AccessTokensTab.tsx",
+      "line": 809,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "dde8a19d53eff031ad0773ea789ec17e0059a68a38c9f9e48dc086b2e2c46d53"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "apps/admin/src/features/security/AccessTokensTab.tsx",
+      "line": 876,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "137b9e5e4e13211ce3487cb1f3148ad0ef4147e2a4647ca12191bd2c8528b646"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/admin/src/features/skills/SkillRow.tsx",
+      "line": 7,
+      "reason": "Export SkillRow duplicates a Jini function without using its owner.",
+      "fingerprint": "bfbbb041a4274a35fddbe664e1241c541c8077e768b6a3971bccc3fe060e2b18"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/admin/src/features/users/hooks/users-dependencies.hooks.ts",
+      "line": 83,
+      "reason": "Export createFakeUsersPort duplicates a Jini function without using its owner.",
+      "fingerprint": "69d895dbd44eb85c9ee27974cabde11ae66ace5eb12ffed0cb739cc43c9f4aaf"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "apps/admin/src/lib/execution-settings.ts",
+      "line": 253,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "85f13dfe69cdbb330d13438aeb5c3242dfa646d8a5e4e28ac81e7056b6ee2fb4"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/desktop/scripts/verify-find-in-page.ts",
+      "line": 50,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/desktop/scripts/verify-find-in-page.ts",
+      "line": 51,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/desktop/scripts/verify-site-power.ts",
+      "line": 49,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/desktop/scripts/verify-site-power.ts",
+      "line": 50,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/quality-gates.ts",
+      "line": 150,
+      "reason": "Export validateManifest duplicates a Jini function without using its owner.",
+      "fingerprint": "2f89e0208ab89db16d32a2f9a0d2a778b1413bb7324d2cb8788c93848c1c3c6c"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/renderer/folder-drop.ts",
+      "line": 87,
+      "reason": "Export folderPathsFromDataTransfer duplicates a Jini function without using its owner.",
+      "fingerprint": "cd8915ef0b1a190bed7fd378dff05974b866cd758d5da3fcefbbdb3aa6a47353"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/shell-staleness.ts",
+      "line": 42,
+      "reason": "Export isBundleInput duplicates a Jini function without using its owner.",
+      "fingerprint": "ca871d03228242ffafd1d683d6e5f7066c790fbf6f4975019384eee29f13d097"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/shell-staleness.ts",
+      "line": 64,
+      "reason": "Export shellStalenessFailure duplicates a Jini function without using its owner.",
+      "fingerprint": "d5c594ad5b71bb8617746a873dbea5493600c84c82cc9c2c9cb33dca29cc72d0"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/site-process-registry.ts",
+      "line": 351,
+      "reason": "Export isProcessAlive duplicates a Jini function without using its owner.",
+      "fingerprint": "09183f97801256f96774392a30713ee09a9b9e264fafbf35009c31bdf2fe6833"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 88,
+      "reason": "Export isExcluded duplicates a Jini function without using its owner.",
+      "fingerprint": "50c869f1450b1528af2f8424d809ec2b8365e89d32e39b06549025dd33ada168"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 94,
+      "reason": "Export stageDir duplicates a Jini function without using its owner.",
+      "fingerprint": "e4f615ad574d1746489aefe48a48a0f9255d80908b2340d1b41707872f69efa4"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 103,
+      "reason": "Export declaredDependencies duplicates a Jini function without using its owner.",
+      "fingerprint": "87a18761aafa0f47d62304e8a09d42c1b0f27cf269c48ba44a9dcbb24896209e"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 151,
+      "reason": "Export stageTransitiveDependencies duplicates a Jini function without using its owner.",
+      "fingerprint": "8e16e0e45a65a19a507fb91cef3148084dae50026d1653bea54b3bff70cf2485"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 168,
+      "reason": "Export stagedPackageDirs duplicates a Jini function without using its owner.",
+      "fingerprint": "7def75ba323f80e010cd6fc71e06f35a049bf50cc76cef57708f9e514002f2d6"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 199,
+      "reason": "Export assertClosureComplete duplicates a Jini function without using its owner.",
+      "fingerprint": "9d3ba282e9f965dbdcdf00cd2c8d12a9ce67b0c12f029be18158cf4d4e7d055e"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 253,
+      "reason": "Export strippableReason duplicates a Jini function without using its owner.",
+      "fingerprint": "7623834c20638d5701d4e4204774b3583736d50b3203603c6170d01ddec2422d"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 264,
+      "reason": "Export diskBytes duplicates a Jini function without using its owner.",
+      "fingerprint": "6451734cb2d51fb8c7ee51f799b93f2b5ca9912bb80f4c73543c73d048661a8e"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 325,
+      "reason": "Export stripNonRuntimeFiles duplicates a Jini function without using its owner.",
+      "fingerprint": "a2e1f503bde797a4321cbca643c46690d669117016ebb6d79d48d399b6bfe5f7"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 360,
+      "reason": "Export prebuildTarget duplicates a Jini function without using its owner.",
+      "fingerprint": "81a188c03c96711dd0b38c0c9a485c341aad7c795e965463b7d710bf7867786f"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 403,
+      "reason": "Export resolveTargets duplicates a Jini function without using its owner.",
+      "fingerprint": "e309131edff06822e2e5f7e6ecc8bfaa82671d4d10a9fdd439ec53d39f93f9c2"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 426,
+      "reason": "Export resolveNpmLsCommand duplicates a Jini function without using its owner.",
+      "fingerprint": "545cb2186580eda022778db03470b4dc01489f61fc670bb3f64bd602bf708b10"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 477,
+      "reason": "Export pruneNativePrebuilds duplicates a Jini function without using its owner.",
+      "fingerprint": "36fc2cfaec5e31dff6a15a07a734cc70286759e1fbe1c782b2b4a9f986dbdef9"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 504,
+      "reason": "Export newestMtime duplicates a Jini function without using its owner.",
+      "fingerprint": "dd7b02f92b4c91b8257a7f329571529c851c1ad478a5f00ab7a6d2468f134a7f"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 527,
+      "reason": "Export parseNpmLsPaths duplicates a Jini function without using its owner.",
+      "fingerprint": "590703a2b2871f86a54c13e776a9cb7261145b57127bf9532158b6dbd776dad4"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 566,
+      "reason": "Export hasNativeBinaryMagic duplicates a Jini function without using its owner.",
+      "fingerprint": "e775ab2fa0ffc594a7b5f7013fa4f95b3e114ae2e7ac1d8920fa4a1af20b449c"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 626,
+      "reason": "Export stageBundledNpm duplicates a Jini function without using its owner.",
+      "fingerprint": "50742484a56ccfdc95d4fa2784bc5ef7411f31dcd018a55b238c6f1b8963034c"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/stage-payload-lib.ts",
+      "line": 697,
+      "reason": "Export stagePayloadFiles duplicates a Jini function without using its owner.",
+      "fingerprint": "73b8a28a88c30fb63fd3a7b959ab2c7ad4a19b730a4d84e00cca45b73b63d2ca"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/tovu-server.ts",
+      "line": 558,
+      "reason": "Export allocatePort duplicates a Jini function without using its owner.",
+      "fingerprint": "97b110dea3ec93ff20a154ce9894be0b44f9c62eb19f3b42555d3c8b6091f867"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/desktop/src/tree-quiet.ts",
+      "line": 88,
+      "reason": "Export treeQuietProblems duplicates a Jini function without using its owner.",
+      "fingerprint": "31ecdcd28cf5d2c9ab0483f6f85319ab4fbe3ba30674eac1e61afd7eaa96fd47"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/site-chat/src/highlight.ts",
+      "line": 68,
+      "reason": "Export findTargetElement duplicates a Jini function without using its owner.",
+      "fingerprint": "db1b43c146a5c17609f175a66995fa7670a29a2efd439f60dbbca1daaa636fc2"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "apps/website/src/assistant/execution-mode-settings.ts",
+      "line": 105,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "85f13dfe69cdbb330d13438aeb5c3242dfa646d8a5e4e28ac81e7056b6ee2fb4"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "apps/website/src/assistant/live-model-cache.ts",
+      "line": 76,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "85f13dfe69cdbb330d13438aeb5c3242dfa646d8a5e4e28ac81e7056b6ee2fb4"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/assistant/tool-catalog-query.ts",
+      "line": 1,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "696a1c4c44390d69fa9bf5787097d24230daae8bce74538f5117515410968210"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/content-types/repo.rows.ts",
+      "line": 30,
+      "reason": "Export toRecord duplicates a Jini function without using its owner.",
+      "fingerprint": "1f5045681bf8345f2cb1d390b498de7d15c30df0284b8803559ca3e6cfb270e3"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/content-types/repo.rows.ts",
+      "line": 50,
+      "reason": "Export toRow duplicates a Jini function without using its owner.",
+      "fingerprint": "8b53ffe01d8c575dcebd940d41ddd34b2ac0894ce341cff89f4f630967afe1c6"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/content-types/repo.rows.ts",
+      "line": 68,
+      "reason": "Export updatableColumns duplicates a Jini function without using its owner.",
+      "fingerprint": "ca41c807d7c71552c97a2e829b3418e5a0515eeebdda547adeda382dbc9462a5"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/content-types/repo.rows.ts",
+      "line": 81,
+      "reason": "Export toRevisionRow duplicates a Jini function without using its owner.",
+      "fingerprint": "0c473c90452c5dd2165e6e5c4e92de83be1cf058374c50682c1be1f85cfe734a"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "apps/website/src/features/custom-credentials/agent-tools.ts",
+      "line": 76,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "d964a5f3963d20cc36f7218b4971cfbec8c0ea622e91e25607d9f2292285e115"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "apps/website/src/features/custom-credentials/credential-save-tool.ts",
+      "line": 30,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "7011e20641c8cc4aaa52bf162fd90055a39ba8c43f3a7645c24f25064de99b43"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "apps/website/src/features/custom-credentials/custom-credential-create-ui.ts",
+      "line": 90,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "4c7155c81f8e7aeb5b61a6c0ee38a9194d63f2f1e86a243e5083ca9554040f63"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/database-transfer/sqlite-source.ts",
+      "line": 2,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "696a1c4c44390d69fa9bf5787097d24230daae8bce74538f5117515410968210"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/entries/repo.rows.ts",
+      "line": 15,
+      "reason": "Export toRecord duplicates a Jini function without using its owner.",
+      "fingerprint": "1f5045681bf8345f2cb1d390b498de7d15c30df0284b8803559ca3e6cfb270e3"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/entries/repo.rows.ts",
+      "line": 33,
+      "reason": "Export toRow duplicates a Jini function without using its owner.",
+      "fingerprint": "8b53ffe01d8c575dcebd940d41ddd34b2ac0894ce341cff89f4f630967afe1c6"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/entries/repo.rows.ts",
+      "line": 51,
+      "reason": "Export toRevisionRow duplicates a Jini function without using its owner.",
+      "fingerprint": "0c473c90452c5dd2165e6e5c4e92de83be1cf058374c50682c1be1f85cfe734a"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/media/view-image-tool.ts",
+      "line": 6,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "632e93023886160a2a5494cd49aeb72994fc61f6834355d175a423b99715a9df"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/plugin-runtime/built-ins/content-analyzer/plugin.ts",
+      "line": 16,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/plugin-runtime/built-ins/word-count/index.ts",
+      "line": 25,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/plugin-runtime/host-binding.ts",
+      "line": 7,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/plugin-runtime/invocation-core-deps.ts",
+      "line": 15,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/plugin-runtime/plugin-export.ts",
+      "line": 7,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/site-evidence/tool-registrations.ts",
+      "line": 91,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/site-glue/attachment-points/events.ts",
+      "line": 45,
+      "reason": "Export subscribeGlueEvent duplicates a Jini function without using its owner.",
+      "fingerprint": "cda6e66fd7fddbb26c3d6ff50cbcd8a7fdfe1058d6bf3c7d013f24376baae077"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/features/web-screenshot/screenshot-image.ts",
+      "line": 9,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "632e93023886160a2a5494cd49aeb72994fc61f6834355d175a423b99715a9df"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/features/webmcp/generated/annotated-actions-script.ts",
+      "line": 9,
+      "reason": "Export createAnnotatedActionsScript duplicates a Jini function without using its owner.",
+      "fingerprint": "a52297023f06ef84743f30339f0ddf130224ca30b613549fa564ee4c0fb647f3"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/platform/db/sqlite/chat-db.ts",
+      "line": 1,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "696a1c4c44390d69fa9bf5787097d24230daae8bce74538f5117515410968210"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/platform/db/sqlite/content-db.ts",
+      "line": 5,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "696a1c4c44390d69fa9bf5787097d24230daae8bce74538f5117515410968210"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/platform/headless-browser/lazy-browser.ts",
+      "line": 95,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "7827e8eb2cb3b95f4d0ffac324b65208ff813b66884d08327ab0abb04fe780fb"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/platform/headless-browser/lazy-browser.ts",
+      "line": 107,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "632e93023886160a2a5494cd49aeb72994fc61f6834355d175a423b99715a9df"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/platform/site-dir/active-site.ts",
+      "line": 64,
+      "reason": "Export upsertEnvLine duplicates a Jini function without using its owner.",
+      "fingerprint": "1aa8981a329132078912fc54e1cefabfca8d5a22d4a19263800257357d415a14"
+    },
+    {
+      "rule": "HW5-jini-export",
+      "file": "apps/website/src/platform/site-dir/active-site.ts",
+      "line": 139,
+      "reason": "Export readEnvLine duplicates a Jini function without using its owner.",
+      "fingerprint": "83a3f2bd4b654a8a31403c38a0aed6ecc6f7a3142ee08f7533423febd936f0fa"
+    },
+    {
+      "rule": "HW2-vendor-adapter",
+      "file": "apps/website/src/server/runtime/composition/plugin-runtime.ts",
+      "line": 25,
+      "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
+      "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/deploy-ops/fly.mjs",
+      "line": 26,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "55c2f091f6875bb4f547545b52827c664f518d7d9bb1bd5834256dc6983d9c01"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/deploy-ops/fly.mjs",
+      "line": 33,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "faf7d64f411b19d03a7015b772eab413fbbf62c58055e31a9f3fda9717fc4199"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/deploy-ops/fly.mjs",
+      "line": 45,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "c0944c2f6a93b05e93f14485a109ae6e3b45f9938212ba2e179df9e5086c25af"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/deploy-ops/fly.mjs",
+      "line": 52,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "55c2f091f6875bb4f547545b52827c664f518d7d9bb1bd5834256dc6983d9c01"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/deploy-ops/github-actions.mjs",
+      "line": 6,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "bc93d1acbea31b622a7f7f78639e38d73cf1d99f701bbf1eee2d4c532ce833ba"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/targets/cloudflare-pages.mjs",
+      "line": 61,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "11b159d41dd90aaf8794a7aaa70a825221bbdf5d5de3ce512ba494bda6f95f02"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/targets/cloudflare-pages.mjs",
+      "line": 1028,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "f59a1fffda4459e08bd280d81ab4144e3c10e3b04ccefc862126b0ebd067f19d"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/targets/github-pages.mjs",
+      "line": 51,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "b2fd47bfbc5a4de17a621c69c1407b826d21731da4f7ea0c3c01cb6e044b8b9c"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/targets/github-pages.mjs",
+      "line": 475,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "357c646886b87a0dbe3355c82e9bc83d626b43765d5de05df3826cc21a77a02d"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/targets/netlify.mjs",
+      "line": 28,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "68e1ee40523e6a8a042bc37d7beb3fcce58e7e00105e15569c6776b2a9033fc5"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/targets/netlify.mjs",
+      "line": 338,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "311c1dac5a25c312d2d9d681ffb2c625f74f0cf23a03311174781a403462798e"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/targets/vercel.mjs",
+      "line": 56,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "937f1ea8fdc09813a4268fe88ef759921c0cd6d1cad28cf434a6eb098817547d"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/deploy/targets/vercel.mjs",
+      "line": 349,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "42b7e71d2f455ded9d9ef33cd04b2040136a2d0f9e579a816988fbd3329b40e5"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/github/source-control/commit-site.mjs",
+      "line": 29,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "b2fd47bfbc5a4de17a621c69c1407b826d21731da4f7ea0c3c01cb6e044b8b9c"
+    },
+    {
+      "rule": "HW8-provider-url",
+      "file": "content/agent-plugins/github/source-control/github.mjs",
+      "line": 27,
+      "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
+      "fingerprint": "b2fd47bfbc5a4de17a621c69c1407b826d21731da4f7ea0c3c01cb6e044b8b9c"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "apps/site-chat/src/main.tsx",
+      "line": 1,
+      "reason": "Public-site runtime graph must not load React or React DOM.",
+      "fingerprint": "476bf5a4a5c3e9af2b8ca34c8c98ead6433621486558c86f4648609cd9ca17c3"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "apps/site-chat/src/main.tsx",
+      "line": 73,
+      "reason": "Automatic JSX runtime imports React into the public-site bundle.",
+      "fingerprint": "1a57a919dcf6659f0df693a805c8232ee74c1ae82f447eaf48c467c053d50a96"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "apps/site-chat/src/SiteAssistantWidget.tsx",
+      "line": 1,
+      "reason": "Public-site runtime graph must not load React or React DOM.",
+      "fingerprint": "275976081ce1abf67779eb3c388b5e14531082e52137502e264776e1a6a11595"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "apps/site-chat/src/SiteAssistantWidget.tsx",
+      "line": 231,
+      "reason": "Automatic JSX runtime imports React into the public-site bundle.",
+      "fingerprint": "1a57a919dcf6659f0df693a805c8232ee74c1ae82f447eaf48c467c053d50a96"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "apps/site-chat/src/SiteAssistantHeader.tsx",
+      "line": 1,
+      "reason": "Public-site runtime graph must not load React or React DOM.",
+      "fingerprint": "275976081ce1abf67779eb3c388b5e14531082e52137502e264776e1a6a11595"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "apps/site-chat/src/SiteAssistantHeader.tsx",
+      "line": 72,
+      "reason": "Automatic JSX runtime imports React into the public-site bundle.",
+      "fingerprint": "1a57a919dcf6659f0df693a805c8232ee74c1ae82f447eaf48c467c053d50a96"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "apps/site-chat/src/SiteAssistantActivation.hooks.ts",
+      "line": 1,
+      "reason": "Public-site runtime graph must not load React or React DOM.",
+      "fingerprint": "275976081ce1abf67779eb3c388b5e14531082e52137502e264776e1a6a11595"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@jini-ai/chat",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "6341e125529cb1cdbcc11d86e42a1a3f721ca9c34be7a0d9655aa00d182e3df4"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@jini-ai/ui",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "925664ebf1fbbbad574f2a35cd019bab50f9e1887a1ab28e879101609443558e"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@mcp-ui/client",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "7f393b95c6266637a554a282994c657eca0a72234ca12ab51750f892c6e2407a"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-slot",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "ebfaab3df9e72501899a4416d111c83e5ef704f535c40dadb3ae9ba58e271342"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-checkbox",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "3f2732ff56b6fb223020b4d83b1de6f490f4ce461040680e400e71e1437b266c"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-label",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "bcd41e66d5810f5e467bc455e9ae0f7ff801b082cc5a880d4f6caee9c11bb1cb"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-radio-group",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "814076e14d955d55c7906aa537918bced24ccd8f68387d105a36a95b9febe2bd"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-select",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "678e83d1c14aee4d5087f9d39ae4aa8d54379402175ce829ce9d25105c63700e"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/recharts",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "7dee6385225507f94183222a77fcd7b190157d0f39407d3ee0add8ddf1240e12"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-compose-refs",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "a935db1b45e92180500ba36c57d71d1dde1faadeee49147d70936e3b47ac2ffa"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-context",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "0f9925deccce8710a6a29fe6ac18ee531e5c1528524c5972f3b106852280d196"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-use-controllable-state",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "71d97e90dea8e0f80b32b5e7d859841f08862dc7b912e96e29da5b505af52b6a"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-use-size",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "963c2ab771a1617738197ced8cc775b18f0956aed410dead94e2154341952673"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-presence",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "e10f4d5f82b21ab862d4b0f545592728a7b990cfac8086c752eab21df83f00d0"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-primitive",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "f385af645e3b774a8807d970d1618c680eac9e64b936bf6c06fb39ba7d1ab9ff"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-roving-focus",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "cb4a057c357f156a1baf065bad05cf43e4cf036da147b79b428f5457747cbea6"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-direction",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "5a5694271cb4d8660d52e7357778b164b5cbc95969017d8df7037d228944f507"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-collection",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "804ea6a7260adc1c7a7687b3c82965bceda8ab4fa1e3091bd6806f59dc239237"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-dismissable-layer",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "9af7fcf67549c3cfa93e57a9a656c1dee04200fbea96c42cc14cf4c46ff87871"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-focus-guards",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "b35b96d0321b4ce344c5b58a34cffc70c6e9905efc658827e36bad0c6c83d32d"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-focus-scope",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "ec4be12860a563d5709908a648226596bfd6a6f7ac3dbe54649dcee55af92348"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-id",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "face9df97ef986aa4ec0f6cfb40b19483f3cff668ef68dc0d1f343002e734f9c"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-popper",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "4a1b80c127a9f06b47e3712e168363f4469d807f86e6e8a738b50c0d59a62196"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-portal",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "73946d39dba0e46ddff089ba8af4a94a1bc7ee2bced43eb62f26b2ceb46b8851"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-use-callback-ref",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "fe2bf6d042e9d9a973aa82090eddf35a001991a98e76e4a3bb0e4dda860adb05"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-use-layout-effect",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "80355f5894b10657ca24afcc896d8aeaf5e414faf10f07268dd4df24806826d6"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-use-previous",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "9d2948cfedaea71ce6a06494983421a5736f5986563a0de6f156bda013780eb6"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-visually-hidden",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "e314f12e241ac9533b3fc2817dc7bc7ea3e1fab33b40d63b39512317422b7a2f"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-use-effect-event",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "aee140787a0694ce3d2747a23554459836b71282cbe40b978bc368d096710938"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-use-is-hydrated",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "7acd6cf2c76832d295d764dd894983b0728db89b5122fdae5a2415b2be4a638e"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@floating-ui/react-dom",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "1a54005a711b4749c99647911caf4a6bea10e2ea34e88d046fa382d4780d49c4"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/@radix-ui/react-arrow",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "56a9407c30c284664df7ad9bbbed0b6adb3233c365ccc68d3b5013a8d626d159"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/react-remove-scroll",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "e27e925afd8f9585a97ac958145c6327a8092068909b44b335ba020a3485aa9f"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/react-redux",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "0e5546be9ff33adfe467e2e66191c44c7731750f9d6b04f8a21b1661f396de4d"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/use-sync-external-store",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "6ea4d325df56b2e9cbf683e9712ea645779c61a4dd8d03c61b9ff689425f991b"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/use-callback-ref",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "f4dde66954b05e5c7022c991a37c74aae6e0b3186c7e2c0677997f9f45ac18d4"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/use-sidecar",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "1d5d0ccb32e1055d32a64ba783880e91e8ba0968a841bc0a93f73c1c85cd917e"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/react-remove-scroll-bar",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "37ea2f101623cc772ecce40fb998047e002f16f22d0bb5a11f6bd54c4bd81e88"
+    },
+    {
+      "rule": "HW7-public-react",
+      "file": "node_modules/react-style-singleton",
+      "line": 1,
+      "reason": "Public-site dependency package loads React or React DOM.",
+      "fingerprint": "45445eedd535b38137bdc62b8aba757c571ae6c1e2d72cab67dc115eb754544a"
+    }
+  ]
+}

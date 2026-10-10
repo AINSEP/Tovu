@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { applyToolApprovalPolicy } from "../tool-approval-policy.js";
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
@@ -146,7 +147,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
   });
 
   const authorizeCalls: Array<{ permission: string }> = [];
-  const routeDeps = {
+  const routeDeps = testSiteLayoutContext({
     workspaceId,
     authorize: async (params: { permission: string }) => {
       authorizeCalls.push(params);
@@ -157,7 +158,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
     trash,
     db: trashDb,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
-  } as unknown as TrashItemToolDeps;
+  }) as unknown as TrashItemToolDeps;
 
   return {
     routeDeps,
@@ -621,7 +622,7 @@ test("trash_item's GENERIC path never reaches TrashPort.purgeSelected either", a
   const h = sqliteFormHarness();
   let purgeCalls = 0;
   class PurgeWasReachedError extends Error {}
-  const guarded = {
+  const guarded = testSiteLayoutContext({
     ...h.routeDeps,
     trash: {
       ...h.routeDeps.trash,
@@ -630,7 +631,7 @@ test("trash_item's GENERIC path never reaches TrashPort.purgeSelected either", a
         throw new PurgeWasReachedError("trash_item reached purgeSelected");
       },
     },
-  } as TrashItemToolDeps;
+  }) as TrashItemToolDeps;
   const [trashItem] = deriveTrashItemRegistrations({ registrations: [], routeDeps: guarded, surfaces: h.surfaces });
 
   try {

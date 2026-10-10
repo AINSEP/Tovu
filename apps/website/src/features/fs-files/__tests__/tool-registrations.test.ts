@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -33,12 +34,12 @@ function makeFixtureRoots(): { roots: Record<FsRootId, string>; agentPluginsDir:
 
 function toolDeps(overrides: Partial<FsFilesToolDeps> = {}): FsFilesToolDeps {
   const { roots } = makeFixtureRoots();
-  return {
+  return testSiteLayoutContext({
     workspaceId: "workspace-local",
     authorize: async () => ({ allowed: true }) as never,
     resolveRoots: () => roots,
     ...overrides,
-  };
+  });
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: ToolHandler's ctx type is owned by @jini-ai/cms/core and is not exported; a structural stand-in here would drift from it silently.

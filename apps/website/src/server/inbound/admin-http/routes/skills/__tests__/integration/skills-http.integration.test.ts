@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -68,10 +69,10 @@ description: Use when handling production incidents.
 
 function buildTestApp(): { app: express.Express; skillsDeps: SkillsRouteDeps; baseDeps: ReturnType<typeof createRouteDeps> } {
   const baseDeps = createRouteDeps();
-  const skillsDeps: SkillsRouteDeps = {
+  const skillsDeps: SkillsRouteDeps = testSiteLayoutContext({
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
-  };
+  });
 
   const app = express();
   app.use(express.json());

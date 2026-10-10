@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
@@ -44,7 +45,7 @@ test("federation.start() does not read the roster until installed-extension regi
   const discovery = deferred<readonly PluginDiscoveryRecord[]>();
   const reachedDiscovery = deferred<void>();
   const events: string[] = [];
-  const deps = {
+  const deps = testSiteLayoutContext({
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: randomUUID(),
     postRepo: {},
@@ -56,13 +57,13 @@ test("federation.start() does not read the roster until installed-extension regi
     },
     registerInstalled: registerInstalledExtensionTools,
     federation: {
-      deps: { authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: "ws-order" },
+      deps: testSiteLayoutContext({ authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: "ws-order" }),
       resolveConnections: async () => {
         events.push("resolveConnections");
         return [];
       },
     },
-  } as unknown as AttachAssistantToolExtensionsDeps;
+  }) as unknown as AttachAssistantToolExtensionsDeps;
 
   const extensions = attachAssistantToolExtensions(fakeRegistry(), deps, "[order-test]");
   const started = extensions.federation.start();

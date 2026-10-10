@@ -52,16 +52,6 @@ test("site-glue's manifest imports the shared vocabulary rather than re-declarin
   );
 });
 
-test("site-glue's capability gate imports the shared vocabulary rather than re-declaring it", () => {
-  const source = readSiblingSource("../../../../features/site-glue/capability-gate.ts");
-  assert.match(
-    source,
-    SHARED_IMPORT_PATTERN,
-    "site-glue/capability-gate.ts must import SHARED_EXTENSION_CAPABILITIES from core/ — a " +
-      "private re-declaration of the same three strings would not be caught by any behavioral test"
-  );
-});
-
 test("neither sibling imports the other feature's manifest module", () => {
   // Scoped to actual import specifiers (`from ".../site-glue/..."`), not prose — both files'
   // headers legitimately *mention* the sibling mechanism by name when explaining why the shared

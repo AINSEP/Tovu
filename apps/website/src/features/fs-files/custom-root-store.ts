@@ -4,8 +4,7 @@ import { dirname, isAbsolute, join } from "node:path";
 
 // Barrel import only — `no-deep-imports:platform/site-dir` is `error`-severity
 // (`.dependency-cruiser.mjs`'s `PROMOTED_NO_DEEP_IMPORTS`), the same door `layout.ts` already opened
-// for `resolveProductRoot`/`resolveSiteRoot` in this same feature.
-import { resolveSiteRoot } from "../../platform/site-dir/index.js";
+// for `resolveProductRoot` in this same feature. The persistence root is now injected from boot.
 
 /**
  * @file The operator-set custom filesystem root — backs the third {@link FsRootId} `"custom"`
@@ -77,11 +76,10 @@ export class CustomFsRootError extends Error {
 const PERSISTENCE_FILE_NAME = ".fs-custom-root.json";
 
 export interface CustomFsRootStoreOptional {
-  /** Absolute site directory to persist under. Defaults to the real {@link resolveSiteRoot}() — the
-   *  live site this process serves. Tests MUST override this to a temp directory: there is
+  /** Absolute booted site directory to persist under. Tests MUST override this to a temp directory: there is
    *  deliberately no test-only default, so a forgotten override is a type error rather than a test
    *  that silently reads or writes the real site's `.fs-custom-root.json`. */
-  readonly siteDir?: string;
+  readonly siteDir: string;
 }
 
 export interface CustomFsRootState {
@@ -96,7 +94,7 @@ export interface CustomFsRootState {
 }
 
 function persistenceFilePath(optional: CustomFsRootStoreOptional): string {
-  return join(optional.siteDir ?? resolveSiteRoot(), PERSISTENCE_FILE_NAME);
+  return join(optional.siteDir, PERSISTENCE_FILE_NAME);
 }
 
 /**
@@ -171,7 +169,7 @@ function resolveState(persistedPath: string | undefined): CustomFsRootState {
  * @complexity O(1) — one file read plus one `stat` of the persisted path, never proportional to that
  *   directory's own contents.
  */
-export function getCustomFsRootStatus(workspaceId: string, optional: CustomFsRootStoreOptional = {}): CustomFsRootState {
+export function getCustomFsRootStatus(workspaceId: string, optional: CustomFsRootStoreOptional): CustomFsRootState {
   const store = readPersistedPaths(persistenceFilePath(optional));
   return resolveState(store[workspaceId]);
 }
@@ -184,7 +182,7 @@ export function getCustomFsRootStatus(workspaceId: string, optional: CustomFsRoo
  *
  * @complexity O(1). See {@link getCustomFsRootStatus}.
  */
-export function getCustomFsRoot(workspaceId: string, optional: CustomFsRootStoreOptional = {}): string | undefined {
+export function getCustomFsRoot(workspaceId: string, optional: CustomFsRootStoreOptional): string | undefined {
   return getCustomFsRootStatus(workspaceId, optional).path;
 }
 
@@ -207,7 +205,7 @@ export function getCustomFsRoot(workspaceId: string, optional: CustomFsRootStore
  * @complexity O(1) — one `stat`/`realpath` call plus one small JSON read+write, never proportional to
  *   the directory's own contents.
  */
-export function setCustomFsRoot(workspaceId: string, path: string | null, optional: CustomFsRootStoreOptional = {}): void {
+export function setCustomFsRoot(workspaceId: string, path: string | null, optional: CustomFsRootStoreOptional): void {
   const filePath = persistenceFilePath(optional);
   const store = readPersistedPaths(filePath);
 
@@ -232,7 +230,7 @@ export function setCustomFsRoot(workspaceId: string, path: string | null, option
 
 /**
  * Test-only reset: overwrites `optional.siteDir`'s persistence file with an empty object, creating it
- * if absent — it is not deleted. `siteDir` is REQUIRED (unlike every other function here) so this can
+ * if absent — it is not deleted. `siteDir` is REQUIRED, as it is for every store operation, so this can
  * never be called bare and reach for the real site directory by accident — every caller must name the
  * temp directory it wants cleared.
  */

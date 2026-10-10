@@ -22,31 +22,17 @@
  * as it was until 2026-08-27. Installed skills are site data: they must move with the site and
  * survive an upgrade, which a repo-relative `infra/` could not promise.
  *
- * Deliberately does NOT import anything from `src/features/agent-plugins/` — Agent Skills and Agent
- * Plugins are different things with their own directories (owner decision, above), and this file's
- * small id-segment guard is duplicated rather than shared, for the same reason
- * `capability-projection.ts`/`capability-source.ts` already duplicate their own `humanize` helper
- * between themselves: a private guard belonging to one small module, not a promise to keep two
- * independent features' internals in sync.
+ * The private id-segment guard now belongs to Jini `skills/install/layout.ts`. This adapter
+ * supplies the site root and state-file name; Agent Skills and Agent Plugins retain separate
+ * directories and host bindings.
  *
  * Architectural role:
  * Pure path computation. No I/O — `tool-registrations.ts` reads the directory tree this resolves.
  */
 import path from "node:path";
+import { createSkillLayout } from "@jini-ai/agentic/skills/install";
 
 import { resolveSiteRoot } from "../../platform/site-dir/index.js";
-
-/**
- * One safe, indivisible path segment: lowercase alphanumerics in `-`/`.`-separated runs, with no
- * leading, trailing, or doubled separator. Mirrors `agent-plugins/layout.ts`'s own
- * `SAFE_ID_SEGMENT_PATTERN` — duplicated rather than imported (see this file's header) — and accepts
- * this instance's real workspace id (`workspace-local`, per `<site>/uploads/ws/workspace-local/`) as
- * well as every UUID.
- */
-const SAFE_ID_SEGMENT_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
-
-/** Bounds the segment so a caller cannot drive a pathological path length. */
-const MAX_ID_SEGMENT_LENGTH = 64;
 
 /** One workspace's flat directory of installed skill folders: `<root>/ws/<workspaceId>/<skill-dir>/
  *  SKILL.md`, one subdirectory per skill. Not content-addressed — see this module's header. */
@@ -62,7 +48,7 @@ export interface SkillLayout {
    * Resolves the workspace-scoped skills directory for one workspace.
    *
    * @throws {Error} If `workspaceId` does not match the safe path-segment grammar (see
-   * {@link SAFE_ID_SEGMENT_PATTERN}).
+   * Jini skills/install/layout.ts's SAFE_ID_SEGMENT_PATTERN).
    */
   forWorkspace(workspaceId: string): SkillWorkspaceLayout;
 }
@@ -70,6 +56,8 @@ export interface SkillLayout {
 export interface ResolveSkillLayoutOptional {
   /** Defaults to `process.cwd()` — injectable so this function is testable without `process.chdir()`. */
   readonly cwd?: string;
+  /** Booted site directory; defaults are anchored here when supplied. */
+  readonly siteDir?: string;
   /** Defaults to `process.env`. */
   readonly env?: NodeJS.ProcessEnv;
 }
@@ -89,20 +77,14 @@ export function resolveSkillLayout(optional: ResolveSkillLayoutOptional = {}): S
     throw new Error(`TOVU_SKILLS_DIR must be an absolute path, got '${override}'`);
   }
 
-  const root = path.resolve(override ?? path.join(resolveSiteRoot({ cwd, env }), "skills"));
+  const root = path.resolve(override ?? path.join(optional.siteDir ?? resolveSiteRoot({ cwd, env }), "skills"));
 
-  return {
-    root,
-    forWorkspace(workspaceId: string): SkillWorkspaceLayout {
-      // Normalize BEFORE validating, not after — see `agent-plugins/layout.ts`'s own comment at the
-      // identical line: the pattern is deliberately lowercase-only, and the normalized value is the
-      // one that actually becomes the path segment, so it is the only value worth asserting about.
-      const normalizedWorkspaceId = workspaceId.toLowerCase();
-      if (!SAFE_ID_SEGMENT_PATTERN.test(normalizedWorkspaceId) || normalizedWorkspaceId.length > MAX_ID_SEGMENT_LENGTH) {
-        // Quotes the RAW input, not the normalized one, so the message names what the caller passed.
-        throw new Error(`forWorkspace: '${workspaceId}' is not a valid workspace id`);
-      }
-      return { root: path.join(root, "ws", normalizedWorkspaceId) };
-    },
-  };
+  const layout = createSkillLayout({ root, stagingRoot: path.join(root, ".staging"), workspaceDirectory: "ws", stateFileName: ".tovu-install.json" });
+  return { root, forWorkspace(workspaceId) {
+    try { return { root: layout.resolve({ workspaceId }).workspaceRoot }; }
+    catch {
+      // Quotes the RAW input, not the normalized one, so the message names what the caller passed.
+      throw new Error(`forWorkspace: '${workspaceId}' is not a valid workspace id`);
+    }
+  } };
 }

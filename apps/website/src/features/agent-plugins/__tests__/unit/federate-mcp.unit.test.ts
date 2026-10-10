@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
@@ -65,9 +66,9 @@ test("MCP resolution keeps each workspace's bundled declaration despite competin
       await install(workspaceId, "unrelated", { wrong: REMOTE_SERVER });
       await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace(workspaceId).root, seeded: [{ pluginId: "requested", archiveDigest: preferred.archiveDigest }] });
     }
-    assert.deepEqual({ ...await resolveAgentPluginMcpServers({ workspaceId: "ws-1", pluginId: "requested" }) }, first);
-    assert.deepEqual({ ...await resolveAgentPluginMcpServers({ workspaceId: "ws-2", pluginId: "requested" }) }, second);
-    assert.deepEqual(await resolveAgentPluginMcpServers({ workspaceId: "absent", pluginId: "requested" }), {});
+    assert.deepEqual({ ...await resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId: "ws-1", pluginId: "requested" })) }, first);
+    assert.deepEqual({ ...await resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId: "ws-2", pluginId: "requested" })) }, second);
+    assert.deepEqual(await resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId: "absent", pluginId: "requested" })), {});
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;

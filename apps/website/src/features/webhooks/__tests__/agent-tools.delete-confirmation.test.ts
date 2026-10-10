@@ -63,7 +63,7 @@ async function seedSubscription(deps: IntegrationsToolDeps, overrides: { label?:
 }
 
 function buildRegistrations(deps: IntegrationsToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
-  return new Map(buildWebhooksRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+  return new Map(buildWebhooksRegistrations(deps, { surfaceExchanges, assertChatDeleteAllowed: async () => {} }).map((r) => [r.descriptor.id, r]));
 }
 
 function tool(registrations: Map<string, ToolRegistration>, id: string): ToolRegistration {
@@ -147,9 +147,9 @@ test("the call stays open after the dialog is shown, and nothing is deleted whil
 });
 
 for (const status of ["active", "paused"] as const) {
-  test(`the dialog names the label, target URL, and current status (${status}), and warns there is no un-delete`, async () => {
+  test(`the dialog names the label, id, topics, and current status (${status}), and warns there is no un-delete`, async () => {
     const deps = makeDeps();
-    const subscription = await seedSubscription(deps, { label: "Payments webhook", targetUrl: "https://example.test/hooks/payments" });
+    const subscription = await seedSubscription(deps, { label: "Payments webhook", targetUrl: "https://user:synthetic-pass@example.test/hooks/payments?token=synthetic-token" });
     if (status === "paused") {
       await pauseSubscription({
         deps: { clock: deps.clock, repo: deps.webhookSubscriptionRepo, idGenerator: deps.idGen, isAllowedTarget: async () => true },
@@ -162,10 +162,13 @@ for (const status of ["active", "paused"] as const) {
     const { ui, exchangeId, pending } = await raiseDialog(deleteTool, subscription.id);
 
     assert.match(ui.resource.text, /Payments webhook/);
-    assert.match(ui.resource.text, /example\.test\/hooks\/payments/);
+    assert.match(ui.resource.text, /<dt>Target origin<\/dt>\s*<dd>https:\/\/example.test<\/dd>/);
+    for (const hidden of ["synthetic-pass", "synthetic-token", "/hooks/payments"]) assert.equal(ui.resource.text.includes(hidden), false);
+    assert.equal(ui.resource.text.includes("https://example.test/hooks/payments"), false);
     assert.match(ui.resource.text, /no un-delete/i);
-    assert.match(ui.resource.text, /<dt>Label<\/dt>\s*<dd>Payments webhook<\/dd>/);
-    assert.match(ui.resource.text, /<dt>Target URL<\/dt>\s*<dd>https:\/\/example\.test\/hooks\/payments<\/dd>/);
+    assert.match(ui.resource.text, /<dt>Webhook<\/dt>/);
+    assert.ok(ui.resource.text.includes(subscription.id));
+    assert.match(ui.resource.text, /order.created/);
     assert.match(ui.resource.text, new RegExp(`<dt>Current status</dt>\\s*<dd>${status}</dd>`));
 
     surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "cancel" } }, { toolId: DELETE_TOOL_ID });
@@ -301,4 +304,16 @@ test("a nonexistent subscription id is refused before any dialog is raised", asy
 
   await assert.rejects(() => call(deleteTool, { input: { subscriptionId: "nope" } }), /was not found/);
   assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("changed webhook target refuses a previously confirmed card without exposing URL credentials", async () => {
+  const deps = makeDeps();
+  const subscription = await seedSubscription(deps);
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
+  const { ui, pending } = await raiseDialog(deleteTool, subscription.id);
+  await deps.webhookSubscriptionRepo.save({ ...subscription, label: "Changed webhook" });
+  (({ toolId, ...required }) => surfaceExchanges.deliver(required, { toolId }))(buttonCall(ui, "confirm"));
+  await assert.rejects(pending, { message: "webhooks_delete_subscription: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+  assert.ok(await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id }));
 });

@@ -5,7 +5,7 @@ import { createPluginMemory, migratePluginLayout, assertPluginStatePath, withPlu
 import { withFileLock } from "@jini-ai/platform/fs/file-lock";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { assertContainedOnDisk } from "./lifecycle.js";
-import { resolveAgentPluginLayout, type AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "./layout.js";
 
 const effects = {
   filesystem,
@@ -15,8 +15,8 @@ const effects = {
     withFileLock({ lockPath, run }, { staleMs: Infinity, createParent: true }),
 };
 
-export function pluginMemory(required: { workspaceId: string; pluginId: string }, optional: { layout?: AgentPluginLayout } = {}): PluginMemory {
-  const workspaceRoot = (optional.layout ?? resolveAgentPluginLayout()).forWorkspace(required.workspaceId).root;
+export function pluginMemory(required: { workspaceId: string; pluginId: string }, optional: { layout: AgentPluginLayout }): PluginMemory {
+  const workspaceRoot = optional.layout.forWorkspace(required.workspaceId).root;
   return createPluginMemory({ ...effects, workspaceRoot, pluginId: required.pluginId });
 }
 export async function migrateAgentPluginLayout(required: { layout: AgentPluginLayout; workspaceId: string }, _optional: {} = {}) {

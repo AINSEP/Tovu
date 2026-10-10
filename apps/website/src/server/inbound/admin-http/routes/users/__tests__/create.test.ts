@@ -49,6 +49,7 @@ async function buildApp(
     tokens: base.tokens,
     ownerPrincipalId: base.ownerPrincipalId,
     isInTrash: base.isInTrash,
+    outbox: base.outbox,
     ...depsOverrides,
   };
   const app = express();

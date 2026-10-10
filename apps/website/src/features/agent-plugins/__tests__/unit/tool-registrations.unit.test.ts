@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -66,7 +67,7 @@ const WORKSPACE_A = "55555555-5555-4555-8555-555555555555";
  *  plugin, so the gate admits throughout; revocation itself — by disable AND by uninstall — is
  *  proved in `__tests__/integration/agent-plugin-tool-revocation.integration.test.ts`. */
 function gate() {
-  return createAgentPluginToolGate({ workspaceId: WORKSPACE_A });
+  return createAgentPluginToolGate(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
 }
 
 function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {
@@ -177,7 +178,7 @@ test("each installed plugin produces exactly one stable, collision-free tool id 
       "archive-basic",
     );
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.equal(sources.length, 1, "one plugin must produce exactly one tool source, not one per skill");
     const [source] = sources;
     assert.ok(source);
@@ -207,7 +208,7 @@ test("registerInstalledAgentPluginTools registers one guidance tool plus its sco
     await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-direct");
 
     const registry = createToolRegistry({});
-    await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_A });
+    await registerInstalledAgentPluginTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
 
     // Layout B (852d711e6) gives every plugin its own learned-memory read/write tools beside the
     // guidance tool (`memory-tools.ts`), each closed over that one plugin.
@@ -226,7 +227,7 @@ test("the input schema documents an optional 'skill' property whose enum names e
       "archive-schema",
     );
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
@@ -248,7 +249,7 @@ test("calling with no 'skill' argument returns the plugin's own eponymous skill 
       "archive-default-eponymous",
     );
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
@@ -274,7 +275,7 @@ test("when a plugin has no eponymous skill folder, the default falls back to its
       "archive-no-eponymous",
     );
 
-    const [source] = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const [source] = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.ok(source);
     assert.equal(source.defaultSkillName, "frontend-accessibility", "alphabetically first of the two installed skills");
     assert.match(source.description, /no eponymous skill folder/);
@@ -295,7 +296,7 @@ test("an explicit, recognized 'skill' argument returns that skill's own guidance
       "archive-explicit-skill",
     );
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
@@ -320,7 +321,7 @@ test("an unrecognized 'skill' argument falls back to the default skill gracefull
       "archive-unrecognized-skill",
     );
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
@@ -339,7 +340,7 @@ test("a malformed 'skill' argument (wrong type) or an unexpected extra field sti
   await withAgentPluginsDir(async () => {
     await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-shape");
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registration);
 
@@ -352,7 +353,7 @@ test("the handler returns the exact same guidance markdown readInstalledSkillMar
   await withAgentPluginsDir(async () => {
     await installRealPackage(WORKSPACE_A, "coffee-roastery", { "roast-profiles": "# Roast Profiles\n\nLight, medium, dark.\n" }, "archive-handler");
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [source] = sources;
     assert.ok(source);
 
@@ -384,7 +385,7 @@ test("SECURITY: no absolute host path appears in any registered tool's id, descr
     assert.ok(path.isAbsolute(agentPluginsDir));
     assert.ok(installed.packageRoot.startsWith(canonicalDir));
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const registrations = buildAgentPluginToolRegistrations(sources, gate());
     assert.ok(registrations.length > 0);
 
@@ -415,7 +416,7 @@ test("two installed digests of the same plugin id refuse that plugin loudly, wit
     // The ambiguous plugin itself is excluded, loudly (a console.warn naming it), but the call as a
     // whole no longer throws — see the isolation test below for why one bad plugin must not take
     // down every other installed plugin's tool.
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(sources, []);
   });
 });
@@ -427,7 +428,7 @@ test("a per-plugin resolution failure (digest ambiguity) is isolated to that plu
     await installRealPackage(WORKSPACE_A, "conflicted-plugin", { "conflicted-plugin": "# Variant B\n" }, "archive-isolation-conflict-b");
     await installRealPackage(WORKSPACE_A, "healthy-after", { "healthy-after": "# Healthy After\n" }, "archive-isolation-after");
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const pluginIds = sources.map((source) => source.pluginId);
 
     assert.ok(pluginIds.includes("healthy-before"), "a healthy plugin installed BEFORE the conflicted one must still get a tool source");
@@ -442,14 +443,14 @@ test("workspace isolation: a load for workspace A sees nothing installed only un
     const WORKSPACE_OTHER = "66666666-6666-4666-8666-666666666666";
     await installRealPackage(WORKSPACE_OTHER, "only-in-other", { "only-in-other": "# Only\n" }, "archive-tenancy");
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(sources, []);
   });
 });
 
 test("an empty (never-installed) workspace produces zero sources and an empty registration list, no throw", async () => {
   await withAgentPluginsDir(async () => {
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(sources, []);
     assert.deepEqual(buildAgentPluginToolRegistrations(sources, gate()), []);
   });
@@ -465,7 +466,7 @@ for (const revocation of ["disable", "uninstall", "unreadable-activation"] as co
     await withAgentPluginsDir(async () => {
       await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, `archive-policy-${revocation}`);
       const registry = createToolRegistry({});
-      await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_A });
+      await registerInstalledAgentPluginTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
       const executor = createToolExecutor({ registry });
       const invoke = () => executor.execute({ principal: { id: "principal-1" }, run: { id: "run-1" }, toolId: "agent_plugin_coffee_roastery", input: {} });
       assert.equal((await invoke()).status, "completed");
@@ -488,17 +489,17 @@ test("the registered connect handler resolves a real installed plugin and recogn
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);
     const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z") };
-    const plugin = await defaultResolveInstalledAgentPlugin(WORKSPACE_A, "supabase");
+    const plugin = await defaultResolveInstalledAgentPlugin({ workspaceId: WORKSPACE_A, pluginId: "supabase", agentPluginLayout: testSiteLayoutContext({}).agentPluginLayout });
     assert.ok(plugin);
     await provisionAgentPluginMcpServers({ repo, keyring, sealer, clock }, { workspaceId: WORKSPACE_A, pluginId: "supabase", servers: plugin.servers, principalId: "owner" });
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "supabase" }))!;
     await repo.upsert({ ...row, oauthStatus: "connected" });
-    const registrations = buildAgentPluginConnectRegistrations({
+    const registrations = buildAgentPluginConnectRegistrations(testSiteLayoutContext({
       workspaceId: WORKSPACE_A, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring, clock,
       authorize: async () => ({ allowed: true, reason: "test" }),
       customCredentialsHttpClient: { send: async () => assert.fail("an MCP plugin connect never probes a token") },
       externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), completeAuthorizationCallback: async () => assert.fail("no callback"), pollDeviceAuthorization: async () => assert.fail("no device flow"), disconnect: async () => assert.fail("no disconnect"), reportAuthFailure: async () => assert.fail("no auth failure"), tokenResolver: { resolveAccessToken: async () => assert.fail("no token resolve") } },
-    }, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
+    }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");
     assert.ok(connect);
     assert.deepEqual(await invokeFixtureHandler(connect, fakeCtx({ pluginId: "supabase" })), { status: "connected" });

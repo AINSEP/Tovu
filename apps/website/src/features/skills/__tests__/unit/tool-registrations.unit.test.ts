@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -105,7 +106,7 @@ test("an installed skill folder produces exactly one tool with id 'skill_<name>'
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "incident-response", { "SKILL.md": INCIDENT_RESPONSE_SKILL_MD });
 
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.equal(sources.length, 1);
     const [source] = sources;
     assert.ok(source);
@@ -129,7 +130,7 @@ test("a skill name containing spaces and mixed case sanitizes into a legal, pred
       "SKILL.md": `---\nname: My Weird Skill!!\ndescription: Does something.\n---\n\n# Body\n`,
     });
 
-    const [source] = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const [source] = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.ok(source);
     assert.equal(source.id, "skill_my_weird_skill");
   });
@@ -140,7 +141,7 @@ test("a folder with no SKILL.md is skipped, and other folders in the same worksp
     await mkdir(path.join(skillsDir, "ws", WORKSPACE_A, "empty-folder"), { recursive: true });
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.equal(sources.length, 1);
     assert.equal(sources[0]?.id, "skill_code_review");
   });
@@ -151,7 +152,7 @@ test("a folder whose SKILL.md has no frontmatter at all is skipped, not fatal to
     await writeSkill(skillsDir, WORKSPACE_A, "no-frontmatter", { "SKILL.md": "# Just a heading\n\nSome prose.\n" });
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.equal(sources.length, 1);
     assert.equal(sources[0]?.id, "skill_code_review");
   });
@@ -162,7 +163,7 @@ test("a folder whose frontmatter is missing 'description' is skipped, not fatal 
     await writeSkill(skillsDir, WORKSPACE_A, "no-description", { "SKILL.md": "---\nname: incomplete\n---\n\n# Body\n" });
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.equal(sources.length, 1);
     assert.equal(sources[0]?.id, "skill_code_review");
   });
@@ -173,7 +174,7 @@ test("a folder whose frontmatter is missing 'name' is skipped, not fatal to the 
     await writeSkill(skillsDir, WORKSPACE_A, "no-name", { "SKILL.md": "---\ndescription: Something.\n---\n\n# Body\n" });
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.equal(sources.length, 1);
     assert.equal(sources[0]?.id, "skill_code_review");
   });
@@ -185,7 +186,7 @@ test("two installed skill folders declaring the same frontmatter name refuse lou
     await writeSkill(skillsDir, WORKSPACE_A, "folder-two", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
     await assert.rejects(
-      () => loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A }),
+      () => loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A })),
       /'code-review' is declared by more than one installed skill folder \('folder-one' and 'folder-two'\)/,
     );
   });
@@ -194,7 +195,7 @@ test("two installed skill folders declaring the same frontmatter name refuse lou
 test("the handler returns the exact SKILL.md body, unmodified", async () => {
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "incident-response", { "SKILL.md": INCIDENT_RESPONSE_SKILL_MD });
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildSkillToolRegistrations(sources);
     assert.ok(registration);
     const result = (await registration.handler(fakeCtx())) as { guidance: string };
@@ -214,7 +215,7 @@ test("the handler lists bundled references/scripts/assets files by site-relative
       "assets/nested/icon.svg": "ASSET_CANARY",
     });
 
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildSkillToolRegistrations(sources);
     assert.ok(registration);
     const result = (await registration.handler(fakeCtx())) as {
@@ -249,7 +250,7 @@ test("the handler lists bundled references/scripts/assets files by site-relative
 test("a skill with no bundled subdirectories at all returns an empty bundledFiles list, no error", async () => {
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildSkillToolRegistrations(sources);
     assert.ok(registration);
     const result = (await registration.handler(fakeCtx())) as { bundledFiles: readonly unknown[] };
@@ -260,7 +261,7 @@ test("a skill with no bundled subdirectories at all returns an empty bundledFile
 test("the input schema accepts no arguments, and a populated input throws via requireNoInput", async () => {
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const [registration] = buildSkillToolRegistrations(sources);
     assert.ok(registration);
 
@@ -278,7 +279,7 @@ test("the input schema accepts no arguments, and a populated input throws via re
 test("skillToolDerivedRisk classifies every source as 'none' — a pure local read, same as agent-plugin tools", async () => {
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     const risk = skillToolDerivedRisk(sources);
     assert.equal(risk.get("skill_code_review"), "none");
   });
@@ -290,7 +291,7 @@ test("registerInstalledSkillTools loads and registers one tool per skill directl
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
     const registry = createToolRegistry({});
-    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
 
     assert.equal(registry.has({ toolId: "skill_incident_response" }), true);
     assert.equal(registry.has({ toolId: "skill_code_review" }), true);
@@ -302,14 +303,14 @@ test("workspace isolation: a load for workspace A sees nothing installed only un
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, "workspace-other", "only-in-other", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(sources, []);
   });
 });
 
 test("an empty (never-installed) workspace produces zero sources and an empty registration list, no throw", async () => {
   await withSkillsDir(async () => {
-    const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(sources, []);
     assert.deepEqual(buildSkillToolRegistrations(sources), []);
   });
@@ -322,7 +323,7 @@ for (const [name, scalar, expected] of [
   test(`real skill loader resolves ${name} YAML descriptions for registration`, async () => {
     await withSkillsDir(async (skillsDir) => {
       await writeSkill(skillsDir, WORKSPACE_A, name, { "SKILL.md": `---\nname: ${name}\ndescription: ${scalar}\n  First line.\n  Second line.\n---\n# Body\n` });
-      const sources = await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A });
+      const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
       const registry = createToolRegistry({});
       for (const registration of buildSkillToolRegistrations(sources)) registry.register(registration);
       assert.deepEqual(registry.list({}).map(({ id, description }) => ({ id, description })), [{ id: `skill_${name}`, description: expected }]);
@@ -334,7 +335,7 @@ test("different skill names that sanitize to the same tool id refuse loudly", as
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "folder-a", { "SKILL.md": "---\nname: a-b\ndescription: Hyphen.\n---\n" });
     await writeSkill(skillsDir, WORKSPACE_A, "folder-b", { "SKILL.md": "---\nname: a_b\ndescription: Underscore.\n---\n" });
-    await assert.rejects(() => loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A }),
+    await assert.rejects(() => loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A })),
       /folder-a.*folder-b.*same tool id 'skill_a_b'/);
   });
 });
@@ -343,16 +344,16 @@ test("different skill names that sanitize to the same tool id refuse loudly", as
 test("refreshing installed skills adds, updates, removes and re-adds without a restart", async () => {
   await withSkillsDir(async (skillsDir) => {
     const registry = createToolRegistry({});
-    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
-    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(registry.list({}).map(d => d.id), ["skill_code_review"]);
     await rm(path.join(skillsDir, "ws", WORKSPACE_A, "code-review"), { recursive: true });
-    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(registry.list({}).map(d => d.id), []);
     assert.equal(registry.has({ toolId: "skill_code_review" }), false);
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD.replace("Code Review", "Updated Rules") });
-    await registerInstalledSkillTools(registry, { workspaceId: WORKSPACE_A });
+    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(registry.list({}).map(d => d.id), ["skill_code_review"]);
   });
 });
@@ -361,10 +362,10 @@ test("a skill bundledFiles pointer chains directly into the real fs_read_file ha
   const { buildFsFilesRegistrations } = await import("../../../fs-files/tool-registrations.js");
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD, "references/check.md": "Check ownership before deleting.\n" });
-    const [registration] = buildSkillToolRegistrations(await loadInstalledSkillToolSources({ workspaceId: WORKSPACE_A }));
+    const [registration] = buildSkillToolRegistrations(await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A })));
     const output = await registration!.handler(fakeCtx()) as { bundledFiles: { kind: string; root: string; path: string }[] };
     assert.equal(output.bundledFiles[0]!.root, "site");
-    const fsTools = buildFsFilesRegistrations({ workspaceId: WORKSPACE_A, authorize: async () => ({ allowed: true, reason: "test" }), resolveRoots: () => ({ site: path.dirname(skillsDir), repo: undefined, custom: undefined }) });
+    const fsTools = buildFsFilesRegistrations(testSiteLayoutContext({ workspaceId: WORKSPACE_A, authorize: async () => ({ allowed: true, reason: "test" }), resolveRoots: () => ({ site: path.dirname(skillsDir), repo: undefined, custom: undefined }) }));
     const reader = fsTools.find(t => t.descriptor.id === "fs_read_file")!;
     const { root, path: filePath } = output.bundledFiles[0]!;
     assert.deepEqual(await reader.handler(fakeCtx({ root, path: filePath })), { root: "site", path: filePath, content: "Check ownership before deleting.\n", bytes: 33 });

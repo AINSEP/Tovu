@@ -1,3 +1,4 @@
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { cp, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
@@ -29,7 +30,7 @@ async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgen
 test("seeded from this build, the installed github-actions adapter exports deploy and fly stays observe-only", async () => {
   await withAgentPluginsDir(async layout => {
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    const registry = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
     assert.equal(typeof registry.get("github-actions")?.module.deploy, "function");
     assert.equal(registry.get("fly")?.module.deploy, undefined);
@@ -47,7 +48,7 @@ test("upgrade: a site holding the previous deploy digest loads the changed adapt
       await writeFile(modulePath, source.replace("export default { status, logs, deploy };", "export default { status, logs, deploy, nextBuild: true };"));
       await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
       assert.equal((await readdir(layout.forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: "deploy" }))).length, 2, "the superseded digest stays on disk; the ledger must pick the new one");
-      const registry = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID });
+      const registry = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
       assert.deepEqual(registry.refusals, []);
       const loaded = registry.get("github-actions")!.module as unknown as { nextBuild?: boolean; deploy?: unknown };
       assert.equal(loaded.nextBuild, true);

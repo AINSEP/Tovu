@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decodeSkillBase64, SkillInputError, validateSkillFiles, validateSkillMarkdown, validateSkillPath } from "../../validation.js";
+import * as skills from "@jini-ai/agentic/skills/install";
+import { SkillInputError } from "@jini-ai/agentic/skills/install";
+import { yamlReader } from "../../install-adapters.js";
+const decodeSkillBase64 = (value: string, maxBytes = skills.MAX_SKILL_BYTES) => skills.decodeSkillBase64({ value }, { maxBytes });
+const validateSkillPath = (filePath: string) => skills.validateSkillPath({ filePath });
+const validateSkillMarkdown = (markdown: string) => skills.validateSkillMarkdown({ markdown, yamlReader });
+const validateSkillFiles = (files: readonly skills.SkillUploadFile[]) => skills.validateSkillFiles({ files, yamlReader });
 
 // Direct tests for the skill package validator. install-service.unit.test.ts covers a handful of
 // refusals end to end; these pin every rule, its exact message and the accepted shapes.

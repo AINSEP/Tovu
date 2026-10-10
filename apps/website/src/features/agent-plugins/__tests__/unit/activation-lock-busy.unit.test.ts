@@ -1,3 +1,4 @@
+import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -29,7 +30,7 @@ const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
 const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
 // Inject native effects once; every writer and seed preflight uses the same lifecycle owner.
-const lifecycle = createTovuAgentPluginLifecycle({}, {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
   filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 const { assertAgentPluginActivationsWritable, deleteAgentPluginActivation, recordBundledAgentPluginIfAbsent, setAgentPluginActivation, seedBundledAgentPlugins, listInstalledPlugins } = lifecycle;

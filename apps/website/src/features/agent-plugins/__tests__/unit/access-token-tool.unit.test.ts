@@ -1,7 +1,8 @@
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../../__tests__/support/credential-save.js";
 import { saveAgentPluginToken } from "../../access-token-tool.js";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryExternalMcpServerRepo, readEnabledExternalMcpConfigs, saveExternalMcpServer, type UIResource } from "#src/assistant/index";
@@ -28,6 +29,9 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * vendor's probe endpoint is faked. A submission is simulated with `surfaceExchanges.deliver(...)`,
  * exactly as `mcp-ui-tool-calls-route.ts` delivers a human's click.
  */
+
+const siteLayouts = createTempSiteLayoutFixture({});
+after(siteLayouts.cleanup);
 
 const WORKSPACE = "ws-access-token";
 const PRINCIPAL = "principal-1";
@@ -87,7 +91,7 @@ async function setup(
     },
   );
   const servers = options.servers === undefined ? SUPABASE_SERVERS : options.servers;
-  const deps: AgentPluginAccessTokenToolDeps = {
+  const deps: AgentPluginAccessTokenToolDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     workspaceId: WORKSPACE,
     authorize: (async () => ({ allowed: !options.permissionDenied, reason: options.permissionDenied ? "no_grant" : "matched" })) as unknown as AgentPluginAccessTokenToolDeps["authorize"],
     clock,
@@ -106,7 +110,7 @@ async function setup(
     isPluginOffByOperator: async () => options.pluginOffByOperator === true,
     // Never the real activations file (switch-on-saved-token.unit.test.ts covers that one).
     switchPluginOn: async () => options.pluginOffByOperator !== true,
-  };
+  });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tools = new Map(credentialSaveFixtureRegistrations({ registrations: buildAgentPluginConnectRegistrations(deps, { surfaceExchanges }), adapters: { agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps: deps, surfaces: { surfaceExchanges } }, optional) } }).map((r) => [r.descriptor.id, r]));
   const readRow = () => repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" });

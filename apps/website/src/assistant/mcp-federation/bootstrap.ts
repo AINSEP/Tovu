@@ -1,3 +1,4 @@
+import { createFederatedMcpPresetRegistry, resolveFederatedMcpPresets, type FederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 // Boot-loop implementation and rationale: Jini/packages/mcp/src/federation/bootstrap.ts.
 import { attachFederatedMcpTools as attachJiniTools } from "@jini-ai/mcp/federation";
 import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
@@ -5,7 +6,7 @@ import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
 import { createDefaultConnect as createJiniConnect, stdioLaunchResolverFromEnv, type McpStdioLaunchResolver, type ResolvedStdioLaunch, type StdioLaunchResolverFromEnvOptions } from "@jini-ai/mcp/federation/stdio";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpSessionPort, McpStdioChannel } from "@jini-ai/mcp/federation";
-import { listFederatedMcpPresets, tovuFederationMessages, TOVU_MCP_CLIENT_INFO } from "./presets.js";
+import { tovuFederationMessages, TOVU_MCP_CLIENT_INFO } from "./presets.js";
 import { buildFederatedMcpRegistrations, toJiniFederationDeps, type FederationDeps } from "./registrations.js";
 // The shared admission report is canonical in Jini; the host registration adapter does not redeclare it.
 import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
@@ -91,6 +92,7 @@ export interface AttachFederatedToolsResult {
  * @overallScore 100
  */
 export interface AttachFederatedMcpToolsParams {
+  readonly presetRegistry?: FederatedMcpPresetRegistry;
   registry: ToolRegistry;
   deps: FederationDeps;
   connections?: readonly ResolvedFederatedConnection[];
@@ -163,7 +165,7 @@ function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
     resolve: ({ spec }) => tovuStdioLaunchResolverFromEnv(env).resolve({ spec }),
   };
   const connect = params.connect ?? createDefaultConnect({ resolver: stdioLaunchResolver }, { logger });
-  const presetConnections = params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger);
+  const presetConnections = params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger, params.presetRegistry ?? createFederatedMcpPresetRegistry({}));
   const connections = [
     ...presetConnections.map((connection): OriginTaggedConnection => ({ connection: withPresetOrigin(connection), isPreset: true })),
     ...(params.extraConnections ?? []).map((connection): OriginTaggedConnection => ({ connection, isPreset: false })),
@@ -215,7 +217,7 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
       return session;
     },
   }, {
-    // Host presets resolve here, not in Jini's independent registry. Presets still get first claim.
+    // Resolve the injected host instance once; presets retain first claim over roster entries.
     connections: connections.filter(entry => entry.isPreset).map(entry => entry.connection),
     extraConnections: connections.filter(entry => !entry.isPreset).map(entry => entry.connection),
     env: params.env ?? process.env,
@@ -239,21 +241,8 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
  * A preset that declines (`null`) is silent: "not configured" is the expected default state, and
  * logging it every boot would train operators to ignore this channel.
  */
-function resolveRegisteredPresets(env: NodeJS.ProcessEnv, logger: FederationLogger): ResolvedFederatedConnection[] {
-  const connections: ResolvedFederatedConnection[] = [];
-
-  for (const preset of listFederatedMcpPresets()) {
-    try {
-      const connection = preset.resolve(env);
-      if (connection) connections.push(connection);
-    } catch (error) {
-      logger.warn(
-        `mcp-federation: preset '${preset.presetId}' configuration is invalid, continuing without federated tools — ${messageOf(error)}`,
-      );
-    }
-  }
-
-  return connections;
+function resolveRegisteredPresets(env: NodeJS.ProcessEnv, logger: FederationLogger, registry: FederatedMcpPresetRegistry): ResolvedFederatedConnection[] {
+  return resolveFederatedMcpPresets({ env, registry, logger: { warn: ({ message }) => logger.warn(message) } });
 }
 
 /** Bind Tovu's client identity, presentation and optional host channel to Jini's bounded factory.

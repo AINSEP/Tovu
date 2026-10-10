@@ -71,7 +71,7 @@ function secretTools(required: { platforms: string[]; target: Record<string, unk
     },
     {
       name: "deployment_ops_unset_secret",
-      description: `Remove a secret (environment variable) from a hosted app. Always asks the human to confirm on a card first; a name that is not set is reported, not removed. Returns platform, target, name, removed, appliesOn, supportsStaging, deployNeeded, optional version and summary; a declined card returns removed:false with cancelled/reason/note. When deployNeeded is true the running app keeps the variable until deployment_ops_deploy runs.${common}`,
+      description: `Remove a secret (environment variable) from a hosted app. Always asks the human to confirm on a card first; a name that is not set is reported, not removed. If the provider cannot list the secret with a digest or update timestamp, remove it in the provider console; Tovu has no admin screen for this operation. Returns platform, target, name, removed, appliesOn, supportsStaging, deployNeeded, optional version and summary; a declined card returns removed:false with cancelled/reason/note. When deployNeeded is true the running app keeps the variable until deployment_ops_deploy runs.${common}`,
       sideEffects: "deletes-durable-state",
       authorization: { permission: "custom-credentials.write" },
       inputSchema: { type: "object", additionalProperties: false, properties: { ...targetProps, name }, required: ["platform", "target", "name"] },

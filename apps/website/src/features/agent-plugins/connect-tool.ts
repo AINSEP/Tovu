@@ -19,7 +19,7 @@ import { buildAgentPluginConnectCard } from "./connect-card-ui.js";
 import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from "./federate-mcp.js";
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
-import { resolveAgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
 
@@ -113,13 +113,13 @@ export interface ResolvedAgentPluginForConnect {
  *  plugin's worth of exports just to reach the one function; both read `mcp.json` off the winning
  *  (bundled-preferred) installed digest for a pluginId. Returns `null` for a pluginId not installed
  *  in this workspace. */
-export async function defaultResolveInstalledAgentPlugin(workspaceId: string, pluginId: string): Promise<ResolvedAgentPluginForConnect | null> {
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
+export async function defaultResolveInstalledAgentPlugin(input: { workspaceId: string; pluginId: string; agentPluginLayout: AgentPluginLayout }, _options = {}): Promise<ResolvedAgentPluginForConnect | null> {
+  const workspaceLayout = input.agentPluginLayout.forWorkspace(input.workspaceId);
   const installed = preferBundledAgentPluginDigests(
     await listInstalledPlugins(workspaceLayout.root),
     await readBundledAgentPluginDigests(workspaceLayout.root),
   );
-  const plugin = installed.find((candidate) => candidate.pluginId === pluginId);
+  const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
   if (!plugin) return null;
   return { servers: await readInstalledMcpServers(plugin.packageRoot) };
 }
@@ -182,6 +182,7 @@ function sleepOrAbort(ms: number, signal: AbortSignal): Promise<void> {
  *  wiring anywhere a `RouteDeps`-shaped bag is already assembled. `externalMcpOAuth` is optional for
  *  the identical reason that file gives — checked at the top of the handler, fail-closed. */
 export interface AgentPluginConnectToolDeps {
+  readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: UUID;
   readonly authorize: AuthorizeFn;
   readonly clock: ClockPort;
@@ -295,7 +296,7 @@ export async function runAgentPluginConnect(
 ): Promise<{ readonly status: "connected" | "waiting-for-sign-in" }> {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: AGENT_PLUGIN_CONNECT_PERMISSION }, { entityType: "agent-plugin", entityId: pluginId });
 
-  const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin(routeDeps.workspaceId, id));
+  const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId: id, agentPluginLayout: routeDeps.agentPluginLayout }));
   const plugin = await resolvePlugin(pluginId);
   if (!plugin) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' is not an installed Agent Plugin in this workspace.` });

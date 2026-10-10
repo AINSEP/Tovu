@@ -1,4 +1,6 @@
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
+import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
+import { openNativeSqlite } from "../kernel/drivers/sqlite.js";
 
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
 import { SQLITE_CHAT_STATEMENTS } from "../migrations/chat/0001_sqlite_chat_tables.js";
@@ -25,8 +27,10 @@ import { migrateChatDatabase } from "../migrations/index.js";
  */
 
 /** Opens (or creates) `chat.db` with the pragmas `content-db.ts` sets — no schema, no write. */
-function openChatConnection(filePath: string): Database.Database {
-  const sqlite = new Database(filePath);
+export interface ChatDbOpenOptions { readonly open?: SqliteSyncOpener<Database.Database> }
+
+function openChatConnection(filePath: string, { open = openNativeSqlite }: ChatDbOpenOptions = {}): Database.Database {
+  const sqlite = open(filePath, {});
   sqlite.pragma("journal_mode = WAL");
   // Required for `ai_chat_messages`' and `assistant_agent_sessions`' `ON DELETE CASCADE` to fire.
   sqlite.pragma("foreign_keys = ON");
@@ -41,8 +45,9 @@ function openChatConnection(filePath: string): Database.Database {
  * `createChatStoreFactory`/`createSqliteAgentSessionStore` take (none of the chat tables has a
  * `sqliteTable` declaration, by design: `RAW_SQL_MANAGED_TABLES` in `schema-migration-drift.test.ts`).
  */
-export async function openSiteChatDb(filePath: string): Promise<Database.Database> {
-  const sqlite = openChatConnection(filePath);
+export async function openSiteChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): Promise<Database.Database> {
+  const filePath = typeof required === "string" ? required : required.filePath;
+  const sqlite = openChatConnection(filePath, options);
   try {
     await migrateChatDatabase(sqliteKernel<unknown>(sqlite));
   } catch (err) {
@@ -59,8 +64,9 @@ export async function openSiteChatDb(filePath: string): Promise<Database.Databas
  *
  * @complexity O(1) — one connection open plus a fixed number of DDL statements.
  */
-export function openChatDb(filePath: string): Database.Database {
-  const sqlite = openChatConnection(filePath);
+export function openChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): Database.Database {
+  const filePath = typeof required === "string" ? required : required.filePath;
+  const sqlite = openChatConnection(filePath, options);
   for (const statement of SQLITE_CHAT_STATEMENTS) sqlite.exec(statement);
   for (const statement of durableRunStatements({ dialect: "sqlite" }, {})) sqlite.exec(statement);
   return sqlite;

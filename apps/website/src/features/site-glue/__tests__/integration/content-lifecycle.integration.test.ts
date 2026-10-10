@@ -2,8 +2,8 @@ import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { attachGlueContentLifecycle } from "../../attachment-points/content-lifecycle.js";
-import type { GlueContentLifecycleFilter, GlueFieldDecl, GlueHostPort } from "../../ports.js";
+import { attachGlueContentLifecycle, type AttachGlueContentLifecycleRequired } from "@jini-ai/plugins/glue";
+import type { GlueContentLifecycleFilter, GlueFieldDecl } from "../../ports.js";
 import { attachLoadedPlugin } from "@jini-ai/plugins/host";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import type { ContentEntryDraft } from "@tovu/sdk";
@@ -38,16 +38,16 @@ function draft(overrides: Partial<ContentEntryDraft> = {}): ContentEntryDraft {
 /** A worked example of a real `GlueHostPort.attachContentLifecycleFilter` implementation, wired to
  * a live `hookRegistry` via `attachLoadedPlugin` — this is what the host's composition root is
  * expected to do; site-glue's own core never does this itself (see file header). */
-function makeRealHostPort(hookRegistry: ReturnType<typeof createHookRegistry>): Pick<GlueHostPort, "attachContentLifecycleFilter"> {
+function makeRealHostPort(hookRegistry: ReturnType<typeof createHookRegistry>): AttachGlueContentLifecycleRequired<GlueContentLifecycleFilter>["hostPort"] {
   return {
-    attachContentLifecycleFilter(moduleId, filter, declaredFields) {
+    attachContentLifecycleFilter({ moduleId, filter, declaredFields }) {
       attachLoadedPlugin({
         pluginId: moduleId,
         source: "glue",
         hookRegistry,
         // Adapt the glue-vocabulary filter (ctx.moduleId) to hook-registry's own ctx shape
         // (ctx.pluginId) — this translation is real, host-specific glue, deliberately not owned by
-        // site-glue's own product-neutral `content-lifecycle.ts`.
+        // Jini's product-neutral `glue/attachment-points/content-lifecycle.ts`.
         filter: (entry, ctx) => filter(entry as Parameters<GlueContentLifecycleFilter>[0], { moduleId: ctx.pluginId, workspaceId: ctx.workspaceId }),
         declaredFields: declaredFields.map((f) => ({ path: `ext.${moduleId}.${f.path}`, type: f.type })),
       });

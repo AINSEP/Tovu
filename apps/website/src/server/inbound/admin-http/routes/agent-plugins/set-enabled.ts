@@ -136,7 +136,7 @@ async function provisionAgentPluginMcpServersBestEffort(
   input: { readonly pluginId: string; readonly principalId: string },
 ): Promise<void> {
   try {
-    const servers = await resolveAgentPluginMcpServers({ workspaceId: deps.workspaceId, pluginId: input.pluginId });
+    const servers = await resolveAgentPluginMcpServers({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId: input.pluginId });
     const result = await provisionAgentPluginMcpServers(
       { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
       { workspaceId: deps.workspaceId, pluginId: input.pluginId, servers, principalId: input.principalId },
@@ -248,14 +248,14 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
       )
         return;
 
-      const candidates = await loadAgentPluginSearchCandidates({ workspaceId: deps.workspaceId });
+      const candidates = await loadAgentPluginSearchCandidates(deps);
       const candidate = candidates.find((entry) => entry.pluginId === pluginId);
       if (candidate === undefined) {
         res.status(404).json({ error: `agent plugin '${pluginId}' is not installed in this workspace`, code: "AGENT_PLUGIN_NOT_FOUND" });
         return;
       }
 
-      const written = await (deps.setAgentPluginEnabled ?? setAgentPluginEnabled)({ workspaceId: deps.workspaceId, pluginId, enabled, actor: principal.id });
+      const written = await (deps.setAgentPluginEnabled ?? setAgentPluginEnabled)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId, enabled, actor: principal.id });
 
       // Provisioning only ever runs on enable — disabling has nothing to provision, and a
       // previously-provisioned row survives a disable untouched (`federate-mcp.ts`'s own header).

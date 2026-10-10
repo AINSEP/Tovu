@@ -13,8 +13,8 @@ import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS, resolveFsRoots } from "../layout.js";
  * for the given `workspaceId` — `undefined` until an operator sets one (or no `workspaceId` is given
  * at all), the real directory afterward.
  *
- * `siteDir` is set through `env.TOVU_SITE_DIR` in every test that touches `custom`, so
- * `resolveFsRoots`'s own `resolveSiteRoot({ cwd, env })` call — and therefore
+ * `siteDir` is explicitly injected in every test that touches `custom`, so
+ * the booted site binding — and therefore
  * `custom-root-store.ts`'s persistence file — lands in a temp directory, never the real site.
  */
 
@@ -38,7 +38,7 @@ test("FS_ROOT_DESCRIPTORS has one entry per FS_ROOT_IDS id, none blank", () => {
 
 test("resolveFsRoots resolves repo and site exactly as before custom existed", () => {
   const siteDir = freshSiteDir();
-  const roots = resolveFsRoots({ cwd: siteDir, env: { TOVU_SITE_DIR: siteDir } });
+  const roots = resolveFsRoots({ siteDir });
   assert.equal(roots.repo, path.resolve(import.meta.dirname, "../../../../../.."));
   assert.equal(roots.site, siteDir);
   assert.notEqual(roots.repo, roots.site);
@@ -49,13 +49,13 @@ test("resolveFsRoots resolves repo and site exactly as before custom existed", (
 });
 
 test("resolveFsRoots reports custom as undefined when no workspaceId is given at all", () => {
-  const roots = resolveFsRoots();
+  const roots = resolveFsRoots({ siteDir: freshSiteDir() });
   assert.equal(roots.custom, undefined);
 });
 
 test("resolveFsRoots reports custom as undefined when no operator folder has been set for that workspace", () => {
   const siteDir = freshSiteDir();
-  const roots = resolveFsRoots({ env: { TOVU_SITE_DIR: siteDir }, workspaceId: WORKSPACE_ID });
+  const roots = resolveFsRoots({ siteDir, workspaceId: WORKSPACE_ID });
   assert.equal(roots.custom, undefined);
 });
 
@@ -64,9 +64,9 @@ test("resolveFsRoots reflects a custom root the moment it is set — no caching 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-layout-custom-"));
   const env = { TOVU_SITE_DIR: siteDir };
 
-  assert.equal(resolveFsRoots({ env, workspaceId: WORKSPACE_ID }).custom, undefined);
+  assert.equal(resolveFsRoots({ siteDir, workspaceId: WORKSPACE_ID }).custom, undefined);
   setCustomFsRoot(WORKSPACE_ID, dir, { siteDir });
-  assert.equal(resolveFsRoots({ env, workspaceId: WORKSPACE_ID }).custom, fs.realpathSync(dir));
+  assert.equal(resolveFsRoots({ siteDir, workspaceId: WORKSPACE_ID }).custom, fs.realpathSync(dir));
 });
 
 test("resolveFsRoots reflects clearing the custom root back to undefined", () => {
@@ -75,9 +75,9 @@ test("resolveFsRoots reflects clearing the custom root back to undefined", () =>
   const env = { TOVU_SITE_DIR: siteDir };
 
   setCustomFsRoot(WORKSPACE_ID, dir, { siteDir });
-  assert.notEqual(resolveFsRoots({ env, workspaceId: WORKSPACE_ID }).custom, undefined);
+  assert.notEqual(resolveFsRoots({ siteDir, workspaceId: WORKSPACE_ID }).custom, undefined);
   setCustomFsRoot(WORKSPACE_ID, null, { siteDir });
-  assert.equal(resolveFsRoots({ env, workspaceId: WORKSPACE_ID }).custom, undefined);
+  assert.equal(resolveFsRoots({ siteDir, workspaceId: WORKSPACE_ID }).custom, undefined);
 });
 
 test("resolveFsRoots keeps two workspaces' custom roots independent", () => {
@@ -86,8 +86,8 @@ test("resolveFsRoots keeps two workspaces' custom roots independent", () => {
   const env = { TOVU_SITE_DIR: siteDir };
 
   setCustomFsRoot(WORKSPACE_ID, dirA, { siteDir });
-  assert.equal(resolveFsRoots({ env, workspaceId: "workspace-b" }).custom, undefined);
-  assert.equal(resolveFsRoots({ env, workspaceId: WORKSPACE_ID }).custom, fs.realpathSync(dirA));
+  assert.equal(resolveFsRoots({ siteDir, workspaceId: "workspace-b" }).custom, undefined);
+  assert.equal(resolveFsRoots({ siteDir, workspaceId: WORKSPACE_ID }).custom, fs.realpathSync(dirA));
 
   resetCustomFsRootForTests({ siteDir });
 });

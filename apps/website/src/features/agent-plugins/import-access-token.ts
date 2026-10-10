@@ -2,7 +2,7 @@ import { resolveTarget, saveStaticAccessToken, type AgentPluginTokenTargetDeps }
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { hasStoredAgentPluginCredential } from "./connect-tool.js";
-import { resolveAgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "./layout.js";
 import type { McpServerConfig } from "./mcp-metadata.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import { AGENT_PLUGINS_SCREEN, switchOnSavedTokenConnection, type SwitchOnSavedTokenDeps } from "./switch-on-saved-token.js";
@@ -86,8 +86,8 @@ export interface InstalledAgentPluginServers {
 }
 
 /** Every installed plugin in the workspace, one per id (the bundled-preferred digest). */
-export async function listInstalledAgentPluginServers(workspaceId: string): Promise<readonly InstalledAgentPluginServers[]> {
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(workspaceId);
+export async function listInstalledAgentPluginServers(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout }, _options = {}): Promise<readonly InstalledAgentPluginServers[]> {
+  const workspaceLayout = input.agentPluginLayout.forWorkspace(input.workspaceId);
   const ledger = await readBundledAgentPluginDigests(workspaceLayout.root);
   const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(workspaceLayout.root), ledger);
   const seen = new Set<string>();
@@ -139,7 +139,7 @@ export async function importAgentPluginAccessTokensFromEnv(
 ): Promise<void> {
   let plugins: readonly InstalledAgentPluginServers[];
   try {
-    plugins = await (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps.workspaceId)))();
+    plugins = await (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))();
   } catch (err) {
     log.warn(`[agent-plugins] could not list plugins to import env tokens: ${err instanceof Error ? err.message : String(err)}`);
     return;

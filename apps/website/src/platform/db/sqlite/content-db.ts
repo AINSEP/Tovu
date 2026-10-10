@@ -2,11 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
+import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import { closeSqliteConnection, sqliteKernel } from "../kernel/drivers/sqlite.js";
+import { closeSqliteConnection, sqliteKernel, openNativeSqlite } from "../kernel/drivers/sqlite.js";
 import { migrateContentDatabase, type MigrationReport } from "../migrations/index.js";
 import * as schema from "../schema.sqlite.js";
 import { bootstrapFreshContentDb } from "./fresh-content-db.js";
@@ -66,8 +67,11 @@ export interface ContentDbSeedData {
  * uses this so crash recovery (ADR-023 §2) can read the plugin migration journal before
  * {@link migrateSqliteContentFile} touches the schema.
  */
-export function openSqliteContentConnection(filePath: string): ContentDb {
-  const sqlite = new Database(filePath);
+export interface ContentDbOpenOptions { readonly open?: SqliteSyncOpener<Database.Database> }
+
+export function openSqliteContentConnection(required: string | { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
+  const filePath = typeof required === "string" ? required : required.filePath;
+  const sqlite = open(filePath, {});
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   // SPEC-033 — defense in depth alongside `store-plugin.ts`'s identical fix: this connection can
@@ -128,8 +132,9 @@ function removeOlderMigrationBackups(kept: string): void {
  * ones, step `0002`). Site boot uses the migration runner instead
  * (`server/runtime/composition/open-site-content-db.ts`, `site-dir/boot-site-dir.ts`).
  */
-export function openContentDb(filePath: string): ContentDb {
-  const db = openSqliteContentConnection(filePath);
+export function openContentDb(required: string | { filePath: string }, options: ContentDbOpenOptions = {}): ContentDb {
+  const filePath = typeof required === "string" ? required : required.filePath;
+  const db = openSqliteContentConnection({ filePath }, options);
   try {
     if (!bootstrapFreshContentDb({ db })) migrate(db, { migrationsFolder: MIGRATIONS_DIR });
     return db;
@@ -158,8 +163,9 @@ export function openContentDb(filePath: string): ContentDb {
  *   "create" in a read-only open), or whatever `better-sqlite3` throws for a malformed/locked file.
  * @complexity O(1) — one connection open, no migration sweep.
  */
-export function openContentDbReadOnly(filePath: string): ContentDb {
-  const sqlite = new Database(filePath, { readonly: true, fileMustExist: true });
+export function openContentDbReadOnly(required: string | { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
+  const filePath = typeof required === "string" ? required : required.filePath;
+  const sqlite = open(filePath, { readonly: true, fileMustExist: true });
   sqlite.pragma("busy_timeout = 5000");
   return drizzle(sqlite, { schema }) as ContentDb;
 }

@@ -1,7 +1,6 @@
 import path from "node:path";
 
 import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
@@ -167,7 +166,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
       criticality: "optional",
       prepare: async () => {
         const result = await seedBundledAgentPlugins({
-          layout: resolveAgentPluginLayout(),
+          layout: deps.agentPluginLayout,
           workspaceId: deps.workspaceId,
           sourceRoot: bundledAgentPluginsDir(),
         });
@@ -210,6 +209,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
         await applyAgentPluginToolRenames(
           {
             workspaceId: deps.workspaceId,
+            agentPluginLayout: deps.agentPluginLayout,
             externalMcpServerRepo: deps.externalMcpServerRepo,
             clock: deps.clock,
             notifyRosterChanged: () => notifyExternalMcpRosterChanged(),

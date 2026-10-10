@@ -283,6 +283,14 @@ jobs:
         continue-on-error: true
         run: npm run check:default-credential
 
+      - name: Hardwiring audit guards (exact occurrence debt ratchet)
+        id: gate-hardwiring
+        continue-on-error: true
+        # The public-site graph needs its own browser dependencies, not just root dependencies.
+        run: |
+          npm ci --prefix apps/site-chat
+          node development/scripts/check-hardwiring.mjs
+
       - name: Lint
         # No lint tool existed in this repo before this workflow. Added Biome (single
         # dependency-light binary, off-the-shelf "recommended" preset — not a bespoke ruleset)
@@ -362,6 +370,8 @@ jobs:
           check "${{ steps.gate-seal-aad.outcome }}"           "check:seal-aad"
           check "${{ steps.gate-default-credential.outcome }}" "check:default-credential"
           check "${{ steps.gate-eslint-boundaries.outcome }}"  "complexity (ESLint import boundaries)"
+          # Keep hardwiring informational until devops publishes the guard exports
+          # and the coordinator updates the installed version and lockfile.
           check "${{ steps.gate-admin-typecheck.outcome }}"    "typecheck (admin)"
           check "${{ steps.gate-admin-build.outcome }}"        "admin:build"
           echo "---"

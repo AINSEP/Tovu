@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 /**
  * @file Contract tests for `content_read.<resource>` read-one-by-id (2026-10-08, CRUD gap step 1 —
  * `ADS-memory/reports/tool-crud-coverage-2026-10-08.md`).
@@ -195,12 +196,12 @@ test("a card with a hand-written get keeps dispatching to it; the list is never 
 
 function themeDeps(allow: boolean) {
   const theme = (id: string, tier: string) => ({ manifest: { id, name: id, version: "1.0.0", tier, description: `${id} theme` }, source: "built-in", status: "valid", errors: [] });
-  return {
+  return testSiteLayoutContext({
     workspaceId: "ws-content-read",
     themes: [theme("plain", "declarative"), theme("hb", "handlebars")],
     themesDir: "/nonexistent",
     authorize: async () => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
-  };
+  });
 }
 
 function realThemeCard(allow: boolean): ToolRegistration {
@@ -231,11 +232,11 @@ function formsDeps() {
     createdAt: "2026-10-08T00:00:00.000Z",
     updatedAt: "2026-10-08T00:00:00.000Z",
   });
-  return {
+  return testSiteLayoutContext({
     workspaceId: "ws-content-read",
     authorize: async () => ({ allowed: true, reason: "matched" }),
     formDefinitionRepo: { list: async () => [definition("form-1", "contact"), definition("form-2", "signup")] },
-  };
+  });
 }
 
 test("forms (real handler): read one definition by formId; a miss is the exact not-found text", async () => {

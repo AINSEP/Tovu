@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -132,7 +133,7 @@ async function buildRealSurfaceWithSkillTool(skillsDir: string) {
 
   const registry = createToolRegistry({});
   for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
-  await registerInstalledSkillTools(registry, { workspaceId: routeDeps.workspaceId });
+  await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }));
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };

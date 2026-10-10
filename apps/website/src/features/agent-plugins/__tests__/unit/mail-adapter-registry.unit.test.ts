@@ -1,3 +1,4 @@
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -101,7 +102,7 @@ test("lists an adapter from an enabled, Tovu-bundled plugin and builds a working
     const digest = await installPackage("fixture-mail", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-mail", digest);
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual(
@@ -122,7 +123,7 @@ test("refuses a plugin whose installed digest is not the one Tovu shipped", asyn
     const digest = await installPackage("fixture-mail", FIXTURE_FILES);
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fixture-mail", enabled: true, actor: "test" }, { origin: "operator-installed" });
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, [
@@ -136,7 +137,7 @@ test("a disabled bundled plugin contributes nothing and is not an error", async 
     const digest = await installPackage("fixture-mail", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-mail", digest, false);
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, []);
@@ -154,7 +155,7 @@ test("a module without create() is refused, and a module path escaping the plugi
     });
     await markBundled(workspaceRoot, "fixture-mail", digest);
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, [
@@ -183,7 +184,7 @@ test("throwing modules and malformed descriptors are refused while healthy mail 
       const digest = await installPackage(pluginId, files);
       await markBundled(workspaceRoot, pluginId, digest);
     }
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, [
       "mail adapters from 'malformed-mail' were not loaded: tovu-mail-adapters.json is invalid: not valid JSON",
       "mail adapter 'fixture-mail' from 'throwing-mail' was not loaded: fixture import failed",

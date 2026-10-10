@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../../../../../../features/agent-plugins/activation-effects.js";
@@ -107,14 +108,14 @@ function buildTestApp(): { app: express.Express; baseDeps: ReturnType<typeof cre
   // stands up a separate identity/policy store and the owner login would 403 against it. Same
   // reason `agent-plugins-http.integration.test.ts` threads `baseDeps.authorize` through.
   const baseDeps = createRouteDeps();
-  const routeDeps: AgentPluginsRouteDeps = {
+  const routeDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,
     externalMcpServerRepo: baseDeps.externalMcpServerRepo,
     siteAssistantSecretSealer: baseDeps.siteAssistantSecretSealer,
     siteAssistantSecretKeyring: baseDeps.siteAssistantSecretKeyring,
-  };
+  });
 
   const app = express();
   app.use(express.json());

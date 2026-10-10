@@ -1,7 +1,7 @@
 // Both from the site-dir BARREL, never the file directly: `no-deep-imports:platform/site-dir` is
 // `error`-severity (`.dependency-cruiser.mjs`'s `PROMOTED_NO_DEEP_IMPORTS`), and `resolveProductRoot`
 // was added to the barrel (`platform/site-dir/index.ts`) alongside this file for exactly this import.
-import { resolveProductRoot, resolveSiteRoot } from "../../platform/site-dir/index.js";
+import { resolveProductRoot } from "../../platform/site-dir/index.js";
 import { getCustomFsRoot } from "./custom-root-store.js";
 
 /**
@@ -10,7 +10,7 @@ import { getCustomFsRoot } from "./custom-root-store.js";
  * (`.dependency-cruiser.mjs`'s `feature-no-server-or-framework-imports` forbids that from
  * `features/**`). Mirrors `features/skills/layout.ts`/`features/agent-plugins/layout.ts`, which solve
  * the identical "a feature needs a real site-relative directory but must not import the composition
- * root" problem by calling {@link resolveSiteRoot} directly.
+ * root" problem by receiving the served site binding directly.
  *
  * ## Default-allow, not a curated allowlist (2026-09-10 owner decision)
  *
@@ -110,10 +110,8 @@ export const FS_ROOT_DESCRIPTORS: readonly FsRootDescriptor[] = [
 ];
 
 export interface ResolveFsRootsOptional {
-  /** Defaults to `process.cwd()` — injectable so this function is testable without `process.chdir()`. */
-  readonly cwd?: string;
-  /** Defaults to `process.env`. */
-  readonly env?: NodeJS.ProcessEnv;
+  /** Booted site directory — never derived from process cwd or env in a request. */
+  readonly siteDir: string;
   /** Which workspace's persisted `custom` root to resolve (`custom-root-store.ts` keys its map by
    *  this). Omitted — as every pre-existing call in `layout.test.ts` that only cares about `repo`/
    *  `site` does — `custom` resolves to `undefined`, the same as an operator who has never set one,
@@ -137,18 +135,17 @@ export interface ResolveFsRootsOptional {
  * @complexity O(1) — `custom` is one small file read plus one `stat`; `repo`/`site` are unchanged from
  *   before.
  */
-export function resolveFsRoots(optional: ResolveFsRootsOptional = {}): Record<FsRootId, string | undefined> {
-  const { cwd, env, workspaceId } = optional;
+export function resolveFsRoots(input: ResolveFsRootsOptional, _options = {}): Record<FsRootId, string | undefined> {
+  const { siteDir, workspaceId } = input;
   // `resolveProductRoot` walks up from ITS OWN module location by default, which is correct in both
   // the source (tsx) and compiled (dist) trees — see that function's own header. It takes no
   // `cwd`/`env` override because the product root is a fact about where this package's own code is
   // installed, not about which site is active.
-  const siteDir = resolveSiteRoot({ cwd, env });
   return {
     repo: resolveProductRoot(),
     site: siteDir,
     // `getCustomFsRoot` is given the SAME resolved `siteDir` this call already computed for `site`,
-    // rather than re-deriving it from `cwd`/`env` independently — one site-root resolution per call,
+    // rather than re-deriving it from `cwd`/`env` independently — the booted site stays selected,
     // matching `custom-root-store.ts`'s "no independent env parsing" design.
     custom: workspaceId === undefined ? undefined : getCustomFsRoot(workspaceId, { siteDir }),
   };

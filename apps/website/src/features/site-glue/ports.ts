@@ -4,7 +4,7 @@
  *
  * Purpose:
  * This interface is the entire boundary between the product-neutral glue mechanism (`manifest.ts`,
- * `capability-gate.ts`, and this file) and whatever concrete host wires it up. No file in this
+ * Jini `plugins/glue/capability-gate.ts`, and this file) and whatever concrete host wires it up. No file in this
  * directory may reach a host mechanism any other way — not by importing a host module directly,
  * not by reading a host-specific config value, not by assuming a particular database or admin
  * shell exists. A future port-implementing host supplies one object satisfying this shape; that is

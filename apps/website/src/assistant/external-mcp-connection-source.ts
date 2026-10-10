@@ -31,6 +31,7 @@ export interface StoredExternalMcpConnectionFailure {
 }
 
 export interface StoredExternalMcpConnectionSourceDeps {
+  readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
   readonly repo: ExternalMcpServerRepoPort;
   readonly sealer: SecretSealerPort;
   /** Resolves (and refreshes, if due) an `authMode: "oauth"` row's access token before its child
@@ -92,6 +93,7 @@ export function createStoredExternalMcpConnectionSource(
           if (!config.provisionedByPluginId || config.target.kind !== "streamable_http") continue;
           try {
             readOnlyNames.set(config.serverId, await resolvePluginReads({
+              agentPluginLayout: deps.agentPluginLayout,
               workspaceId: deps.workspaceId,
               pluginId: config.provisionedByPluginId,
               serverId: config.serverId,

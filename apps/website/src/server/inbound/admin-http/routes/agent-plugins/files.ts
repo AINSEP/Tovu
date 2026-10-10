@@ -1,4 +1,3 @@
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "../../../../../features/agent-plugins/lifecycle.js";
 import { listInstalledPlugins } from "../../../../../features/agent-plugins/lifecycle.js";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
@@ -42,7 +41,7 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, d
       )
         return;
 
-      const workspaceLayout = resolveAgentPluginLayout().forWorkspace(deps.workspaceId);
+      const workspaceLayout = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
       // An upgraded bundled plugin's superseded package is dropped first, so this browses the
       // version the running build ships rather than whichever digest the walk reached first.
       const plugin = preferBundledAgentPluginDigests(

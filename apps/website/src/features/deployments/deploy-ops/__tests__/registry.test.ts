@@ -1,3 +1,5 @@
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
@@ -44,12 +46,12 @@ test("installed deploy package must be active and match the bundled digest", asy
     const installed = await installAgentPlugin({ archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader: { async *entries() { for (const [entryPath, content] of Object.entries(files)) { const bytes = Buffer.from(content as string); yield { kind: "file" as const, entryPath, declaredSize: bytes.length, executable: false, async *openReadStream() { yield bytes; } }; } } }, layout: resolveAgentPluginLayout(), workspaceId: "ws" });
     const workspaceRoot = resolveAgentPluginLayout().forWorkspace("ws").root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: true, actor: "test" }, { origin: "bundled" });
-    const untrusted = await loadDeployOpsRegistry({ workspaceId: "ws" });
+    const untrusted = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(untrusted.list(), []);
     assert.deepEqual(untrusted.refusals, [`deploy ops from 'deploy' were not loaded: only plugins shipped with Tovu may add deploy ops (installed digest ${installed.archiveDigest.slice(0, 12)} is not the one this build shipped)`]);
     await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "deploy", archiveDigest: installed.archiveDigest }] });
-    assert.deepEqual((await loadDeployOpsRegistry({ workspaceId: "ws" })).list().map(p => p.descriptor.id), ["fly", "github-actions"]);
+    assert.deepEqual((await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions })).list().map(p => p.descriptor.id), ["fly", "github-actions"]);
     await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "test" });
-    assert.deepEqual((await loadDeployOpsRegistry({ workspaceId: "ws" })).list(), []);
+    assert.deepEqual((await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions })).list(), []);
   } finally { if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous; await forceRemove(root); }
 });

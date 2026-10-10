@@ -1,116 +1,52 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, rename, rm, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
-import { resolveSkillLayout } from "./layout.js";
+import { randomUUID } from "node:crypto";
+import { createSkillInstaller, prepareSkillInstall as prepare, createSkillFetchAdapter, type SkillInstaller, type SkillInstallInput as JiniSkillInstallInput, type PreparedSkillInstall, type SkillInstallDeps } from "@jini-ai/agentic/skills/install";
+import type { SkillLayout } from "./layout.js";
 import { loadInstalledSkillToolSources } from "./tool-registrations.js";
-import { SkillInputError, validateSkillFiles, type SkillUploadFile } from "./validation.js";
-import { readSkillArchive } from "./archive.js";
-import { fetchGitHubSkill, type GitHubSkillSource } from "./github.js";
-import { readSkillState, SKILL_STATE_FILE } from "./state.js";
-export { SkillInputError } from "./validation.js";
-
-export interface ManagedSkill { readonly toolId: string; readonly name: string; readonly description: string; readonly enabled: boolean; readonly source: "uploaded" | GitHubSkillSource }
-export type SkillInstallInput = { readonly workspaceId: string } & ({ readonly githubUrl: string } | { readonly files: readonly SkillUploadFile[] } | { readonly archiveBase64: string });
-
-/** A fetched and fully validated skill package, not yet written. Holding the validated bytes (not the
- *  source) means {@link commitSkillInstall} writes exactly what was validated, with no second fetch. */
-export interface PreparedSkillInstall {
-  readonly toolId: string; readonly name: string; readonly description: string; readonly source: ManagedSkill["source"];
-  readonly files: ReturnType<typeof validateSkillFiles>["files"];
+import { SKILL_STATE_FILE } from "./state.js";
+import { filesystem, archiveReader, yamlReader } from "./install-adapters.js";
+export { SkillInputError } from "@jini-ai/agentic/skills/install";
+export type { ManagedSkill, PreparedSkillInstall } from "@jini-ai/agentic/skills/install";
+export interface SkillSiteContext { readonly skillLayout: SkillLayout; readonly siteBinding: { readonly dir: string } }
+export type SkillInstallInput = JiniSkillInstallInput & SkillSiteContext;
+// One shared installer per resolved root keeps concurrent host entry points on the same queue.
+const installers = new Map<string, SkillInstaller>();
+/** Preparation has no filesystem root; Jini only needs the decoding, fetch and validation ports. */
+function preparationDependencies(_input: Record<string, never>, optional: { fetchImpl?: typeof fetch } = {}) {
+  return { archiveReader, yamlReader, fetch: createSkillFetchAdapter({ fetch: optional.fetchImpl ?? fetch }),
+    toolId: ({ name }: { name: string }) => `skill_${name.replace(/-/g, "_")}` };
 }
-
-/** Fetches (GitHub) or decodes (upload/ZIP) one source and validates the whole package. Writes nothing.
- * @complexity O(total files + bytes), bounded by the package validator.
- */
-export async function prepareSkillInstall(input: SkillInstallInput, options: { fetchImpl?: typeof fetch } = {}): Promise<PreparedSkillInstall> {
-  let upload: readonly SkillUploadFile[];
-  let source: ManagedSkill["source"] = "uploaded";
-  if ("githubUrl" in input) ({ files: upload, source } = await fetchGitHubSkill(input.githubUrl, options.fetchImpl ?? fetch));
-  else if ("archiveBase64" in input) upload = await readSkillArchive(input.archiveBase64);
-  else upload = input.files;
-  const validated = validateSkillFiles(upload);
-  return { toolId: `skill_${validated.name.replace(/-/g, "_")}`, name: validated.name, description: validated.description, source, files: validated.files };
+/** Bind the Jini installer to the same layout and site used by request-time skill discovery. */
+function dependencies(input: SkillSiteContext, optional: { fetchImpl?: typeof fetch } = {}): SkillInstallDeps {
+  const layout = input.skillLayout;
+  const binding = input.siteBinding;
+  return { filesystem, ...preparationDependencies({}, optional),
+    ids: { next: () => randomUUID() },
+    layout: { resolve: ({ workspaceId }) => ({ workspaceRoot: layout.forWorkspace(workspaceId).root, stagingRoot: path.join(layout.root, ".staging"), stateFileName: SKILL_STATE_FILE }) },
+    toolSourceLoader: { load: async (input, optional) => (await loadInstalledSkillToolSources({ ...input, ...optional, skillLayout: layout, siteBinding: binding })).map(source => ({ ...source, directory: source.directory! })) },
+  };
 }
-
-/** Atomically publishes a prepared, data-only tree; refuses a name that is already installed.
- * @complexity O(total files + bytes) writes.
- */
-export async function commitSkillInstall(input: { readonly workspaceId: string; readonly prepared: PreparedSkillInstall }): Promise<ManagedSkill> {
-  const { toolId, name, description, source, files } = input.prepared;
-  const layout = resolveSkillLayout();
-  const workspace = layout.forWorkspace(input.workspaceId).root;
-  return withWorkspaceLock(input.workspaceId, async () => {
-    const installed = await listManagedSkills({ workspaceId: input.workspaceId });
-    if (installed.some(s => s.toolId === toolId)) throw new SkillInputError(`Skill '${name}' is already installed. Remove it before installing another version.`);
-    await mkdir(workspace, { recursive: true });
-    const stagingRoot = path.join(layout.root, ".staging");
-    await mkdir(stagingRoot, { recursive: true });
-    const staging = await mkdtemp(path.join(stagingRoot, "skill-"));
-    try {
-      for (const [relative, bytes] of files) {
-        const target = path.join(staging, relative);
-        await mkdir(path.dirname(target), { recursive: true });
-        await writeFile(target, bytes, { flag: "wx", mode: 0o600 });
-      }
-      await writeFile(path.join(staging, SKILL_STATE_FILE), JSON.stringify({ enabled: true, source }), { flag: "wx", mode: 0o600 });
-      await rename(staging, path.join(workspace, name));
-      console.info("[skills] installed", { workspaceId: input.workspaceId, toolId });
-      return { toolId, name, description, enabled: true, source };
-    } finally { await rm(staging, { recursive: true, force: true }); }
-  });
+/** Reuses the existing per-root installer queue; resolving a root never reads process state. */
+function installer(input: SkillSiteContext, _optional = {}): SkillInstaller {
+  const root = input.skillLayout.root;
+  let instance = installers.get(root);
+  if (!instance) { instance = createSkillInstaller(dependencies(input)); installers.set(root, instance); }
+  return instance;
 }
-
-/** All entry points feed this service. Validate completely, then atomically publish a data-only tree.
- * @complexity O(total files + bytes), bounded by the package validator.
- */
-export async function installSkill(input: SkillInstallInput, options: { fetchImpl?: typeof fetch } = {}): Promise<ManagedSkill> {
-  return commitSkillInstall({ workspaceId: input.workspaceId, prepared: await prepareSkillInstall(input, options) });
+/** Fetch/validate before approval; committing uses these exact bytes without a second fetch. */
+export const prepareSkillInstall = (input: JiniSkillInstallInput, optional: { fetchImpl?: typeof fetch } = {}) => prepare({ input, deps: preparationDependencies({}, optional) });
+export async function commitSkillInstall(input: SkillSiteContext & { workspaceId: string; prepared: PreparedSkillInstall }, _optional = {}) {
+  const skill = await installer(input).commitSkillInstall(input);
+  console.info("[skills] installed", { workspaceId: input.workspaceId, toolId: skill.toolId });
+  return skill;
 }
-
-export async function listManagedSkills(input: { workspaceId: string }): Promise<ManagedSkill[]> {
-  const sources = await loadInstalledSkillToolSources({ ...input, includeDisabled: true });
-  const root = resolveSkillLayout().forWorkspace(input.workspaceId).root;
-  return Promise.all(sources.map(async skill => ({ toolId: skill.id, name: skill.skillName, description: skill.description, ...await readSkillState(path.join(root, skill.directory!)) })));
+export const installSkill = async (input: SkillInstallInput, optional: { fetchImpl?: typeof fetch } = {}) => commitSkillInstall({ ...input, workspaceId: input.workspaceId, prepared: await prepareSkillInstall(input, optional) });
+export const listManagedSkills = (input: SkillSiteContext & { workspaceId: string }, _optional = {}) => installer(input).listManagedSkills(input);
+export async function setSkillEnabled(input: SkillSiteContext & { workspaceId: string; toolId: string; enabled: boolean }, _optional = {}): Promise<void> {
+  await installer(input).setSkillEnabled(input);
+  console.info("[skills] enabled changed", { workspaceId: input.workspaceId, toolId: input.toolId, enabled: input.enabled });
 }
-
-async function managedDirectory(input: { workspaceId: string; toolId: string }) {
-  const skill = (await loadInstalledSkillToolSources({ workspaceId: input.workspaceId, includeDisabled: true })).find(s => s.id === input.toolId);
-  if (!skill) throw new SkillInputError("Skill was not found.");
-  const directory = path.join(resolveSkillLayout().forWorkspace(input.workspaceId).root, skill.directory!);
-  if (!(await lstat(directory)).isDirectory()) throw new SkillInputError("Skill directory must be a regular directory.");
-  return directory;
-}
-
-export async function setSkillEnabled(input: { workspaceId: string; toolId: string; enabled: boolean }): Promise<void> {
-  if (typeof input.enabled !== "boolean") throw new SkillInputError("enabled must be a boolean.");
-  await withWorkspaceLock(input.workspaceId, async () => {
-    const directory = await managedDirectory(input);
-    const state = await readSkillState(directory);
-    const temporary = path.join(directory, `.tovu-install-${randomUUID()}.tmp`);
-    try {
-      await writeFile(temporary, JSON.stringify({ ...state, enabled: input.enabled }), { flag: "wx", mode: 0o600 });
-      await rename(temporary, path.join(directory, SKILL_STATE_FILE));
-    } finally { await rm(temporary, { force: true }); }
-    console.info("[skills] enabled changed", { workspaceId: input.workspaceId, toolId: input.toolId, enabled: input.enabled });
-  });
-}
-
-export async function uninstallSkill(input: { workspaceId: string; toolId: string }): Promise<void> {
-  await withWorkspaceLock(input.workspaceId, async () => {
-    const directory = await managedDirectory(input);
-    await rm(directory, { recursive: true });
-    console.info("[skills] removed", { workspaceId: input.workspaceId, toolId: input.toolId });
-  });
-}
-
-const mutationQueues = new Map<string, Promise<unknown>>();
-
-/** Serializes mutations in this server without leaving persistent locks after a crash. */
-async function withWorkspaceLock<T>(workspaceId: string, work: () => Promise<T>): Promise<T> {
-  const key = resolveSkillLayout().forWorkspace(workspaceId).root;
-  const previous = mutationQueues.get(key) ?? Promise.resolve();
-  const result = previous.catch(() => {}).then(work);
-  mutationQueues.set(key, result);
-  try { return await result; }
-  finally { if (mutationQueues.get(key) === result) mutationQueues.delete(key); }
+export async function uninstallSkill(input: SkillSiteContext & { workspaceId: string; toolId: string }, _optional = {}): Promise<void> {
+  await installer(input).uninstallSkill(input);
+  console.info("[skills] removed", { workspaceId: input.workspaceId, toolId: input.toolId });
 }

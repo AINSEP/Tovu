@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -28,12 +29,12 @@ function freshSiteDir(): string {
 }
 
 function buildApp(depsOverrides: Partial<AdminFsFilesCustomRootDeps> = {}): express.Express {
-  const deps: AdminFsFilesCustomRootDeps = {
+  const deps: AdminFsFilesCustomRootDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "matched" }),
     storeOptional: { siteDir: freshSiteDir() },
     ...depsOverrides,
-  };
+  });
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => {

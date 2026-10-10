@@ -34,9 +34,12 @@ import type { FederationDeps } from "./mcp-federation/registrations.js";
  *  family's own deps (`workspaceId`, `authorize`, `postRepo`, `pluginActivationRepo` —
  *  {@link PluginCapabilityToolDeps}), plus `discoverPlugins`, the one field that family's own
  *  `registerEnabledPluginCapabilityTools` declares as an inline addition rather than part of that
- *  type (see that function's own signature). The agent-plugin and skill registrars need only
- *  `workspaceId`, which this already carries. */
+ *  type (see that function's own signature). The agent-plugin and skill registrars also receive the layouts captured at boot;
+ *  skill bundled-file paths use that same site binding. */
 export interface InstalledExtensionToolDeps extends PluginCapabilityToolDeps {
+  readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
+  readonly skillLayout: import("../features/skills/layout.js").SkillLayout;
+  readonly siteBinding: { readonly dir: string };
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
 }
 
@@ -55,6 +58,7 @@ export type InstalledExtensionRegistrar = (
  *  its caller. See `external-mcp-federation-runtime.ts` for what each field does. */
 export interface AttachAssistantToolExtensionsFederationDeps {
   readonly deps: FederationDeps;
+  readonly presetRegistry?: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
   readonly resolveConnections: () => Promise<readonly ResolvedFederatedConnection[]>;
   readonly onAdmitted?: (result: FederationReloadResult) => void;
   readonly connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
@@ -101,6 +105,7 @@ export function attachAssistantToolExtensions(
   } }, deps, log);
   const federation = createFederationRuntime({
     registry,
+    presetRegistry: deps.federation.presetRegistry,
     deps: deps.federation.deps,
     resolveConnections: deps.federation.resolveConnections,
     after: installed,

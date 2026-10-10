@@ -13,7 +13,7 @@ import { assemblePromptWithPluginPrefix } from "../../plugin-prompt-prefix.js";
 import { agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext } from "../../../../../assistant/agent-session-preset.js";
 import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField } from "../../../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../../../assistant/agent-session-preset.js";
-import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
+import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
 
 export const daemonSource = ts.createSourceFile(
   "agent-daemon-server.ts",
@@ -57,7 +57,9 @@ export async function captureDaemonRun(
     parseRunStartContextRef, buildPageContextPromptBlock, assemblePromptWithPluginPrefix,
     agentCarriesOwnMemory, resolveResumeSessionField, wouldForcedColdStartLoseConversationContext,
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField,
-    ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantRunSettings,
+    ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
+    readAssistantSubagentsEnabled: async () => false,
+    deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
     DEFAULT_AGENT_ID: "claude",
     principalByRunId: new Map(),
     messageAttachmentRefsByRunId: new Map(),

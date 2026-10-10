@@ -1,7 +1,7 @@
+import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
@@ -26,14 +26,15 @@ interface Result {
 }
 async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?: number; unsetCustom?: boolean } = {}) {
   const { buildMediaImportRegistrations, contributeMediaImportTools, mediaImportDerivedRisk } = await import("../tool-registrations.js");
-  const parent = fs.mkdtempSync(path.join(tmpdir(), "t06-import-"));
+  const siteLayouts = createTempSiteLayoutFixture({});
+  const parent = siteLayouts.siteDir;
   const rootPath = path.join(parent, "root");
   fs.mkdirSync(rootPath);
-  t.after(() => { t.mock.restoreAll(); fs.rmSync(parent, { recursive: true, force: true }); });
+  t.after(() => { t.mock.restoreAll(); siteLayouts.cleanup(); });
   const authorizeCalls: unknown[] = [];
   let resolutions = 0;
   let ids = 0;
-  const deps: MediaImportToolDeps = {
+  const deps: MediaImportToolDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     workspaceId: "ws-local", clock: createFakeClock({ startIso: "2026-10-01T00:00:00.000Z" }), idGen: { newId: () => `local-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(), mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
@@ -41,7 +42,7 @@ async function setup(t: test.TestContext, options: { allow?: boolean; maxBytes?:
     authorize: async (request) => { authorizeCalls.push(request); return { allowed: options.allow !== false, reason: "no_grant" }; },
     resolveRoots: () => { resolutions++; return { repo: rootPath, site: rootPath, custom: options.unsetCustom ? undefined : rootPath }; },
     mediaImportLocalMaxBytes: options.maxBytes,
-  };
+  });
   const putSpy = t.mock.method(deps.blobStore, "put");
   function registration() {
     const found = buildMediaImportRegistrations(deps).find((r) => r.descriptor.id === TOOL);

@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -63,7 +64,7 @@ async function makeHarness(row: {
   const logs: string[] = [];
   const run = () =>
     applyAgentPluginToolRenames(
-      {
+      testSiteLayoutContext({
         workspaceId: WORKSPACE,
         externalMcpServerRepo: repo,
         clock,
@@ -71,7 +72,7 @@ async function makeHarness(row: {
         notifyRosterChanged: async () => {
           notifications += 1;
         },
-      },
+      }),
       { info: (m) => logs.push(`info: ${m}`), warn: (m) => logs.push(`warn: ${m}`) },
     );
   const read = async () => {
@@ -170,7 +171,7 @@ test("a plugin that declares no renames writes nothing", async () => {
 test("a plugin listing that throws is a warning, never a boot failure", async () => {
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
-    {
+    testSiteLayoutContext({
       workspaceId: WORKSPACE,
       externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
       clock: createFakeClock({ startIso: NOW }),
@@ -178,7 +179,7 @@ test("a plugin listing that throws is a warning, never a boot failure", async ()
         throw new Error("package store unreadable");
       },
       notifyRosterChanged: async () => assert.fail("must not notify"),
-    },
+    }),
     { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
   );
   assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: package store unreadable"]);

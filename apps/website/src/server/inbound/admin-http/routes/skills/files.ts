@@ -1,5 +1,4 @@
 import path from "node:path";
-import { resolveSkillLayout } from "#src/features/skills/layout";
 import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -20,13 +19,13 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = (app, deps) => {
         principalId: principal.id, permission: "admin.assistant.use", workspaceId: deps.workspaceId,
       })) return;
 
-      const sources = await loadInstalledSkillToolSources({ workspaceId: deps.workspaceId, includeDisabled: true });
+      const sources = await loadInstalledSkillToolSources({ ...deps, workspaceId: deps.workspaceId, includeDisabled: true });
       const skill = sources.find(source => source.id === toolId);
       if (!skill?.directory) {
         res.status(404).json({ error: "Skill was not found or is disabled.", code: "NOT_FOUND" });
         return;
       }
-      const containerDir = resolveSkillLayout().forWorkspace(deps.workspaceId).root;
+      const containerDir = deps.skillLayout.forWorkspace(deps.workspaceId).root;
       // The directory comes from discovery, never request text. The shared reader enforces
       // realpath containment, no symlink following, and the same count/byte caps as Plugins.
       const { files, truncated } = await readPluginPackageFiles({

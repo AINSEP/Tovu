@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -115,7 +116,7 @@ function entries(manifest: string, pluginId = PLUGIN_ID): readonly AgentPluginAr
  *  registry for the rest of the process's life. */
 async function bootDaemonToolSurface(): Promise<ToolRegistry> {
   const registry = createToolRegistry({});
-  await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_ID });
+  await registerInstalledAgentPluginTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
   assert.equal(registry.has({ toolId: TOOL_ID }), true, "precondition: an enabled plugin must register its tool at boot");
   return registry;
 }
@@ -135,7 +136,7 @@ test("a plugin disabled through setAgentPluginEnabled — the composition BOTH t
     assert.equal(before.status, "completed", "precondition: while enabled, the tool answers");
     assert.match(JSON.stringify(before.output), /Roast at 210C/, "precondition: it really serves the plugin's guidance");
 
-    await setAgentPluginEnabled({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" });
+    await setAgentPluginEnabled(testSiteLayoutContext({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" }));
 
     const after = await callPluginTool(registry);
     assert.notEqual(
@@ -185,7 +186,7 @@ test("uninstalling a DISABLED plugin must not re-admit its revoked tool — dele
     const registry = await bootDaemonToolSurface();
     assert.equal((await callPluginTool(registry)).status, "completed", "precondition: while enabled and installed, the tool answers");
 
-    await setAgentPluginEnabled({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" });
+    await setAgentPluginEnabled(testSiteLayoutContext({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" }));
     assert.equal((await callPluginTool(registry)).status, "denied", "precondition: the disable itself revokes the tool");
 
     await uninstallAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID });
@@ -247,13 +248,13 @@ test("revocation is scoped to the plugin and workspace in an already-booted regi
     await installReal("isolation-other-workspace", { workspaceId: otherWorkspace });
     const mine = await bootDaemonToolSurface();
     const other = createToolRegistry({});
-    await registerInstalledAgentPluginTools(other, { workspaceId: otherWorkspace });
+    await registerInstalledAgentPluginTools(other, testSiteLayoutContext({ workspaceId: otherWorkspace }));
     const execute = (registry: ToolRegistry, toolId: string) => createToolExecutor({ registry }).execute({
       principal: PRINCIPAL, run: { id: "isolation-run" }, toolId, input: {},
     });
     assert.equal((await execute(mine, "agent_plugin_tea_roastery")).status, "completed");
     assert.equal((await execute(other, TOOL_ID)).status, "completed");
-    await setAgentPluginEnabled({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" });
+    await setAgentPluginEnabled(testSiteLayoutContext({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" }));
     assert.equal((await callPluginTool(mine)).status, "denied");
     assert.equal((await execute(mine, "agent_plugin_tea_roastery")).status, "completed");
     assert.equal((await execute(other, TOOL_ID)).status, "completed");

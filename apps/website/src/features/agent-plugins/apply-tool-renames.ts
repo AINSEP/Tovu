@@ -29,6 +29,7 @@ const TOOL_RENAMES_ACTOR = "system:tool-renames";
 
 export interface ApplyAgentPluginToolRenamesDeps {
   readonly workspaceId: string;
+  readonly agentPluginLayout: import("./layout.js").AgentPluginLayout;
   readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
   readonly clock: ExternalMcpStoreDeps["clock"];
   /** Injected for tests. Defaults to `import-access-token.ts`'s `listInstalledAgentPluginServers`. */
@@ -89,7 +90,7 @@ function renameRowTools(row: ExternalMcpServerRecord, renames: Readonly<Record<s
 export async function applyAgentPluginToolRenames(deps: ApplyAgentPluginToolRenamesDeps, log: TokenImportLog): Promise<void> {
   let plugins: readonly InstalledAgentPluginServers[];
   try {
-    plugins = await (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps.workspaceId)))();
+    plugins = await (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))();
   } catch (err) {
     log.warn(`[agent-plugins] could not list plugins to apply tool renames: ${err instanceof Error ? err.message : String(err)}`);
     return;

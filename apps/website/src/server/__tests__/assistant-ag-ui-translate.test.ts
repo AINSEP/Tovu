@@ -51,20 +51,26 @@ test("reduceAgentWirePayload — usage pulls only well-typed numeric fields", ()
   assert.deepEqual(reduceAgentWirePayload({ type: "usage", usage: { input_tokens: 10, output_tokens: "bad" }, costUsd: 0.01 }), {
     kind: "usage",
     inputTokens: 10,
-    outputTokens: undefined,
     costUsd: 0.01,
-    durationMs: undefined,
   });
   // The opposite combination: input/output well-typed this time, cost/duration the wrong type —
   // each of the four fields is independently typeof-checked, so this exercises the other half of
   // each field's true/false pair.
   assert.deepEqual(reduceAgentWirePayload({ type: "usage", usage: { input_tokens: "bad", output_tokens: 20 }, costUsd: "bad", durationMs: 500 }), {
     kind: "usage",
-    inputTokens: undefined,
     outputTokens: 20,
-    costUsd: undefined,
     durationMs: 500,
   });
+});
+
+test("reduceAgentWirePayload — cumulative usage and session identity survive AG-UI translation", () => {
+  const usage = reduceAgentWirePayload({ type: "usage", costUsd: null, cumulativeCostUsd: 25.6, costSessionId: "claude-session-a" });
+  assert.deepEqual(usage, { kind: "usage", cumulativeCostUsd: 25.6, costSessionId: "claude-session-a" });
+  assert.deepEqual(translateAgentEventToAgUi(usage!, createAgUiTranslationState()),
+    [{ type: "CUSTOM", name: "tovu.usage", value: usage }]);
+  assert.deepEqual(reduceAgentWirePayload({ type: "usage", cumulativeCostUsd: "bad", costSessionId: 17 }), { kind: "usage" });
+  assert.deepEqual(reduceAgentWirePayload({ type: "usage", cumulativeCostUsd: 0, costSessionId: "zero-session" }),
+    { kind: "usage", cumulativeCostUsd: 0, costSessionId: "zero-session" });
 });
 
 test("reduceAgentWirePayload — status with no detail field omits it, rather than stringifying undefined", () => {

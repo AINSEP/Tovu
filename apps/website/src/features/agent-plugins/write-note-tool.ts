@@ -3,7 +3,7 @@ import { normalizePackageEntryPath } from "./lifecycle.js";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { requireInputRecord, requireString, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler } from "@jini-ai/core";
 import { pluginMemory } from "./memory.js";
-import { resolveAgentPluginLayout, type AgentPluginLayout } from "./layout.js";
+import type { AgentPluginLayout } from "./layout.js";
 import { type OperatorLocaleDeps } from "./operator-locale.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import type { AgentPluginAccessTokenToolDeps } from "./access-token-tool.js";
@@ -21,12 +21,12 @@ export const pluginNoteRisk: DerivedRiskByToolId = new Map([[WRITE_PLUGIN_NOTE, 
  * The note-saving handler. Notes are context, never a permission grant.
  * @param required.deps Workspace, authorization and the settings ledger the operator's locale is read from.
  * @param required.surfaces Retained host contributor transport ABI; notes need no approval.
- * @param options.layout Agent Plugins filesystem layout; defaults to this instance's, resolved per call.
+ * @param options.layout Agent Plugins filesystem layout; required from the booted site binding.
  * @complexity O(p) for p installed plugins.
  */
 export function pluginNoteHandler(
   required: { deps: Pick<AgentPluginAccessTokenToolDeps, "workspaceId" | "authorize"> & OperatorLocaleDeps; surfaces: AssistantSurfaceDeps },
-  options: { layout?: AgentPluginLayout } = {},
+  options: { layout: AgentPluginLayout },
 ): ToolHandler {
   return async (ctx) => {
     ctx = { ...ctx, input: structuredClone(ctx.input), principal: { ...ctx.principal }, run: { ...ctx.run } };
@@ -40,7 +40,7 @@ export function pluginNoteHandler(
     const workspaceId = required.deps.workspaceId;
     await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: required.deps.authorize }), workspaceId,
       principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "agent-plugin", entityId: pluginId });
-    const layout = options.layout ?? resolveAgentPluginLayout();
+    const layout = options.layout;
     const installed = async () => (await listInstalledPlugins(layout.forWorkspace(workspaceId).root)).some(plugin => plugin.pluginId === pluginId);
     if (!(await installed())) throw new Error("Agent Plugin is not installed");
     if (ctx.signal.aborted) return { saved: false, reason: "abandoned" };

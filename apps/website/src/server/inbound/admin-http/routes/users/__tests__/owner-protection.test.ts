@@ -12,6 +12,7 @@ import { registerAdminUserAssignRoleRoute } from "../assign-role.js";
 import { registerAdminUserAttachPolicyRoute } from "../attach-policy.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /** Owner-email follow-up: real identity services and transactions, with direct route invocation
  * to verify response mapping in environments that cannot open HTTP listeners. Existing HTTP
@@ -29,7 +30,7 @@ async function setup() {
   // `RouteDeps.principalRepo` also carries the active/workspace-scoped settings lookup, composed the
   // same way production `deps.ts` does.
   const principalRepo = Object.assign(wiring.principalRepo, createSettingsPrincipalLookup({ repo: wiring.principalRepo }));
-  const deps: UsersRouteDeps = { ...wiring, principalRepo, workspaceId, clock, idGen };
+  const deps: UsersRouteDeps = { ...wiring, principalRepo, workspaceId, clock, idGen, outbox: new InMemoryOutbox() };
   const service = identityServiceDepsFrom(deps);
   const create = async (username: string) => (await createUser({
     deps: service, input: { workspaceId, callerPrincipalId: ownerId, username, password: "correct-horse-battery" },
@@ -133,7 +134,7 @@ test("owners may edit owner email; delegated user.manage may edit ordinary opera
   for (const [callerId, principalId] of [[f.ownerId, f.ownerId], [caller.id, target.id]]) {
     const before = await f.deps.userRepo.findByPrincipalId({ workspaceId, principalId });
     assert.ok(before);
-    const result = await f.invoke("patch", "/:principalId", callerId, principalId, { email: "allowed@example.com", username: "ignored", password: "ignored" });
+    const result = await f.invoke("patch", "/:principalId", callerId, principalId, { email: "allowed@example.com", password: "ignored", unknownField: "ignored" });
     assert.equal(result.statusCode, 200);
     const user = (result.jsonBody as { user: Record<string, unknown> }).user;
     assert.equal(user.email, "allowed@example.com");

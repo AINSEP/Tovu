@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -134,7 +135,7 @@ function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | E
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   let counter = 0;
-  const deps = {
+  const deps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID,
     clock: { nowMs() { return Date.parse(this.nowIso()); }, nowIso: () => NOW },
     idGen: {
@@ -154,7 +155,7 @@ function fakeRouteDeps(options: { allow?: boolean; responses?: (HttpResponse | E
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
-  };
+  });
 
   return { deps: deps as unknown as RegistryDepsWithoutLimiter, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, transformDefinitionRepo, mediaImportHttpClient, authorizeCalls };
 }

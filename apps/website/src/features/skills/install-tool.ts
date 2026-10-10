@@ -28,6 +28,8 @@ import { commitSkillInstall, listManagedSkills, prepareSkillInstall, SkillInputE
 
 export interface SkillsInstallToolDeps {
   readonly workspaceId: string;
+  readonly skillLayout: import("./layout.js").SkillLayout;
+  readonly siteBinding: { readonly dir: string };
   readonly authorize: AuthorizeFn;
   /** Test seam for the GitHub fetch; defaults to global `fetch` inside the service. */
   readonly skillFetch?: typeof fetch;
@@ -90,10 +92,10 @@ export function buildRegistrations(deps: SkillsInstallToolDeps): ToolRegistratio
         }
         const githubUrl = input.githubUrl.trim();
         const prepared = await asToolInput(() => prepareSkillInstall({ workspaceId: deps.workspaceId, githubUrl }, deps.skillFetch ? { fetchImpl: deps.skillFetch } : {}));
-        if ((await listManagedSkills({ workspaceId: deps.workspaceId })).some((skill) => skill.toolId === prepared.toolId)) {
+        if ((await listManagedSkills(deps)).some((skill) => skill.toolId === prepared.toolId)) {
           throw new ToolInputError({ message: `Skill '${prepared.name}' is already installed. Remove it from the Skills screen before installing another version.` });
         }
-        const skill = await asToolInput(() => commitSkillInstall({ workspaceId: deps.workspaceId, prepared }));
+        const skill = await asToolInput(() => commitSkillInstall({ ...deps, workspaceId: deps.workspaceId, prepared }));
         return { installed: true, skill, note: `Installed the ${skill.name} skill; it is on. Its tool ${skill.toolId} is picked up by the next search_tools call.` };
       },
     },

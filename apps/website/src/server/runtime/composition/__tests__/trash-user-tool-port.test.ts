@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -83,6 +84,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
     transactions: wiring.transactions,
     tokens: wiring.tokens,
     ownerPrincipalId: wiring.ownerPrincipalId,
+    outbox: new InMemoryOutbox(),
     removeUser: bindRemoveEntity({ trash, entityType: USER_ENTITY_TYPE }),
     isInTrash: async (principalId: string) =>
       (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null,

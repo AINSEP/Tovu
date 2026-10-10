@@ -11,10 +11,26 @@ import {
 } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminUserUpdateRoute } from "../update.js";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "../deps.js";
-import { createPolicy, createRole, createUser } from "@jini-ai/user-management/server";
+import { createPolicy, createRole, createUser, login, validateSession } from "@jini-ai/user-management/server";
 
 const WORKSPACE_ID = "workspace-local";
 const ROUTE_PATH = `/api/admin/v1/workspaces/:workspaceId/users/:principalId`;
+
+test("UPDATE_USER maps a missing host audit binding to 500 and leaves the username unchanged", async () => {
+  const { app, deps, ownerId } = await buildApp();
+  const { user } = await createUser({ deps: identityServiceDepsFrom(deps), input: {
+    workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "before-wiring-fault", password: "fixture-password",
+  } });
+  // Deliberately bypass the required field to exercise a JavaScript host wiring fault.
+  deps.outbox = undefined as unknown as UsersRouteDeps["outbox"];
+  const handler = extractRouteHandler(app, "patch", ROUTE_PATH);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: ownerId };
+  await handler({ params: { workspaceId: WORKSPACE_ID, principalId: user.principalId }, body: { username: "after" } }, res);
+  assert.equal(capture.statusCode, 500);
+  assert.deepEqual(capture.jsonBody, { error: "internal error" });
+  assert.deepEqual(await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: user.principalId }), user);
+});
 
 function urlFor(principalId: string) {
   return `/api/admin/v1/workspaces/${WORKSPACE_ID}/users/${principalId}`;
@@ -48,6 +64,7 @@ async function buildApp(
     tokens: base.tokens,
     ownerPrincipalId: base.ownerPrincipalId,
     isInTrash: base.isInTrash,
+    outbox: base.outbox,
     ...depsOverrides,
   };
   const app = express();
@@ -124,14 +141,14 @@ test("UPDATE_USER route: 200 sets email, clears it back to undefined on an empty
   const set = await fetch(`${baseUrl}${urlFor(target.id)}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "new@example.com", username: "should-be-ignored" }),
+    body: JSON.stringify({ email: "new@example.com", username: " Renamed-Target ", password: "ignored-password", anotherField: true }),
   });
   assert.equal(set.status, 200);
   const setBody = (await set.json()) as { user: { email?: string; username: string; roleIds: string[]; policyIds: string[] } };
   assert.equal(setBody.user.email, "new@example.com");
   assert.deepEqual(setBody.user.roleIds, [role.id]);
   assert.deepEqual(setBody.user.policyIds, [policy.id]);
-  assert.equal(setBody.user.username, "email-target", "username is ignored per AC-28");
+  assert.equal(setBody.user.username, "renamed-target", "AC-28 now accepts username; other unknown fields stay ignored");
 
   const cleared = await fetch(`${baseUrl}${urlFor(target.id)}`, {
     method: "PATCH",
@@ -254,4 +271,75 @@ test("UPDATE_USER route: 409 USER_IN_TRASH when the target is currently in the T
   assert.equal(body.code, "USER_IN_TRASH");
   assert.equal(body.error, "this user is in the Trash; restore them first");
   assert.deepEqual(await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target.id }), before);
+});
+
+async function patchUsername(app: express.Express, callerId: string, principalId: string, body: unknown) {
+  const { res, capture } = createCapturingResponse(); res.locals.principal = { id: callerId };
+  await extractRouteHandler(app, "patch", ROUTE_PATH)({ params: { workspaceId: WORKSPACE_ID, principalId }, body }, res);
+  return capture;
+}
+
+test("username PATCH retains email and sessions, writes a secret-free audit entry, and changes the next login", async () => {
+  const { app, deps, ownerId } = await buildApp();
+  const service = identityServiceDepsFrom(deps);
+  const { user: target } = await createUser({ deps: service, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId,
+    username: "rename-login", password: "rename-login-password" } }, { email: "retained@example.test" });
+  const signedIn = await login({ deps: service, input: { workspaceId: WORKSPACE_ID, username: target.username, password: "rename-login-password" } });
+  const result = await patchUsername(app, ownerId, target.principalId, { username: " Renamed-Login ", password: "ignored" });
+  assert.equal(result.statusCode, 200);
+  const response = result.jsonBody as { user: { username: string; email: string; principalId: string } };
+  assert.equal(response.user.username, "renamed-login"); assert.equal(response.user.email, "retained@example.test");
+  assert.equal(response.user.principalId, target.principalId);
+  assert.equal((await validateSession({ deps: service, input: { workspaceId: WORKSPACE_ID, rawToken: signedIn.rawToken } }))?.principal.id, target.principalId);
+  const rows = await deps.outbox!.claimPending({ batchSize: 100, nowIso: deps.clock.nowIso() });
+  const events = rows.map(row => row.event).filter(event => event.name === "identity.user.username_changed");
+  assert.equal(events.length, 1);
+  assert.equal(events[0]!.actorId, ownerId);
+  assert.deepEqual(events[0]!.payload, { principalId: target.principalId, previousUsername: "rename-login", username: "renamed-login" });
+  assert.equal(JSON.stringify(response).includes("passwordHash"), false);
+  assert.equal((await login({ deps: service, input: { workspaceId: WORKSPACE_ID, username: "renamed-login", password: "rename-login-password" } })).principal.id, target.principalId);
+});
+
+test("username PATCH gives exact validation and conflict reasons, including Trash reservations", async () => {
+  const trash = new Set<string>();
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async id => trash.has(id) });
+  const service = identityServiceDepsFrom(deps);
+  const make = (username: string) => createUser({ deps: service, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username, password: "rename-conflict-password" } });
+  const { user: target } = await make("first"); const { user: held } = await make("taken");
+  for (const [username, status, code, error] of [
+    ["   ", 400, "VALIDATION_ERROR", "username must not be blank"],
+    [null, 400, "VALIDATION_ERROR", "username must be a string"],
+    [" TAKEN ", 409, "RESOURCE_CONFLICT", "username 'taken' is already in use"],
+  ] as const) {
+    const result = await patchUsername(app, ownerId, target.principalId, { username });
+    assert.equal(result.statusCode, status); assert.deepEqual(result.jsonBody, {
+      error, code, ...(status === 409 ? { details: { field: "username" } } : {}),
+    });
+  }
+  trash.add(held.principalId);
+  const conflict = await patchUsername(app, ownerId, target.principalId, { username: "TAKEN" });
+  assert.equal(conflict.statusCode, 409);
+  assert.deepEqual(conflict.jsonBody, { code: "USERNAME_IN_TRASH", error: "a user with this username is in the Trash; restore or delete them permanently first", details: { field: "username" } });
+  assert.equal((await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target.principalId }))?.username, "first");
+});
+
+test("username PATCH requires user.manage for self and refuses delegated management of owners", async () => {
+  const { app, deps, ownerId } = await buildApp(); const service = identityServiceDepsFrom(deps);
+  const { principal: manager } = await createUser({ deps: service, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "rename-manager", password: "manager-password" } });
+  const { policy } = await createPolicy({ deps: service, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, name: "rename-grants" } });
+  await deps.principalPolicyRepo.save({ id: "rename-policy-link", workspaceId: WORKSPACE_ID, principalId: manager.id, policyId: policy.id });
+  const grant = (permission: string) => deps.policyPermissionRepo.save({ id: `rename-${permission}`, workspaceId: WORKSPACE_ID, policyId: policy.id, permission, resourceType: null, constraintJson: null });
+  await grant("member.manage");
+  assert.equal((await patchUsername(app, manager.id, manager.id, { username: "self-rename" })).statusCode, 403);
+  await grant("user.manage");
+  const ownerEdit = await patchUsername(app, manager.id, ownerId, { username: "owner-rename" });
+  assert.equal(ownerEdit.statusCode, 409);
+  assert.deepEqual(ownerEdit.jsonBody, { code: "OWNER_REQUIRED", error: "only an owner can modify an owner principal" });
+  const seededEdit = await patchUsername(app, ownerId, ownerId, { username: "owner-rename" });
+  assert.equal(seededEdit.statusCode, 400);
+  assert.deepEqual(seededEdit.jsonBody, { code: "VALIDATION_ERROR", error: "the seeded owner's username cannot be changed until a persistent owner identity is configured" });
+  const { principal: secondOwner } = await createUser({ deps: service, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "secondary-owner", password: "secondary-owner-password" } });
+  const ownerRole = await deps.roleRepo.findByName({ workspaceId: WORKSPACE_ID, name: "owner" }); assert.ok(ownerRole);
+  await deps.principalRoleRepo.save({ id: "secondary-owner-role", workspaceId: WORKSPACE_ID, principalId: secondOwner.id, roleId: ownerRole.id });
+  assert.equal((await patchUsername(app, ownerId, secondOwner.id, { username: "secondary-renamed" })).statusCode, 200);
 });

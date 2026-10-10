@@ -1,3 +1,4 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
@@ -47,17 +48,17 @@ async function setup(t: TestContext, options: { allow?: boolean; locale?: string
     await ledger.saveOperatorLocale(PRINCIPAL, options.locale);
     settingsRepo = ledger.settingsRepo;
   }
-  const deps = {
+  const deps = testSiteLayoutContext({
     workspaceId: WORKSPACE,
     authorize: async () => (options.allow === false ? { allowed: false, reason: "insufficient_permission" } : { allowed: true, reason: "matched" }),
     ...(settingsRepo ? { settingsRepo } : {}),
-  } as never;
+  }) as never;
   if (options.instanceLayout) {
     const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
     process.env.TOVU_AGENT_PLUGINS_DIR = root;
     t.after(() => { if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous; });
   }
-  const handler = pluginNoteHandler({ deps, surfaces: { surfaceExchanges } }, options.instanceLayout ? {} : { layout });
+  const handler = pluginNoteHandler({ deps, surfaces: { surfaceExchanges } }, { layout: options.instanceLayout ? resolveAgentPluginLayout() : layout });
   return { layout, surfaceExchanges, handler };
 }
 
@@ -74,7 +75,7 @@ test("ordinary note save runs directly, preserves bytes and opens no exchange", 
   assert.equal(h.surfaceExchanges.size(), 0);
 });
 
-test("without a layout option the handler uses this instance's Agent Plugins layout", async t => {
+test("the handler uses the instance layout supplied at construction", async t => {
   const h = await setup(t, { instanceLayout: true });
   assert.equal((await h.handler(ctxFor(NOTE)) as { saved: boolean }).saved, true);
   assert.equal(await pluginMemory({ workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), NOTE.text);

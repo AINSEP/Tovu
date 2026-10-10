@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { toolMetadata } from '../../contracts/core/tool-metadata/identity.js';
 import { withToolMetadata } from '@jini-ai/core';
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
@@ -27,12 +29,18 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createUsernameChangePort } from "./username-change-ports.js";
+import type { OutboxPort } from "@jini-ai/cms/core";
 
 
 export { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps };
 
 /** Tovu keeps its ISO clock ABI at this adapter; shared service/rationale live in user-management/server. */
-type TovuIdentityToolDeps = Omit<IdentityToolDeps, "clock"> & { clock: Clock | { nowIso(): string } };
+export type TovuIdentityToolDeps = Omit<IdentityToolDeps, "clock"> & {
+  clock: Clock | { nowIso(): string };
+  outbox: OutboxPort;
+  isInTrash: (principalId: string) => Promise<boolean>;
+};
 
 const ROLE_DELETE_TOOL_ID = "identity_role_delete";
 const POLICY_DELETE_TOOL_ID = "identity_policy_delete";
@@ -76,10 +84,19 @@ export function withoutPassword(schema: unknown): unknown {
  */
 export function buildGatedIdentityRegistrations(
   routeDeps: TovuIdentityToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+  surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   /** Each family supplies its own label and service permission; Jini owns the asking sequence.
    * The inner service reauthorizes at write time; the snapshot prevents callback input retargeting. */
+  // SQL list ports promise a set, not row order. Canonicalize both snapshots so an
+  // unchanged set cannot invalidate confirmation just because query order changed.
+  // O(n log n) local sorting across n dependency rows; no additional repo reads.
+  const deleteReferences = async ({ kind, id }: { kind: "role" | "policy"; id: string }, _options = {}): Promise<Record<string, readonly { id: string; permission?: string }[]>> => {
+    const references: Record<string, readonly { id: string; permission?: string }[]> = kind === "role"
+      ? { principals: await routeDeps.principalRoleRepo.listByRoleId({ workspaceId: routeDeps.workspaceId, roleId: id }), policies: await routeDeps.rolePolicyRepo.listByRoleId({ workspaceId: routeDeps.workspaceId, roleId: id }) }
+      : { principals: await routeDeps.principalPolicyRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }), roles: await routeDeps.rolePolicyRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }), permissions: await routeDeps.policyPermissionRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }) };
+    return Object.fromEntries(Object.entries(references).map(([label, rows]) => [label, [...rows].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)]));
+  };
   const confirmedDelete = (registration: ToolRegistration, kind: "role" | "policy"): ToolRegistration => ({
     ...registration,
     handler: approvalToolHandler({ surfaces,
@@ -90,14 +107,25 @@ export function buildGatedIdentityRegistrations(
           callerPrincipalId: ctx.principal.id, permissions: ["role.manage"] });
         const id = input[`${kind}Id`]!;
         const repo = kind === "role" ? routeDeps.roleRepo : routeDeps.policyRepo;
-        return { label: (await repo.findById({ workspaceId: routeDeps.workspaceId, id }))?.name ?? `${id} (not found)` };
+        const existing = await repo.findById({ workspaceId: routeDeps.workspaceId, id });
+        if (!existing) throw new ToolInputError({ message: `${registration.descriptor.id}: ${kind} was not found. Nothing was deleted.` });
+        const references = await deleteReferences({ kind, id });
+        return { id, snapshot: structuredClone(existing), references: structuredClone(references), label: existing.name };
       },
-      describe: ({ prepared: { label } }) => ({
+      describe: ({ prepared: { id, label, references } }) => ({
         toolId: registration.descriptor.id, errorCode: "IDENTITY", title: `Delete the ${kind} ${label}?`,
-        details: [{ label: kind === "role" ? "Role" : "Policy", value: label }],
-        warning: `The ${kind} is deleted for good. This can't be undone.`, danger: true, confirmLabel: `Delete ${kind}`,
+        details: [{ label: "Count", value: "1" }, { label: kind === "role" ? "Role" : "Policy", value: `${label} (${id})` }, ...Object.entries(references).map(([label, rows]) => ({ label, value: `${rows.length}: ${rows.map(row => row.permission ? `${row.permission} (${row.id})` : row.id).join(", ") || "none"}` }))],
+        warning: `The ${kind} is deleted for good. This can't be undone. Existing assignments prevent deletion; remove them in the Roles admin screen first.`, danger: true, confirmLabel: `Delete ${kind}`,
       }),
-      run: ({ ctx }, options) => registration.handler(ctx, options),
+      run: async ({ ctx, prepared: { id, snapshot, references } }, options) => {
+        const repo = kind === "role" ? routeDeps.roleRepo : routeDeps.policyRepo;
+        if (!isDeepStrictEqual(await repo.findById({ workspaceId: routeDeps.workspaceId, id }), snapshot)) {
+          throw new ToolInputError({ message: `${registration.descriptor.id}: target changed while confirmation was open. Request a new confirmation; nothing was deleted.` });
+        }
+        const currentReferences = await deleteReferences({ kind, id });
+        if (!isDeepStrictEqual(currentReferences, references)) throw new ToolInputError({ message: `${registration.descriptor.id}: dependencies changed while confirmation was open. Request a new confirmation; nothing was deleted.` });
+        return registration.handler({ ...ctx, input: { [`${kind}Id`]: id } }, options);
+      },
     }, { flag: "deleted" }),
   });
 
@@ -165,7 +193,9 @@ export function buildGatedIdentityRegistrations(
       principalRoles: routeDeps.principalRoleRepo, principalPolicies: routeDeps.principalPolicyRepo },
     hasher: routeDeps.passwordHasher, clock, idGen: routeDeps.idGen, tokens: routeDeps.tokens,
   };
-  return withToolMetadata({ registrations: buildIdentityRegistrations({ ...routeDeps, clock }), metadata: toolMetadata }).map((registration): ToolRegistration => {
+  const usernameChanges = createUsernameChangePort({ outbox: routeDeps.outbox, isInTrash: routeDeps.isInTrash, idGen: routeDeps.idGen,
+    seededOwnerPrincipalId: routeDeps.ownerPrincipalId });
+  return withToolMetadata({ registrations: buildIdentityRegistrations({ ...routeDeps, clock, usernameChanges }), metadata: toolMetadata }).map((registration): ToolRegistration => {
     switch (registration.descriptor.id) {
       case "identity_user_disable":
         return { ...registration, handler: async (ctx, options = {}) => {

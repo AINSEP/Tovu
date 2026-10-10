@@ -1,3 +1,4 @@
+import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "./mcp-federation/presets.js";
 import type { ToolRegistry } from "@jini-ai/core";
 
@@ -22,6 +23,7 @@ import type { FederationDeps } from "./mcp-federation/registrations.js";
 
 /** Everything one process needs to build its own federation runtime. */
 export interface CreateFederationRuntimeParams {
+  readonly presetRegistry?: import("@jini-ai/mcp/federation").FederatedMcpPresetRegistry;
   readonly registry: ToolRegistry;
   readonly deps: FederationDeps;
   /** Reads the operator-editable roster fresh — today, `readEnabledExternalMcpConfigs` wrapped by
@@ -103,6 +105,7 @@ type AttachFederatedToolsResultConnectFailures = AttachFederatedMcpToolsResult["
  * @overallScore 100
  */
 export function createFederationRuntime(params: CreateFederationRuntimeParams): FederationRuntime {
+  const presetRegistry = params.presetRegistry ?? createFederatedMcpPresetRegistry({});
   const attach = params.attach ?? attachFederatedMcpTools;
   const logger: FederationLogger = {
     info: (message) => console.log(`${params.log} ${message}`),
@@ -130,6 +133,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
       const connections = await params.resolveConnections();
       configuredConnectionIds = connections.map((connection) => connection.config.connectionId);
       const attached = await attach({
+        presetRegistry,
         registry: params.registry,
         deps: params.deps,
         extraConnections: connections,

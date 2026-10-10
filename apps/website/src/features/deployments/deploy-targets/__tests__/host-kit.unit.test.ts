@@ -8,6 +8,36 @@ import { DeployError, safeDnsLabel } from "@jini-ai/devops/deploy";
 
 import { DEPLOY_FETCH_TIMEOUTS, createDeployHostKit } from "../host-kit.js";
 
+test("probe operations close owned dispatchers while sharing one during a candidate sweep", async () => {
+  const dispatchers: Array<{ closed: boolean }> = [];
+  const kit = createDeployHostKit({ fetchFn: async (url, init) => {
+    dispatchers.push((init as RequestInit & { dispatcher: { closed: boolean } }).dispatcher);
+    return new Response(null, { status: String(url).includes("/ready") ? 200 : 503 });
+  } });
+  const result = await kit.waitForReachableDeploymentUrl(["https://8.8.8.8/wait", "https://8.8.8.8/ready"]);
+  assert.equal(result.status, "ready");
+  assert.equal(dispatchers.length, 3);
+  assert.equal(new Set(dispatchers).size, 1);
+  assert.equal(dispatchers[0]!.closed, true);
+  await kit.checkDeploymentUrl("https://8.8.8.8/ready");
+  assert.notEqual(dispatchers[3], dispatchers[0]);
+  assert.equal(dispatchers[3]!.closed, true);
+});
+
+test("probe operations close owned dispatchers after transport refusal", async () => {
+  const dispatchers: Array<{ closed: boolean }> = [];
+  const kit = createDeployHostKit({ fetchFn: async (_url, init) => {
+    dispatchers.push((init as RequestInit & { dispatcher: { closed: boolean } }).dispatcher);
+    throw new Error("network refused");
+  } });
+  const result = await kit.checkDeploymentUrl("https://8.8.8.8/refused");
+  assert.equal(result.reachable, false);
+  assert.equal(result.statusMessage, "Public link is not reachable yet: network refused");
+  assert.equal(dispatchers.length, 2);
+  assert.equal(dispatchers[0], dispatchers[1]);
+  assert.equal(dispatchers[0]!.closed, true);
+});
+
 /**
  * @file `host-kit.ts` — what a plugin deploy module gets instead of npm imports. The one piece with
  * logic of its own is `fetch`'s timeout; the rest adapts devops' generic helpers to the installed plugin ABI.

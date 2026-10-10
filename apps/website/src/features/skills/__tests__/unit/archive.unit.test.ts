@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildZipFixture, type ZipFixtureEntry } from "../../../agent-plugins/__tests__/fixtures/build-zip.js";
-import { readSkillArchive } from "../../archive.js";
-import { SkillInputError } from "../../validation.js";
+import { readSkillArchive as read, SkillInputError } from "@jini-ai/agentic/skills/install";
+import { archiveReader } from "../../install-adapters.js";
+const readSkillArchive = (base64: string) => read({ base64, archiveReader });
 
 // Direct tests for the skill ZIP reader (install-service.unit.test.ts reaches it for one valid
 // archive, one symlink and one non-ZIP). Real archives from yazl; nothing is mocked.
