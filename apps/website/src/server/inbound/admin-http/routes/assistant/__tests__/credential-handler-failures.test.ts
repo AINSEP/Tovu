@@ -135,8 +135,8 @@ test("settings PUT redacts a failed ledger write instead of returning the reques
 // F7.1: removing the readiness await would let a request read the ledger before boot finishes.
 // Hold that promise, flush queued microtasks, assert while held, then release it in finally.
 for (const { method, register, expectedBody } of [
-  { method: "get", register: registerAdminAssistantGetSettingsRoute, expectedBody: { data: { publicEnabled: true }, adminAssistantEnabled: false } },
-  { method: "put", register: registerAdminAssistantPutSettingsRoute, expectedBody: { data: { publicEnabled: true } } },
+  { method: "get", register: registerAdminAssistantGetSettingsRoute, expectedBody: { data: { publicEnabled: true, widget: "react" }, adminAssistantEnabled: false } },
+  { method: "put", register: registerAdminAssistantPutSettingsRoute, expectedBody: { data: { publicEnabled: true, widget: "react" } } },
 ] as const) {
   test(`settings ${method.toUpperCase()} waits for boot definitions before resolving current values`, { timeout: 5000 }, async () => {
     const deps = depsForHandler();
@@ -155,7 +155,7 @@ for (const { method, register, expectedBody } of [
       await pending;
     }
     assert.deepEqual(await pending, { statusCode: 200, jsonBody: expectedBody });
-    assert.deepEqual(reads, [{ namespace: "site.assistant", key: "public_enabled", scopeContext: { workspaceId: "ws-7" } }]);
+    assert.deepEqual(reads, ["public_enabled", "widget"].map(key => ({ namespace: "site.assistant", key, scopeContext: { workspaceId: "ws-7" } })));
   });
 }
 

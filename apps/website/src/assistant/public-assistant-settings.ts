@@ -6,7 +6,7 @@ import { type SettingsRepoPort, type AuthorizeFn } from "../features/settings/in
  * @file The master on/off switch for the VISITOR-FACING assistant, on the ADR-028 Settings Layered
  * Ledger. Mirrors `src/seo/settings.ts` and `src/comments/settings.ts` exactly — same idempotent
  * boot-time definition registration, same `getEffective` read, same validate-then-`set()` write —
- * applied to one boolean instead of SEO's 8 fields or Comments' 6.
+ * applied to the visitor switch and its renderer choice.
  * The clock contract and its rationale live in Jini core/primitives; the supplied clock is forwarded directly.
  *
  * SCOPE. This file owns the SETTING and nothing else. The public site's own consumption of it (not
@@ -56,7 +56,8 @@ type SetSettingValue = typeof import("@jini-ai/core/settings").set;
  */
 const ASSISTANT_NAMESPACE = "site.assistant";
 
-export type PublicAssistantSettingKey = "public_enabled";
+export type PublicAssistantWidget = "react" | "vanilla";
+export type PublicAssistantSettingKey = "public_enabled" | "widget";
 
 /** The read model. An object rather than a bare boolean because this is the shape the admin route
  * returns and the shape the next control (a budget cap, a rate limit — see the admin section's own
@@ -65,11 +66,14 @@ export interface PublicAssistantSettings {
   /** `false` means the public site ships no assistant bundle and exposes no assistant endpoint —
    * see this file's header for the full contract this word carries. */
   publicEnabled: boolean;
+  /** React remains the default until the site's owner explicitly selects the beta widget. */
+  widget: PublicAssistantWidget;
 }
 
-/** The single registered `site.assistant.*` definition. */
+/** Site-owned definitions; the widget choice never changes the master switch. */
 const ASSISTANT_DEFINITIONS: readonly SettingDefinitionSpec<PublicAssistantSettingKey>[] = [
   { key: "public_enabled", schema: { type: "boolean" }, defaultValue: false },
+  { key: "widget", schema: { type: "enum", values: ["react", "vanilla"] }, defaultValue: "react" },
 ];
 
 export interface EnsurePublicAssistantSettingDefinitionsDeps extends EnsureSettingDefinitionsDeps {
@@ -89,7 +93,7 @@ export interface EnsurePublicAssistantSettingDefinitionsInput {
  * (skip-if-already-registered, mirroring `ensureSeoSettingDefinitions`/
  * `ensureCommentsSettingDefinitions`).
  *
- * @complexity O(1) time and auxiliary space — one definition lookup/write.
+ * @complexity O(1) time and auxiliary space — two definition lookups/writes.
  */
 export async function ensurePublicAssistantSettingDefinitions(
   deps: EnsurePublicAssistantSettingDefinitionsDeps,
@@ -122,18 +126,19 @@ export interface GetPublicAssistantSettingsDeps {
  *
  * @param deps.settingsRepo - The ledger repo.
  * @param input.workspaceId - The workspace to read for.
- * @complexity O(1) — one `getEffective` resolution.
+ * @complexity O(1) — two `getEffective` resolutions.
  * @overallScore 100
  */
 export async function getPublicAssistantSettings(
   deps: GetPublicAssistantSettingsDeps,
   input: { workspaceId: UUID }
 ): Promise<PublicAssistantSettings> {
-  const resolved = await deps.getEffective(
+  const publicEnabled = await isPublicAssistantEnabled(deps, input);
+  const widget = await deps.getEffective(
     { repo: deps.settingsRepo },
-    { namespace: ASSISTANT_NAMESPACE, key: "public_enabled", scopeContext: { workspaceId: input.workspaceId } }
+    { namespace: ASSISTANT_NAMESPACE, key: "widget", scopeContext: { workspaceId: input.workspaceId } }
   );
-  return { publicEnabled: resolved?.value === true };
+  return { publicEnabled, widget: widget?.value === "vanilla" ? "vanilla" : "react" };
 }
 
 /**
@@ -152,8 +157,12 @@ export async function isPublicAssistantEnabled(
   deps: GetPublicAssistantSettingsDeps,
   input: { workspaceId: UUID }
 ): Promise<boolean> {
-  const settings = await getPublicAssistantSettings(deps, input);
-  return settings.publicEnabled;
+  // The endpoint's kill-switch check needs only this field; do not add a widget lookup to each turn.
+  const resolved = await deps.getEffective(
+    { repo: deps.settingsRepo },
+    { namespace: ASSISTANT_NAMESPACE, key: "public_enabled", scopeContext: { workspaceId: input.workspaceId } }
+  );
+  return resolved?.value === true;
 }
 
 export class PublicAssistantSettingsValidationError extends Error {}
@@ -182,9 +191,8 @@ export const ADMIN_ASSISTANT_PERMISSION = "admin.assistant.manage";
 /**
  * Validate-then-write chokepoint, mirroring `setSeoSettings`/`setCommentsSettings`.
  *
- * An omitted field is left alone (partial patch), an explicitly non-boolean field is a rejection
- * before ANY write — with one field that all-or-nothing rule is trivially satisfied, but it is kept
- * in the same shape so adding the second control (a budget cap) does not have to reintroduce it.
+ * An omitted field is left alone (partial patch). Validate both supplied fields before ANY write
+ * so an invalid widget choice cannot accidentally enable a cost-bearing visitor surface.
  *
  * `requiredPermissionOverride` is set for the same disclosed reason SEO's identical call sets it:
  * without it the chokepoint runs a SECOND, scope-derived `settings.workspace.write` check that a
@@ -192,8 +200,8 @@ export const ADMIN_ASSISTANT_PERMISSION = "admin.assistant.manage";
  * either success or a clear 403.
  *
  * @returns The settings as they now read, so a caller need not issue a follow-up GET.
- * @throws {PublicAssistantSettingsValidationError} If `publicEnabled` is present and not a boolean.
- * @complexity O(1) — at most one ledger write.
+ * @throws {PublicAssistantSettingsValidationError} If either supplied field is invalid.
+ * @complexity O(1) — at most two ledger writes.
  * @overallScore 100
  */
 export async function setPublicAssistantSettings(
@@ -202,6 +210,9 @@ export async function setPublicAssistantSettings(
 ): Promise<PublicAssistantSettings> {
   if (input.patch.publicEnabled !== undefined && typeof input.patch.publicEnabled !== "boolean") {
     throw new PublicAssistantSettingsValidationError("publicEnabled must be a boolean");
+  }
+  if (input.patch.widget !== undefined && input.patch.widget !== "react" && input.patch.widget !== "vanilla") {
+    throw new PublicAssistantSettingsValidationError("widget must be react or vanilla");
   }
 
   if (input.patch.publicEnabled !== undefined) {
@@ -221,6 +232,17 @@ export async function setPublicAssistantSettings(
         workspaceId: input.workspaceId,
         authWorkspaceId: input.workspaceId,
         callerPrincipalId: input.callerPrincipalId,
+        requiredPermissionOverride: ADMIN_ASSISTANT_PERMISSION,
+      },
+    });
+  }
+
+  if (input.patch.widget !== undefined) {
+    await deps.set({
+      deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.ids, authorize: deps.authorize, principals: deps.principals },
+      input: {
+        namespace: ASSISTANT_NAMESPACE, key: "widget", scope: "workspace", value: input.patch.widget,
+        workspaceId: input.workspaceId, authWorkspaceId: input.workspaceId, callerPrincipalId: input.callerPrincipalId,
         requiredPermissionOverride: ADMIN_ASSISTANT_PERMISSION,
       },
     });

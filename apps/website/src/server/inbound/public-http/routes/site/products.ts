@@ -4,7 +4,7 @@ import type { StoreApi } from "@jini-ai/commerce/store";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
-import { CACHE_CONTROL_PRIVATE_STATIC_EXPORT, isStaticExportRequest, resolveSiteTitleForRender, resolveSiteAssistantEnabledForRequest } from "./pages.js";
+import { CACHE_CONTROL_PRIVATE_STATIC_EXPORT, isStaticExportRequest, resolveSiteTitleForRender, resolveSiteAssistantWidgetForRequest } from "./pages.js";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -92,7 +92,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       const products = await resolveStorefrontProducts(deps);
       const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
         resolveRenderThemeId(res, deps),
-        resolveSiteAssistantEnabledForRequest(req, deps),
+        resolveSiteAssistantWidgetForRequest({ request: req, deps }),
         resolveSiteTitleForRender(deps),
       ]);
       const resolved = resolveActiveTheme(deps, activeThemeId);
@@ -124,7 +124,7 @@ export const registerProductRoutes = (app: import("express").Express, deps: Comm
       }
       const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
         resolveRenderThemeId(res, deps),
-        resolveSiteAssistantEnabledForRequest(req, deps),
+        resolveSiteAssistantWidgetForRequest({ request: req, deps }),
         resolveSiteTitleForRender(deps),
       ]);
       const resolved = resolveActiveTheme(deps, activeThemeId);

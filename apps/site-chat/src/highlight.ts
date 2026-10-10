@@ -22,7 +22,7 @@
  */
 
 const HIGHLIGHT_CLASS = "tovu-site-assistant__highlight";
-/** The `@keyframes` name `widget.css`'s fade-out animation uses — checked against
+/** The `@keyframes` name `page-actions.css`'s fade-out animation uses (shared by both widgets) — checked against
  *  `AnimationEvent.animationName` so cleanup fires on the FADE ending, not the earlier pulse
  *  (pulse and fade both dispatch their own `animationend`; see `applyHighlight`'s doc). */
 const FADE_ANIMATION_NAME = "tovu-site-assistant-highlight-fade";
@@ -69,7 +69,7 @@ export function findTargetElement(title: string, root: ParentNode = document): E
   const needle = title.trim();
   if (needle.length === 0) return null;
 
-  const candidates = Array.from(root.querySelectorAll(TITLE_CANDIDATE_SELECTOR)).filter((el) => !el.closest(".tovu-site-assistant"));
+  const candidates = Array.from(root.querySelectorAll(TITLE_CANDIDATE_SELECTOR)).filter((el) => !el.closest(".tovu-site-assistant, .jini-chat-vanilla"));
 
   const exact = candidates.find((el) => el.textContent.trim() === needle);
   if (exact) return exact;

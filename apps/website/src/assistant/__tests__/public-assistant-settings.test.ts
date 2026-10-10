@@ -80,7 +80,7 @@ async function withDefinitions() {
 // Definitions
 // ---------------------------------------------------------------------------
 
-test("ensurePublicAssistantSettingDefinitions is idempotent — two calls register one definition, not two", async () => {
+test("ensurePublicAssistantSettingDefinitions is idempotent — switch and widget definitions register once", async () => {
   const { settingsRepo, deps } = makeDeps();
   const input = { workspaceId: WORKSPACE, systemPrincipalId: "system-assistant-settings" };
 
@@ -88,8 +88,40 @@ test("ensurePublicAssistantSettingDefinitions is idempotent — two calls regist
   await ensurePublicAssistantSettingDefinitions(deps, input);
 
   const registered = (await settingsRepo.listActiveDefinitions({ workspaceId: WORKSPACE })).filter((d) => d.namespace === "site.assistant");
-  assert.equal(registered.length, 1);
+  assert.equal(registered.length, 2);
   assert.equal(registered[0].key, "public_enabled");
+  assert.equal(registered[1].key, "widget");
+});
+
+test("wcmp: widget defaults to React, persists per site, and switching does not enable the assistant", async () => {
+  const { deps } = await withDefinitions();
+  await ensurePublicAssistantSettingDefinitions(deps, { workspaceId: OTHER_WORKSPACE, systemPrincipalId: "system-assistant-settings" });
+  assert.equal((await getPublicAssistantSettings(deps, { workspaceId: WORKSPACE })).widget, "react");
+  await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { widget: "vanilla" }, callerPrincipalId: "principal-1" });
+  assert.deepEqual(await getPublicAssistantSettings(deps, { workspaceId: WORKSPACE }), { publicEnabled: false, widget: "vanilla" });
+  assert.equal((await getPublicAssistantSettings(deps, { workspaceId: OTHER_WORKSPACE })).widget, "react");
+  await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" });
+  assert.deepEqual(await getPublicAssistantSettings(deps, { workspaceId: WORKSPACE }), { publicEnabled: true, widget: "vanilla" });
+  await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { widget: "react" }, callerPrincipalId: "principal-1" });
+  assert.deepEqual(await getPublicAssistantSettings(deps, { workspaceId: WORKSPACE }), { publicEnabled: true, widget: "react" });
+});
+
+test("wcmp: invalid widget rejects a combined patch before changing the switch", async () => {
+  const { deps } = await withDefinitions();
+  for (const widget of ["lightweight", "", null, 1, {}]) {
+    await assert.rejects(() => setPublicAssistantSettings(deps, {
+      workspaceId: WORKSPACE, patch: { publicEnabled: true, widget: widget as never }, callerPrincipalId: "principal-1",
+    }), { name: "Error", message: "widget must be react or vanilla" });
+    assert.deepEqual(await getPublicAssistantSettings(deps, { workspaceId: WORKSPACE }), { publicEnabled: false, widget: "react" });
+  }
+});
+
+test("wcmp: a denied principal cannot change the widget", async () => {
+  const { deps } = await withDefinitions();
+  await assert.rejects(() => setPublicAssistantSettings({ ...deps, authorize: async () => ({ allowed: false, reason: "insufficient_permission" }) }, {
+    workspaceId: WORKSPACE, patch: { widget: "vanilla" }, callerPrincipalId: "principal-1",
+  }), ForbiddenError);
+  assert.equal((await getPublicAssistantSettings(deps, { workspaceId: WORKSPACE })).widget, "react");
 });
 
 test("the definition is namespaced under 'site.' — the ledger's owner fence rejects a bare namespace", async () => {
@@ -105,13 +137,13 @@ test("the definition is namespaced under 'site.' — the ledger's owner fence re
 
 test("a brand-new site is OFF before any definition exists at all", async () => {
   const { settingsRepo } = makeDeps();
-  assert.deepEqual(await getPublicAssistantSettings(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), { publicEnabled: false });
+  assert.deepEqual(await getPublicAssistantSettings(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), { publicEnabled: false, widget: "react" });
   assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), false);
 });
 
 test("registering the definition does not turn anything on — the registered default is false", async () => {
   const { settingsRepo } = await withDefinitions();
-  assert.deepEqual(await getPublicAssistantSettings(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), { publicEnabled: false });
+  assert.deepEqual(await getPublicAssistantSettings(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), { publicEnabled: false, widget: "react" });
 });
 
 test("the read fails CLOSED — anything that is not literally true reads as off", async () => {
@@ -157,11 +189,11 @@ test("setPublicAssistantSettings turns the switch on and back off, and returns t
   const { settingsRepo, deps } = await withDefinitions();
 
   const on = await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" });
-  assert.deepEqual(on, { publicEnabled: true });
+  assert.deepEqual(on, { publicEnabled: true, widget: "react" });
   assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), true);
 
   const off = await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: false }, callerPrincipalId: "principal-1" });
-  assert.deepEqual(off, { publicEnabled: false });
+  assert.deepEqual(off, { publicEnabled: false, widget: "react" });
   assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), false);
 });
 
@@ -170,7 +202,7 @@ test("an empty patch is a no-op read, not an accidental reset", async () => {
   await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" });
 
   const unchanged = await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: {}, callerPrincipalId: "principal-1" });
-  assert.deepEqual(unchanged, { publicEnabled: true });
+  assert.deepEqual(unchanged, { publicEnabled: true, widget: "react" });
 });
 
 test("a non-boolean publicEnabled is rejected before any write happens", async () => {

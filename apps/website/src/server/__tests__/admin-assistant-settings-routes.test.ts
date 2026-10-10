@@ -23,6 +23,19 @@ import type { RouteDeps } from "../routes/types.js";
 const WORKSPACE_ID = "workspace-local";
 const SETTINGS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/assistant/settings`;
 
+test("wcmp: widget choice persists through the existing settings API without enabling visitors", async t => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const selected = await put(baseUrl, cookie, { widget: "vanilla" });
+  assert.equal(selected.status, 200);
+  assert.deepEqual(await selected.json(), { data: { publicEnabled: false, widget: "vanilla" } });
+  assert.deepEqual(await (await get(baseUrl, cookie)).json(), { data: { publicEnabled: false, widget: "vanilla" }, adminAssistantEnabled: true });
+  const invalid = await put(baseUrl, cookie, { publicEnabled: true, widget: "other" });
+  assert.equal(invalid.status, 400);
+  assert.deepEqual(await invalid.json(), { error: "widget must be react or vanilla", code: "ASSISTANT_SETTINGS_VALIDATION_ERROR" });
+  assert.deepEqual(await (await get(baseUrl, cookie)).json(), { data: { publicEnabled: false, widget: "vanilla" }, adminAssistantEnabled: true });
+});
+
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
@@ -97,7 +110,7 @@ test("GET returns the public assistant switch, OFF on a freshly booted site", as
 
   const res = await get(baseUrl, cookie);
   assert.equal(res.status, 200, await res.clone().text());
-  assert.deepEqual(await res.json(), { data: { publicEnabled: false }, adminAssistantEnabled: true });
+  assert.deepEqual(await res.json(), { data: { publicEnabled: false, widget: "react" }, adminAssistantEnabled: true });
 });
 
 test("GET's adminAssistantEnabled reflects TOVU_ADMIN_ASSISTANT, independent of the public switch", async (t) => {
@@ -113,7 +126,7 @@ test("GET's adminAssistantEnabled reflects TOVU_ADMIN_ASSISTANT, independent of 
   assert.equal(res.status, 200, await res.clone().text());
   assert.deepEqual(
     await res.json(),
-    { data: { publicEnabled: false }, adminAssistantEnabled: false },
+    { data: { publicEnabled: false, widget: "react" }, adminAssistantEnabled: false },
     "the two switches are unrelated products — flipping the admin one must not touch the public one"
   );
 });
@@ -124,10 +137,10 @@ test("PUT turns the switch on, and a follow-up GET reads it back — the write i
 
   const write = await put(baseUrl, cookie, { publicEnabled: true });
   assert.equal(write.status, 200, await write.clone().text());
-  assert.deepEqual(await write.json(), { data: { publicEnabled: true } });
+  assert.deepEqual(await write.json(), { data: { publicEnabled: true, widget: "react" } });
 
   const read = await get(baseUrl, cookie);
-  assert.deepEqual(await read.json(), { data: { publicEnabled: true }, adminAssistantEnabled: true });
+  assert.deepEqual(await read.json(), { data: { publicEnabled: true, widget: "react" }, adminAssistantEnabled: true });
 });
 
 test("PUT turns the switch back off — the incident path an operator actually needs", async (t) => {
@@ -137,8 +150,8 @@ test("PUT turns the switch back off — the incident path an operator actually n
   await put(baseUrl, cookie, { publicEnabled: true });
   const off = await put(baseUrl, cookie, { publicEnabled: false });
   assert.equal(off.status, 200);
-  assert.deepEqual(await off.json(), { data: { publicEnabled: false } });
-  assert.deepEqual(await (await get(baseUrl, cookie)).json(), { data: { publicEnabled: false }, adminAssistantEnabled: true });
+  assert.deepEqual(await off.json(), { data: { publicEnabled: false, widget: "react" } });
+  assert.deepEqual(await (await get(baseUrl, cookie)).json(), { data: { publicEnabled: false, widget: "react" }, adminAssistantEnabled: true });
 });
 
 test("PUT with an empty body leaves the setting alone rather than resetting it", async (t) => {
@@ -148,7 +161,7 @@ test("PUT with an empty body leaves the setting alone rather than resetting it",
   await put(baseUrl, cookie, { publicEnabled: true });
   const noop = await put(baseUrl, cookie, {});
   assert.equal(noop.status, 200);
-  assert.deepEqual(await noop.json(), { data: { publicEnabled: true } });
+  assert.deepEqual(await noop.json(), { data: { publicEnabled: true, widget: "react" } });
 });
 
 test("PUT rejects a non-boolean publicEnabled with 400 and a typed code", async (t) => {
@@ -163,7 +176,7 @@ test("PUT rejects a non-boolean publicEnabled with 400 and a typed code", async 
 
   assert.deepEqual(
     await (await get(baseUrl, cookie)).json(),
-    { data: { publicEnabled: false }, adminAssistantEnabled: true },
+    { data: { publicEnabled: false, widget: "react" }, adminAssistantEnabled: true },
     "a rejected write must change nothing"
   );
 });
@@ -173,7 +186,7 @@ test("both routes require a session — an unauthenticated caller never reaches 
   const baseUrl = await startTestServer(app, t);
 
   assert.equal((await get(baseUrl, "")).status, 401);
-  assert.equal((await put(baseUrl, "", { publicEnabled: true })).status, 401);
+  assert.equal((await put(baseUrl, "", { publicEnabled: true, widget: "react" })).status, 401);
 });
 
 test("both routes require admin.assistant.manage — a signed-in principal without it gets 403", async (t) => {
@@ -203,7 +216,7 @@ test("a principal holding only admin.assistant.manage can both read and flip the
   // masked-500 defect SEO's identical settings route already hit once.
   const write = await put(baseUrl, cookie, { publicEnabled: true });
   assert.equal(write.status, 200, await write.clone().text());
-  assert.deepEqual(await write.json(), { data: { publicEnabled: true } });
+  assert.deepEqual(await write.json(), { data: { publicEnabled: true, widget: "react" } });
 });
 
 test("a workspace id that is not this site's is 404, on both verbs", async (t) => {

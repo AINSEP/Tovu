@@ -4,6 +4,13 @@ import { JSDOM } from "jsdom";
 
 import { applyHighlight, clearHighlight, findTargetElement, scrollToElement } from "../highlight";
 
+it("never resolves a vanilla widget title as a page entry", () => {
+  const isolated = new JSDOM('<div class="jini-chat-vanilla"><h1>About</h1></div><main><h2>About</h2></main>');
+  const target = findTargetElement("About", isolated.window.document);
+  assert.equal(target?.tagName, "H2");
+  isolated.window.close();
+});
+
 /**
  * SPEC-046 §4. `highlight.ts` reads the bare globals `document`/`window`/`setTimeout` (the same way
  * `main.tsx`/`SiteAssistantWidget.tsx` read the browser session store directly) rather than taking them as

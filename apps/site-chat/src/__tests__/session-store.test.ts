@@ -18,6 +18,7 @@ import {
   saveSiteAssistantState,
   savePersistedState,
   TRANSCRIPT_STORAGE_KEY,
+  hasQueuedPageAction,
 } from "../session-store";
 
 /**
@@ -336,6 +337,26 @@ describe("real-sessionStorage-bound wrappers", () => {
   afterEach(() => {
     (globalThis as { sessionStorage?: unknown }).sessionStorage = savedSessionStorage;
     dom.window.close();
+  });
+
+  it("checks queued effects without consuming them before the full widget loads", () => {
+    assert.equal(hasQueuedPageAction({}), false);
+    enqueuePageAction({ type: "highlight", target: { path: "/about", title: "About", slug: "about" } });
+    assert.equal(hasQueuedPageAction({}), true);
+    assert.deepEqual(drainQueuedPageAction(), { type: "highlight", target: { path: "/about", title: "About", slug: "about" } });
+    assert.equal(hasQueuedPageAction({}), false);
+  });
+
+  it("keeps the loader usable even when the browser storage getter itself throws", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+    Object.defineProperty(globalThis, "sessionStorage", { configurable: true, get() { throw new Error("Storage blocked"); } });
+    try {
+      assert.deepEqual(loadSiteAssistantState(), { open: false, messages: [] });
+      assert.equal(hasQueuedPageAction({}), false);
+    } finally {
+      if (descriptor) Object.defineProperty(globalThis, "sessionStorage", descriptor);
+      else delete (globalThis as { sessionStorage?: unknown }).sessionStorage;
+    }
   });
 
   it("loadSiteAssistantState reads through to the real sessionStorage, not a private store", () => {

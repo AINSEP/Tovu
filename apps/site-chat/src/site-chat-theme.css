@@ -1,0 +1,37 @@
+/** Shared Tovu widget tokens. Keep the fixed light admin palette in both visitor renderers;
+ * host themes use conflicting token names (see widget.css for the original measured rationale). */
+.tovu-site-assistant,
+.jini-chat-vanilla {
+  --bg: #fff;
+  --surface: oklch(100% 0 0);
+  --surface-2: oklch(96.6% 0.006 250);
+  --surface-3: oklch(94% 0.008 250);
+  --fg: oklch(24% 0.022 262);
+  --fg-2: oklch(34% 0.02 262);
+  --muted: oklch(53% 0.016 258);
+  --faint: oklch(66% 0.012 258);
+  --border: oklch(91.5% 0.007 255);
+  --border-strong: oklch(86% 0.01 255);
+
+  --accent: oklch(22% 0.006 260);
+  --accent-ink: oklch(99% 0 0);
+  --accent-text: oklch(26% 0.006 260);
+
+  --primary: oklch(55.29% 0.1129 43.4); /* ~#A85A38 — 5.02:1 vs white */
+  --primary-ink: oklch(99% 0 0);
+
+  --link: oklch(45% 0.13 250);
+  --ok: oklch(48% 0.12 150);
+  --danger: oklch(52% 0.19 25);
+  --danger-bg: oklch(95% 0.04 25);
+
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-ui: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --r-sm: 7px;
+  --r-md: 11px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --shadow-md: 0 4px 14px rgba(20, 28, 45, 0.07), 0 2px 5px rgba(20, 28, 45, 0.05);
+}

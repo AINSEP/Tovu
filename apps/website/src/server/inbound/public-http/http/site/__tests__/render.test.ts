@@ -29,6 +29,7 @@ import {
   type SiteRenderContext,
 } from "../render.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
+import { useSiteChatBuild } from "./site-chat.fixture.js";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
 // drove this 8-core box to load average 135 and the sandboxed renders below failed with
@@ -480,7 +481,8 @@ test("renderSite: siteAssistantEnabled:false is the same as omitting it — no m
   assert.doesNotMatch(html, /site-assistant\.css/);
 });
 
-test("renderSite: siteAssistantEnabled:true injects the stylesheet link, mount node, and deferred script, once each, in the page shell (not a theme template)", async () => {
+test("renderSite: legacy build fallback injects the stylesheet link, mount node, and deferred script, once each, in the page shell (not a theme template)", async (t) => {
+  useSiteChatBuild({ test: t, ready: false });
   const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
@@ -502,7 +504,8 @@ test("renderSite: siteAssistantEnabled:true injects the stylesheet link, mount n
   assert.ok(bodyIndex < scriptIndex, "the script tag must come after the themed page body");
 });
 
-test("renderSite: siteAssistantEnabled:true injects the widget on a static-tier home page too — regression for the ADR-054 gap where `renderStaticTierHomePage` bypasses `pageShell` (and its siteAssistantMarkup splice) entirely, so the widget silently never appeared for any static theme's home route no matter the setting", async () => {
+test("renderSite: siteAssistantEnabled:true injects the widget on a static-tier home page too — regression for the ADR-054 gap where `renderStaticTierHomePage` bypasses `pageShell` (and its siteAssistantMarkup splice) entirely, so the widget silently never appeared for any static theme's home route no matter the setting", async (t) => {
+  useSiteChatBuild({ test: t, ready: false });
   const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "content", "themes", "static", "tovu-theme"), id: "tovu-theme", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.equal(theme.manifest.tier, "static");
@@ -3110,7 +3113,8 @@ const HEAD_COMMENT_MENTIONING_CLOSING_TAGS = [
   "</head><body><h1>Hi</h1></body></html>",
 ].join("\n");
 
-test("injectSiteAssistantIntoStaticPage: closing tags named inside a head comment are skipped (regression)", () => {
+test("injectSiteAssistantIntoStaticPage: closing tags named inside a head comment are skipped (regression)", (t) => {
+  useSiteChatBuild({ test: t, ready: false });
   const out = injectSiteAssistantIntoStaticPage(HEAD_COMMENT_MENTIONING_CLOSING_TAGS, true);
 
   assert.equal(

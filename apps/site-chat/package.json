@@ -6,12 +6,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174",
-    "build": "node ../../development/scripts/check-no-linked-jini.mjs && vite build",
-    "build:local": "vite build && node scripts/check-bundle-mounts.mjs",
+    "build": "node ../../development/scripts/check-no-linked-jini.mjs && vite build && vite build --config vite.lazy.config.ts && vite build --config vite.vanilla.config.ts",
+    "build:local": "vite build && vite build --config vite.lazy.config.ts && vite build --config vite.vanilla.config.ts && node scripts/check-bundle-mounts.mjs",
     "postbuild": "node scripts/check-bundle-mounts.mjs",
     "preview": "vite preview --port 5174",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} \"src/**/*.test.ts\""
+    "test": "node --import tsx --test ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} \"src/**/*.test.ts\"",
+    "measure:bundles": "node scripts/measure-bundles.mjs"
   },
   "dependencies": {
     "@jini-ai/agentic": "^0.4.1",

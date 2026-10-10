@@ -1,4 +1,5 @@
 import type { ChatMessage } from "@jini-ai/chat/core";
+import { readSiteChatComparisonVariant } from "./site-chat-comparison";
 
 /**
  * @file SPEC-046 REQ-1/REQ-2 — the single `sessionStorage` module for the public site chat: the
@@ -233,21 +234,42 @@ export function drainQueuedAction(storage: SessionStore): QueuedAction | null {
  * `SessionStore` instead.
  */
 export function loadSiteAssistantState(): PersistedSiteAssistantState {
-  return loadPersistedState(sessionStorage);
+  return loadPersistedState(browserStorage);
 }
 
 export function saveSiteAssistantState(state: PersistedSiteAssistantState): void {
-  savePersistedState(sessionStorage, state);
+  savePersistedState(browserStorage, state);
 }
 
 export function clearSiteAssistantState(): void {
-  clearPersistedState(sessionStorage);
+  clearPersistedState(browserStorage);
 }
 
 export function enqueuePageAction(action: QueuedAction): void {
-  enqueueAction(sessionStorage, action);
+  enqueueAction(browserStorage, action);
 }
 
 export function drainQueuedPageAction(): QueuedAction | null {
-  return drainQueuedAction(sessionStorage);
+  return drainQueuedAction(browserStorage);
+}
+
+// Access the browser getter inside the injectable helpers' existing try blocks: private browsing
+// may throw even when reading sessionStorage itself, before getItem can run.
+const browserStorage: SessionStore = {
+  getItem: (key) => sessionStorage.getItem(siteStorageKey({ key })),
+  setItem: (key, value) => sessionStorage.setItem(siteStorageKey({ key }), value),
+  removeItem: (key) => sessionStorage.removeItem(siteStorageKey({ key })),
+};
+
+/** Same-origin frames share session storage. Keep each comparison transcript/queue apart from
+ * both its sibling and the visitor's real thread, while retaining this module's caps and guards. */
+export function siteStorageKey({ key }: { key: string }, options: { root?: HTMLElement | null } = {}): string {
+  const root = options.root === undefined ? globalThis.document?.getElementById('tovu-site-assistant-root') : options.root;
+  const variant = root ? readSiteChatComparisonVariant({ document: root.ownerDocument }) : null;
+  return variant === 'react' || variant === 'vanilla' ? `${key}.compare.${variant}` : key;
+}
+
+/** The tiny loader checks pending effects without draining the widget's single-use queue. */
+export function hasQueuedPageAction(_input = {}, _options = {}): boolean {
+  try { return browserStorage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null; } catch { return false; }
 }
