@@ -41,7 +41,7 @@ export const PAGES_RESOURCE = "pages";
 
 /**
  * A page's public path on the live site, derived from its `slug` — mirrors
- * `apps/website/src/platform/routing/routing.ts`'s `postPublicPath` exactly (same one-line
+ * `@jini-ai/cms/routing`'s `postPublicPath` exactly (same one-line
  * `"/" -> "/"`, everything else -> `/${slug}` rule), re-implemented here rather than imported
  * because `apps/admin` is a separately deployed SPA package with no dependency on
  * `apps/website`'s server source.

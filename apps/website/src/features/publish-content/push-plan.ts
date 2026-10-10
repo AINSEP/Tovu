@@ -4,7 +4,7 @@ import { buildPublishContentCatalog, type PublishContentDeps } from "./type-regi
 import { pushBundleToPeer, type PeerCallDeps, type NotSupportedByLiveEntry } from "./peer-transport.js";
 import { createCompositePeerBlobSource, type CompositeBlobStoreRead } from "./composite-blob-source.js";
 import { appendSkippedRowsToPeerPlan, keepChangingIncludedEntities, labelPeerPlanRows, tagTrashingRows } from "./report-labels.js";
-import { entryPublicPath } from "#src/platform/routing/index";
+import { entryPublicPath } from "#src/platform/routing/adapter";
 import type { PostRecord } from "../post/post.js";
 import type { PublishScope } from "./ui/contract.js";
 
@@ -82,7 +82,7 @@ export async function planPublishToPeer(
   // requests, which is exactly the kind of implicit session the gated ceremony avoids.
   const publicUrls = Object.fromEntries(bundle.entities.flatMap(entity => {
     if (entity.entityType !== "post" && entity.entityType !== "page") return [];
-    const url = entryPublicPath(entity.state as unknown as PostRecord, { workspaceId: deps.workspaceId, originOverride: peer.credential.baseUrl });
+    const url = entryPublicPath({ post: entity.state as unknown as PostRecord, ctx: { workspaceId: deps.workspaceId, originOverride: peer.credential.baseUrl } });
     return url ? [[`${entity.entityType}:${entity.id}`, url.canonicalUrl]] : [];
   }));
   return {

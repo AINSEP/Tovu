@@ -23,7 +23,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
  * `navTargetToRouteTarget` maps (`entryRef`, `termRef`, `url`, `route`) in one request, so both the
  * resolved (`available: true`) and unresolved (`null`) arms of `resolveTargetHref`'s own ternary run
  * too — `termRef` is a permanent stub (`resolveTermRefTarget` always returns `null`,
- * `routing/routing.ts`) and an unregistered route name resolves to `null` the same way, while `url`
+ * `@jini-ai/cms/routing`) and an unregistered route name resolves to `null` the same way, while `url`
  * and a real published `entryRef` both resolve successfully.
  */
 

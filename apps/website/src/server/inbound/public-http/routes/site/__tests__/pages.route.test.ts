@@ -14,7 +14,7 @@ import { loadTheme } from "#src/features/theme/index";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveMarketingPageOrOverride } from "../pages.js";
-import { registerResolvePhase } from "#src/platform/routing/routing";
+import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { registerPageHeadContributor } from "../../../http/site/page-head.js";
 
 /**
@@ -832,7 +832,7 @@ test("a published empty theme page falls through before head or assistant inject
 test("GET /:slug: a failure during the not-found recovery completes an opaque 500", async (t) => {
   const app = createApp({ ...createRouteDeps(), themes: [staticThemeWithThemed404()], postRepo: new InMemoryPostRepo([]) });
   const fault = new Error("redirect lookup failed during not-found recovery");
-  const dispose = registerResolvePhase("post_content", async () => { throw fault; });
+  const dispose = registerResolvePhase({ phase: "post_content", resolver: async () => { throw fault; } });
   t.after(dispose);
   const errors = t.mock.method(console, "error", () => {});
   let status = 200;

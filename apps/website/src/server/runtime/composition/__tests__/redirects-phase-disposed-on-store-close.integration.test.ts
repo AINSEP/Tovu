@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/index";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import { createSiteRouteDeps } from "../deps.js";
 import type { SiteStore } from "../open-site-store.js";
 
@@ -38,14 +38,14 @@ test("closing the site store removes its redirect resolver from both resolve pha
   const errorLog = t.mock.method(console, "error", () => {});
 
   // Control: while the site is open its resolver runs cleanly and declines (no rules exist).
-  assert.equal(await runPreContentPhase("/no-such-rule", ctx), null);
-  assert.equal(await runPostContentPhase("/no-such-rule", ctx), null);
+  assert.equal(await runPreContentPhase({ path: "/no-such-rule", ctx: ctx }), null);
+  assert.equal(await runPostContentPhase({ path: "/no-such-rule", ctx: ctx }), null);
   assert.equal(errorLog.mock.callCount(), 0, "an open site's resolver must not fail");
 
   await store?.close();
 
-  assert.equal(await runPreContentPhase("/no-such-rule", ctx), null);
-  assert.equal(await runPostContentPhase("/no-such-rule", ctx), null);
+  assert.equal(await runPreContentPhase({ path: "/no-such-rule", ctx: ctx }), null);
+  assert.equal(await runPostContentPhase({ path: "/no-such-rule", ctx: ctx }), null);
   const resolverFailures = errorLog.mock.calls
     .map((call) => String(call.arguments[0]))
     .filter((line) => line.startsWith("[routing]"));

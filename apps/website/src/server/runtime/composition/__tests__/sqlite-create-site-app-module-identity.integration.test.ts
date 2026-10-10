@@ -14,7 +14,7 @@ import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
 import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
-import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/routing";
+import { registerResolvePhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
 import type { NewsletterRouteDeps } from "#src/server/inbound/admin-http/routes/newsletter/deps";
 import type { OutboundEmail } from "#src/platform/mail/index";
@@ -131,7 +131,7 @@ test("a SQLite composition's createSiteApp() serves the site's own redirect rule
   // Control: the rule resolves through THIS process's own routing registry (the one `deps.ts`
   // registered the redirect handler onto), so a failure below cannot be blamed on the fixture.
   assert.deepEqual(
-    await runPreContentPhase("/retired-page", { workspaceId: deps.workspaceId }),
+    await runPreContentPhase({ path: "/retired-page", ctx: { workspaceId: deps.workspaceId } }),
     { kind: "redirect", location: "/current", statusCode: 301 },
     "control: the rule resolves through this process's routing registry"
   );
@@ -144,9 +144,8 @@ test("a SQLite composition's createSiteApp() serves the site's own redirect rule
 
 test("createSiteApp() sees a phase handler registered through this process's ESM routing.ts (one instance)", async (t) => {
   const deps = await bootSqliteSite(t);
-  const dispose = registerResolvePhase("pre_content", async (p) =>
-    p === "/one-instance-probe" ? { kind: "redirect", location: "/one-instance-target", statusCode: 302 } : null
-  );
+  const dispose = registerResolvePhase({ phase: "pre_content", resolver: async (p) =>
+    p === "/one-instance-probe" ? { kind: "redirect", location: "/one-instance-target", statusCode: 302 } : null });
   t.after(dispose);
 
   const baseUrl = await startTestServer(deps.createSiteApp(), t);

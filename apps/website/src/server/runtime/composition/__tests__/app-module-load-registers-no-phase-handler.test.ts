@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
-import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/routing";
-import type { RouteResolveContext } from "#src/platform/routing/types";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
+import { type RouteResolveContext } from '@jini-ai/cms/routing';
 
 /**
  * @file Regression coverage for t91 F4.1 (2026-09-16): `composition/app.ts` used to end with an
@@ -43,17 +43,17 @@ test("loading composition/app.ts registers nothing: a live Redirects registratio
   registerRedirectsPhaseHandlers({ resolver: realResolver as never });
 
   const expected = { kind: "redirect", location: "/real-target", statusCode: 301 };
-  assert.deepEqual(await runPreContentPhase("/old", CTX), expected);
+  assert.deepEqual(await runPreContentPhase({ path: "/old", ctx: CTX }), expected);
 
   await import("#src/server/runtime/composition/app");
 
   assert.deepEqual(
-    await runPreContentPhase("/old", CTX),
+    await runPreContentPhase({ path: "/old", ctx: CTX }),
     expected,
     "loading app.ts must not replace the live Redirects registration"
   );
   assert.deepEqual(
-    await runPostContentPhase("/old", CTX),
+    await runPostContentPhase({ path: "/old", ctx: CTX }),
     expected,
     "loading app.ts must not replace the live Redirects registration"
   );

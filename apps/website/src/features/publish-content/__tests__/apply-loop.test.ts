@@ -36,8 +36,8 @@ import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/
 
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type MenuRepoPort, type NavMenuEntry } from "#src/features/navigation/index";
 import { contributeMenusPublish } from "#src/features/navigation/publish-content";
-import { urlFor } from "#src/platform/routing/routing";
-import type { RouteTarget } from "#src/platform/routing/types";
+import { urlFor } from "#src/platform/routing/adapter";
+import { type RouteTarget } from '@jini-ai/cms/routing';
 
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";

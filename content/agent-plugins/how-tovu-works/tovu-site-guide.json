@@ -1,0 +1,335 @@
+{
+  "version": 1,
+  "topics": [
+    {
+      "id": "how-tovu-works-content",
+      "title": "Content",
+      "summary": "Reuse pages, posts and structured entries as the site data model.",
+      "explanation": "A directory starts with a content type and entries, not hardcoded profile cards in a theme. Choose fields from real requirements, discover the current content-type tools, and distinguish draft from published records. Render the same data in lists and pages. Public entry-page routing may require an additional capability; verify it rather than assuming every content type has its own public URL.",
+      "permissions": [
+        "content.read"
+      ],
+      "pointers": [
+        {
+          "label": "Read content",
+          "tool": "content_read.content_post",
+          "permissions": [
+            "content.read"
+          ]
+        },
+        {
+          "label": "Inspect content types",
+          "tool": "content_read.collection_content_type",
+          "permissions": [
+            "admin.collections.read"
+          ]
+        }
+      ],
+      "workflows": [
+        {
+          "title": "Design the directory data model",
+          "steps": [
+            "Explain forms and widgets before choosing the schema.",
+            "Inspect existing content types and entries.",
+            "Propose the fields and publishing policy; discover the actual create/update tool schemas before editing."
+          ],
+          "permissions": [
+            "content.read",
+            "admin.collections.read"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "how-tovu-works-forms",
+      "title": "Forms",
+      "summary": "Use native forms for inquiries, contact requests and submissions.",
+      "explanation": "A form definition owns validation, persistence and submission handling. A contact-form widget references that definition; it does not create another submission pipeline. Theme/page HTML uses a data-embed-config form marker. Read live fieldTypes first; richer fields are not supported merely because HTML can render them. Forms created from authored HTML have their own contract: inspect the forms authoring tools before assuming definition fields and markup are interchangeable.",
+      "permissions": [
+        "admin.forms.manage"
+      ],
+      "pointers": [
+        {
+          "label": "List form definitions",
+          "tool": "content_read.form_definition",
+          "permissions": [
+            "admin.forms.manage"
+          ]
+        },
+        {
+          "label": "Create a native form",
+          "tool": "forms_create_definition",
+          "permissions": [
+            "admin.forms.manage"
+          ]
+        },
+        {
+          "label": "Inspect submissions",
+          "tool": "forms_list_submissions",
+          "permissions": [
+            "admin.forms.submissions.read"
+          ]
+        }
+      ],
+      "workflows": [
+        {
+          "title": "Add a planner inquiry form",
+          "steps": [
+            "Read the live fieldTypes and describe forms_create_definition.",
+            "Reuse or create a definition with supported fields.",
+            "Explain widgets; reference the form id in a contact-form widget or a form marker.",
+            "Preview the rendered form and verify its public submit path."
+          ],
+          "permissions": [
+            "admin.forms.manage",
+            "widgets.read",
+            "widgets.create"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "how-tovu-works-widgets",
+      "title": "Widgets",
+      "summary": "Reuse widget instances and theme regions to compose pages.",
+      "explanation": "A widget instance is reusable content with a registered type/config schema. Creating it does not place it. Regions hold placements; an inline marker embeds an existing instance. Read current region versions before replacing placements. Contact forms reference native form definitions, recent-entry widgets reference real content, and unknown widget types must not be invented. A directory that needs filtering must verify a registered filtering capability before proposing it.",
+      "permissions": [
+        "widgets.read"
+      ],
+      "pointers": [
+        {
+          "label": "Read widget instances",
+          "tool": "content_read.widget_instance",
+          "permissions": [
+            "widgets.read"
+          ]
+        },
+        {
+          "label": "Read widget regions",
+          "tool": "content_read.widget_region",
+          "permissions": [
+            "widgets.read"
+          ]
+        },
+        {
+          "label": "Create a widget instance",
+          "tool": "widgets_create_instance",
+          "permissions": [
+            "widgets.create"
+          ]
+        },
+        {
+          "label": "Place widgets",
+          "tool": "widgets_set_region_placements",
+          "permissions": [
+            "widgets.place"
+          ]
+        }
+      ],
+      "workflows": [
+        {
+          "title": "Place a reusable inquiry widget",
+          "steps": [
+            "Explain forms and reuse the form definition id.",
+            "Describe widgets_create_instance and create a contact-form instance.",
+            "Read the intended region and its version; replace placements only after preserving the other widgets.",
+            "Preview the page at desktop and 375px."
+          ],
+          "permissions": [
+            "widgets.read",
+            "widgets.create",
+            "widgets.place",
+            "admin.forms.manage"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "how-tovu-works-themes",
+      "title": "Themes",
+      "summary": "Use the active theme contracts, layouts and markers.",
+      "explanation": "Themes present site content; they do not own form persistence, member authorization or content CRUD. Read installed/active theme facts and the current marker/layout registry. A single-quoted data-embed-config attribute carries JSON describing an existing content, form, widget, menu or partial target. Use only reported marker types. Duplicate the theme, inspect its actual files and preview changes before the owner approves activation. Ask the host for another plugin capability rather than importing another plugin.",
+      "permissions": [
+        "theme.set"
+      ],
+      "pointers": [
+        {
+          "label": "Inspect themes",
+          "tool": "content_read.theme",
+          "permissions": [
+            "theme.set"
+          ]
+        },
+        {
+          "label": "Read a theme file",
+          "tool": "theme_read_file",
+          "permissions": [
+            "theme.set"
+          ]
+        },
+        {
+          "label": "Learn theme authoring",
+          "tool": "agent_plugin_tovu_theme",
+          "permissions": [
+            "admin.plugins.read",
+            "admin.assistant.use"
+          ]
+        },
+        {
+          "label": "Theme v2 authoring contract",
+          "href": "development/docs/themes/theme-authoring-guide-v2.md",
+          "permissions": [
+            "theme.set"
+          ]
+        }
+      ],
+      "workflows": [
+        {
+          "title": "Compose a directory theme",
+          "steps": [
+            "Explain content, forms and widgets.",
+            "Inspect the selected theme layout and existing regions.",
+            "Work in a duplicated theme; use native embeds rather than reimplementing submission logic.",
+            "Preview at desktop and 375px; ask before activation."
+          ],
+          "permissions": [
+            "theme.set",
+            "theme.edit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "how-tovu-works-members",
+      "title": "Members",
+      "summary": "Separate visitor membership from administrator/operator identity.",
+      "explanation": "Members are visitor accounts with their own sign-in links, profiles, subscriptions and content-access decisions. Operator accounts control administration. The host currently has no membership enable/disable toggle, so its enabled fact is unavailable; it does not mean every page requires sign-in or that a member-login widget exists. Verify registered login/access capabilities before promising them. Never use operator sessions or role checks as a substitute for member access rules.",
+      "permissions": [
+        "member.manage"
+      ],
+      "pointers": [
+        {
+          "label": "Inspect members",
+          "tool": "content_read.member",
+          "permissions": [
+            "member.manage"
+          ]
+        },
+        {
+          "label": "Read member details",
+          "tool": "content_read.member",
+          "permissions": [
+            "member.manage"
+          ]
+        }
+      ],
+      "workflows": []
+    },
+    {
+      "id": "how-tovu-works-seo",
+      "title": "SEO",
+      "summary": "Inspect resolved site defaults and per-entry overrides before publishing.",
+      "explanation": "SEO metadata affects titles, descriptions, canonical links, sitemaps and social previews. Read current settings and entry metadata, preserve useful imported descriptions, and verify generated HTML with fetch_published_page. A local publication and a successful live deployment are separate facts; check the actual live host before claiming that external crawlers see the update.",
+      "permissions": [
+        "admin.seo.manage"
+      ],
+      "pointers": [
+        {
+          "label": "Read SEO settings",
+          "tool": "seo_get_settings",
+          "permissions": [
+            "admin.seo.manage"
+          ]
+        },
+        {
+          "label": "Inspect resolved metadata",
+          "tool": "content_read.seo_entry_meta",
+          "permissions": [
+            "admin.seo.manage"
+          ]
+        }
+      ],
+      "workflows": []
+    },
+    {
+      "id": "how-tovu-works-deploy",
+      "title": "Deploy",
+      "summary": "Choose between content publishing, static hosting and server deployment.",
+      "explanation": "Publishing a draft makes it visible on this Tovu instance. Sending content to another Tovu site, publishing a static export, and deploying the Tovu server use different tools and native host configuration. Discover enabled target capabilities; an installed deploy plugin is not proof a host account is connected. Preview before publishing, keep credentials in their existing secure owner, and verify the target live URL after the operation.",
+      "permissions": [
+        "system.read"
+      ],
+      "pointers": [
+        {
+          "label": "Inspect export status",
+          "tool": "deployment_get_export_status",
+          "permissions": [
+            "system.read"
+          ]
+        },
+        {
+          "label": "Learn hosting workflows",
+          "tool": "agent_plugin_deploy",
+          "permissions": [
+            "admin.plugins.read",
+            "admin.assistant.use"
+          ]
+        }
+      ],
+      "workflows": []
+    },
+    {
+      "id": "how-tovu-works-plugins",
+      "title": "Plugins",
+      "summary": "Check installation and activation in both plugin families.",
+      "explanation": "Site/runtime plugins extend site behavior; agent plugins teach the assistant and may contribute tool, provider or guide surfaces. Installed and enabled are different states. Read live inventory and use host capability lookup to ask whether another plugin is present; never import another plugin. Disabling How Tovu works removes its enrichment while core site_guide cards and live facts continue working. Tool pointers are discovery hints, not permission grants.",
+      "permissions": [
+        "admin.plugins.read"
+      ],
+      "pointers": [
+        {
+          "label": "Inspect site plugins",
+          "tool": "content_read.plugin",
+          "permissions": [
+            "admin.plugins.read"
+          ]
+        },
+        {
+          "label": "Search installed agent plugins",
+          "tool": "search_agent_plugin_local",
+          "permissions": [
+            "admin.plugins.read",
+            "admin.assistant.use"
+          ]
+        }
+      ],
+      "workflows": []
+    },
+    {
+      "id": "how-tovu-works-jini-packages",
+      "title": "Jini packages",
+      "summary": "Reuse shared @jini-ai capabilities before adding generic code.",
+      "explanation": "Jini packages own generic agent execution, tool authorization, chat, MCP, OAuth, CMS primitives and platform services. Tovu owns CMS/site policy and thin adapters. Inspect the installed package exports and actual behavior owner before extending them; do not copy a sibling lifecycle or bypass dependency inversion. Public boundaries take required and optional objects, and host effects enter as ports. Another product supplies its own guide cards without importing Tovu.",
+      "permissions": [
+        "admin.assistant.use"
+      ],
+      "pointers": [
+        {
+          "label": "Inspect callable capabilities",
+          "tool": "site_describe_capabilities",
+          "permissions": [
+            "admin.assistant.use"
+          ]
+        },
+        {
+          "label": "Jini package contracts",
+          "href": "https://github.com/AINSEP/Jini",
+          "permissions": [
+            "admin.assistant.use"
+          ]
+        }
+      ],
+      "workflows": []
+    }
+  ]
+}

@@ -1,3 +1,6 @@
+import { createTovuPluginHost } from "./plugin-host.js";
+import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
+import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
 import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
@@ -59,6 +62,7 @@ import { createInMemoryRevocations } from "#src/features/publish-trust/revocatio
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
+import { loadDeployOpsRegistryFromSource } from "#src/features/deployments/deploy-ops/registry";
 import { loadDeployTargetRegistryFromSource } from "#src/features/deployments/deploy-targets/registry";
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
 import { loadCredentialSchemeRegistryFromSource } from "#src/features/custom-credentials/auth-schemes";
@@ -68,8 +72,6 @@ import {
   CUSTOM_CREDENTIALS_EGRESS_POLICY,
   SINGLE_HOP_HTTPS_EGRESS_POLICY,
   MEDIA_IMPORT_EGRESS_POLICY,
-  createPublishContentPeerEgressPolicy,
-  parsePublishContentDevHosts,
 } from "#src/platform/http/egress-policies";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
 import { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";
@@ -113,6 +115,9 @@ import { createThemeTrashMover } from "#src/features/theme/trash-theme-tool";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import path from "node:path";
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { resolveSkillLayout } from "#src/features/skills/layout";
 import { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir } from "./deps.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import { describeSiteBinding, resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "#src/platform/site-dir/index";
@@ -176,7 +181,7 @@ import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 import { InMemoryRedirectRepo, RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
-import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/index";
+import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import {
   InMemoryDbOpsAdapter,
   InMemoryDatabaseIntrospectionAdapter,
@@ -247,6 +252,7 @@ import { registerThemeStaticAssets } from "../../inbound/public-http/middleware/
 import { registerThemePagePreview } from "../../inbound/public-http/middleware/theme-page-preview.js";
 import { applyRenderThemeOverride } from "../../inbound/public-http/middleware/render-theme-override.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
+import { registerSiteChatComparisonRoutes } from "../../inbound/public-http/routes/site/chat-comparison.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
 import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
@@ -287,6 +293,8 @@ import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/
 import { registerAdminServerLogsRoute } from "../../inbound/admin-http/routes/system/server-logs.js";
 import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
 import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
+import { registerAdminAssistantPermanentDeletesRoutes } from "../../inbound/admin-http/routes/system/assistant-permanent-deletes.js";
+import { registerAdminAssistantSubagentsRoutes } from "../../inbound/admin-http/routes/system/assistant-subagents.js";
 import { registerAdminDeploymentOverviewRoute } from "../../inbound/admin-http/routes/system/deployment-overview.js";
 import { registerAdminSitesRoutes } from "../../inbound/admin-http/routes/system/sites.js";
 import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/site/profile.js";
@@ -342,6 +350,7 @@ import type { ServerModuleHandle } from "./modules/types.js";
  */
 
 export interface CreateRouteDepsOptions {
+  readonly publishContentPeerHttpClient?: RouteDeps["publishContentPeerHttpClient"];
   readonly nativeApprovalMemory?: RouteDeps["nativeApprovalMemory"];
   readonly approvalIdentityForRun?: RouteDeps["approvalIdentityForRun"];
   readonly pluginFailureThreshold?: number;
@@ -383,6 +392,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const idGen = { newId: () => randomUUID() };
   const pluginActivationRepo = new InMemoryPluginActivationRepo();
   const pluginRuntime = composePluginRuntime({
+    getPluginHost: () => routeDeps.pluginHost,
     workspaceId: seededWorkspace.id,
     clock,
     activationRepo: pluginActivationRepo,
@@ -844,9 +854,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     originRegistry,
     reservedSegments: RESERVED_SEGMENTS,
   }, { hits: { outbox, clock, idGen } });
-  registerSlugChangeCapture(
-    new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen })
-  );
+  registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen }) });
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
 
   // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
@@ -1055,6 +1063,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
+  const siteBinding = describeSiteBinding();
+  const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteBinding.dir });
+  const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
+    identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
+  });
+  const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
+  const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     workspaceId: seededWorkspace.id,
     trash,
@@ -1121,7 +1136,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     postSearch: new InMemoryPostSearchIndex(postRepo),
     // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
     // slot at that moment (`registerSlugChangeCapture` above) decides whether a rename leaves a redirect.
-    slugChangeCapture: getSlugChangeCapture,
+    slugChangeCapture: () => getSlugChangeCapture({}),
     // Backed by `postRepo` above, NOT by a throwaway `:memory:` ContentDb — this root's posts do
     // not live in any SQLite database, so a real-adapter-over-scratch-db would edit rows nothing
     // else in this root can see. See `features/pages/html-document-store.memory.ts`'s header.
@@ -1182,7 +1197,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       clock,
       pending: externalMcpOAuthPending,
       devices: externalMcpOAuthDevices,
-      onConnected: createApplyConnectDefaults({ workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, clock }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, clock }),
     }),
     externalMcpOAuthPending,
     externalMcpOAuthDevices,
@@ -1220,7 +1235,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     ),
     themes: siteThemes,
     themesDir: builtInThemesDir(),
-    siteBinding: describeSiteBinding(),
+    siteBinding,
+    federatedMcpPresetRegistry,
+    agentPluginLayout,
+    agentPluginLifecycle,
+    skillLayout,
     // Hermetic: no `content.db` is opened here, so this reports the path a real boot of the same
     // env/cwd site WOULD open (`defaultContentDbPath()`) — exactly what the deployment overview and
     // the chat-attachment read-back route resolved per request before this field existed, and what
@@ -1408,9 +1427,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `createPublishContentPeerEgressPolicy()` with the same operator-set `devHostAllowlist` the
     // SQLite root reads, so a hermetic app is not accidentally more permissive than a real one.
     publishContentPeerRepo,
-    publishContentPeerHttpClient: createDefaultHttpClient(
-      createPublishContentPeerEgressPolicy(parsePublishContentDevHosts(process.env.TOVU_PUBLISH_CONTENT_DEV_HOSTS))
-    ),
+    publishContentPeerHttpClient: resolvePublishContentPeerHttpClient({}, options.publishContentPeerHttpClient ? { client: options.publishContentPeerHttpClient } : {}),
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic. NOT resolved lazily
@@ -1468,6 +1485,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // see `routes/types.ts`'s `loadDeployTargets` doc.
     loadDeployTargets: () =>
       loadDeployTargetRegistryFromSource({ pluginId: "deploy", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "deploy") }),
+    loadDeployOps: () => loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "deploy") }),
     // Hermetic the same way: the bundled github plugin's source directory — see `routes/types.ts`'s
     // `loadSourceControlProviders` doc.
     loadSourceControlProviders: () =>
@@ -1519,6 +1537,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
   };
+  routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
   return routeDeps;
 }
 
@@ -1846,6 +1865,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
   // own header for why its response never claims the daemon is healthy again.
   registerAdminAssistantDaemonRoutes(app, routeDeps);
+  registerAdminAssistantSubagentsRoutes({ app, deps: routeDeps });
+  registerAdminAssistantPermanentDeletesRoutes({ app, deps: routeDeps });
   // Admin Deployment panel (Overview + Dockerfile tabs) — same `system.read`-gated shape as the
   // module-status route just above; see each route file's own header for why they share it.
   registerAdminDeploymentOverviewRoute(app, routeDeps);
@@ -2120,6 +2141,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   registerSiteChatStatic(app, {
     distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat"),
   });
+  registerSiteChatComparisonRoutes({ app, deps: routeDeps });
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
   // theme-preview-static.ts's file header for exactly what this is (and isn't) wired up to.

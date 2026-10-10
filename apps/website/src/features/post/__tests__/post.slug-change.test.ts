@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
-import type { SlugChangeCapture, SlugChangeCaptureInput } from "#src/platform/routing/index";
+import { type SlugChangeCapture, type SlugChangeCaptureInput } from '@jini-ai/cms/routing';
 import { PostValidationError, ROOT_SLUG, SYSTEM_ACTOR_ID, updatePost, type PostRecord, type UpdatePostDeps } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 

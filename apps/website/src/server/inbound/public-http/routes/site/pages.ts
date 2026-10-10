@@ -1,3 +1,4 @@
+import type { SiteChatSelection } from "../../http/site/site-chat-markup.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import { randomUUID } from "node:crypto";
@@ -14,7 +15,7 @@ import {
   PostNotFoundError,
   ROOT_SLUG,
 } from "#src/features/post/index";
-import { isPublicAssistantEnabled } from "#src/assistant/index";
+import { isPublicAssistantEnabled, getPublicAssistantSettings } from "#src/assistant/index";
 import {
   DefaultMemberAccessResolver,
   resolvePostMemberAccess,
@@ -56,8 +57,8 @@ import type { EntryRecord } from "#src/features/entries/index";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "#src/features/entries/public-list";
 import { resolveHtmlPageEmbeds, type ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import { resolvePageWidgets, type ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
-import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
-import type { RouteTarget } from "#src/platform/routing/index";
+import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/adapter";
+import { type RouteTarget } from '@jini-ai/cms/routing';
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { resolveMenuDoc } from "#src/features/navigation/index";
 import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
@@ -132,7 +133,7 @@ async function buildExtraHead(
     workspaceId: deps.workspaceId,
     route,
     siteTitle,
-    canonicalUrl: toAbsoluteUrl({ origin, path: canonical ?? (post ? postPublicPath(post.slug) : canonicalFallbackPath) }, {}),
+    canonicalUrl: toAbsoluteUrl({ origin, path: canonical ?? (post ? postPublicPath({ slug: post.slug }) : canonicalFallbackPath) }, {}),
     entry: post
       ? {
           id: post.id,
@@ -166,10 +167,10 @@ async function tryRedirectPhase(
 ): Promise<boolean> {
   const outcome =
     phase === "pre_content"
-      ? await runPreContentPhase(path, { workspaceId })
-      : await runPostContentPhase(path, { workspaceId });
+      ? await runPreContentPhase({ path: path, ctx: { workspaceId } })
+      : await runPostContentPhase({ path: path, ctx: { workspaceId } });
   // `outcome.kind !== "redirect"` has two type-level arms — `"resolved"` and `"not_found"`
-  // (`RouteResolvePhaseOutcome`, routing/types.ts) — but only one is reachable through this
+  // (`RouteResolvePhaseOutcome`, @jini-ai/cms/routing) — but only one is reachable through this
   // codebase's real registrants today: `registerResolvePhase` (routing.ts) has exactly one
   // non-test caller repo-wide, `registerRedirectsPhaseHandlers` (redirects/phase-handler.ts),
   // whose own `toOutcome` is the ONLY constructor of this type anywhere in the tree and returns
@@ -250,6 +251,18 @@ export const CACHE_CONTROL_PRIVATE_STATIC_EXPORT = "private, no-store";
 export function resolveSiteAssistantEnabledForRequest(req: Pick<Request, "header">, deps: RouteDeps): Promise<boolean> {
   if (isStaticExportRequest(req)) return Promise.resolve(false);
   return isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId });
+}
+
+/** Resolves the site's widget choice once for all render branches; exports still ship no widget. */
+export async function resolveSiteAssistantWidgetForRequest({ request, deps }: {
+  request: Pick<Request, "header">; deps: RouteDeps;
+}, _options = {}): Promise<SiteChatSelection> {
+  if (isStaticExportRequest(request)) return false;
+  await deps.assistantSettingsReady;
+  const settings = await getPublicAssistantSettings(
+    { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }
+  );
+  return settings.publicEnabled ? settings.widget : false;
 }
 
 /**
@@ -412,7 +425,7 @@ export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDe
 }
 
 /** `NavTarget` (`navigation`) and `RouteTarget` (`routing`) are two independently-declared
- * discriminated unions with the same four kinds and matching fields (see `routing/types.ts`'s file
+ * discriminated unions with the same four kinds and matching fields (see `@jini-ai/cms/routing`'s file
  * header: the vocabulary was "promoted from Menus-local to routing-owned" precisely so both domains
  * share it) — but they remain two separate type declarations, not one shared import, so this maps
  * explicitly per-kind rather than relying on structural assignability compiling by coincidence.
@@ -770,6 +783,7 @@ export async function finishStaticTierDocument(
     /** The rendered post's featured image for a `{"type":"featured-image"}` marker (2026-10-05);
      *  omitted on every surface that is not a post, which removes the marker. */
     readonly featuredImage?: StaticFeaturedImage | null;
+    readonly postAuthor?: Pick<PostRecord, "author" | "showAuthor">;
     /** Threaded straight through to `resolveHtmlPageEmbeds`'s identically-shaped deps field — see
      *  {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}'s own doc for the full rationale. */
     readonly pendingContentOverride?: {
@@ -781,7 +795,7 @@ export async function finishStaticTierDocument(
     };
   }
 ): Promise<string> {
-  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, pendingContentOverride } = input;
+  const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor, pendingContentOverride } = input;
 
   const expanded = expandPartials(html, theme);
   const resolved = await resolveHtmlPageEmbeds({
@@ -821,7 +835,7 @@ export async function finishStaticTierDocument(
   // only one hand-authored directly into a theme file.
   const collectionLists = await resolveCollectionListsForRender(deps, assembled);
 
-  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews, collectionLists, featuredImage }) ?? "";
+  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews, collectionLists, featuredImage, postAuthor }) ?? "";
 }
 
 /**
@@ -1389,7 +1403,7 @@ export async function renderViaTemplate(
   pendingBodyJson?: JsonObject,
   pendingBodyHtml?: string,
   extraHead?: string,
-  siteAssistantEnabled = false,
+  siteAssistantEnabled: SiteChatSelection = false,
   // Post-previews marker (2026-09-03) — the member-access resolver/context for THIS request,
   // ALREADY built by the caller (`registerSiteRoutes` reuses the same instances it built for the
   // home/related-posts listing gate). Omitted by both pre-existing callers of this function
@@ -1463,7 +1477,7 @@ export async function renderViaTemplate(
     theme,
     pageId,
     html: bodyWithTerms,
-    currentPath: postPublicPath(post.slug),
+    currentPath: postPublicPath({ slug: post.slug }),
     staticMenus,
     postPreviewsAccess,
     // Featured image (2026-10-05): the static tier's counterpart of the templated tiers'
@@ -1471,6 +1485,7 @@ export async function renderViaTemplate(
     // `featuredImageView`, so both tiers show the identical URL and alt. Before this, the static
     // path never looked the featured asset up at all and it only ever reached `og:image`.
     featuredImage: await resolveFeaturedImageForRender(deps, post),
+    postAuthor: post,
   });
   return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
 }
@@ -1775,7 +1790,7 @@ export async function resolveMarketingPageOrOverride(
   theme: DiscoveredTheme | null,
   slug: string,
   staticMenus: StaticMenuMap | undefined,
-  siteAssistantEnabled: boolean,
+  siteAssistantEnabled: SiteChatSelection,
   // Post-previews marker (2026-09-03) — see `renderViaTemplate`'s identically-shaped, identically
   // optional parameter for the full rationale. This function's own only caller (`registerSiteRoutes`
   // below) always supplies it; the parameter stays optional so a future direct caller that has no
@@ -1815,7 +1830,7 @@ export async function resolveMarketingPageOrOverride(
     theme,
     pageId: slug,
     html: pageHtml,
-    currentPath: postPublicPath(slug),
+    currentPath: postPublicPath({ slug: slug }),
     staticMenus,
     postPreviewsAccess,
   });
@@ -1828,7 +1843,7 @@ export async function resolveMarketingPageOrOverride(
   // site was the one flagged there and left unfixed. No backing `post`, so `buildExtraHead`'s
   // `"page"` mode (entry-less, same shape as `"home"`) with this page's own `/${slug}` as the
   // canonical fallback — never home's `"/"`.
-  const extraHead = await buildExtraHead(deps, "page", await resolveSiteTitleForRender(deps), undefined, postPublicPath(slug));
+  const extraHead = await buildExtraHead(deps, "page", await resolveSiteTitleForRender(deps), undefined, postPublicPath({ slug: slug }));
   // ADR-054 gap fix — same `pageShell`-bypassing shape missed the visitor-chat widget the same way
   // it missed `extraHead` above; a static theme's marketing pages (pricing/docs/blog/…) never showed
   // the widget even with the setting on, because `pageShell`'s own injection never ran here.
@@ -1932,7 +1947,7 @@ export async function renderTemplateBranchIfEligible(
   theme: DiscoveredTheme | null,
   post: PostRecord,
   staticMenus: StaticMenuMap | undefined,
-  siteAssistantEnabled: boolean,
+  siteAssistantEnabled: SiteChatSelection,
   // Post-previews marker (2026-09-03) — threaded straight through to `renderViaTemplate`'s own
   // identically-shaped parameter; see that function's doc for the full rationale.
   postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
@@ -1973,7 +1988,7 @@ export async function renderGenericPostPage(
   theme: DiscoveredTheme | null,
   post: PostRecord,
   posts: PostRecord[],
-  siteAssistantEnabled: boolean
+  siteAssistantEnabled: SiteChatSelection
 ): Promise<string> {
   const siteTitle = await resolveSiteTitleForRender(deps);
   const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead, assignedTerms] = await Promise.all([
@@ -2205,7 +2220,7 @@ async function resolvePostPreviewsForRender(
   const visible = filterVisiblePosts(memberAccessResolver, posts, memberContext);
   return visible.map((post) => {
     const dateIso = postDisplayDateIso(post);
-    return { title: post.title, href: postPublicPath(post.slug), dateIso, dateLabel: formatPostPreviewDate(dateIso) };
+    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate(dateIso) };
   });
 }
 
@@ -2356,10 +2371,10 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         resolveRenderThemeId(res, deps),
         // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
         // route that calls `renderSite` resolves this the same way, through the shared
-        // `resolveSiteAssistantEnabledForRequest` (see `pages.ts`'s other handler and
+        // `resolveSiteAssistantWidgetForRequest` (see `pages.ts`'s other handler and
         // `products.ts`'s two handlers), which also carves out static exports (see that
         // function's own doc).
-        resolveSiteAssistantEnabledForRequest(req, deps),
+        resolveSiteAssistantWidgetForRequest({ request: req, deps }),
         resolveMemberContextForRequest(req, deps, memberAccessResolver),
       ]);
 
@@ -2471,7 +2486,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
         resolveRenderThemeId(res, deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-        resolveSiteAssistantEnabledForRequest(req, deps),
+        resolveSiteAssistantWidgetForRequest({ request: req, deps }),
         resolveMemberContextForRequest(req, deps, memberAccessResolver),
       ]);
 

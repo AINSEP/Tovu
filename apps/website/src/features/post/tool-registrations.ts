@@ -63,7 +63,7 @@ import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { entryPublicPath } from "#src/platform/routing/index";
+import { entryPublicPath } from "#src/platform/routing/adapter";
 import type { ToolContributor, DuplicateResourceHandlerContributor } from "#src/assistant/index";
 import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
 import { POST_LIST_FIELDS, postAgentToolCatalog } from "./agent-tools.js";
@@ -75,6 +75,9 @@ import {
   listAdminPages,
   listAdminPosts,
   normalizePublishAt,
+  normalizePostAuthor,
+  normalizeShowPostAuthor,
+  type PostAuthorAccountPort,
   updatePost,
   DEFAULT_POST_LIST_LIMIT,
   MAX_POST_LIST_LIMIT,
@@ -147,6 +150,8 @@ export interface PostToolDeps {
   outbox: OutboxPort;
   bus: EventBusPort;
   postRepo: PostRepoPort;
+  /** Account lookup for the creation-time author default; production RouteDeps supplies it. */
+  userRepo?: PostAuthorAccountPort;
   postSearch: PostSearchPort;
   pluginBeforeSaveHook: BeforeSaveHookPort;
   /** Routing's slug-change slot lookup — `content_post_update` renames leave the same 301 the admin
@@ -418,6 +423,8 @@ function postCommandDeps(routeDeps: PostToolDeps) {
 
 /** What a Posts/Pages tool returns to the model — see {@link toPostToolView}. */
 interface PostToolView {
+  author: string | null;
+  showAuthor: boolean;
   id: string;
   kind: PostKind;
   title: string;
@@ -463,6 +470,8 @@ function toPostToolView(post: PostRecord): PostToolView {
     status: post.status,
     updatedAt: post.updatedAt,
     version: post.version,
+    author: post.author ?? null,
+    showAuthor: post.showAuthor ?? false,
     ...scheduleView(post),
   };
 }
@@ -492,7 +501,7 @@ interface PostToolViewWithPublicUrl extends PostToolView {
  * @complexity O(1).
  */
 function resolvePublicUrl(routeDeps: PostToolDeps, post: PostRecord): string | null {
-  const resolved = entryPublicPath(post, { workspaceId: routeDeps.workspaceId });
+  const resolved = entryPublicPath({ post: post, ctx: { workspaceId: routeDeps.workspaceId } });
   return resolved?.canonicalUrl ?? null;
 }
 
@@ -667,6 +676,8 @@ function toPostListRow(routeDeps: PostToolDeps, post: PostRecord, excerptChars: 
     adminUrl: resolveAdminUrl(post),
     excerpt: toExcerpt(text, excerptChars),
     bodyChars: text.length,
+    author: post.author ?? null,
+    showAuthor: post.showAuthor ?? false,
     ...scheduleView(post),
   };
 }
@@ -827,6 +838,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         const slug = optionalString({ input: input, key: "slug" });
         const bodyJson = input.bodyJson !== undefined ? requireBodyJson(input, "bodyJson") : undefined;
         const status = optionalPostStatus(input);
+        const author = input.author === undefined ? undefined : normalizePostAuthor({ author: input.author });
+        const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor });
         const publishAt = optionalPublishAt(input);
         const featuredMediaId = await resolveFeaturedImageInput(routeDeps, input);
         const postId = routeDeps.idGen.newId();
@@ -851,6 +864,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   clock: routeDeps.clock,
                   beforeSaveHook: routeDeps.pluginBeforeSaveHook,
                   outbox: routeDeps.outbox,
+                  authorAccounts: routeDeps.userRepo,
                 },
                 input: {
                   workspaceId: routeDeps.workspaceId,
@@ -862,6 +876,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   status,
                   publishAt,
                   featuredMediaId,
+                  author,
+                  showAuthor,
                   actorId: ctx.principal.id,
                   // Every `tool-registrations.ts` handler is, by definition, reached only via
                   // `@jini-ai/daemon`'s agent-run path (see `AGENT_TOOL_PRINCIPAL_KIND`'s own doc
@@ -907,10 +923,12 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         const status = optionalPostStatus(input);
         // Tri-state, forwarded as-is: `updatePost` itself keeps the stored value for `undefined`
         // and clears on `null`, so these need no fill-in from `existing` the way the four above do.
+        const author = input.author === undefined ? undefined : normalizePostAuthor({ author: input.author });
+        const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor });
         const publishAt = optionalPublishAt(input);
         const featuredMediaId = await resolveFeaturedImageInput(routeDeps, input);
-        if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined && publishAt === undefined && featuredMediaId === undefined) {
-          throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson, status, publishAt or featuredImage. Nothing was changed." });
+        if (title === undefined && slug === undefined && bodyJson === undefined && status === undefined && publishAt === undefined && featuredMediaId === undefined && author === undefined && showAuthor === undefined) {
+          throw new ToolInputError({ message: "content_post_update: send at least one of title, slug, bodyJson, status, publishAt, featuredImage, author or showAuthor. Nothing was changed." });
         }
         // Validated, not cast — see `expected-version.ts`. `expectedVersion` is optional on
         // `UpdatePostInput`, so anything this handler failed to recognize would coerce to "no basis
@@ -1001,6 +1019,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                 status: existing.status,
                 publishAt: existing.publishAt ?? null,
                 featuredMediaId: existing.featuredMediaId ?? null,
+                author: existing.author ?? null,
+                showAuthor: existing.showAuthor ?? false,
               };
             },
             execute: () => {
@@ -1033,6 +1053,8 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
                   status: merged.status,
                   publishAt,
                   featuredMediaId,
+                  author,
+                  showAuthor,
                   expectedVersion: basisVersion,
                   actorId: ctx.principal.id,
                   // See content_post_create's identical delegatedBy* comment just above.
@@ -1314,6 +1336,8 @@ async function duplicatePostOrPage(
             slug,
             bodyJson: bodyJsonForCreate,
             status,
+            author: source.author ?? null,
+            showAuthor: source.showAuthor ?? false,
             actorId: input.principalId,
             // See content_post_create's identical delegatedBy* comment above.
             delegatedByWorkspaceId: routeDeps.workspaceId,

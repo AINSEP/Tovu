@@ -4,7 +4,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
 import { NO_THEME_ID, resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
-import { postPublicPath } from "#src/platform/routing/index";
+import { postPublicPath } from "#src/platform/routing/adapter";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
 import type { RedirectRecord, RedirectRepoPort } from "@jini-ai/cms/redirects";
@@ -194,7 +194,7 @@ function buildPostRoutes(posts: readonly PostRecord[], shadowedSlugs: ReadonlySe
   const routes: ManifestRoute[] = [];
   for (const post of posts) {
     if (shadowedSlugs.has(post.slug)) continue;
-    routes.push({ path: postPublicPath(post.slug), kind: post.kind === "page" ? "page" : "post", label: post.title });
+    routes.push({ path: postPublicPath({ slug: post.slug }), kind: post.kind === "page" ? "page" : "post", label: post.title });
   }
   return routes;
 }

@@ -1,3 +1,7 @@
+import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
+import { createTovuPluginHost } from "./plugin-host.js";
+import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
+import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
 import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
@@ -32,6 +36,7 @@ import {
   listPublishedPosts,
 } from "#src/features/post/index";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
+import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
@@ -55,10 +60,11 @@ import {
   SITE_BACKUP_EGRESS_POLICY,
   MEDIA_IMPORT_EGRESS_POLICY,
   SINGLE_HOP_HTTPS_EGRESS_POLICY,
-  createPublishContentPeerEgressPolicy,
-  parsePublishContentDevHosts,
 } from "#src/platform/http/egress-policies";
 import { createResolvedMailer } from "../boot/resolve-mailer.js";
+import { loadDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
+import { loadCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
+import { loadSourceControlProviderRegistry } from "#src/features/source-control/provider-registry";
 import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
@@ -78,9 +84,10 @@ import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/featu
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
+import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
-import type { ContentDb } from "#src/platform/db/sqlite/content-db";
+import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
 import { storeBoundServicesFor } from "./store-bound-services.js";
@@ -180,7 +187,7 @@ import {
 import { RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
 import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
-import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/index";
+import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";
 import { InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
@@ -581,13 +588,11 @@ export function pluginsInstallDir(required: { siteDir: string }, optional: SiteP
 export function defaultContentDbPath(): string {
   // `sites/<name>/content.db` (2026-08-27), via {@link siteDir}. Was `infra/content.db`, and before
   // that the bare working directory. ADR-012's model is unchanged — a site is a portable folder
-  // owning its own `content.db`/`uploads/` — but the *default* now names a real site folder rather
-  // than a shared scratch directory, so everything derived from `dirname(contentDbPath)` (the `ops/`
-  // sidecar journals, every plugin-migration snapshot, every captured restore point, and
-  // `agent-daemon-server.ts`'s `uploads/chat-attachments`) lands inside that one site instead of
-  // beside the repo. A deployment still passes an explicit dir, and `TOVU_CONTENT_DB` still
+  // owning its own content/assets — but the *default* names a real site rather than shared
+  // scratch space. Database journals/snapshots follow content.db into data.nosync or app-data;
+  // uploads/chat-attachments stay under the site root. A deployment passes an explicit dir, and `TOVU_CONTENT_DB` still
   // overrides this outright. ABSOLUTE now, where the old `join("infra", "content.db")` was relative.
-  return process.env.TOVU_CONTENT_DB ?? join(siteDir(), "content.db");
+  return process.env.TOVU_CONTENT_DB ?? resolveSiteDatabasePaths({ dir: siteDir() }).contentDbPath;
 }
 
 /**
@@ -608,7 +613,11 @@ export function defaultDatabaseJournalDbPath(contentDbPath: string = defaultCont
  * Defaults to `<dirname of content.db>/chat.db`; overridable independently via `TOVU_CHAT_DB`.
  */
 export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()): string {
-  return process.env.TOVU_CHAT_DB ?? join(dirname(contentDbPath), "chat.db");
+  if (process.env.TOVU_CHAT_DB !== undefined) return process.env.TOVU_CHAT_DB;
+  if (isInMemoryDbPath(contentDbPath)) return join(dirname(contentDbPath), "chat.db");
+  const root = resolveSiteDirForDatabase({ dbPath: contentDbPath });
+  const paths = resolveSiteDatabasePaths({ dir: root });
+  return paths.contentDbPath === contentDbPath ? paths.chatDbPath : join(dirname(contentDbPath), "chat.db");
 }
 
 /**
@@ -618,6 +627,10 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
  * is no legal state where only one is supplied. `uploadsDir` is independent of that pair.
  */
 export interface CreateSiteRouteDepsOverrides {
+  sqliteOpen: ContentDbOpenOptions["open"];
+  /** DB placement may differ from the site root or from content.db. */
+  chatDbPath: string;
+  publishContentPeerHttpClient: RouteDeps["publishContentPeerHttpClient"];
   nativeApprovalMemory: RouteDeps["nativeApprovalMemory"];
   approvalIdentityForRun: RouteDeps["approvalIdentityForRun"];
   db: ContentDb;
@@ -765,13 +778,13 @@ function resolveSiteBindingOverride(overrides?: Partial<CreateSiteRouteDepsOverr
  *
  * @complexity O(1) — env reads and one small `package.json` read.
  */
-function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; themesDir: string }): SiteBackupSources {
+function resolveSiteBackupSources(input: { siteDir: string; uploadsDir: string; themesDir: string; agentPluginLayout: RouteDeps["agentPluginLayout"]; skillLayout: RouteDeps["skillLayout"] }): SiteBackupSources {
   return {
     siteDir: input.siteDir,
     mediaUploadsDir: process.env.TOVU_MEDIA_BLOB_STORE === "s3" ? null : input.uploadsDir,
     themesDir: input.themesDir,
-    agentPlugins: resolveAgentPluginLayout(),
-    skillsDir: resolveSkillLayout().root,
+    agentPlugins: input.agentPluginLayout,
+    skillsDir: input.skillLayout.root,
     tovuVersion: readTovuVersion(),
   };
 }
@@ -791,7 +804,8 @@ export function resolveSiteStoragePaths(
   required: { contentDbPath: string; siteDir: string; uploadsDir: string },
   optional: SitePathResolverOptional = {}
 ): SiteStoragePaths {
-  const anchor = isInMemoryDbPath(required.contentDbPath) ? join(required.siteDir, "content.db") : required.contentDbPath;
+  // Uploads/attachments stay in the site even when the database moves to app-data.
+  const anchor = join(required.siteDir, "content.db");
   return {
     contentDbPath: required.contentDbPath,
     mediaUploadsDir: required.uploadsDir,
@@ -818,9 +832,10 @@ function readTovuVersion(): string {
  * `undefined` while that directory holds no valid `config.json` (a bare `TOVU_CONTENT_DB`, a temp test
  * database) and always for `:memory:`; the site title then falls back to `workspaces.name`.
  */
-function createSiteDisplayNameSource(dbPath: string): SiteDisplayNameSource {
+function createSiteDisplayNameSource(dbPath: string, siteDir?: string): SiteDisplayNameSource {
   if (dbPath === ":memory:") return { read: () => undefined };
-  return createLiveSiteDisplayName({ dir: dirname(dbPath) });
+  // Database relocation must not relocate the site's name/configuration.
+  return createLiveSiteDisplayName({ dir: resolveSiteDirForDatabase({ dbPath, siteDir }) });
 }
 
 /**
@@ -851,14 +866,16 @@ async function openCompositionStore(
   dbPath: string,
   overrides?: Partial<CreateSiteRouteDepsOverrides>
 ): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (registration: StoreCloseRegistration) => void }> {
-  const storage = resolveSiteStorage(isInMemoryDbPath(dbPath) ? ":memory:" : dirname(dbPath));
+  const anchor = isInMemoryDbPath(dbPath) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides?.siteBinding?.dir });
+  const storage = resolveSiteStorage(anchor);
+  if (!isInMemoryDbPath(dbPath) && storage.kind === "sqlite" && !overrides?.db) mkdirSync(dirname(dbPath), { recursive: true });
   hydrateContentDbIfNeeded(dbPath, storage, overrides);
   const role = overrides?.storeRole ?? "owner";
   const supplied = overrides?.store;
   // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
-  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: defaultChatDbPath(dbPath), role }, { db: overrides?.db }));
+  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: overrides?.chatDbPath ?? defaultChatDbPath(dbPath), role }, { db: overrides?.db, ...(overrides?.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
   const stopChatSweep = startOwnerChatExpirySweep(role, opened.chat, overrides?.chatExpirySweep);
   // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
   // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
@@ -1030,6 +1047,12 @@ async function composeSiteRouteDeps(
   // (`TOVU_SITE_DIR` or `<cwd>/sites/<name>`), which only `tovu serve` pins to the same place — see
   // `resolveExportOutputRootDir`'s doc.
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
+  const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });
+  const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
+    identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
+  });
+  const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
+  const skillLayout = resolveSkillLayout({ siteDir: resolvedSiteBinding.dir });
   const resolvedThemesDir = resolveThemesDirOverride(resolvedSiteBinding, overrides);
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
@@ -1071,7 +1094,7 @@ async function composeSiteRouteDeps(
   // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
   // erase) chat history" reason `databaseJournalDb` below is separate. Opened with the content
   // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
-  const chatDbPath = defaultChatDbPath(dbPath);
+  const chatDbPath = overrides?.chatDbPath ?? defaultChatDbPath(dbPath);
   const chat = store.chat;
   instrumentStorageKernel({ kernel: chat, observability });
   // The split above was wiring-only: it redirected the chat stores at `chat.db` but never moved
@@ -1107,6 +1130,7 @@ async function composeSiteRouteDeps(
   const idGen = { newId: () => randomUUID() };
   const pluginActivationRepo = sqlitePluginActivationRepoFor({ store: kernel });
   const pluginRuntime = composePluginRuntime({
+    getPluginHost: () => routeDeps.pluginHost,
     workspaceId,
     clock,
     activationRepo: pluginActivationRepo,
@@ -1232,7 +1256,7 @@ async function composeSiteRouteDeps(
   // `analyticsSettingsReady` for the single-SQLite-connection-transaction reason every registration
   // above documents; the pin writes through the same ledger.
   const siteTitlePreservationStore = new SqliteSiteTitlePreservationStore(kernel);
-  const siteDisplayName = createSiteDisplayNameSource(dbPath);
+  const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides?.siteBinding?.dir);
   const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
   const siteTitleReady = analyticsSettingsReady
     // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
@@ -1531,7 +1555,10 @@ async function composeSiteRouteDeps(
     // written once and driven entirely by each entry's own registration, so this line never changes
     // as G2-G4 add more entries.
     ...[...trashRegistry.values()].map((entry) => {
-      const adapter = createTableTrashAdapter({ entry, db: sqliteTrashDb });
+      const tableAdapter = createTableTrashAdapter({ entry, db: sqliteTrashDb });
+      const adapter = entry.entityType === "member"
+        ? createMemberTrashAdapter({ adapter: tableAdapter, db: sqliteTrashDb })
+        : tableAdapter;
       const hooks = trashFollowUpHooks.get(entry.entityType);
       return [entry.entityType, hooks ? withFollowUps({ adapter }, hooks) : adapter] as const;
     }),
@@ -1600,9 +1627,7 @@ async function composeSiteRouteDeps(
     originRegistry,
     reservedSegments: RESERVED_SEGMENTS,
   }, { hits: { outbox, clock, idGen } }));
-  onStoreClose(registerSlugChangeCapture(
-    new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen })
-  ));
+  onStoreClose(registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen }) }));
   onStoreClose(registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink }));
 
   // ADR-041 §2 — opens the sidecar ops journal alongside content.db. `mkdirSync` (recursive) is
@@ -1709,11 +1734,12 @@ async function composeSiteRouteDeps(
   // site-key plan §A3a: both site-key-backed keyrings below need this site's own ordered source
   // list (per-site file first in local mode, mirroring `ensureSiteKey`'s own writer-side ordering —
   // `site-key-sources.ts`). Computed once, here, rather than per-keyring: `dbPath !== ":memory:" ?
-  // dirname(dbPath) : undefined` is the SAME "every real boot path keeps content.db in its site
-  // directory" pattern `createSiteDisplayNameSource` above already relies on, so a `:memory:` boot
-  // (no site directory at all) correctly resolves no `siteKeyId` and therefore no per-site
-  // candidate, exactly like every other site-directory-derived read in this file.
-  const siteDirForKeyring = dbPath !== ":memory:" ? dirname(dbPath) : undefined;
+  // resolveSiteDirForDatabase(...) : undefined` shares the site-root resolution used by
+  // `createSiteDisplayNameSource` above, so a `:memory:` boot (no site directory at all) correctly
+  // resolves no `siteKeyId` and therefore no per-site candidate. The database may now be outside
+  // that root; its parent must never establish the key's identity.
+  // Site keys/config/themes remain at the site root when SQLite is stored elsewhere.
+  const siteDirForKeyring = dbPath !== ":memory:" ? resolveSiteDirForDatabase({ dbPath, siteDir: overrides?.siteBinding?.dir }) : undefined;
   const siteKeyIdForKeyring = siteDirForKeyring ? resolveSiteKeyId({ siteDir: siteDirForKeyring }) : undefined;
   const siteKeySourcesList = siteKeySources({
     mode: runtimeMode,
@@ -1840,7 +1866,7 @@ async function composeSiteRouteDeps(
     customCredentialRepo: customCredentialSetRepo,
     sealer: siteAssistantSecretSealer,
     httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
-    loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }),
+    loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     mode: runtimeMode,
   });
 
@@ -1869,10 +1895,10 @@ async function composeSiteRouteDeps(
   // behind one VPS firewall), and `TOVU_PUBLISH_CONTENT_DEV_HOSTS` is the plain env var that says
   // so on every platform. Unset means "every peer must resolve to a public address", the safe
   // default. See `createPublishContentPeerEgressPolicy`'s own doc.
-  const publishContentPeerHttpClient = createDefaultHttpClient(
-    createPublishContentPeerEgressPolicy(parsePublishContentDevHosts(process.env.TOVU_PUBLISH_CONTENT_DEV_HOSTS)),
-    { observability }
-  );
+  const publishContentPeerHttpClient = resolvePublishContentPeerHttpClient({}, {
+    ...(overrides?.publishContentPeerHttpClient ? { client: overrides.publishContentPeerHttpClient } : {}),
+    createClient: (policy) => createDefaultHttpClient(policy, { observability }),
+  });
 
   // Extracted (not inlined into the return object below) so `revertRegistry` can close over the
   // SAME instance `RouteDeps.postRepo` exposes, rather than a second `SqlitePostRepo(kernel)` — both
@@ -2057,7 +2083,7 @@ async function composeSiteRouteDeps(
     postSearch: postSearchIndexFor(kernel, { ready: postSearchBackfillReady }),
     // SPEC-009 REQ-15 — `updatePost` looks the capture up per write, so whatever is bound in routing's
     // slot at that moment (`registerSlugChangeCapture` above) decides whether a rename leaves a redirect.
-    slugChangeCapture: getSlugChangeCapture,
+    slugChangeCapture: () => getSlugChangeCapture({}),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
     // a route supplies only the `(workspaceId, postId)` scope. See `RouteDeps.pagesHtmlStore`.
     // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
@@ -2134,7 +2160,7 @@ async function composeSiteRouteDeps(
       clock,
       pending: externalMcpOAuthPending,
       devices: externalMcpOAuthDevices,
-      onConnected: createApplyConnectDefaults({ workspaceId, repo: externalMcpServerRepo, clock }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock }),
     }),
     externalMcpOAuthPending,
     externalMcpOAuthDevices,
@@ -2183,7 +2209,11 @@ async function composeSiteRouteDeps(
     // the same cheap, side-effect-free env/path lookup, not a second filesystem walk.
     packageThemesDir: builtInThemesDir(),
     siteBinding: resolvedSiteBinding,
-    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, themesDir: resolvedThemesDir }),
+    federatedMcpPresetRegistry,
+    agentPluginLayout,
+    agentPluginLifecycle,
+    skillLayout,
+    siteBackupSources: resolveSiteBackupSources({ siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir, themesDir: resolvedThemesDir, agentPluginLayout, skillLayout }),
     siteStoragePaths: resolveSiteStoragePaths({ contentDbPath: dbPath, siteDir: resolvedSiteBinding.dir, uploadsDir: resolvedUploadsDir }),
     outbox,
     bus,
@@ -2447,7 +2477,10 @@ async function composeSiteRouteDeps(
     // doc.
     publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: resolvedSiteBinding.dir }),
     // See `routes/types.ts`'s `loadDeployTargets` doc: the installed, activated deploy Agent Plugin.
-    loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }),
+    loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadDeployOps: (ctx) => loadDeployOpsRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadSourceControlProviders: (workspaceId) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadAuthSchemes: async (ctx) => (await loadCredentialSchemeRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions })).rules,
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
     // in-memory, not DB-backed — one instance per process (this function runs once per boot, per
     // `index.ts`/`agent-daemon-server.ts`'s own call sites), same singleton lifetime
@@ -2512,6 +2545,7 @@ async function composeSiteRouteDeps(
       ? widgetAdoptionReady.then(() => copyLegacyPublishCredentialsAtBoot(routeDeps, kernel))
       : widgetAdoptionReady;
 
+  routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
   return routeDeps;
 }
 
@@ -2585,7 +2619,7 @@ export async function createSiteRouteDepsForWorkspace(
   if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { storeRole });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.
-  if (!isInMemoryDbPath(dbPath) && resolveSiteStorage(dirname(dbPath)).kind !== "sqlite") {
+  if (!isInMemoryDbPath(dbPath) && resolveSiteStorage(resolveSiteDirForDatabase({ dbPath })).kind !== "sqlite") {
     return await createSiteRouteDeps(dbPath, { requestedWorkspaceId: workspaceIdOverride, storeRole });
   }
 

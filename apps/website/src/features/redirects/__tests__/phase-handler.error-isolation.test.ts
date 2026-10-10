@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
-import { resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/routing";
-import type { RouteResolveContext } from "#src/platform/routing/types";
+import { resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
+import { type RouteResolveContext } from '@jini-ai/cms/routing';
 
 /**
  * @file Guard for t91 F4.3's opt-in half: `registerRedirectsPhaseHandlers` must pass
@@ -15,8 +15,8 @@ import type { RouteResolveContext } from "#src/platform/routing/types";
 
 const ctx: RouteResolveContext = { workspaceId: "ws" };
 
-test.beforeEach(() => resetRoutingRegistrationsForTests());
-test.afterEach(() => resetRoutingRegistrationsForTests());
+test.beforeEach(() => resetRoutingRegistrationsForTests({}));
+test.afterEach(() => resetRoutingRegistrationsForTests({}));
 
 test("a redirects resolver that throws is isolated in both phases — Redirects opts into skip", async () => {
   registerRedirectsPhaseHandlers({
@@ -27,6 +27,6 @@ test("a redirects resolver that throws is isolated in both phases — Redirects 
     } as never,
   });
 
-  assert.equal(await runPreContentPhase("/x", ctx), null, "a broken redirects resolver must decline, not 500, pre_content");
-  assert.equal(await runPostContentPhase("/x", ctx), null, "a broken redirects resolver must decline, not 500, post_content");
+  assert.equal(await runPreContentPhase({ path: "/x", ctx: ctx }), null, "a broken redirects resolver must decline, not 500, pre_content");
+  assert.equal(await runPostContentPhase({ path: "/x", ctx: ctx }), null, "a broken redirects resolver must decline, not 500, post_content");
 });

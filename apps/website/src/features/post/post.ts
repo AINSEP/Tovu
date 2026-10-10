@@ -5,7 +5,8 @@ import type { OutboxPort } from "@jini-ai/cms/core";
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
 import { toSlug } from "#src/platform/html/slug";
-import { postPublicPath, type SlugChangeCapture } from "#src/platform/routing/index";
+import { postPublicPath } from "#src/platform/routing/adapter";
+import { type SlugChangeCapture } from '@jini-ai/cms/routing';
 
 export type PostStatus = "draft" | "published";
 
@@ -158,6 +159,10 @@ export interface PostRecord {
   /** Featured image (2026-10-05, `posts.featured_media_id`) — a media asset id, or `null`/absent.
    *  Resolved to a URL only at render time; a trashed/missing asset renders as "no image". */
   featuredMediaId?: string | null;
+  /** Editable display credit; independent of creator identity and permissions. */
+  author?: string | null;
+  /** Explicit opt-in to showing the byline; legacy rows default to false. */
+  showAuthor?: boolean;
 }
 
 /**
@@ -173,6 +178,8 @@ export interface PostRecord {
  * real save has since superseded is never silently treated as current.
  */
 export interface PostAutosaveSnapshot {
+  readonly author?: string | null;
+  readonly showAuthor?: boolean;
   readonly bodyFormat: PostBodyFormat;
   readonly bodyJson?: JsonObject;
   readonly bodyHtml?: string;
@@ -467,6 +474,9 @@ export interface CreatePostInput {
   publishAt?: string | null;
   /** Optional featured image media id. See {@link PostRecord.featuredMediaId}. */
   featuredMediaId?: string | null;
+  /** Omitted on create defaults to the actor account username; null clears the credit. */
+  author?: string | null;
+  showAuthor?: boolean;
   /** Attribution for the revision this write appends to `post_revisions` (2026-09-18). Optional —
    *  an omitted value defaults to {@link SYSTEM_ACTOR_ID} rather than being required, so this
    *  repo's own ~9 direct-unit-test call sites (documented on {@link CreatePostDeps}) keep
@@ -481,7 +491,13 @@ export interface CreatePostInput {
   delegatedById?: UUID | null;
 }
 
+export interface PostAuthorAccountPort {
+  findByPrincipalId(required: { workspaceId: UUID; principalId: UUID }, optional?: Record<string, never>): Promise<{ username: string } | null>;
+}
+
 export interface CreatePostDeps {
+  /** Existing identity account store, injected only to resolve the initial display credit. */
+  authorAccounts?: PostAuthorAccountPort;
   clock: ClockPort;
   repo: PostRepoPort;
   /**
@@ -539,6 +555,10 @@ export interface UpdatePostInput {
   publishAt?: string | null;
   /** Same tri-state as {@link UpdatePostInput.publishAt}, for {@link PostRecord.featuredMediaId}. */
   featuredMediaId?: string | null;
+  /** Omit to keep the stored credit; null or an empty string clears it. */
+  author?: string | null;
+  /** Omit to keep the stored toggle; false explicitly hides the byline. */
+  showAuthor?: boolean;
   /**
    * Optimistic-concurrency basis (2026-09-06) — the {@link PostRecord.version} the caller believes
    * it is editing, captured when it read the row.
@@ -1104,6 +1124,27 @@ export function normalizeFeaturedMediaId(value: unknown): string | null | undefi
   return value.trim();
 }
 
+/** Validates trimmed display credit without coercing untrusted objects into names.
+ * @throws PostValidationError for a non-string credit or more than 200 display characters.
+ * @complexity O(n) time/space in the supplied credit's length for trimming.
+ */
+export function normalizePostAuthor(required: { author: unknown }, _optional: Record<string, never> = {}): string | null {
+  const { author } = required;
+  if (author === undefined || author === null) return null;
+  if (typeof author !== "string") throw new PostValidationError("author must be a string or null");
+  const displayName = author.trim();
+  if ([...displayName].length > 200) throw new PostValidationError("author must be at most 200 characters");
+  return displayName || null;
+}
+
+/** Only a real boolean may enable the public byline. */
+export function normalizeShowPostAuthor(required: { showAuthor: unknown }, _optional: Record<string, never> = {}): boolean | undefined {
+  const { showAuthor } = required;
+  if (showAuthor === undefined) return undefined;
+  if (typeof showAuthor !== "boolean") throw new PostValidationError("showAuthor must be a boolean");
+  return showAuthor;
+}
+
 /** The schedule/featured-image keys a record carries — present only when set, so a row that has
  *  neither keeps the exact record shape it had before these fields existed (the same "absent, not
  *  empty" convention `ext` follows). @complexity O(1). */
@@ -1343,6 +1384,13 @@ export async function createPost(
     featuredMediaId: normalizeFeaturedMediaId(input.featuredMediaId),
   });
 
+  const author = normalizePostAuthor({ author: input.author });
+  const showAuthor = normalizeShowPostAuthor({ showAuthor: input.showAuthor });
+  // Resolve once, only for an omitted credit. A later account rename never rewrites a byline.
+  const account = input.author === undefined && input.actorId && deps.authorAccounts
+    ? await deps.authorAccounts.findByPrincipalId({ workspaceId: input.workspaceId, principalId: input.actorId })
+    : null;
+
   let slug: string;
   // A slug only a trashed row holds is free (see `trashedSlugHolderOrConflict`); that row is moved
   // aside inside the write transaction below, before this post is saved onto its slug.
@@ -1398,6 +1446,8 @@ export async function createPost(
     // value. See `PostRecord.createdByPrincipalId`'s own doc for the full contract.
     createdByPrincipalId: input.actorId ?? null,
     createdAt: now,
+    author: input.author === undefined ? normalizePostAuthor({ author: account?.username }) : author,
+    showAuthor: showAuthor ?? false,
     ...scheduleFields,
     ...(ext !== undefined ? { ext } : {}),
   };
@@ -1650,6 +1700,8 @@ function buildUpdatedPost(
       publishAt: input.publishAt === undefined ? existing.publishAt : normalizePublishAt(input.publishAt),
       featuredMediaId: input.featuredMediaId === undefined ? existing.featuredMediaId : normalizeFeaturedMediaId(input.featuredMediaId),
     }),
+    ...(input.author !== undefined ? { author: normalizePostAuthor({ author: input.author }) } : {}),
+    ...(input.showAuthor !== undefined ? { showAuthor: normalizeShowPostAuthor({ showAuthor: input.showAuthor }) } : {}),
     title: fields.title,
     slug: fields.slug,
     // SPEC-047/ADR-056 CIC-3 — forced explicitly rather than left to `...carriedOver`, for the same
@@ -1694,8 +1746,8 @@ async function captureSlugChange(
   await capture.onSlugChange({
     workspaceId: post.workspaceId,
     entryId: post.id,
-    oldPath: postPublicPath(existing.slug),
-    newPath: postPublicPath(post.slug),
+    oldPath: postPublicPath({ slug: existing.slug }),
+    newPath: postPublicPath({ slug: post.slug }),
     actor,
   });
 }
@@ -1717,6 +1769,8 @@ export async function updatePost(
   // (idempotently) where the record is built.
   normalizePublishAt(input.publishAt);
   normalizeFeaturedMediaId(input.featuredMediaId);
+  normalizePostAuthor({ author: input.author });
+  normalizeShowPostAuthor({ showAuthor: input.showAuthor });
   const trashedHolder = await trashedSlugHolderOrConflict(deps.repo, { workspaceId: input.workspaceId, slug }, { selfId: input.id });
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single

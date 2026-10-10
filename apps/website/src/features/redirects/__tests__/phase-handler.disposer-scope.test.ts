@@ -7,8 +7,8 @@ import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-ha
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
-import { resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/routing";
-import type { RouteResolveContext } from "#src/platform/routing/types";
+import { resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
+import { type RouteResolveContext } from '@jini-ai/cms/routing';
 
 /**
  * @file t91 F4.2 Part A (2026-09-16): `registerRedirectsPhaseHandlers`'s disposer used to call
@@ -30,8 +30,8 @@ function resolverFor(location: string): { resolve(): Promise<unknown> } {
   };
 }
 
-test.beforeEach(() => resetRoutingRegistrationsForTests());
-test.afterEach(() => resetRoutingRegistrationsForTests());
+test.beforeEach(() => resetRoutingRegistrationsForTests({}));
+test.afterEach(() => resetRoutingRegistrationsForTests({}));
 
 test("a superseded composition's disposer does not revoke the newer composition's redirects", async () => {
   const disposeA = registerRedirectsPhaseHandlers({ resolver: resolverFor("/from-a") as never });
@@ -41,12 +41,12 @@ test("a superseded composition's disposer does not revoke the newer composition'
 
   const expected = { kind: "redirect", location: "/from-b", statusCode: 301 };
   assert.deepEqual(
-    await runPreContentPhase("/x", ctx),
+    await runPreContentPhase({ path: "/x", ctx: ctx }),
     expected,
     "the superseded (A) disposer must not revoke B's live registration"
   );
   assert.deepEqual(
-    await runPostContentPhase("/x", ctx),
+    await runPostContentPhase({ path: "/x", ctx: ctx }),
     expected,
     "the superseded (A) disposer must not revoke B's live registration"
   );
@@ -58,8 +58,8 @@ test("the live composition's disposer still revokes it, idempotently", async () 
   disposeB();
   disposeB();
 
-  assert.equal(await runPreContentPhase("/x", ctx), null, "disposing the live registration must revoke it");
-  assert.equal(await runPostContentPhase("/x", ctx), null, "disposing the live registration must revoke it");
+  assert.equal(await runPreContentPhase({ path: "/x", ctx: ctx }), null, "disposing the live registration must revoke it");
+  assert.equal(await runPostContentPhase({ path: "/x", ctx: ctx }), null, "disposing the live registration must revoke it");
 });
 
 test("registered phases forward the request context and reserve pre-content for override rules", async () => {
@@ -82,11 +82,11 @@ test("registered phases forward the request context and reserve pre-content for 
     return real.resolve(request);
   } } });
   const redirect = { kind: "redirect", location: "/destination", statusCode: 302 };
-  assert.equal(await runPreContentPhase("/ordinary", ctx), null);
-  assert.deepEqual(await runPostContentPhase("/ordinary", ctx), redirect);
-  assert.deepEqual(await runPreContentPhase("/override", ctx), redirect);
-  assert.deepEqual(await runPostContentPhase("/override", ctx), redirect);
-  assert.equal(await runPostContentPhase("/ordinary", { workspaceId: "other-ws" }), null);
+  assert.equal(await runPreContentPhase({ path: "/ordinary", ctx: ctx }), null);
+  assert.deepEqual(await runPostContentPhase({ path: "/ordinary", ctx: ctx }), redirect);
+  assert.deepEqual(await runPreContentPhase({ path: "/override", ctx: ctx }), redirect);
+  assert.deepEqual(await runPostContentPhase({ path: "/override", ctx: ctx }), redirect);
+  assert.equal(await runPostContentPhase({ path: "/ordinary", ctx: { workspaceId: "other-ws" } }), null);
   assert.deepEqual(requests, [
     { workspaceId: "ws", path: "/ordinary", phase: "pre_content" },
     { workspaceId: "ws", path: "/ordinary", phase: "post_content" },

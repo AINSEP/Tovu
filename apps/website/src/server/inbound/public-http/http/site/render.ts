@@ -1,3 +1,7 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSelection } from "./site-chat-markup.js";
+import { resolveAppDistDir } from "#src/platform/site-dir/index";
 import { renderHtmlForm } from "@jini-ai/cms/forms";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/post";
@@ -42,6 +46,7 @@ import {
   type FormFlashPayload,
 } from "./form-render.js";
 import { escapeHtml } from "#src/platform/html/escape";
+import { postAuthorForDisplay } from "#src/features/post/author";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { toSlug } from "#src/platform/html/slug";
 
@@ -1877,7 +1882,7 @@ function withOccurrenceHeader(ir: WidgetRenderIR, ref: PageHtmlEmbedRef): Widget
 /**
  * Renders {@link SiteRenderContext.assignedTerms} as a labelled, PLAIN-TEXT block — never a link.
  * There is still no term-archive route anywhere in this codebase: `urlFor`/`isActive` resolve every
- * `termRef` route target to `null` (`platform/routing/types.ts`'s own `TermRefTarget` doc — "NOT
+ * `termRef` route target to `null` (`@jini-ai/cms/routing`'s own `TermRefTarget` doc — "NOT
  * resolvable today"), so linking a term here would only ever produce a 404. Terms are grouped by
  * their owning taxonomy's name (e.g. "Category: QA"), preserving the order the caller returned them
  * in (assignment order) rather than sorting alphabetically, so an author who assigned "Tag" before
@@ -1945,7 +1950,9 @@ function renderPostBody(ctx: SiteRenderContext): string {
 
 function entryContent(ctx: SiteRenderContext): string {
   if (!ctx.post) return "";
-  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(ctx.post)))}</p><div class="prose">${renderPostBody(ctx)}</div></article></div>`;
+  const author = postAuthorForDisplay({ post: ctx.post });
+  const byline = author ? `<p class="post-author">By ${escapeHtml(author)}</p>` : "";
+  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(ctx.post)))}</p>${byline}<div class="prose">${renderPostBody(ctx)}</div></article></div>`;
 }
 
 /**
@@ -2876,7 +2883,7 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
     // 2026-10-05), else `updatedAt`.
     // `featuredImage` (2026-10-05) is `{ url, alt, width, height }` or `null` — a theme renders it
     // with `{% if post.featuredImage %}<img src="{{ post.featuredImage.url }}" …>{% endif %}`.
-    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate(postDisplayDateIso(p)), featuredImage: featuredImageView(ctx, p) })),
+    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate(postDisplayDateIso(p)), featuredImage: featuredImageView(ctx, p), author: postAuthorForDisplay({ post: p }), showAuthor: p.showAuthor ?? false })),
     post: ctx.post
       ? {
           title: ctx.post.title,
@@ -2885,6 +2892,8 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
           dateShort: shortDate(postDisplayDateIso(ctx.post)),
           content: renderPostBody(ctx),
           featuredImage: featuredImageView(ctx, ctx.post),
+          author: postAuthorForDisplay({ post: ctx.post }),
+          showAuthor: ctx.post.showAuthor ?? false,
         }
       : null,
     // `price` stays in cents — themes format it themselves; `priceFormatted`/`compareAtPriceFormatted`
@@ -3092,12 +3101,28 @@ const SITE_ASSISTANT_MOUNT_ID = "tovu-site-assistant-root";
  * script) since it is small (under 1KB) and a visible FAB pop-in after paint would be a worse
  * regression than the negligible render-blocking cost of one tiny stylesheet.
  */
-function siteAssistantMarkup(enabled: boolean): { head: string; body: string } {
+function legacySiteAssistantMarkup(enabled: boolean): { head: string; body: string } {
   if (!enabled) return { head: "", body: "" };
   return {
     head: `<link rel="stylesheet" href="/site-chat/site-assistant.css"/>`,
     body: `<div id="${SITE_ASSISTANT_MOUNT_ID}"></div><script defer src="/site-chat/site-assistant.js"></script>`,
   };
+}
+
+const siteChatAssetsReady = createSiteChatAssetReadiness({
+  exists: ({ directory, name }) => existsSync(path.join(directory, name)),
+});
+
+/** Both widgets share the tiny loader once deployment artifacts are ready. Default remains React.
+ * Readiness preserves the owner's old running build during the coordinator's deferred build batch. */
+function siteAssistantMarkup(enabled: SiteChatSelection): { head: string; body: string } {
+  if (!enabled) return { head: "", body: "" };
+  const variant = enabled === "vanilla" ? "vanilla" : "react";
+  const distDir = process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir("site-chat");
+  const assetsReady = !process.env.TOVU_SITE_CHAT_DEV_PROXY_URL &&
+    siteChatAssetsReady({ directory: distDir, variant });
+  return renderLazySiteChatMarkup({ enabled: true, variant, assetsReady, mountId: SITE_ASSISTANT_MOUNT_ID })
+    ?? legacySiteAssistantMarkup(true);
 }
 
 /**
@@ -3142,7 +3167,7 @@ export function injectExtraHeadIntoStaticPage(html: string, extraHead: string | 
  * `enabled` is `false`, matching {@link siteAssistantMarkup}'s own "disabled emits nothing, not an
  * inert tag" contract.
  */
-export function injectSiteAssistantIntoStaticPage(html: string, enabled: boolean): string {
+export function injectSiteAssistantIntoStaticPage(html: string, enabled: SiteChatSelection): string {
   const { head, body } = siteAssistantMarkup(enabled);
   if (!head && !body) return html;
   const withHead = insertBeforeUncommentedTag(html, /<\/head>/gi, head);
@@ -3243,7 +3268,7 @@ function pageShell(required: {
    *  function's own doc). Defaults to `false` — the same fail-closed default the setting itself
    *  carries — so any pre-existing or test caller that does not pass this omits the assistant
    *  rather than silently gaining it. */
-  siteAssistantEnabled?: boolean;
+  siteAssistantEnabled?: SiteChatSelection;
 }): string {
   const { theme, extraHead } = required;
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
@@ -3366,7 +3391,7 @@ export interface RenderSiteRequired {
    * — `render.ts` stays a pure "resolved data -> HTML" renderer and never reads the settings ledger
    * itself, the same convention `widgets`/`posts`/`post` above already follow.
    */
-  siteAssistantEnabled?: boolean;
+  siteAssistantEnabled?: SiteChatSelection;
   /**
    * Menu-location wiring (2026-08-10) — the `header`/`footer` location menus pre-resolved by the
    * route layer (`pages.ts`'s `resolveStaticMenusForRender`, over `navigation`'s `resolveForLocation`
@@ -3461,7 +3486,7 @@ function renderStaticTierHomePage(
   route: SiteRenderContext["route"],
   staticMenus: RenderSiteRequired["staticMenus"],
   extraHead: string | undefined,
-  siteAssistantEnabled: boolean
+  siteAssistantEnabled: SiteChatSelection
 ): string | undefined {
   if (theme.manifest.tier !== "static" || route !== "home") return undefined;
   const staticHtml = renderStaticPage({ theme, pageId: "index", menus: staticMenus });

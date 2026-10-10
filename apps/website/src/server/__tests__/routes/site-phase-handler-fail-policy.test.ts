@@ -5,7 +5,7 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
-import { registerResolvePhase } from "../../../platform/routing/routing.js";
+import { registerResolvePhase } from "#src/platform/routing/adapter";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
@@ -38,9 +38,9 @@ test("a default-policy pre_content handler that throws turns GET / into a 500, n
     "the baseline composition must actually render a page — otherwise this case would pass for the wrong reason"
   );
 
-  const dispose = registerResolvePhase("pre_content", async () => {
+  const dispose = registerResolvePhase({ phase: "pre_content", resolver: async () => {
     throw new Error("guard down");
-  });
+  } });
   t.after(dispose);
 
   // The route's own catch logs this fault (`reportSiteRenderFault`); silence only that expected
@@ -69,9 +69,9 @@ test("a default-policy post_content handler that throws turns GET /:slug for a m
   await baseline.text();
   assert.equal(baseline.status, 404, "baseline: a slug with no post must 404, or this case passes for the wrong reason");
 
-  const dispose = registerResolvePhase("post_content", async () => {
+  const dispose = registerResolvePhase({ phase: "post_content", resolver: async () => {
     throw new Error("post guard down");
-  });
+  } });
   t.after(dispose);
 
   const unhandled: unknown[] = [];

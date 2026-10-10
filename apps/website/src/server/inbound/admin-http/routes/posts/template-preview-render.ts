@@ -2,7 +2,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { type PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
-import { postPublicPath } from "#src/platform/routing/index";
+import { postPublicPath } from "#src/platform/routing/adapter";
 import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
 import {
   renderViaTemplate,
@@ -178,7 +178,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   // own page-shell arm does it, so the row stays untemplated and a later explicit pick still wins.
   const renderedPost = branch.kind === "page-shell" ? { ...previewPost, templateChoice: branch.templateChoice } : previewPost;
 
-  const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath(post.slug));
+  const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath({ slug: post.slug }));
   const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, previewBodyJson, previewBodyHtml);
 
   return { html, templateChoice: renderedPost.templateChoice ?? null };

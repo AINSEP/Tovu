@@ -39,6 +39,7 @@ import { toolMetadata as server_logs } from './server-logs.js';
 import { toolMetadata as settings } from './settings.js';
 import { toolMetadata as site_backup } from './site-backup.js';
 import { toolMetadata as site_evidence } from './site-evidence.js';
+import { toolMetadata as site_guide } from './site-guide.js';
 import { toolMetadata as site_inspection } from './site-inspection.js';
 import { toolMetadata as sites } from './sites.js';
 import { toolMetadata as skills } from './skills.js';
@@ -98,6 +99,7 @@ export const nativeToolMetadata = projectToolMetadata<ToolApprovalPolicy>({ doma
   { domain: 'settings', tools: settings },
   { domain: 'site-backup', tools: site_backup },
   { domain: 'site-evidence', tools: site_evidence },
+  { domain: 'site-guide', tools: site_guide },
   { domain: 'site-inspection', tools: site_inspection },
   { domain: 'sites', tools: sites },
   { domain: 'skills', tools: skills },

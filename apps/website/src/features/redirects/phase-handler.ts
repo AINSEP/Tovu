@@ -3,8 +3,8 @@
  * Jini `packages/cms/src/redirects/{resolver,target-gate}.ts` (INV-03).
  */
 import { createRedirectResolver, type RedirectPhaseHandlerDeps, type RedirectResolver, type RedirectResolution } from "@jini-ai/cms/redirects";
-import { registerResolvePhase } from "../../platform/routing/index.js";
-import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../../platform/routing/index.js";
+import { registerResolvePhase } from "#src/platform/routing/adapter";
+import { type RouteResolveContext, type RouteResolvePhaseOutcome } from '@jini-ai/cms/routing';
 
 /** Product ports, or an injected resolver for registry lifecycle characterization. */
 export type RegisterRedirectsPhaseHandlersDeps =
@@ -75,11 +75,11 @@ export function registerRedirectsPhaseHandlers(
   // onError: "skip" (t91 F4.3 — routing.ts's default changed to "fail"): a redirect lookup
   // failure can only DECLINE to redirect (INV-03, toOutcome above never fabricates one), so one
   // broken rule store must not 500 every page on the site the way a guard-type handler should.
-  const disposePreContent = registerResolvePhase("pre_content", preContentHandler, {
+  const disposePreContent = registerResolvePhase({ phase: "pre_content", resolver: preContentHandler }, {
     owner: REDIRECTS_PHASE_OWNER,
     onError: "skip",
   });
-  const disposePostContent = registerResolvePhase("post_content", postContentHandler, {
+  const disposePostContent = registerResolvePhase({ phase: "post_content", resolver: postContentHandler }, {
     owner: REDIRECTS_PHASE_OWNER,
     onError: "skip",
   });

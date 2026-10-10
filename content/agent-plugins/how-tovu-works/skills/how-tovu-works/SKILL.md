@@ -1,0 +1,12 @@
+---
+name: how-tovu-works
+description: Learn THIS site before planning or building with its existing content, forms, widgets and themes.
+---
+
+Before planning or building, call `site_guide({"operation":"overview"})`.
+For each relevant topic id returned, call `site_guide({"operation":"explain","topic":"forms"})` (substitute the actual id).
+If tools are proxied, use `execute_readonly_delegated_tool` with `toolId: "site_guide"` and the same input.
+Use the live facts and permitted tool/doc pointers. Forbidden or unavailable facts are unknown; do not invent capabilities or read config files to fill the gap.
+For a directory site, consult content, forms, widgets and themes: reuse structured entries, native submissions, widget instances/regions and theme markers before proposing custom code. Discover current schemas with search_tools/describe_tool before writing.
+For deeper workflows, explain the corresponding `how-tovu-works-*` topic ids returned by overview. Core topic ids remain the authoritative capability cards and live facts.
+This plugin only contributes explanations. The core tool works with minimal cards when the plugin is disabled. Follow the owner's normal approval rules for any subsequent edits or publishing.

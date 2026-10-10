@@ -1,18 +1,25 @@
+import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
 const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, readdir, rm, stat } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 
+import { currentToolIdFor } from "#src/assistant/content-read-tool";
+import { realToolCatalog } from "#src/assistant/__tests__/real-tool-catalog.fixture";
+import { TOVU_CAPABILITY_CARDS, resolveSiteGuideEngine } from "#src/server/runtime/composition/site-guide";
+import { createSiteCapabilityRegistry } from "#src/assistant/site/capability-registry";
+import { InMemoryPostRepo, listPublishedPosts } from "#src/features/post/index";
+import { publicCapabilityCard } from "#src/assistant/site/capability-card";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { resolveAgentPluginRefs, listInstalledPlugins } from "../../lifecycle.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "../../lifecycle.js";
-import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources } from "../../tool-registrations.js";
+import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources, registerInstalledAgentPluginTools } from "../../tool-registrations.js";
 
 /**
  * @file The end-to-end proof that "bundled but inactive" is a real, enforced condition — not a
@@ -99,14 +106,14 @@ test("every bundled plugin not seeded enabled, supabase included, is listed as s
     const bundledIds = [...new Set((await listInstalledPlugins(layout.root)).map((plugin) => plugin.pluginId))].filter(
       (pluginId) => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId),
     );
-    assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), ["deploy", "github", "resend", "site-import", "tovu-theme"]);
+    assert.deepEqual([...BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED].sort(), ["deploy", "github", "how-tovu-works", "resend", "site-import", "tovu-theme"]);
     assert.deepEqual([...bundledIds].sort(), ["composio", "higgsfield-media", "jev", "site-compliance", "supabase"]);
     for (const expected of ["supabase"]) assert.ok(bundledIds.includes(expected), `${expected} must be seeded`);
 
-    const listed = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_ID });
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
+    const listed = await loadAgentPluginSearchCandidates(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     // tovu-theme (2026-10-08): site-import delegates its theme step to it, so both seed enabled.
-    for (const pluginId of ["deploy", "github", "resend", "site-import", "tovu-theme"]) {
+    for (const pluginId of ["deploy", "github", "how-tovu-works", "resend", "site-import", "tovu-theme"]) {
       assert.equal(listed.find(candidate => candidate.pluginId === pluginId)?.enabled, true, `${pluginId}: seeded enabled`);
       assert.ok(sources.some(source => source.pluginId === pluginId), `${pluginId}: tool gate open`);
       const injected = await resolveAgentPluginRefs([pluginId], layout);
@@ -123,7 +130,7 @@ test("every bundled plugin not seeded enabled, supabase included, is listed as s
 
 test("GATE 1 (tool registration): an inactive bundled plugin gets no agent_plugin_* tool", async () => {
   await withSeededWorkspace(async () => {
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     assert.deepEqual(sources.filter((source) => source.pluginId === PLUGIN_ID), []);
   });
 });
@@ -146,7 +153,7 @@ test("enabling the plugin opens both gates together", async () => {
   await withSeededWorkspace(async ({ workspaceRoot }) => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     assert.ok(sources.some((source) => source.pluginId === PLUGIN_ID), "GATE 1 must open");
 
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
@@ -165,7 +172,7 @@ test("disabling it again closes them", async () => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "test:operator" });
 
-    const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     assert.deepEqual(sources.filter((source) => source.pluginId === PLUGIN_ID), []);
   });
 });
@@ -197,5 +204,29 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
 
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(activations.plugins[PLUGIN_ID]?.enabled, true);
+  });
+});
+
+test("every core, public and bundled guide tool pointer resolves to a currently registered tool", async () => {
+  await withSeededWorkspace(async () => {
+    const { registry } = await realToolCatalog();
+    await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_ID, agentPluginLayout: resolveAgentPluginLayout() });
+    const ids = new Set(registry.list({}).map(tool => tool.id));
+    const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(path.join(BUNDLED_SOURCE_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8") });
+    if (!parsed.ok) throw new Error(parsed.reason);
+    const cards = [...TOVU_CAPABILITY_CARDS, ...parsed.descriptors];
+    const visitor = createSiteCapabilityRegistry({ workspaceId: WORKSPACE_ID, postRepo: new InMemoryPostRepo(), listPublishedPosts });
+    const publicIds = new Set(visitor.schemas.map(tool => tool.name));
+    let checked = 0;
+    for (const [topics, registeredIds] of [[cards, ids], [[publicCapabilityCard], publicIds]] as const) {
+      for (const card of topics) for (const pointer of card.pointers) {
+        if (!("tool" in pointer) || !pointer.tool) continue;
+        const currentId = currentToolIdFor(pointer.tool);
+        assert.equal(pointer.tool, currentId, `${card.id}: author the current tool id`);
+        assert.ok(registeredIds.has(currentId), `${card.id}: ${pointer.tool} must resolve to a registered tool`);
+        checked++;
+      }
+    }
+    assert.ok(checked >= 30, "all cards must be inspected, including bundled workflows");
   });
 });

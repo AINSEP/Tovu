@@ -7,7 +7,7 @@ import test, { type TestContext } from "node:test";
 
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
-import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/routing";
+import { runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -165,7 +165,7 @@ test("a second site's request never runs the first site's phase handler, and the
   // Baseline: while it is the live composition, the first site resolves its own rule. Without this
   // the test could pass against a registry that never worked at all.
   assert.deepEqual(
-    await runPostContentPhase(FIRST_SITE_PATH, { workspaceId: first.deps.workspaceId }),
+    await runPostContentPhase({ path: FIRST_SITE_PATH, ctx: { workspaceId: first.deps.workspaceId } }),
     { kind: "redirect", location: NEW_PATH, statusCode: 301 },
     "the first site must resolve its own redirect while it is the live composition"
   );
@@ -182,7 +182,7 @@ test("a second site's request never runs the first site's phase handler, and the
   // into a 500 on `/` and `/pricing` for a site that had nothing whatsoever to do with it.
   const failures = await phaseFailuresDuring(async () => {
     assert.deepEqual(
-      await runPostContentPhase(SECOND_SITE_PATH, { workspaceId: second.deps.workspaceId }),
+      await runPostContentPhase({ path: SECOND_SITE_PATH, ctx: { workspaceId: second.deps.workspaceId } }),
       { kind: "redirect", location: NEW_PATH, statusCode: 301 },
       "the second site must resolve its OWN rule, through its own open database"
     );
@@ -190,7 +190,7 @@ test("a second site's request never runs the first site's phase handler, and the
     // `pre_content` is the phase `/` and `/pricing` run first, and the one the 500 actually came
     // out of — exercise it separately rather than trusting that both phases share a fate.
     assert.equal(
-      await runPreContentPhase("/anything-with-no-rule", { workspaceId: second.deps.workspaceId }),
+      await runPreContentPhase({ path: "/anything-with-no-rule", ctx: { workspaceId: second.deps.workspaceId } }),
       null,
       "pre_content must resolve cleanly for a path with no rule"
     );
@@ -199,7 +199,7 @@ test("a second site's request never runs the first site's phase handler, and the
     // registration can reach (the second site never seeded it), so the only thing that could ever
     // resolve it is the first site's orphaned handler.
     assert.equal(
-      await runPostContentPhase(FIRST_SITE_PATH, { workspaceId: first.deps.workspaceId }),
+      await runPostContentPhase({ path: FIRST_SITE_PATH, ctx: { workspaceId: first.deps.workspaceId } }),
       null,
       "the superseded site's rule must be unreachable"
     );
@@ -219,7 +219,7 @@ test("a second site's request never runs the first site's phase handler, and the
 test("the disposer registerRedirectsPhaseHandlers returns revokes the live registration outright", async (t) => {
   const site = await bootSite(t, "Disposable Site");
   await seedRedirect(site.deps, "redirect-disposable", FIRST_SITE_PATH);
-  assert.deepEqual(await runPostContentPhase(FIRST_SITE_PATH, { workspaceId: site.deps.workspaceId }), {
+  assert.deepEqual(await runPostContentPhase({ path: FIRST_SITE_PATH, ctx: { workspaceId: site.deps.workspaceId } }), {
     kind: "redirect",
     location: NEW_PATH,
     statusCode: 301,
@@ -238,14 +238,14 @@ test("the disposer registerRedirectsPhaseHandlers returns revokes the live regis
     }),
   });
   assert.deepEqual(
-    await runPostContentPhase(FIRST_SITE_PATH, { workspaceId: site.deps.workspaceId }),
+    await runPostContentPhase({ path: FIRST_SITE_PATH, ctx: { workspaceId: site.deps.workspaceId } }),
     { kind: "redirect", location: NEW_PATH, statusCode: 301 },
     "the re-registration must serve the same rule before it is disposed"
   );
 
   dispose();
   assert.equal(
-    await runPostContentPhase(FIRST_SITE_PATH, { workspaceId: site.deps.workspaceId }),
+    await runPostContentPhase({ path: FIRST_SITE_PATH, ctx: { workspaceId: site.deps.workspaceId } }),
     null,
     "after dispose() no Redirects handler may remain registered"
   );

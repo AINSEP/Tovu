@@ -16,7 +16,7 @@ import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey, type TransformDefini
 import { resolvePostMemberAccess } from "../members/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "../settings/site-title.js";
-import { postPublicPath, urlFor } from "../../platform/routing/index.js";
+import { postPublicPath, urlFor } from "#src/platform/routing/adapter";
 import { isScheduledAt, isLiveAt, postDisplayDateIso } from "../../contracts/core/scheduled-publish.js";
 import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
@@ -63,6 +63,7 @@ export function createSeoFeaturedImagePort({ deps }: { deps: FeaturedImageDeps }
 /** Host bindings shared by the head producer, evaluator, sitemap service, routes and tools. */
 export interface SeoHostBindings extends SeoSitemapDeps {
   postRepo: SeoPostListPort & SeoPostWritePort;
+  shareImageTransform: string;
   rootSlug: string;
   siteTitle: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<string | undefined>;
   dispatch: SitemapInvalidationDeps["dispatch"];
@@ -81,13 +82,15 @@ export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
 } }, _optional: Record<string, never> = {}): SeoHostBindings {
   return {
     originRegistry: deps.originRegistry,
+    // Messaging/social crawlers receive the JPEG variant registered by media bootstrap.
+    shareImageTransform: "og",
     postRepo: createSeoPostPort({ postRepo: deps.postRepo }, {}),
     settings: {
       getSeoSettings: (input) => getSeoSettings({ settingsRepo: deps.settingsRepo }, input),
       isDefaultRobotsNoindexExplicitlySet: (input) => isDefaultRobotsNoindexExplicitlySet({ deps: { settingsRepo: deps.settingsRepo }, input }, {}),
     },
     urls: {
-      postPublicPath: ({ slug }) => postPublicPath(slug),
+      postPublicPath: ({ slug }) => postPublicPath({ slug: slug }),
       urlFor: ({ target, ctx }) => urlFor({ deps: { postRepo: deps.postRepo }, target, ctx }),
     },
     liveness: {

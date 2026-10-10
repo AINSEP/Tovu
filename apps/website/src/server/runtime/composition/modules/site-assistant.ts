@@ -1,4 +1,6 @@
 import type { ToolDescriptor } from "@jini-ai/core";
+import { runPublicSiteGuide } from "../public-site-guide.js";
+import { SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
 import type { Express, Request, Response } from "express";
 
 import {
@@ -179,7 +181,8 @@ function resolveBaseUrl(storedBaseUrl: string | null, envBaseUrl: string | undef
   return storedBaseUrl?.trim() || envBaseUrl || undefined;
 }
 
-const SYSTEM_PREAMBLE = [
+export const SYSTEM_PREAMBLE = [
+  'For this website’s published capabilities, call site_guide with operation "overview", then "explain" with a returned topic id.',
   "You are a helpful assistant embedded on a website, talking to a visitor.",
   "Answer using the site's published content, which you can look up with your tools.",
   "You can only see published content. If something is not published you genuinely cannot see it —",
@@ -597,7 +600,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           workspaceId: deps.workspaceId,
           autoNavigateAllowed,
           listPublishedPosts,
-        });
+        }, { siteGuide: { inputSchema: SITE_GUIDE_SCHEMA, run: runPublicSiteGuide } });
 
         /**
          * Translates a model tool call into one `capabilities.invoke()` call and back into the

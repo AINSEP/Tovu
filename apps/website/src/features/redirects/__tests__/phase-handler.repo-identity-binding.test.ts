@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
-import { resetRoutingRegistrationsForTests, runPostContentPhase } from "#src/platform/routing/routing";
+import { resetRoutingRegistrationsForTests, runPostContentPhase } from "#src/platform/routing/adapter";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectRecord, RedirectRevision } from "@jini-ai/cms/redirects";
 
@@ -81,7 +81,7 @@ function makeRedirectRevision(record: RedirectRecord): RedirectRevision {
 }
 
 test("wiring characterization (not a security contract): swapping RouteDeps.redirectRepo after createRouteDeps() does NOT change which repo the redirect resolver consults at request time — it is bound by object identity at construction, unlike postRepo", async () => {
-  resetRoutingRegistrationsForTests();
+  resetRoutingRegistrationsForTests({});
   try {
     const deps: RouteDeps = createRouteDeps();
 
@@ -91,7 +91,7 @@ test("wiring characterization (not a security contract): swapping RouteDeps.redi
     await deps.redirectRepo.save({ record, revision: makeRedirectRevision(record) });
 
     // Baseline: the real pipeline resolves the redirect via the ORIGINAL repo.
-    const before = await runPostContentPhase(OLD_PATTERN, { workspaceId: deps.workspaceId });
+    const before = await runPostContentPhase({ path: OLD_PATTERN, ctx: { workspaceId: deps.workspaceId } });
     assert.deepEqual(before, { kind: "redirect", location: NEW_TARGET, statusCode: 301 });
 
     // Attempt the substitution that DOES work for `postRepo` (FailingSlugPostRepo-style): replace
@@ -102,7 +102,7 @@ test("wiring characterization (not a security contract): swapping RouteDeps.redi
     // If the resolver re-read RouteDeps.redirectRepo per request (like postRepo does), this would
     // now resolve to `{ matched: false }` against the empty replacement. It does not: the
     // resolver's own construction-time-captured reference wins, so the SAME redirect still fires.
-    const after = await runPostContentPhase(OLD_PATTERN, { workspaceId: deps.workspaceId });
+    const after = await runPostContentPhase({ path: OLD_PATTERN, ctx: { workspaceId: deps.workspaceId } });
     assert.deepEqual(
       after,
       { kind: "redirect", location: NEW_TARGET, statusCode: 301 },
@@ -115,6 +115,6 @@ test("wiring characterization (not a security contract): swapping RouteDeps.redi
       null
     );
   } finally {
-    resetRoutingRegistrationsForTests();
+    resetRoutingRegistrationsForTests({});
   }
 });

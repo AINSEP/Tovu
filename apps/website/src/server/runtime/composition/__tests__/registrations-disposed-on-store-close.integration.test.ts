@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { getSlugChangeCapture } from "#src/platform/routing/index";
+import { getSlugChangeCapture } from "#src/platform/routing/adapter";
 import { createSiteRouteDeps } from "../deps.js";
 import type { SiteStore } from "../open-site-store.js";
 
@@ -41,11 +41,11 @@ test("closing the site store unbinds its SlugChangeCapture from the process-wide
   const { store } = await openSite(t);
 
   // Control: while the site is open the slot holds its capture.
-  assert.ok(getSlugChangeCapture(), "an open site binds its slug-change capture");
+  assert.ok(getSlugChangeCapture({}), "an open site binds its slug-change capture");
 
   await store.close();
 
-  assert.equal(getSlugChangeCapture(), undefined, "a closed site's capture must no longer be bound");
+  assert.equal(getSlugChangeCapture({}), undefined, "a closed site's capture must no longer be bound");
 });
 
 test("closing the site store unsubscribes its redirect-hit fold from the bus", async (t) => {

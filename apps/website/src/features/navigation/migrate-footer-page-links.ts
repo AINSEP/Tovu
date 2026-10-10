@@ -1,7 +1,7 @@
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { NavItemNode, NavMenuDoc } from "./index.js";
 import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
-import { postPublicPath } from "#src/platform/routing/routing";
+import { postPublicPath } from "#src/platform/routing/adapter";
 
 const REPAIR_SETTING_ID = "tovu.internal.boot_repair.footer_page_links";
 
@@ -57,8 +57,8 @@ export async function migrateFooterPageLinks(
     for (const menu of menus) {
       const pages = await kernel.run((db) => db.selectFrom("posts").select(["id", "slug"])
         .where("workspace_id", "=", menu.workspace_id).where("kind", "=", "page").execute());
-      const byPath = new Map(pages.map((page) => [postPublicPath(page.slug), page.id]));
-      const byId = new Map(pages.map((page) => [page.id, postPublicPath(page.slug)]));
+      const byPath = new Map(pages.map((page) => [postPublicPath({ slug: page.slug }), page.id]));
+      const byId = new Map(pages.map((page) => [page.id, postPublicPath({ slug: page.slug })]));
       const doc = JSON.parse(menu.doc_json) as NavMenuDoc;
       const result = pageItems(doc.items, byPath, byId);
       if (!result.converted) continue;
