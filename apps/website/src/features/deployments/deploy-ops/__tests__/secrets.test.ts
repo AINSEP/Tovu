@@ -147,7 +147,7 @@ test("unset reports an absent name, asks before deleting, and a declined card de
   const accepted = await harness(table);
   const removed = await runUnsetSecret({ deps: accepted.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } }, { confirm: confirmer(true).confirm });
   assert.deepEqual(removed, { platform: "fly", target: "shop", name: "OLD_KEY", appliesOn: "next-deploy", supportsStaging: true, deployNeeded: true, removed: true, version: "9", summary: "Removed 'OLD_KEY' from 'shop'. The running app keeps the old environment until the next deploy of 'shop' (deployment_ops_deploy)." });
-  assert.deepEqual(accepted.calls.map(c => `${c.method} ${c.url}`), [`GET ${API}`, `DELETE ${API}/OLD_KEY`]);
+  assert.deepEqual(accepted.calls.map(c => `${c.method} ${c.url}`), [`GET ${API}`, `GET ${API}`, `DELETE ${API}/OLD_KEY`]);
 });
 
 test("tools: the site-key source needs the site-key permission; a value can never ride in on the input", async () => {
@@ -173,7 +173,7 @@ test("tools: unset holds the call on a card for the named human and re-checks pe
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const checks: string[] = [];
   const counted = { ...h.deps, authorize: async ({ permission }: { permission: string }) => { checks.push(permission); return { allowed: true, reason: "matched" }; } };
-  const unset = buildDeployOpsRegistrations(counted as typeof h.deps, { surfaceExchanges: store }).find(r => r.descriptor.id === "deployment_ops_unset_secret")!;
+  const unset = buildDeployOpsRegistrations(counted as typeof h.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === "deployment_ops_unset_secret")!;
   assert.equal(unset.descriptor.readOnly, false);
   let emitted = 0;
   const emitSurface: SurfaceEmitter = async emission => {
@@ -185,9 +185,9 @@ test("tools: unset holds the call on a card for the named human and re-checks pe
   };
   const result = await unset.handler(execution({ platform: "fly", target: "shop", name: "OLD_KEY" }), { emitSurface }) as Record<string, unknown>;
   assert.equal(emitted, 1); assert.equal(result.removed, true);
-  assert.deepEqual(h.calls.map(c => c.method), ["GET", "DELETE"]);
+  assert.deepEqual(h.calls.map(c => c.method), ["GET", "GET", "DELETE"]);
   assert.deepEqual(checks, ["custom-credentials.write", "custom-credentials.write"]);
-  const headless = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store }).find(r => r.descriptor.id === "deployment_ops_unset_secret")!;
+  const headless = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === "deployment_ops_unset_secret")!;
   await assert.rejects(headless.handler(execution({ platform: "fly", target: "shop", name: "OLD_KEY" })), { message: /^DEPLOY_OPS_NO_CONFIRMATION_CHANNEL: deployment_ops_unset_secret/ });
 });
 
@@ -234,7 +234,7 @@ test("the default site-key reader resolves this site's sources; no bound site me
 test('typed secret enters only the masked card and reaches the platform with exact bytes', async () => {
   const h = await harness({ [`GET ${API}`]: listed(), [`GET ${API}/STRIPE_KEY?show_secrets=true`]: { status: 404, body: {} }, [`POST ${API}/STRIPE_KEY`]: { status: 201, body: { version: 1 } } });
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const emitted: unknown[] = [];
-  const registration = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store }).find(r => r.descriptor.id === 'deployment_ops_set_secret')!;
+  const registration = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === 'deployment_ops_set_secret')!;
   const pending = registration.handler(execution({ platform: 'fly', target: 'shop', name: 'STRIPE_KEY', source: { kind: 'typed' } }), { emitSurface: async surface => { emitted.push(surface); } });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(emitted.length, 1);
@@ -265,7 +265,7 @@ for (const mode of ["dismiss", "blank", "buffered-abort", "preaborted"] as const
   test(`typed deployment secret: ${mode} never calls the vendor`, async () => {
     const h = await harness({});
     const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-    const registration = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store }).find(r => r.descriptor.id === "deployment_ops_set_secret")!;
+    const registration = buildDeployOpsRegistrations(h.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === "deployment_ops_set_secret")!;
     const controller = new AbortController();
     if (mode === "preaborted") controller.abort();
     let emissions = 0;
@@ -287,3 +287,22 @@ for (const mode of ["dismiss", "blank", "buffered-abort", "preaborted"] as const
     assert.equal(emissions, mode === "preaborted" ? 0 : mode === "blank" ? 2 : 1);
   });
 }
+
+test("secret removal refuses a rotated target after the card without revealing a value", async () => {
+  const table = { [`GET ${API}`]: listed("OLD_KEY"), [`DELETE ${API}/OLD_KEY`]: { status: 200, body: {} } };
+  const h = await harness(table);
+  await assert.rejects(runUnsetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } }, { confirm: async () => {
+    table[`GET ${API}`] = { status: 200, body: [{ name: "OLD_KEY", digest: "rotated" }] };
+    return { confirmed: true };
+  } }), { message: "deployment_ops_unset_secret: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+  assert.equal(h.calls.some(call => call.method === "DELETE"), false);
+});
+
+
+test("secret removal refuses providers without a safe version before opening a card", async () => {
+  const h = await harness({ [`GET ${API}`]: { status: 200, body: { secrets: [{ name: "OLD_KEY", value: "never-forwarded" }] } } });
+  await assert.rejects(runUnsetSecret({ deps: h.deps, input: { platform: "fly", target: "shop", name: "OLD_KEY" } }, {
+    confirm: async () => { assert.fail("an unidentifiable target must not open a confirmation"); },
+  }), { message: "deployment_ops_unset_secret: the provider cannot identify the current secret version safely. Remove it in the provider console; nothing was deleted." });
+  assert.deepEqual(h.calls.map(call => call.method), ["GET"]);
+});

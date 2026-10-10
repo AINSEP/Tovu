@@ -1,3 +1,6 @@
+import { isChatToolAllowed, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/assistant-permanent-deletes-policy.js";
+import { readAssistantPermanentDeletesPolicy } from "./permanent-delete-settings.js";
+import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { applyToolApprovalPolicy } from "./tool-approval-policy.js";
 import { toolApprovalPolicyFor } from "../contracts/headless/assistant-tool-approval-policy.js";
 import { getEffective as getEffectiveSetting, LANGUAGE_NAMESPACE } from "@jini-ai/core/settings";
@@ -106,11 +109,12 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * composition root that returns a narrower type (for example `NewsletterRouteDeps` alone) will fail
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
-export type AssistantToolRegistryDeps = import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+export type AssistantToolRegistryDeps = import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
   DeployOpsToolDeps & CommentsToolDeps &
   PermanentDeleteHostDeps &
+  { getEffective: typeof getEffectiveSetting } &
   ContentTypesToolDeps &
   CustomCredentialsToolDeps &
   DatabaseToolDeps &
@@ -291,6 +295,8 @@ export function buildAssistantToolRegistrations(
     readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean;
     /** Test seam: which tools take `items` (default `BATCHABLE_TOOLS`); lets a test batch a tool whose approval class asks. */
     readonly batchableTools?: readonly BatchableTool[];
+    /** Boot roots retain all eligible handlers; discovery applies a fresh per-run grant. */
+    readonly permanentDeletePolicy?: AssistantPermanentDeletesPolicy;
   } = {},
 ): ToolRegistration[] {
   const registrations: ToolRegistration[] = [];
@@ -304,8 +310,16 @@ export function buildAssistantToolRegistrations(
     devRestart: routeDeps.devRestart === undefined ? devRestartPortFromEnv() : routeDeps.devRestart,
   };
 
+  const assertChatDeleteAllowed = async ({ toolId }: { toolId: string }) => {
+    const policy = await readAssistantPermanentDeletesPolicy({ ...routeDeps, settingsReady: routeDeps.settingsUiTabsReady });
+    if (!isChatToolAllowed({ toolId, policy })) throw chatDeleteRefusal({ toolId });
+  };
+  const guardedSurfaces: ChatDeleteSurfaceDeps = { ...surfaces, assertChatDeleteAllowed };
+  const policy = options.permanentDeletePolicy ?? DEFAULT_PERMANENT_DELETES_POLICY;
   for (const slice of allToolContributors(options.contributions)) {
-    for (const registration of slice.build(enrichedRouteDeps, surfaces)) {
+    for (const registration of slice.build(enrichedRouteDeps, guardedSurfaces)) {
+      // The owner opt-in absorbs the former static ban; forbidden tools never pass.
+      if (!isChatToolAllowed({ toolId: registration.descriptor.id, policy })) continue;
       const owner = ownerByToolId.get(registration.descriptor.id);
       if (owner) {
         // Unreachable while `derivedRiskByToolId()`'s merge holds — a tool cannot be wired
@@ -326,7 +340,8 @@ export function buildAssistantToolRegistrations(
   // Pushed before the collapse's early return so both shapes include them.
   const contributed: readonly ToolRegistration[] = [...registrations];
   for (const derived of options.contributions?.derivedContributors.list({}) ?? []) {
-    for (const registration of derived.derive({ registrations: contributed, routeDeps: enrichedRouteDeps, surfaces })) {
+    for (const registration of derived.derive({ registrations: contributed, routeDeps: enrichedRouteDeps, surfaces: guardedSurfaces })) {
+      if (!isChatToolAllowed({ toolId: registration.descriptor.id, policy })) continue;
       const owner = ownerByToolId.get(registration.descriptor.id);
       if (owner) {
         throw new Error(
@@ -343,7 +358,12 @@ export function buildAssistantToolRegistrations(
   // Apply after derivation: trash_item delegates to the original domain handlers, so one
   // approval covers the selected action instead of asking again inside its delegate.
   // Before collapse: content_read cards inherit the checked read registrations.
-  const approvedRegistrations = registrations.map(registration => applyToolApprovalPolicy({ registration, surfaces }, {
+  const guardedRegistrations = registrations.map(registration => PERMANENT_DELETE_TOOLS.some(tool => tool.id === registration.descriptor.id)
+    ? { ...registration, handler: async (ctx: import("@jini-ai/core").ToolExecutionContext, optional?: import("@jini-ai/core").ToolExecutionOptions) => {
+      await assertChatDeleteAllowed({ toolId: registration.descriptor.id });
+      return registration.handler(ctx, optional);
+    } } : registration);
+  const approvedRegistrations = guardedRegistrations.map(registration => applyToolApprovalPolicy({ registration, surfaces: guardedSurfaces }, {
     localeFor: async ctx => {
       if (!routeDeps.settingsRepo) return "en";
       const setting = await getEffectiveSetting({ repo: routeDeps.settingsRepo }, {

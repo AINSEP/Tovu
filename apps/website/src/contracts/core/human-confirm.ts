@@ -16,6 +16,7 @@
  * The generic prepare/ask/run handler and its ordering rationale live in Jini/core/src/registration-kit.ts;
  * Tovu keeps the surface exchange, allowlist, dialog wording and fail-closed confirmation policy here.
  */
+import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delete-grant.js";
 import { createApprovalHandler, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
@@ -24,7 +25,6 @@ import {
   askOnce,
   classifyConfirmationAnswer,
   SURFACE_EXCHANGE_ID_PARAM,
-  type AssistantSurfaceDeps,
   type ConfirmationOutcome,
 } from "@jini-ai/daemon/surface-exchanges";
 
@@ -73,12 +73,14 @@ export type HumanConfirmOutcome = { confirmed: true; choice?: string } | Extract
  * @throws {ToolInputError} `<errorCode>_NO_CONFIRMATION_CHANNEL` when the call has no
  *   `emitSurface` (a headless run): no human can be asked, so nothing runs.
  * @returns Fail-closed: only an explicit confirm click is `{ confirmed: true }`.
- * @complexity O(1) plus the wait for the human.
+ * @complexity O(d) card rendering time/space for d detail bytes, two injected grant reads for
+ * permanent-delete tools, plus the wait for the human.
  */
 export async function requireHumanConfirm(
-  { ctx, surfaces, spec }: { ctx: ToolExecutionContext; surfaces: AssistantSurfaceDeps; spec: HumanConfirmSpec },
+  { ctx, surfaces, spec }: { ctx: ToolExecutionContext; surfaces: ChatDeleteSurfaceDeps; spec: HumanConfirmSpec },
   { emitSurface }: ToolExecutionOptions = {},
 ): Promise<HumanConfirmOutcome> {
+  await requireChatDeleteGrant({ surfaces, toolId: spec.toolId });
   if (!emitSurface) {
     throw new ToolInputError({ message: `${spec.errorCode}_NO_CONFIRMATION_CHANNEL: ${spec.toolId}: this execution context has no interactive ` +
         "confirmation channel (no emitSurface), so a human cannot approve this action here. Nothing was changed." });
@@ -120,6 +122,8 @@ export async function requireHumanConfirm(
     const answer = await askOnce({ exchange, emission: { channel: "mcp-ui", payload: { resource } } });
     const outcome = classifyConfirmationAnswer({ answer });
     if (!outcome.confirmed || answer.status !== "received") return outcome;
+    // A revoke while the human reads the card takes effect before the domain effect resumes.
+    await requireChatDeleteGrant({ surfaces, toolId: spec.toolId });
     const choice = answer.params[HUMAN_CONFIRM_CHOICE_PARAM];
     const offered = alternatives.some((alternative) => alternative.choice === choice);
     return offered && typeof choice === "string" ? { confirmed: true, choice } : { confirmed: true };
@@ -167,7 +171,7 @@ export function notConfirmedResult(outcome: Extract<ConfirmationOutcome, { confi
  * @complexity O(1) plus the steps and the wait for the human.
  */
 export function humanConfirmedToolHandler<TPrepared>(
-  surfaces: AssistantSurfaceDeps,
+  surfaces: ChatDeleteSurfaceDeps,
   spec: {
     flag: string;
     prepare: (ctx: ToolExecutionContext) => Promise<TPrepared>;
@@ -191,7 +195,7 @@ export function humanConfirmedToolHandler<TPrepared>(
  */
 export function approvalToolHandler<TPrepared>(
   { surfaces, prepare, describe, run }: {
-    surfaces: AssistantSurfaceDeps;
+    surfaces: ChatDeleteSurfaceDeps;
     prepare: (required: { ctx: ToolExecutionContext }, optional: ToolExecutionOptions) => Promise<TPrepared>;
     describe: (required: { ctx: ToolExecutionContext; prepared: TPrepared }) => HumanConfirmSpec | Promise<HumanConfirmSpec>;
     run: (required: { ctx: ToolExecutionContext; prepared: TPrepared; confirmer: HumanConfirmer; choice?: string }, optional: ToolExecutionOptions) => Promise<unknown>;

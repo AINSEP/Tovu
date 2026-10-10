@@ -1,6 +1,8 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/settings.js';
 import { withToolMetadata } from '@jini-ai/core';
 import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS } from "../../contracts/headless/assistant-tool-approval-policy.js";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../contracts/headless/assistant-subagents-policy.js";
 /**
  * @file Settings' agent-tool registrations — adapted from `@jini-ai/core/settings`.
  *
@@ -55,6 +57,8 @@ export const TOVU_CONFIRMATION_SETTINGS: readonly AgentSettingWriteRule[] = ASSI
 export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   return withToolMetadata({ metadata: toolMetadata, registrations: buildCmsSettingsRegistrations({
     ...routeDeps,
+    // This opt-in belongs to the owner UI, never the assistant changing its own tool grant.
+    extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
     setValue: set,
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.

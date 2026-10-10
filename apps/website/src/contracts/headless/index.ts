@@ -13,3 +13,5 @@ export type {
 export { deriveContentConversationTitle } from "./content-chat-title.js";
 
 export { directPageAction, TOOL_APPROVAL_POLICY } from "./assistant-tool-approval-policy.js";
+export * from "./assistant-permanent-deletes-policy.js";
+export { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY } from "./assistant-subagents-policy.js";

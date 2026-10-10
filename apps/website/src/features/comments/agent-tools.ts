@@ -106,6 +106,12 @@ const NO_INPUT_SCHEMA = {
 /** Comments' fixed agent-tool catalog. */
 export const commentsAgentToolCatalog: AgentToolDefinition[] = [
   {
+    name: "comments_get_comment",
+    description: "Reads one comment by id in any moderation status, including approved, spam and trash. Call when a queue page does not contain the comment you need. Returns {comment} with the same moderation view and version as the queue. Unknown ids and denied comments.read permission are refused.",
+    sideEffects: "none", authorization: { permission: "comments.read" },
+    inputSchema: { type: "object", additionalProperties: false, required: ["commentId"], properties: { commentId: COMMENT_ID_SCHEMA } },
+  },
+  {
     name: "comments_list_moderation_queue",
     description:
       "Lists comments filtered by moderation status (defaults to 'pending'), keyset-paginated. Read-only. Call this to find a comment's id and current version before approving, marking spam, trashing, or restoring it.",
@@ -179,7 +185,7 @@ export const commentsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "comments_trash_comment",
     description:
-      "Soft-deletes a comment (trash), hiding it from public view. This is NOT permanent — a trashed comment can be brought back with comments_restore_comment. For permanent removal, use comments_purge_comment, which waits for a human confirmation card.",
+      "Soft-deletes a comment (trash), hiding it from public view. This is NOT permanent — a trashed comment can be brought back with comments_restore_comment. For permanent removal, use comments_purge_comment if it is available to you; it waits for a human confirmation card. Otherwise link the human to /admin/trash.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "comments.delete" },
     inputSchema: MODERATION_ACTION_INPUT_SCHEMA,

@@ -1,3 +1,4 @@
+import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { toolMetadata } from '../../contracts/core/tool-metadata/permanent-delete.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
@@ -69,7 +70,7 @@ export const permanentDeleteDerivedRisk: DerivedRiskByToolId = new Map([
  * @throws ToolInputError for invalid input, no confirmation channel, not-found or changed targets.
  * @complexity O(t) to build for t tools; execution adds the resource service cost and human latency.
  */
-export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildPermanentDeleteRegistrations(deps: PermanentDeleteToolDeps, surfaces: ChatDeleteSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {};
   for (const spec of PERMANENT_DELETE_SPECS) {
     handlers[spec.name] = approvalToolHandler({ surfaces, prepare: async ({ ctx }) => {

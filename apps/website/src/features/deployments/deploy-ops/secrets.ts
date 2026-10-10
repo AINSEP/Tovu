@@ -1,10 +1,11 @@
+import { isDeepStrictEqual } from "node:util";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { homedir } from "node:os";
 import { ToolInputError } from "@jini-ai/core";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from "#src/features/webhooks/keyring.env";
 import { siteKeySourcesForSiteDir } from "#src/features/webhooks/site-key-sources";
-import { loadDeployOpsRegistry, requirePlatform } from "./registry.js";
+import { requirePlatform } from "./registry.js";
 import { aborted, boundContext, type DeployOpsToolDeps } from "./run-ops.js";
 import type { DeployOpsContext, DeployOpsSecretAppliesOn, DeployOpsSecretInfo, DeployOpsSecretWrite, LoadedDeployOps } from "./types.js";
 
@@ -74,7 +75,7 @@ function requireSiteKey(deps: DeployOpsToolDeps): string {
 /** Refuse unknown platforms and platforms without a secrets adapter before any credential or network work. */
 async function secretsPlatform(deps: DeployOpsToolDeps, id: string, signal?: AbortSignal): Promise<LoadedDeployOps> {
   if (signal?.aborted) throw aborted();
-  const registry = await (deps.loadDeployOps ?? loadDeployOpsRegistry)({ workspaceId: deps.workspaceId });
+  const registry = await deps.loadDeployOps({ workspaceId: deps.workspaceId });
   const platform = requirePlatform(registry, id);
   if (!platform.module.setSecret || !platform.module.secretCapabilities) {
     const capable = registry.list().filter(p => typeof p.module.setSecret === "function").map(p => p.descriptor.id);
@@ -200,7 +201,7 @@ export async function runSetSecret(required: { deps: DeployOpsToolDeps; input: S
  * @param optional - `signal` cancels; `confirm` is required for an actual removal.
  * @returns removed, when the removal applies, and an optional vendor version.
  * @throws {ToolInputError} Invalid names, secrets-less platforms, credential/host/auth failures, or no confirm channel.
- * @complexity Time and space: O(credentials + secrets) plus two adapter requests.
+ * @complexity Time and space: O(credentials + secrets) plus at most three adapter requests.
  * @example await runUnsetSecret({ deps, input: { platform: "fly", target: "my-app", name: "OLD_KEY" } }, { confirm });
  */
 export async function runUnsetSecret(required: { deps: DeployOpsToolDeps; input: UnsetSecretInput }, optional: { signal?: AbortSignal; confirm?: SecretConfirm } = {}): Promise<UnsetSecretResult> {
@@ -211,9 +212,13 @@ export async function runUnsetSecret(required: { deps: DeployOpsToolDeps; input:
   const listed = await listNormalized(platform, ctx, input.target);
   const base = { platform: input.platform, target: input.target, name: input.name, ...applies(platform) };
   if (!listed.truncated && !listed.secrets.some(s => s.name === input.name)) return { ...base, removed: false, deployNeeded: false, summary: `'${input.name}' is not set on '${input.target}'; nothing was removed.` };
+  const targetSnapshot = listed.secrets.find(secret => secret.name === input.name);
+  if (!targetSnapshot || (!targetSnapshot.digest && !targetSnapshot.updatedAt)) throw new ToolInputError({ message: "deployment_ops_unset_secret: the provider cannot identify the current secret version safely. Remove it in the provider console; nothing was deleted." });
   const decision = await confirmOrRefuse(confirm, { action: "remove", platform: input.platform, target: input.target, name: input.name, appliesOn: base.appliesOn });
   if (!decision.confirmed) return { ...base, removed: false, deployNeeded: false, ...decision.result };
   if (signal?.aborted) throw aborted();
+  const current = (await listNormalized(platform, ctx, input.target)).secrets.find(secret => secret.name === input.name);
+  if (!isDeepStrictEqual(current, targetSnapshot)) throw new ToolInputError({ message: "deployment_ops_unset_secret: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
   const write = await platform.module.unsetSecret!(ctx, { target: input.target, name: input.name });
   return { ...base, removed: true, ...version(write), summary: `Removed '${input.name}' from '${input.target}'.${nextStep(platform, input.target)}` };
 }

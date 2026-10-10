@@ -1,3 +1,4 @@
+import { PERMANENT_DELETE_TOOLS } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -45,5 +46,14 @@ test('the production domain registrations carry their projected action policy', 
   for (const descriptor of registry.list({})) {
     assert.ok(descriptor.metadata?.approval, `${descriptor.id} must carry its owning registration's policy`);
     assert.deepEqual(descriptor.metadata, nativeToolMetadata.byId[descriptor.id], descriptor.id);
+  }
+});
+
+test("permanent-delete baseline pins all 13 opt-in ids and the two forbidden operations", () => {
+  const policy = JSON.parse(readFileSync(new URL("./fixtures/tool-metadata.baseline.json", import.meta.url), "utf8")).chatPermanentDeletes;
+  assert.deepEqual(policy, { defaultEnabled: false, allowedToolIds: PERMANENT_DELETE_TOOLS.map(tool => tool.id), alwaysForbiddenToolIds: ["workspace_delete", "collections_execute_cleanup"] });
+  for (const tool of PERMANENT_DELETE_TOOLS) {
+    assert.equal(nativeToolMetadata.byId[tool.id]?.approval?.confirmation, "plan");
+    assert.equal(isMcpUiToolCallPermitted(tool.id, false), false, `${tool.id} must not execute as a fresh callback`);
   }
 });

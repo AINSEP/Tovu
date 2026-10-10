@@ -48,7 +48,7 @@ async function recordPlan<T>(spec: {
   if (!found) throw notFound(spec.toolId);
   const snapshot = structuredClone(found);
   return {
-    details: [{ label: "Item", value: `${spec.label(found)} (${spec.id})` }],
+    details: [{ label: "Count", value: "1" }, { label: "Item", value: `${spec.label(found)} (${spec.id})` }],
     ...(spec.warning ? { warning: spec.warning } : {}),
     execute: async () => {
       const current = await spec.load();
@@ -121,8 +121,19 @@ async function trashPlan(deps: Deps, toolId: PermanentDeleteToolId, items: Trash
     if (!await mayPurgeItem(deps, item, principalId)) throw new ToolInputError({ message: `${toolId}: permission denied for a selected Trash item. Nothing was deleted.` });
   }
   return {
-    details: items.map(item => ({ label: item.entityType, value: `${item.displayTitle} (${item.id})` })),
+    // Jini owns scrollable detail rendering; keep the complete reviewed list in its native code block.
+    details: [{ label: "Count", value: String(items.length) }, ...(toolId === "trash_empty"
+      ? [{ label: "Trash items", value: items.map(item => `${item.entityType}: ${item.displayTitle} (${item.id})`).join("\n"), format: "code" as const }]
+      : items.map(item => ({ label: item.entityType, value: `${item.displayTitle} (${item.id})` })))],
     execute: async () => {
+      const current: TrashItem[] = [];
+      for await (const item of listedTrashItems(deps)) {
+        if (toolId === "trash_empty" || snapshots.has(item.id)) current.push(item);
+      }
+      const currentById = new Map(current.map(item => [item.id, item]));
+      if (currentById.size !== snapshots.size || [...snapshots].some(([id, snapshot]) => !isDeepStrictEqual(currentById.get(id), snapshot))) {
+        throw new ToolInputError({ message: `${toolId}: target set changed while confirmation was open. Request a new confirmation; nothing was deleted.` });
+      }
       const report = await deps.trash.purgeSelected({
         workspaceId: deps.workspaceId, ids: [...snapshots.keys()], actor: { principalId },
         authorizeItem: async ({ item }) => isDeepStrictEqual(item, snapshots.get(item.id)) && await mayPurgeItem(deps, item, principalId),
@@ -220,8 +231,11 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
         case "deployment_delete_provider_credential":
           return recordPlan({ toolId, id, load: async () => {
             const summary = await describeCredential({ repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets }, key);
-            return summary ? deps.vendorCredentialSetRepo.findById(key) : null;
-          }, label: credential => `${credential.label} (${credential.vendorId})`,
+            if (!summary) return null;
+            const record = await deps.vendorCredentialSetRepo.findById(key);
+            const hosts = (await deps.loadDeployTargets(deps.workspaceId)).list().filter(host => host.descriptor.credential?.vendorId === record?.vendorId).map(host => host.descriptor.id);
+            return record ? { ...record, affectedHosts: hosts } : null;
+          }, label: credential => `${credential.label} (${credential.vendorId}); used by publish hosts: ${credential.affectedHosts.join(", ") || "none"}`,
             warning: "Deletes this vendor credential shared by its publish hosts. Another credential may become the default. Deployed sites remain; the token is not revoked at its provider.",
             remove: async () => { await deletePublishCredential({ repo: deps.vendorCredentialSetRepo }, key); return { removed: true, id }; } });
         case "source_control_delete_credential":

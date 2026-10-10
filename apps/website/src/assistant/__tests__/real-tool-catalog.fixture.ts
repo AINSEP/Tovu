@@ -1,3 +1,4 @@
+import type { AssistantPermanentDeletesPolicy } from '../../contracts/headless/assistant-permanent-deletes-policy.js';
 import { createContributionRegistry, createToolRegistry } from '@jini-ai/core';
 import type { ToolContributor, DerivedToolContributor } from '../index.js';
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from '../../contracts/core/rate-limit/rate-limit.js';
@@ -7,7 +8,7 @@ import { buildAssistantToolRegistrations } from '../tool-registrations.js';
 import { buildToolCatalogQuery } from '../tool-catalog-query.js';
 
 /** Production contributors and registrations over isolated in-memory route dependencies. */
-export async function realToolCatalog() {
+export async function realToolCatalog(_required = {}, optional: { permanentDeletePolicy?: AssistantPermanentDeletesPolicy } = {}) {
   const contributions = {
     contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
@@ -19,6 +20,6 @@ export async function realToolCatalog() {
   // AssistantToolRegistryDeps requires it, so bare route dependencies do not type-check.
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions, permanentDeletePolicy: optional.permanentDeletePolicy })) registry.register(registration);
   return { registry, catalog: buildToolCatalogQuery(registry) };
 }

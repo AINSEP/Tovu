@@ -1,4 +1,6 @@
+import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { CREDENTIAL_GUIDANCE } from "#src/assistant/credential-guidance";
+import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.
  * systemOverlay()`: the base tool-catalog-protocol overlay every assistant run receives, and the
@@ -30,7 +32,8 @@ export const BASH_PROHIBITION_BLOCK =
 
 /**
  * Finding 2 of SEC-assistant-env-isolation-2026-09-07: the actual, enforced restriction on the
- * assistant's tool grant — forwarded verbatim to `AgentExecutorRunInput.disallowedTools`
+ * assistant's default tool grant — resolved by `resolveAssistantDisallowedTools` for the sole
+ * owner-approved Task opt-in, then forwarded to `AgentExecutorRunInput.disallowedTools`
  * (`agent-daemon-server.ts`'s `agentExecutor.run()` call), which reaches the spawned `claude` CLI's
  * own `--disallowedTools` flag (`@jini-ai/agent-runtime`'s `defs/claude.ts`). Confirmed live against
  * installed Claude Code 2.1.263 that this refuses the named tool's execution outright — even under
@@ -60,8 +63,9 @@ export const BASH_PROHIBITION_BLOCK =
  * `.ipynb`) despite the public FAQ's "can't … edit files" claim.
  *
  * Kept independent of {@link BASH_PROHIBITION_BLOCK}/`TOVU_AGENT_FORBID_BASH`: this list applies
- * unconditionally to every run regardless of that diagnostic flag's state, which is what makes the
- * flag's own "not a security control" framing accurate rather than aspirational.
+ * unconditionally to every run regardless of that diagnostic flag's state, which is what makes the flag's own
+ * "not a security control" framing accurate rather than aspirational. The owner-approved subagent
+ * opt-in removes only Task for Claude CLI; every other entry remains enforced.
  */
 export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "Bash",
@@ -90,6 +94,17 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "Read(//**/*-key*.hex)",
   "Read(//proc/**)",
 ];
+
+/** Claude-only owner opt-in; never mutate the default grant or loosen another isolation.
+ * @complexity O(t) for the fixed tool list, O(1) when the opt-in does not apply.
+ */
+export function resolveAssistantDisallowedTools(required: {
+  agentId: string; subagentsEnabled: boolean;
+}, _optional: Record<string, never> = {}): readonly string[] {
+  return required.agentId === "claude" && required.subagentsEnabled === true
+    ? ASSISTANT_DISALLOWED_TOOLS.filter((tool) => tool !== "Task")
+    : ASSISTANT_DISALLOWED_TOOLS;
+}
 
 /**
  * Historical intent: the original `HEAD` steering text for the Bash slot was restored verbatim —
@@ -206,6 +221,7 @@ export function buildBashProhibitionBlock(enabled: boolean): string {
  */
 export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string {
   return (
+    SITE_GUIDE_POINTER +
     "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
     "not doing general development work on the Tovu codebase. Keep replies short and direct: " +
     "lead with the answer, skip preamble and skip restating the request. Use headers, lists, or " +
@@ -238,7 +254,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +
     buildBashProhibitionBlock(bashProhibitionEnabled) +
-    CREDENTIAL_GUIDANCE +
+    PERMANENT_DELETE_GUIDANCE + " " + CREDENTIAL_GUIDANCE +
     "What to do instead when you believe no tool fits: search_tools again with different phrasing and a " +
     "higher limit, and if it still does not exist, SAY SO. State plainly that the catalog has no tool " +
     "for this, and describe what the missing tool would need to do and what inputs it would take. That " +

@@ -10,7 +10,10 @@ import type { TrashRegistry } from "./registry.js";
  * @file The Trash domain's agent-tool catalog (SPEC-016 REQ-22's naming/callability convention).
  * Design of record: `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`, step 5.
  *
- * Permanent removal belongs to the permanent-delete contributor and requires a human card.
+ * Historical policy: permanent removal belongs to the permanent-delete contributor and requires
+ * a human card. The gapb dispatch made chat access unavailable by default; pdel adds an
+ * owner-acknowledged per-tool opt-in. Admin routes and the 60-day sweeper retain their separate
+ * permanent-removal capability.
  * The purge-ban contract test ensures model-supplied confirmation cannot authorize that service.
  *
  * trash_item lives at its own post-processing seam and delegates to each domain's built handler.
@@ -105,13 +108,13 @@ export function buildTrashAgentToolCatalog(kinds: readonly TrashEntityType[]): r
       name: "trash_list_items",
       description:
         "Lists what is currently in the Trash — anything in the Trash: posts, pages, comments, media, redirects, " +
-        "forms and submissions, widgets, menus, taxonomies and terms, plugins, themes; see the entityType enum for the " +
+        "forms and submissions, widgets, menus, taxonomies and terms, plugins, themes, members; see the entityType enum for the " +
         "exact list — newest first. Each row reports entityType, entityId, the title as it was when it was " +
         "deleted, who deleted it, when, and the date it will be permanently removed automatically. Rows past " +
         "that date are already excluded. Restore anything listed here with trash_restore_item. Reading this " +
         "never touches the deleted thing itself, so it works even on items whose content is corrupt. Rows the " +
         "caller has no permission to restore are omitted. " +
-        "Use trash_empty to empty the Trash or trash_purge_item to permanently delete one item; both wait for a human confirmation card. " +
+        "Use trash_purge_item or trash_empty for permanent deletion if available to you; otherwise link /admin/trash. Secrets, credentials and MCP connections have no Trash screen. " +
         "Items here are removed automatically on the date shown.",
       sideEffects: "none",
       // The entry gate only. Each row is then filtered by the permission that would be needed to
@@ -124,12 +127,12 @@ export function buildTrashAgentToolCatalog(kinds: readonly TrashEntityType[]): r
       name: "trash_restore_item",
       description:
         "Takes one item back out of the Trash and makes it live again — anything in the Trash: posts, pages, " +
-        "comments, media, redirects, forms and submissions, widgets, menus, taxonomies and terms, plugins; see " +
+        "comments, media, redirects, forms and submissions, widgets, menus, taxonomies and terms, plugins, themes, members; see " +
         "the entityType enum for the exact list. Reversible — deleting it again puts it back. Returns " +
         "{ restored: true } on success. Returns restored:false with a reason when the item is not in the Trash " +
         "('not-found'), when it changed since it was deleted ('version-changed' — nothing was touched), or when " +
         "the plugin that owns that kind of thing is no longer installed ('adapter-unavailable'). " +
-        "For permanent deletion, use trash_purge_item or trash_empty; both require a human confirmation card.",
+        "Use trash_purge_item or trash_empty for permanent deletion if available to you; otherwise link /admin/trash. Secrets, credentials and MCP connections have no Trash screen.",
       sideEffects: "mutates-durable-state",
       // Resolved per entity type at the handler; this declares the floor, and the handler checks the
       // permission that domain's own delete tool checked on the way in.

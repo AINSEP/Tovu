@@ -1,3 +1,5 @@
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
+import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
@@ -81,7 +83,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function webhooksRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -101,7 +103,7 @@ function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistrati
  */
 async function deleteSubscriptionConfirmed(deps: RegistryDepsWithoutLimiter, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const deleteTool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
+  const deleteTool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaceExchanges }, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
   assert.ok(deleteTool, "expected 'webhooks_delete_subscription' to be wired");
   const emitted: unknown[] = [];
   const pending = invokeFixtureHandler(deleteTool, { ...executionContext({ subscriptionId }), emitSurface: async (s) => void emitted.push(s) });
@@ -125,22 +127,23 @@ const ALL_WEBHOOKS_TOOL_IDS = [
   "webhooks_delete_subscription",
   "webhooks_get_deliveries",
   "webhooks_pause_subscription",
+  "webhooks_update_subscription",
 ];
 
 // ---------------------------------------------------------------------------
 // 1. Catalog completeness — every entry wired, subscription-update and keyring ops absent entirely
 // ---------------------------------------------------------------------------
 
-test("exactly the 5 webhooks catalog entries are registered — nothing withheld as a stub in this domain", () => {
+test("exactly the 6 webhooks catalog entries are registered — nothing withheld as a stub in this domain", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...webhooksRegistrations(deps).keys()].sort(), [...ALL_WEBHOOKS_TOOL_IDS].sort());
-  assert.equal(getWebhooksAgentToolCatalog().length, 5, "sanity: the full webhooks catalog is still 5 entries");
+  assert.equal(getWebhooksAgentToolCatalog().length, 6, "sanity: the owner-approved update extends the catalog");
 });
 
-test("no tool id across the whole assistant tool set implies a subscription can be updated or a signing secret rotated/revealed by an agent", () => {
+test("subscription update is available while signing-secret rotation and reveal remain absent", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
-  assert.equal(ids.includes("webhooks_update_subscription"), false);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map((r) => r.descriptor.id);
+  assert.equal(ids.includes("webhooks_update_subscription"), true);
   assert.equal(ids.some((id) => id.includes("rotate") || id.includes("reveal") || id.includes("keyring")), false);
 });
 
@@ -358,3 +361,10 @@ function invokeFixtureHandler(
   const { emitSurface, ...required } = context;
   return registration.handler(required, emitSurface ? { emitSurface } : {});
 }
+
+test("chat delete policy defaults off; checked webhook delete retains a human card", () => {
+  const { deps } = fakeRouteDeps();
+  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  assert.equal(off.some(tool => tool.descriptor.id === "webhooks_delete_subscription"), false);
+  assert.ok(webhooksRegistrations(deps).has("webhooks_delete_subscription"));
+});

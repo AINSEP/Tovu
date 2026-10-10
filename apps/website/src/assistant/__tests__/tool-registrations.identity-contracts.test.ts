@@ -1,3 +1,5 @@
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
+import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -123,7 +125,7 @@ const COLLAPSED_IDENTITY_CONTENT_READ_IDS: ReadonlySet<string> = new Set([
 
 function identityRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions, includeContentReadCollapse })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions, includeContentReadCollapse, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS })
       .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id) || COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(registration.descriptor.id))
       .map((registration) => [registration.descriptor.id, registration]),
   );
@@ -618,4 +620,15 @@ test("a duplicate username is refused, so a model cannot quietly create a second
     },
     "the domain compares usernames case-insensitively, and the tool inherits that rather than re-implementing it",
   );
+});
+
+test("chat delete policy defaults off; checked identity deletes retain a plan confirmation", async () => {
+  const { deps } = await buildHarness();
+  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  for (const id of ["identity_role_delete", "identity_policy_delete"]) {
+    assert.equal(off.some(tool => tool.descriptor.id === id), false);
+    const on = identityRegistrations(deps).get(id)!;
+    assert.ok(on);
+    assert.equal(on.descriptor.metadata?.approval?.confirmation, "plan");
+  }
 });

@@ -1,4 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../contracts/headless/assistant-permanent-deletes-policy.js";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY } from "#src/contracts/headless/assistant-subagents-policy";
 import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from "../features/settings/index.js";
 
 /**
@@ -181,8 +183,8 @@ export interface EnsureExecutionSettingDefinitionsInput {
  * live in `features/settings/ensure-definitions.ts` — this module owns only
  * the definition list above.
  *
- * @complexity O(1) — 9 definitions, each a skip-if-registered check plus at
- * most one `registerDefinitions` call.
+ * @complexity O(1) — bounded execution and owner-grant definitions, each a skip-if-registered
+ * check; one `registerDefinitions` call per namespace at most.
  */
 export async function ensureExecutionSettingDefinitions(
   deps: EnsureExecutionSettingDefinitionsDeps,
@@ -191,6 +193,19 @@ export async function ensureExecutionSettingDefinitions(
   await deps.ensureSettingDefinitions(deps, {
     namespace: EXECUTION_NAMESPACE,
     definitions: EXECUTION_DEFINITIONS,
+    systemPrincipalId: input.systemPrincipalId,
+  });
+  // Separate namespace: resetting ordinary execution choices must not change this security grant.
+  await deps.ensureSettingDefinitions(deps, {
+    namespace: ASSISTANT_SUBAGENTS_NAMESPACE,
+    definitions: [{ key: ASSISTANT_SUBAGENTS_KEY, schema: { type: "boolean" }, defaultValue: false },
+      { key: "riskAcknowledgment", schema: { type: "json" }, defaultValue: {} }],
+    systemPrincipalId: input.systemPrincipalId,
+  });
+  await deps.ensureSettingDefinitions(deps, {
+    namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
+    definitions: [{ key: ASSISTANT_PERMANENT_DELETES_KEY, schema: { type: "json" }, defaultValue: { enabled: false, allowedToolIds: [] } },
+      { key: "riskAcknowledgment", schema: { type: "json" }, defaultValue: {} }],
     systemPrincipalId: input.systemPrincipalId,
   });
 }

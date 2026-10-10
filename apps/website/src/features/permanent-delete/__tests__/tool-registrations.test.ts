@@ -37,7 +37,7 @@ function harness(id: string, input: unknown, permission: string) {
       };
     },
   };
-  const registration = buildPermanentDeleteRegistrations(deps, { surfaceExchanges: store }).find(r => r.descriptor.id === id)!;
+  const registration = buildPermanentDeleteRegistrations(deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === id)!;
   const controller = new AbortController();
   const ctx: ToolExecutionContext = { executionId: "e-1", principal: { id: "owner" }, run: { id: "r-1" }, input, signal: controller.signal };
   // Mutable here so each case can install its own emitter; `ToolExecutionOptions` itself is readonly.
@@ -135,7 +135,7 @@ test("expired human confirmation returns an explicit refusal without a delete", 
   const registration = buildPermanentDeleteRegistrations({
     workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),
     prepare: async () => ({ details: [{ label: "Item", value: "Named item" }], execute: async () => { deletes++; return { removed: true }; } }),
-  }, { surfaceExchanges: store }).find(r => r.descriptor.id === "trash_empty")!;
+  }, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(r => r.descriptor.id === "trash_empty")!;
   const keepAlive = setTimeout(() => {}, 50); // The production exchange timers deliberately unref().
   try {
   assert.deepEqual(await registration.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal }, { emitSurface: async () => {} }), {
@@ -144,3 +144,24 @@ test("expired human confirmation returns an explicit refusal without a delete", 
   assert.equal(deletes, 0);
   } finally { clearTimeout(keepAlive); }
 });
+
+for (const [id, input, permission] of CASES) {
+  test(`${id}: raw handler without a site policy port refuses even a human-confirmed request`, async () => {
+    const h = harness(id, input, permission);
+    const tools = buildPermanentDeleteRegistrations({ workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }), prepare: async () => ({ details: [], execute: async () => { h.writes.push(id); return {}; } }) }, { surfaceExchanges: h.store });
+    await assert.rejects(tools.find(tool => tool.descriptor.id === id)!.handler(h.ctx, { emitSurface: async () => assert.fail("OFF must never emit a card") }), (error: Error) => error.message.includes("permanent deletes from chat are disabled"));
+    assert.deepEqual(h.writes, []);
+  });
+  test(`${id}: a setting revoked during the human wait refuses before the effect`, async () => {
+    const h = harness(id, input, permission);
+    let enabled = true, reads = 0;
+    const tools = buildPermanentDeleteRegistrations({ workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }), prepare: async () => ({ details: [{ label: "Item", value: "Named item" }], execute: async () => { h.writes.push(id); return { removed: true }; } }) }, {
+      surfaceExchanges: h.store, assertChatDeleteAllowed: async () => { reads++; if (!enabled) throw new ToolInputError({ message: "grant revoked; nothing was deleted" }); },
+    });
+    await assert.rejects(tools.find(tool => tool.descriptor.id === id)!.handler(h.ctx, { emitSurface: async () => {
+      enabled = false;
+      h.store.deliver({ exchangeId: h.store.findTypedAnswerTarget({ principalId: "owner", toolId: id })!, principalId: "owner", params: { decision: "confirm" } }, { toolId: id });
+    } }), { message: "grant revoked; nothing was deleted" });
+    assert.equal(reads, 2); assert.deepEqual(h.writes, []);
+  });
+}

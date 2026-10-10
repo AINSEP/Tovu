@@ -47,7 +47,7 @@ const TRASH_THEME_CATALOG: AgentToolDefinition = {
     "Deletes a whole theme by moving its folder to the Trash, where it can be restored with trash_restore_item " +
     "(entityType 'theme'). Refused for the site's active theme: switch to another theme first with theme_set_active. " +
     "Use theme_trash_file to remove one file inside a theme instead. Permanent removal happens only from the Trash " +
-    "(trash_purge_item / trash_empty) or automatically after the retention period.",
+    "(use trash_purge_item / trash_empty if available to you; otherwise link /admin/trash) or automatically after the retention period.",
   sideEffects: "deletes-durable-state",
   authorization: { permission: THEME_WRITE_PERMISSION },
   inputSchema: {

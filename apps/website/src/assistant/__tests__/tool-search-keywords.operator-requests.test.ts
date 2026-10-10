@@ -1,3 +1,4 @@
+import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -25,6 +26,7 @@ interface OperatorRequest {
   readonly area: string;
   readonly query: string;
   readonly expect: readonly string[];
+  readonly whenAllowed?: readonly string[];
 }
 
 const RETIRED_SAVES = new Set(["custom_credential_create", "custom_credential_set_token", "media_propose_provider_credential", "source_control_propose_credential", "deployment_propose_custom_provider_credential", "agent_plugin_set_access_token"]);
@@ -68,4 +70,22 @@ test("every operator request with a tool finds it in the top 3 of search_tools",
       : [`${r.id} "${r.query}" -> ${r.expect.join("|")} rank ${best ?? "MISS"} (top: ${hits.slice(0, 3).join(", ")})`];
   });
   assert.deepEqual(misses, []);
+});
+
+
+test("operator permanent-delete requests are hidden OFF and discoverable only with the owner grant", async () => {
+  const off = await realToolCatalog();
+  const on = await realToolCatalog({}, { permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS });
+  const requests = REQUESTS.filter(request => request.whenAllowed?.length);
+  assert.deepEqual(requests.flatMap(request => request.whenAllowed!).sort(), [...ALL_CHAT_DELETE_TOOLS.allowedToolIds].sort());
+  for (const request of requests) {
+    const offHits = off.catalog.search({ query: request.query }, { limit: SEARCH_LIMIT }).map(hit => hit.id);
+    const onHits = on.catalog.search({ query: request.query }, { limit: SEARCH_LIMIT }).map(hit => hit.id);
+    for (const id of request.whenAllowed!) {
+      assert.equal(offHits.includes(id), false, `${request.id}: disabled tool was discovered`);
+      assert.equal(off.catalog.describe({ id }), null);
+      assert.ok(onHits.includes(id), `${request.id}: checked tool missing from search`);
+      assert.ok(on.catalog.describe({ id }));
+    }
+  }
 });

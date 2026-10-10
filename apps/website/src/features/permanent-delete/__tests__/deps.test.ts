@@ -1,3 +1,7 @@
+import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { buildPermanentDeleteRegistrations } from "../tool-registrations.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -74,13 +78,13 @@ function harness(initial: TrashItem[] = [row("a")]) {
   return { deps: buildPermanentDeleteDeps(routeDeps), effects, permissions, setItems: (v: TrashItem[]) => { items = v; }, setRecord: (v: Record<string, unknown> | null) => { record = v; }, setAllowed: (v: boolean) => { allowed = v; }, setMedia: (v: Record<string, unknown> | null) => { media = v; } };
 }
 
-test("empty Trash confirms a fixed selection, excludes new arrivals, and preserves a changed row", async () => {
+test("empty Trash refuses new arrivals or changed rows before deleting any reviewed item", async () => {
   const h = harness([row("a"), row("b")]);
   const plan = await h.deps.prepare("trash_empty", null, "owner");
-  assert.deepEqual(plan.details, [{ label: "post", value: "Title a (a)" }, { label: "post", value: "Title b (b)" }]);
+  assert.deepEqual(plan.details, [{ label: "Count", value: "2" }, { label: "Trash items", value: "post: Title a (a)\npost: Title b (b)", format: "code" }]);
   h.setItems([row("a"), { ...row("b"), entityId: "replacement" }, row("new")]);
-  assert.deepEqual(await plan.execute(), { removed: true, purged: 1, results: [{ id: "a", outcome: "purged" }, { id: "b", outcome: "forbidden" }] });
-  assert.deepEqual(h.effects, [{ purge: "a", workspaceId: "ws", actor: { principalId: "owner" } }]);
+  await assert.rejects(plan.execute(), { message: "trash_empty: target set changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+  assert.deepEqual(h.effects, []);
 });
 
 test("Trash per-kind permissions use force-delete for media/comments; revocation prevents purge", async () => {
@@ -97,7 +101,10 @@ test("empty Trash refuses an empty list and includes every page of a large selec
   await assert.rejects(empty.deps.prepare("trash_empty", null, "owner"), { message: "trash_empty: Trash is empty. Nothing to permanently delete." });
   const large = harness(Array.from({ length: 201 }, (_, i) => row(String(i))));
   const plan = await large.deps.prepare("trash_empty", null, "owner");
-  assert.equal(plan.details.length, 201);
+  assert.equal(plan.details.length, 2);
+  assert.deepEqual(plan.details[0], { label: "Count", value: "201" });
+  assert.equal(plan.details[1]?.format, "code");
+  assert.deepEqual(plan.details[1]?.value.split("\n"), Array.from({ length: 201 }, (_, i) => `post: Title ${i} (${i})`));
   const result = await plan.execute();
   assert.equal(result.purged, 201);
   assert.equal(large.effects.length, 201);
@@ -171,7 +178,7 @@ for (const id of ["custom_credential_delete", "deployment_delete_provider_creden
 test("media purge reuses purgeMedia and removes renditions, asset and Trash index only after preparation", async () => {
   const h = harness();
   const plan = await h.deps.prepare("media_purge_asset", "target", "owner");
-  assert.deepEqual(plan.details, [{ label: "Item", value: "Test photo (target)" }]);
+  assert.deepEqual(plan.details, [{ label: "Count", value: "1" }, { label: "Item", value: "Test photo (target)" }]);
   assert.deepEqual(h.effects, []);
   assert.deepEqual(await plan.execute(), { removed: true, id: "target" });
   assert.deepEqual(h.effects, [
@@ -197,5 +204,53 @@ test("an unlabeled MCP server is identified on the card by its saved server id",
   const h = harness();
   h.setRecord({ serverId: "target", label: null });
   const plan = await h.deps.prepare("external_mcp_delete", "target", "owner");
-  assert.deepEqual(plan.details, [{ label: "Item", value: "target (target)" }]);
+  assert.deepEqual(plan.details, [{ label: "Count", value: "1" }, { label: "Item", value: "target (target)" }]);
 });
+
+test("empty Trash requires a new card when the only change is a new arrival", async () => {
+  const h = harness([row("a")]);
+  const plan = await h.deps.prepare("trash_empty", null, "owner");
+  h.setItems([row("a"), row("new")]);
+  await assert.rejects(plan.execute(), { message: "trash_empty: target set changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+  assert.deepEqual(h.effects, []);
+});
+test("one Trash purge requires a new card when the reviewed row disappears", async () => {
+  const h = harness([row("a")]);
+  const plan = await h.deps.prepare("trash_purge_item", "a", "owner");
+  h.setItems([]);
+  await assert.rejects(plan.execute(), { message: "trash_purge_item: target set changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+  assert.deepEqual(h.effects, []);
+});
+
+test("Empty Trash card renders every row across pages with its type/title and exact count", async () => {
+  const h = harness(Array.from({ length: 201 }, (_, i) => row(String(i))));
+  const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const tool = buildPermanentDeleteRegistrations(h.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(tool => tool.descriptor.id === "trash_empty")!;
+  const result = await tool.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: {}, signal: new AbortController().signal }, { emitSurface: async emission => {
+    const html = JSON.stringify(emission.payload);
+    for (let i = 0; i < 201; i++) assert.ok(html.includes(`Title ${i} (${i})`), `row ${i} missing from card`);
+    assert.ok(html.includes("Count")); assert.ok(html.includes("201")); assert.ok(html.includes("post"));
+    assert.ok(html.includes("mcpui-code")); assert.ok(html.includes("overflow: auto"));
+    assert.deepEqual(h.effects, []);
+    store.deliver({ exchangeId: store.findTypedAnswerTarget({ principalId: "owner", toolId: "trash_empty" })!, principalId: "owner", params: { decision: "confirm" } }, { toolId: "trash_empty" });
+  } }) as { purged: number };
+  assert.equal(result.purged, 201);
+});
+
+
+for (const toolId of ["custom_credential_delete", "deployment_delete_provider_credential", "source_control_delete_credential", "external_mcp_delete"] as const) {
+  test(`${toolId}: the real emitted card names the saved label/id/count and never exposes ciphertext`, async () => {
+    const h = harness();
+    const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+    const tool = buildPermanentDeleteRegistrations(h.deps, { surfaceExchanges: store, assertChatDeleteAllowed: async () => {} }).find(tool => tool.descriptor.id === toolId)!;
+    const key = toolId === "external_mcp_delete" ? "serverId" : "credentialId";
+    const result = await tool.handler({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input: { [key]: "target" }, signal: new AbortController().signal }, { emitSurface: async emission => {
+      const html = JSON.stringify(emission.payload);
+      assert.ok(html.includes("Saved credential")); assert.ok(html.includes("target")); assert.ok(html.includes("Count"));
+      assert.equal(html.includes("SECRET"), false); assert.equal(html.includes("ciphertext"), false);
+      assert.equal(h.effects.some(effect => "deleted" in (effect as object) || "serverDeleted" in (effect as object)), false);
+      store.deliver({ exchangeId: store.findTypedAnswerTarget({ principalId: "owner", toolId })!, principalId: "owner", params: { decision: "cancel" } }, { toolId });
+    } }) as { removed: boolean };
+    assert.equal(result.removed, false);
+  });
+}

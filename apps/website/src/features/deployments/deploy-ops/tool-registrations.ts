@@ -1,3 +1,4 @@
+import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { toolMetadata } from '../../../contracts/core/tool-metadata/deploy-ops.js';
 import { collectTypedDeploySecret } from "./typed-secret-card.js";
 import { nowIso } from "@jini-ai/core/primitives";
@@ -66,10 +67,10 @@ function valueSource(raw: unknown): SecretValueSource {
 type Permit = (permission: string) => Promise<void>;
 const TAKES_EFFECT: Record<SecretConfirmRequest["appliesOn"], string> = { "next-deploy": "on the next deploy", "vendor-restart": "after the platform restarts the app", immediately: "immediately" };
 /** The card names exactly what runs; the permission is re-checked after the human answers. Literal tool ids keep the MCP-UI allowlist scan exact. */
-function secretConfirm(ctx: ToolExecutionContext, surfaces: AssistantSurfaceDeps | undefined, options: ToolExecutionOptions | undefined, permit: Permit): SecretConfirm | undefined {
+function secretConfirm(ctx: ToolExecutionContext, surfaces: ChatDeleteSurfaceDeps | undefined, options: ToolExecutionOptions | undefined, permit: Permit): SecretConfirm | undefined {
   if (!surfaces) return undefined;
   const details = (request: SecretConfirmRequest) => [
-    { label: "Platform", value: request.platform }, { label: "Target", value: request.target }, { label: "Secret", value: request.name },
+    { label: "Count", value: "1" }, { label: "Platform", value: request.platform }, { label: "Target", value: request.target }, { label: "Secret", value: request.name },
     ...(request.source ? [{ label: "New value from", value: request.source }, { label: "Current value", value: request.comparison === "different" ? "different from the new value" : "could not be read to compare" }] : []),
     { label: "Takes effect", value: TAKES_EFFECT[request.appliesOn] },
   ];
@@ -94,7 +95,7 @@ const SECRET_KEYS: Record<string, readonly string[]> = {
   deployment_ops_set_secret: ["platform", "target", "credentialLabel", "name", "source", "dryRun"],
 };
 /** Secrets handlers: validation independent of the schema; copying the site key also needs the site-key permission. */
-function secretsHandler(deps: DeployOpsToolDeps, surfaces: AssistantSurfaceDeps | undefined, name: string, permit: Permit): ToolHandler {
+function secretsHandler(deps: DeployOpsToolDeps, surfaces: ChatDeleteSurfaceDeps | undefined, name: string, permit: Permit): ToolHandler {
   return async (ctx, options) => {
     const input = requireInputRecord({ input: ctx.input });
     onlyKeys(input, SECRET_KEYS[name]!);
@@ -112,7 +113,7 @@ function secretsHandler(deps: DeployOpsToolDeps, surfaces: AssistantSurfaceDeps 
 }
 const SECRET_TOOLS = ["deployment_ops_list_secrets", "deployment_ops_set_secret", "deployment_ops_unset_secret"];
 /** Permission precedes any plugin/credential read. Handler input validation is independent of the schema. */
-export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps, surfaces?: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildDeployOpsRegistrations(deps: DeployOpsToolDeps, surfaces?: ChatDeleteSurfaceDeps): ToolRegistration[] {
   const catalog = getDeployOpsAgentToolCatalog(deps.deployOpsRegistry);
   const handlers: Record<string, ToolHandler> = {};
   for (const tool of catalog) handlers[tool.name] = async (ctx, options) => {

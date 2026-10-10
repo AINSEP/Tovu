@@ -1,6 +1,9 @@
 import type { Express, Response } from "express";
 import { defineJsonRoute, mountJsonRoute, ok, type HttpMethod, type JsonRouteAuthorize, type RouteInputContext } from "@jini-ai/http-kit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { touchesAssistantSubagents } from "./assistant-subagents-access.js";
+import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/assistant-permanent-deletes-policy";
+import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "#src/contracts/headless/assistant-subagents-policy";
 
 import { createSettingsPrincipalLookup, set, type SettingScope, type SettingsWriteServiceDeps } from "#src/features/settings/index";
 import {
@@ -188,7 +191,8 @@ export function rejectSettingsRequest(required: {
  * and body workspace first. Domain services retain their non-bypassable inner authorization.
  * Unknown failures keep the fixed CMS 500 envelope rather than disclosing exception messages.
  * @returns Void; registers exactly one endpoint, with no listener or background work.
- * @complexity O(1) setup and guard work, plus host authorization and route effects.
+ * @complexity O(1) setup; protected-coordinate checks follow touchesAssistantSubagents's bounded
+ * alias/batch/reset lookup cost, plus host authorization and route effects.
  */
 export function mountSettingsJsonRoute<Output>(required: {
   app: Express; deps: SettingsRouteDeps; method: HttpMethod; path: string;
@@ -200,7 +204,12 @@ export function mountSettingsJsonRoute<Output>(required: {
     method, path,
     parse: (raw) => ok({ value: raw }),
     // These ports are always bound below; context and the authorizer are present on every call.
-    handle: async ({ input, context, authorize }) => ok({ value: await handle({ request: input, principal: context!, authorize: authorize! }) }),
+    handle: async ({ input, context, authorize }) => {
+      if (method !== "get" && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId })) {
+        rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: ASSISTANT_SUBAGENTS_WRITE_REASON + " " + ASSISTANT_PERMANENT_DELETES_WRITE_REASON });
+      }
+      return ok({ value: await handle({ request: input, principal: context!, authorize: authorize! }) });
+    },
   }, { ports: {
     workspace: ({ raw, deps }) => {
       if (String(raw.params.workspaceId ?? "") !== deps.workspaceId) {

@@ -111,7 +111,7 @@
   {"id":"bk-03","area":"backup-recovery-trash","query":"whats in the trash","expect":["trash_list_items"]},
   {"id":"bk-04","area":"backup-recovery-trash","query":"recover the page i deleted","expect":["trash_restore_item"]},
   {"id":"bk-05","area":"backup-recovery-trash","query":"is my database healthy","expect":["database_get_health"]},
-  {"id":"bk-06","area":"backup-recovery-trash","query":"empty the trash","expect":["trash_empty"],"note":"permanent deletion requires a human confirmation card (owner Q1, 2026-10-01)"},
+  {"id":"bk-06","area":"backup-recovery-trash","query":"empty the trash","expect":[],"note":"Permanent deletes are OFF by default. If the owner enables and checks the tool, whenAllowed lists discovery targets; otherwise link the canonical admin screen.","whenAllowed":["trash_empty"]},
   {"id":"nl-01","area":"newsletter","query":"draft a newsletter about our new menu","expect":["newsletter_create_campaign"]},
   {"id":"nl-02","area":"newsletter","query":"send the newsletter to everyone","expect":["newsletter_send_campaign"],"note":"human confirmation required"},
   {"id":"nl-03","area":"newsletter","query":"add bob@example.com to the newsleter","expect":["newsletter_create_subscription"],"note":"typo"},
@@ -124,5 +124,17 @@
   {"id":"cm-03","area":"comments","query":"turn off comments on the site","expect":["comments_update_settings"]},
   {"id":"cm-04","area":"comments","query":"reply to the comment on my recipe post","expect":[],"note":"no comment reply/create tool"},
   {"id":"cm-05","area":"comments","query":"close comments after 30 days","expect":["comments_update_settings"]},
-  {"id":"cm-06","area":"comments","query":"delete the rude comment","expect":["comments_trash_comment","trash_item"]}
+  {"id":"cm-06","area":"comments","query":"delete the rude comment","expect":["comments_trash_comment","trash_item"]},
+  {"id":"pdel-02","area":"permanent-deletes","query":"trash purge item","expect":[],"whenAllowed":["trash_purge_item"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-03","area":"permanent-deletes","query":"media purge asset","expect":[],"whenAllowed":["media_purge_asset"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-04","area":"permanent-deletes","query":"comments purge comment","expect":[],"whenAllowed":["comments_purge_comment"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-05","area":"permanent-deletes","query":"identity user delete","expect":[],"whenAllowed":["identity_user_delete"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-06","area":"permanent-deletes","query":"deployment ops unset secret","expect":[],"whenAllowed":["deployment_ops_unset_secret"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-07","area":"permanent-deletes","query":"external mcp delete","expect":[],"whenAllowed":["external_mcp_delete"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-08","area":"permanent-deletes","query":"custom credential delete","expect":[],"whenAllowed":["custom_credential_delete"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-09","area":"permanent-deletes","query":"deployment delete provider credential","expect":[],"whenAllowed":["deployment_delete_provider_credential"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-10","area":"permanent-deletes","query":"source control delete credential","expect":[],"whenAllowed":["source_control_delete_credential"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-11","area":"permanent-deletes","query":"webhooks delete subscription","expect":[],"whenAllowed":["webhooks_delete_subscription"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-12","area":"permanent-deletes","query":"identity role delete","expect":[],"whenAllowed":["identity_role_delete"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."},
+  {"id":"pdel-13","area":"permanent-deletes","query":"identity policy delete","expect":[],"whenAllowed":["identity_policy_delete"],"note":"Owner-only opt-in and checked tool required; default OFF uses human admin guidance."}
 ]

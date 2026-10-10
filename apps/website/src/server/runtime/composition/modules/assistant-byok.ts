@@ -1,4 +1,6 @@
+import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
+import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { guardUserText } from "@jini-ai/chat/core";
 import { prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
 import { createContributionRegistry } from "@jini-ai/core";
@@ -83,13 +85,14 @@ export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
  *  this same literal rather than duplicating it — see {@link resolveByokSystemPrompt}'s doc for the
  *  composition this constant is the fixed half of. */
 export const SYSTEM_PREAMBLE =
+  SITE_GUIDE_POINTER +
   "You are the Tovu admin assistant, running with the operator's own AI provider key (BYOK mode). " +
   "Use the tools you are given to inspect and manage this Tovu site on the operator's behalf. " +
   "Keep replies short and direct: lead with the answer, skip preamble and skip restating the " +
   "request. Use headers, lists, or tables only when they carry real structure. Give full detail " +
   "when asked, and never trade correctness for brevity — error text, failing output, and " +
   "confirmations for destructive actions keep their full content. " +
-  "Only call tools that exist in your tool list; never invent one. " + CREDENTIAL_GUIDANCE;
+  "Only call tools that exist in your tool list; never invent one. " + CREDENTIAL_GUIDANCE + " " + PERMANENT_DELETE_GUIDANCE;
 
 /** How long one BYOK turn waits on `ByokToolSurface.awaitFederation` before giving up and running
  *  with whatever tools are searchable so far — see that method's own doc for why the wait is bounded
