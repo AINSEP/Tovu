@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } from "@/lib/api";
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { type Translate } from "@jini-ai/ui/panel-kit";
 import { navigate } from "@/lib/router";
 import { t } from "../recovery-i18n";
 import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
@@ -80,45 +82,27 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const { port } = deps;
   const locale = useAdminLocale();
   const boundT = (key: string): string => t({ locale: locale, key: key });
-  const [status, setStatus] = useState<AdminRecoveryStatus | null>(null);
-  const [points, setPoints] = useState<AdminRestorePoint[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryFetch = useQueryFetchCallback(async () => {
+    try {
+      const [status, result] = await Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()]);
+      return { status, points: result.items };
+    } catch (error) { throw new Error(describeApiError(error, t({ locale, key: "failed to load Recovery" }))); }
+  }, [port, locale]);
+  // Mount reads and tool-progress refreshes can overlap. The shared query cache owns read
+  // settlement order so an earlier status/list response cannot overwrite a newer refresh.
+  const key = useMemo(() => ["recovery", "overview"] as const, []);
+  const query = useFetchQuery({ key, fetch: queryFetch }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: queryFetch }, { staleTime: 0 });
+  const status = query.data?.status ?? null;
+  const points = query.data?.points ?? null;
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? query.error?.message ?? null;
+  const invalidate = useInvalidate();
+  const create = useFetchMutation({ run: () => port.createRestorePoint({ trigger: "manual", costAck: true }) }, { invalidates: [["recovery"]] });
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
-  const settlement = useSettlementGeneration();
-
-  // `t`/`locale` intentionally omitted from this callback's own deps — same pre-existing gap
-  // `use-page-editor.hooks.ts` documents (this effect only ever ran off `[]`/`[port]` even when
-  // `locale` came from `useAdminLocale()` directly). Pulled into a `useCallback` (staleness-bug
-  // generalization pass — see `use-content-refresh-subscription.hooks.ts`'s own header) so it can
-  // also be handed to that hook below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const load = useCallback(() => {
-    // Claim this call's generation BEFORE the request starts — see `useSettlementGeneration`'s own
-    // doc for why a synchronous ref bump, not `useState`, is what makes two overlapping calls each
-    // see the other's claim. Needed now that a content refresh can fire more than once per run
-    // (mid-run tool progress, see `AssistantDock.hooks.tsx`), so two overlapping `load()` calls have
-    // no ordering guarantee on their responses.
-    const generation = settlement.next();
-    setError(null);
-    Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()])
-      .then(([statusResult, pointsResult]) => {
-        if (!settlement.isCurrent({ generation })) return;
-        setStatus(statusResult);
-        setPoints(pointsResult.items);
-      })
-      .catch((e) => {
-        if (!settlement.isCurrent({ generation })) return;
-        setError(describeApiError(e, t({ locale: locale, key: "failed to load Recovery" })));
-      });
-  }, [port, settlement]);
-
-  // Mount-once by design, matching this file's sibling `useEffect` below.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design.
-  useEffect(() => {
-    load();
-  }, []);
-
+  // Read ordering and background data retention now belong to the shared query cache.
+  const load = useCallback(() => { setError(null); invalidate({ key: ["recovery"] }); }, [invalidate]);
   useContentRefreshSubscription(RECOVERY_RESOURCE, load);
 
   /** Restore-point functionality consolidation (2026-09-10) — same no-capabilities-read shape
@@ -126,24 +110,21 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
    *  `costClass` ahead of time (design-spec.md §3.3 wants a cost/disk estimate the confirmer
    *  explicitly acknowledges first), so `costAck: true` is sent unconditionally; an `unavailable`
    *  site gets the server's own `RESTORE_POINT_UNAVAILABLE` rejection rather than a client-side
-   *  guess. Reloads `status`/`points` via `load()` on success (this hook's pre-existing plain-state
-   *  reload idiom, not `lib/fetch-query`) rather than optimistically appending, so a fresh
-   *  `costClass`/banner read comes back too.
-   * `t`/`locale` intentionally omitted from this callback's own deps — same gap `load` above
-   * documents.
- */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   *  guess. Mutation invalidation refreshes status/points through the shared cache, and the
+   *  action awaits that read before clearing creating; costClass/banner remain authoritative.
+   */
   const createRestorePoint = useCallback(async () => {
+    setError(null);
     setCreating(true);
     try {
-      await port.createRestorePoint({ trigger: "manual", costAck: true });
-      load();
+      await create.mutate({ input: {} });
+      await loader.load().catch(() => {}); // Await settlement; query.error owns read failures, never retry an accepted capture.
     } catch (e) {
       setError(describeApiError(e, t({ locale: locale, key: "Failed to create restore point" })));
     } finally {
       setCreating(false);
     }
-  }, [port, load]);
+  }, [create.mutate, loader, locale]);
 
   // Deep-link arrival (design-spec.md §4.5, ADR-041 §7/ADR-045 §5, INV-04): re-resolve any
   // envelope `Database.tsx` stashed before navigating here. A stale/forged/pruned envelope

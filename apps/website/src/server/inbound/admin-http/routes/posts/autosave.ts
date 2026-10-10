@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { getAdminPostByIdOrSlug, type PostAutosaveSnapshot, type PostBodyFormat, type PostRepoPort } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug, normalizePostAuthor, PostValidationError, type PostAutosaveSnapshot, type PostBodyFormat, type PostRepoPort } from "#src/features/post/index";
 import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -83,17 +83,23 @@ function parseAutosaveContent(body: Record<string, unknown>, bodyFormat: PostBod
 }
 
 /** This route's four writable PUT fields, read off an untyped body in one place — mirrors
- *  `posts/update.ts`'s `parsePostUpdateBody`. Returns `null` (never throws) on any shape the
+ *  `posts/update.ts`'s `parsePostUpdateBody`. Returns `null` on any payload shape the
  *  `posts_body_format_shape` CHECK constraint would also reject, so the route can 400 before ever
- *  reaching the repo. @complexity O(1) — delegates to {@link parseAutosaveCommonFields} and
+ *  reaching the repo. Author validation throws PostValidationError with the shared write error.
+ *  @complexity O(n) in author length — delegates to {@link parseAutosaveCommonFields} and
  *  {@link parseAutosaveContent}. */
-function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion"> | null {
+function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion" | "author" | "showAuthor"> | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const common = parseAutosaveCommonFields(body);
   if (!common) return null;
   const content = parseAutosaveContent(body, common.bodyFormat);
   if (!content) return null;
-  return { ...common, ...content };
+  if (body.author !== undefined && body.author !== null && typeof body.author !== "string") return null;
+  if (body.showAuthor !== undefined && typeof body.showAuthor !== "boolean") return null;
+  return { ...common, ...content,
+    ...(body.author !== undefined ? { author: normalizePostAuthor({ author: body.author }) } : {}),
+    ...(body.showAuthor !== undefined ? { showAuthor: body.showAuthor as boolean } : {}),
+  };
 }
 
 /**
@@ -127,7 +133,14 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
     }
     if (!(await allowedToWrite(deps, res))) return;
 
-    const parsed = parseAutosaveBody(req.body);
+    let parsed: ReturnType<typeof parseAutosaveBody>;
+    try {
+      parsed = parseAutosaveBody(req.body);
+    } catch (error) {
+      if (!(error instanceof PostValidationError)) throw error;
+      res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });
+      return;
+    }
     if (!parsed) {
       res.status(400).json({ error: "invalid autosave body", code: "VALIDATION_ERROR" });
       return;

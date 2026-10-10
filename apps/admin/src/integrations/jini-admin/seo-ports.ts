@@ -27,13 +27,20 @@ export const seoSitemapTransport: SeoSitemapTransportPort = {
   },
 };
 
+/** Headers-only image check; browser credentials follow the original preview's same-origin rule. */
+export const seoImageTransport = {
+  head({ url }: { url: string }, { signal }: { signal?: AbortSignal } = {}): Promise<Response> {
+    return fetch(url, { method: 'HEAD', credentials: 'same-origin', signal });
+  },
+};
+
 /** Bind workspace JSON and public XML transports to the existing API adapter.
  * @returns The core SEO API and its filtered refresh port; transport errors propagate unchanged.
  * @example createSeoHostPorts({ transport: mediaTransport });
  */
-export function createSeoHostPorts({ transport }: { transport: SeoTransportPort }, { workspaceId = WORKSPACE_ID, sitemapTransport = seoSitemapTransport }: { workspaceId?: string; sitemapTransport?: SeoSitemapTransportPort } = {}): SeoHostPorts {
+export function createSeoHostPorts({ transport }: { transport: SeoTransportPort }, { workspaceId = WORKSPACE_ID, sitemapTransport = seoSitemapTransport, imageTransport = seoImageTransport, siteOrigin = siteUrl('') || globalThis.location?.origin }: { workspaceId?: string; sitemapTransport?: SeoSitemapTransportPort; imageTransport?: typeof seoImageTransport; siteOrigin?: string } = {}): SeoHostPorts {
   return {
-    seoApi: createHttpSeoApi({ transport, basePath: `/workspaces/${workspaceId}` }, { sitemapTransport }),
+    seoApi: createHttpSeoApi({ transport, basePath: `/workspaces/${workspaceId}` }, { sitemapTransport, imageTransport, siteOrigin }),
     seoEvents,
   };
 }

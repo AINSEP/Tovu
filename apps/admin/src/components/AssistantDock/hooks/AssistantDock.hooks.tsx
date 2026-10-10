@@ -16,7 +16,7 @@ import {
   type FrontendSessionBridge,
   type I18nAdapter,
 } from "@jini-ai/chat/react";
-import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
+import { conversationTitleForDisplay, isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
@@ -24,7 +24,8 @@ import { navigate } from "@/lib/router";
 import { ApiError, authenticatedAdminRequest } from "@/lib/api";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { readAgentsSnapshot, writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
-import { useCachedLoader, type CachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCachedLoader } from "@jini-ai/ui/fetch-query";
+import type { CachedLoader } from "@jini-ai/core/fetch";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh } from "@/lib/content-refresh-bus";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
@@ -1041,7 +1042,7 @@ export function extractResumeCapableAgentIds(agents: readonly AgentWithMemoryFla
 
 /**
  * The last resume-capable agentId set observed from `/api/agents` — module-scoped, same "outlive
- * the component, read fresh per call" shape {@link daemonOnlineInFlight} above uses. This is the
+ * the component, read fresh per call" shape the provider cache above uses. This is the
  * live binding `useAssistantTransport`'s `getResumeCapableAgentIds` option reads through
  * {@link getResumeCapableAgentIds} below.
  *
@@ -1147,8 +1148,9 @@ function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
 }
 
 /**
- * In-flight `daemonOnline()` call, shared module-wide so overlapping callers reuse it instead of
- * each starting their own fetch.
+ * In-flight `daemonOnline()` reads share each runtime-access instance's pending probe so its
+ * overlapping callers reuse one transport instead of each starting their own fetch. Health checks
+ * bypass the provider's connectivity gate: the browser's internet flag says nothing about the local daemon.
  *
  * `@jini-ai/chat/react`'s `useChatPaneRuntimeInventory` polls `daemonOnline` on a bare
  * `window.setInterval` every 5s while the tab is visible (0.3.11+ pauses it while hidden), and its
@@ -1157,26 +1159,15 @@ function useAgentsLoader(): CachedLoader<ChatPaneAgent[]> {
  * previously meant a brand new permanently-stuck request was added on every single tick, an
  * unbounded leak for as long as the tab stayed open (see
  * `ADS-memory/reports/2026-08-17-vite-proxy-pool-saturation-investigation.md`). Reusing one
- * in-flight promise caps that cost at one connection, the same fixed cost the settings-events SSE
- * already holds, instead of growing without bound.
+ * in-flight promise caps that cost at one connection per runtime-access instance, the same fixed
+ * cost the settings-events SSE already holds, instead of growing without bound.
  */
-let daemonOnlineInFlight: Promise<boolean> | null = null;
-
-async function daemonOnline(): Promise<boolean> {
-  if (daemonOnlineInFlight) return daemonOnlineInFlight;
-  const attempt = (async () => {
-    const response = await fetch(AGENTS_URL, {
-      credentials: "same-origin",
-      signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
-    });
-    return response.ok;
-  })();
-  daemonOnlineInFlight = attempt;
-  try {
-    return await attempt;
-  } finally {
-    if (daemonOnlineInFlight === attempt) daemonOnlineInFlight = null;
-  }
+async function readDaemonOnline(): Promise<boolean> {
+  const response = await fetch(AGENTS_URL, {
+    credentials: "same-origin",
+    signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
+  });
+  return response.ok;
 }
 
 /**
@@ -1200,13 +1191,21 @@ async function daemonOnline(): Promise<boolean> {
  */
 export function useRuntimeAccess(): ChatPaneRuntimeAccess {
   const loader = useAgentsLoader();
+  const pendingHealth = useRef<Promise<boolean> | null>(null);
+  const daemonOnline = useCallback(() => {
+    if (pendingHealth.current) return pendingHealth.current;
+    const pending = readDaemonOnline().finally(() => { pendingHealth.current = null; });
+    pendingHealth.current = pending;
+    return pending;
+  }, []);
   return useMemo(
     () => ({
       listAgents: () => loader.load().then(recordAgents),
       rescanAgents: () => rescanAgentsInto(loader),
+      // A health probe must reach loopback even when the browser reports no internet connection.
       daemonOnline,
     }),
-    [loader],
+    [loader, daemonOnline],
   );
 }
 
@@ -1822,6 +1821,20 @@ export interface AssistantDockChrome {
    *  translation contract, covering the `ConversationList` switcher mounted in `header` below, a
    *  DIFFERENT (larger, package-owned) key set than `t` above. See {@link useChatI18n}. */
   chatI18n: I18nAdapter;
+}
+
+/** Delegate automatic-title casing to Jini; manual and custom generated names remain verbatim.
+ * @complexity O(c + m + p) for conversations, loaded messages and the first prompt's length.
+ */
+export function resolveAssistantConversationTitle({ chats, fallback }: {
+  chats: Pick<UseAssistantChats, 'conversations' | 'activeId' | 'initialMessages'>; fallback: string;
+}, _options = {}): string {
+  const conversation = chats.conversations.find(item => item.id === chats.activeId);
+  if (!conversation) return fallback;
+  return conversationTitleForDisplay({
+    title: conversation.title, titleSource: conversation.titleSource,
+    firstPrompt: chats.initialMessages.find(message => message.role === 'user')?.content,
+  }) ?? fallback;
 }
 
 /**

@@ -13,6 +13,7 @@ export {
   listPublishedPosts,
   listPublishedPostPreviews,
   normalizeFeaturedMediaId,
+  normalizePostAuthor,
   normalizePublishAt,
   presentScheduleFields,
   restorePostForward,

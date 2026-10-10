@@ -108,3 +108,20 @@ test("ensureCoreMediaTransform: workspaces are isolated — registering 'public'
   assert.equal(rowsA.length, 1);
   assert.equal(rowsB.length, 1);
 });
+
+// Link-preview guard: a boot with an existing public definition must still install og.
+test("og boot: registers one JPEG share transform and preserves both versions across restarts", async () => {
+  const deps = fakeDeps();
+  await registerTransform({ deps, input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" } });
+  for (let restart = 0; restart < 3; restart += 1) {
+    await ensureCoreMediaTransform({ deps, input: { workspaceId: WORKSPACE_ID } });
+  }
+  const og = await deps.transformRepo.listByName({ workspaceId: WORKSPACE_ID, name: "og" });
+  assert.equal(og.length, 1);
+  assert.equal(og[0]!.version, 1);
+  assert.equal(og[0]!.owner, "core");
+  assert.deepEqual(og[0]!.params, { format: "jpeg", width: 1200, height: 630, fit: "cover", quality: 82 });
+  assert.equal((await deps.transformRepo.listByName({ workspaceId: WORKSPACE_ID, name: "public" })).length, 1);
+  await ensureCoreMediaTransform({ deps, input: { workspaceId: OTHER_WORKSPACE_ID } });
+  assert.equal((await deps.transformRepo.listByName({ workspaceId: OTHER_WORKSPACE_ID, name: "og" })).length, 1);
+});

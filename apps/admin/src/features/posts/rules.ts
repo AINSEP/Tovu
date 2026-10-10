@@ -107,9 +107,12 @@ export function buildPostRowMenuHandleMap(posts: AdminPost[] | null): Map<string
  */
 export function buildPostAutosaveDraft(
   post: { version: number },
-  form: { title: string; slug: string; bodyJson: Record<string, unknown> }
-): StandingDraftAutosaveInput {
-  return { bodyFormat: "doc", bodyJson: form.bodyJson, title: form.title, slug: form.slug, baseVersion: post.version };
+  form: { title: string; slug: string; bodyJson: Record<string, unknown>; author?: string; showAuthor?: boolean }
+): StandingDraftAutosaveInput & { author?: string; showAuthor?: boolean } {
+  return { bodyFormat: "doc", bodyJson: form.bodyJson, title: form.title, slug: form.slug, baseVersion: post.version,
+    ...(form.author !== undefined ? { author: form.author } : {}),
+    ...(form.showAuthor !== undefined ? { showAuthor: form.showAuthor } : {}),
+  };
 }
 
 /** Whether a recovered standing draft was captured before a real Save/Publish since superseded it —

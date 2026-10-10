@@ -22,7 +22,7 @@ without asking. There is no plan-approval step unless the owner asked to review 
 
 - **Pages** for the site's standalone documents (Home, About, Services, Contact, ...).
 - **Posts** for its blog/news articles, keeping each article's original date, its categories and
-  tags, its lead image and its excerpt (as the post's SEO description).
+  tags, its lead image, its author and byline visibility, and its excerpt (as the post's SEO description).
 - **Media**: every content image, imported into the media library and referenced from the new
   entries by id. Nothing keeps pointing at the old site's image URLs.
 - **A menu** rebuilt from the site's main navigation, assigned to the theme's main menu location,

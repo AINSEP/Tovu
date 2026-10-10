@@ -31,7 +31,7 @@ lower-case letters, digits and dashes, at most 120 characters, and never `admin`
 The target slug is the identity of an imported entry.
 
 1. Before planning, `content_read.content_post` once per `kind` (fields `id`, `kind`, `slug`, `title`,
-   `version`) and index existing rows by slug.
+   `version`, `author`, `showAuthor`) and index existing rows by slug.
 2. A planned slug that exists with the same `kind` → plan **update**: `content_post_update` with
    `id`, `kind` and the `version` you read as `expectedVersion`. A `VERSION_CONFLICT` means a
    person edited it since: keep their edit, skip that entry, and list it in the report.
@@ -66,13 +66,20 @@ content_post_create {
   bodyJson: <TipTap document, § 6>,
   status: "draft",                      // "published" only if the owner asked to publish
   publishAt: "<source date with offset, e.g. 2025-03-14T09:00:00Z>",
-  featuredImage: <media id of the lead image>
+  featuredImage: <media id of the lead image>,
+  author: <source author display name, or null when absent>,
+  showAuthor: <true only when the source visibly shows a byline>
 }
 ```
 
 Then `taxonomy_assign_terms { contentType: "post", contentId: <id>, termIds: [...] }` and
-`seo_set_entry_overrides` (§ 8). There is no excerpt or author field: the excerpt becomes the
-SEO description; authors are listed in the report.
+`seo_set_entry_overrides` (§ 8). Copy the source author name word for word into `author`;
+set `showAuthor` to match whether the source displays its byline. Send `author: null` and
+`showAuthor: false` when no source author exists, so the importing account is not credited.
+Use both fields on updates too; `content_read.content_post` returns the saved values.
+
+There is no dedicated excerpt field yet: preserve the source excerpt as the SEO description.
+A separately editable excerpt remains future work; do not synthesize an excerpt field.
 
 ## 5. Pages
 

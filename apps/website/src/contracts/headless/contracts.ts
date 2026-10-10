@@ -33,6 +33,9 @@ export type HeadlessEntryKind = "post" | "page";
 export type HeadlessBodyFormat = "doc" | "html";
 
 interface AdminPostFields {
+  /** Editable display credit, independent of the creator principal. */
+  author?: string | null;
+  showAuthor?: boolean;
   id: string;
   workspaceId: string;
   /** SPEC-002 api.spec.md §5 — entry kind. */
@@ -89,6 +92,8 @@ export interface AdminPostEnvelope {
 }
 
 export interface ContentPost {
+  author?: string | null;
+  showAuthor?: boolean;
   id: string;
   /** SPEC-002 api.spec.md §5 (`CONTENT_ENTRY_BY_SLUG`) — entry kind. */
   kind: HeadlessEntryKind;

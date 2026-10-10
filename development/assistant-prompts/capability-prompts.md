@@ -297,7 +297,7 @@ owner's OK. Leave out the 4 test pages/forms (owner decision 2026-10-04).
 | A-02 | What were my top 10 pages last month? | `analytics_list_recent_hits` reads only the recent-hit buffer | A month of totals | RO | GAP (recent buffer only) |
 | A-03 | What cookies does my home page set? | `site_collect_page_evidence` | Cookie names match browser devtools | RO | OK |
 | A-04 | Show me recent server errors. | **NONE** (admin Observability screen has no chat tool) | Errors listed | RO | GAP (EXPECTED, no tool found) |
-| A-05 | What sites do I have on this computer? | `sites_list` | Matches Sites → All sites | RO | OK |
+| A-05 | What sites do I have on this computer? | `content_read.site` (`{}` lists sites) | Matches Sites → All sites | RO | OK |
 | A-06 | Make a copy of this site called "staging". | `sites_duplicate_site` | "staging" listed and boots | LOCAL | OK |
 | A-07 | Create a brand-new empty site called "bakery". | `sites_create_site` (same `createSiteForOwner` as the admin Create route; local dev only, switcher flag ON) | New site listed | LOCAL | BUILT 2026-10-05 (S1) |
 | A-08 | Switch to my "staging" site. | `sites_switch_site` (same `activateSite` as the admin Activate route; persists TOVU_SITE, then `npm run dev` restarts the API onto it) | Admin now serves staging | LOCAL | BUILT 2026-10-05 (S1 persist, S2 dev.mjs restart) |
@@ -669,7 +669,7 @@ packages are shown by their source path. `publish_content_publish` is uncommitte
 | `site_describe_capabilities` | R | `apps/website/src/features/site-inspection/tool-registrations.ts:147` |
 | `site_get_profile` | R | `apps/website/src/features/site-inspection/tool-registrations.ts:134` |
 | `sites_duplicate_site` | W | `apps/website/src/features/sites/tool-registrations.ts:157` |
-| `sites_list` | R | `apps/website/src/features/sites/list-tool.ts:11` |
+| `content_read.site` | R | `apps/website/src/assistant/content-read-tool.ts` (Sites catalog: `apps/website/src/features/sites/agent-tools.ts`) |
 | `skills_install` | W | `apps/website/src/features/skills/install-tool.ts` |
 | `source_control_delete_credential` | W | `apps/website/src/features/permanent-delete/agent-tools.ts:14` |
 | `source_control_execute_commit` | W | `apps/website/src/features/source-control/tool-registrations.ts:185` |

@@ -20,6 +20,7 @@
       <p class="journal-entry__kicker">Journal</p>
       <h1 class="journal-entry__title">{{ post.title }}</h1>
       <p class="journal-entry__meta"><time>{{ post.date | date: "%B %e, %Y" }}</time></p>
+      {% if post.author %}<p class="journal-entry__meta post-author">By {{ post.author }}</p>{% endif %}
       <div class="prose">{{ post.content | raw }}</div>
     </article>
 

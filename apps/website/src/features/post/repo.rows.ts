@@ -73,6 +73,8 @@ export function toRecord(row: PostRow): PostRecord {
     memberAccessJson: row.member_access_json ?? null,
     createdByPrincipalId: row.created_by_principal_id ?? null,
     createdAt: row.created_at ?? null,
+    author: row.author ?? null,
+    showAuthor: toBool(row.show_author) ?? false,
     // Present only when set — see `presentScheduleFields` in `post.ts` for why absent, not `null`.
     ...(row.publish_at ? { publishAt: row.publish_at } : {}),
     ...(row.featured_media_id ? { featuredMediaId: row.featured_media_id } : {}),
@@ -135,6 +137,8 @@ export function toRow(record: PostRecord) {
     created_at: record.createdAt ?? null,
     publish_at: record.publishAt ?? null,
     featured_media_id: record.featuredMediaId ?? null,
+    author: record.author ?? null,
+    show_author: record.showAuthor ?? false,
     ext: JSON.stringify(record.ext ?? {}),
   } satisfies Insertable<ContentDatabase["posts"]>;
 }
@@ -176,6 +180,8 @@ export function updatableColumns(row: ReturnType<typeof toRow>) {
     member_access_json: row.member_access_json,
     publish_at: row.publish_at,
     featured_media_id: row.featured_media_id,
+    author: row.author,
+    show_author: row.show_author,
     ext: row.ext,
   };
 }

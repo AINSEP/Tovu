@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type AdminMenu, type AdminMenuItem, type AdminMenuMode } from "@/lib/api";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@/lib/router";
@@ -180,6 +182,14 @@ export interface MenuEditorController {
 
 export function useMenuEditor(menuId: string | null, { port, navigate, t, clipboard }: MenuEditorDependencies): MenuEditorController {
   const isNew = menuId === null;
+  const fetchMenu = useCallback(async () => {
+    try { return await port.getMenu(menuId!); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load menu")); }
+  }, [menuId, port, t]);
+  const menuKey = useMemo(() => ["menus", "detail", menuId ?? "new"] as const, [menuId]);
+  const loader = useCachedLoader({ key: menuKey, fetch: fetchMenu }, { staleTime: 0 });
+  const hydratedRoute = useRef<string | null | undefined>(undefined);
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["menus"]] });
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [menu, setMenu] = useState<AdminMenu | null>(null);
   const [title, setTitle] = useState("");
@@ -189,16 +199,10 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   const [items, setItems] = useState<AdminMenuItem[]>([]);
   const [mode, setMode] = useState<AdminMenuMode>("items");
   const [html, setHtml] = useState("");
-  const [pageChoices, setPageChoices] = useState<MenuPageChoice[] | undefined>();
   const needsPages = hasPageLinks({ items });
-  useEffect(() => {
-    setPageChoices(undefined);
-    if (!needsPages || !port.listPages) return;
-    let cancelled = false;
-    port.listPages({}).then(({ pages }) => { if (!cancelled) setPageChoices(pages); })
-      .catch(() => { if (!cancelled) setPageChoices(undefined); });
-    return () => { cancelled = true; };
-  }, [needsPages, port, menuId]);
+  const pageQueryFetch = useQueryFetchCallback(async () => (await port.listPages!({})).pages, [port]);
+  const pageQuery = useFetchQuery({ key: ["menus", "page-options"], fetch: pageQueryFetch }, { enabled: needsPages && !!port.listPages, staleTime: 0 });
+  const pageChoices = needsPages ? pageQuery.data : undefined;
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isNew);
@@ -218,8 +222,9 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   // path (`then`/`catch`/`finally`), not just the success path, since an unguarded `finally`
   // clearing `loading` is the one most likely to leave stale data on screen with no spinner to flag
   // it.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: stale-response guard keyed on menuId/isNew only — see comment above; `port` intentionally excluded.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the loader captures the port; an already hydrated route retains its draft.
   useEffect(() => {
+    if (hydratedRoute.current === menuId) return;
     let cancelled = false;
     setCopyFeedback(null);
     slugEdited.current = false;
@@ -232,14 +237,16 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       setHtml("");
       setOriginal({ title: "", slug: "", items: [], mode: "items", html: "" });
       setLoading(false);
+      hydratedRoute.current = menuId;
       return;
     }
     setLoading(true);
     setError(null);
-    port
-      .getMenu(menuId as string)
+    // Await a fresh version on every route entry; a retained cache value is only display data.
+    loader.load()
       .then(({ menu }) => {
         if (cancelled) return;
+        hydratedRoute.current = menuId;
         setMenu(menu);
         setTitle(menu.title);
         setSlug(menu.slug);
@@ -254,7 +261,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "failed to load menu");
+        setError(e instanceof Error ? e.message : t("failed to load menu"));
       })
       .finally(() => {
         if (cancelled) return;
@@ -263,7 +270,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
     return () => {
       cancelled = true;
     };
-  }, [menuId, isNew]);
+  }, [menuId, isNew, loader]);
 
   const { confirmLeave } = useDirtyGuard<MenuFormState>({ current: { title, slug, items, mode, html }, original }, { host: window, translate: (key) => key });
 
@@ -346,15 +353,15 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       const saveItems = pageItemsForSave({ items, pages: pageChoices });
       const authoring = menuAuthoringForSave({ mode, html, storedMode: menu?.mode });
       if (isNew) {
-        const { menu: created } = await port.createMenu({ title, slug }, { items: saveItems, ...authoring });
+        const { menu: created } = await write.mutate({ input: () => port.createMenu({ title, slug }, { items: saveItems, ...authoring }) }) as Awaited<ReturnType<typeof port.createMenu>>;
         navigate(`/menus/${created.slug}`);
         return;
       }
       if (!menu) return;
-      const { menu: saved } = await port.updateMenuTree(
+      const { menu: saved } = await write.mutate({ input: () => port.updateMenuTree(
         { id: menu.id, expectedVersion: menu.version, items: saveItems },
         { title, slug, ...authoring }
-      );
+      ) }) as Awaited<ReturnType<typeof port.updateMenuTree>>;
       if (activeMenuIdRef.current !== savingForMenuId) return;
       setMenu(saved);
       setItems(saved.items);

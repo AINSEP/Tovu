@@ -3,7 +3,7 @@ import type { UUID } from "@jini-ai/core/primitives";
 import { getLatestTransformDefinition, registerTransform, type RegisterTransformDeps, type TransformDefinitionRecord } from "./index.js";
 
 /**
- * @file Boot-time registration of the one core transform this host needs before the public `/m/`
+ * @file Boot-time registration of the core transforms this host needs before the public `/m/`
  * rendition route (`server/routes/site/media-rendition.ts`, ADR-027 §4) can serve ANY asset at
  * all.
  *
@@ -21,7 +21,7 @@ import { getLatestTransformDefinition, registerTransform, type RegisterTransform
 export const CORE_PUBLIC_TRANSFORM_NAME = "public";
 
 /**
- * Idempotently ensures the workspace's `"public"` core transform definition exists, so the
+ * Idempotently ensures the workspace's `"public"` and `"og"` core transform definitions exist, so the
  * `/m/{assetId}/public.v{version}/...` URL always resolves for any active asset (subject to the
  * generation-bound rules `resolveMediaRendition` itself enforces). Mirrors
  * `newsletter/lists.ts`'s `ensureDefaultList` shape exactly: find-latest-or-create, called once
@@ -43,31 +43,39 @@ export const CORE_PUBLIC_TRANSFORM_NAME = "public";
  * fill, a visible content bug this host has no test coverage to catch today. `webp` over `png`:
  * `png` is also lossless-and-transparency-safe, but ships meaningfully larger for photographic
  * content with zero correctness benefit over `webp` for this baseline's purpose. A resize-capable
- * transform (`thumb`, `hero`, ...) is a separate future registration, not added here.
+ * transform (`thumb`, `hero`, ...) is a separate registration. The `og` share-card variant
+ * deliberately crops to 1200 × 630 and uses JPEG quality 82 for messaging/social crawlers;
+ * it leaves this transparency-safe public baseline intact.
  *
- * @complexity O(v) in the number of existing "public" versions, from
+ * @complexity O(v) in the combined number of existing "public" and "og" versions, from
  * {@link getLatestTransformDefinition}'s version scan — negligible at this registry's real scale
- * (one core-owned name).
+ * (two core-owned names).
  * @overallScore 100
  */
 export async function ensureCoreMediaTransform(
-  required: { deps: RegisterTransformDeps; input: { workspaceId: UUID } }
+  required: { deps: RegisterTransformDeps; input: { workspaceId: UUID } },
+  _optional: Record<string, never> = {},
 ): Promise<{ definition: TransformDefinitionRecord }> {
   const { deps, input } = required;
-
-  const existing = await getLatestTransformDefinition({
-    deps: { transformRepo: deps.transformRepo },
-    input: { workspaceId: input.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
-  });
-  if (existing) return { definition: existing };
-
-  return registerTransform({
-    deps,
-    input: {
-      workspaceId: input.workspaceId,
-      name: CORE_PUBLIC_TRANSFORM_NAME,
-      params: { format: "webp" },
-      owner: "core",
-    },
-  });
+  const definitions = new Map<string, TransformDefinitionRecord>();
+  // One find-or-create path for both names: restarts must not mint either transform's version.
+  for (const transform of [
+    { name: CORE_PUBLIC_TRANSFORM_NAME, params: { format: "webp" as const } },
+    { name: "og", params: { format: "jpeg" as const, width: 1200, height: 630, fit: "cover" as const, quality: 82 } },
+  ]) {
+    const existing = await getLatestTransformDefinition({
+      deps: { transformRepo: deps.transformRepo },
+      input: { workspaceId: input.workspaceId, name: transform.name },
+    });
+    if (existing) {
+      definitions.set(transform.name, existing);
+      continue;
+    }
+    const { definition } = await registerTransform({
+      deps, input: { workspaceId: input.workspaceId, ...transform, owner: "core" },
+    });
+    definitions.set(transform.name, definition);
+  }
+  // The fixed list above always resolves public; preserve this function's existing return contract.
+  return { definition: definitions.get(CORE_PUBLIC_TRANSFORM_NAME)! };
 }

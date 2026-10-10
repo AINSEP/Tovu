@@ -103,6 +103,8 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
             ext?: Record<string, unknown>;
             publishAt?: string | null;
             featuredMediaId?: string | null;
+            author?: string | null;
+            showAuthor?: boolean;
           }
         | undefined;
       if (!inverse) {
@@ -126,6 +128,8 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
           publishAt: inverse.publishAt === undefined ? currentPublishAt : inverse.publishAt,
           featuredMediaId: inverse.featuredMediaId === undefined ? currentFeatured : inverse.featuredMediaId,
         }),
+        ...(inverse.author !== undefined ? { author: inverse.author } : {}),
+        ...(inverse.showAuthor !== undefined ? { showAuthor: inverse.showAuthor } : {}),
         title: inverse.title,
         slug: inverse.slug,
         bodyJson: inverse.bodyJson as JsonObject,

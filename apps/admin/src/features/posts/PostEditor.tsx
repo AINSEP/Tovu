@@ -27,6 +27,7 @@ import { TermPicker } from "../taxonomy/TermPicker";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
 import { PostPublishingFields } from "./PostPublishingFields";
+import { PostAuthorFields } from "./PostAuthorFields";
 import {
   toolbarBtnClass,
   hexOrDefault,
@@ -1428,6 +1429,10 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     scheduled,
     featuredMediaId,
     setFeaturedMediaId,
+    author,
+    setAuthor,
+    showAuthor,
+    setShowAuthor,
     hasSlugCollision,
     view,
     setView,
@@ -1602,6 +1607,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         onDeleteClick={onDeleteClick}
         t={t}
       />
+      <PostAuthorFields author={author} setAuthor={setAuthor} showAuthor={showAuthor} setShowAuthor={setShowAuthor} t={t} />
       {/* Scheduled publishing + featured image (2026-10-05) — under the publish row they qualify. */}
       <PostPublishingFields
         publishAtInput={publishAtInput}

@@ -1222,7 +1222,7 @@
     },
     "GET /api/admin/v1/workspaces/:workspaceId/system/sites": {
       "tools": [
-        "sites_list"
+        "content_read.site"
       ]
     },
     "POST /api/admin/v1/workspaces/:workspaceId/system/sites": {

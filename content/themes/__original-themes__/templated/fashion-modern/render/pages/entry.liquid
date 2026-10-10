@@ -6,8 +6,8 @@
   Converted from the Framer export's `blog_*.html` pages. Those carry real long-form prose
   (headed sections, bullet lists) plus chrome the source invents but Tovu's post contract has no
   field for — a "reading time" badge and a "Style Guide"/"Fashion Tips" category pill. Neither is
-  on `post` (`buildTemplateRenderData`'s post shape is `{title, slug, date, dateShort, content}`
-  only), so this template does not fabricate them; it renders exactly what's real: title, date,
+  on `post` (`buildTemplateRenderData` supplies title, slug, date, dateShort, content
+  and the opt-in author byline), so this template does not fabricate them; it renders exactly what's real: title, date, the enabled author byline,
   and `post.content` (pre-rendered/pre-sanitized HTML — the one value this tier is allowed to
   emit unescaped, via `| raw`, same convention as Storefront's own entry.liquid).
 
@@ -39,6 +39,7 @@
       <p class="journal-entry__kicker">Journal</p>
       <h1 class="journal-entry__title">{{ post.title }}</h1>
       <p class="journal-entry__meta"><time>{{ post.date | date: "%B %e, %Y" }}</time></p>
+      {% if post.author %}<p class="journal-entry__meta post-author">By {{ post.author }}</p>{% endif %}
       <div class="prose">{{ post.content | raw }}</div>
     </article>
 

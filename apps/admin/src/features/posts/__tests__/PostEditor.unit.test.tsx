@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within, fireEvent, act } from "@testing-library/react";
+import { render, screen, waitFor, within, fireEvent, act } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -904,6 +904,10 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     scheduled: false,
     featuredMediaId: null,
     setFeaturedMediaId: vi.fn(),
+    author: "",
+    setAuthor: vi.fn(),
+    showAuthor: false,
+    setShowAuthor: vi.fn(),
     hasSlugCollision: false,
     view: "edit",
     setView: vi.fn(),

@@ -4,8 +4,8 @@
  *
  * Two properties are pinned here, both of which shipped with no test of their own:
  *
- * 1. **The collapse itself.** The real production composition publishes 28
- *    `content_read.<resource>` cards and NONE of the 35 Tier-1 read tools they replace. Every
+ * 1. **The collapse itself.** The real production composition publishes 32
+ *    `content_read.<resource>` cards and NONE of the 41 Tier-1 read tools they replace. Every
  *    per-domain suite asserts its own one or two ids; nothing asserted the whole set, so a card
  *    silently dropping out of `CONTENT_READ_CARDS` would have shown up only as one domain's
  *    "expected '<id>' to be wired" — or, for a card whose domain suite does not cover it, as
@@ -43,6 +43,7 @@ const RETIRED_TIER1_IDS: readonly string[] = [
   "backup_list_restore_points",
   "collections_content_type_list",
   "collections_entry_list",
+  "comments_get_comment",
   "comments_list_moderation_queue",
   "content_post_get",
   "content_post_list",
@@ -67,23 +68,29 @@ const RETIRED_TIER1_IDS: readonly string[] = [
   "redirects_list",
   "seo_get_entry_meta",
   "settings_list_definitions",
+  "sites_get_site",
+  "sites_list",
+  "taxonomy_get_term",
   "taxonomy_list",
   "theme_list",
+  "theme_list_page_publications",
   "webhooks_list_subscriptions",
   "widgets_get_instance",
   "widgets_get_region",
   "widgets_list_instances",
   "widgets_list_regions",
   "workspace_get",
+  "workspace_list",
 ];
 
-/** The 28 cards those 35 collapse into, by the eval's mechanical `resourceKeyOf` rule (strip the
- *  `list`/`get`/`by`/`id` verb tokens, singularize, dedupe): 7 of them merge a `_get`/`_list` pair
- *  over one resource, 35 - 7 = 28. */
+/** The 32 cards those 41 collapse into, by the eval's mechanical `resourceKeyOf` rule (strip the
+ *  `list`/`get`/`by`/`id` verb tokens, singularize, dedupe): 9 of them merge a `_get`/`_list` pair
+ *  over one resource, 41 - 9 = 32. */
 const EXPECTED_CARD_IDS: readonly string[] = [
   "content_read.backup_restore_point",
   "content_read.collection_content_type",
   "content_read.collection_entry",
+  "content_read.comment",
   "content_read.comment_moderation_queue",
   "content_read.content_post",
   "content_read.custom_credential",
@@ -103,8 +110,11 @@ const EXPECTED_CARD_IDS: readonly string[] = [
   "content_read.redirect",
   "content_read.seo_entry_meta",
   "content_read.setting_definition",
+  "content_read.site",
+  "content_read.term",
   "content_read.taxonomy",
   "content_read.theme",
+  "content_read.theme_page_publication",
   "content_read.webhook_subscription",
   "content_read.widget_instance",
   "content_read.widget_region",
@@ -115,22 +125,22 @@ function idsOf(options?: { readonly includeContentReadCollapse?: boolean }): Set
   return new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions, ...options }).map((r) => r.descriptor.id));
 }
 
-test("the real composition publishes exactly the 28 content_read cards", () => {
+test("the real composition publishes exactly the 32 content_read cards", () => {
   const cards = [...idsOf()].filter((id) => id.startsWith("content_read.")).sort();
   assert.deepEqual(cards, [...EXPECTED_CARD_IDS].sort());
 });
 
-test("not one of the 35 retired Tier-1 read ids survives into the collapsed catalog", () => {
+test("not one of the 41 retired Tier-1 read ids survives into the collapsed catalog", () => {
   const ids = idsOf();
   const survivors = RETIRED_TIER1_IDS.filter((id) => ids.has(id));
   assert.deepEqual(survivors, [], "a retired id still resolving means some card failed to replace its member");
 });
 
-test("the collapse is a net -7: 35 member tools become 28 cards, and nothing else changes count", () => {
+test("the collapse is a net -9: 41 member tools become 32 cards, and nothing else changes count", () => {
   const collapsed = idsOf();
   const raw = idsOf({ includeContentReadCollapse: false });
   assert.equal(raw.size - collapsed.size, RETIRED_TIER1_IDS.length - EXPECTED_CARD_IDS.length);
-  assert.equal(raw.size - collapsed.size, 7);
+  assert.equal(raw.size - collapsed.size, 9);
 });
 
 test("includeContentReadCollapse:false reconstructs the true PRE-collapse catalog — the eval's baseline depends on it", () => {
@@ -138,7 +148,7 @@ test("includeContentReadCollapse:false reconstructs the true PRE-collapse catalo
 
   // Every retired member is back...
   const missing = RETIRED_TIER1_IDS.filter((id) => !raw.has(id));
-  assert.deepEqual(missing, [], "the pre-collapse arm must contain every one of the 35 original read tools");
+  assert.deepEqual(missing, [], "the pre-collapse arm must contain every one of the 41 original read tools");
 
   // ...and no card is present, which is the half that actually matters: if this option were removed
   // (or silently ignored), the eval's "baseline" would be the collapsed catalog and would compare
@@ -150,6 +160,7 @@ test("includeContentReadCollapse:false reconstructs the true PRE-collapse catalo
 test("RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retired id exactly once", () => {
   assert.deepEqual([...RETIRED_READ_TOOL_TO_CARD.keys()].sort(), [...RETIRED_TIER1_IDS].sort());
   assert.deepEqual([...new Set(RETIRED_READ_TOOL_TO_CARD.values())].sort(), [...EXPECTED_CARD_IDS].sort());
+  assert.equal(currentToolIdFor("sites_list"), "content_read.site", "site eval ground truth maps to the published card");
   assert.equal(currentToolIdFor("members_get_by_id"), "content_read.member");
   assert.equal(currentToolIdFor("members_list"), "content_read.member", "both members of a merged pair resolve to the one card");
   assert.equal(currentToolIdFor("content_post_search"), "content_post_search", "a tool the collapse never touched passes through unchanged");

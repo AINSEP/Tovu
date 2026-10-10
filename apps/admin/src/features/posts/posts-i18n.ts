@@ -28,6 +28,8 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const POSTS_DICT: Record<string, Record<string, string>> = {
   es: {
+    Author: "Autor",
+    "Show post author": "Mostrar autor de la entrada",
     Back: "Atrás",
     Restore: "Restaurar",
     Discard: "Descartar",
@@ -150,6 +152,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Acciones para \"{title}\"",
   },
   id: {
+    Author: "Penulis",
+    "Show post author": "Tampilkan penulis postingan",
     Back: "Kembali",
     Restore: "Pulihkan",
     Discard: "Buang",
@@ -267,6 +271,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Selalu tampilkan halaman tema",
   },
   de: {
+    Author: "Autor",
+    "Show post author": "Beitragsautor anzeigen",
     Back: "Zurück",
     Restore: "Wiederherstellen",
     Discard: "Verwerfen",
@@ -384,6 +390,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Die Seite des Themes immer anzeigen",
   },
   "zh-CN": {
+    Author: "作者",
+    "Show post author": "显示文章作者",
     Back: "返回",
     Restore: "恢复",
     Discard: "放弃",
@@ -501,6 +509,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "始终显示主题的页面",
   },
   "zh-TW": {
+    Author: "作者",
+    "Show post author": "顯示文章作者",
     Back: "返回",
     Restore: "還原",
     Discard: "捨棄",
@@ -618,6 +628,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "一律顯示主題的頁面",
   },
   "pt-BR": {
+    Author: "Autor",
+    "Show post author": "Mostrar autor da publicação",
     Back: "Voltar",
     Restore: "Restaurar",
     Discard: "Descartar",
@@ -735,6 +747,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Sempre mostrar a página do tema",
   },
   ru: {
+    Author: "Автор",
+    "Show post author": "Показывать автора записи",
     Back: "Назад",
     Restore: "Восстановить",
     Discard: "Отбросить",
@@ -852,6 +866,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Всегда показывать страницу темы",
   },
   fa: {
+    Author: "نویسنده",
+    "Show post author": "نمایش نویسندهٔ نوشته",
     Back: "بازگشت",
     Restore: "بازیابی",
     Discard: "دور انداختن",
@@ -969,6 +985,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "همیشه صفحهٔ پوسته نمایش داده شود",
   },
   ar: {
+    Author: "الكاتب",
+    "Show post author": "إظهار كاتب المقال",
     Back: "رجوع",
     Restore: "استعادة",
     Discard: "تجاهل",
@@ -1086,6 +1104,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "إظهار صفحة المظهر دائمًا",
   },
   ja: {
+    Author: "著者",
+    "Show post author": "投稿の著者を表示",
     Back: "戻る",
     Restore: "復元",
     Discard: "破棄",
@@ -1203,6 +1223,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "常にテーマのページを表示",
   },
   ko: {
+    Author: "작성자",
+    "Show post author": "게시물 작성자 표시",
     Back: "뒤로",
     Restore: "복원",
     Discard: "버리기",
@@ -1320,6 +1342,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "항상 테마의 페이지 표시",
   },
   pl: {
+    Author: "Autor",
+    "Show post author": "Pokaż autora wpisu",
     Back: "Wstecz",
     Restore: "Przywróć",
     Discard: "Odrzuć",
@@ -1437,6 +1461,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Zawsze pokazuj stronę motywu",
   },
   hu: {
+    Author: "Szerző",
+    "Show post author": "Bejegyzés szerzőjének megjelenítése",
     Back: "Vissza",
     Restore: "Visszaállítás",
     Discard: "Elvetés",
@@ -1554,6 +1580,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Mindig a téma oldala jelenjen meg",
   },
   fr: {
+    Author: "Auteur",
+    "Show post author": "Afficher l’auteur de l’article",
     Back: "Retour",
     Restore: "Restaurer",
     Discard: "Abandonner",
@@ -1671,6 +1699,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Toujours afficher la page du thème",
   },
   uk: {
+    Author: "Автор",
+    "Show post author": "Показувати автора запису",
     Back: "Назад",
     Restore: "Відновити",
     Discard: "Відкинути",
@@ -1788,6 +1818,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Завжди показувати сторінку теми",
   },
   tr: {
+    Author: "Yazar",
+    "Show post author": "Yazı yazarını göster",
     Back: "Geri",
     Restore: "Geri yükle",
     Discard: "Vazgeç",
@@ -1905,6 +1937,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Her zaman temanın sayfasını göster",
   },
   th: {
+    Author: "ผู้เขียน",
+    "Show post author": "แสดงผู้เขียนโพสต์",
     Back: "ย้อนกลับ",
     Restore: "กู้คืน",
     Discard: "ทิ้ง",
@@ -2022,6 +2056,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "แสดงหน้าของธีมเสมอ",
   },
   it: {
+    Author: "Autore",
+    "Show post author": "Mostra autore del post",
     Back: "Indietro",
     Restore: "Ripristina",
     Discard: "Scarta",
@@ -2139,6 +2175,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "Mostra sempre la pagina del tema",
   },
   hi: {
+    Author: "लेखक",
+    "Show post author": "पोस्ट का लेखक दिखाएँ",
     Back: "पीछे",
     Restore: "पुनर्स्थापित करें",
     Discard: "छोड़ दें",
@@ -2256,6 +2294,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "हमेशा थीम का पेज दिखाएँ",
   },
   ur: {
+    Author: "مصنف",
+    "Show post author": "پوسٹ کا مصنف دکھائیں",
     Back: "پیچھے",
     Restore: "بحال کریں",
     Discard: "رد کریں",
@@ -2373,6 +2413,8 @@ export const POSTS_DICT: Record<string, Record<string, string>> = {
     "Always show the theme's page": "ہمیشہ تھیم کا صفحہ دکھائیں",
   },
   bn: {
+    Author: "লেখক",
+    "Show post author": "পোস্টের লেখক দেখান",
     Back: "ফিরে যান",
     Restore: "পুনরুদ্ধার করুন",
     Discard: "বাদ দিন",

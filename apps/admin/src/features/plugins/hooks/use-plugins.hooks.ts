@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
+import { useCallback, useMemo, useState } from "react";
 
 import type { AdminPlugin } from "@/lib/api";
 import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { type Translate } from "@jini-ai/ui/panel-kit";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
@@ -39,17 +41,10 @@ import type { PluginInstallPort } from "./plugin-install-port.hooks";
  * confirm dialog's target (`pendingRemovePlugin`) followed on 2026-09-13, the same way
  * `inspectedPlugin` had already arrived: it was the last `useState` left in `Plugins.tsx`.
  *
- * `reload()`'s generation guard (2026-09-20 platform review, X1): `reload()` used to have no
- * ordering guard at all and never cleared `error` on a later success. Two toggles on DIFFERENT rows
- * are allowed to have reloads in flight at once (`rowSavingId`'s single-flight guard is per-row, see
- * this file's own `@tradeoffs` note below), so an older reload's GET could resolve after a newer
- * one's and paint a stale list back over a fresher one — and a single transient reload failure stuck
- * forever, since nothing ever called `setError(null)` again, which replaced the whole populated
- * screen (`Plugins.tsx`'s fatal `if (error) return …`) with an error the operator could not clear
- * short of a full remount. Fixed with `useSettlementGeneration()`, the same "ignore a settled result
- * once a newer call has superseded it" guard this admin already uses at eight other call sites — see
- * that hook's own header. The generation check guards `reload()`'s `catch` too, not only its `then`,
- * so an old rejection cannot blank a newer success either.
+ * Concurrent toggles on different rows can overlap their list refreshes. The shared query
+ * cache now owns the latest-request settlement guard formerly held by useSettlementGeneration:
+ * late successes and failures cannot overwrite a newer read. Successful reads clear prior query
+ * errors, so a transient refresh failure cannot leave Plugins.tsx's fatal error screen stuck.
  */
 
 export interface PluginsDependencies {
@@ -129,38 +124,31 @@ function withId(ids: ReadonlySet<string>, id: string, present: boolean): Readonl
  * @overallScore 92
  */
 export function usePlugins({ port, locale, t, installPort = defaultPluginInstallPort }: PluginsDependencies): PluginsController {
-  const [plugins, setPlugins] = useState<AdminPlugin[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryFetch = useQueryFetchCallback(async () => {
+    try { return await port.listPlugins(); }
+    catch (error) { throw new Error(describeApiError(error, translate({ locale, key: "failed to load plugins" }), { translate: t })); }
+  }, [port, locale]);
+  const key = useMemo(() => ["plugins", "list"] as const, []);
+  const query = useFetchQuery({ key, fetch: queryFetch }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: queryFetch }, { staleTime: 0 });
+  const plugins = query.data?.plugins ?? null;
+  const canInstallFolder = query.data?.installSources?.includes("folder") === true;
+  const invalidate = useInvalidate();
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["plugins"]] });
+  const error = query.error?.message ?? null;
   const [rowError, setRowError] = useState<string | null>(null);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   const [inspectedPluginId, setInspectedPluginId] = useState<string | null>(null);
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
-  const settlement = useSettlementGeneration();
-  const [canInstallFolder, setCanInstallFolder] = useState(false);
 
-  function reload(): Promise<void> {
-    const generation = settlement.next();
-    return port
-      .listPlugins()
-      .then((r) => {
-        if (!settlement.isCurrent({ generation })) return; // a newer reload already won
-        setPlugins(r.plugins);
-        setCanInstallFolder(r.installSources?.includes("folder") === true);
-        setError(null);
-      })
-      .catch((e) => {
-        if (!settlement.isCurrent({ generation })) return;
-        setError(describeApiError(e, translate({ locale: locale, key: "failed to load plugins" }), { translate: t }));
-      });
-  }
-
-  useEffect(() => {
-    void reload();
-  }, []);
+  const reload = useCallback(async () => {
+    invalidate({ key: ["plugins"] });
+    await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
+  }, [invalidate, loader]);
 
   // Assistant tool results already publish through this bridge; re-read via our authorized port.
-  useContentRefreshSubscription(PLUGINS_RESOURCE, () => { void reload(); });
+  useContentRefreshSubscription(PLUGINS_RESOURCE, () => { void reload().catch(() => {}); }); // The query exposes the read error.
 
   async function onToggleEnabled(plugin: AdminPlugin) {
     // EC-11: a second activation of this row's own toggle while its request is outstanding is a
@@ -169,8 +157,8 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
     setRowSavingId(plugin.id);
     setRowError(null);
     try {
-      await port.setPluginEnabled(plugin.id, { enabled: !plugin.enabled });
-      await reload();
+      await write.mutate({ input: () => port.setPluginEnabled(plugin.id, { enabled: !plugin.enabled }) });
+      await loader.load().catch(() => {}); // Join invalidation before unlocking; query.error owns a failed read.
     } catch (e) {
       setRowError(describeApiError(e, translate({ locale: locale, key: "failed to update plugin" }), { translate: t }));
     } finally {
@@ -190,8 +178,8 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
     setRowSavingId(plugin.id);
     setRowError(null);
     try {
-      await port.uninstallPlugin(plugin.id);
-      await reload();
+      await write.mutate({ input: () => port.uninstallPlugin(plugin.id) });
+      await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
     } catch (e) {
       setRowError(describeApiError(e, translate({ locale: locale, key: "failed to remove plugin" }), { translate: t }));
     } finally {

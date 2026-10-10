@@ -5,7 +5,8 @@ import sharp from "sharp";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
 
 import type { PostRecord } from "#src/features/post/index";
-import { registerTransform, uploadMedia, SharpImageTransformer } from "#src/features/media/index";
+import { uploadMedia, SharpImageTransformer } from "#src/features/media/index";
+import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
@@ -35,8 +36,6 @@ import { startTestServer } from "../helpers/http-test-server.js";
  * and asserts a real 200 with an image content-type. The second test guards the pre-existing
  * "already warmed" case, which must keep working unchanged.
  */
-
-const OG_TRANSFORM_NAME = "public";
 
 async function imageBytes(): Promise<Uint8Array> {
   return sharp({ create: { width: 12, height: 8, channels: 3, background: { r: 17, g: 83, b: 151 } } }).png().toBuffer();
@@ -75,10 +74,13 @@ async function uploadOne(deps: ReturnType<typeof createRouteDeps>, bytes: Uint8A
 }
 
 async function registerOgTransform(deps: ReturnType<typeof createRouteDeps>) {
-  return registerTransform({
+  await ensureCoreMediaTransform({
     deps: { clock: deps.clock, idGen: deps.idGen, transformRepo: deps.transformDefinitionRepo },
-    input: { workspaceId: deps.workspaceId, name: OG_TRANSFORM_NAME, params: { format: "webp" }, owner: "core" },
+    input: { workspaceId: deps.workspaceId },
   });
+  const definition = await deps.transformDefinitionRepo.findByNameVersion({ workspaceId: deps.workspaceId, name: "og", version: 1 });
+  assert.ok(definition);
+  return { definition };
 }
 
 function publishedPostWithOgImageRef(input: {
@@ -97,7 +99,7 @@ function publishedPostWithOgImageRef(input: {
     kind: "post",
     bodyFormat: "doc",
     bodyHtml: null,
-    seoExtJson: JSON.stringify({ ogImage: input.ogImageRef }),
+    seoExtJson: JSON.stringify({ ogImage: input.ogImageRef, twitterImage: input.ogImageRef }),
     updatedAt: new Date().toISOString(),
     version: 1,
   } as unknown as PostRecord;
@@ -122,7 +124,7 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
       id: randomUUID(),
       slug: "post-with-unwarmed-og-image",
       workspaceId: deps.workspaceId,
-      ogImageRef: `${media.id}:${OG_TRANSFORM_NAME}`,
+      ogImageRef: `${media.id}:public`,
     })
   );
 
@@ -136,6 +138,11 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
   const html = await page.text();
   const ogImage = extractOgImage(html);
   assert.ok(ogImage, "og:image must be present even though nothing has ever generated this rendition before");
+  assert.match(ogImage!, /\/og\.v1\/image\.jpg$/);
+  assert.ok(html.includes(`<meta name="twitter:image" content="${ogImage}"`));
+  assert.ok(html.includes('<meta property="og:image:width" content="1200"'));
+  assert.ok(html.includes('<meta property="og:image:height" content="630"'));
+  assert.ok(html.includes('<meta property="og:image:type" content="image/jpeg"'));
   assert.match(ogImage!, /^https?:\/\//, "og:image must be an ABSOLUTE URL -- crawlers do not resolve relative image URLs");
   assert.ok(
     new URL(ogImage!).pathname.startsWith(`/m/${media.slug}/${definition.name}.v${definition.version}/`),
@@ -155,17 +162,17 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
     /^image\//,
     "the fetched og:image URL must actually serve image bytes, not just exist as a string in the markup"
   );
-  assert.equal(crawlerFetch.headers.get("content-type"), "image/webp");
+  assert.equal(crawlerFetch.headers.get("content-type"), "image/jpeg");
   const responseBytes = Buffer.from(await crawlerFetch.arrayBuffer());
   const image = sharp(responseBytes);
   const decoded = await image.metadata();
   const pixels = await image.raw().toBuffer({ resolveWithObject: true });
-  assert.equal(pixels.info.width, 12);
-  assert.equal(pixels.info.height, 8);
-  assert.equal(pixels.data.length, 12 * 8 * pixels.info.channels);
-  assert.equal(decoded.format, "webp");
-  assert.equal(decoded.width, 12);
-  assert.equal(decoded.height, 8);
+  assert.equal(pixels.info.width, 1200);
+  assert.equal(pixels.info.height, 630);
+  assert.equal(pixels.data.length, 1200 * 630 * pixels.info.channels);
+  assert.equal(decoded.format, "jpeg");
+  assert.equal(decoded.width, 1200);
+  assert.equal(decoded.height, 630);
   assert.equal(
     crawlerFetch.headers.get("cache-control"),
     "public, max-age=3600",
@@ -184,7 +191,7 @@ test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin preview
       id: randomUUID(),
       slug: "post-with-warmed-og-image",
       workspaceId: deps.workspaceId,
-      ogImageRef: `${media.id}:${OG_TRANSFORM_NAME}`,
+      ogImageRef: `${media.id}:public`,
     })
   );
 
@@ -194,7 +201,7 @@ test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin preview
   await deps.seoReady;
 
   // Simulate the one-time warm-up (an admin's own preview visit, or a first crawler retry).
-  const warmUp = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/cover2.webp`);
+  const warmUp = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/cover2.jpg`);
   assert.equal(warmUp.status, 200);
 
   const page = await fetch(`${baseUrl}/post-with-warmed-og-image`);
@@ -206,17 +213,17 @@ test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin preview
   assert.equal(new URL(ogImage!).origin, baseUrl);
   const crawlerFetch = await fetch(ogImage!);
   assert.equal(crawlerFetch.status, 200, "the exact URL published in og:image must itself be publicly fetchable");
-  assert.equal(crawlerFetch.headers.get("content-type"), "image/webp");
+  assert.equal(crawlerFetch.headers.get("content-type"), "image/jpeg");
   const responseBytes = Buffer.from(await crawlerFetch.arrayBuffer());
   const image = sharp(responseBytes);
   const decoded = await image.metadata();
   const pixels = await image.raw().toBuffer({ resolveWithObject: true });
-  assert.equal(pixels.info.width, 12);
-  assert.equal(pixels.info.height, 8);
-  assert.equal(pixels.data.length, 12 * 8 * pixels.info.channels);
-  assert.equal(decoded.format, "webp");
-  assert.equal(decoded.width, 12);
-  assert.equal(decoded.height, 8);
+  assert.equal(pixels.info.width, 1200);
+  assert.equal(pixels.info.height, 630);
+  assert.equal(pixels.data.length, 1200 * 630 * pixels.info.channels);
+  assert.equal(decoded.format, "jpeg");
+  assert.equal(decoded.width, 1200);
+  assert.equal(decoded.height, 630);
   assert.equal(
     crawlerFetch.headers.get("cache-control"),
     "public, max-age=3600",

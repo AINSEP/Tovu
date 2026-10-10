@@ -80,6 +80,7 @@ export type ContentRouteDeps = Pick<
   | "authorize"
   | "clock"
   | "idGen"
+  | "userRepo"
   | "postRepo"
   /** `posts/delete.ts` + `pages/delete.ts` — the injected, pre-bound removal these routes hand
    *  `deletePost` in place of the `postRepo.softDelete` call it used to make itself. */

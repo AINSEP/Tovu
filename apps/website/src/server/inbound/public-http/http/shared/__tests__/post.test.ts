@@ -15,6 +15,7 @@ test("HTML admin DTO carries HTML only and retains plugin data and explicit temp
     templateChoice: "landing", overridesThemePage: true, ext: { catalog: { sku: "ADA-7" } } }), {
     id: "page-7", workspaceId: "ws-7", kind: "page", title: "About Ada", slug: "about-ada",
     status: "draft", updatedAt: "2026-09-17T12:34:56Z", version: 9,
+    author: null, showAuthor: false,
     bodyFormat: "html", bodyHtml: "<main>Ada &amp; team</main>", bodyJson: null,
     templateChoice: "landing", overridesThemePage: true, ext: { catalog: { sku: "ADA-7" } },
   });
@@ -25,6 +26,7 @@ test("document DTO preserves content and distinguishes false from an undecided o
     assert.deepEqual(result, {
       id: "page-7", workspaceId: "ws-7", kind: "page", title: "About Ada", slug: "about-ada",
       status: "draft", updatedAt: "2026-09-17T12:34:56Z", version: 9,
+      author: null, showAuthor: false,
       bodyFormat: "doc", bodyHtml: null,
       bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Ada's story" }] }] },
       templateChoice: null, overridesThemePage: expected,
@@ -40,6 +42,19 @@ test("HTML with a null body fails loudly instead of returning an empty body", ()
 test("content DTO includes document content and excludes admin metadata and extensions", () => {
   assert.deepEqual(toHeadlessContentPost({ ...post, ext: { private: { secret: "hidden" } }, overridesThemePage: true }), {
     id: "page-7", kind: "page", title: "About Ada", slug: "about-ada", updatedAt: "2026-09-17T12:34:56Z",
+    author: null, showAuthor: false,
     bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Ada's story" }] }] },
   });
+});
+
+test("admin retains editable credit while the public DTO exposes only opted-in display credit", () => {
+  for (const showAuthor of [undefined, false, true]) {
+    const record = { ...post, author: "  Guest Writer  ", showAuthor };
+    assert.equal(toHeadlessPost(record).author, "  Guest Writer  ");
+    assert.equal(toHeadlessContentPost(record).author, showAuthor === true ? "Guest Writer" : null);
+    assert.equal(toHeadlessContentPost(record).showAuthor, showAuthor ?? false);
+  }
+  for (const author of [undefined, null, "", "   "]) {
+    assert.equal(toHeadlessContentPost({ ...post, author, showAuthor: true }).author, null);
+  }
 });

@@ -100,7 +100,7 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
             captureInverse: async () => null,
             execute: () =>
               createPost({
-                deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox },
+                deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox, authorAccounts: deps.userRepo },
                 input: {
                   workspaceId: deps.workspaceId,
                   id: postId,
@@ -108,6 +108,8 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
                   slug: req.body?.slug !== undefined ? String(req.body.slug) : undefined,
                   bodyJson: req.body?.bodyJson,
                   status: req.body?.status,
+                  author: req.body?.author,
+                  showAuthor: req.body?.showAuthor,
                   actorId: principal.id,
                 },
               }),

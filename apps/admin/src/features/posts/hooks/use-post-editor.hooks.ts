@@ -101,6 +101,8 @@ export interface PostFormState {
   publishAt: string | null;
   /** Featured image (2026-10-05) — media asset id, or `null`. */
   featuredMediaId: string | null;
+  author: string;
+  showAuthor: boolean;
 }
 
 /** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
@@ -176,7 +178,11 @@ export interface PostEditorController extends PostEditorUiController {
   scheduled: boolean;
   /** Featured image (2026-10-05) — the chosen media asset id, or `null`. */
   featuredMediaId: string | null;
+  author: string;
+  showAuthor: boolean;
   setFeaturedMediaId: (id: string | null) => void;
+  setAuthor: (value: string) => void;
+  setShowAuthor: (value: boolean) => void;
   /** `true` when this post's own `slug` matches one of the active theme's own page ids — the caller
    *  shows the collision warning + override checkbox only then. */
   hasSlugCollision: boolean;
@@ -348,7 +354,7 @@ const lowlight = createLowlight(common);
  * `||` chain scores independently of `usePostEditor`'s complexity.
  */
 function computeContentDirty(
-  current: { title: string; slug: string; status: "draft" | "published"; bodyJson: unknown; overridesThemePage: boolean | null },
+  current: { title: string; slug: string; status: "draft" | "published"; bodyJson: unknown; overridesThemePage: boolean | null; author: string; showAuthor: boolean },
   original: PostFormState | null,
 ): boolean {
   if (original === null) return false;
@@ -357,7 +363,9 @@ function computeContentDirty(
     current.slug !== original.slug ||
     current.status !== original.status ||
     JSON.stringify(current.bodyJson) !== JSON.stringify(original.bodyJson) ||
-    current.overridesThemePage !== original.overridesThemePage
+    current.overridesThemePage !== original.overridesThemePage ||
+    current.author !== original.author ||
+    current.showAuthor !== original.showAuthor
   );
 }
 
@@ -375,6 +383,18 @@ function scheduleFieldsPatch(
   return {
     ...(current.publishAt !== (original?.publishAt ?? null) ? { publishAt: current.publishAt } : {}),
     ...(current.featuredMediaId !== (original?.featuredMediaId ?? null) ? { featuredMediaId: current.featuredMediaId } : {}),
+  };
+}
+
+/** Save only byline edits so a body save cannot overwrite an untouched credit. */
+function authorFieldsPatch(
+  required: { original: PostFormState | null; author: string; showAuthor: boolean },
+  _optional: Record<string, never> = {},
+): { author?: string | null; showAuthor?: boolean } {
+  const { original, author, showAuthor } = required;
+  return {
+    ...(author !== (original?.author ?? "") ? { author: author.trim() || null } : {}),
+    ...(showAuthor !== (original?.showAuthor ?? false) ? { showAuthor } : {}),
   };
 }
 
@@ -570,6 +590,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const [overridesThemePage, setOverridesThemePage] = useState<boolean | null>(null);
   const [publishAtInput, setPublishAtInput] = useState("");
   const [featuredMediaId, setFeaturedMediaId] = useState<string | null>(null);
+  const [author, setAuthor] = useState("");
+  const [showAuthor, setShowAuthor] = useState(false);
   // Same fetch-once-independent-of-postId shape as `availableTemplates` — the active theme's own
   // page ids don't change when switching between posts.
   const [staticPageIds, setStaticPageIds] = useState<string[]>([]);
@@ -834,6 +856,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         setOverridesThemePage(post.overridesThemePage ?? null);
         setPublishAtInput(isoToLocalDateTimeInput(post.publishAt));
         setFeaturedMediaId(post.featuredMediaId ?? null);
+        setAuthor(post.author ?? "");
+        setShowAuthor(post.showAuthor ?? false);
         if (editor) {
           // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
           // every post saved before this feature has a `bodyJson` with no `title` node, which the
@@ -861,6 +885,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
             // `datetime-local` value never reads as a change against a seconds-precision stored time.
             publishAt: localDateTimeInputToIso(isoToLocalDateTimeInput(post.publishAt)),
             featuredMediaId: post.featuredMediaId ?? null,
+            author: post.author ?? "",
+            showAuthor: post.showAuthor ?? false,
           });
         }
         // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same
@@ -932,7 +958,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const publishAt = localDateTimeInputToIso(publishAtInput);
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
     {
-      current: { title, slug, status, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId },
+      current: { title, slug, status, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author, showAuthor },
       original,
     },
     { host: window, translate: (key) => key },
@@ -941,7 +967,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Inlined rather than a second `useDirtyGuard` call so this doesn't register its own redundant
   // `beforeunload` listener for a value nothing reads for that purpose — see `computeContentDirty`
   // above for the comparison itself.
-  const contentDirty = computeContentDirty({ title, slug, status, bodyJson, overridesThemePage }, original);
+  const contentDirty = computeContentDirty({ title, slug, status, bodyJson, overridesThemePage, author, showAuthor }, original);
 
   // Standing-draft autosave scheduling — fires a debounced write whenever the working copy actually
   // differs from what's saved. Deliberately does NOT clear the draft when `contentDirty` goes back
@@ -951,9 +977,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   useEffect(() => {
     if (!post || !contentDirty || bodyJson === null) return;
     autosave.scheduleAutosave(
-      buildPostAutosaveDraft(post, { title, slug, bodyJson: bodyJson as Record<string, unknown> })
+      buildPostAutosaveDraft(post, { title, slug, bodyJson: bodyJson as Record<string, unknown>, author, showAuthor })
     );
-  }, [post, contentDirty, title, slug, bodyJson, autosave.scheduleAutosave]);
+  }, [post, contentDirty, title, slug, bodyJson, author, showAuthor, autosave.scheduleAutosave]);
 
   // Template-preview URL (moved from `PostEditor.tsx`/`PostPreview`, see `PostEditorController
   // .templatePreviewUrl`'s own doc) and the pending-content-preview's hidden form target (moved from
@@ -1014,7 +1040,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         // `expectedVersion` is the optimistic-concurrency basis, not content — see
         // `post-editor-port.hooks.ts`. `undefined` (only reachable before `post` has loaded, when
         // there is no basis to claim) sends an unguarded save, exactly the pre-2026-09-06 behavior.
-        { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, expectedVersion, ...scheduleFieldsPatch(original, { publishAt, featuredMediaId }) },
+        { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, expectedVersion, ...scheduleFieldsPatch(original, { publishAt, featuredMediaId }),
+          ...authorFieldsPatch({ original, author, showAuthor }) },
       );
       // A newer save/publish was issued after this one — that later call owns the outcome now, so
       // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
@@ -1022,15 +1049,17 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       if (!settlement.isCurrent({ generation })) return;
       setPost(saved);
       setStatus(nextStatus);
+      setAuthor(current => current === author ? saved.author ?? "" : current);
+      setShowAuthor(current => current === showAuthor ? saved.showAuthor ?? false : current);
       setMessage(formatSaveSuccessMessage(statusOverride, saved, t));
-      setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId });
+      setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author: saved.author ?? "", showAuthor: saved.showAuthor ?? false });
       // The real content just landed — any parked standing draft is now obsolete. Not awaited: this
       // is best-effort background bookkeeping (errors are already caught inside the hook), not part
       // of what "Save succeeded" means to the operator.
       void autosave.clearStandingDraft();
     } catch (e) {
       if (!settlement.isCurrent({ generation })) return;
-      if (post) autosave.preserveFailedSave({ error: e, draft: buildPostAutosaveDraft(post, { title, slug, bodyJson: editor.getJSON() as Record<string, unknown> }) });
+      if (post) autosave.preserveFailedSave({ error: e, draft: buildPostAutosaveDraft(post, { title, slug, bodyJson: editor.getJSON() as Record<string, unknown>, author, showAuthor }) });
       // The version conflict is NOT folded into the generic error line. The two need opposite
       // reactions from the operator (a slug collision or a network blip: fix it and press Save
       // again; this: pressing Save again erases somebody's document), and the whole point of the
@@ -1134,11 +1163,13 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * Does NOT itself tell the server anything.
    */
   function restoreRecoveredDraft(): void {
-    const draft = autosave.recoverableDraft;
+    const draft: (NonNullable<typeof autosave.recoverableDraft> & { author?: string | null; showAuthor?: boolean }) | null = autosave.recoverableDraft;
     if (!draft || !editor || draft.bodyJson === undefined) return;
     editor.commands.setContent(withTitleNode(draft.bodyJson, draft.title) as never);
     setTitle(draft.title);
     setSlug(draft.slug);
+    if (draft.author !== undefined) setAuthor(draft.author ?? "");
+    if (draft.showAuthor !== undefined) setShowAuthor(draft.showAuthor);
     autosave.dismissRecoverable();
   }
 
@@ -1192,6 +1223,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     scheduled,
     featuredMediaId,
     setFeaturedMediaId,
+    author,
+    setAuthor,
+    showAuthor,
+    setShowAuthor,
     hasSlugCollision,
     view,
     setView,

@@ -195,7 +195,7 @@ const FEATURED_IMAGE_SCHEMA = {
 /** Supported compact listing keys, shared with the handler's projection validator. */
 export const POST_LIST_FIELDS = [
   "id", "kind", "title", "slug", "status", "updatedAt", "version", "publicUrl", "adminUrl", "excerpt", "bodyChars",
-  "publishAt", "featuredMediaId", "scheduled",
+  "publishAt", "featuredMediaId", "scheduled", "author", "showAuthor",
 ] as const;
 
 const POST_ID_SCHEMA = {
@@ -793,7 +793,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     name: "content_post_list",
     description:
       "Lists posts or pages in the workspace (id, kind, title, slug, status, updatedAt, version, publicUrl, adminUrl, excerpt, " +
-      "bodyChars, plus publishAt/featuredMediaId/scheduled only on rows that have them) — drafts included. scheduled:true marks a " +
+      "bodyChars, author and showAuthor, plus publishAt/featuredMediaId/scheduled only on rows that have them) — drafts included. scheduled:true marks a " +
       "published row still waiting for its publishAt (publicUrl is null until then). excerpt is the body's plain text: whole for a short list, cut shorter the more rows " +
       "are returned (at least 300 characters, ending in '…' when cut); " +
       "bodyChars is the full plain-text length. Pass includeBody:true to get every row's full bodyJson instead of excerpt/" +
@@ -847,7 +847,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     name: "content_post_get",
     description:
       "Reads one post or page by id (id, kind, title, slug, status, bodyJson, updatedAt, version, publicUrl, plus publishAt, " +
-      "featuredMediaId and scheduled only when set; scheduled:true means published but waiting for publishAt). publicUrl is the " +
+      "featuredMediaId and scheduled only when set, plus author and showAuthor; scheduled:true means published but waiting for publishAt). publicUrl is the " +
       "row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page to verify it renders — or " +
       "null for a draft/unpublished row, since it has no live link yet. " +
       "Disclosed asymmetry inherited from the two real admin routes this mirrors: with kind:'page', a row whose actual kind is " +
@@ -894,15 +894,17 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         status: { type: "string", enum: ["draft", "published"], description: "Omit to default to 'draft'." },
         publishAt: PUBLISH_AT_SCHEMA,
         featuredImage: FEATURED_IMAGE_SCHEMA,
+        author: { type: ["string", "null"], description: "Display credit, editable to any name. Omit to default to the signed-in account username; null or an empty string clears it. This does not change ownership or permissions." },
+        showAuthor: { type: "boolean", description: "Show the author in the post byline. Defaults to false; author is still stored when hidden." },
       },
     },
   },
   {
     name: "content_post_update",
     description:
-      "Patches an existing post/page — send only the fields that change; any of title, slug, bodyJson, status, publishAt and " +
-      "featuredImage you omit keeps its current stored value (the underlying updatePost function still has no partial-update path, so this tool fills the gap " +
-      "from the stored row before calling it). Send at least one of the six, or the call is rejected. This is also how a " +
+      "Patches an existing post/page — send only the fields that change; any of title, slug, bodyJson, status, publishAt, " +
+      "featuredImage, author and showAuthor you omit keep their current stored values (the underlying updatePost function still has no partial-update path, so this tool fills the gap " +
+      "from the stored row before calling it). Send at least one writable field, or the call is rejected. This is also how a " +
       "post/page is published or unpublished: {id, kind, status:'published'} (or 'draft') alone is enough — there is no separate " +
       "set-status tool. Schedule with status:'published' plus a future publishAt; a scheduled result has scheduled:true and " +
       "publicUrl null: tell the user when it will be published. A published result also has publishedWhere: whether it is on " +
@@ -937,6 +939,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         status: { type: "string", enum: ["draft", "published"], description: "Optional — omit to leave the status unchanged. Setting this to 'published' from 'draft' is how a post/page is published; back to 'draft' is how it is unpublished." },
         publishAt: { ...PUBLISH_AT_SCHEMA, description: `Optional — omit to leave the schedule unchanged; null clears it. ${PUBLISH_AT_SCHEMA.description}` },
         featuredImage: { ...FEATURED_IMAGE_SCHEMA, description: `Optional — omit to leave the featured image unchanged. ${FEATURED_IMAGE_SCHEMA.description}` },
+        author: { type: ["string", "null"], description: "Optional display credit — omit to keep the stored name; null or an empty string clears it. Does not change ownership or permissions." },
+        showAuthor: { type: "boolean", description: "Optional — omit to keep the byline setting; true shows the stored author, false hides it." },
         // OPTIONAL, and it must stay optional: making it required would break every caller that
         // predates it, and the domain guard itself is opt-in (`updatePost` treats an absent basis as
         // "no basis sent" and keeps its original last-write-wins behavior).

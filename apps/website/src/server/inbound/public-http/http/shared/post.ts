@@ -1,4 +1,5 @@
 import type { PostRecord } from "#src/features/post/index";
+import { postAuthorForDisplay } from "#src/features/post/author";
 import type { AdminPost, ContentPost } from "#src/contracts/headless/index";
 
 /**
@@ -25,6 +26,8 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
     slug: post.slug,
     status: post.status,
     updatedAt: post.updatedAt,
+    author: post.author ?? null,
+    showAuthor: post.showAuthor ?? false,
     version: post.version,
     templateChoice: post.templateChoice ?? null,
     // Tri-state (2026-08-15) — `?? null`, not `?? false`: a `PostRecord` that never had an opinion
@@ -59,5 +62,7 @@ export function toHeadlessContentPost(post: PostRecord): ContentPost {
     slug: post.slug,
     bodyJson: post.bodyJson,
     updatedAt: post.updatedAt,
+    author: postAuthorForDisplay({ post }),
+    showAuthor: post.showAuthor ?? false,
   };
 }

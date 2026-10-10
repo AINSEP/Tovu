@@ -35,7 +35,7 @@ function parsePostUpdateBody(
   rawBody: unknown
 ): Pick<
   UpdatePostInput,
-  "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "expectedVersion" | "publishAt" | "featuredMediaId"
+  "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "expectedVersion" | "publishAt" | "featuredMediaId" | "author" | "showAuthor"
 > {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
@@ -49,6 +49,8 @@ function parsePostUpdateBody(
     // featured image, 2026-10-05).
     publishAt: body.publishAt as UpdatePostInput["publishAt"],
     featuredMediaId: body.featuredMediaId as UpdatePostInput["featuredMediaId"],
+    author: body.author as UpdatePostInput["author"],
+    showAuthor: body.showAuthor as UpdatePostInput["showAuthor"],
     // Validated, not cast — see `features/post/expected-version.ts`, which owns this rule for BOTH
     // arms that accept a basis (this route and the `content_post_update` agent tool). Every other
     // field above is either coerced (`title`/`slug`) or handed to `updatePost`'s own validation;
@@ -196,6 +198,8 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 // Scheduled publishing / featured image (2026-10-05) — `null` restores "none".
                 publishAt: priorPost.publishAt ?? null,
                 featuredMediaId: priorPost.featuredMediaId ?? null,
+                author: priorPost.author ?? null,
+                showAuthor: priorPost.showAuthor ?? false,
                 // SPEC-005 BR-08 (T024) — the pre-edit plugin `ext` bag travels in the pre-image
                 // alongside the core fields, so one revert restores both together. Spread
                 // conditionally: an entry with no `ext` yet must produce an inverse payload with

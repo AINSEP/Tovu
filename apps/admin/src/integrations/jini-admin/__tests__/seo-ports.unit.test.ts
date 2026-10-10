@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SeoTransportPort, SeoSitemapTransportPort } from '@jini-ai/admin/seo/adapters/http';
 import { ApiError } from '../../../lib/api';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
-import { createSeoHostPorts, createSeoTranslator, describeSeoHostError, seoEvents, seoSessionGrants, seoSitemapTransport } from '../seo-ports';
+import { createSeoHostPorts, createSeoTranslator, describeSeoHostError, seoEvents, seoSessionGrants, seoSitemapTransport, seoImageTransport } from '../seo-ports';
 import { siteUrl } from '../../../lib/site-url';
 
 afterEach(() => { resetContentRefreshBus(); vi.unstubAllGlobals(); });
@@ -103,4 +103,27 @@ describe('SEO host ports', () => {
     publishContentRefresh(['seo']);
     expect(onRefresh).toHaveBeenCalledTimes(2);
   });
+});
+
+// Header probes reuse browser cookie auth and never substitute JSON parsing for image metadata.
+it('inspects the chosen image through injected HEAD transport and preserves the actual status/size', async () => {
+  const reads: unknown[] = [];
+  const transport: SeoTransportPort = { request: async () => { throw new Error('unused'); }, url: ({ path }) => path };
+  const imageTransport = { head: async (input: { url: string }, options: { signal?: AbortSignal } = {}) => {
+    reads.push([input, options]);
+    return new Response(null, { status: 200, headers: { 'content-length': '66' } });
+  } };
+  const { seoApi } = createSeoHostPorts({ transport }, { workspaceId: 'ws1', imageTransport, siteOrigin: 'https://site.test' });
+  const signal = new AbortController().signal;
+  expect(await seoApi.inspectShareImage!({ url: '/original/cover' }, { signal })).toEqual({ status: 200, byteSize: 66 });
+  expect(reads).toEqual([[{ url: '/original/cover' }, { signal }]]);
+  expect(seoApi.mediaPreviewUrl!({ value: 'https://site.test/m/cover/og.v1/image.jpg' })).toBe('/workspaces/ws1/media/cover/original');
+});
+
+it('uses a headers-only browser request with same-origin credentials and cancellation', async () => {
+  const requests: unknown[] = [];
+  vi.stubGlobal('fetch', async (...args: unknown[]) => { requests.push(args); return new Response(null); });
+  const signal = new AbortController().signal;
+  await seoImageTransport.head({ url: '/original/cover' }, { signal });
+  expect(requests).toEqual([['/original/cover', { method: 'HEAD', credentials: 'same-origin', signal }]]);
 });
