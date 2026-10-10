@@ -4,7 +4,6 @@ import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButto
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
-import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { agentHandle } from "@jini-ai/agentic";
 import {
   InteractiveHtmlEditor,
@@ -292,15 +291,6 @@ function PageEditorActions({
         >
           {saving ? t("Saving…") : dirty ? `${t("Save")} •` : t("Save")}
         </button>
-        {/* Nothing changed (owner, 2026-10-10): Save stays clickable and gets a tip, same as Edit post. */}
-        {dirty ? null : (
-          <InfoTip
-            label={t("No changes yet. Save still works, in case a change wasn't picked up.")}
-            triggerLabel={t("About saving")}
-            placement="bottom"
-            agentHandle="page-save-unchanged-tip"
-          />
-        )}
         <button
           type="button"
           className="btn-danger"

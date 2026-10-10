@@ -7,7 +7,6 @@ import DragHandle from "@tiptap/extension-drag-handle-react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
-import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import { usePreviewPaneWidth, useDevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
@@ -951,7 +950,6 @@ function PostEditorActions({
   onDeleteClick,
   onOpenSettings,
   kindLabel,
-  dirty,
   t,
 }: {
   message: string | null;
@@ -968,8 +966,6 @@ function PostEditorActions({
   onDeleteClick: () => void;
   /** Opens the post settings modal (author, publish time, featured image). */
   onOpenSettings: () => void;
-  /** Nothing changed since the last load/save: Save stays clickable and gets a tip (owner, 2026-10-10). */
-  dirty: boolean;
   kindLabel: "post" | "page";
   t: Translate;
 }) {
@@ -1031,14 +1027,6 @@ function PostEditorActions({
         >
           {t("Save")}
         </button>
-        {dirty ? null : (
-          <InfoTip
-            label={t("No changes yet. Save still works, in case a change wasn't picked up.")}
-            triggerLabel={t("About saving")}
-            placement="bottom"
-            agentHandle="post-save-unchanged-tip"
-          />
-        )}
         <button
           type="button"
           className="btn-danger"
@@ -1645,7 +1633,6 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         onDeleteClick={onDeleteClick}
         onOpenSettings={settingsDialog.openDialog}
         kindLabel={kindLabel}
-        dirty={dirty}
         t={t}
       />
       {/* Author, scheduled publishing and featured image (2026-10-05) used to be two rows here; they

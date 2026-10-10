@@ -512,14 +512,12 @@ describe("status, publish, save", () => {
     expect(ctrl.save).not.toHaveBeenCalled();
   });
 
-  it("shows the 'no changes yet' tip beside Save only while nothing changed", () => {
-    const tip = () => document.querySelector('[data-agent-element="page-save-unchanged-tip"]');
-    const { unmount } = renderEditor({ dirty: false });
-    expect(tip()).not.toBeNull();
-    expect(tip()!.closest(".content-action-group")).not.toBeNull();
-    unmount();
-    renderEditor({ dirty: true });
-    expect(tip()).toBeNull();
+  // The ⓘ tip beside Save when nothing changed was removed (owner, 2026-10-10: "not needed");
+  // the "Nothing changed. Save anyway?" warning below still covers that case.
+  it("shows no tip beside Save while nothing changed", () => {
+    renderEditor({ dirty: false });
+    expect(screen.getByRole("button", { name: /^save$/i })).toBeEnabled();
+    expect(document.querySelector(".content-action-group .info-tip")).toBeNull();
   });
 
   it("the 'Nothing changed' warning's Save anyway and Cancel call their controller handlers", async () => {

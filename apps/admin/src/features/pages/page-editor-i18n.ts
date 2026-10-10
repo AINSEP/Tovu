@@ -51,7 +51,6 @@ const postEditorKeys = new Set([
   "Loading editor…", "URL slug", "view ↗", "Move to trash?", "Move to trash",
   "to trash? It will disappear from the site and from this list.", "Exit full screen (Esc)",
   "Show full screen", "Exit full screen", "Nothing changed", "Nothing has changed since the last save. Save anyway?",
-  "No changes yet. Save still works, in case a change wasn't picked up.", "About saving",
   "No changes found · nothing new saved (version {version})",
 ] as const);
 
