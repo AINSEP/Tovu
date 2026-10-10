@@ -2,8 +2,10 @@ import { createPortal } from "react-dom";
 import { A2uiSurfaceCard, useT, type A2uiSurfaceCardProps } from "@jini-ai/chat/react";
 // This boundary renders both inline and into the Playground portal; styles must follow both paths.
 import "@jini-ai/ui/interactive-ui.css";
+import "@jini-ai/charts-recharts/styles.css";
 
 import { useRoutedA2uiSurfaceCard } from "./hooks/use-routed-a2ui-surface-card.hooks";
+import { ASSISTANT_INTERACTIVE_UI_REGISTRY } from "./chart-provider";
 
 /**
  * @file Makes `A2uiSurfaceCard` page-aware without touching the card itself, Jini's ext-event
@@ -67,6 +69,7 @@ export interface RoutedA2uiSurfaceCardProps extends A2uiSurfaceCardProps {
 
 export function RoutedA2uiSurfaceCard({
   useRoutedA2uiSurfaceCardHook = useRoutedA2uiSurfaceCard,
+  registry = ASSISTANT_INTERACTIVE_UI_REGISTRY,
   ...props
 }: RoutedA2uiSurfaceCardProps) {
   const t = useT();
@@ -90,11 +93,11 @@ export function RoutedA2uiSurfaceCard({
         >
           ×
         </button>
-        <A2uiSurfaceCard {...props} onAgentAction={handleAgentAction} />
+        <A2uiSurfaceCard {...props} registry={registry} onAgentAction={handleAgentAction} />
       </div>,
       target,
     );
   }
 
-  return <A2uiSurfaceCard {...props} onAgentAction={handleAgentAction} />;
+  return <A2uiSurfaceCard {...props} registry={registry} onAgentAction={handleAgentAction} />;
 }
