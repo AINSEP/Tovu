@@ -657,3 +657,9 @@ export function localDateTimeInputToIso(value: string): string | null {
 export function isScheduledPost(input: { status: "draft" | "published"; publishAt: string | null }, nowMs: number): boolean {
   return input.status === "published" && input.publishAt !== null && Date.parse(input.publishAt) > nowMs;
 }
+
+/** Whether the editor shows the cover-image slot above the title node: only for a TipTap body
+ *  (`bodyFormat` "doc", the default when absent), never an html page. @complexity O(1). */
+export function showsCoverImageSlot(bodyFormat: "doc" | "html" | undefined): boolean {
+  return (bodyFormat ?? "doc") === "doc";
+}

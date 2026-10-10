@@ -1,6 +1,7 @@
 import { standingDraftRecoveryMessage } from "../../lib/standing-draft-recovery-message";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
+import type { ReactNode } from "react";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import DragHandle from "@tiptap/extension-drag-handle-react";
@@ -27,6 +28,7 @@ import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplate
 import { TermPicker } from "../taxonomy/TermPicker";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
+import { PostCoverImage } from "./PostCoverImage";
 import { PostSettingsDialog } from "./PostSettingsDialog";
 import {
   toolbarBtnClass,
@@ -1272,11 +1274,14 @@ function PostEditorBody({
   editor,
   mentionablePosts,
   currentPostId,
+  cover,
   t,
 }: {
   editor: Editor | null;
   mentionablePosts: AdminPost[];
   currentPostId: string;
+  /** The cover-image slot (`PostCoverImage`), drawn in the content column above the title node. */
+  cover: ReactNode;
   t: Translate;
 }) {
   return (
@@ -1308,6 +1313,8 @@ function PostEditorBody({
           </div>
         </DragHandle>
       ) : null}
+      {/* Outside `.editor-body` so the `post-body` field's text stays the post's own text. */}
+      {cover}
       {/* `role: "field"` rather than `region`: this is a TipTap `contenteditable`, which the
           page driver treats as a fillable rich-text surface (see its `isEditableRegion`), so an
           agent can read and write the body through the same field verbs it uses for an input. */}
@@ -1681,7 +1688,13 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           onToggleExpanded={togglePreviewExpanded}
         />
       ) : (
-        <PostEditorBody editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} t={t} />
+        <PostEditorBody
+          editor={editor}
+          mentionablePosts={mentionablePosts}
+          currentPostId={post.id}
+          cover={<PostCoverImage bodyFormat={post.bodyFormat} featuredMediaId={featuredMediaId} setFeaturedMediaId={setFeaturedMediaId} t={t} />}
+          t={t}
+        />
       )}
       {/* Content analysis (AW-7 Tier 2) — renders nothing unless the `content-analyzer` plugin is
           enabled. Gets the live `title`/`bodyJson` so "Analyze now" covers unsaved edits, and `post`

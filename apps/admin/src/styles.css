@@ -1225,6 +1225,24 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 .editor-featured-preview-missing {
   display: inline-block; background: repeating-linear-gradient(45deg, var(--surface-3) 0 4px, transparent 4px 8px);
 }
+/* Cover image above the title node (owner, 2026-10-10) — `PostCoverImage.tsx`. Empty: one quiet
+   button. Set: the image across the content column, short enough to keep the title on screen, with
+   Change/Remove over its corner on hover or focus (always shown where there is no hover). */
+.post-cover { position: relative; padding: 1.5rem 2rem 0; background: var(--surface); }
+.post-cover + .editor-body { padding-top: 0.75rem; }
+.post-cover-add { display: inline-flex; align-items: center; gap: var(--space-2); padding: 0.3rem 0.6rem; margin-inline-start: -0.6rem; color: var(--muted); font-weight: 500; }
+.post-cover-image { display: block; width: 100%; height: 220px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); }
+.post-cover-missing { display: block; }
+.post-cover-actions {
+  position: absolute; top: calc(1.5rem + var(--space-2)); right: calc(2rem + var(--space-2)); display: flex; gap: var(--space-2);
+  opacity: 0; transition: opacity 0.14s;
+}
+.post-cover-actions .btn-secondary { padding: 0.3rem 0.65rem; box-shadow: var(--shadow-sm); }
+.post-cover-set:hover .post-cover-actions, .post-cover:focus-within .post-cover-actions { opacity: 1; }
+@media (hover: none), (max-width: 640px) {
+  .post-cover-actions { opacity: 1; }
+  .post-cover-image { height: 160px; }
+}
 .editor-scheduled-badge {
   font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px;
   background: var(--surface-3); color: var(--muted);
