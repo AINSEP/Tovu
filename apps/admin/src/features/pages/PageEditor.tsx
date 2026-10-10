@@ -3,6 +3,7 @@ import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
+import { Icon } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/agentic";
 import {
   InteractiveHtmlEditor,
@@ -91,9 +92,10 @@ const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
 const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
 
 /**
- * The editor header — the back link on the left and the kicker/title/description block, and since
- * the 2026-09-06 layout experiment nothing else: the save status, status select and the
- * publish/save/delete buttons moved out to `PageEditorActions` below the toolbar.
+ * The editor header — the back arrow, the title and the slug (owner, 2026-10-10: these replaced the
+ * kicker/title/description block, matching the Edit post screen). Since the 2026-09-06 layout
+ * experiment the save status, status select and the publish/save/delete buttons live in
+ * `PageEditorActions` below the toolbar.
  *
  * That move took this component's branching with it, so the extraction note this doc used to carry
  * now belongs to `PageEditorActions` instead — see there. What is left here is inert markup plus
@@ -110,57 +112,91 @@ const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
  */
 function PageEditorHeader({
   onBackLinkClick,
+  title,
+  setTitle,
+  slug,
+  setSlug,
+  livePath,
   t,
 }: {
   onBackLinkClick: (event: { preventDefault: () => void }) => Promise<void>;
+  title: string;
+  setTitle: (value: string) => void;
+  slug: string;
+  setSlug: (value: string) => void;
+  /** The SAVED page's public path — "view ↗" opens what is live, not what is being typed. */
+  livePath: string;
   t: Translate;
 }) {
   return (
-    // `page-header-split` (a modifier on the shared `.page-header`, `styles.css`) is the
-    // 2026-09-06 layout experiment: back link alone at the far left, title block centred, and the
-    // header's right rail deliberately left EMPTY now that the actions live below the toolbar —
-    // see that modifier's own comment for why the empty rail has to stay reserved.
+    // Owner, 2026-10-10 (carried over from the Edit post screen the same day): the "CONTENT / Edit
+    // page / Ask the assistant to build this page…" block told the operator nothing they couldn't
+    // see, so the back arrow, title and slug took its place. Same `content-editor-*` classes as
+    // `PostEditor.tsx`'s header (`styles/editor.css`). The page keeps an h1 for screen readers.
     <div
-      className="page-header page-header-split"
+      className="content-editor-header"
       {...agentHandle({ handle: "page-header" }, {
         role: "region",
         label:
-          "Editor header — the back link and the page's title. Save, Delete and the " +
+          "Editor header — the back link, the page's title and its URL slug. Save, Delete and the " +
           "Draft/Published field are NOT here: they are in the action row below the toolbar.",
       })}
     >
-      {/* Left rail — the back link on its own, ahead of the title in DOM order as well as
-          visually, so tab order and the reading order match what is on screen. */}
-      <div className="page-header-lead">
-        {/* Guards an in-app navigation away from unsaved work — the same protection the agent's
-            own navigation gate is meant to apply, applied here to a human click.
+      <h1 className="visually-hidden">{t("Edit page")}</h1>
+      {/* Guards an in-app navigation away from unsaved work — the same protection the agent's
+          own navigation gate is meant to apply, applied here to a human click.
 
-            Visible label shortened to a plain "← Back" (owner, 2026-09-22 — every editor's back
-            button reads the same short way now, styles.css's own `.page-header-lead` comment on
-            the container-query pass explains why it also needed `white-space: nowrap`). The
-            destination stays legible: `aria-label` composes this dictionary's own translated
-            "Back"/"Pages" as "Back: Pages" — colon-joined rather than concatenated into a
-            sentence, so it needs no new per-locale phrase key AND still starts with the exact
-            visible text (WCAG 2.5.3 Label in Name — a screen-reader/speech-input user saying
-            "click Back" must match the accessible name). `agentHandle`'s own `label` (a stable,
-            untranslated identifier — never live text, see `handle.ts`) already said "Back to the
-            list of all pages" for agents, unchanged. */}
+          A plain back arrow, no button box (owner, 2026-10-10). The destination stays named:
+          `aria-label` composes this dictionary's own translated "Back"/"Pages" as "Back: Pages".
+          `agentHandle`'s own `label` (a stable, untranslated identifier — never live text, see
+          `handle.ts`) says "Back to the list of all pages" for agents, unchanged. */}
+      <a
+        className="content-editor-back"
+        href="/admin/pages"
+        onClick={(e) => void onBackLinkClick(e)}
+        aria-label={`${t("Back")}: ${t("Pages")}`}
+        {...agentHandle({ handle: "page-back-to-list" }, { role: "link", label: "Back to the list of all pages" })}
+      >
+        <Icon name="arrow-left" size={22} aria-hidden="true" />
+      </a>
+      {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`.
+          Title and slug have shared one row since 2026-08-11 (owner: "Cap the title input at half
+          the page and then put the hacker news slug and view. Right justify it as the other half of
+          that line of the title."). The title is one line, growing to a second only when it needs
+          it; Enter does nothing and pasted line breaks become spaces, since a title is one line of
+          text. */}
+      <label className="a11y-label-wrap">
+        <span className="visually-hidden">{t("Page title")}</span>
+        <textarea
+          className="editor-title content-editor-title"
+          rows={1}
+          value={title}
+          onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, " "))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
+          placeholder={t("Untitled")}
+          {...agentHandle({ handle: "page-title" }, { role: "field", label: "This page's title" })}
+        />
+      </label>
+      <div className="editor-slug">
+        <span>/</span>
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">{t("URL slug")}</span>
+          <input
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            {...agentHandle({ handle: "page-slug" }, { role: "field", label: "URL slug this page is published at" })}
+          />
+        </label>
         <a
-          className="btn-secondary"
-          href="/admin/pages"
-          onClick={(e) => void onBackLinkClick(e)}
-          aria-label={`${t("Back")}: ${t("Pages")}`}
-          {...agentHandle({ handle: "page-back-to-list" }, { role: "link", label: "Back to the list of all pages" })}
+          href={siteUrl(livePath)}
+          target="_blank"
+          rel="noreferrer"
+          {...agentHandle({ handle: "page-view-live" }, { role: "link", label: "Open this page on the public site in a new tab" })}
         >
-          ← {t("Back")}
+          {t("view ↗")}
         </a>
-      </div>
-      <div className="page-header-text">
-        <p className="page-kicker">{t("Content")}</p>
-        <h1 className="page-title">{t("Edit page")}</h1>
-        <p className="page-description">
-          {t("Ask the assistant to build this page, or edit the HTML directly.")}
-        </p>
       </div>
     </div>
   );
@@ -206,68 +242,72 @@ function PageEditorActions({
 }) {
   return (
     <div
-      className="editor-action-row"
+      className="editor-action-row content-action-row"
       {...agentHandle({ handle: "page-actions" }, {
         role: "region",
         label: "Save status, the Draft/Published field, and the Publish, Save and Delete buttons",
       })}
     >
-      {message ? <span className="save-ok">{message}</span> : null}
-      {error ? <span className="save-error">{error}</span> : null}
-      <select
-        value={status}
-        aria-label={t("Status")}
-        onChange={(e) => setStatus(e.target.value as "draft" | "published")}
-        {...agentHandle({ handle: "page-status" }, {
-          role: "field",
-          label:
-            "Whether this page is a draft or published — set with page.select_option, not click. " +
-            "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
-            "NOT the same as Delete, which moves the whole entry to the trash.",
-        })}
-      >
-        <option value="draft">{t("Draft")}</option>
-        <option value="published">{t("Published")}</option>
-      </select>
-      {status === "draft" ? (
-        <button
-          type="button"
-          onClick={onPublish}
-          disabled={saving}
-          {...agentHandle({ handle: "page-publish" }, {
-            role: "button",
+      {/* Owner, 2026-10-10 (same as Edit post): Save and Delete sit right next to the status field
+          as one tight group, at their natural size. */}
+      <div className="content-action-group">
+        <select
+          value={status}
+          aria-label={t("Status")}
+          onChange={(e) => setStatus(e.target.value as "draft" | "published")}
+          {...agentHandle({ handle: "page-status" }, {
+            role: "field",
             label:
-              "Publish this page immediately — saves the current title, slug and body and sets " +
-              "status to Published in one action. Only shown while the page is a draft; once " +
-              "published, use Save for further edits.",
+              "Whether this page is a draft or published — set with page.select_option, not click. " +
+              "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
+              "NOT the same as Delete, which moves the whole entry to the trash.",
           })}
         >
-          {t("Publish")}
+          <option value="draft">{t("Draft")}</option>
+          <option value="published">{t("Published")}</option>
+        </select>
+        {status === "draft" ? (
+          <button
+            type="button"
+            onClick={onPublish}
+            disabled={saving}
+            {...agentHandle({ handle: "page-publish" }, {
+              role: "button",
+              label:
+                "Publish this page immediately — saves the current title, slug and body and sets " +
+                "status to Published in one action. Only shown while the page is a draft; once " +
+                "published, use Save for further edits.",
+            })}
+          >
+            {t("Publish")}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={status === "draft" ? "btn-secondary" : undefined}
+          onClick={onSave}
+          disabled={saving}
+          {...agentHandle({ handle: "page-save" }, { role: "button", label: "Save this page's title, slug, status and body" })}
+        >
+          {saving ? t("Saving…") : dirty ? `${t("Save")} •` : t("Save")}
         </button>
-      ) : null}
-      <button
-        type="button"
-        className={status === "draft" ? "btn-secondary" : undefined}
-        onClick={onSave}
-        disabled={saving}
-        {...agentHandle({ handle: "page-save" }, { role: "button", label: "Save this page's title, slug, status and body" })}
-      >
-        {saving ? t("Saving…") : dirty ? `${t("Save")} •` : t("Save")}
-      </button>
-      <button
-        type="button"
-        className="btn-danger"
-        onClick={onDeleteClick}
-        {...agentHandle({ handle: "page-delete" }, {
-          role: "button",
-          label:
-            "Move this page to the trash — different from unpublishing (the Draft/Published field " +
-            "beside it): the entry disappears from every list and the site. Asks for confirmation " +
-            "before deleting.",
-        })}
-      >
-        {t("Delete")}
-      </button>
+        <button
+          type="button"
+          className="btn-danger"
+          onClick={onDeleteClick}
+          {...agentHandle({ handle: "page-delete" }, {
+            role: "button",
+            label:
+              "Move this page to the trash — different from unpublishing (the Draft/Published field " +
+              "beside it): the entry disappears from every list and the site. Asks for confirmation " +
+              "before deleting.",
+          })}
+        >
+          {t("Delete")}
+        </button>
+      </div>
+      {message ? <span className="save-ok">{message}</span> : null}
+      {error ? <span className="save-error">{error}</span> : null}
     </div>
   );
 }
@@ -567,8 +607,6 @@ function PageEditorNotices({
  */
 function PageEditorToolbarEnd({
   view,
-  device,
-  setDevice,
   bodyFormat,
   availableTemplates,
   templateChoice,
@@ -577,8 +615,6 @@ function PageEditorToolbarEnd({
   t,
 }: {
   view: PageEditorView;
-  device: DevicePreviewDevice;
-  setDevice: (value: DevicePreviewDevice) => void;
   bodyFormat: "doc" | "html" | undefined;
   availableTemplates: string[];
   templateChoice: string | null;
@@ -590,12 +626,7 @@ function PageEditorToolbarEnd({
   const bareHint = t("Serves only this page's HTML. No theme styles, scripts, header or footer.");
   return (
     <div className="page-editor-toolbar-end">
-      {view === "preview" ? (
-        <>
-          <DevicePreviewToggle device={device} setDevice={setDevice} t={t} handlePrefix="page-preview-width" />
-          <WiredThemePreviewReloadButton />
-        </>
-      ) : null}
+      {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
       {bodyFormat === "html" ? (
         <div className="editor-template-picker">
           <ViewTemplateButton
@@ -764,8 +795,16 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
   if (!page) return <div className="notice">{t("Loading editor…")}</div>;
 
   return (
-    <div className="page">
-      <PageEditorHeader onBackLinkClick={onBackLinkClick} t={t} />
+    <div className="page content-editor-page">
+      <PageEditorHeader
+        onBackLinkClick={onBackLinkClick}
+        title={title}
+        setTitle={setTitle}
+        slug={slug}
+        setSlug={setSlug}
+        livePath={pagePublicPath(page.slug)}
+        t={t}
+      />
 
       <PageEditorNotices
         recoverableDraft={recoverableDraft}
@@ -782,74 +821,34 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         t={t}
       />
 
-      {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
-          reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.
-          The chrome was never the problem — the Tiptap body under it was.
-
-          Owner feedback (2026-08-11): "Cap the title input at half the page and then put the
-          hacker news slug and view. Right justify it as the other half of that line of the
-          title." — title and slug now share one row instead of stacking on two. `.page-title-row`
-          is a new, Pages-only wrapper class (`styles/pages.css`, scoped as `.page-title-row
-          .editor-title` — see that rule's own comment for why the width cap has to target the
-          input directly rather than a class on this `display: contents` label) that constrains
-          widths without changing `.editor-title`/`.editor-slug` themselves, so `PostEditor.tsx`'s
-          own full-width title row is unaffected. */}
-      <div className="page-title-row">
-        <label className="a11y-label-wrap">
-          <span className="visually-hidden">{t("Page title")}</span>
-          <input
-            className="editor-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("Untitled")}
-            {...agentHandle({ handle: "page-title" }, { role: "field", label: "This page's title" })}
-          />
-        </label>
-
-        <div className="editor-slug">
-          <span>/</span>
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">{t("URL slug")}</span>
-            <input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              {...agentHandle({ handle: "page-slug" }, { role: "field", label: "URL slug this page is published at" })}
-            />
-          </label>
-          <a
-            href={siteUrl(pagePublicPath(page.slug))}
-            target="_blank"
-            rel="noreferrer"
-            {...agentHandle({ handle: "page-view-live" }, { role: "link", label: "Open this page on the public site in a new tab" })}
-          >
-            {t("view ↗")}
-          </a>
-        </div>
-      </div>
-
       <div className="page-editor-toolbar">
-        <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
-          {VIEW_TABS.map((entry) => (
-            <button
-              key={entry.key}
-              type="button"
-              role="tab"
-              aria-selected={view === entry.key}
-              className={view === entry.key ? "is-active" : undefined}
-              tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
-              onClick={() => setView(entry.key)}
-              {...agentHandle({ handle: `page-view-${entry.key}` }, { role: "button", label: `Switch to the ${entry.label} view` })}
-            >
-              {t(entry.label)}
-            </button>
-          ))}
+        {/* Device icons + width sit right next to the view tabs (owner, 2026-10-10, same as Edit
+            post); reload, template eye and template select stay on the right. */}
+        <div className="content-editor-toolbar-start">
+          <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
+            {VIEW_TABS.map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                role="tab"
+                aria-selected={view === entry.key}
+                className={view === entry.key ? "is-active" : undefined}
+                tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
+                onClick={() => setView(entry.key)}
+                {...agentHandle({ handle: `page-view-${entry.key}` }, { role: "button", label: `Switch to the ${entry.label} view` })}
+              >
+                {t(entry.label)}
+              </button>
+            ))}
+          </div>
+          {view === "preview" ? (
+            <DevicePreviewToggle device={device} setDevice={setDevice} t={t} handlePrefix="page-preview-width" />
+          ) : null}
         </div>
-        {/* Device-width control and template picker share the toolbar's right-hand side — see
+        {/* Reload and the template picker share the toolbar's right-hand side — see
             `PageEditorToolbarEnd`'s own doc for the layout history and the template-picker's rules. */}
         <PageEditorToolbarEnd
           view={view}
-          device={device}
-          setDevice={setDevice}
           bodyFormat={page.bodyFormat}
           availableTemplates={availableTemplates}
           templateChoice={templateChoice}
@@ -1247,11 +1246,8 @@ function PagePreview({
   return (
     <div className={expanded ? "page-preview-expanded" : "page-preview-host"}>
       <div className="page-preview-surface">
-        {canShowLiveSite ? null : (
-          <p className="page-preview-notice">
-            {pagePreviewNotice({ status, contentDirty })}
-          </p>
-        )}
+        {/* No notice line above the frame any more (owner, 2026-10-10: "remove this" — the
+            "previewing your saved content / unsaved edits / this draft" lines). */}
         <div className="page-preview-stage">
           {/* Collapsed vs. expanded frame/scaler heights: see `devicePreviewFrameStyles`. */}
           <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
@@ -1412,27 +1408,3 @@ function PagePreviewFrame({
   );
 }
 
-/**
- * The notice text above a preview that isn't the live site (`PagePreview` skips calling this for the
- * live-site branch, which shows no notice at all).
- *
- * Rendered BEFORE `.page-preview-frame` in `PagePreview`, not after (visibility fix — the frame is up
- * to 900px tall before scaling, `pages.css`'s `.page-preview-frame`; a notice placed below it needed a
- * scroll past that height to ever be seen, which is exactly the gap `ADS-memory/reports/implementation/
- * 2026-08-11-template-preview-render-bug.md` flagged and explicitly left unfixed — "not a missing
- * feature, a visibility gap").
- *
- * Three phrasings, not two, even though `PagePreviewFrame` only has two branches: `contentDirty`
- * covers title/slug/status/body edits regardless of `status` (a draft that has never been touched at
- * all has `contentDirty === false`, so it gets its own, less alarming wording rather than reusing the
- * "newly selected template" phrasing written for an actually-pending `templateChoice`).
- */
-function pagePreviewNotice({ status, contentDirty }: { status: "draft" | "published"; contentDirty: boolean }): string {
-  if (contentDirty) {
-    return "Previewing your unsaved edits through the live template — this updates a moment after you stop typing.";
-  }
-  if (status === "draft") {
-    return "Previewing this draft through the live template — publish to make it visible on the site.";
-  }
-  return "Previewing your saved content through the newly selected template — save to update the live page.";
-}

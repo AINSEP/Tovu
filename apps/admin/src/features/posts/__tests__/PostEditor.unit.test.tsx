@@ -1150,7 +1150,8 @@ describe("Edit/Preview toolbar", () => {
     const preview = screen.getByTitle("Post preview");
     expect(preview).toHaveAttribute("src", expect.stringContaining("/p1/template-preview"));
     expect(preview).toHaveAttribute("src", expect.stringContaining("templateChoice=blog-post.html"));
-    expect(screen.getByText(/save to update the live post/i)).toBeInTheDocument();
+    // Preview notice lines were removed (owner, 2026-10-10).
+    expect(screen.queryByText(/save to update the live post/i)).toBeNull();
   });
 
   // Pending-content preview fix (2026-08-12, the owner's own reported bug) — a published post with

@@ -111,12 +111,6 @@
    is meaningless here — there is no toolbar directly above this pane once expanded. */
 .post-preview-expanded .post-editor-pane { margin-top: 0; }
 
-/* Shown under the frame only when `PostPreview` cannot iframe the real published URL (draft, or
-   unsaved changes) — mirrors `styles/pages.css`'s `.page-preview-notice` verbatim; not reused
-   directly since it lives in the Pages-only stylesheet (see that file's own header on why Pages and
-   Posts stay separate). */
-.editor-preview-notice { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--muted); }
-
 /* `MenuEditor.tsx`'s per-item `<details class="menu-item-advanced">` (cssClass/description/icon/rel/
  * openInNewTab) — lives here rather than `styles.css` (that file's own `.menu-item-fields` etc. are
  * currently owned by another agent's concurrent edit; see this file's header for the same reasoning
@@ -180,20 +174,21 @@
 .content-analysis-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
 
 /*
- * Edit post layout (owner, 2026-10-10). Post editor only; the Pages editor keeps the shared
- * `.page-header-split` / `.editor-action-row` look.
+ * Edit post / Edit page layout (owner, 2026-10-10). Built for the post editor, then carried over
+ * to the Pages editor the same day, so both use these `content-editor-*` classes. Other screens keep
+ * the shared `.page-header-split` / `.editor-action-row` look.
  *
  * Header: the "CONTENT / Edit post / Update this post's…" block is gone. Back, the title (a two-line
  * box, width capped) and the slug sit in its place. Back keeps its "← Back" text at every width:
  * the shared phone rule shrinks it to a bare 40px arrow square, which the owner found odd.
  */
-.post-editor-header { display: flex; align-items: flex-start; gap: var(--space-3); flex-wrap: wrap; }
-.post-editor-header > .post-header-back {
+.content-editor-header { display: flex; align-items: flex-start; gap: var(--space-3); flex-wrap: wrap; }
+.content-editor-header > .content-editor-back {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   width: 2rem; height: 2.4rem; margin-left: -0.35rem; color: var(--fg-2); text-decoration: none;
 }
-.post-editor-header > .post-header-back:hover { color: var(--fg); }
-.post-editor-header .post-editor-title {
+.content-editor-header > .content-editor-back:hover { color: var(--fg); }
+.content-editor-header .content-editor-title {
   flex: 1 1 20rem; max-width: 40rem; min-width: 0; min-height: 0;
   resize: none; overflow: hidden; line-height: 1.25; padding: 0.3rem 0.2rem;
   /* One line until the title needs a second (owner, 2026-10-10); never taller than two. */
@@ -201,44 +196,48 @@
   border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent;
   border-image: linear-gradient(to right, var(--border) 65%, transparent) 1;
 }
-.post-editor-header .post-editor-title:focus {
+/* The underline fades out over the title's last third: a hard-edged line stopping at the capped
+ * width beside the slug read as an accidentally truncated divider (2026-08-11, first on the Post
+ * editor's old title row, then the Pages one). Once `border-image` paints that edge, `:focus` has to
+ * carry the `--accent-text` focus colour through the gradient too. */
+.content-editor-header .content-editor-title:focus {
   border-image: linear-gradient(to right, var(--accent-text) 65%, transparent) 1;
 }
-.post-editor-header > .editor-slug { margin-left: auto; margin-top: 0.4rem; }
+.content-editor-header > .editor-slug { margin-left: auto; margin-top: 0.4rem; }
 /* The slug box is as wide as the slug (owner, 2026-10-10), never wider than the row. */
-.post-editor-header > .editor-slug input { width: auto; field-sizing: content; min-width: 6rem; max-width: 100%; flex: 0 1 auto; }
+.content-editor-header > .editor-slug input { width: auto; field-sizing: content; min-width: 6rem; max-width: 100%; flex: 0 1 auto; }
 
 /* Toolbar: the device icons + width readout sit right next to Editor/Preview (3px apart); reload,
  * the template eye and the template select sit on the right, and when they drop under on narrow
  * widths they line up with the tabs' left edge (owner, 2026-10-10). */
-.post-editor-toolbar-start { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; min-width: 0; }
+.content-editor-toolbar-start { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; min-width: 0; }
 
 /* Action row: Published, (Publish,) Save, Delete as one tight group on the left, 5px apart; the gear
  * for the settings modal on the right. The shared row right-aligns and spaces Delete away from Save;
  * the owner asked for them together. */
-.page > .editor-action-row.post-action-row { justify-content: flex-start; }
-.post-action-group { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; min-width: 0; }
-.editor-action-row .post-action-group .btn-danger { margin-left: 0; order: 0; }
-.post-action-row > .post-settings-trigger { margin-left: auto; }
+.page > .editor-action-row.content-action-row { justify-content: flex-start; }
+.content-action-group { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; min-width: 0; }
+.editor-action-row .content-action-group .btn-danger { margin-left: 0; order: 0; }
+.content-action-row > .post-settings-trigger { margin-left: auto; }
 
 @media (max-width: 640px) {
   /* Title takes the row beside Back; the slug drops to its own full row below. */
-  .post-editor-header .post-editor-title { flex: 1 1 0; max-width: none; font-size: 1.3rem; }
-  .post-editor-header > .editor-slug { margin-left: 0; flex: 1 1 100%; justify-content: flex-start; }
+  .content-editor-header .content-editor-title { flex: 1 1 0; max-width: none; font-size: 1.3rem; }
+  .content-editor-header > .editor-slug { margin-left: 0; flex: 1 1 100%; justify-content: flex-start; }
   /* The status/Save/Delete group stays together at its natural size (owner: the stretched
      buttons were "wider unnecessarily"). */
-  .editor-action-row .post-action-group .btn-danger { order: 0; }
+  .editor-action-row .content-action-group .btn-danger { order: 0; }
   /* The shared phone rule stretches the template group across the row and its select with it;
      here the select keeps its own width and the group stays right-aligned. */
-  .post-editor-page .page-editor-toolbar .page-editor-toolbar-end { width: auto; justify-content: flex-start; }
-  .post-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker { flex: none; }
-  .post-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select { flex: none; }
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end { width: auto; justify-content: flex-start; }
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker { flex: none; }
+  .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select { flex: none; }
 }
 
 /* The template and Draft/Published selects are as wide as the chosen value, not a fixed 14rem
  * (owner, 2026-10-10: "adjust to the length of the template name"). */
-.post-editor-page .editor-template-picker select,
-.post-editor-page .post-action-group > select { width: auto; field-sizing: content; max-width: 100%; }
+.content-editor-page .editor-template-picker select,
+.content-editor-page .content-action-group > select { width: auto; field-sizing: content; max-width: 100%; }
 
 /* The gear's modal: Author / Publish / Image tabs. */
 .post-settings-dialog { --admin-dialog-width: 34rem; }

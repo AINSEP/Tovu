@@ -7,58 +7,6 @@
  * definition, shared, rather than two that drift.
  */
 
-/*
- * Title + slug share one row (owner feedback, 2026-08-11: "Cap the title input at half the page
- * ... Right justify [the slug] as the other half of that line of the title"). `justify-content:
- * space-between` does the right-justify: `.editor-slug` has no explicit width, so it hugs the
- * row's right edge on its own.
- *
- * The width cap targets `.editor-title` directly, NOT a wrapping class on its `<label>` — the
- * label carries `.a11y-label-wrap` (`styles/editor.css`), which is `display: contents` precisely so
- * the label drops out of the layout tree and its child input becomes the row's real flex item; a
- * `max-width` on the label itself would sit on a box that is never generated and do nothing. `flex:
- * 1 1 50%` + `max-width: 50%` (rather than a bare `width: 50%`) lets the title GROW to fill the
- * half if the slug group is narrower than its own half, while never exceeding it.
- *
- * The `border-image` fade on the title (below) matches the Post editor's `.editor-title-row
- * .editor-title` treatment (`styles.css`, 2026-08-11) — same problem, same fix: a hard-edged
- * `border-bottom` that stops at the input's half-width edge reads as an accidentally truncated
- * divider, because it sits directly beside the slug group with no comparable line under it. Tapering
- * it to transparent over the last third of the input's width reads as a deliberate typographic
- * accent instead. `:focus` gets its own override for the same reason the Post editor's does: once
- * `border-image` is set it owns painting that edge, so the base `border-bottom-color` this input
- * would otherwise pick up on focus (`.editor-title:focus`, `styles.css`) has nothing left to paint —
- * the override below carries that same `--accent-text` focus signal through the gradient instead.
- * Keep the two editors in sync if this changes again — same DOM shape, same rule, same fix.
- */
-.page-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4, 1rem);
-  flex-wrap: wrap;
-}
-
-.page-title-row .editor-title {
-  flex: 1 1 50%;
-  max-width: 50%;
-  min-width: 0;
-  border-image: linear-gradient(to right, var(--border) 65%, transparent) 1;
-}
-
-.page-title-row .editor-title:focus {
-  border-image: linear-gradient(to right, var(--accent-text) 65%, transparent) 1;
-}
-
-/* Below this width the halves read as cramped rather than "comfortably usable" (title and slug are
-   both free-typed inputs) — stack them full-width instead, same breakpoint `.editor-slug-row` (the
-   Post editor's equivalent row, `styles.css`) already stacks at. */
-@media (max-width: 640px) {
-  .page-title-row { flex-direction: column; align-items: stretch; }
-  .page-title-row .editor-title { max-width: 100%; }
-  .page-title-row .editor-slug { justify-content: center; text-align: center; }
-}
-
 .page-editor-toolbar {
   display: flex;
   align-items: center;
@@ -204,21 +152,10 @@
   display: block;
 }
 
-/* Shown above the frame only when `PagePreview` cannot iframe the real published URL (draft, or
-   unsaved changes) — see that component's own doc for why the raw-body fallback needs this
-   explanation instead of silently looking unstyled, and for why it renders BEFORE the (up to 900px
-   tall) frame rather than after it. */
-.page-preview-notice {
-  margin: 0 0 0.5rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
 /*
  * Preview fullscreen (2026-09-16) — the Pages twin of `styles/editor.css`'s `.post-preview-*`
- * block. Duplicated rather than shared, for the same reason `.page-preview-notice` above duplicates
- * `.editor-preview-notice`: Pages and Posts keep separate stylesheets on purpose (see this file's
- * own header). The geometry genuinely differs too — a Post's expanded iframe fills an
+ * block. Duplicated rather than shared: Pages and Posts keep separate stylesheets on purpose (see
+ * this file's own header). The geometry genuinely differs too — a Post's expanded iframe fills an
  * `.editor-shell`, and there is no `.editor-shell` ANYWHERE on this screen to hang the equivalent
  * rule off; a Page's preview is a fixed-width `.page-preview-scaler` transform-scaled to fit inside
  * an `overflow: hidden` `.page-preview-frame`, so the height chain has to run through those two.

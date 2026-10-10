@@ -720,7 +720,8 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(preview).toHaveAttribute("name", target);
     const form = container.querySelector("form");
     expect(form).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
-    expect(screen.getByText(/publish to make it visible on the site/i)).toBeInTheDocument();
+    // Preview notice lines were removed (owner, 2026-10-10).
+    expect(screen.queryByText(/publish to make it visible on the site/i)).toBeNull();
   });
 
   // Template-preview fix (2026-08-11, widened 2026-09-09) — the reported bug's exact repro: picking a
@@ -739,7 +740,8 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     const form = container.querySelector("form");
     expect(form).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
     expect(form).toHaveAttribute("action", expect.stringContaining("templateChoice=page-shell.html"));
-    expect(screen.getByText(/save to update the live page/i)).toBeInTheDocument();
+    // Preview notice lines were removed (owner, 2026-10-10).
+    expect(screen.queryByText(/save to update the live page/i)).toBeNull();
   });
 
   // Proof this landed on the injection seam, not just on matching URL shape: `PageEditor.tsx` no
@@ -789,7 +791,8 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(target).toBeTruthy();
     expect(preview).toHaveAttribute("name", target);
     expect(container.querySelector("form")).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
-    expect(screen.getByText(/previewing your unsaved edits/i)).toBeInTheDocument();
+    // The notice line was removed (owner, 2026-10-10).
+    expect(screen.queryByText(/previewing your unsaved edits/i)).toBeNull();
   });
 
   it("preview POSTs into templatePreviewUrl, with an 'unsaved edits' notice, for a draft page with unsaved edits", () => {
@@ -801,7 +804,8 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(target).toBeTruthy();
     expect(preview).toHaveAttribute("name", target);
     expect(container.querySelector("form")).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
-    expect(screen.getByText(/previewing your unsaved edits/i)).toBeInTheDocument();
+    // The notice line was removed (owner, 2026-10-10).
+    expect(screen.queryByText(/previewing your unsaved edits/i)).toBeNull();
   });
 
   // Visibility-gap fix — `.page-preview-frame` renders up to 900px tall (`pages.css`), so a notice
@@ -813,11 +817,13 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
   // Asserts DOM order (notice before the iframe) rather than just presence, since presence alone
   // already passed before this fix — the bug was never that the notice was missing, only unreachable
   // without scrolling.
-  it("places the template-preview notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
-    renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
-    const notice = screen.getByText(/previewing your unsaved edits/i);
-    const preview = screen.getByTitle("Page preview");
-    expect(notice.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  //
+  // 2026-10-10: the owner had every preview notice line removed ("remove this"), so the frame is the
+  // first thing in the preview surface.
+  it("shows no notice line above the preview frame", () => {
+    const { container } = renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
+    expect(container.querySelector(".page-preview-notice")).toBeNull();
+    expect(screen.getByTitle("Page preview")).toBeInTheDocument();
   });
 
   it("renders an editable HTML textarea (not the preview) in html view", () => {

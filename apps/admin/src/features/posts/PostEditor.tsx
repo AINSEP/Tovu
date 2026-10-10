@@ -643,8 +643,7 @@ function BubbleFormattingMenu({ editor, t }: { editor: Editor; t: Translate }) {
  *
  * Title and slug have shared one row since 2026-08-11 (owner: "put the slug input right next to the
  * title ... like we did the pages"), title capped on the left, slug group right-justified. The Pages
- * editor's `.page-title-row` has the same shape but a separate class: Pages and Posts are separate
- * features with separate stylesheets.
+ * editor's header uses the same `content-editor-*` classes since 2026-10-10.
  *
  * The back link keeps its kind-aware `href`/label pair and its unsaved-work guard.
  */
@@ -674,7 +673,7 @@ function PostEditorHeader({
     // place. The title is a two-line box with a capped width; the slug keeps the right side. The page
     // still has an h1 for screen readers, just not a painted one.
     <div
-      className="post-editor-header"
+      className="content-editor-header"
       {...agentHandle({ handle: "post-header" }, {
         role: "region",
         label:
@@ -705,7 +704,7 @@ function PostEditorHeader({
             (WCAG 2.5.3 Label in Name). `agentHandle`'s own `label` (a stable, untranslated
             identifier — never live text) is unchanged. */}
         <a
-          className="post-header-back"
+          className="content-editor-back"
           href={`/admin/${kindLabel}s`}
           onClick={(e) => {
             if (!confirmLeave()) e.preventDefault();
@@ -723,10 +722,10 @@ function PostEditorHeader({
           `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap costs no layout).
           A title is one line of text, so Enter does nothing and pasted line breaks become spaces;
           the box grows to a second line only when the title needs it (CSS `field-sizing`). */}
-      <label className="a11y-label-wrap post-editor-title-wrap">
+      <label className="a11y-label-wrap content-editor-title-wrap">
         <span className="visually-hidden">{t("Post title")}</span>
         <textarea
-          className="editor-title post-editor-title"
+          className="editor-title content-editor-title"
           rows={1}
           value={title}
           onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, " "))}
@@ -972,7 +971,7 @@ function PostEditorActions({
 }) {
   return (
     <div
-      className="editor-action-row post-action-row"
+      className="editor-action-row content-action-row"
       {...agentHandle({ handle: "post-actions" }, {
         role: "region",
         label: "Save status, the Draft/Published field, and the Publish, Save and Delete buttons",
@@ -981,7 +980,7 @@ function PostEditorActions({
       {/* Owner, 2026-10-10: Save and Delete sit right next to the status field as one tight
           group (5px apart) that stays together and resizes as one on narrow screens; the gear
           for the post settings modal is the only thing on the right. */}
-      <div className="post-action-group">
+      <div className="content-action-group">
         <select
           value={status}
           aria-label={t("Status")}
@@ -1544,7 +1543,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
   const kindLabel = post.kind === "page" ? "page" : "post";
 
   return (
-    <div className="page post-editor-page">
+    <div className="page content-editor-page">
       <PostEditorHeader
         kindLabel={kindLabel}
         confirmLeave={confirmLeave}
@@ -1578,7 +1577,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           MARKUP location changed; where its options/value come from is untouched (a concurrent
           agent owns that wiring). */}
       <div className="page-editor-toolbar">
-        <div className="post-editor-toolbar-start">
+        <div className="content-editor-toolbar-start">
           <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
             {VIEW_TABS.map((entry) => (
               <button
@@ -1845,12 +1844,8 @@ function PostPreview({
 
   const pane = (
     <>
-      {/* Only the "newly selected template" case gets a line of text. The "previewing your unsaved
-          edits" line sat behind the frame and told the operator nothing they needed (owner,
-          2026-10-10), so it was removed and the preview moved up. */}
-      {canShowLiveSite || !canShowTemplatePreview ? null : (
-        <p className="editor-preview-notice">{t(postPreviewNotice())}</p>
-      )}
+      {/* No notice line above the frame (owner, 2026-10-10: "remove that and move the preview up"
+          for the unsaved-edits line, then "remove this" for the newly-selected-template one). */}
       <div className="editor-shell post-editor-pane">
         <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
           <PostPreviewFrame
@@ -2021,17 +2016,3 @@ function PostPreviewFrame({
   );
 }
 
-/** The notice text ABOVE a preview that isn't the live site — one branch per `PostPreviewFrame` case
- *  minus the live-site one (which shows no notice at all; `PostPreview` skips calling this then).
- *  Rendered BEFORE `.post-editor-pane` in `PostPreview`, not after (visibility-gap fix, 2026-09-06,
- *  mirroring `PageEditor.tsx`'s own `pagePreviewNotice` fix from 2026-08-11 — that fix was never
- *  ported to Posts until now). Down to one named branch plus an unconditional final `return`
- *  (2026-09-11) for the same reason `PostPreviewFrame` above is: the old third case — "this is a
- *  rough render of the editor buffer only" — described the raw fallback branch that no longer
- *  exists, so keeping a `canShowPendingContentPreview` parameter here just to pick between two
- *  strings, one of which could never again be shown, would be dead code with extra ceremony around
- *  it rather than less. The unsaved-edits line was removed too (owner, 2026-10-10), leaving only the
- *  newly-selected-template case. */
-function postPreviewNotice(): string {
-  return "Previewing your saved content through the newly selected template — save to update the live post.";
-}
