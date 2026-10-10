@@ -28,9 +28,9 @@ function captureDefinitions(): {
   const deps = {
     ensureSettingDefinitions: async (
       _deps: unknown,
-      input: { definitions: ReadonlyArray<{ key: string; defaultValue?: unknown; schema?: unknown }> },
+      input: { namespace: string; definitions: ReadonlyArray<{ key: string; defaultValue?: unknown; schema?: unknown }> },
     ) => {
-      captured = input.definitions;
+      if (input.namespace === "core.execution") captured = input.definitions;
     },
   } as unknown as EnsureExecutionSettingDefinitionsDeps;
   return { deps, submitted: () => captured };

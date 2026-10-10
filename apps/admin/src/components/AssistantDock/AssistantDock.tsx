@@ -1,5 +1,7 @@
 import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
+import { SubagentsIndicator } from "./SubagentsIndicator";
+import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
@@ -51,6 +53,7 @@ import {
   buildAssistantMcpUiSandboxProxyUrl,
   openMcpUiLink,
   useAssistantDockChrome,
+  resolveAssistantConversationTitle,
   useAssistantTransport,
   useAssistantTransportSeam,
   useAttachmentUploader,
@@ -546,7 +549,7 @@ export function AssistantDock({
     conversationId: chats.activeId,
   });
   // Shown on one ellipsized line, so the full name rides along as the hover tooltip.
-  const activeTitle = chats.conversations.find((c) => c.id === chats.activeId)?.title ?? t("Tovu assistant");
+  const activeTitle = resolveAssistantConversationTitle({ chats, fallback: t("Tovu assistant") });
   const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
     onSelectionChange: executionPolicy.selectionChange(handleLocalCliSelectionChange), onExecutionModeChange: handleExecutionModeChange }, {});
   const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
@@ -635,6 +638,7 @@ export function AssistantDock({
                 <h2 className="jini-chat-pane__title" title={activeTitle}>
                   {activeTitle}
                 </h2>
+                <SubagentsIndicator t={(key) => translateAiAssistant({ locale, key })} />
               </div>
               <ConversationList
                 conversations={chats.conversations}
