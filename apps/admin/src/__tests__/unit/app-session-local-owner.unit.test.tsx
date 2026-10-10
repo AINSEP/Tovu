@@ -11,10 +11,9 @@ function fixture(hostname = "localhost") {
   let notify: () => void = () => {};
   let allowed = true;
   let authenticated = hostname === "example.com";
-  let onMe: (() => void) | undefined;
   const sessionApi = {
     async signInLocalOwner() { calls.push("bootstrap"); if (!allowed) throw new Error("local owner sign-in is disabled"); authenticated = true; return { user: { id: currentId } }; },
-    async me() { calls.push("me"); onMe?.(); if (!authenticated) throw new ApiError("unauthenticated", 401, "UNAUTHENTICATED"); return { user: { id: currentId, username: "admin" }, effectivePermissions: [currentId] }; },
+    async me() { calls.push("me"); if (!authenticated) throw new ApiError("unauthenticated", 401, "UNAUTHENTICATED"); return { user: { id: currentId, username: "admin" }, effectivePermissions: [currentId] }; },
     async redeemBootSession() { calls.push("fragment"); return { user: { id: currentId } }; },
     async logout() { calls.push("logout"); authenticated = false; return { ok: true }; },
   };
@@ -22,7 +21,7 @@ function fixture(hostname = "localhost") {
     subscribeSettingsChanges: () => () => {},
     history: { replaceState() {} }, subscribeUnauthenticated(listener: () => void) { notify = listener; return () => { notify = () => {}; }; } };
   return { calls, options, notify: () => notify(), switchTo: (id: string) => { currentId = id; },
-    deny: () => { allowed = false; }, onMe: (run: () => void) => { onMe = run; } };
+    deny: () => { allowed = false; } };
 }
 
 it("mount bootstraps once; a site-switch 401 clears the old identity and permissions without another bootstrap", async () => {
@@ -65,7 +64,6 @@ it("repeated 401 notifications never launch another bootstrap or identity read",
   const f = fixture();
   const { result } = renderHook(() => useAdminSession({}, f.options));
   await waitFor(() => expect(result.current.checking).toBe(false));
-  f.onMe(f.notify);
   act(() => { f.notify(); f.notify(); f.notify(); });
   await waitFor(() => expect(result.current.checking).toBe(false));
   expect(result.current.user).toBeNull();
