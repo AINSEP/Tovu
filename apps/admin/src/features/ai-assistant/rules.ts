@@ -1,4 +1,4 @@
-import { DEFAULT_PROVIDER_PRESETS, isProviderConfigured, type ApiProtocol, type ByokConfig } from "@jini-ai/ui";
+import { DEFAULT_PROVIDER_PRESETS, groupPresets, isProviderConfigured, type ApiProtocol, type ByokConfig, type ProviderPreset } from "@jini-ai/ui";
 
 import { ApiError, describeApiError as describeApiErrorDefault, type SiteAssistantCredential } from "../../lib/api";
 import { storedCredentialHint } from "../../lib/credential-copy";
@@ -115,6 +115,9 @@ export function configuredPresetIds(config: ByokConfig): Set<string> {
  * @complexity Time: O(p) in the number of provider presets; space: O(1).
  */
 export function hydrateVisitorCredentialConfig(current: ByokConfig, stored: SiteAssistantCredential): ByokConfig {
+  // Nothing saved yet: the server still answers with its own default `provider`, which would
+  // override the form's Anthropic default with a provider the operator never chose (2026-10-09).
+  if (!hasSavedVisitorCredential(stored)) return current;
   const baseUrl = stored.baseUrl ?? current.baseUrl;
   const model = stored.model ?? current.model;
   const protocol = knownProtocol(stored.provider);
@@ -147,4 +150,90 @@ export function visitorCredentialApiKeyPlaceholder(
   storedKeyIsForOtherEndpoint = false,
 ): string | undefined {
   return storedCredentialHint({ stored, storedKeyIsForOtherEndpoint });
+}
+
+/** The Visitor tab's status pill: what visitors get right now. */
+export type VisitorAssistantStatus = "on" | "off" | "needs-key";
+
+/**
+ * The Visitor tab's status pill and enable-switch gate (2026-10-09 redesign).
+ *
+ * "Needs a key" wins over the switch's own value: an enabled assistant with no stored key is
+ * mounted but cannot answer, which is exactly the silent failure this tab exists to surface.
+ * The switch can always be turned OFF; it can only be turned ON once a key is saved.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function visitorAssistantStatus(required: { publicEnabled: boolean; hasStoredKey: boolean }, _optional = {}): {
+  status: VisitorAssistantStatus; canEnable: boolean;
+} {
+  const status: VisitorAssistantStatus = !required.hasStoredKey ? "needs-key" : required.publicEnabled ? "on" : "off";
+  return { status, canEnable: required.hasStoredKey || required.publicEnabled };
+}
+
+/** The pill's label and its one short hint line, per status (English keys; the view runs `t`). */
+export const VISITOR_STATUS_COPY: Record<VisitorAssistantStatus, { label: string; hint: string }> = {
+  on: { label: "On", hint: "Visitors can chat with it on every public page." },
+  off: { label: "Off", hint: "Visitors see no assistant." },
+  "needs-key": { label: "Needs a key", hint: "Save a key in step 1 first." },
+};
+
+/**
+ * Which status lines show under the visitor key field (2026-10-09 redesign). The two IDLE lines are
+ * instructions, not results ("Checks the key against the provider…", "Paste your key…"), so they
+ * live in the ⓘ tips beside Test key / Save key; a line shows only once there is something to report.
+ * The other-provider warning is the exception: it is idle, but it is a fact the operator must see.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function visitorKeyFooterLines(required: {
+  discoveryStatus: string; saveStatus: string; storedKeyIsForOtherEndpoint: boolean;
+}, _optional = {}): { keyStatus: boolean; saveLine: boolean } {
+  return {
+    keyStatus: required.discoveryStatus !== "idle",
+    saveLine: required.saveStatus !== "idle" || required.storedKeyIsForOtherEndpoint,
+  };
+}
+
+/** The preset the Visitor tab starts on when nothing is saved: Anthropic (owner, 2026-10-09). */
+export const DEFAULT_VISITOR_PRESET_ID = "anthropic";
+
+/**
+ * The form's starting config: the default preset's protocol and endpoint, an empty key and an empty
+ * model. The model stays empty on purpose: the model list is a property of the key, so it waits
+ * for one (see the hook's `discovery`). Hydration replaces this when something is saved.
+ *
+ * @complexity Time: O(p) in the number of provider presets; space: O(1).
+ */
+export function defaultVisitorCredentialConfig(): ByokConfig {
+  const preset = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === DEFAULT_VISITOR_PRESET_ID) ?? DEFAULT_PROVIDER_PRESETS[0];
+  return { protocol: preset.protocol, providerId: preset.id, apiKey: "", baseUrl: preset.baseUrl, model: "" };
+}
+
+/** True once the server holds anything for this site: a key, or saved provider settings. A row with
+ *  none of these is the server's empty default, not the operator's choice.
+ *  @complexity Time/space: O(1). */
+export function hasSavedVisitorCredential(stored: SiteAssistantCredential): boolean {
+  return stored.isSet === true || stored.baseUrl !== null || stored.model !== null || stored.updatedAt !== null;
+}
+
+/** One `<optgroup>` of the Visitor tab's Provider select. */
+export interface VisitorProviderGroup {
+  label: "Protocols" | "Gateways";
+  options: { preset: ProviderPreset; configured: boolean }[];
+}
+
+/**
+ * The Provider select's two optgroups, protocols then gateways (`groupPresets`' order), each option
+ * flagged when this form already holds complete credentials for it (the old chips' filled dot).
+ *
+ * @complexity Time: O(p) in the number of provider presets; space: O(p).
+ */
+export function visitorProviderGroups(configuredIds: ReadonlySet<string>): VisitorProviderGroup[] {
+  const { protocols, gateways } = groupPresets(DEFAULT_PROVIDER_PRESETS);
+  const toOptions = (presets: readonly ProviderPreset[]) => presets.map((preset) => ({ preset, configured: configuredIds.has(preset.id) }));
+  return [
+    { label: "Protocols", options: toOptions(protocols) },
+    { label: "Gateways", options: toOptions(gateways) },
+  ];
 }

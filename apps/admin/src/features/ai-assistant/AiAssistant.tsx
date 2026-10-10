@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
@@ -5,28 +6,31 @@ import { isDesktopAdmin, localCliScopeCopy } from '../settings/ai-agent-presenta
 import { t as tExecution } from '../settings/settings-execution-i18n';
 import {
   ByokProviderForm,
-  DEFAULT_PROVIDER_PRESETS,
   ExecutionTab,
   I18nProvider,
-  ProviderChipGroup,
   SETTINGS_DIALOG_DICTIONARIES,
   SettingsDialogShell,
-  groupPresets,
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
-import { SeeMore } from "@jini-ai/ui/admin-widgets";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
+import { AdminPermanentDeletes } from "./AdminPermanentDeletes";
+import { AdminSubagents } from "./AdminSubagents";
+import { AssistantToggleRow } from "./AssistantToggleRow";
+import { VisitorAssistantPanel } from "./VisitorAssistantPanel";
+import { visitorKeyFooterLines } from "./rules";
+import "./ai-assistant.css";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useWiredAssistantDaemonRestart, type AssistantDaemonRestartController } from "./hooks/use-assistant-daemon-restart.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
 import {
-  navigateToAiAssistantTab,
-  resolveAiAssistantRequestedTabId,
+  useAiAssistantTab,
+  resolveAiAssistantTabSubtitle,
   useWiredAiAssistant,
 } from "./hooks/use-ai-assistant.hooks";
 import {
@@ -187,29 +191,15 @@ function AdminAssistantSwitch({
   const { open, setOpen } = useAdminAssistantSwitchHook();
 
   // No `.notice` wrapper, matching the Visitor tab's switch: this screen's `--page-flow` block
-  // flattens the shell's card chrome so each panel reads as one form on the page's own background,
-  // and a boxed switch here was the last thing still drawing a card outline.
+  // flattens the shell's card chrome so each panel reads as one form on the page's own background.
+  // The two inline explainer paragraphs were removed (owner, 2026-10-09): the label says what it
+  // does, and the ⓘ carries the one sentence that is still useful.
   return (
     <div className="assistant-switch">
-      <label>
-        <input
-          type="checkbox"
-          checked={open}
-          onChange={(e) => setOpen(e.target.checked)}
-          {...agentHandle({ handle: "ai-assistant-admin-dock-toggle" }, { role: "field", label: "Show the AI assistant on the admin site" })}
-        />
-        {t("Show the AI assistant on the admin site")}
-      </label>
-      <p className="muted-cell">
-        {open
-          ? t("Open. The assistant panel is showing on the right.")
-          : t("Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.")}
-      </p>
-      <p className="muted-cell">
-        {t(
-          "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.",
-        )}
-      </p>
+      <AssistantToggleRow t={t} label={t("Open the assistant panel")}
+        info={t("Shows or hides the assistant panel in this admin.")}
+        checked={open} onChange={setOpen}
+        inputProps={agentHandle({ handle: "ai-assistant-admin-dock-toggle" }, { role: "field", label: "Open the assistant panel" })} />
     </div>
   );
 }
@@ -519,7 +509,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  *  this same file — is what actually moved the parent's score, not just its ESLint per-closure one. */
 type VisitorCredentialKeyFooterProps = Pick<
   VisitorCredentialFormController,
-  "config" | "saveState" | "stored" | "storedKeyIsForOtherEndpoint" | "hasUsableKey" | "discovery" | "saveKey" | "runKeyTest"
+  "saveState" | "stored" | "storedKeyIsForOtherEndpoint" | "discovery"
 > & {
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct renders (no `t` passed) keep
@@ -527,7 +517,7 @@ type VisitorCredentialKeyFooterProps = Pick<
   t?: (key: string) => string;
 };
 
-/** The "Save settings" control and its status line, at the foot of the shared BYOK card — the
+/** The "Save model settings" control and its status line, directly under Model — the
  *  sibling of {@link VisitorCredentialKeyFooter}, and separate from it for the same reason the admin
  *  panel's two footers are separate: two buttons writing two disjoint patches belong beside the
  *  fields each one writes, and neither may report the other's work. */
@@ -560,97 +550,115 @@ export function visitorCredentialKeyStatusMessage(
   return null;
 }
 
-export function VisitorCredentialKeyFooter({
+/** The Save key / Test Key pair, on the key input's own line (`ByokProviderForm`'s `apiKeyActions`,
+ *  2026-10-09 redesign). Split from {@link VisitorCredentialKeyFooter}, which keeps the status lines
+ *  under the field: buttons beside the input they act on, results on their own full-width lines. */
+type VisitorCredentialKeyActionsProps = Pick<
+  VisitorCredentialFormController,
+  "config" | "saveState" | "hasUsableKey" | "discovery" | "saveKey" | "runKeyTest" | "stored" | "storedKeyIsForOtherEndpoint"
+> & { t?: (key: string) => string };
+
+export function VisitorCredentialKeyActions({
   config,
   saveState,
-  stored,
-  storedKeyIsForOtherEndpoint,
   hasUsableKey,
   discovery,
   saveKey,
   runKeyTest,
+  stored,
+  storedKeyIsForOtherEndpoint,
   t: tProp,
-}: VisitorCredentialKeyFooterProps) {
-  // `t`'s default is resolved through `resolveT` (see that function's own doc, next to
-  // `AdminExecutionMode` above) rather than inline here — this was the one thing keeping this
-  // function's cyclomatic complexity at 10, one over the 9/9 ceiling.
+}: VisitorCredentialKeyActionsProps) {
   const t = resolveT(tProp);
+  // The two IDLE status lines are instructions, so each rides in an ⓘ beside the button it explains
+  // (owner, 2026-10-09); results still print under the field (`VisitorCredentialKeyFooter`).
+  const testInfo = visitorCredentialKeyStatusMessage({ status: "idle" }, t) ?? "";
+  const saveInfo = visitorCredentialSaveStatusMessage({ status: "idle" }, stored, t, storedKeyIsForOtherEndpoint) ?? "";
   return (
-    <div className="assistant-key-footer">
-      <div className="assistant-key-actions">
-        {/* The ONLY control that writes the KEY on this screen (its sibling
-            `VisitorCredentialSettingsFooter` writes the other fields, and never a key).
-
-            Disabled whenever the field is blank, stored key or not: this button's only job is to
-            write the key, and an empty field has no key to write. A stored key does NOT re-enable
-            it — the same narrowing the admin panel's Save key already carries. */}
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => void saveKey()}
-          disabled={!config.apiKey.trim() || saveState.status === "saving"}
-          {...agentHandle({ handle: "ai-assistant-visitor-save-key" }, { role: "button", label: "Save the visitor-facing API key" })}
-        >
-          {saveState.status === "saving" ? t("Saving…") : t("Save key")}
-        </button>
-        {/*
-          An explicit "Test Key" control, in addition to the debounced automatic discovery
-          above. Two reasons, and the second is the important one:
+    <>
+      {/* An explicit "Test Key" control, in addition to the debounced automatic discovery. Two
+          reasons, and the second is the important one:
 
           1. The automatic path only fires against a PRESET-supplied endpoint (see the security
-             gate above). For a custom or hand-typed base URL, this button is the only way to
-             discover models — and being an explicit, deliberate press is exactly what makes
+             gate in `rules.ts`). For a custom or hand-typed base URL, this button is the only way
+             to discover models — and being an explicit, deliberate press is exactly what makes
              sending the credential to an operator-chosen host acceptable there.
           2. Even on a preset endpoint, "type a key and wait for a list to appear" is a weak
              affordance: nothing tells the operator whether the key was accepted, rejected, or
              simply not looked at yet. A button that reports a count answers the question they
-             actually have, which is "is this key any good?"
-        */}
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => void runKeyTest()}
-          // `hasUsableKey`, not `config.apiKey.trim()`. A stored key is a perfectly testable
-          // key — the server has it even though this field is empty — and disabling the
-          // control told the operator their working credential could not be checked.
-          disabled={!hasUsableKey || discovery.status === "loading"}
-          {...agentHandle({ handle: "ai-assistant-visitor-test-key" }, { role: "button", label: "Test the visitor-facing API key against the provider" })}
-        >
-          {discovery.status === "loading" ? t("Testing…") : t("Test Key")}
-        </button>
-        <span className="assistant-key-status" role="status">{visitorCredentialKeyStatusMessage(discovery, t)}</span>
-      </div>
+             actually have, which is "is this key any good?" */}
+      <button
+        type="button"
+        className="jini-btn jini-byok-test-btn"
+        onClick={() => void runKeyTest()}
+        // `hasUsableKey`, not `config.apiKey.trim()`. A stored key is a perfectly testable
+        // key — the server has it even though this field is empty — and disabling the
+        // control told the operator their working credential could not be checked.
+        disabled={!hasUsableKey || discovery.status === "loading"}
+        {...agentHandle({ handle: "ai-assistant-visitor-test-key" }, { role: "button", label: "Test the visitor-facing API key against the provider" })}
+      >
+        {discovery.status === "loading" ? t("Testing…") : t("Test key")}
+      </button>
+      <InfoTip label={testInfo} triggerLabel={t("More info: {name}").replace("{name}", t("Test key"))} agentHandle="ai-assistant-visitor-test-key-info" />
+      {/* The ONLY control that writes the KEY on this screen (its sibling
+          `VisitorCredentialSettingsFooter` writes the other fields, and never a key).
+
+          Disabled whenever the field is blank, stored key or not: this button's only job is to
+          write the key, and an empty field has no key to write. A stored key does NOT re-enable
+          it — the same narrowing the admin panel's Save key already carries. */}
+      <button
+        type="button"
+        className="btn-primary"
+        onClick={() => void saveKey()}
+        disabled={!config.apiKey.trim() || saveState.status === "saving"}
+        {...agentHandle({ handle: "ai-assistant-visitor-save-key" }, { role: "button", label: "Save the visitor-facing API key" })}
+      >
+        {saveState.status === "saving" ? t("Saving…") : t("Save key")}
+      </button>
+      <InfoTip label={saveInfo} triggerLabel={t("More info: {name}").replace("{name}", t("Save key"))} agentHandle="ai-assistant-visitor-save-key-info" />
+    </>
+  );
+}
+
+/** Status lines under the key field: what Test Key found, and whether the key saved. */
+export function VisitorCredentialKeyFooter({
+  saveState,
+  stored,
+  storedKeyIsForOtherEndpoint,
+  discovery,
+  t: tProp,
+}: VisitorCredentialKeyFooterProps) {
+  // `t`'s default is resolved through `resolveT` (see that function's own doc, next to
+  // `AdminExecutionMode` above) rather than inline here — keeps this function's cyclomatic
+  // complexity under the ceiling.
+  const t = resolveT(tProp);
+  const lines = visitorKeyFooterLines({ discoveryStatus: discovery.status, saveStatus: saveState.status, storedKeyIsForOtherEndpoint });
+  const keyStatus = lines.keyStatus ? visitorCredentialKeyStatusMessage(discovery, t) : null;
+  return (
+    <div className="assistant-key-footer">
+      {keyStatus ? <p className="assistant-key-status" role="status">{keyStatus}</p> : null}
 
       {/* `t` passes a provider's own error text through unchanged; it translates only this screen's
           own plain-language probe copy (`lib/stored-credential-endpoint.ts`'s `describeProbeError`). */}
       {discovery.status === "error" ? <div className="save-error">{t(discovery.message)}</div> : null}
 
       {/*
-        No model picker here any more, deliberately.
-
-        This slot briefly carried a "Model for visitors" select listing the discovered models,
-        because the shared form's Model field was a text input backed by a `<datalist>` — and a
-        datalist stays invisible until the operator types, so a successful 42-model discovery
-        showed them an empty box. That worked, but it put a SECOND control for `config.model`
-        on the screen: the same value, editable in two places, four fields apart.
-
-        Fixed upstream instead. `ByokProviderForm`'s own Model field now renders a real
-        searchable picker whenever live discovery returns models (falling back to the text
-        input + datalist when it does not), so there is one model control again — and the
-        Settings screen gained the same fix rather than only this one.
+        No model picker here, deliberately: `ByokProviderForm`'s own Model field renders a real
+        searchable picker whenever live discovery returns models, so there is one model control
+        (a second "Model for visitors" select here once edited the same value four fields apart).
       */}
 
-      {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment above
-          for the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
-      <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t, storedKeyIsForOtherEndpoint)}</p>
+      {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment for
+          the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
+      {lines.saveLine ? <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t, storedKeyIsForOtherEndpoint)}</p> : null}
       {saveState.status === "error" ? <div className="save-error">{t(saveState.message)}</div> : null}
     </div>
   );
 }
 
 /**
- * The "Save settings" control and its status line, for `ByokProviderForm`'s `formFooter` slot — at
- * the foot of the card, under Base URL / Max tokens / Model, which are the fields it writes.
+ * The "Save model settings" control and status line, in `ByokProviderForm`'s `modelFooter` slot.
+ * It saves Model plus the Base URL and Max tokens inside Advanced; it never writes the key.
  *
  * Gated on `dirty` exactly as the old single Save was: this is the button that could otherwise
  * offer, on load, to write back the values the server just sent — or, if hydration had failed, this
@@ -680,7 +688,7 @@ export function VisitorCredentialSettingsFooter({
           disabled={!dirty || settingsSaveState.status === "saving"}
           {...agentHandle({ handle: "ai-assistant-visitor-save-settings" }, { role: "button", label: "Save the visitor assistant's provider/model settings" })}
         >
-          {settingsSaveState.status === "saving" ? t("Saving…") : t("Save settings")}
+          {settingsSaveState.status === "saving" ? t("Saving…") : t("Save model settings")}
         </button>
       </div>
       {statusLine ? <p className="assistant-save-line">{statusLine}</p> : null}
@@ -695,7 +703,7 @@ interface VisitorCredentialFormProps {
   useVisitorCredentialFormHook?: typeof useWiredVisitorCredentialForm;
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct render (no `t` passed) keeps
-   *  finding "Protocols"/"Gateways"/the intro copy by their exact English text. */
+   *  finding "Provider"/the intro copy by their exact English text. */
   t?: (key: string) => string;
 }
 
@@ -704,6 +712,7 @@ export function VisitorCredentialForm({
   t = (key: string) => key,
 }: VisitorCredentialFormProps = {}) {
   const {
+    loadState,
     config,
     editConfig,
     preset,
@@ -715,8 +724,8 @@ export function VisitorCredentialForm({
     dirty,
     hasUsableKey,
     storedKeyIsForOtherEndpoint,
-    configuredPresetIds,
-    selectPreset,
+    providerGroups,
+    selectPresetById,
     saveKey,
     saveSettings,
     runKeyTest,
@@ -724,92 +733,54 @@ export function VisitorCredentialForm({
   } = useVisitorCredentialFormHook();
 
   /**
-   * The provider picker — the two chip rows ("Protocols" / "Gateways") that let an operator choose
-   * Anthropic, OpenAI, Azure OpenAI, Google Gemini, OpenRouter, or Ollama.
+   * The provider picker — ONE native `<select>` labelled "Provider", with "Protocols" and
+   * "Gateways" optgroups (owner, 2026-10-09). It replaced a chip row: six chips spread across the
+   * page for a choice made once. A native select is keyboard- and screen-reader-complete for free.
    *
-   * Structure and wiring lifted verbatim from `ExecutionTab`'s own BYOK section in `@jini-ai/ui`
-   * (`groupPresets` → two `ProviderChipGroup`s → `ByokProviderForm`), which is what the Settings →
-   * Execution mode screen renders. See `hooks/use-visitor-credential-form.hooks.ts`'s `selectPreset`
-   * for the non-obvious snapshotting behaviour behind switching providers, and `rules.ts`'s
-   * `configuredPresetIds` for what a chip's filled dot actually claims.
+   * Picking an option runs the same `selectPreset` the chips ran (via the hook's
+   * `selectPresetById`), so autosave and field population are identical. See
+   * `hooks/use-visitor-credential-form.hooks.ts`'s `selectPreset` for the non-obvious snapshotting
+   * behaviour behind switching providers, and `rules.ts`'s `configuredPresetIds` for what an
+   * option's "(configured)" suffix — the chips' filled dot — actually claims. The default (saved
+   * provider, else Anthropic) is decided in the hook and `rules.ts`, not here.
    */
-  const { protocols, gateways } = groupPresets(DEFAULT_PROVIDER_PRESETS);
+  const providerSelectId = useId();
   const apiKeyPlaceholder = useStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint });
+
+  if (loadState.status === "loading") return <p role="status">{t("Loading saved settings…")}</p>;
+  if (loadState.status === "error") return <p role="alert">{t(loadState.message)}</p>;
 
   return (
     <>
-      {/*
-        Clamped to 3 lines behind `SeeMore` rather than shortened. Every sentence below is load-bearing
-        — this screen exists because an operator could not tell the two API keys apart — but all of it
-        at once is a wall of explanation standing between the operator and the one field they came to
-        fill in. Clamping keeps the full text in the DOM (findable by in-page search and by a screen
-        reader walking the region; see `SeeMore`'s Jini owner documentation) while letting the form be the
-        first thing on the screen.
-
-        3 lines, not the component's default 2, so the first paragraph's point — "this key is for your
-        visitors, not for you" — is complete before the fold. A 2-line clamp cuts it mid-sentence.
-      */}
-      {/*
-        No `<strong>` anywhere below, and no `.muted-cell`. Every emphasis here was competing with
-        every other one — three bolded lead-ins down one column reads as three headings rather than
-        as three sentences, and it made the copy shout next to a form whose own labels are a quiet
-        12px. The only bold thing on this tab is now the enable switch's label, which is the one
-        control the whole tab is about. Weight is a hierarchy signal and it only works while it is
-        scarce.
-      */}
-      <SeeMore
-        lines={3}
-        textClassName="assistant-intro"
-        toggleAriaLabel={t("See more about the visitor key")}
-        moreLabel={t("See more")}
-        lessLabel={t("See less")}
-      >
-        <p>
-          {t(
-            "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.",
-          )}
-        </p>
-        <p>
-          {t(
-            "It is a different key from the one under Settings → AI agent → BYOK. That one is your own, it is stored on the server, encrypted, for your admin account only, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.",
-          )}
-        </p>
-        {/* The shared form's "Stored only by this host." hint below is true here too: both BYOK keys
-            are stored on this server, encrypted. */}
-      </SeeMore>
-
-      {/* Same `jini-settings-byok` section wrapper `ExecutionTab` puts around this exact trio, so the
-          chip rows inherit the spacing the shared stylesheet already defines for them rather than
-          needing a second set of rules here. */}
+      {/* Same `jini-settings-byok` section wrapper `ExecutionTab` puts around its provider picker and
+          form, so the form inherits the spacing the shared stylesheet already defines for it. */}
       <section className="jini-settings-section jini-settings-byok">
-        <ProviderChipGroup
-          label={t("Protocols")}
-          presets={protocols}
-          selectedPresetId={preset?.id ?? null}
-          configuredPresetIds={configuredPresetIds}
-          onSelect={selectPreset}
-          configuredLabel={t("Configured")}
-          unsetLabel={t("Not configured")}
-        />
-        <ProviderChipGroup
-          label={t("Gateways")}
-          presets={gateways}
-          selectedPresetId={preset?.id ?? null}
-          configuredPresetIds={configuredPresetIds}
-          onSelect={selectPreset}
-          configuredLabel={t("Configured")}
-          unsetLabel={t("Not configured")}
-        />
+        <div className="visitor-inline-field">
+          <label htmlFor={providerSelectId}>{t("Provider")}</label>
+          <select id={providerSelectId} className="jini-input visitor-compact-select" value={preset?.id ?? ""}
+            onChange={(event) => selectPresetById(event.target.value)}
+            {...agentHandle({ handle: "ai-assistant-visitor-provider" }, { role: "field", label: "Visitor assistant provider" })}>
+            {preset ? null : <option value="" disabled>{t("Custom endpoint")}</option>}
+            {providerGroups.map((group) => (
+              <optgroup key={group.label} label={t(group.label)}>
+                {group.options.map(({ preset: option, configured }) => (
+                  <option key={option.id} value={option.id}>
+                    {configured ? t("{name} (configured)").replace("{name}", option.title) : option.title}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
 
       {/* `canTestConnection` left at its default (true): the probe is real here. It posts the typed
           key to the same admin route the Settings screen uses, so it answers "is this key good?"
 
-          `apiKeyFooter`/`formFooter` are slots added UPSTREAM in `@jini-ai/ui` for this screen rather
-          than a fork of the component — the standing decision on this workstream. The first puts the
-          things that are about the KEY (test it, see what it allows, know it saved) directly under
-          the key field, which is where the operator is looking when they have those questions; the
-          second puts "Save settings" under the fields IT writes, at the foot of the card. Two slots
-          because they are two buttons with two disjoint jobs. */}
+          `apiKeyActions` / `apiKeyFooter` / `modelFooter` / `collapseAdvanced` are slots added
+          UPSTREAM in `@jini-ai/ui` for this screen rather than a fork of the component — the standing
+          decision on this workstream. Show sits on the key's own line, Test key + Save key in a row
+          under it (owner, 2026-10-09); their results go directly under that; "Save model settings" sits directly under Model;
+          Base URL and Max tokens (rarely changed) fold behind "Advanced" after Model. */}
       <ByokProviderForm
         config={config}
         onConfigChange={editConfig}
@@ -827,21 +798,32 @@ export function VisitorCredentialForm({
         // `hasUsableKey` rather than "a key is stored": a key stored for another endpoint cannot be
         // probed here, so after a provider switch the field is genuinely required again.
         apiKeyStoredExternally={hasUsableKey}
+        deferMissingFeedback
         apiKeyPlaceholder={apiKeyPlaceholder}
-        apiKeyFooter={
-          <VisitorCredentialKeyFooter
+        collapseAdvanced
+        apiKeyActions={
+          <VisitorCredentialKeyActions
             config={config}
             saveState={saveState}
-            stored={stored}
-            storedKeyIsForOtherEndpoint={storedKeyIsForOtherEndpoint}
             hasUsableKey={hasUsableKey}
             discovery={discovery}
             saveKey={saveKey}
             runKeyTest={runKeyTest}
+            stored={stored}
+            storedKeyIsForOtherEndpoint={storedKeyIsForOtherEndpoint}
             t={t}
           />
         }
-        formFooter={
+        apiKeyFooter={
+          <VisitorCredentialKeyFooter
+            saveState={saveState}
+            stored={stored}
+            storedKeyIsForOtherEndpoint={storedKeyIsForOtherEndpoint}
+            discovery={discovery}
+            t={t}
+          />
+        }
+        modelFooter={
           <VisitorCredentialSettingsFooter
             dirty={dirty}
             settingsSaveState={settingsSaveState}
@@ -897,7 +879,8 @@ export interface AiAssistantProps {
 }
 
 export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }: AiAssistantProps = {}) {
-  const { settings, loadError, saveError, saving, setPublicEnabled } = useAiAssistantHook();
+  const { settings, loadError, saveError, saving, setPublicEnabled, setWidget } = useAiAssistantHook();
+  const { activeTabId, onTabChange } = useAiAssistantTab({ tabId });
 
   /**
    * The one `useWiredAdminLocale()` call for this whole screen — every subcomponent below (
@@ -937,38 +920,12 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
           <path d="M2.5 9h13M9 2.5c1.8 2 2.7 4.2 2.7 6.5S10.8 15 9 15.5C7.2 15 6.3 11.3 6.3 9S7.2 4.5 9 2.5z" />
         </TabIcon>
       ),
+      // Status pill, then numbered steps (provider/key, widget, enable). See `VisitorAssistantPanel`.
+      // Card-free like before (see `styles.css`'s `--page-flow` flattening block): one form on the
+      // page's own background rather than a stack of boxes.
       panel: (
-        <>
-          {/* No `.notice` here, unlike the Admin tab's equivalent below: this tab is deliberately
-              card-free (see `styles.css`'s `--page-flow` flattening block) so the panel reads as one
-              form on the page's own background rather than a stack of boxes. */}
-          <div className="assistant-switch">
-            {saveError ? <div className="save-error">{saveError}</div> : null}
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.publicEnabled}
-                disabled={saving}
-                onChange={(e) => void setPublicEnabled(e.target.checked)}
-                {...agentHandle({ handle: "ai-assistant-visitor-enable" }, { role: "field", label: "Enable the AI assistant on the public site" })}
-              />
-              {t("Enable the AI assistant on the public site. *API Key needed*")}
-            </label>
-            {/* `.muted-cell` dropped along with the intro's: it is an admin-table class (0.85rem,
-                `--faint`) that made this tab's body copy a third size next to the Jini form's own
-                12px labels and hints. Typography for both now comes from one scoped rule in
-                `styles.css`. */}
-            <p>
-              {settings.publicEnabled
-                ? t("Visitors can chat with the assistant. It is served on every public page.")
-                : t(
-                    "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget.",
-                  )}
-            </p>
-          </div>
-
-          <VisitorCredentialForm t={t} />
-        </>
+        <VisitorAssistantPanel t={t} CredentialForm={VisitorCredentialForm}
+          controller={{ settings, saving, saveError, setPublicEnabled, setWidget }} />
       ),
     },
     {
@@ -984,7 +941,13 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
       ),
       panel: (
         <>
-          <AdminAssistantSwitch t={t} />
+          {/* The three switches first, in one group (owner, 2026-10-09): subagents and permanent
+              deletes used to sit under the whole CLI grid, a long scroll from the top. */}
+          <div className="assistant-toggles">
+            <AdminAssistantSwitch t={t} />
+            <AdminSubagents t={t} />
+            <AdminPermanentDeletes t={t} />
+          </div>
           <AdminExecutionMode t={t} />
           <AssistantDaemonRestart t={t} />
         </>
@@ -1018,10 +981,10 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
     },
   ];
 
-  const requestedTabId = resolveAiAssistantRequestedTabId(tabId);
+  const subtitle = resolveAiAssistantTabSubtitle({ tabs, activeTabId });
 
   return (
-    <div className="page">
+    <div className="page ai-assistant-page">
       <div className="page-header">
         <div className="page-header-text">
           {/* Reuses the exact nav vocabulary (`admin-nav-i18n.ts`'s `ES` dict) rather than a second,
@@ -1029,7 +992,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
               sidebar's own kicker/label for this screen. */}
           <p className="page-kicker">{translateAdminNavLabel({ locale: locale, key: "Overview" })}</p>
           <h1 className="page-title">{translateAdminNavLabel({ locale: locale, key: "AI Assistant" })}</h1>
-          <p className="page-description">{t("Turn the visitor-facing assistant on or off for your public site.")}</p>
+          <p className="page-description">{subtitle}</p>
         </div>
       </div>
 
@@ -1067,8 +1030,8 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
             presentation="inline"
             className="jini-tabbed-dialog--inline"
             fullscreenEnabled={false}
-            activeTabId={requestedTabId}
-            onActiveTabIdChange={navigateToAiAssistantTab}
+            activeTabId={activeTabId}
+            onActiveTabIdChange={onTabChange}
           />
         </div>
       </I18nProvider>

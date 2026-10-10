@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/ui";
@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   VisitorCredentialForm,
+  VisitorCredentialKeyActions,
   VisitorCredentialKeyFooter,
   VisitorCredentialSettingsFooter,
   visitorCredentialApiKeyPlaceholder,
@@ -17,6 +18,8 @@ import {
   type VisitorCredentialFormController,
 } from "../hooks/use-visitor-credential-form.hooks";
 import { t as translateAiAssistant } from "../ai-assistant-i18n";
+import { visitorProviderGroups } from "../rules";
+import { VisitorAssistantPanel } from "../VisitorAssistantPanel";
 
 /**
  * @file Direct tests for the units pulled out of `VisitorCredentialForm` in the complexity pass
@@ -29,8 +32,8 @@ import { t as translateAiAssistant } from "../ai-assistant-i18n";
  * Three testing strategies, one per extracted shape:
  * - `visitorCredentialKeyStatusMessage` / `visitorCredentialSaveStatusMessage` /
  *   `visitorCredentialApiKeyPlaceholder` — pure functions, asserted directly with no rendering.
- * - `VisitorCredentialKeyFooter` — a plain React component once given its (now narrow) props, so
- *   every disabled/label/status state is driven directly without needing the real hook or `fetch`.
+ * - `VisitorCredentialKeyActions` / `VisitorCredentialKeyFooter` — plain React components given
+ *   their narrow props, so button and status states are driven without the real hook or `fetch`.
  * - `VisitorCredentialForm` — exercised through its own `useVisitorCredentialFormHook` injection
  *   seam (already existed before this pass; unused by any test until now), the same convention
  *   `WidgetInstanceEditor.tsx` and `Posts.tsx` use.
@@ -38,6 +41,7 @@ import { t as translateAiAssistant } from "../ai-assistant-i18n";
 
 function fakeController(overrides: Partial<VisitorCredentialFormController> = {}): VisitorCredentialFormController {
   return {
+    loadState: { status: "ready" },
     config: { protocol: "google", providerId: "google-gemini", apiKey: "", baseUrl: "https://generativelanguage.googleapis.com", model: "" },
     editConfig: vi.fn(),
     preset: null,
@@ -51,6 +55,8 @@ function fakeController(overrides: Partial<VisitorCredentialFormController> = {}
     hasStoredKey: false,
     storedKeyIsForOtherEndpoint: false,
     configuredPresetIds: new Set(),
+    providerGroups: visitorProviderGroups(new Set()),
+    selectPresetById: vi.fn(),
     selectPreset: vi.fn(),
     saveKey: vi.fn(async () => undefined),
     saveSettings: vi.fn(async () => undefined),
@@ -149,14 +155,14 @@ describe("visitorCredentialSettingsStatusMessage", () => {
   });
 });
 
-describe("VisitorCredentialKeyFooter", () => {
+describe("VisitorCredentialKeyActions", () => {
   it("disables Save key on a blank field", () => {
-    render(<VisitorCredentialKeyFooter {...fakeController()} />);
+    render(<VisitorCredentialKeyActions {...fakeController()} />);
     expect(screen.getByRole("button", { name: "Save key" })).toBeDisabled();
   });
 
   it("enables Save key once a key is typed", () => {
-    render(<VisitorCredentialKeyFooter {...fakeController({ config: { ...fakeController().config, apiKey: "sk-live" } })} />);
+    render(<VisitorCredentialKeyActions {...fakeController({ config: { ...fakeController().config, apiKey: "sk-live" } })} />);
     expect(screen.getByRole("button", { name: "Save key" })).toBeEnabled();
   });
 
@@ -164,7 +170,7 @@ describe("VisitorCredentialKeyFooter", () => {
     // A stored key does not make the empty field writable — the same narrowing the admin panel's
     // Save key carries (f39be651). Pressing it would offer to write nothing.
     render(
-      <VisitorCredentialKeyFooter
+      <VisitorCredentialKeyActions
         {...fakeController({ hasStoredKey: true, stored: { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null } })}
       />,
     );
@@ -172,14 +178,14 @@ describe("VisitorCredentialKeyFooter", () => {
   });
 
   it("keeps Save key disabled for a whitespace-only field", () => {
-    render(<VisitorCredentialKeyFooter {...fakeController({ config: { ...fakeController().config, apiKey: "   \t   " } })} />);
+    render(<VisitorCredentialKeyActions {...fakeController({ config: { ...fakeController().config, apiKey: "   \t   " } })} />);
     expect(screen.getByRole("button", { name: "Save key" })).toBeDisabled();
   });
 
   it("calls saveKey when Save key is clicked", async () => {
     const user = userEvent.setup();
     const saveKey = vi.fn(async () => undefined);
-    render(<VisitorCredentialKeyFooter {...fakeController({ config: { ...fakeController().config, apiKey: "sk-live" }, saveKey })} />);
+    render(<VisitorCredentialKeyActions {...fakeController({ config: { ...fakeController().config, apiKey: "sk-live" }, saveKey })} />);
 
     await user.click(screen.getByRole("button", { name: "Save key" }));
 
@@ -187,20 +193,22 @@ describe("VisitorCredentialKeyFooter", () => {
   });
 
   it("disables Test Key until a usable key exists", () => {
-    render(<VisitorCredentialKeyFooter {...fakeController({ hasUsableKey: false })} />);
-    expect(screen.getByRole("button", { name: "Test Key" })).toBeDisabled();
+    render(<VisitorCredentialKeyActions {...fakeController({ hasUsableKey: false })} />);
+    expect(screen.getByRole("button", { name: "Test key" })).toBeDisabled();
   });
 
   it("calls runKeyTest when Test Key is clicked", async () => {
     const user = userEvent.setup();
     const runKeyTest = vi.fn(async () => undefined);
-    render(<VisitorCredentialKeyFooter {...fakeController({ hasUsableKey: true, runKeyTest })} />);
+    render(<VisitorCredentialKeyActions {...fakeController({ hasUsableKey: true, runKeyTest })} />);
 
-    await user.click(screen.getByRole("button", { name: "Test Key" }));
+    await user.click(screen.getByRole("button", { name: "Test key" }));
 
     expect(runKeyTest).toHaveBeenCalledTimes(1);
   });
+});
 
+describe("VisitorCredentialKeyFooter", () => {
   it("renders the discovery error banner when discovery failed", () => {
     render(<VisitorCredentialKeyFooter {...fakeController({ discovery: { status: "error", message: "provider unreachable" } })} />);
     expect(screen.getByText("provider unreachable")).toBeInTheDocument();
@@ -227,12 +235,12 @@ describe("VisitorCredentialKeyFooter", () => {
 });
 
 describe("VisitorCredentialSettingsFooter", () => {
-  it("wires Save settings to saveSettings and never to saveKey", async () => {
+  it("wires Save model settings to saveSettings and never to saveKey", async () => {
     const user = userEvent.setup();
     const c = fakeController({ dirty: true });
     render(<VisitorCredentialSettingsFooter {...c} />);
 
-    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await user.click(screen.getByRole("button", { name: "Save model settings" }));
     expect(c.saveSettings).toHaveBeenCalledTimes(1);
     // The whole point of the split: this control cannot reach the key path at all.
     expect(c.saveKey).not.toHaveBeenCalled();
@@ -240,12 +248,12 @@ describe("VisitorCredentialSettingsFooter", () => {
 
   it("stays enabled with a blank key field — settings are not the key", () => {
     render(<VisitorCredentialSettingsFooter {...fakeController({ dirty: true })} />);
-    expect(screen.getByRole("button", { name: "Save settings" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save model settings" })).toBeEnabled();
   });
 
   it("is disabled until something actually changed, so it never rewrites what the server just sent", () => {
     render(<VisitorCredentialSettingsFooter {...fakeController({ dirty: false })} />);
-    expect(screen.getByRole("button", { name: "Save settings" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save model settings" })).toBeDisabled();
   });
 
   it("surfaces its own save error", () => {
@@ -258,24 +266,53 @@ describe("VisitorCredentialSettingsFooter", () => {
     // colour: `.btn-primary` is the only thing that resolves the burnt-orange `var(--primary)`, so
     // this cannot pass with a hand-picked hex that merely looks similar.
     const c = fakeController({ dirty: true, config: { ...fakeController().config, apiKey: "sk-live" } });
-    const { container: keyFooter } = render(<VisitorCredentialKeyFooter {...c} />);
+    const { container: keyActions } = render(<VisitorCredentialKeyActions {...c} />);
     const { container: settingsFooter } = render(<VisitorCredentialSettingsFooter {...c} />);
 
-    const saveKey = keyFooter.querySelector("button");
-    const saveSettings = settingsFooter.querySelector("button");
+    const saveKey = within(keyActions).getByRole("button", { name: "Save key" });
+    const saveSettings = within(settingsFooter).getByRole("button", { name: "Save model settings" });
     expect(saveKey).toHaveClass("btn-primary");
     expect(saveSettings!.className).toBe(saveKey!.className);
   });
 });
 
 describe("VisitorCredentialForm", () => {
+  it("keeps defaults and public status hidden until the saved credential arrives", () => {
+    const credential = fakeController({ loadState: { status: "loading" } });
+    const controller = { settings: { publicEnabled: true, widget: "react" as const }, saving: false,
+      saveError: null, setPublicEnabled: vi.fn(async () => undefined), setWidget: vi.fn(async () => undefined) };
+    const { rerender } = render(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => credential} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading saved settings…");
+    expect(screen.queryByText("Needs a key")).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Provider" })).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
+
+    const hydrated = fakeController({ loadState: { status: "ready" }, hasStoredKey: true, hasUsableKey: true });
+    rerender(<VisitorAssistantPanel controller={controller} CredentialForm={VisitorCredentialForm}
+      t={key => key} useVisitorCredentialFormHook={() => hydrated} />);
+    expect(screen.queryByText("Loading saved settings…")).toBeNull();
+    expect(screen.getByText("On")).toBeInTheDocument();
+    expect(screen.getByRole("switch")).toBeChecked();
+    expect(screen.getByRole("combobox", { name: "Provider" })).toBeInTheDocument();
+  });
+
+  it("reports a failed settings read without displaying default provider fields", () => {
+    render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
+      loadState: { status: "error", message: "Stored settings unavailable" },
+    })} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Stored settings unavailable");
+    expect(screen.queryByRole("combobox", { name: "Provider" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save key" })).toBeNull();
+  });
+
   it("forwards edited keys and provider selections to the controller", async () => {
     const user = userEvent.setup();
     const editConfig = vi.fn();
-    const selectPreset = vi.fn();
+    const selectPresetById = vi.fn();
     function useFake() {
       const [config, setConfig] = useState(fakeController().config);
-      return fakeController({ config, selectPreset, editConfig: (next) => { editConfig(next); setConfig(next); } });
+      return fakeController({ config, selectPresetById, editConfig: (next) => { editConfig(next); setConfig(next); } });
     }
     render(<VisitorCredentialForm useVisitorCredentialFormHook={useFake} />);
 
@@ -283,10 +320,11 @@ describe("VisitorCredentialForm", () => {
     await user.type(keyField, "visitor-key-123");
     expect(editConfig).toHaveBeenLastCalledWith({ ...fakeController().config, apiKey: "visitor-key-123" });
     expect(keyField).toHaveValue("visitor-key-123");
+    expect(screen.getByRole("button", { name: "Save key" })).toBeEnabled();
     for (const baseUrl of ["https://api.openai.com/v1", "https://openrouter.ai/api/v1"]) {
       const preset = DEFAULT_PROVIDER_PRESETS.find((p) => p.baseUrl === baseUrl)!;
-      await user.click(screen.getByRole("tab", { name: preset.title }));
-      expect(selectPreset).toHaveBeenLastCalledWith(preset);
+      await user.selectOptions(screen.getByRole("combobox", { name: "Provider" }), preset.id);
+      expect(selectPresetById).toHaveBeenLastCalledWith(preset.id);
     }
   });
 
@@ -309,17 +347,21 @@ describe("VisitorCredentialForm", () => {
     expect(controller.runKeyTest).not.toHaveBeenCalled();
   });
 
-  it("renders the intro copy, provider chips, and key field via the injected hook", () => {
+  it("renders the provider select, key field and separate save actions via the injected hook", () => {
     const useFake = () => fakeController();
     render(<VisitorCredentialForm useVisitorCredentialFormHook={useFake} />);
 
-    expect(screen.getByText(/This key is for your visitors, not for you/)).toBeInTheDocument();
-    expect(screen.getByText("Protocols")).toBeInTheDocument();
-    expect(screen.getByText("Gateways")).toBeInTheDocument();
-    // Both save buttons live in footer components reached through the real `ByokProviderForm`'s
-    // `apiKeyFooter` and `formFooter` slots — proves the wiring survived the extraction and the
-    // split, not just the footer components in isolation.
-    expect(screen.getByRole("button", { name: "Save key" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save settings" })).toBeInTheDocument();
+    const provider = screen.getByRole("combobox", { name: "Provider" });
+    expect(within(provider).getByRole("group", { name: "Protocols" })).toBeInTheDocument();
+    expect(within(provider).getByRole("group", { name: "Gateways" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^API key/)).toHaveValue("");
+    // Save key reaches the real ByokProviderForm's apiKeyActions slot under the input;
+    // Save model settings uses modelFooter before Advanced. The Visitor panel now owns the intro copy.
+    const saveKey = screen.getByRole("button", { name: "Save key" });
+    expect(saveKey.closest(".jini-byok-key-actions")).not.toBeNull();
+    expect(saveKey).toBeDisabled();
+    const saveModel = screen.getByRole("button", { name: "Save model settings" });
+    expect(saveModel).toBeInTheDocument();
+    expect(saveModel.compareDocumentPosition(screen.getByText("Advanced")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

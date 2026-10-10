@@ -71,24 +71,50 @@ afterEach(() => {
 });
 
 describe("useVisitorCredentialForm — initial config", () => {
-  it("defaults to Google Gemini with an empty key and empty model", async () => {
+  it("defaults to Anthropic (Claude) with an empty key and empty model when nothing is saved", async () => {
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
 
     expect(result.current.config).toMatchObject({
-      protocol: "google",
-      providerId: "google-gemini",
+      protocol: "anthropic",
+      providerId: "anthropic",
       apiKey: "",
-      baseUrl: "https://generativelanguage.googleapis.com",
+      baseUrl: "https://api.anthropic.com",
       model: "",
     });
+    expect(result.current.dirty).toBe(false);
+  });
+
+  it("starts with the saved provider even when its key has not been stored", async () => {
+    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+      data: credential({ provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: "saved-model" }),
+    });
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.config).toEqual({
+      protocol: "google", providerId: "google-gemini", apiKey: "",
+      baseUrl: "https://generativelanguage.googleapis.com", model: "saved-model",
+    });
+    expect(result.current.hasStoredKey).toBe(false);
     expect(result.current.dirty).toBe(false);
   });
 });
 
 describe("useVisitorCredentialForm — hydration", () => {
+  it("stays loading until the saved settings read settles, then exposes the actual read error", async () => {
+    const write = vi.spyOn(api, "setAssistantSiteCredential");
+    let rejectRead!: (reason: Error) => void;
+    vi.spyOn(api, "getAssistantSiteCredential").mockReturnValue(new Promise((_resolve, reject) => { rejectRead = reject; }));
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    expect(result.current.loadState).toEqual({ status: "loading" });
+    await act(async () => { rejectRead(new Error("Credential store unavailable")); });
+    expect(result.current.loadState).toEqual({ status: "error", message: "Credential store unavailable" });
+    expect(result.current.dirty).toBe(false);
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it("on success: sets stored and merges baseUrl/model into config, without marking dirty", async () => {
     vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
       data: credential({ isSet: true, masked: "••••abcd", baseUrl: "https://custom.example.com", model: "gpt-4o" }),
@@ -101,6 +127,7 @@ describe("useVisitorCredentialForm — hydration", () => {
     });
 
     expect(result.current.stored?.isSet).toBe(true);
+    expect(result.current.loadState).toEqual({ status: "ready" });
     expect(result.current.config.baseUrl).toBe("https://custom.example.com");
     expect(result.current.config.model).toBe("gpt-4o");
     expect(result.current.dirty).toBe(false);
@@ -515,7 +542,7 @@ describe("useVisitorCredentialForm — selectPreset", () => {
     });
     expect(result.current.connectionTest.status).toBe("ok");
     expect(result.current.discovery).toEqual({ status: "ok", models: ["m1"] });
-    const next = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === "anthropic")!;
+    const next = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === "google-gemini")!;
     expect(result.current.preset!.id).not.toBe(next.id);
     act(() => result.current.selectPreset(next));
     expect(result.current.config.providerId).toBe(next.id);
@@ -852,7 +879,7 @@ describe("useVisitorCredentialForm — the two buttons write disjoint patches", 
 
     const [patch] = setAssistantSiteCredential.mock.calls[0];
     expect(Object.keys(patch)).not.toContain("apiKey");
-    expect(patch).toEqual({ provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: "m1" });
+    expect(patch).toEqual({ provider: "anthropic", baseUrl: "https://api.anthropic.com", model: "m1" });
     expect(result.current.settingsSaveState).toMatchObject({ status: "saved" });
     // The key the operator is still holding in the field is the key button's business.
     expect(result.current.config.apiKey).toBe("sk-still-in-the-field");

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,9 +39,13 @@ afterEach(() => {
 /** Serves GET from `state`, and applies a successful PUT to it — a stand-in for the real route's
  * "return what is now persisted" contract, so a test asserting the rendered value is asserting
  * server truth rather than local optimism. */
-function serveSettings(initial: { publicEnabled: boolean }, options: { failWrites?: boolean; returnedEnabled?: boolean } = {}) {
+function serveSettings(initial: { publicEnabled: boolean; widget?: "react" | "vanilla" }, options: { failWrites?: boolean; returnedEnabled?: boolean; hasStoredKey?: boolean } = {}) {
   const state = { ...initial };
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (String(url).includes("/assistant/site-credential")) {
+      return jsonResponse({ data: { isSet: options.hasStoredKey ?? true, masked: null,
+        provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null } });
+    }
     // The Admin tab's `AdminExecutionMode` fires this on mount to populate its CLI list
     // (`useExecutionTab`'s auto-detect effect). It needs an actual array — `sortDetectedAgents`
     // (`@jini-ai/ui`) spreads its `agents` argument, so falling through to this function's generic
@@ -65,8 +69,25 @@ function serveSettings(initial: { publicEnabled: boolean }, options: { failWrite
 }
 
 function theSwitch(): HTMLInputElement {
-  return screen.getByLabelText(/enable the ai assistant on the public site/i) as HTMLInputElement;
+  return screen.getByRole("switch", { name: "Enable the AI assistant on the public site" }) as HTMLInputElement;
 }
+
+it("wcmp: the visitor Widget selector defaults to React and saves Lightweight without enabling visitors", async () => {
+  const state = serveSettings({ publicEnabled: false, widget: "react" });
+  const user = userEvent.setup();
+  render(<AiAssistant />);
+  const select = await screen.findByRole("combobox", { name: "Widget" });
+  expect(select).toHaveValue("react");
+  expect(screen.getByRole("option", { name: "Standard" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Lightweight (beta)" })).toBeInTheDocument();
+  await user.selectOptions(select, "vanilla");
+  await waitFor(() => expect(select).toHaveValue("vanilla"));
+  expect(state).toEqual({ publicEnabled: false, widget: "vanilla" });
+  expect(theSwitch()).not.toBeChecked();
+  const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT");
+  expect(writes).toHaveLength(1);
+  expect(JSON.parse(String(writes[0][1].body))).toEqual({ widget: "vanilla" });
+});
 
 describe("the public on/off switch", () => {
   it("renders unchecked for a site that has never turned the assistant on", async () => {
@@ -87,7 +108,7 @@ describe("the public on/off switch", () => {
   it("persists a toggle through a PUT and re-renders from the response", async () => {
     const state = serveSettings({ publicEnabled: false });
     render(<AiAssistant />);
-    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+    await waitFor(() => expect(theSwitch()).toBeEnabled());
 
     await userEvent.click(theSwitch());
 
@@ -103,7 +124,7 @@ describe("the public on/off switch", () => {
   it("follows a successful server response even when it disagrees with the requested toggle", async () => {
     serveSettings({ publicEnabled: false }, { returnedEnabled: false });
     render(<AiAssistant />);
-    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+    await waitFor(() => expect(theSwitch()).toBeEnabled());
     await userEvent.click(theSwitch());
     // Enabled again means the save has settled; checking false before that could pass on initial state.
     await waitFor(() => expect(theSwitch()).toBeEnabled());
@@ -122,6 +143,20 @@ describe("the public on/off switch", () => {
 
     await waitFor(() => expect(theSwitch().checked).toBe(false));
     expect(state.publicEnabled).toBe(false);
+  });
+
+  it("keeps visitor enable disabled until a key is stored and never writes through that gate", async () => {
+    const state = serveSettings({ publicEnabled: false }, { hasStoredKey: false });
+    render(<AiAssistant />);
+    // The redesign repeats the reason beside the status pill and under the gated switch.
+    await waitFor(() => expect(within(screen.getByRole("status")).getByText("Save a key in step 1 first.")).toBeInTheDocument());
+    expect(theSwitch()).toBeDisabled();
+    expect(theSwitch()).toHaveAccessibleDescription(/Save a key in step 1 first\./);
+    expect(screen.getByText("This key is for your visitors, not for you.")).toBeInTheDocument();
+    await userEvent.click(theSwitch());
+    expect(theSwitch()).not.toBeChecked();
+    expect(state.publicEnabled).toBe(false);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")).toEqual([]);
   });
 
   it("does NOT claim the assistant changed state when the save fails", async () => {
@@ -253,10 +288,10 @@ describe("?tab= deep linking", () => {
     render(<AiAssistant tabId="admin" />);
 
     await waitFor(() =>
-      expect(screen.getByLabelText(/show the ai assistant on the admin site/i)).toBeInTheDocument(),
+      expect(screen.getByRole("checkbox", { name: "Open the assistant panel" })).toBeInTheDocument(),
     );
-    expect(screen.queryByLabelText(/enable the ai assistant on the public site/i)).not.toBeInTheDocument();
-    const toggle = screen.getByLabelText(/show the ai assistant on the admin site/i);
+    expect(screen.queryByRole("switch", { name: "Enable the AI assistant on the public site" })).not.toBeInTheDocument();
+    const toggle = screen.getByRole("checkbox", { name: "Open the assistant panel" });
     const requests: boolean[] = [];
     const unsubscribe = subscribeToAssistantDockRequests((open) => requests.push(open));
     try {
@@ -302,6 +337,11 @@ describe("?tab= deep linking", () => {
     await user.click(screen.getByTestId("settings-dialog-nav-admin"));
 
     expect(window.location.search).toBe("?tab=admin");
+    expect(screen.getByText("The assistant in this admin, for signed-in administrators.", { selector: ".page-description" })).toBeInTheDocument();
+    await user.click(screen.getByTestId("settings-dialog-nav-roadmap"));
+    expect(screen.getByText("Operator controls that are planned but not implemented.", { selector: ".page-description" })).toBeInTheDocument();
+    await user.click(screen.getByTestId("settings-dialog-nav-visitor"));
+    expect(screen.getByText("The assistant your published site offers to readers.", { selector: ".page-description" })).toBeInTheDocument();
   });
 });
 

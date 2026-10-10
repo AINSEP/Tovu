@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { PERMANENT_DELETE_TOOLS, PERMANENT_DELETE_DANGERS } from "@/lib/assistant-permanent-deletes";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { AI_ASSISTANT_DICT, t } from "../ai-assistant-i18n";
 
@@ -13,6 +14,12 @@ import { AI_ASSISTANT_DICT, t } from "../ai-assistant-i18n";
  */
 describe("AI_ASSISTANT_DICT: cross-locale key parity", () => {
   const locales = Object.keys(AI_ASSISTANT_DICT);
+
+  it("translates panel visibility and the distinct model save action in every admin locale", () => {
+    for (const locale of locales) for (const key of ["Open the assistant panel", "Save model settings", "Loading saved settings…", "Could not load saved settings."]) {
+      expect(t({ locale, key }), `${locale}: ${key}`).not.toBe(key);
+    }
+  });
 
   it("covers the same 21 locales the rest of this app's feature dictionaries ship", () => {
     const EXPECTED_LOCALES = [
@@ -57,5 +64,46 @@ describe("AI_ASSISTANT_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Cancel' in German even though AI_ASSISTANT_DICT.de never carries it", () => {
     expect(AI_ASSISTANT_DICT.de.Cancel).toBeUndefined();
     expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
+  });
+});
+
+
+describe("subagent owner consent and dock status translations", () => {
+  const keys = [
+    "Allow the admin assistant to spawn subagents",
+    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.",
+    "Only the owner can change subagent access.", "Loading subagent settings…", "Waiting for confirmation or saving…",
+    "Security risk: subagents can act independently.", "Subagents inherit the assistant's bypassed permissions.",
+    "You may not see what they do; the chat does not show subagent tool calls.", "Cost and machine load multiply with each subagent.",
+    "Allow the assistant to spawn subagents?", "Allow subagents", "failed to save subagent access",
+    "Subagents: on", "Subagents: unknown",
+  ];
+  it("translates every new string in all 21 locales without English fallback", () => {
+    for (const locale of Object.keys(AI_ASSISTANT_DICT)) for (const key of keys) {
+      expect(AI_ASSISTANT_DICT[locale][key], `${locale}: ${key}`).toBeTruthy();
+      expect(t({ locale, key })).not.toBe(key);
+    }
+    expect(t({ locale: "es", key: "Subagents: unknown" })).toBe("Subagentes: estado desconocido");
+    expect(t({ locale: "de", key: "Allow subagents" })).toBe("Unteragenten erlauben");
+  });
+});
+
+describe("permanent-delete owner grant translations", () => {
+  it("translates the full checklist, risks, dialog and status copy in every shipped locale", () => {
+    const keys = [
+      "Allow permanent deletes from chat",
+      "Off by default. Only checked tools are allowed. Each delete still requires a human confirmation of the exact targets. Prefer Trash.",
+      "Only the owner can change permanent delete access.", "Loading permanent delete settings…",
+      "Allowed permanent deletes", "Select all", "Select none", "Open admin screen",
+      "No Tovu admin screen for this operation.", "Content purges", "Settings deletes",
+      "Waiting for confirmation or saving…", "Allow permanent deletes from chat?", "Allow permanent deletes",
+      "failed to save permanent delete access", ...PERMANENT_DELETE_TOOLS.map(tool => tool.label), ...PERMANENT_DELETE_DANGERS,
+    ];
+    for (const locale of Object.keys(AI_ASSISTANT_DICT)) for (const key of keys) {
+      expect(AI_ASSISTANT_DICT[locale][key], `${locale}: ${key}`).toBeTruthy();
+      expect(t({ locale, key })).not.toBe(key);
+    }
+    expect(t({ locale: "es", key: "Allow permanent deletes" })).toBe("Permitir eliminaciones permanentes");
+    expect(t({ locale: "de", key: "Select none" })).toBe("Keine auswählen");
   });
 });
