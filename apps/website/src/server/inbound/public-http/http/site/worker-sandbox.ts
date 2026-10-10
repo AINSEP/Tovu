@@ -5,7 +5,8 @@
  * sandbox dependency or vm2's known escape problems. Engine workers own template semantics;
  * the package owns result settlement, timeout cancellation and best-effort worker cleanup.
  */
-import { createRequire } from "node:module";
+import { fstatSync, mkdtempSync, openSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ResourceLimits } from "node:worker_threads";
 import {
@@ -16,6 +17,7 @@ import {
   type WorkerFactory,
 } from "@jini-ai/sandbox/node-worker";
 import type { SiteRenderContext } from "./render.js";
+import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 
 export type { SandboxRenderResult } from "@jini-ai/sandbox/node-worker";
 
@@ -30,11 +32,47 @@ export interface SandboxOptions {
   resourceLimits?: ResourceLimits;
   /** Alternate worker effect port; Jini still owns settlement, budgets and cleanup. */
   workerFactory?: WorkerFactory;
+  /** Product installation root for a relocated compiled host; otherwise resolved in the parent. */
+  productRoot?: string;
 }
 
-// Use require.resolve for the TS registration module: the worker bootstrap needs a
-// filesystem path, whereas import.meta.resolve yields a file URL.
-const require = createRequire(import.meta.url);
+// Share the in-flight build as well as its result: concurrent cold renders must not
+// each spawn esbuild. A failed build remains rejected until this source process restarts.
+let sourceWorkers: Promise<string> | undefined;
+
+/**
+ * Compile the two CMS theme entries before any bounded worker starts. Temp output has its own
+ * ESM manifest and external-package lookup; it is removed on normal process exit or build failure.
+ * @param required.productRoot Parent-resolved installation owning source and dependencies.
+ * @returns Directory containing executable JS workers; rejects on filesystem/build errors.
+ * @complexity One O(g) build for the fixed two entries' import graph g per process.
+ */
+async function compileSourceWorkers({ productRoot }: { productRoot: string }): Promise<string> {
+  // Detached hosts may close stdin. Reserve fd 0 before esbuild opens a pipe there:
+  // libuv refuses to close a pipe whose descriptor is in the stdio range.
+  try { fstatSync(0); } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EBADF") throw error;
+    openSync("/dev/null", "r");
+  }
+  const outdir = mkdtempSync(path.join(tmpdir(), "tovu-theme-workers-"));
+  try {
+    writeFileSync(path.join(outdir, "package.json"), '{"type":"module"}');
+    symlinkSync(path.join(productRoot, "node_modules"), path.join(outdir, "node_modules"), "dir");
+    const { build } = await import("esbuild");
+    await build({
+      entryPoints: ["handlebars-worker.ts", "liquid-worker.ts"].map((file) => path.join(import.meta.dirname, file)),
+      outdir, bundle: true, platform: "node", format: "esm", packages: "external",
+      plugins: [{ name: "tovu-source-imports", setup(build) {
+        build.onResolve({ filter: /^#src\// }, (args) => ({ path: path.join(productRoot, "apps/website/src", `${args.path.slice(5)}.ts`) }));
+      } }],
+    });
+    process.once("exit", () => rmSync(outdir, { recursive: true, force: true }));
+    return outdir;
+  } catch (error) {
+    rmSync(outdir, { recursive: true, force: true });
+    throw error;
+  }
+}
 /**
  * A visitor must not wait beyond 5s for a runaway theme; load-scaled defaults would
  * weaken that guard exactly when the server is busiest. TOVU_THEME_RENDER_TIMEOUT_MS is
@@ -74,28 +112,36 @@ export function resolveDefaultTimeoutMs(): number {
  * the site. ADR-020 bounds both CPU time and worker heap use.
  *
  * Render with Tovu's sibling worker entry and heap budgets, retaining engine caller contracts.
- * The TypeScript bootstrap stays host-resolved; Jini suppresses its worker's CJS coverage image.
+ * Source entries are compiled once in the parent; every render starts plain JS without tsx.
+ * Bundled source workers suppress coverage because their image differs from the parent's source.
  * @param workerBasename Worker path relative to this module, without an extension.
  * @param errorLabel Engine name used in controlled render errors.
  * @param input Structured-cloneable template and site context.
- * @param options Optional per-render wall-clock and heap budgets.
+ * @param options Per-render budgets, worker port and relocated-host product root override.
  * @returns Rendered HTML.
  * @throws On timeout, worker failure, invalid reply or rejected template; renderSite handles fallback.
- * @complexity O(e) environment copying for e variables, excluding worker startup and rendering.
+ * @complexity O(e) environment copying for e variables, plus one cold source build; excludes rendering.
  */
-export function renderInWorkerSandbox(
+export async function renderInWorkerSandbox(
   workerBasename: string,
   errorLabel: string,
   input: SandboxRenderInput,
   options: SandboxOptions = {},
 ): Promise<string> {
   const isTsSource = import.meta.filename.endsWith(".ts");
-  const workerFactory = options.workerFactory ?? createNodeWorkerFactory({ env: { ...process.env } }, {
-    ...(isTsSource ? { typescriptBootstrap: { registerModulePath: require.resolve("tsx/cjs/api") } } : {}),
-  });
+  const productRoot = options.productRoot ?? resolveProductRoot();
+  const isThemeWorker = workerBasename === "handlebars-worker" || workerBasename === "liquid-worker";
+  const workerDir = isTsSource && isThemeWorker
+    ? await (sourceWorkers ??= compileSourceWorkers({ productRoot }))
+    : import.meta.dirname;
+  const env = { ...process.env };
+  if (isTsSource) delete env.NODE_V8_COVERAGE;
+  const workerFactory = options.workerFactory ?? createNodeWorkerFactory({ env });
   return renderWithWorker({
-    workerEntry: path.join(import.meta.dirname, `${workerBasename}.${isTsSource ? "ts" : "js"}`),
-    input,
+    workerEntry: path.join(workerDir, `${workerBasename}.js`),
+    // Static imports in a relocated worker resolve stock content during module evaluation,
+    // before its entry can run. Pass the root as workerData rather than walking from temp JS.
+    input: { ...input, productRoot },
     errorLabel,
     defaultTimeoutMs: resolveDefaultTimeoutMs(),
     defaultResourceLimits: DEFAULT_RESOURCE_LIMITS,

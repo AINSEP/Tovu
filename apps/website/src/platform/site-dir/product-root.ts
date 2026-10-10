@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { isMainThread, workerData } from "node:worker_threads";
 
 /**
  * @file Locates the product root — the directory containing this package's `package.json` and its
@@ -18,14 +19,22 @@ const MAX_WALK_UP = 12;
 /**
  * Walks up from `fromDir` (defaults to this file's own compiled/source location) until it finds a
  * directory containing both `package.json` and `content/`, and returns that directory.
+ * Relocated theme workers use the trusted parent-supplied workerData.productRoot for default
+ * resolution; explicit fromDir overrides still exercise ancestor discovery.
  *
  * @param fromDir - Override for testing; production callers should omit this and get the real
  *   caller-relative default.
  * @throws If no such ancestor is found within {@link MAX_WALK_UP} levels — a silent wrong guess
- *   is worse than a loud failure here.
+ *   is worse than a loud failure here — or the parent supplies a relative worker root.
+ * @complexity O(depth) filesystem probes, capped at {@link MAX_WALK_UP}; O(1) for an injected root.
  */
-export function resolveProductRoot(fromDir: string = import.meta.dirname): string {
-  let dir = path.resolve(fromDir);
+export function resolveProductRoot(fromDir?: string): string {
+  if (!isMainThread && fromDir === undefined && typeof workerData?.productRoot === "string") {
+    if (!path.isAbsolute(workerData.productRoot)) throw new Error("worker productRoot must be absolute");
+    return workerData.productRoot;
+  }
+  const origin = fromDir ?? import.meta.dirname;
+  let dir = path.resolve(origin);
   for (let i = 0; i <= MAX_WALK_UP; i++) {
     if (existsSync(path.join(dir, "package.json")) && existsSync(path.join(dir, "content"))) {
       return dir;
@@ -35,7 +44,7 @@ export function resolveProductRoot(fromDir: string = import.meta.dirname): strin
     dir = parent;
   }
   throw new Error(
-    `resolveProductRoot: no ancestor of ${JSON.stringify(fromDir)} within ${MAX_WALK_UP} levels ` +
+    `resolveProductRoot: no ancestor of ${JSON.stringify(origin)} within ${MAX_WALK_UP} levels ` +
       `has both a package.json and a content/ directory. Expected to find either the repo root ` +
       `(source tree) or dist/ (compiled tree).`,
   );
