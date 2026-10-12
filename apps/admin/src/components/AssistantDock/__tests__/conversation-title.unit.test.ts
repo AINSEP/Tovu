@@ -16,6 +16,12 @@ describe('dock conversation title', () => {
   it('keeps a manual title verbatim', () => {
     expect(resolveAssistantConversationTitle({ chats: { ...chats, conversations: [{ ...chats.conversations[0]!, title: 'MY name', titleSource: 'manual' }] }, fallback: 'Tovu assistant' })).toBe('MY name');
   });
+  it('cleans legacy stored markdown in the panel title without requiring a loaded prompt', () => {
+    expect(resolveAssistantConversationTitle({ chats: {
+      ...chats, initialMessages: [],
+      conversations: [{ ...chats.conversations[0]!, title: 'Page: **Plannie** at **plannie' }],
+    }, fallback: 'Tovu assistant' })).toBe('Page: Plannie at **plannie');
+  });
   it('uses translated fallback copy when there is no active title', () => {
     expect(resolveAssistantConversationTitle({ chats: { ...chats, activeId: null }, fallback: 'Assistant du site' })).toBe('Assistant du site');
     expect(resolveAssistantConversationTitle({ chats: { ...chats, conversations: [{ ...chats.conversations[0]!, title: null }] }, fallback: 'Assistant du site' })).toBe('Assistant du site');

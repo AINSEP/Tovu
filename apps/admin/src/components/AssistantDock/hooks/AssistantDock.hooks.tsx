@@ -41,7 +41,6 @@ import {
   createExecutionPort,
   loadAdminExecutionCredential,
   loadExecutionConfig,
-  selectedLocalCliModel,
   selectedLocalCliReasoning,
 } from "@/lib/execution-settings";
 import {
@@ -53,7 +52,7 @@ import {
 } from "@/features/plugins/composer-capabilities";
 import { t as translateAssistantDockLabel, createChatI18nAdapter } from "../assistant-dock-i18n";
 import { isSelectionNormalizationEcho } from "../local-cli-selection-echo";
-import { applyExecutionConfigChange, persistExecutionConfigWrite, withLocalCliSelection } from "../execution-config-write";
+import { applyExecutionConfigChange, persistExecutionConfigWrite, withLocalCliSelection, localCliSelectionFromConfig } from "../execution-config-write";
 import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
 import { useFolderDrop, type UseFolderDrop, type UseFolderDropInput } from "@/features/fs-files/hooks/use-folder-drop.hooks";
 
@@ -534,10 +533,11 @@ export interface UseLocalCliSelection {
 }
 
 /**
- * Owns the Local CLI picker's agent+model choice as a fully controlled `ChatPane` selection,
+ * Owns the Local CLI picker's agent, model and reasoning as a fully controlled `ChatPane` selection,
  * persisted through the same ADR-028 `saveExecutionConfig` chokepoint `useByokRuntime`'s
  * `handleByokModelChange` already uses — so a pick here survives a reload the same way BYOK's
- * model and the mode switch already do (`executionConfig.localCli.agentId`/`.modelByAgentId`,
+ * model and the mode switch already do (`executionConfig.localCli.agentId`/`.modelByAgentId`/
+ * `.reasoningByAgentId`,
  * `execution-settings.ts`'s `loadExecutionConfig`/`selectedLocalCliModel` — real, persisted state
  * that nothing read the run-start path from until this hook existed, 2026-08-05).
  *
@@ -604,9 +604,7 @@ export function useLocalCliSelection(
 
   const readLocalCliSelectionForSend = useCallback((config: ExecutionConfig) => {
     if (touchedRef.current) return localCliSelectionRef.current;
-    const agentId = config.localCli.agentId ?? "claude";
-    const model = selectedLocalCliModel(config);
-    const saved = { agentId, ...(model ? { model } : {}) };
+    const saved = localCliSelectionFromConfig({ config });
     // Keep ChatPane's default-model normalization when the saved axes haven't changed. It is
     // display/runtime state, not a ledger edit (see isSelectionNormalizationEcho below).
     const normalized = normalizationRef.current;
@@ -616,9 +614,7 @@ export function useLocalCliSelection(
   useEffect(() => {
     if (!configLoaded || touchedRef.current) return;
     const selection = readLocalCliSelectionForSend(executionConfig);
-    const agentId = executionConfig.localCli.agentId ?? "claude";
-    const model = selectedLocalCliModel(executionConfig);
-    syncedSelection.current = JSON.stringify({ agentId, ...(model ? { model } : {}) });
+    syncedSelection.current = JSON.stringify(localCliSelectionFromConfig({ config: executionConfig }));
     localCliSelectionRef.current = selection;
     setLocalCliSelection(selection);
   }, [configLoaded, executionConfig.localCli, readLocalCliSelectionForSend]);
@@ -635,7 +631,7 @@ export function useLocalCliSelection(
   const handleLocalCliSelectionChange = useCallback((selection: ChatPaneAgentSelection) => {
     // `ChatPane` echoing its own default-model fill-in on mount: show it, but it is not a pick —
     // saving it re-wrote the ledger on every page load, and marking `touchedRef` blocked hydration.
-    if (isSelectionNormalizationEcho(localCliSelectionRef.current, selection, readAgentsSnapshot())) {
+    if (isSelectionNormalizationEcho({ current: localCliSelectionRef.current, incoming: selection, agents: readAgentsSnapshot() })) {
       normalizationRef.current = { key: syncedSelection.current, selection };
       localCliSelectionRef.current = selection;
       setLocalCliSelection(selection);
@@ -646,7 +642,7 @@ export function useLocalCliSelection(
     const generation = ++pickGeneration.current;
     localCliSelectionRef.current = selection;
     setLocalCliSelection(selection);
-    const write = applyExecutionConfigChange(setExecutionConfig, (previous) => withLocalCliSelection(previous, selection));
+    const write = applyExecutionConfigChange(setExecutionConfig, (previous) => withLocalCliSelection({ previous, selection }));
     if (write) {
       void persistRef.current(write, "[AssistantDock] failed to save Local CLI selection").then((saved) => {
         if (saved && generation === pickGeneration.current) touchedRef.current = false;
@@ -887,12 +883,11 @@ export function useAssistantTransport(
         if (fresh.readExecutionConfigForSend) {
           const config = await fresh.readExecutionConfigForSend();
           if (config.mode === "local-cli") {
-            const selection = fresh.readLocalCliSelectionForSend?.(config) ?? {
-              agentId: config.localCli.agentId ?? "claude",
-              model: selectedLocalCliModel(config),
-            };
+            const selection = fresh.readLocalCliSelectionForSend?.(config) ?? localCliSelectionFromConfig({ config });
             const { model: _oldModel, reasoning: _oldReasoning, ...context } = runInput.context ?? {};
-            const reasoning = selectedLocalCliReasoning({
+            // A pending picker save stays authoritative even if a refresh still sees the old
+            // ledger effort. Missing effort retains the existing fallback for legacy callers.
+            const reasoning = selection.reasoning ?? selectedLocalCliReasoning({
               ...config, localCli: { ...config.localCli, agentId: selection.agentId },
             });
             runInput = {
@@ -1823,7 +1818,7 @@ export interface AssistantDockChrome {
   chatI18n: I18nAdapter;
 }
 
-/** Delegate automatic-title casing to Jini; manual and custom generated names remain verbatim.
+/** Delegate title cleanup and automatic-title casing to Jini; saved custom wording is preserved.
  * @complexity O(c + m + p) for conversations, loaded messages and the first prompt's length.
  */
 export function resolveAssistantConversationTitle({ chats, fallback }: {

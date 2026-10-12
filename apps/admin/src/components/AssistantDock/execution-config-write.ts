@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ChatPaneAgentSelection } from "@jini-ai/chat/react";
-import type { ExecutionConfig } from "@jini-ai/ui";
+import { nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentReasoning, type ExecutionConfig } from "@jini-ai/ui";
 
-import { EXECUTION_NAMESPACE, saveExecutionConfig } from "@/lib/execution-settings";
+import { EXECUTION_NAMESPACE, saveExecutionConfig, selectedLocalCliModel, selectedLocalCliReasoning } from "@/lib/execution-settings";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { isAbortError } from "@jini-ai/ui/panel-kit";
 
@@ -64,19 +64,30 @@ export function persistExecutionConfigWrite(write: ExecutionConfigWrite, failure
  * `previous` with the Local CLI pick applied: the picked agent, and its model as
  * `selection.model ?? ""` (not a conditional spread, so reverting to "default" persists the
  * reversion instead of leaving an earlier pick in the ledger). Everything else in `localCli`,
- * including the saved `reasoningByAgentId`, is kept: rebuilding `localCli` from the agent and model
+ * including other agents' saved `reasoningByAgentId`, is kept: rebuilding `localCli` from the agent and model
  * alone made the save diff the reasoning effort to `""` and wipe it (2026-09-23).
+ * An explicit effort is now applied through Jini's settings owner too; ignoring that axis made
+ * the subsequent ledger refresh reset the dock picker to Default (2026-10-09).
+ * @complexity O(a) time/space to copy the existing per-agent settings maps.
  */
-export function withLocalCliSelection(previous: ExecutionConfig, selection: ChatPaneAgentSelection): ExecutionConfig {
+export function withLocalCliSelection({ previous, selection }: {
+  previous: ExecutionConfig; selection: ChatPaneAgentSelection;
+}, _options = {}): ExecutionConfig {
   const agentId = selection.agentId || null;
-  return {
-    ...previous,
-    localCli: {
-      ...previous.localCli,
-      agentId,
-      modelByAgentId: agentId
-        ? { ...previous.localCli.modelByAgentId, [agentId]: selection.model ?? "" }
-        : previous.localCli.modelByAgentId,
-    },
-  };
+  if (!agentId) return { ...previous, localCli: { ...previous.localCli, agentId: null } };
+  let next = nextConfigForAgentSelect(previous, agentId);
+  next = nextConfigForAgentModel(next, agentId, selection.model ?? "");
+  if (selection.reasoning !== undefined) next = nextConfigForAgentReasoning(next, agentId, selection.reasoning);
+  return next;
+}
+
+/** Project every saved picker axis from the existing ledger adapter, for hydration and sends.
+ * @returns The selected agent, plus any explicitly saved model and effort.
+ * @complexity O(1) time/space; two per-agent map lookups.
+ */
+export function localCliSelectionFromConfig({ config }: { config: ExecutionConfig }, _options = {}): ChatPaneAgentSelection {
+  const agentId = config.localCli.agentId ?? "claude";
+  const model = selectedLocalCliModel(config);
+  const reasoning = selectedLocalCliReasoning(config);
+  return { agentId, ...(model ? { model } : {}), ...(reasoning ? { reasoning } : {}) };
 }

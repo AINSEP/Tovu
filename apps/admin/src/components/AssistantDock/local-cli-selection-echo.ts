@@ -11,24 +11,33 @@ import { resolveChatPaneSelection, type ChatPaneAgent, type ChatPaneAgentSelecti
  * available one. Every mount produced one such call, and persisting it wrote
  * `localCli.agentId`/`.model` on every admin page load (2026-09-23).
  *
- * With the inventory known, the echo is exactly `resolveChatPaneSelection({ agents, requested: current })`. An
+ * With the inventory known, compare both values through `resolveChatPaneSelection`. A cached
+ * inventory can still carry a legacy model alias that the picker no longer accepts; comparing
+ * its raw model to the resolved current model misclassified an effort-only Default echo as a
+ * pick, wrote Default, and blocked the next external effort refresh (2026-10-09). An
  * operator pick equal to it is also skipped, correctly: that value is what the picker already
  * shows. Without an inventory there is no echo to skip: `ChatPane` cannot normalize against an
  * empty list, and the dock records each live inventory (`recordAgents`) before `ChatPane` gets it.
  *
- * @param current - The selection the dock currently passes to `ChatPane`.
- * @param incoming - The value `ChatPane` reported.
- * @param agents - The inventory `ChatPane` resolves against, when known.
+ * @param input.current - The selection the dock currently passes to `ChatPane`.
+ * @param input.incoming - The value `ChatPane` reported.
+ * @param input.agents - The inventory `ChatPane` resolves against, when known.
  * @returns `true` when `incoming` should be shown but not saved.
+ * @complexity O(a + m + r) time and O(m) space for the resolver's inventory/model/effort scans.
+ * @example isSelectionNormalizationEcho({ current, incoming, agents });
  */
 export function isSelectionNormalizationEcho(
-  current: ChatPaneAgentSelection,
-  incoming: ChatPaneAgentSelection,
-  agents: readonly ChatPaneAgent[] | undefined,
+  { current, incoming, agents }: {
+    current: ChatPaneAgentSelection;
+    incoming: ChatPaneAgentSelection;
+    agents: readonly ChatPaneAgent[] | undefined;
+  },
+  _options = {},
 ): boolean {
   if (!agents?.length) return false;
   const resolved = resolveChatPaneSelection({ agents, requested: current });
-  return resolved.agentId === incoming.agentId
-    && resolved.model === incoming.model
-    && resolved.reasoning === incoming.reasoning;
+  const resolvedIncoming = resolveChatPaneSelection({ agents, requested: incoming });
+  return resolved.agentId === resolvedIncoming.agentId
+    && resolved.model === resolvedIncoming.model
+    && resolved.reasoning === resolvedIncoming.reasoning;
 }

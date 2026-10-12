@@ -10,32 +10,46 @@ const agents = [
 
 describe("isSelectionNormalizationEcho", () => {
   it("is true for ChatPane's default-model fill-in of a model-less selection", () => {
-    expect(isSelectionNormalizationEcho({ agentId: "claude" }, { agentId: "claude", model: "claude-sonnet-4-5" }, agents)).toBe(true);
+    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "claude", model: "claude-sonnet-4-5" }, agents })).toBe(true);
   });
 
   it("is true for the fallback from an unavailable agent", () => {
-    expect(isSelectionNormalizationEcho({ agentId: "aider" }, { agentId: "claude", model: "claude-sonnet-4-5" }, agents)).toBe(true);
+    expect(isSelectionNormalizationEcho({ current: { agentId: "aider" }, incoming: { agentId: "claude", model: "claude-sonnet-4-5" }, agents })).toBe(true);
   });
 
   it("is false for a different model than the resolved one", () => {
-    expect(isSelectionNormalizationEcho({ agentId: "claude" }, { agentId: "claude", model: "claude-opus-4-5" }, agents)).toBe(false);
+    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "claude", model: "claude-opus-4-5" }, agents })).toBe(false);
   });
 
   it("is false for another available agent with the same default model", () => {
-    expect(isSelectionNormalizationEcho({ agentId: "claude" }, { agentId: "copilot", model: "claude-sonnet-4-5" }, agents)).toBe(false);
+    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "copilot", model: "claude-sonnet-4-5" }, agents })).toBe(false);
   });
 
   it("is false for a reasoning pick with the same agent and model", () => {
     const reasoningAgents = [{ id: "codex", name: "Codex", models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
       reasoningOptions: [{ id: "medium", label: "Medium" }, { id: "high", label: "High" }] }];
-    expect(isSelectionNormalizationEcho(
-      { agentId: "codex", model: "gpt-5.5", reasoning: "medium" },
-      { agentId: "codex", model: "gpt-5.5", reasoning: "high" }, reasoningAgents,
-    )).toBe(false);
+    expect(isSelectionNormalizationEcho({
+      current: { agentId: "codex", model: "gpt-5.5", reasoning: "medium" },
+      incoming: { agentId: "codex", model: "gpt-5.5", reasoning: "high" }, agents: reasoningAgents,
+    })).toBe(false);
+  });
+
+  it.each(["opus", "claude-opus-4-5"])("recognizes Default normalization with the same %s model", model => {
+    const reasoningAgents = [{ id: "claude", name: "Claude Code", models: [{ id: model, label: "Opus" }],
+      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }];
+    expect(isSelectionNormalizationEcho({
+      current: { agentId: "claude", model },
+      incoming: { agentId: "claude", model, reasoning: "default" }, agents: reasoningAgents,
+    })).toBe(true);
+    // An explicit reset from High must still be saved, including with a cached legacy alias.
+    expect(isSelectionNormalizationEcho({
+      current: { agentId: "claude", model, reasoning: "high" },
+      incoming: { agentId: "claude", model, reasoning: "default" }, agents: reasoningAgents,
+    })).toBe(false);
   });
 
   it("is false without an inventory, since ChatPane cannot normalize against none", () => {
-    expect(isSelectionNormalizationEcho({ agentId: "claude" }, { agentId: "claude", model: "claude-sonnet-4-5" }, undefined)).toBe(false);
-    expect(isSelectionNormalizationEcho({ agentId: "claude" }, { agentId: "claude", model: "claude-sonnet-4-5" }, [])).toBe(false);
+    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "claude", model: "claude-sonnet-4-5" }, agents: undefined })).toBe(false);
+    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "claude", model: "claude-sonnet-4-5" }, agents: [] })).toBe(false);
   });
 });

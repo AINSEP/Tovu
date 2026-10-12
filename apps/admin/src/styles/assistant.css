@@ -77,6 +77,9 @@
   --jini-chat-border-strong: var(--chat-border-strong-seam);
   --jini-chat-accent: var(--accent-text);
   --jini-chat-accent-soft: var(--surface-2);
+  /* Sent bubbles keep their contrast independently of the host's light/dark accent palette. */
+  --jini-chat-user-bubble: #1a1b1c;
+  --jini-chat-user-bubble-ink: #fff;
   /* Jini 2cf1b246 stopped hardcoding `--danger`/`--radius`/`--radius-lg` on `.jini-chat-pane` and
      introduced these three namespaced seams (package defaults: `#e5484d`, `8px`, `12px`) instead —
      consumed as `--danger: var(--jini-chat-danger)` etc. on that same element. Pane-only, not in
@@ -197,6 +200,23 @@
   position: static;
 }
 
+/* Composer floating mid-dock during a run (Chrome check, 2026-10-10): the header stayed put, the
+   composer sat roughly halfway down with blank dock below it and the transcript squashed above.
+   'overflow: hidden' boxes still scroll programmatically - a focus() or scrollIntoView() on
+   anything inside (the composer textarea after a send, a chip's preview modal handing focus back)
+   scrolls every hidden ancestor too, and nothing ever scrolls them back. 'clip' paints the same
+   but is not a scroll container, so these three can never shift; the transcript list stays the
+   only scroller. The controls' auto top margin keeps them on the bottom edge even if the list is
+   ever shorter than the space above them. */
+.admin-chat-dock,
+.admin-chat-dock .jini-chat-pane,
+.admin-chat-dock .jini-chat-pane__body {
+  overflow: clip;
+}
+.admin-chat-dock .jini-chat-pane__controls {
+  margin-top: auto;
+}
+
 /* Transcript rows must retain their content height when scrollback exceeds the panel. */
 .admin-chat-dock .jini-message-list > * {
   flex-shrink: 0;
@@ -235,6 +255,11 @@
      right/bottom edges), never `left`, regardless of where on screen the FAB was dropped. */
   transition: opacity 0.14s, right 0.2s ease, bottom 0.2s ease;
 }
+/* While a row ⋮ menu is open (portaled to <body>, `.row-menu-popup` at 70 in styles.css), the FAB
+   drops just under it: a menu opened near the bottom-right corner (the Themes card menu on a 390px
+   phone) had its "Delete theme…" item under the FAB (Chrome check, 2026-10-11). The menu is
+   transient and the operator just opened it; the FAB is back on top the moment it closes. */
+body:has(> .row-menu-popup) .chat-fab { z-index: 69; }
 
 /* Desktop open state: the composer is pinned to the dock's bottom edge, which is exactly where the
    FAB rests, so the FAB covered Send. Reserving an 84px strip under the composer for it left the
@@ -439,22 +464,39 @@
 
 .admin-chat-dock .jini-chat-pane .jini-chat-pane__subagents {
   display: inline-flex;
-  align-self: flex-start;
-  font-family: var(--font-ui);
-  font-size: 12px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  color: var(--warning);
-  background: var(--warning-bg);
-  border: 1px solid var(--warning);
-  border-radius: var(--r-pill);
-  padding: 0.1rem 0.5rem;
+  align-items: center;
+  align-self: center;
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+/* The shared InfoTip trigger, showing the subagents icon instead of ⓘ: normal pointer (no `help`
+   question-mark cursor) and the icon's own size, not the 1.1rem circle the ⓘ glyph uses. */
+.admin-chat-dock .jini-chat-pane__subagents .info-tip { margin-left: 0; }
+.admin-chat-dock .jini-chat-pane__subagents .info-tip-icon--custom {
+  width: auto; height: auto; padding: 0.2rem; border-radius: var(--r-sm); color: var(--muted); cursor: default;
 }
 
 /* Never let the switcher be the thing that gives way when the title is long. */
 .jini-chat-pane .jini-conv {
   flex: 0 0 auto;
 }
+
+/* `DockHeaderTip.tsx`'s wrapper around each header icon button: a fixed-size flex item like the
+   switcher above, so only the title's ellipsis gives way at the dock's narrow width. */
+.dock-header-tip {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+/* A "coming soon" row in a portaled row menu (the dock gear's): visibly inert, no hover fill. */
+.row-menu-item[aria-disabled="true"],
+.row-menu-item[aria-disabled="true"]:hover {
+  background: transparent;
+  color: var(--muted);
+  cursor: default;
+}
+.row-menu-item[aria-disabled="true"]:focus-visible { background: var(--surface-2); }
 
 /* Wraps BOTH the suggestions row and the composer+drop-target below it (verified against the
    rendered DOM, not just the class name's apparent scope) — `flex-direction: column` so they
@@ -571,6 +613,14 @@
   gap: 12px;
 }
 
+/* Ordinary non-final rows retain Jini's 20px bottom margin plus the admin list's 12px flex
+   gap. Only the final top-level row loses its bottom margin above. A mid-run user row is
+   nested after tool/text blocks, so it gets neither contribution: 32px restores the same
+   separation as an ordinary user message after an assistant turn. */
+.admin-chat-dock .jini-chat-pane .jini-message-user--mid-run {
+  margin-top: 32px;
+}
+
 .jini-message-content {
   border-radius: var(--r-md);
   padding: 10px 13px;
@@ -650,7 +700,7 @@
    (`styles.css`) carries the separation instead: a hairline `--border` plus `--shadow-sm` reads as a
    distinct surface without reintroducing grey fill. `--border`/`--shadow-sm` are both theme-aware
    tokens (redefined under `:root[data-theme="dark"]` in `styles.css`), so no separate dark rule is
-   needed here -- the user bubble keeps its own `--accent` fill for the other half of the contrast. */
+   needed here -- the user bubble keeps its shared black fill for the other half of the contrast. */
 .jini-message-agent .jini-message-content {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -664,12 +714,10 @@
    injected `<style>` tag because it lands after this stylesheet in the cascade. Matching the
    package's selector shape one-for-one would just re-create that tie and stay dead like the
    pre-fix `[data-role="user"]` version did (a class that MessageRow.tsx has never rendered). The
-   extra `.jini-chat-pane` ancestor class here makes this 4 classes, which wins outright. */
-.jini-chat-pane .jini-message-list > .jini-message-user .jini-message-content {
-  background: var(--accent);
-  color: var(--accent-ink);
-  margin-left: auto;
-}
+   extra `.jini-chat-pane` ancestor class here made this 4 classes, which won outright.
+   Retired 2026-10-09: the direct-child selector styled ordinary rows but missed mid-run user
+   bubbles nested inside an assistant turn. Jini owns the bubble rule at every depth; the admin
+   supplies its black/white user-bubble variables above rather than overriding one variant. */
 
 .jini-message-pending {
   color: var(--faint);
@@ -707,6 +755,18 @@
   background: currentColor;
 }
 
+/* Jini paints this dot as an 8px "●" glyph (green, `.jini-chat-pane` scope). Inside the 3px box
+   above the glyph overflowed and sat below the text baseline (Chrome check, 2026-10-11). Draw the
+   dot from the box alone — glyph hidden, Jini's green kept — so `align-items: center` centres it. */
+.jini-chat-pane .jini-message-usage-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  font-size: 0;
+  line-height: 0;
+  overflow: hidden;
+}
+
 /* Copy sits on the "Done · 8s · 411 out · $0.18" line, right-aligned, instead of on a line of its
    own under it (owner, 2026-10-07: "right align it with the 'Done 8s $0.18' to save a bit more
    space"). Jini renders the two as sibling blocks of a `display: block` message, so the message
@@ -715,20 +775,21 @@
    between them (or no usage line) keeps Jini's own layout. The package's left rail on the actions
    row goes here: it marks a row attached to the turn above, which a right-aligned button on the
    usage line no longer is. `.jini-chat-pane` ancestry outranks the package's injected rules (see
-   this file's header). */
-.jini-chat-pane .jini-message-assistant:has(> .jini-message-usage + .jini-message-actions--assistant) {
+   this file's header). Jini supplies the usage-actions modifier: sibling `:has` selectors made
+   each composer keystroke restyle the whole document in long chats (2026-10-11). */
+.jini-chat-pane .jini-message-assistant--usage-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 8px;
   align-items: center;
 }
-.jini-chat-pane .jini-message-assistant:has(> .jini-message-usage + .jini-message-actions--assistant) > * {
+.jini-chat-pane .jini-message-assistant--usage-actions > * {
   grid-column: 1 / -1;
 }
-.jini-chat-pane .jini-message-assistant:has(> .jini-message-usage + .jini-message-actions--assistant) > .jini-message-usage {
+.jini-chat-pane .jini-message-assistant--usage-actions > .jini-message-usage {
   grid-column: 1;
 }
-.jini-chat-pane .jini-message-assistant:has(> .jini-message-usage + .jini-message-actions--assistant) > .jini-message-actions--assistant {
+.jini-chat-pane .jini-message-assistant--usage-actions > .jini-message-actions--assistant {
   grid-column: 2;
   margin-top: 2px;
   padding-left: 0;
@@ -1231,7 +1292,10 @@ button.jini-composer-leading,
   align-items: center;
 }
 
-.jini-conv-trigger {
+/* The dock header's gear (`DockSettingsMenu.tsx`) shares the switcher trigger's look, so the two
+   read as one button row (owner, 2026-10-11). */
+.jini-conv-trigger,
+.assistant-dock-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1246,12 +1310,14 @@ button.jini-composer-leading,
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
-.jini-conv-trigger:hover {
+.jini-conv-trigger:hover,
+.assistant-dock-icon-button:hover {
   background: var(--surface-2);
   color: var(--fg);
 }
 
-.jini-conv-trigger-open {
+.jini-conv-trigger-open,
+.assistant-dock-icon-button[aria-expanded="true"] {
   border-color: var(--accent-text);
   color: var(--accent-text);
 }
@@ -1283,6 +1349,18 @@ button.jini-composer-leading,
   border-radius: 12px;
   box-shadow: 0 12px 32px rgb(0 0 0 / 12%);
   overflow: hidden;
+}
+
+/* In the dock the trigger sits ~80px in from the right edge (gear and ✕ follow it), so a panel
+   right-aligned to the trigger still ran ~28px past the dock's LEFT edge and was clipped by the
+   dock's `overflow: hidden` (Chrome check, 2026-10-11). Anchor to the header row instead — the
+   full dock width — and cap the width to it, so the panel can never leave the dock. */
+.admin-chat-dock .jini-chat-pane__header { position: relative; }
+.admin-chat-dock .jini-chat-pane__header .jini-conv { position: static; }
+.admin-chat-dock .jini-chat-pane__header .jini-conv-menu {
+  top: calc(100% + 4px);
+  right: 8px;
+  max-width: calc(100% - 16px);
 }
 
 .jini-conv-head {

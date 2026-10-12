@@ -2,17 +2,22 @@
  * Jini's six-word heuristic on "publish a short blog post titled How". The generic title policy
  * stays in Jini; this adapter only recognizes CMS requests and delegates all other prompts.
  * Long named content gets a complete action label, never a sliced fragment of its title. */
+import { stripConversationTitleMarkdown } from "@jini-ai/chat/core";
+
 export function deriveContentConversationTitle(
   required: { prompt: string; deriveFallback: (input: { prompt: string }) => string },
   _optional: Record<string, never> = {},
 ): string {
-  const prompt = required.prompt.trim();
+  // Strip markup before recognizing CMS names: an early period boundary once stranded **plannie.
+  // The generic text policy belongs to Jini; this adapter still owns only CMS-specific naming.
+  const prompt = stripConversationTitleMarkdown({ text: required.prompt });
   // Standalone resource/skill slugs are already meaningful titles; retain the existing behavior.
   if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(prompt) && prompt.length <= 64) return prompt;
   const content = /\b(blog\s+post|post|page|article)\b/i.exec(prompt);
   if (!content) return required.deriveFallback({ prompt });
   const tail = prompt.slice(content.index + content[0].length);
-  const named = /\b(?:titled|called|named)\s*(?::\s*)?(?:["“]([^"”]+)["”]|'([^']+)'|([^\n.!?]+))/i.exec(tail);
+  // Domains and versions contain punctuation too; only a following space or end ends a sentence.
+  const named = /\b(?:titled|called|named)\s*(?::\s*)?(?:["“]([^"”]+)["”]|'([^']+)'|([^\n]+?)(?=[.!?](?:\s|$)|\n|$))/i.exec(tail);
   const quoted = /["“]([^"”]+)["”]/.exec(tail);
   const title = (named?.[1] ?? named?.[2] ?? named?.[3] ?? quoted?.[1])?.trim();
   if (title) {

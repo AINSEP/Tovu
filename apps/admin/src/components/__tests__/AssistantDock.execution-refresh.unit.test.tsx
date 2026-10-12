@@ -91,6 +91,91 @@ afterEach(() => {
 });
 
 describe("dock execution config freshness", () => {
+  it("keeps Claude effort across rerender, reopen, reload and the actual next send", async () => {
+    const fake = harness();
+    fake.saveExternally(savedAgent("claude", "opus"));
+    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
+      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }]);
+    const dock = renderHook(fake.useDock);
+    await flush();
+    act(() => dock.result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus", reasoning: "high" }));
+    await flush();
+    dock.rerender();
+    act(() => window.dispatchEvent(new Event("focus")));
+    await flush();
+    expect(dock.result.current.localCliSelection).toEqual({ agentId: "claude", model: "opus", reasoning: "high" });
+    expect(fake.persistWrite).toHaveBeenCalledTimes(1);
+    expect(fake.persistWrite.mock.calls[0]![0].next.localCli.reasoningByAgentId).toEqual({ claude: "high" });
+
+    dock.unmount();
+    const reopened = renderHook(fake.useDock);
+    await flush();
+    expect(reopened.result.current.localCliSelection).toEqual({ agentId: "claude", model: "opus", reasoning: "high" });
+    await act(async () => { await reopened.result.current.transport.startRun(runInput, handlers); });
+    expect(fake.startRun.mock.calls[0]![0]).toEqual({
+      ...runInput, agentId: "claude", context: { model: "opus", reasoning: "high", conversationId: "conversation-1" },
+    });
+
+    reopened.unmount();
+    const reloaded = renderHook(fake.useDock);
+    await flush();
+    expect(reloaded.result.current.localCliSelection.reasoning).toBe("high");
+  });
+
+  it("sends the pending effort even when a focus refresh reads an older saved effort", async () => {
+    const fake = harness();
+    const pending = deferred<boolean>();
+    fake.saveExternally(savedAgent("claude", "opus"));
+    fake.persistWrite.mockImplementation(() => pending.promise);
+    const { result } = renderHook(fake.useDock);
+    await flush();
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus", reasoning: "max" }));
+    act(() => window.dispatchEvent(new Event("focus")));
+    await flush();
+    expect(result.current.localCliSelection.reasoning).toBe("max");
+    await act(async () => { await result.current.transport.startRun(runInput, handlers); });
+    expect(fake.startRun.mock.calls[0]![0].context?.reasoning).toBe("max");
+    await act(async () => pending.resolve(false));
+  });
+
+  it("includes reasoning in the saved axes so a same-model external effort change replaces normalization", async () => {
+    const fake = harness();
+    fake.saveExternally(savedAgent("claude", "opus"));
+    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
+      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }]);
+    const { result } = renderHook(fake.useDock);
+    await flush();
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus", reasoning: "default" }));
+    expect(fake.persistWrite).not.toHaveBeenCalled();
+    fake.saveExternally({ ...savedAgent("claude", "opus"), localCli: {
+      agentId: "claude", modelByAgentId: { claude: "opus" }, reasoningByAgentId: { claude: "high" },
+    } });
+    act(() => publishSettingsRefresh([EXECUTION_NAMESPACE]));
+    await flush();
+    expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "opus", reasoning: "high" });
+    expect(fake.persistWrite).not.toHaveBeenCalled();
+    await act(async () => { await result.current.transport.startRun(runInput, handlers); });
+    expect(fake.startRun.mock.calls[0]![0].context?.reasoning).toBe("high");
+    expect(fake.persistWrite).not.toHaveBeenCalled();
+  });
+
+  it("persists Default after a high-effort pick so reload and send cannot restore the old effort", async () => {
+    const fake = harness();
+    fake.saveExternally({ ...savedAgent("claude", "opus"), localCli: {
+      agentId: "claude", modelByAgentId: { claude: "opus" }, reasoningByAgentId: { claude: "high" },
+    } });
+    const dock = renderHook(fake.useDock);
+    await flush();
+    act(() => dock.result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus", reasoning: "default" }));
+    await flush();
+    dock.unmount();
+    const reloaded = renderHook(fake.useDock);
+    await flush();
+    expect(reloaded.result.current.localCliSelection.reasoning).toBe("default");
+    await act(async () => { await reloaded.result.current.transport.startRun(runInput, handlers); });
+    expect(fake.startRun.mock.calls[0]![0].context?.reasoning).toBe("default");
+  });
+
   it("focus re-reads the saved agent/model and updates the controlled picker", async () => {
     const fake = harness();
     const { result } = renderHook(fake.useDock);
@@ -102,7 +187,7 @@ describe("dock execution config freshness", () => {
     await flush();
 
     expect(fake.loadConfig).toHaveBeenCalledTimes(2);
-    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5" });
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5", reasoning: "high" });
     expect(fake.persistWrite).not.toHaveBeenCalled();
   });
 
@@ -121,7 +206,7 @@ describe("dock execution config freshness", () => {
     act(() => document.dispatchEvent(new Event("visibilitychange")));
     await flush();
     expect(fake.loadConfig).toHaveBeenCalledTimes(2);
-    expect(result.current.localCliSelection).toEqual({ agentId: "codex" });
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", reasoning: "high" });
   });
 
   it("a successful same-tab Settings execution slice save updates the dock", async () => {
@@ -144,7 +229,7 @@ describe("dock execution config freshness", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS); });
     await flush();
     expect(fake.saveSettings).toHaveBeenCalledExactlyOnceWith(next, savedAgent("aider", "aider-model"));
-    expect(result.current.dock.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5" });
+    expect(result.current.dock.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5", reasoning: "high" });
     expect(result.current.settings.saveState).toEqual({ status: "saved" });
   });
 
@@ -226,7 +311,7 @@ describe("dock execution config freshness", () => {
       context: { model: "gpt-5", reasoning: "high", conversationId: "conversation-1" },
     }, handlers);
     expect(fake.loadConfig).toHaveBeenCalledTimes(2);
-    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5" });
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5", reasoning: "high" });
   });
 
   it("fresh sends reuse the cached read; a five-second-old read reloads before dispatch", async () => {
@@ -288,9 +373,9 @@ describe("dock execution config freshness", () => {
     fake.saveExternally(savedAgent("codex", "gpt-5"));
     act(() => publishSettingsRefresh([EXECUTION_NAMESPACE]));
     await flush();
-    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5" });
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5", reasoning: "high" });
     await act(async () => { old.resolve(savedAgent("aider", "stale-model")); });
-    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5" });
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5", reasoning: "high" });
     expect(result.current.executionConfigRef.current.localCli.agentId).toBe("codex");
   });
 
@@ -309,7 +394,7 @@ describe("dock execution config freshness", () => {
     fake.saveExternally(savedAgent("codex", "gpt-5"));
     act(() => window.dispatchEvent(new Event("focus")));
     await flush();
-    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5" });
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "gpt-5", reasoning: "high" });
   });
 
   it("an unrelated execution refresh preserves the picker's normalized default model", async () => {
