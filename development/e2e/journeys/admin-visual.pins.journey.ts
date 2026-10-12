@@ -237,6 +237,14 @@ async function installDeterministicTransport(context: BrowserContext): Promise<v
       { id: "codex", name: "Codex", available: true, authStatus: "ok", supportsTools: true, supportsCustomModel: true, models: [{ id: "default", label: "Default" }] },
     ] },
   }));
+  // Since 5956b17a4 the Local CLI list reads this cached detection route, which otherwise lists
+  // the runner's own CLIs and their versions. Pin the same two runtimes as /api/agents above.
+  await context.route(url => url.pathname === `${WORKSPACE_API}/assistant/execution/detect-agents`, route => route.fulfill({
+    json: { data: [
+      { id: "claude", label: "Claude Code", installed: true, version: "1.0.0", models: [{ id: "default", label: "Default" }], authStatus: "ok", discoveryPending: false },
+      { id: "codex", label: "Codex", installed: true, version: "1.0.0", models: [{ id: "default", label: "Default" }], authStatus: "ok", discoveryPending: false },
+    ] },
+  }));
   // Ollama's keyless discovery would probe the runner's localhost. Pin that optional machine
   // service to an explicit unavailable response; authenticated providers still use the real API.
   await context.route(url => url.pathname === `${WORKSPACE_API}/assistant/execution/models`, async route => {
@@ -439,9 +447,11 @@ async function settle(page: Page): Promise<void> {
 async function capture(page: Page, filename: string): Promise<void> {
   await settle(page);
   // MASK INVENTORY (nothing else is masked):
-  // - table body timestamp cells under Updated / Created / Timestamp / Time / Removed headers;
+  // - table body timestamp cells under Updated / Created / Created / Updated (Forms) / Timestamp /
+  //   Time / Removed headers;
   //   mark by semantic column header, since shared DataTable exposes no column-key DOM attribute.
   // - .dash-activity-time: server write timestamps in recent activity.
+  // - #main-content time: <time> elements carry write dates (for example a media card's upload date).
   // - .workspace-identity-grid Created value: server timestamp on the legacy Workspace tab.
   // - .deployment-facts code: absolute filesystem paths vary with the isolated runtime directory.
   // - .site-key-fingerprint: per-runtime generated key fingerprint (never reveal the key).
@@ -453,7 +463,7 @@ async function capture(page: Page, filename: string): Promise<void> {
       const headings = Array.from(table.querySelectorAll("thead th"));
       headings.forEach((heading, index) => {
         const label = (heading.textContent ?? "").replace(/[⇅▲▼]/g, "").trim();
-        if (!/^(Updated|Created|Timestamp|Time|Removed)$/.test(label)) return;
+        if (!/^(Updated|Created|Created \/ Updated|Timestamp|Time|Removed)$/.test(label)) return;
         for (const row of table.querySelectorAll("tbody tr")) row.children[index]?.setAttribute("data-visual-timestamp", "");
       });
     }
@@ -461,6 +471,7 @@ async function capture(page: Page, filename: string): Promise<void> {
   const masks = [
     page.locator("[data-visual-timestamp]"),
     page.locator(".dash-activity-time"),
+    page.locator("#main-content time"),
     page.locator(".workspace-identity-grid .settings-layer-cell").filter({ hasText: "Created" }).locator("span").last(),
     page.locator(".deployment-facts code"),
     page.locator(".site-key-fingerprint"),
