@@ -1,7 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { Page } from "@playwright/test";
 
-import { WS_API, expect, hasHorizontalScroll, stubPostsListForBaseline, test } from "./_fixtures.js";
+import { WS_API, expect, hasHorizontalScroll, narrowListForBaseline, stubPostsListForBaseline, test } from "./_fixtures.js";
 
 /**
  * Settings, locale and layout journeys (SCOPE.md W8 slice + the 2026-10-04 stress list): long
@@ -81,6 +81,12 @@ for (const { locale, overview, longLabel } of [
 
 test("ar: the admin flips to right-to-left, with the sidebar on the right", { tag: ["@unrun"] }, async ({ page }) => {
   await expandRail(page);
+  // The dashboard's counts and recent list are whatever posts/pages earlier journeys left in the
+  // shared DB; the baseline keeps only the first-boot seed rows (`seed.ts` stamps every one with
+  // this updatedAt).
+  const seededOnly = (row: Record<string, unknown>) => (row.post as { updatedAt?: string } | undefined)?.updatedAt === "2026-07-07T00:00:00.000Z";
+  await narrowListForBaseline({ page, pathname: `${WS_API}/posts`, keep: seededOnly });
+  await narrowListForBaseline({ page, pathname: `${WS_API}/pages`, keep: seededOnly });
   await page.goto("/admin/");
   await setLocale(page, "ar");
   await page.reload();
