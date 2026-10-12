@@ -13,6 +13,7 @@ import { openContentDb } from "../../sqlite/content-db.js";
 import { SqliteVendorCredentialSetRepo } from "../../sqlite/vendor-credential-repo.sqlite.js";
 import { workspaces } from "../../schema.sqlite.js";
 import type { VendorCredentialSetRecord } from "#src/features/vendor-credentials/types";
+import type { VendorCredentialSetVaultRepo } from "#src/features/vendor-credentials/vault-adapter";
 
 /**
  * @file `SqlVendorCredentialSetRepo` against a real, migrated content database on every dialect (the raw-SQL constraint probes at the end: SQLite only) — mirrors
@@ -54,6 +55,13 @@ async function openSeededDb() {
   return db;
 }
 
+/** Store saves record the hint in the vault (the sealed-DTO port cannot carry one); seed it there. */
+async function seedHint(repo: VendorCredentialSetRepoPort, id = "cred-1"): Promise<void> {
+  const { vault } = repo as VendorCredentialSetVaultRepo;
+  const row = (await vault.find({ workspaceId: WORKSPACE, id }))!;
+  await vault.put({ expectedRevision: row.revision, record: { ...row, last4: "WXYZ", tokenLength: 20, revision: row.revision + 1 } });
+}
+
 // The same behavioral contract covers Jini memory and the persisted dialect adapters; only
 // SQL adapters need workspace seeding. Raw schema constraints stay in the SQLite-only tests below.
 function registerRepoContract(
@@ -71,8 +79,11 @@ function registerRepoContract(
       const record = makeRecord();
       await repo.insert(record);
       const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
-      assert.deepEqual(found, record);
+      assert.deepEqual(found, record, "a sealed DTO insert carries no hint, so its tail is empty");
+      await seedHint(repo);
+      assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }), { ...record, tokenTail: "WXYZ" });
     });
+
 
     test("listByWorkspace returns every row for that workspace, and none from another", async () => {
       const repo = await makeRepo();
@@ -97,6 +108,9 @@ function registerRepoContract(
     test("update changes the row in place — a second insert-shaped id never appears", async () => {
       const repo = await makeRepo();
       await repo.insert(makeRecord({ label: "Old label" }));
+      await seedHint(repo);
+      await repo.update(makeRecord({ label: "Same envelope", tokenTail: "WXYZ" }));
+      assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.tokenTail, "WXYZ", "an unchanged envelope keeps its hint");
         const rotated = makeRecord({
           label: "New label",
           tokenTail: "",
@@ -107,7 +121,7 @@ function registerRepoContract(
 
       const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
       assert.equal(found?.label, "New label");
-        assert.equal(found?.tokenTail, "");
+        assert.equal(found?.tokenTail, "", "a new envelope drops the old envelope's hint");
         assert.deepEqual(found, rotated);
       assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE })).length, 1);
     });
@@ -212,13 +226,16 @@ function registerRepoContract(
     test("updateAccountLabel writes ONLY the account_label column — sealed/tokenTail/isDefault/updatedAt are all untouched", async () => {
       const repo = await makeRepo();
       await repo.insert(makeRecord({ isDefault: true }));
+      await seedHint(repo);
 
       await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: "cred-1", accountLabel: "leonaburime-ucla" });
 
       const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
       assert.equal(found?.accountLabel, "leonaburime-ucla");
       assert.equal(found?.isDefault, true, "updateAccountLabel must not disturb isDefault");
-      assert.equal(found?.tokenTail, "", "updateAccountLabel must not disturb tokenTail");
+      assert.equal(found?.tokenTail, "WXYZ", "updateAccountLabel must not disturb tokenTail");
+      const row = await (repo as VendorCredentialSetVaultRepo).vault.find({ workspaceId: WORKSPACE, id: "cred-1" });
+      assert.deepEqual([row?.last4, row?.tokenLength], ["WXYZ", 20]);
       assert.equal(found?.updatedAt, NOW, "updateAccountLabel must not disturb updatedAt — a verify is not a credential change");
       assert.deepEqual(found?.sealed, makeRecord().sealed, "updateAccountLabel must not disturb the sealed connection");
     });
