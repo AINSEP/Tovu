@@ -4,6 +4,7 @@ import { PUBLIC_URL as PIN_PUBLIC_URL } from "../support/bug-pin-fixtures.js";
 import { JOURNEY_ADMIN_PASSWORD as PIN_PASSWORD } from "../support/bug-pin-fixtures.js";
 import { expect } from "../support/bug-pin-fixtures.js";
 import { type APIRequestContext } from "../support/bug-pin-fixtures.js";
+import { pinSessionHeaders } from "../support/bug-pin-auth.js";
 import { waitForAgentDaemon } from "../support/bug-pin-daemon.js";
 
 // Preserve the retired configs' effective Chromium viewport (Desktop Chrome or browser default).
@@ -407,38 +408,40 @@ interface AdminArea {
 }
 
 const WS = "workspace-local";
+// APIRequestContext drops the Secure session cookie over HTTP loopback (`bug-pin-auth.ts`), so every
+// admin write below sends the session explicitly.
 
 async function createMenuHttp(request: APIRequestContext, body: { title: string; slug: string; items?: unknown[] }): Promise<AdminMenu> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/menus`, { data: body });
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/menus`, { data: body, headers: await pinSessionHeaders({ request }) });
   expect(res.status(), `menu create failed: ${await res.text().catch(() => "")}`).toBe(201);
   return (await res.json()).menu as AdminMenu;
 }
 
 async function createWidgetHttp(request: APIRequestContext, body: { widgetType: string; title: string; config: unknown }): Promise<AdminWidget> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/widgets`, { data: body });
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/widgets`, { data: body, headers: await pinSessionHeaders({ request }) });
   expect(res.status(), `widget create failed: ${await res.text().catch(() => "")}`).toBe(201);
   return (await res.json()).widget as AdminWidget;
 }
 
 async function createPageHttp(request: APIRequestContext, body: { title: string; slug: string; status: string }): Promise<AdminPost> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/pages`, { data: body });
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/pages`, { data: body, headers: await pinSessionHeaders({ request }) });
   expect(res.status(), `page create failed: ${await res.text().catch(() => "")}`).toBe(201);
   return (await res.json()).post as AdminPost;
 }
 
 async function createPostHttp(request: APIRequestContext, body: { title: string; slug: string; status: string }): Promise<AdminPost> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/posts`, { data: body });
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/posts`, { data: body, headers: await pinSessionHeaders({ request }) });
   expect(res.status(), `post create failed: ${await res.text().catch(() => "")}`).toBe(201);
   return (await res.json()).post as AdminPost;
 }
 
 async function writePageHtmlHttp(request: APIRequestContext, pageId: string, html: string): Promise<void> {
-  const res = await request.put(`/api/admin/v1/workspaces/${WS}/pages/${pageId}/html`, { data: { html } });
+  const res = await request.put(`/api/admin/v1/workspaces/${WS}/pages/${pageId}/html`, { data: { html }, headers: await pinSessionHeaders({ request }) });
   expect(res.status(), `pages/html write failed: ${await res.text().catch(() => "")}`).toBe(200);
 }
 
 async function bindRegionHttp(request: APIRequestContext, regionKey: string): Promise<AdminArea> {
-  const res = await request.post(`/api/admin/v1/workspaces/${WS}/widgets/regions`, { data: { regionKey } });
+  const res = await request.post(`/api/admin/v1/workspaces/${WS}/widgets/regions`, { data: { regionKey }, headers: await pinSessionHeaders({ request }) });
   expect(res.status(), `region bind failed: ${await res.text().catch(() => "")}`).toBe(201);
   return (await res.json()).area as AdminArea;
 }
@@ -446,6 +449,7 @@ async function bindRegionHttp(request: APIRequestContext, regionKey: string): Pr
 async function setRegionPlacementsHttp(request: APIRequestContext, regionKey: string, baseVersion: number, widgetEntryId: string): Promise<void> {
   const res = await request.put(`/api/admin/v1/workspaces/${WS}/widgets/regions/${regionKey}`, {
     data: { baseVersion, placements: [{ placementId: `probe-${regionKey}`, widgetEntryId, enabled: true }] },
+    headers: await pinSessionHeaders({ request }),
   });
   expect(res.status(), `region placement write failed: ${await res.text().catch(() => "")}`).toBe(200);
 }
@@ -532,6 +536,7 @@ test.describe("MUTATION-VERIFY: menu/widget-in-Page render assertions, red-check
 
     const res = await request.post(`/api/admin/v1/workspaces/${WS}/entries/${post.id}/widget-embeds`, {
       data: { baseVersion: 1, widgetEntryId: textWidget.id },
+      headers: await pinSessionHeaders({ request }),
     });
     // This pin used to expect 404 WIDGETS_INSTANCE_NOT_FOUND: `loadHostEntry` only searched the
     // `entries` table, and a real post id is never a row there. 6af422934 (SPEC-043 REQ-44) made
