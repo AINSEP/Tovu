@@ -12,6 +12,11 @@ test("first-party catalog registers both install families and forwards the scope
   };
   let reads = 0;
   installFirstPartyToolContributors({ contributions }, { readInstallAttachment: async () => { reads++; return { ok: false, refusal: "not-owner" }; } });
+  const sourceContribution = contributions.contributors.list({}).find(entry => entry.domain === 'plugin-source');
+  assert.ok(sourceContribution, 'source authoring is registered in the real first-party catalog');
+  const sourceRegistrations = sourceContribution.build({ workspaceId: 'site', authorize: async () => ({ allowed: true, reason: 'matched' }) } as never, {} as never);
+  assert.deepEqual(sourceRegistrations.map(entry => entry.descriptor.id).sort(), ['create', 'open', 'list', 'read', 'write', 'edit', 'delete', 'seal', 'rollback'].map(name => 'plugin_source_' + name).sort());
+  for (const registration of sourceRegistrations) assert.ok(sourceContribution.risk.has(registration.descriptor.id));
   const previous = process.env.TOVU_PLUGIN_LOCAL_INSTALL;
   process.env.TOVU_PLUGIN_LOCAL_INSTALL = "1";
   try {

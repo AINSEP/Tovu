@@ -1,3 +1,5 @@
+import { type ToolRegistry } from "@jini-ai/core";
+import { attachPluginContributionTools, type PluginToolContributionPorts, type PluginContributionRegistry } from "@jini-ai/plugins/host";
 import { readPluginIdentity } from "@jini-ai/core/plugin-directory";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
@@ -29,6 +31,10 @@ import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/i
  * ---------------------------------------------------------------------------
  * Why THIS shape and not the other two the dispatch offered
  * ---------------------------------------------------------------------------
+ * Historical field-read decision: the 2026-10-09 owner dispatch now authorizes executable tools
+ * through this SAME registrar; these reasons still explain why field-read tools retain their
+ * separate contract. The generic executable registration owner is Jini plugins/host.
+ *
  * (1) "Plugins declare invocable tools" was rejected as the bigger, contract-changing option: v1's
  * entire capability vocabulary (`Jini/packages/plugins/src/host/manifest.ts`'s `VALID_CAPABILITIES`/`VALID_HOOKS`) has no notion of
  * "expose a callable function" at all, and inventing one — arbitrary handler code a plugin author
@@ -332,6 +338,8 @@ function buildCapabilityToolResult(
 }
 
 export interface PluginCapabilityToolDeps {
+  readonly pluginContributions?: PluginContributionRegistry;
+  readonly executablePluginToolRegistry?: ToolRegistry;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
   readonly postRepo: PostRepoPort;
@@ -482,7 +490,7 @@ export function buildPluginCapabilityToolRegistrations(
  * refused the moment its plugin is disabled, quarantined or uninstalled.
  */
 export async function registerEnabledPluginCapabilityTools(
-  registry: { register: (registration: ToolRegistration) => void },
+  registry: { register: (registration: ToolRegistration) => void; has?: ToolRegistry["has"]; list?: ToolRegistry["list"] },
   deps: PluginCapabilityToolDeps & {
     readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   },
@@ -491,4 +499,23 @@ export async function registerEnabledPluginCapabilityTools(
   for (const registration of buildPluginCapabilityToolRegistrations(sources, deps)) {
     registry.register(registration);
   }
+  if (deps.pluginContributions && (deps.executablePluginToolRegistry || (registry.has && registry.list))) {
+    attachPluginContributionTools({ ...executablePluginToolPorts({ deps }), registry: deps.executablePluginToolRegistry ?? registry as ToolRegistry });
+  }
+}
+
+/** Product authorization and approval inputs for Jini's executable registration owner. */
+function executablePluginToolPorts({ deps }: { deps: PluginCapabilityToolDeps }): PluginToolContributionPorts {
+  if (!deps.pluginContributions) throw new Error('plugin contributions are not bound');
+  return {
+    contributions: deps.pluginContributions,
+    isEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,
+    resolveAuth: async ({ pluginId, principalId }) => {
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission: 'admin.plugins.enable' }, { entityType: 'plugin', entityId: pluginId });
+      return { access: 'admin', principalId, workspaceId: deps.workspaceId };
+    },
+    // In-process arbitrary code can leave this site. Its prose cannot self-classify it as read-only.
+    // The assistant decides when to invoke it; only permanent-delete tools require confirmation.
+    metadata: { approval: { class: 'publish', confirmation: 'direct' } },
+  };
 }

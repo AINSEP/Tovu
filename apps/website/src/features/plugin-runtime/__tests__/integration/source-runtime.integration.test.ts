@@ -1,0 +1,174 @@
+import assert from 'node:assert/strict';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
+import test, { type TestContext } from 'node:test';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
+import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
+import { createPluginSourcePolicy, InMemoryPluginActivationRepo, setPluginEnabled } from '@jini-ai/plugins/host';
+import { composePluginRuntime } from '#src/server/runtime/composition/plugin-runtime';
+import { reconcilePluginActivationsOnce } from '#src/server/runtime/composition/agent-daemon-deps';
+import { InMemoryOutbox } from '#src/contracts/core/events/index';
+import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
+import { buildPluginsRegistrations, type PluginsToolDeps } from '../../tool-registrations.js';
+import { buildPluginSourceRegistrations } from '../../source-tools.js';
+import { createSitePluginPolicy, sitePluginLocalInstallEnabled } from '../../install.js';
+
+const id = 'site-rules';
+const workspaceId = 'site';
+const clock = { nowMs: () => Date.parse('2026-10-09T00:00:00Z') };
+const entry = `import { value } from './helper.mjs';\nexport default { definition: { setup(sdk) { sdk.addFilter('content.entry.beforeSave', () => ({ value })); } } };\n`;
+const draft = { id: 'entry', workspaceId, title: 'Test', slug: 'test', status: 'draft' as const, bodyJson: {}, ext: {} };
+const context = (input: unknown) => ({ executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input, signal: new AbortController().signal });
+async function harness(t: TestContext) {
+  const root = await mkdtemp(path.join(tmpdir(), 'source-runtime-')); t.after(() => rm(root, { recursive: true, force: true }));
+  const installDir = path.join(root, 'plugins');
+  const activationRepo = new InMemoryPluginActivationRepo();
+  const policy = createPluginSourcePolicy({ hosted: false, localInstallOptIn: false });
+  const runtime = composePluginRuntime({ workspaceId, clock, activationRepo, sources: [], installDir, pluginSourcePolicy: policy });
+  assert.ok(runtime.pluginSource); const source = runtime.pluginSource;
+  let counter = 0;
+  const deps = { ...runtime, workspaceId, clock, pluginActivationRepo: activationRepo,
+    authorize: async () => ({ allowed: true, reason: 'matched' }), idGen: { newId: () => 'change-' + ++counter },
+    changeSets: new InMemoryChangeSetRepo(), outbox: new InMemoryOutbox(),
+    removePlugin: async () => assert.fail('Source tools must never uninstall'),
+    agentPluginLayout: {} as never, externalMcpServerRepo: {} as never, siteAssistantSecretSealer: {} as never, siteAssistantSecretKeyring: {} as never,
+  } satisfies PluginsToolDeps;
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
+  const surfaces = { surfaceExchanges };
+  const registrations = [...buildPluginsRegistrations(deps, surfaces), ...buildPluginSourceRegistrations({ deps, surfaces })];
+  const call = async (toolId: string, input: unknown) => {
+    const tool = registrations.find(tool => tool.descriptor.id === toolId); assert.ok(tool);
+    return tool.handler(context(input), { emitSurface: async () => assert.fail(`${toolId} must run directly for a sealed site package`) });
+  };
+  async function createFilter() {
+    await call('plugin_source_create', { id, name: 'Site rules', description: 'Test site content rules' });
+    const manifest = JSON.parse((await source.read({ id, path: 'tovu.plugin.json' })).content);
+    await source.write({ id, path: 'tovu.plugin.json', content: JSON.stringify({ ...manifest, capabilities: ['hooks.attach'], hooks: ['content.entry.beforeSave'], fields: [{ path: `ext.${id}.value`, type: 'integer', queryable: false }] }) });
+    await call('plugin_source_write', { id, path: 'server/index.mjs', content: entry });
+    await call('plugin_source_write', { id, path: 'server/helper.mjs', content: 'export const value = 1;\n' });
+  }
+  return { root, installDir, runtime, activationRepo, source, deps, registrations, call, createFilter };
+}
+
+test('chat can scaffold, write, seal and enable without a switch or confirmation; updates replace helper module snapshots', async t => {
+  const h = await harness(t); await h.createFilter();
+  const first = await h.call('plugin_source_seal', { id }) as { installed: boolean; reloaded: boolean };
+  assert.equal(first.installed, true); assert.equal(first.reloaded, false);
+  assert.deepEqual(await h.activationRepo.listAll(), []);
+  const enabled = await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true }) as { changed: boolean };
+  assert.equal(enabled.changed, true);
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 1 } });
+  const oldHelper = path.join(h.installDir, id, '0.1.0/server/helper.mjs');
+  await h.call('plugin_source_edit', { id, path: 'server/helper.mjs', oldString: 'value = 1', newString: 'value = 2' });
+  const update = await h.call('plugin_source_seal', { id }) as { reloaded: boolean; plugin: { version: string } };
+  assert.equal(update.reloaded, true); assert.equal(update.plugin.version, '0.1.1');
+  assert.equal(await readFile(oldHelper, 'utf8'), 'export const value = 1;\n');
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 2 } });
+  assert.equal((await h.activationRepo.getActivation({ workspaceId, pluginId: id }))?.version, '0.1.1');
+  assert.equal(h.runtime.pluginLoadedVersion({ id }), '0.1.1');
+  await h.call('plugin_source_rollback', { id });
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 1 } });
+  assert.equal((await h.activationRepo.getActivation({ workspaceId, pluginId: id }))?.version, '0.1.2');
+});
+
+test('new versions update active pointers across workspaces and the existing poll reloads another process once', async t => {
+  const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
+  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  const remoteWorkspace = 'other-workspace';
+  const remote = composePluginRuntime({ workspaceId: remoteWorkspace, clock, activationRepo: h.activationRepo, sources: [], installDir: h.installDir, pluginSourcePolicy: h.runtime.pluginSourcePolicy });
+  await setPluginEnabled({ deps: { clock, repo: h.activationRepo, discovery: await remote.discoverPlugins(), onEnabled: remote.onPluginEnabled, onDisabled: remote.onPluginDisabled }, input: { workspaceId: remoteWorkspace, pluginId: id, enabled: true } });
+  const remoteDraft = { ...draft, workspaceId: remoteWorkspace };
+  assert.deepEqual(await remote.beforeSaveHook(remoteDraft), { [id]: { value: 1 } });
+  await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 3;\n' }); await h.source.seal({ id });
+  assert.equal((await h.activationRepo.getActivation({ workspaceId: remoteWorkspace, pluginId: id }))?.version, '0.1.1');
+  let reloads = 0;
+  const poll = { workspaceId: remoteWorkspace, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: remote.pluginLoadedVersion,
+    onPluginEnabled: async (pluginId: string) => { reloads++; await remote.onPluginEnabled(pluginId); }, onPluginDisabled: remote.onPluginDisabled };
+  const attached = new Set([id]);
+  await reconcilePluginActivationsOnce(poll, attached);
+  assert.deepEqual(await remote.beforeSaveHook(remoteDraft), { [id]: { value: 3 } });
+  await reconcilePluginActivationsOnce(poll, attached); assert.equal(reloads, 1);
+});
+
+test('removing a filter from a sealed manifest clears the old running hook', async t => {
+  const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
+  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  const manifest = JSON.parse((await h.source.read({ id, path: 'tovu.plugin.json' })).content);
+  await h.source.write({ id, path: 'tovu.plugin.json', content: JSON.stringify({ ...manifest, capabilities: [], hooks: [], fields: [] }) });
+  await h.source.write({ id, path: 'server/index.mjs', content: 'export default { definition: { setup() {} } };' });
+  await h.source.seal({ id });
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), {});
+  assert.equal(h.runtime.pluginLoadedVersion({ id }), '0.1.1');
+});
+
+test('a newly installed package does not replace the active pointer at boot until controlled reload', async t => {
+  const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
+  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 4;\n' }); await h.source.seal({ id });
+  // Model a process crash after immutable publication but before active-pointer advancement.
+  const row = await h.activationRepo.getActivation({ workspaceId, pluginId: id }); assert.ok(row);
+  await h.activationRepo.save({ ...row, version: '0.1.0' });
+  const restarted = composePluginRuntime({ workspaceId, clock, activationRepo: h.activationRepo, sources: [], installDir: h.installDir, pluginSourcePolicy: h.runtime.pluginSourcePolicy });
+  await restarted.attachEnabledPluginsAtBoot();
+  assert.deepEqual(await restarted.beforeSaveHook(draft), { [id]: { value: 1 } });
+  assert.equal(restarted.pluginLoadedVersion({ id }), '0.1.0');
+  await reconcilePluginActivationsOnce({ workspaceId, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: restarted.pluginLoadedVersion, onPluginEnabled: restarted.onPluginEnabled, onPluginDisabled: restarted.onPluginDisabled }, new Set([id]));
+  assert.equal(restarted.pluginLoadedVersion({ id }), '0.1.0');
+});
+
+test('reload failures return installed:true with a reason and pin the restored working version', async t => {
+  const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
+  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await h.source.write({ id, path: 'server/index.mjs', content: 'export default {};' });
+  const result = await h.source.seal({ id });
+  assert.equal(result.installed, true); assert.equal(result.reloaded, false); assert.match(result.reloadError ?? '', /PLUGIN_EXPORT_INVALID/);
+  const activation = await h.activationRepo.getActivation({ workspaceId, pluginId: id });
+  assert.ok(activation); assert.equal(activation.enabled, true); assert.equal(activation.version, '0.1.0');
+  assert.equal(activation.quarantinedAt, undefined);
+  assert.equal(h.runtime.pluginLoadedVersion({ id }), '0.1.0');
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 1 } });
+  assert.equal((await h.source.rollback({ id })).reloaded, true);
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 1 } });
+});
+
+test('reload quarantines only when the restored version also cannot load', async t => {
+  const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
+  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await writeFile(path.join(h.installDir, id, '0.1.0/server/helper.mjs'), 'tampered bytes');
+  await h.source.write({ id, path: 'server/index.mjs', content: 'export default {};' });
+  const result = await h.source.seal({ id });
+  assert.equal(result.installed, true); assert.equal(result.reloaded, false);
+  const activation = await h.activationRepo.getActivation({ workspaceId, pluginId: id });
+  assert.equal(activation?.enabled, false); assert.match(activation?.quarantineReason ?? '', /restored-version reload failed/);
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), {});
+  assert.equal(h.runtime.pluginLoadedVersion({ id }), undefined);
+});
+
+test('the scaffold documents real route/tool/widget registrations and required manifest grants', async t => {
+  const h = await harness(t); await h.source.create({ id, name: 'Examples', description: '' });
+  const scaffold = (await h.source.read({ id, path: 'server/index.mjs' })).content;
+  for (const required of ['sdk.routes.add', 'sdk.tools.add', 'sdk.widgets.add', 'http.route.register', 'tools.register', 'render.contribute', 'contributes', '/api/p/<plugin-id>/hello']) assert.ok(scaffold.includes(required), required);
+});
+
+test('copied site packages lack site-owned provenance and keep their enable confirmation', async t => {
+  const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
+  const other = path.join(h.root, 'other-site/plugins');
+  await cp(path.join(h.installDir, id), path.join(other, id), { recursive: true });
+  const runtime = composePluginRuntime({ workspaceId, clock, activationRepo: new InMemoryPluginActivationRepo(), sources: [], installDir: other, pluginSourcePolicy: h.runtime.pluginSourcePolicy });
+  assert.ok(runtime.pluginSource); assert.equal(await runtime.pluginSource.isSealedHere({ id, version: '0.1.0' }), false);
+  const tool = buildPluginsRegistrations({ ...h.deps, ...runtime, pluginActivationRepo: new InMemoryPluginActivationRepo() }, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) }).find(tool => tool.descriptor.id === 'plugins_set_enabled');
+  assert.ok(tool);
+  await assert.rejects(tool.handler(context({ family: 'site-runtime', pluginId: id, enabled: true }), {}), error => /NO_CONFIRMATION_CHANNEL/.test((error as Error).message));
+});
+
+test('the deployment adapter treats desktop and dev as local and production/Fly as hosted', () => {
+  assert.equal(sitePluginLocalInstallEnabled({ env: {} }), true);
+  assert.equal(sitePluginLocalInstallEnabled({ env: { NODE_ENV: 'development', TOVU_PLUGIN_LOCAL_INSTALL: '0' } }), true);
+  assert.equal(sitePluginLocalInstallEnabled({ env: { NODE_ENV: 'production' } }), false);
+  assert.equal(sitePluginLocalInstallEnabled({ env: { FLY_APP_NAME: 'hosted' } }), false);
+  assert.equal(sitePluginLocalInstallEnabled({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: '1' } }), true);
+  assert.equal(sitePluginLocalInstallEnabled({ env: { NODE_ENV: 'production', ELECTRON_RUN_AS_NODE: '1', TOVU_DESKTOP_OWNER_PID: '42' } }), true);
+  assert.equal(createSitePluginPolicy({ env: { FLY_APP_NAME: 'hosted', ELECTRON_RUN_AS_NODE: '1', TOVU_DESKTOP_OWNER_PID: '42' } }).localInstallEnabled(), false);
+});

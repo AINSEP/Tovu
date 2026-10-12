@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import type { ToolRegistry } from "@jini-ai/core";
+import { toolRegistryRevision, type ToolRegistry } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
 import { buildToolCatalogQuery as buildCatalogSnapshot, listToolCatalogEntries as listCatalogEntries, type SearchEnricher } from "@jini-ai/registry/tool-catalog-builder";
@@ -49,11 +49,14 @@ const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) }
  * Seeds an in-memory SQLite FTS5 index from `registry.list({})` and returns a `ToolCatalogQuery`
  * backed by it.
  *
- * `:memory:`, not a file, and seeded once at call time rather than kept live: the source of truth
+ * `:memory:`, not a file, and seeded at call time: the source of truth
  * is `registry` itself (a `ToolRegistry` rebuilt fresh from static code on every daemon boot), so
  * this index is a disposable snapshot, not durable state — matching `@jini-ai/registry/tool-catalog/sqlite`'s own module
  * doc ("this table only makes that id discoverable... reseeded wholesale"). Called once at daemon
  * startup (`agent-daemon-server.ts`), after every domain's registrations are wired in.
+ * Revocable host scopes now advance a registry revision; search/describe reseed the SAME
+ * SQLite connection when that revision changes, preserving the snapshot owner and avoiding
+ * leaked replacement connections. Static test registries without a revision remain snapshots.
  *
  * @complexity O(r) to seed (r = registered tools); search/describe are SQLite's own
  * FTS5/index cost, not this function's.
@@ -70,7 +73,7 @@ export function buildToolCatalogQuery(
   // Indexed text, not the raw description — see `tool-search-keywords.ts` for why. Short
   // version: BM25 can only rank words that are in the index, and this catalog's descriptions
   // are written in the codebase's nouns while operators search in theirs.
-  const snapshot = buildCatalogSnapshot({
+  const seed = () => buildCatalogSnapshot({
     source: { list: () => registry.list({}) },
     storeFactory: createSqliteCatalogStoreFactory({ db }),
     enricher,
@@ -78,15 +81,24 @@ export function buildToolCatalogQuery(
     clock: options.clock ?? { nowMs: () => Date.now() },
   }, options);
 
+  let snapshot = seed();
+  let revision = toolRegistryRevision({ registry });
+  const refresh = () => {
+    const next = toolRegistryRevision({ registry });
+    if (next !== revision) { snapshot = seed(); revision = next; }
+  };
+
   // Both accessors strip the folded search vocabulary back off. The keywords exist to be RANKED on,
   // never to be read: a tool's description is a contract the model reasons about, and padding it
   // with synonyms to game the index would degrade that in order to fix search. Stripping here keeps
   // the two concerns separate — the index sees the vocabulary, every caller sees the authored text.
   return {
     search({ query }, { limit = 10 } = {}) {
+      refresh();
       return snapshot.search({ query }, { limit });
     },
     describe({ id }) {
+      refresh();
       return snapshot.describe({ id });
     },
   };

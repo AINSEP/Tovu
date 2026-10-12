@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createPluginSourcePolicy } from '@jini-ai/plugins/host';
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
@@ -62,6 +63,7 @@ test("PLUGIN_PREVIEW never shadows the install preview: .../plugins/install/prev
   delete process.env.TOVU_PLUGIN_LOCAL_INSTALL;
   t.after(() => { if (previous !== undefined) process.env.TOVU_PLUGIN_LOCAL_INSTALL = previous; });
   const deps = createRouteDeps();
+  deps.pluginSourcePolicy = createPluginSourcePolicy({ hosted: true, localInstallOptIn: false });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins/install/preview`, {
     method: "POST",

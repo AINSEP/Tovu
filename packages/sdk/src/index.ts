@@ -37,11 +37,14 @@
 export const CONTENT_READ = "content.read" as const;
 export const CONTENT_EXTEND = "content.extend" as const;
 export const HOOKS_ATTACH = "hooks.attach" as const;
+export const HTTP_ROUTE_REGISTER = "http.route.register" as const;
+export const TOOLS_REGISTER = "tools.register" as const;
+export const RENDER_CONTRIBUTE = "render.contribute" as const;
 
 /** Union of every valid capability token string. ADR-024 §6: the namespace SHAPE is frozen, but
  * its CONTENTS may grow — this union widens as later hooks (hooks v2 plan) add their own tokens,
  * additive-only, per the SDK's semver rule (ADR-005). */
-export type CapabilityToken = typeof CONTENT_READ | typeof CONTENT_EXTEND | typeof HOOKS_ATTACH;
+export type CapabilityToken = typeof CONTENT_READ | typeof CONTENT_EXTEND | typeof HOOKS_ATTACH | typeof HTTP_ROUTE_REGISTER | typeof TOOLS_REGISTER | typeof RENDER_CONTRIBUTE;
 
 /** C-003 — the v1 hook point (REQ-05), kept forever (hooks v2 plan §3.3). Declared points are
  * enumerable via `tovu hooks list` (AC-15) and, as of hooks v2, `HOOK_POINTS` (`./hooks.js`) — this
@@ -145,7 +148,16 @@ export interface HookAttachOptions {
  * error when invoked, never an absent/`undefined` property (CIC U-003; this file declares the
  * TYPE only, the runtime stub-vs-absent behavior lives in `Jini/packages/plugins/src/host/capability-sdk.ts`).
  */
+// Generic contribution contracts stay with Jini's runtime owner. The SDK declares that package
+// as a dependency so a plugin consumer resolves these types without the host application's deps.
+export type { PluginRouteContribution, PluginToolContribution, PluginWidgetContribution, PluginContribution, PluginRouteInput, PluginRouteResult, PluginAuthContext } from '@jini-ai/plugins/host';
+
 export interface PluginSdk {
+  readonly routes: { add(required: import('@jini-ai/plugins/host').PluginRouteContribution, optional?: Record<string, never>): void };
+  readonly tools: { add(required: import('@jini-ai/plugins/host').PluginToolContribution, optional?: Record<string, never>): void };
+  readonly widgets: { add(required: import('@jini-ai/plugins/host').PluginWidgetContribution, optional?: Record<string, never>): void };
+  /** Explicit route/tool/widget record; uses the selected surface capability, not hooks.attach. */
+  addContribution(required: import('@jini-ai/plugins/host').PluginContribution, optional?: Record<string, never>): void;
   /** Live metadata lookup supplied by the host, shared with agent plugins. No execution grant. */
   readonly plugins?: {
     getPlugin(required: { id: string; family?: string }, optional?: Record<string, never>): Promise<{ id: string; version: string | null; enabled: boolean } | null>;
@@ -172,9 +184,11 @@ export interface PluginSdk {
    * (CIC U-003) — an ungranted capability throws `CapabilityDeniedError` when actually CALLED, not
    * by being absent. `ActionHookName` has no members yet (Wave 1's action hooks are a later slice
    * in this same lane), so no name currently type-checks here — additive, not yet reachable. */
+  /** Unsupported until an action hook is cataloged; throws explicitly instead of a no-op. */
   addAction<K extends ActionHookName>(hookName: K, action: ActionFn<K>, opts?: HookAttachOptions): void;
-  /** Gated by `hooks.attach`. Same "always present, stub throws when ungranted" contract as
-   * `addAction`. `ContributionHookName` has no members yet (Wave 2, out of this lane's scope). */
+  /** Legacy hook form: no contribution hook is cataloged, so runtime calls fail explicitly.
+   * The object form above registers real route/tool/widget contributions using their own grants.
+   * Uncataloged legacy calls retain the hooks.attach denial boundary (CIC U-003). */
   addContribution<K extends ContributionHookName>(hookName: K, contribution: ContributionFn<K>, opts?: HookAttachOptions): void;
 }
 

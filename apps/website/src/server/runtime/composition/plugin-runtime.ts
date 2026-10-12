@@ -2,7 +2,9 @@ import { createPluginLookupFacade } from "@jini-ai/core/plugin-directory";
 import { createPluginModuleImporter, type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
-import { assertPluginInstallIdle, installSitePlugin, previewSitePluginInstall, type PluginInstallerPort } from "@jini-ai/plugins/host/node";
+import { assertPluginInstallIdle, createPluginSourceService, installSitePlugin, previewSitePluginInstall, pruneSitePluginVersions, type PluginInstallerPort, type PluginSourcePort } from "@jini-ai/plugins/host/node";
+import { createPluginContributionCapture, createPluginContributionRegistry, type PluginContributionRegistry, type PluginSdk, setPluginEnabled, type PluginSourcePolicyPort } from '@jini-ai/plugins/host';
+import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
@@ -156,6 +158,7 @@ function resolvePackageLocation(params: {
 }
 
 export interface ComposePluginRuntimeRequired {
+  readonly pluginSourcePolicy?: PluginSourcePolicyPort;
   readonly getPluginHost?: () => import("#src/contracts/headless/plugin-host").PluginHostPort | undefined;
   readonly workspaceId: string;
   readonly clock: ClockPort;
@@ -183,8 +186,13 @@ export interface ComposePluginRuntimeRequired {
 }
 
 export interface PluginRuntimeBindings {
+  readonly pluginSource?: PluginSourcePort;
+  readonly pluginSourcePolicy: PluginSourcePolicyPort;
+  /** Actual loaded snapshot revision, used by the existing cross-process activation poll. */
+  readonly pluginLoadedVersion: (required: { id: string }, optional?: Record<string, never>) => string | undefined;
   readonly pluginInstaller?: PluginInstallerPort;
   readonly hookRegistry: HookRegistry;
+  readonly pluginContributions: PluginContributionRegistry;
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly onPluginEnabled: (pluginId: string) => Promise<void>;
   readonly onPluginDisabled: (pluginId: string) => void;
@@ -227,10 +235,15 @@ export interface PluginRuntimeBindings {
  */
 export function composePluginRuntime(required: ComposePluginRuntimeRequired, _optional: Record<string, never> = {}): PluginRuntimeBindings {
   const { activationRepo, clock, sources, installDir } = required;
+  const pluginSourcePolicy = required.pluginSourcePolicy ?? createSitePluginPolicy({ env: process.env });
+  const loadedVersions = new Map<string, string>();
+  const pluginContributions = createPluginContributionRegistry({});
+  const loadEpochs = new Map<string, number>();
   const tier2CallRunner = required.tier2CallRunner ?? createTier2WorkerRunner({});
   const hookRegistry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding }, {
     ...(required.failureThreshold === undefined ? {} : { failureThreshold: required.failureThreshold }),
     onQuarantine: async (input) => {
+      onPluginDisabled(input.pluginId);
       await quarantinePlugin({ deps: { clock, repo: activationRepo }, input });
     },
   });
@@ -239,6 +252,14 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   // required-params doc).
   const discoverPlugins = () =>
     discoverPluginRuntimePlugins({ ...pluginHostBinding, builtIns: sources, ...(installDir === undefined ? {} : { installDir }) });
+
+  /** Retained versions make the activation row's existing active pointer meaningful at boot
+   * and reload. A newly installed version is not running until controlled reload advances it. */
+  async function discoverActivePlugins(): Promise<readonly PluginDiscoveryRecord[]> {
+    const rows = await activationRepo.listAll();
+    const versions = new Map(rows.filter(row => row.workspaceId === required.workspaceId && row.enabled).map(row => [row.pluginId, row.version]));
+    return discoverPluginRuntimePlugins({ ...pluginHostBinding, builtIns: sources, ...(installDir === undefined ? {} : { installDir }) }, { versions });
+  }
 
   const coreClaims = required.coreClaims ?? [];
 
@@ -272,7 +293,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     // A package replacement and an enable cannot race: save-before-callback activation is
     // compensated if install owns the directory lock, while installs refuse an enabled row.
     if (installDir !== undefined) await assertPluginInstallIdle({ installDir });
-    const discovery = await discoverPlugins();
+    const discovery = await discoverActivePlugins();
     const record = discovery.find((candidate) => candidate.id === pluginId);
     if (!record) {
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
@@ -283,9 +304,10 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     // Declared contributions (AW-7 Tier 1) are applied only now, after the conflict gate; a tier-1
     // plugin's `loadCode` is never called.
     await enableDeclaredPlugin(
-      { ...pluginHostBinding, pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record), unloadCode: () => hookRegistry.detach({ pluginId }) },
+      { ...pluginHostBinding, pluginId, workspaceId: required.workspaceId, manifest: record.manifest, loadCode: () => attachPlugin(pluginId, record), unloadCode: () => onPluginDisabled(pluginId) },
       required.declaredContentTypes ? { contentTypes: required.declaredContentTypes } : {},
     );
+    loadedVersions.set(pluginId, record.version);
   }
 
   /** Load + attach one already-cleared plugin — `onPluginEnabled`'s body after its gates, shared
@@ -293,6 +315,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
    * `attachEnabledPluginsAtBoot`: per-plugin "candidate last" ordering would refuse the older
    * winner of a boot-time pair as well as the newer one). */
   async function attachPlugin(pluginId: string, record: PluginDiscoveryRecord): Promise<void> {
+    const epoch = (loadEpochs.get(pluginId) ?? 0) + 1;
+    loadEpochs.set(pluginId, epoch);
     const target = resolveLoadTarget({ pluginId, sources, record, installDir });
     if (!target) {
       throw new PluginLoadError(pluginId, "PLUGIN_EXPORT_INVALID");
@@ -313,7 +337,9 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     // The SDK backing (content.read/extend bound to the running filter, single declared beforeSave
     // filter) is shared with the Tier-2 worker — see `invocation-core-deps.ts`.
     const invocation = pluginHostBinding.createInvocationCoreDeps({ pluginId, declaredHooks: manifest.hooks });
-    const coreDeps = invocation.coreDeps;
+    const capture = createPluginContributionCapture({ manifest });
+    let scopedSdk: PluginSdk | undefined;
+    const coreDeps = { ...invocation.coreDeps, contributions: capture };
 
     // CIC U-001: Jini invokes this required port only AFTER integrity/sdkRange checks. A site
     // target takes the contained immutable snapshot; built-in seams retain their original path.
@@ -327,9 +353,10 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
         pluginSdkBinding: { ...pluginHostBinding.pluginSdkBinding,
           buildSdk: ({ sdk }) => {
             const host = required.getPluginHost?.();
-            return { ...pluginHostBinding.pluginSdkBinding.buildSdk({ sdk }),
+            scopedSdk = { ...pluginHostBinding.pluginSdkBinding.buildSdk({ sdk }),
               ...(host ? { plugins: createPluginLookupFacade({ lookup: host }) } : {}),
             };
+            return scopedSdk;
           },
         },
       },
@@ -339,11 +366,19 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
       throw new PluginLoadError(pluginId, result.reason);
     }
 
+    // A disable or a newer load during import/setup must not resurrect the retired generation.
+    if (loadEpochs.get(pluginId) !== epoch || !scopedSdk) throw new PluginLoadError(pluginId, 'PLUGIN_SETUP_FAILED');
+    const contributions = capture.seal({ sdk: scopedSdk });
     const filter = invocation.capturedFilter();
     if (manifest.hooks.includes(HOOK_CONTENT_ENTRY_BEFORE_SAVE) && filter === null) {
       throw new PluginLoadError(pluginId, "PLUGIN_HOOK_NOT_ATTACHED");
     }
-    if (filter === null) return;
+    if (filter === null) {
+      pluginContributions.replace({ contributions });
+      hookRegistry.detach({ pluginId });
+      loadedVersions.set(pluginId, record.version);
+      return;
+    }
 
     try {
       attachLoadedPlugin({
@@ -353,6 +388,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
         filter,
         declaredFields: manifest.fields,
       });
+      pluginContributions.replace({ contributions });
+      loadedVersions.set(pluginId, record.version);
     } catch (error) {
       hookRegistry.detach({ pluginId });
       throw new PluginLoadError(pluginId, "PLUGIN_HOOK_ATTACH_FAILED", { cause: error });
@@ -360,7 +397,10 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   }
 
   function onPluginDisabled(pluginId: string): void {
+    loadEpochs.set(pluginId, (loadEpochs.get(pluginId) ?? 0) + 1);
+    pluginContributions.detach({ pluginId });
     hookRegistry.detach({ pluginId });
+    loadedVersions.delete(pluginId);
   }
 
   /** Boot-time conflict pass (2026-10-04): the newer plugin of every conflicting pair is turned off
@@ -391,7 +431,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     let discovery: readonly PluginDiscoveryRecord[];
     let quarantined: ReadonlySet<string>;
     try {
-      discovery = await discoverPlugins();
+      discovery = await discoverActivePlugins();
       quarantined = await quarantineConflictingAtBoot(
         await listPluginConflicts(discovery),
         new Set(enabledHere.map((record) => record.pluginId)),
@@ -461,11 +501,10 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     return readPluginPackageDirectory({ input: location });
   }
 
-  return {
-    ...(installDir === undefined ? {} : { pluginInstaller: {
-      preview: (input) => previewSitePluginInstall({ ...input, deps: { ...pluginHostBinding, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts } }),
-      install: async (input) => {
-        const deps = { ...pluginHostBinding, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts };
+  const pluginInstaller: PluginInstallerPort | undefined = installDir === undefined ? undefined : {
+      preview: (input, options = {}) => previewSitePluginInstall({ ...input, deps: { ...pluginHostBinding, ...options, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts } }),
+      install: async (input, options = {}) => {
+        const deps = { ...pluginHostBinding, ...options, installDir, builtInIds: sources.map((source) => source.manifest.id), builtInManifests: sources.map((source) => source.manifest), repo: activationRepo, conflicts: installPreviewConflicts };
         const preview = await previewSitePluginInstall({ ...input, deps });
         // Admission uses this manifest's identity; publication must retain those exact bytes.
         const run = () => installSitePlugin({ ...input, expectedDigest: input.expectedDigest ?? preview.digest, deps });
@@ -473,8 +512,60 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
         if (!host) return run();
         return host.withInstallIdentity({ candidate: { id: preview.publisherId ?? `unknown/${preview.id}`, localId: preview.id, family: "site-runtime" }, run });
       },
-    } satisfies PluginInstallerPort }),
+  };
+  const pluginSource = installDir === undefined || pluginInstaller === undefined ? undefined : createPluginSourceService({
+    ...pluginHostBinding, installDir, installer: pluginInstaller, policy: pluginSourcePolicy,
+    pruneVersions: ({ id }) => pruneSitePluginVersions({ id, installDir, repo: activationRepo }),
+    builtInIds: sources.map(source => source.manifest.id),
+    // readDefinedPlugin accepts this SDK wrapper ABI; no package imports are needed from an
+    // external site's Documents folder. Owner: full server access for now. TODO: sandbox tier-3.
+    scaffoldEntry: `export default { definition: { setup(sdk) {
+  /* Register declared content filters here.
+   * To add the examples below, declare capabilities http.route.register and tools.register,
+   * and contributes: { routes: ['GET /hello'], tools: ['echo'] } in tovu.plugin.json.
+   * Routes mount at /api/p/<plugin-id>/hello. Widgets use render.contribute and contributes.widgets.
+   * sdk.routes.add({ method: 'GET', path: '/hello', access: 'public', handler: () => ({ body: { hello: true } }) });
+   * sdk.tools.add({ name: 'echo', description: 'Echo input', inputSchema: { type: 'object' }, handler: ({ input }) => input });
+   * sdk.widgets.add({ name: '<declared-widget-name>', render: () => '<strong>Hello</strong>' });
+   */
+} } };\n`,
+    reload: async ({ id }) => {
+      const enabled = (await activationRepo.listAll()).filter(row => row.pluginId === id && row.enabled);
+      const discovery = await discoverPlugins();
+      // Load here before publishing active pointers to other processes. Their existing poll sees
+      // a version change and re-enters the same validated loader, replacing module snapshots.
+      enabled.sort((a, b) => Number(b.workspaceId === required.workspaceId) - Number(a.workspaceId === required.workspaceId));
+      for (const row of enabled) {
+        const here = row.workspaceId === required.workspaceId;
+        try {
+          await setPluginEnabled({ deps: { clock, repo: activationRepo, discovery,
+            onEnabled: here ? onPluginEnabled : async () => {}, onDisabled: here ? onPluginDisabled : () => {} },
+            input: { workspaceId: row.workspaceId, pluginId: id, enabled: true } });
+        } catch (error) {
+          if (here) {
+            // setPluginEnabled already restored the old activation row. Re-enter the same loader
+            // to pin its retained bytes, rather than turning a working plugin off for a bad update.
+            try { await onPluginEnabled(id); }
+            catch (rollbackError) {
+              console.warn(`[plugin-runtime] Plugin '${id}' restored-version reload failed`, rollbackError);
+              onPluginDisabled(id);
+              await quarantinePlugin({ deps: { clock, repo: activationRepo }, input: { pluginId: id, workspaceId: row.workspaceId, consecutiveFailures: 0, reason: 'Source reload and restored-version reload failed; fix the draft or use plugin_source_rollback.' } });
+            }
+          }
+          throw error;
+        }
+      }
+      return enabled.some(row => row.workspaceId === required.workspaceId);
+    },
+  });
+
+  return {
+    ...(pluginInstaller === undefined ? {} : { pluginInstaller }),
+    ...(pluginSource === undefined ? {} : { pluginSource }),
+    pluginSourcePolicy,
+    pluginLoadedVersion: ({ id }) => loadedVersions.get(id),
     hookRegistry,
+    pluginContributions,
     discoverPlugins,
     onPluginEnabled,
     onPluginDisabled,

@@ -3,6 +3,15 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** plugin-runtime registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  plugin_source_create: { search: { keywords: 'plugin source code create scaffold site local server content filter fields types' }, approval: { class: 'edit', confirmation: 'direct' } },
+  plugin_source_open: { search: { keywords: 'plugin source open draft edit installed working copy' }, approval: { class: 'edit', confirmation: 'direct' } },
+  plugin_source_list: { search: { keywords: 'plugin source draft list files code' }, approval: { class: 'read', confirmation: 'direct' } },
+  plugin_source_read: { search: { keywords: 'plugin source draft read file code' }, approval: { class: 'read', confirmation: 'direct' } },
+  plugin_source_write: { search: { keywords: 'plugin source draft write file code create overwrite' }, approval: { class: 'edit', confirmation: 'direct' } },
+  plugin_source_edit: { search: { keywords: 'plugin source draft edit file code exact replace string' }, approval: { class: 'edit', confirmation: 'direct' } },
+  plugin_source_delete: { search: { keywords: 'plugin source draft delete file permanently remove' }, approval: { class: 'delete', confirmation: 'plan' } },
+  plugin_source_seal: { search: { keywords: 'plugin source seal validate integrity install version patch reload code' }, approval: { class: 'edit', confirmation: 'direct' } },
+  plugin_source_rollback: { search: { keywords: 'plugin source rollback previous version restore code' }, approval: { class: 'edit', confirmation: 'direct' } },
   "plugins_install": {
     search: {
       keywords: "plugin plugins install add new upload folder zip attachment local package upgrade replace version site plugin tovu-plugin extension addon add-on",

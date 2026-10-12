@@ -1,5 +1,6 @@
 /** Real authenticated upload routes exercise review/digest checks, caps and gate ordering. */
 import assert from "node:assert/strict";
+import { createPluginSourcePolicy } from '@jini-ai/plugins/host';
 import test from "node:test";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -46,6 +47,7 @@ test("ZIP env, permission, session and workspace guards precede archive parsing"
   const root = await mkdtemp(path.join(tmpdir(), "plugin-zip-gates-"));
   t.after(async () => { if (old === undefined) delete process.env.TOVU_PLUGIN_LOCAL_INSTALL; else process.env.TOVU_PLUGIN_LOCAL_INSTALL = old; await rm(root, { recursive: true, force: true }); });
   const deps = createRouteDeps({ installDir: path.join(root, "plugins") });
+  deps.pluginSourcePolicy = createPluginSourcePolicy({ hosted: true, localInstallOptIn: false });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const bare = await loginAsBarePrincipal(deps, baseUrl);
   const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins/install/zip/preview`;
@@ -53,6 +55,7 @@ test("ZIP env, permission, session and workspace guards precede archive parsing"
   const disabled = await post(cookie);
   assert.equal(disabled.status, 403); assert.equal((await disabled.json() as { code: string }).code, "PLUGIN_LOCAL_INSTALL_DISABLED");
   process.env.TOVU_PLUGIN_LOCAL_INSTALL = "1";
+  deps.pluginSourcePolicy = createPluginSourcePolicy({ hosted: true, localInstallOptIn: true });
   assert.equal((await post()).status, 401);
   assert.equal((await post(bare)).status, 403);
   assert.equal((await post(cookie, url.replace(deps.workspaceId, "wrong-workspace"))).status, 404);

@@ -37,6 +37,7 @@ import type { FederationDeps } from "./mcp-federation/registrations.js";
  *  type (see that function's own signature). The agent-plugin and skill registrars also receive the layouts captured at boot;
  *  skill bundled-file paths use that same site binding. */
 export interface InstalledExtensionToolDeps extends PluginCapabilityToolDeps {
+  readonly executablePluginToolRegistry?: ToolRegistry;
   readonly agentPluginLayout: import("../features/agent-plugins/layout.js").AgentPluginLayout;
   readonly skillLayout: import("../features/skills/layout.js").SkillLayout;
   readonly siteBinding: { readonly dir: string };
@@ -48,7 +49,7 @@ export interface InstalledExtensionToolDeps extends PluginCapabilityToolDeps {
  *  prefixed with `log`. See `server/runtime/composition/installed-extension-tools.ts` for the real
  *  one. */
 export type InstalledExtensionRegistrar = (
-  registry: { readonly register: (registration: ToolRegistration) => void },
+  registry: { readonly register: (registration: ToolRegistration) => void; readonly has?: ToolRegistry["has"]; readonly list?: ToolRegistry["list"] },
   deps: InstalledExtensionToolDeps,
   log: string,
 ) => Promise<void>;
@@ -99,10 +100,10 @@ export function attachAssistantToolExtensions(
 ): AssistantToolExtensions {
   // Extension ids come from installed data, so check the factory's explicit behavior metadata
   // at the registration boundary too. A new family cannot silently bypass the native guard.
-  const installed = deps.registerInstalled({ register(registration) {
+  const installed = deps.registerInstalled({ has: input => registry.has(input), list: input => registry.list(input), register(registration) {
     toolApprovalPolicyFor({ registration });
     registry.register(registration);
-  } }, deps, log);
+  } }, { ...deps, executablePluginToolRegistry: registry }, log);
   const federation = createFederationRuntime({
     registry,
     presetRegistry: deps.federation.presetRegistry,

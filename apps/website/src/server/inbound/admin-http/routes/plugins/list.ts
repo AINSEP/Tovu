@@ -51,7 +51,8 @@ export const registerPluginsListRoute: PluginsRouteRegistrar = (app, deps) => {
         })
       );
 
-      res.json({ plugins, installSources: sitePluginLocalInstallEnabled({ env: process.env }) && deps.pluginInstaller ? ["folder", "zip"] : [] });
+      const enabled = deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: process.env });
+      res.json({ plugins, installSources: enabled && deps.pluginInstaller ? ["folder", "zip"] : [] });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

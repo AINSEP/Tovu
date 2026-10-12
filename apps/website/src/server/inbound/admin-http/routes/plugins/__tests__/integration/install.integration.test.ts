@@ -5,6 +5,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { createPluginSourcePolicy } from '@jini-ai/plugins/host';
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 
@@ -17,13 +18,14 @@ async function packageFixture(root: string) {
   return { kind: "folder", path: source };
 }
 
-test("admin preview -> install disabled -> enable -> disable -> Trash -> reinstall refuses", async (t) => {
+test("local admin installs without opt-in: preview -> install disabled -> enable -> disable -> Trash -> reinstall refuses", async (t) => {
   const old = process.env.TOVU_PLUGIN_LOCAL_INSTALL;
-  process.env.TOVU_PLUGIN_LOCAL_INSTALL = "1";
+  delete process.env.TOVU_PLUGIN_LOCAL_INSTALL;
   const root = await mkdtemp(path.join(tmpdir(), "plugin-install-http-"));
   t.after(async () => { if (old === undefined) delete process.env.TOVU_PLUGIN_LOCAL_INSTALL; else process.env.TOVU_PLUGIN_LOCAL_INSTALL = old; await rm(root, { recursive: true, force: true }); });
   const source = await packageFixture(root);
   const deps = createRouteDeps({ installDir: path.join(root, "plugins") });
+  deps.pluginSourcePolicy = createPluginSourcePolicy({ hosted: false, localInstallOptIn: false });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins`;
   const headers = { cookie, "content-type": "application/json" };
@@ -63,19 +65,25 @@ test("install routes gate env, workspace, auth and permission before source insp
   t.after(() => rm(root, { recursive: true, force: true }));
   const deps = createRouteDeps({ installDir: path.join(root, "plugins") });
   let inspected = 0;
+  deps.pluginSourcePolicy = createPluginSourcePolicy({ hosted: true, localInstallOptIn: false });
   deps.pluginInstaller = { preview: async () => { inspected++; throw new Error("must never inspect"); }, install: async () => { inspected++; throw new Error("must never install"); } };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const bare = await loginAsBarePrincipal(deps, baseUrl);
+  const listUrl = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins`;
+  assert.deepEqual((await (await fetch(listUrl, { headers: { cookie } })).json() as { installSources: string[] }).installSources, []);
   for (const endpoint of ["install/preview", "install"]) {
     const url = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins/${endpoint}`;
     const body = JSON.stringify({ source: { kind: "folder", path: "/private/secret" } });
     const disabled = await fetch(url, { method: "POST", headers: { cookie, "content-type": "application/json" }, body });
     assert.equal(disabled.status, 403); assert.equal((await disabled.json() as { code: string }).code, "PLUGIN_LOCAL_INSTALL_DISABLED");
     process.env.TOVU_PLUGIN_LOCAL_INSTALL = "1";
+    deps.pluginSourcePolicy = createPluginSourcePolicy({ hosted: true, localInstallOptIn: true });
+    assert.deepEqual((await (await fetch(listUrl, { headers: { cookie } })).json() as { installSources: string[] }).installSources, ['folder', 'zip']);
     assert.equal((await fetch(url, { method: "POST", headers: { cookie: bare, "content-type": "application/json" }, body })).status, 403);
     assert.equal((await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body })).status, 401);
     assert.equal((await fetch(url.replace(deps.workspaceId, "wrong-workspace"), { method: "POST", headers: { cookie, "content-type": "application/json" }, body })).status, 404);
     delete process.env.TOVU_PLUGIN_LOCAL_INSTALL;
+    deps.pluginSourcePolicy = createPluginSourcePolicy({ hosted: true, localInstallOptIn: false });
   }
   assert.equal(inspected, 0);
 });

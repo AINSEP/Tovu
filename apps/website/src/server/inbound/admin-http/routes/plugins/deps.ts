@@ -26,6 +26,7 @@ import type { RemovePluginFn } from "@jini-ai/plugins/host";
  * handler bodies are what carry the "not implemented" stub behavior.
  */
 export interface PluginsRouteDeps {
+  pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   pluginInstaller?: import("@jini-ai/plugins/host/node").PluginInstallerPort;
   workspaceId: UUID;
   authorize: AuthorizeFn;

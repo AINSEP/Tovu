@@ -165,6 +165,8 @@ async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<
  * passing its existing `RouteDeps` object; nothing there changes.
  */
 export interface PluginsToolDeps extends OperatorLocaleDeps {
+  readonly pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
+  readonly pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   readonly pluginHost?: PluginHostPort;
   readonly agentPluginLayout: AgentPluginLayout;
   authorize: AuthorizeFn;
@@ -694,7 +696,11 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       let refusal: unknown;
       if (request.enabled && request.family === "agent-plugin") refusal = await unwritableAgentPluginActivationsResult(routeDeps, request);
       const identity = request.enabled && refusal === undefined ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
-      return { request, identity, refusal };
+      const sitePackage = identity?.discovery?.find(record => record.id === request.pluginId)?.source === 'site';
+      const sealedHere = request.enabled && request.family === 'site-runtime' && sitePackage && identity?.version !== undefined && routeDeps.pluginSource
+        ? await routeDeps.pluginSource.isSealedHere({ id: request.pluginId, version: identity.version }, {}) : false;
+      const confirm = routeDeps.pluginSourcePolicy?.confirmEnable({ sealedHere }, {}) ?? true;
+      return { request, identity, refusal, confirm };
     }, describe: ({ prepared: { request, identity } }) => describeEnableApproval({
       subject: { family: request.family, pluginId: request.pluginId, version: identity?.version, label: identity?.label },
     }), run: async ({ ctx, prepared: { request, identity, refusal } }) => {
@@ -707,7 +713,7 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       return request.family === "agent-plugin"
         ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request)
         : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request, { discovery: currentIdentity?.discovery });
-    } }, { flag: "changed", ask: ({ prepared }) => prepared.request.enabled && prepared.refusal === undefined,
+    } }, { flag: "changed", ask: ({ prepared }) => prepared.request.enabled && prepared.refusal === undefined && prepared.confirm,
       rememberKey: ({ prepared }) => prepared.request.enabled ? prepared.identity?.key : undefined,
       remembered: routeDeps.nativeApprovalMemory,
       declined: ({ reason, prepared }) => ({ changed: false, family: prepared?.request.family,

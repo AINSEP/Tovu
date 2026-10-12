@@ -17,7 +17,8 @@ export const registerPluginInstallRoutes: PluginsRouteRegistrar = (app, deps) =>
       try {
         const principal = getAuthedPrincipal(res);
         if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return;
-        if (!sitePluginLocalInstallEnabled({ env: process.env }) || !deps.pluginInstaller) {
+        const enabled = deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: process.env });
+        if (!enabled || !deps.pluginInstaller) {
           res.status(403).json({ code: "PLUGIN_LOCAL_INSTALL_DISABLED", error: "Local folder installs are disabled on this server." }); return;
         }
         // ZIP options ride the query string; folder options are the JSON body. `!options` below is a

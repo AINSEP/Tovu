@@ -80,9 +80,17 @@ test("installs with no dialog channel at all — nothing to approve, so nothing 
   assert.equal((result as { installed: boolean }).installed, true);
 });
 
-test("the TOVU_PLUGIN_LOCAL_INSTALL opt-in gates it exactly like the admin route; nothing is inspected", async () => {
+test('desktop/dev installs need no environment opt-in, and an injected hosted policy still refuses first', async () => {
   const installer = fakeInstaller();
-  const result = await tool(deps({ pluginInstaller: installer.port, env: {} })).handler(ctx(FOLDER), {});
+  const local = await run(deps({ pluginInstaller: installer.port, env: {} }), FOLDER) as { installed: boolean };
+  assert.equal(local.installed, true); assert.equal(installer.previews.length, 1);
+  const refused = await run(deps({ pluginInstaller: installer.port, env: {}, pluginSourcePolicy: { localInstallEnabled: () => false, confirmEnable: () => true } }), FOLDER) as { installed: boolean };
+  assert.equal(refused.installed, false); assert.equal(installer.previews.length, 1, 'injected policy overrides the local environment');
+});
+
+test("hosted TOVU_PLUGIN_LOCAL_INSTALL opt-in gates it exactly like the admin route; nothing is inspected", async () => {
+  const installer = fakeInstaller();
+  const result = await tool(deps({ pluginInstaller: installer.port, env: { NODE_ENV: 'production' } })).handler(ctx(FOLDER), {});
   assert.equal(installer.previews.length, 0);
   assert.deepEqual(result, { installed: false, reason: "PLUGIN_LOCAL_INSTALL_DISABLED", note: "Nothing was installed: local plugin installs are off on this server. The owner has to start Tovu with TOVU_PLUGIN_LOCAL_INSTALL=1 first." });
 });
@@ -173,7 +181,7 @@ test("attachment reading follows permission and site opt-in gates", async () => 
   let reads = 0;
   const readInstallAttachment: NonNullable<PluginsInstallToolDeps["readInstallAttachment"]> = async () => { reads++; return { ok: true, bytes: Buffer.alloc(1) }; };
   const input = { source: { kind: "zip", attachmentRef: "attachment:zip12345" } };
-  await run(deps({ env: {}, readInstallAttachment }), input);
+  await run(deps({ env: { NODE_ENV: 'production' }, readInstallAttachment }), input);
   await assert.rejects(() => run(deps({ authorize: async () => ({ allowed: false, reason: "insufficient_permission" }), readInstallAttachment }), input));
   assert.equal(reads, 0);
 });

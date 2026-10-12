@@ -8,6 +8,7 @@ import { definePlugin, HOOK_POINTS, HOOK_CONTENT_ENTRY_BEFORE_SAVE, type Content
 import type { ClaimMode, DeclarativeContentTypesPort, PluginManifest, PluginModuleImportPort, PluginSdkBinding, PluginTierPolicy, HookRegistry } from "@jini-ai/plugins/host";
 import { PluginInstallError, snapshotPluginModuleGraph } from "@jini-ai/plugins/host/node";
 import type { RunTier2CallRequired } from "@jini-ai/plugins/host/worker";
+import { PLUGIN_CONTRIBUTION_CAPABILITIES } from "@jini-ai/plugins/host";
 import { SHARED_EXTENSION_CAPABILITIES } from "../../contracts/core/extension-capability-vocabulary.js";
 import { applyDeclaredContentTypes, parseDeclaredContentTypes, planDeclaredContentTypes, validateDeclarativeManifest, type DeclaredContentTypePlan, type DeclaredContentTypePorts, type DeclaredContentType } from "./declarative-content-types.js";
 import { readSitePluginArchive } from "./install-archive.js";
@@ -72,7 +73,7 @@ const tierPolicy: PluginTierPolicy = {
  * established sha256-prefixed hex format; archives always pass through Tovu's bounded reader. */
 export const pluginHostBinding = {
   pluginSdkBinding,
-  capabilityVocabulary: SHARED_EXTENSION_CAPABILITIES,
+  capabilityVocabulary: [...SHARED_EXTENSION_CAPABILITIES, ...PLUGIN_CONTRIBUTION_CAPABILITIES],
   declarativeContentTypes,
   coreOwnerName: "Tovu core",
   identityNamespace: "tovu",

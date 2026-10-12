@@ -12,10 +12,12 @@ import { STORE_MANIFEST } from "#src/features/plugins/store/manifest";
  * spread across dozens of feature modules with no single list to read at composition time, so core
  * reserves the NAMESPACES those live in (prefix claims, `claim-conflicts.ts` rule 6) rather than a
  * hand-copied list of every name that would drift the day a feature adds one. A plugin keeps the
- * whole rest of each space — `/shop`, `shop.manage`, `shop_list` are all free.
+ * whole rest of each space — `shop.manage` and namespaced plugin tools are free. Routes always
+ * mount under `/api/p/<id>`; their relative paths cannot claim a core API or public URL.
  *
- * - routes: `/api/*` (every core JSON API), `/admin/*` (the admin app), `/workspaces/*` (admin
- *   HTTP), and the health probes a deploy target polls.
+ * - routes: `/admin/*` (the admin app), `/workspaces/*` (admin HTTP), and the health probes a
+ *   deploy target polls. Core APIs are protected by the plugin mount's containment. Reserving
+ *   `/api/*` here would also claim the delegated `/api/p/<id>` namespace and refuse every plugin.
  * - permissions: every namespace a core `permission: "<ns>.…"` check uses today (collected
  *   2026-10-04 from `grep -rhoE 'permission: "[a-z-]+\.'` over `src`, test-only namespaces left
  *   out). A plugin defining `content.publish` would otherwise silently share a grant with core.
@@ -24,11 +26,11 @@ import { STORE_MANIFEST } from "#src/features/plugins/store/manifest";
  *   (`plugin_capability_`, `agent_plugin_`) are refused earlier, by `validateManifest`.
  * - tables: the first-party data-module plugins' table namespaces (`p_store__*`, `p_lipay__*`),
  *   derived from their own declarations so the reservation follows them.
- * - settings, widgets: none yet — no core namespace for either is plugin-reachable today
- *   (ADR-025 settings mounting and plugin widgets are unbuilt); add them here when they are.
+ * - settings, widgets: none yet — no reserved core namespace; plugin widget declarations remain
+ *   exclusive against each other and are rendered through the public SSR partial owner.
  */
 
-const CORE_ROUTE_PREFIXES = ["/api/*", "/admin/*", "/workspaces/*"] as const;
+const CORE_ROUTE_PREFIXES = ["/admin/*", "/workspaces/*"] as const;
 const CORE_ROUTES = ["/healthz", "/readyz", "/health"] as const;
 const CORE_PERMISSION_NAMESPACES = [
   "admin", "analytics", "apikey", "backup", "changeset", "comments", "content", "custom-credentials",

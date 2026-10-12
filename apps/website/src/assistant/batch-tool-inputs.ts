@@ -52,6 +52,9 @@ export const BATCHABLE_TOOLS: readonly BatchableTool[] = [
   { toolId: "theme_read_file", maxItems: 20 },
   { toolId: "theme_write_file" },
   { toolId: "theme_edit_file" },
+  { toolId: 'plugin_source_read', maxItems: 20 },
+  { toolId: 'plugin_source_write' },
+  { toolId: 'plugin_source_edit' },
   // 10 pages x 8,000 characters keeps one result near what a single default fetch used to return.
   { toolId: "web_fetch_page", maxItems: 10, itemDefaults: { maxChars: 8_000 } },
 ];
@@ -175,6 +178,10 @@ export function withBatchInput(
       ctx.signal.throwIfAborted();
       const input = { ...tool.itemDefaults, ...shared, ...item };
       try {
+        // Batch results are JSON text; an image block inside them would serialize its base64.
+        if (toolId === "web_fetch_page" && input.screenshot === true) {
+          throw new ToolInputError({ message: "web_fetch_page: screenshot is unavailable in batch items; use a single render call with screenshot: true." });
+        }
         results.push({ index, ok: true, result: await original({ ...ctx, input }, options) });
       } catch (error) {
         results.push({ index, ok: false, error: itemErrorMessage({ error, toolId }) });

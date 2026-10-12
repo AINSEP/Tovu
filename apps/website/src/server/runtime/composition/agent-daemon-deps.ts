@@ -30,6 +30,7 @@ import { createSiteRouteDepsForWorkspace } from "./deps.js";
 /** The narrow slice `startPluginActivationPolling` needs — never the whole `RouteDeps`, so a
  * caller (or a test) can pass a hand-built fake without satisfying the full interface. */
 export interface PluginActivationPollDeps {
+  readonly pluginLoadedVersion?: (required: { id: string }, optional?: Record<string, never>) => string | undefined;
   readonly workspaceId: string;
   readonly pluginActivationRepo: Pick<PluginActivationRepoPort, "listAll">;
   readonly onPluginEnabled: (pluginId: string) => Promise<void>;
@@ -46,12 +47,12 @@ export interface PluginActivationPollDeps {
  */
 export async function reconcilePluginActivationsOnce(deps: PluginActivationPollDeps, attachedIds: Set<string>): Promise<void> {
   const records = await deps.pluginActivationRepo.listAll();
-  const enabledNow = new Set(
-    records.filter((record) => record.workspaceId === deps.workspaceId && record.enabled).map((record) => record.pluginId)
-  );
+  const enabledVersions = new Map(records.filter(record => record.workspaceId === deps.workspaceId && record.enabled).map(record => [record.pluginId, record.version]));
+  const enabledNow = new Set(enabledVersions.keys());
 
-  for (const pluginId of enabledNow) {
-    if (attachedIds.has(pluginId)) continue;
+  for (const [pluginId, activeVersion] of enabledVersions) {
+    const loadedVersion = deps.pluginLoadedVersion?.({ id: pluginId }, {});
+    if (attachedIds.has(pluginId) && (!deps.pluginLoadedVersion || loadedVersion === activeVersion)) continue;
     try {
       await deps.onPluginEnabled(pluginId);
       attachedIds.add(pluginId);

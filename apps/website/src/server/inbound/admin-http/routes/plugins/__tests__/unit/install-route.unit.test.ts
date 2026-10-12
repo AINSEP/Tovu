@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
 import express from "express";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
+import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
 import { registerPluginInstallRoutes } from "../../install.js";
 import type { PluginsRouteDeps } from "../../deps.js";
@@ -22,6 +23,7 @@ async function boot(t: TestContext, options: { installer?: "none" | ((call: Call
   const record = (method: Call["method"]) => async (input: Record<string, unknown>) => { calls.push({ method, input }); return respond!({ method, input }); };
   const deps = {
     workspaceId: WS,
+    pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: options.env ?? '1' } }),
     authorize: async () => (options.allowed === false ? { allowed: false, reason: "denied" } : { allowed: true }),
     ...(respond ? { pluginInstaller: { preview: record("preview"), install: record("install") } } : {}),
   } as unknown as PluginsRouteDeps;

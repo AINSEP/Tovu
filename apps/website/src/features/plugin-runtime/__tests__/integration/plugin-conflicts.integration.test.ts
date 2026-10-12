@@ -37,9 +37,9 @@ function source(id: string, contributes: PluginManifest["contributes"]): PluginR
 
 const ENTRY = { id: "entry", workspaceId: WORKSPACE, title: "Entry", slug: "entry", status: "draft" as const, bodyJson: {}, ext: {} };
 
-test("enable time: turning on a plugin whose tool is already provided by an enabled plugin is refused, and its row is restored", async () => {
+test("enable time: turning on a plugin whose widget is already provided by an enabled plugin is refused, and its row is restored", async () => {
   const repo = new InMemoryPluginActivationRepo();
-  const sources = [source("shop-a", { tools: ["shop_list"] }), source("shop-b", { tools: ["shop_list"] })];
+  const sources = [source("shop-a", { widgets: ["shop-cart"] }), source("shop-b", { widgets: ["shop-cart"] })];
   const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources });
   const deps = { clock: clock(), repo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled };
 
@@ -49,7 +49,7 @@ test("enable time: turning on a plugin whose tool is already provided by an enab
     (error: unknown) => {
       assert.ok(error instanceof PluginConflictError);
       assert.equal(error.pluginId, "shop-b");
-      assert.deepEqual(error.conflicts.map((c) => `${c.kind}:${c.key}<-${c.heldBy}`), ["tool:shop_list<-shop-a"]);
+      assert.deepEqual(error.conflicts.map((c) => `${c.kind}:${c.key}<-${c.heldBy}`), ["widget:shop-cart<-shop-a"]);
       return true;
     },
   );

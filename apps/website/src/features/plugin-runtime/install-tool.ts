@@ -27,6 +27,8 @@ import type { PluginsToolDeps } from "./tool-registrations.js";
  * preview (inspects bytes, computes the consent digest) -> install with `expectedDigest`, which
  * re-inspects and refuses a package that changed since the preview. The same
  * `TOVU_PLUGIN_LOCAL_INSTALL=1` opt-in gates it, and the same `admin.plugins.enable` permission.
+ * Updated 2026-10-09: the injected deployment policy keeps that opt-in on hosted servers;
+ * desktop/dev sites install directly. The permission and byte-digest ordering still apply.
  *
  * No confirmation card (owner 2026-10-07: ordinary installs run directly; trash/delete/publish ask; it shipped with one in
  * 444e9dfca and was dropped the same day). The digest pin still matters without a human in between:
@@ -38,7 +40,7 @@ import type { PluginsToolDeps } from "./tool-registrations.js";
  * keyed per tool id. Installing never turns the plugin on — `plugins_set_enabled` does that. Agent Plugins use their own admin upload service and `agent_plugins_install` tool; this tool does not take a `family`.
  */
 
-export type PluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "authorize" | "pluginInstaller"> & {
+export type PluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "authorize" | "pluginInstaller" | "pluginSourcePolicy"> & {
   /** Defaults to `process.env`; read per call so the switch matches the admin route's. */
   readonly readInstallAttachment?: InstallAttachmentReader;
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -52,8 +54,8 @@ export const catalog: AgentToolDefinition[] = [{
     "Installs a SITE plugin (.tovu-plugin, the kind content_read.plugin lists) from a local folder or .zip on the machine Tovu runs on, or a chat ZIP source.attachmentRef (get it from chat_list_pending_attachments). " +
     "Use when the user asks to install or add a plugin from a folder or zip. The package is inspected and an invalid one is refused before " +
     "anything is written; the result names its trust tier and carries a warning saying whether it runs code — tell the user. Set replace:true to replace an installed version (refused while that plugin is on). The plugin is " +
-    "installed OFF in every workspace — turn it on afterwards with plugins_set_enabled (family 'site-runtime'). Refused unless the server " +
-    "was started with TOVU_PLUGIN_LOCAL_INSTALL=1 (the same opt-in the admin Install Plugin dialog needs). Does not install Agent Plugins, " +
+    "installed OFF in every workspace — turn it on afterwards with plugins_set_enabled (family 'site-runtime'). Hosted servers refuse installs " +
+    "without TOVU_PLUGIN_LOCAL_INSTALL=1; desktop and dev sites install directly. To AUTHOR a site plugin use plugin_source_create/open, write/edit files, seal, then enable. Does not install Agent Plugins, " +
     "themes or skills, and does not download anything.",
   sideEffects: "mutates-durable-state",
   authorization: { permission: "admin.plugins.enable" },
@@ -96,7 +98,8 @@ export function buildRegistrations(deps: PluginsInstallToolDeps, _optional: Reco
       [PLUGINS_INSTALL_TOOL_ID]: async (ctx) => {
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin" });
         const request = readPluginInstallRequest({ input: ctx.input });
-        if (!sitePluginLocalInstallEnabled({ env: deps.env ?? process.env }) || !deps.pluginInstaller) {
+        const enabled = deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: deps.env ?? process.env });
+        if (!enabled || !deps.pluginInstaller) {
           return { installed: false, reason: "PLUGIN_LOCAL_INSTALL_DISABLED", note: "Nothing was installed: local plugin installs are off on this server. The owner has to start Tovu with TOVU_PLUGIN_LOCAL_INSTALL=1 first." };
         }
         const input: PluginInstallInput = request.kind === "folder"

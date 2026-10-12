@@ -26,6 +26,9 @@ const EXPECTED_RUNTIME_EXPORTS = [
   "CONTENT_READ",
   "CONTENT_EXTEND",
   "HOOKS_ATTACH",
+  "HTTP_ROUTE_REGISTER",
+  "TOOLS_REGISTER",
+  "RENDER_CONTRIBUTE",
   "HOOK_CONTENT_ENTRY_BEFORE_SAVE",
   "HOOK_POINTS",
 ].sort();
@@ -100,12 +103,17 @@ test("REQ-08/C-001: definePlugin performs no filesystem writes or fetches and th
   }
 });
 
-test("ADR-024 §3 / REQ-05: BeforeSaveFilter may be sync or async — both are valid at the type level", () => {
+test("SDK consumer types resolve for sync/async filters and route/tool/widget contributions", () => {
   // The compiler API checks this consumer; tsx alone does not check types.
   const fixture = path.resolve(import.meta.dirname, "before-save-consumer.ts");
-  const source = `import type { BeforeSaveFilter } from "../../index.js";
+  const source = `import type { BeforeSaveFilter, PluginSdk, PluginRouteContribution, PluginToolContribution, PluginWidgetContribution } from "../../index.js";
     const syncFilter: BeforeSaveFilter = () => ({ count: 1 });
-    const asyncFilter: BeforeSaveFilter = async () => ({ count: 1 });`;
+    const asyncFilter: BeforeSaveFilter = async () => ({ count: 1 });
+    const route: PluginRouteContribution = { method: 'GET', path: '/items', access: 'public', handler: async ({ auth }) => ({ body: auth.workspaceId }) };
+    const emptyRoute: PluginRouteContribution = { method: 'POST', path: '/done', access: 'admin', handler: async () => {} };
+    const tool: PluginToolContribution = { name: 'search', description: 'Search items', inputSchema: { type: 'object' }, handler: ({ input }) => input };
+    const widget: PluginWidgetContribution = { name: 'banner', render: ({ auth }) => '<b>' + auth.workspaceId + '</b>' };
+    function setup(sdk: PluginSdk) { sdk.routes.add(route); sdk.routes.add(emptyRoute); sdk.tools.add(tool); sdk.widgets.add(widget); }`;
   const options: ts.CompilerOptions = {
     strict: true, noEmit: true, types: [], skipLibCheck: true,
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.NodeNext,
@@ -123,6 +131,26 @@ test("ADR-024 §3 / REQ-05: BeforeSaveFilter may be sync or async — both are v
   const asyncFilter: sdk.BeforeSaveFilter = async (_entry, _ctx) => ({ count: 1 });
   assert.equal(typeof syncFilter, "function");
   assert.equal(typeof asyncFilter, "function");
+});
+
+test('SDK external type contracts are declared package dependencies for standalone consumers', () => {
+  const root = path.resolve(import.meta.dirname, '../../..');
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(manifest.dependencies['@jini-ai/plugins'], '^0.4.0');
+  const tree = ts.createSourceFile('index.ts', fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8'), ts.ScriptTarget.Latest, true);
+  const external = new Set<string>();
+  const visit = (node: ts.Node) => {
+    const literal = (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) ? node.moduleSpecifier
+      : ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) ? node.argument.literal : undefined;
+    if (literal && ts.isStringLiteral(literal) && !literal.text.startsWith('.')) external.add(literal.text);
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  assert.ok(external.has('@jini-ai/plugins/host'));
+  for (const specifier of external) {
+    const packageName = specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0]!;
+    assert.ok(manifest.dependencies?.[packageName], `undeclared SDK dependency ${packageName}`);
+  }
 });
 
 test("REQ-08/ADR-005 rule 1: @tovu/sdk exports nothing from @tovu/core — no import of '@tovu/core' or a relative reach into ../../../../src anywhere in the package's own source", async () => {
@@ -183,4 +211,11 @@ test("the package root export targets exist and @tovu/sdk is importable", async 
   assert.deepEqual(Object.keys(publicSdk).sort(), EXPECTED_RUNTIME_EXPORTS);
   const definition = { setup() {} };
   assert.equal(publicSdk.definePlugin(definition).definition, definition);
+});
+
+// Owner dispatch plugwire explicitly acknowledges additive executable SDK capability tokens.
+test("plugwire: executable route/tool/widget capability names are pinned public exports", () => {
+  assert.equal(sdk.HTTP_ROUTE_REGISTER, "http.route.register");
+  assert.equal(sdk.TOOLS_REGISTER, "tools.register");
+  assert.equal(sdk.RENDER_CONTRIBUTE, "render.contribute");
 });

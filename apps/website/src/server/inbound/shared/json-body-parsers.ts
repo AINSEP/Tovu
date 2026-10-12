@@ -32,6 +32,7 @@ export const LARGE_UPLOAD_JSON_BODY_LIMIT = "75mb";
  *  that has no gate would leave its routes with no parsed body at all. */
 const AUTHENTICATED_PATH_PREFIXES = [
   "/api/admin",
+  "/api/p",
   "/api/assistant/chats",
   "/api/runs",
   "/api/agents",
@@ -69,6 +70,7 @@ export function isAuthenticatedBodyPath(path: string): boolean {
  */
 export function jsonBodyLimitForAuthenticatedRequest(method: string, path: string): string {
   const lower = path.toLowerCase();
+  if (lower === "/api/p" || lower.startsWith("/api/p/")) return PUBLIC_JSON_BODY_LIMIT;
   const isLarge = LARGE_UPLOAD_ROUTES.some((route) => route.method === method.toUpperCase() && route.pattern.test(lower));
   return isLarge ? LARGE_UPLOAD_JSON_BODY_LIMIT : AUTHENTICATED_JSON_BODY_LIMIT;
 }
@@ -90,7 +92,7 @@ export const parsePublicJsonBody: RequestHandler = (req, res, next) => {
  *  the full path whichever prefix the gate is mounted under. */
 export function parseAuthenticatedJsonBody(req: Request, res: Response, next: NextFunction): void {
   const limit = jsonBodyLimitForAuthenticatedRequest(req.method, `${req.baseUrl}${req.path}`);
-  const parser = limit === LARGE_UPLOAD_JSON_BODY_LIMIT ? largeUploadParser : authenticatedParser;
+  const parser = limit === PUBLIC_JSON_BODY_LIMIT ? publicParser : limit === LARGE_UPLOAD_JSON_BODY_LIMIT ? largeUploadParser : authenticatedParser;
   parser(req, res, next);
 }
 

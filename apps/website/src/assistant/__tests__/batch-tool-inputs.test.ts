@@ -212,3 +212,19 @@ test("approval runs per item, inside the batch: an item whose class asks is refu
   assert.match((batch.results[1] as { error: string }).error, /^TOOL_APPROVAL_NO_CONFIRMATION_CHANNEL: tool_batch_probe:/);
   assert.deepEqual(ran, [{ method: "GET" }, { method: "PUT" }], "the DELETE item never reached the handler");
 });
+
+
+test("web fetch batches refuse screenshots from shared or item fields before rendering and continue other items", async () => {
+  const inputs: unknown[] = [];
+  const registration = fakeRegistration("web_fetch_page", async ctx => { inputs.push(ctx.input); return { text: "bounded" }; });
+  const wrapped = withBatchInput({ registration, tool: { toolId: "web_fetch_page" } });
+  const result = await wrapped.handler(executionContext({ screenshot: true, items: [
+    { url: "https://a.example/" }, { url: "https://b.example/", screenshot: false }, { url: "https://c.example/", screenshot: true },
+  ] })) as BatchResult;
+  assert.deepEqual([result.total, result.succeeded, result.failed], [3, 1, 2]);
+  assert.deepEqual(inputs, [{ url: "https://b.example/", screenshot: false }]);
+  for (const item of result.results.filter(item => !item.ok)) assert.match(item.error, /screenshot is unavailable in batch items; use a single render call/);
+  assert.ok(!JSON.stringify(result).includes('"type":"image"'));
+  await wrapped.handler(executionContext({ url: "https://single.example/", screenshot: true }));
+  assert.equal(inputs.length, 2, "single calls still reach the image-producing handler");
+});
