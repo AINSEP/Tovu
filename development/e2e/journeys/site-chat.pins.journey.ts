@@ -452,7 +452,8 @@ test.describe("SPEC-046 AC6/REQ-7 — real per-IP rate limiting on the public ch
     // `MessageRow` renders once as `.jini-message-error`.
     const errorBanner = page.locator(".tovu-site-assistant .jini-message-error");
     await expect(errorBanner).toBeVisible();
-    await expect(errorBanner).toHaveText("too many messages from this address — please wait before trying again");
+    // 3167afa9b moved visitor errors to fixed public copy plus a correlatable error id (`public-errors.ts`).
+    await expect(errorBanner).toHaveText(/^Couldn't get an answer: Too many messages\. Please wait before trying again\. \(error [0-9a-f-]{36}\)\. Try again\.$/);
 
     // "Not hanging" (AC6) has two independent parts, and neither is provable by re-reading the
     // composer's OWN text box: `Composer.tsx`'s `pane.send()` clears the draft on submit
@@ -695,7 +696,8 @@ test.describe("SPEC-046 REQ-1 — the transcript survives a page load", () => {
 
     await openSitePage(page, "/about");
     await openChatPanel(page);
-    await expect(page.locator(".tovu-site-assistant .jini-chat-pane__suggestion")).toHaveCount(0);
+    // 956bbe98b brought back two localized example prompts (`useSiteAssistantSurface`) for an empty thread.
+    await expect(page.locator(".tovu-site-assistant .jini-chat-pane__suggestion")).toHaveCount(2);
     await sendVisitorMessage(page, "What is this site about?");
     await expect(page.locator(".tovu-site-assistant .jini-message-list").getByText(reply)).toBeVisible();
 
@@ -729,7 +731,8 @@ test.describe("SPEC-046 REQ-1 — the transcript survives a page load", () => {
     await page.locator(".tovu-site-assistant .jini-chat-pane__new-thread").click();
     await page
       .locator(".tovu-site-assistant .tovu-site-assistant__reset-confirm")
-      .getByRole("button", { name: "Discard chat?" })
+      // 956bbe98b: "Discard chat?" is now the question; the action button is "Discard chat".
+      .getByRole("button", { name: "Discard chat", exact: true })
       .click();
     await expect(page.locator(".tovu-site-assistant .jini-message-list").getByText(reply)).toHaveCount(0);
 
@@ -873,7 +876,8 @@ const PAGES = [
 ] as const;
 
 const MOUNT_ID = "tovu-site-assistant-root";
-const SCRIPT_SRC = "/site-chat/site-assistant.js";
+// The lazy loader (`site-chat-markup.ts`) replaced the eager bundle tag; it loads the widget on demand.
+const SCRIPT_SRC = "/site-chat/site-assistant-loader.js";
 /** Size of the square corner region screenshotted — the 56px FAB at 24px insets plus margin. */
 const CORNER_SIZE = 120;
 /** Hides everything but `#${MOUNT_ID}` during the corner capture. Anchored to this file's directory:
@@ -944,7 +948,8 @@ test.describe("site-chat FAB is present on every public page that ships it", () 
 
     test(`${name} (${path}): the FAB is visible in the bottom-right corner and opens the panel`, async ({ page }) => {
       await openAndWaitForMount(page, path);
-      const fab = page.locator(`#${MOUNT_ID} .chat-fab`);
+      // Before activation the visible FAB is the lazy loader's bubble, a sibling of the mount node.
+      const fab = page.locator("[data-jini-chat-loader]");
       await expect(fab).toBeVisible();
       await expect(fab).toBeInViewport();
 
@@ -956,7 +961,7 @@ test.describe("site-chat FAB is present on every public page that ships it", () 
       expect(box.y + box.height, "FAB hugs the bottom edge").toBeGreaterThan(viewport.height - CORNER_SIZE);
       expect(box.width, "FAB is the designed circle, not a bare unstyled button").toBeGreaterThanOrEqual(40);
 
-      await fab.click();
+      await openChatPanel(page);
       await expect(page.locator(".tovu-site-assistant__panel")).toBeVisible();
     });
 
@@ -1030,12 +1035,14 @@ test.describe('front: vanilla mobile accessibility', () => {
       };
       const background = luminance(getComputedStyle(element).backgroundColor);
       return Array.from(element.querySelectorAll('textarea, button:not(:disabled)')).filter(control => !control.closest('[hidden]')).map(control => {
-        const border = luminance(getComputedStyle(control).borderTopColor);
-        return (Math.max(background, border) + .05) / (Math.min(background, border) + .05);
+        const borderColor = getComputedStyle(control).borderTopColor;
+        const border = luminance(borderColor);
+        const ratio = (Math.max(background, border) + .05) / (Math.min(background, border) + .05);
+        return { ratio, label: `${control.tagName.toLowerCase()}.${control.className} border ${borderColor} on ${getComputedStyle(element).backgroundColor}` };
       });
     });
     expect(ratios.length).toBeGreaterThan(1);
-    for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(3);
+    for (const { ratio, label } of ratios) expect(ratio, label).toBeGreaterThanOrEqual(3);
     const pageLink = page.locator('a[href]').filter({ visible: true }).first();
     await pageLink.focus();
     await page.keyboard.press('Escape');

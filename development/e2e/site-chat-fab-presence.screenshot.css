@@ -1,8 +1,9 @@
 /* Applied only while `site-chat-fab-presence.spec.ts` captures the FAB corner (Playwright
  * `toHaveScreenshot({ stylePath })`). Hides everything except the site-assistant mount so page copy,
  * imagery and late-loading fonts behind the corner cannot move the diff — only the FAB itself (or its
- * absence) can. Keep the id in sync with the spec's MOUNT_ID. */
-body > *:not(#tovu-site-assistant-root),
-body > *:not(#tovu-site-assistant-root) * {
+ * absence) can. The lazy loader's bubble is the FAB until the widget mounts. Keep the id in sync with
+ * the spec's MOUNT_ID. */
+body > *:not(#tovu-site-assistant-root, [data-jini-chat-loader]),
+body > *:not(#tovu-site-assistant-root, [data-jini-chat-loader]) * {
   visibility: hidden !important;
 }
