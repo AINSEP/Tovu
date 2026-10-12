@@ -85,6 +85,34 @@ export async function stubPostsListForBaseline(page: Page): Promise<void> {
   );
 }
 
+/**
+ * Narrows a real admin list GET to the rows a baseline created. Same reason as
+ * {@link stubPostsListForBaseline} (one shared memory DB, so the list holds whatever earlier
+ * journeys left behind), but the rows kept are the server's own answer, not fixed stand-ins.
+ * `pin` overwrites those of the named fields a row has (timestamps): masking a time cell is not
+ * enough, because its text width moves the table's other columns.
+ */
+export async function narrowListForBaseline(
+  { page, pathname, keep }: { page: Page; pathname: string; keep: (row: Record<string, unknown>) => boolean },
+  { pin = {} }: { pin?: Record<string, unknown> } = {},
+): Promise<void> {
+  const pinRow = (row: Record<string, unknown>) =>
+    ({ ...row, ...Object.fromEntries(Object.entries(pin).filter(([field]) => field in row)) });
+  await page.route(
+    (url) => url.pathname === pathname,
+    async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      const response = await route.fetch();
+      const body = (await response.json()) as Record<string, unknown>;
+      const json = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, Array.isArray(v) ? v.filter(keep).map(pinRow) : v]));
+      await route.fulfill({ response, json });
+    },
+  );
+}
+
+/** A fixed instant for {@link narrowListForBaseline}'s `pin`. */
+export const BASELINE_TIME = "2026-01-15T09:30:00.000Z";
+
 /** True when the document is wider than the viewport, i.e. the page scrolls sideways. */
 export async function hasHorizontalScroll(page: Page): Promise<boolean> {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);

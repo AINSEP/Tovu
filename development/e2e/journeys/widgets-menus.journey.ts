@@ -1,7 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { APIRequestContext, Page } from "@playwright/test";
 
-import { WS_API, createPublishedPageWithHtml, expect, fetchPublic, test, uniq, uniqSlug } from "./_fixtures.js";
+import { WS_API, createPublishedPageWithHtml, expect, expectStatus, fetchPublic, narrowListForBaseline, test, uniq, uniqSlug } from "./_fixtures.js";
 
 /**
  * Widgets + menus journeys (SCOPE.md W7): build a menu in the admin, wrap it in a menu widget,
@@ -48,7 +48,7 @@ async function readMenuBySlug(request: APIRequestContext, slug: string): Promise
   return menu;
 }
 
-async function createWidget(request: APIRequestContext, body: { widgetType: "menu" | "text"; title: string; config: unknown }): Promise<string> {
+async function createWidget(request: APIRequestContext, body: { widgetType: "menu" | "text"; title: string; slug: string; config: unknown }): Promise<string> {
   const res = await request.post(`${WS_API}/widgets`, { data: body });
   expect(res.status(), await res.text()).toBe(201);
   return (await res.json()).widget.id;
@@ -77,12 +77,14 @@ test.describe("W7 menus and widgets", () => {
 
     const menu = await readMenuBySlug(request, slug);
     expect(menu.items.map((i) => i.label)).toEqual(["Journey Home", "Journey About"]);
-    const menuWidgetId = await createWidget(request, { widgetType: "menu", title: "Journey menu widget", config: { menuRef: menu.id } });
+    // Fixed slugs: the widgets library baseline shows them (an omitted slug gets a random suffix).
+    const widgetSlugs = ["journey-menu-widget", "journey-text-widget"];
+    const menuWidgetId = await createWidget(request, { widgetType: "menu", title: "Journey menu widget", slug: widgetSlugs[0], config: { menuRef: menu.id } });
     const textMarker = uniq("TEXT-WIDGET-MARKER");
-    const textWidgetId = await createWidget(request, { widgetType: "text", title: "Journey text widget", config: { body: textMarker } });
+    const textWidgetId = await createWidget(request, { widgetType: "text", title: "Journey text widget", slug: widgetSlugs[1], config: { body: textMarker } });
 
     const pageSlug = uniqSlug("widgets-page");
-    await createPublishedPageWithHtml(request, {
+    const widgetsPage = await createPublishedPageWithHtml(request, {
       title: "Widgets page",
       slug: pageSlug,
       html:
@@ -100,9 +102,16 @@ test.describe("W7 menus and widgets", () => {
     expect(live.html).toContain('href="https://example.test/about"');
     expect(live.html, "no widget may degrade to the unresolved placeholder").not.toContain("widget-placeholder");
 
+    await narrowListForBaseline({ page, pathname: `${WS_API}/widgets`, keep: (row) => widgetSlugs.includes(String(row.slug)) });
     await page.goto("/admin/widgets");
     await expect(page.getByText("Journey menu widget")).toBeVisible();
     await expect(page).toHaveScreenshot("widgets-library.png", { mask: [page.locator("time, [data-relative-time]")] });
+
+    await expectStatus(await request.delete(`${WS_API}/pages/${widgetsPage.id}`), 200, "page delete");
+    // Trash, not purge: the hermetic site's Trash cannot list or purge menus and widgets (`app.ts`),
+    // so the purge happens when the cleanup reporter deletes the whole site.
+    for (const id of [menuWidgetId, textWidgetId]) await expectStatus(await request.post(`${WS_API}/widgets/${id}/trash`), 200, "widget trash");
+    await expectStatus(await request.delete(`${WS_API}/menus/${menu.id}`), 200, "menu trash");
   });
 
   test("a widget whose id does not exist renders nothing and never 500s the page", { tag: ["@unrun"] }, async ({ request }) => {
@@ -123,13 +132,19 @@ test.describe("W7 menus and widgets", () => {
   });
 
   test("menus list and editor baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
-    const menu = await createMenuApi(request, uniqSlug("baseline-menu"), ["One", "Two", "Three"]);
-    await page.goto("/admin/menus");
-    await expect(page.getByText(menu.title)).toBeVisible();
-    await expect(page).toHaveScreenshot("menus-list.png", { mask: [page.locator("time, [data-relative-time]")] });
-    await page.goto(`/admin/menus/${menu.id}`);
-    await expect(page.getByRole("textbox", { name: "Menu title" })).toHaveValue(menu.title);
-    await expect(page).toHaveScreenshot("menu-editor.png");
+    // A fixed slug: the title and slug are on screen in both shots.
+    const menu = await createMenuApi(request, "baseline-menu", ["One", "Two", "Three"]);
+    try {
+      await narrowListForBaseline({ page, pathname: `${WS_API}/menus`, keep: (row) => row.slug === menu.slug });
+      await page.goto("/admin/menus");
+      await expect(page.getByText(menu.title)).toBeVisible();
+      await expect(page).toHaveScreenshot("menus-list.png", { mask: [page.locator("time, [data-relative-time]")] });
+      await page.goto(`/admin/menus/${menu.id}`);
+      await expect(page.getByRole("textbox", { name: "Menu title" })).toHaveValue(menu.title);
+      await expect(page).toHaveScreenshot("menu-editor.png");
+    } finally {
+      await expectStatus(await request.delete(`${WS_API}/menus/${menu.id}`), 200, "menu trash");
+    }
   });
 });
 

@@ -1,7 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { Page } from "@playwright/test";
 
-import { PUBLIC_URL, WS_API, expect, fetchPublic, hasHorizontalScroll, test, uniq } from "./_fixtures.js";
+import { PUBLIC_URL, WS_API, expect, expectStatus, fetchPublic, hasHorizontalScroll, test, uniq } from "./_fixtures.js";
 
 /**
  * Pages journeys (SCOPE.md W3) and the preview sandbox stress cases.
@@ -58,17 +58,22 @@ test.describe("W3 page lifecycle", () => {
   });
 
   test("published page at phone width: no horizontal scroll on the public page or in the admin editor", { tag: ["@unrun"] }, async ({ page, request }) => {
-    const created = await request.post(`${WS_API}/pages`, { data: { title: uniq("Phone page"), slug: uniq("phone-page").toLowerCase(), status: "published" } });
+    // A fixed title: it is on screen in the baseline. The slug stays unique; its field is masked.
+    const created = await request.post(`${WS_API}/pages`, { data: { title: "Phone page", slug: uniq("phone-page").toLowerCase(), status: "published" } });
     expect(created.status()).toBe(201);
     const { id, slug } = (await created.json()).post as { id: string; slug: string };
-    await request.put(`${WS_API}/pages/${id}/html`, { data: { html: `<main><h1>${"Verylongunbrokenword".repeat(8)}</h1></main>` } });
-    await page.setViewportSize({ width: 360, height: 780 });
-    await page.goto(`${PUBLIC_URL}/${slug}`);
-    expect(await hasHorizontalScroll(page)).toBe(false);
-    await page.goto(`/admin/pages/${id}`);
-    await expect(page.getByRole("textbox", { name: "Page title" })).toBeVisible();
-    expect(await hasHorizontalScroll(page)).toBe(false);
-    await expect(page).toHaveScreenshot("page-editor-phone.png", { mask: [page.getByLabel("URL slug")] });
+    try {
+      await request.put(`${WS_API}/pages/${id}/html`, { data: { html: `<main><h1>${"Verylongunbrokenword".repeat(8)}</h1></main>` } });
+      await page.setViewportSize({ width: 360, height: 780 });
+      await page.goto(`${PUBLIC_URL}/${slug}`);
+      expect(await hasHorizontalScroll(page)).toBe(false);
+      await page.goto(`/admin/pages/${id}`);
+      await expect(page.getByRole("textbox", { name: "Page title" })).toHaveValue("Phone page");
+      expect(await hasHorizontalScroll(page)).toBe(false);
+      await expect(page).toHaveScreenshot("page-editor-phone.png", { mask: [page.getByLabel("URL slug")] });
+    } finally {
+      await expectStatus(await request.delete(`${WS_API}/pages/${id}`), 200, "page delete");
+    }
   });
 });
 

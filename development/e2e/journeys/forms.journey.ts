@@ -1,7 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { APIRequestContext, Browser, BrowserContext } from "@playwright/test";
 
-import { PUBLIC_URL, WS_API, createPublishedPageWithHtml, expect, test, uniq, uniqSlug } from "./_fixtures.js";
+import { BASELINE_TIME, PUBLIC_URL, WS_API, createPublishedPageWithHtml, expect, narrowListForBaseline, test, uniq, uniqSlug } from "./_fixtures.js";
 
 /**
  * Forms journeys (SCOPE.md W6, second half): build a form in the admin, embed it on a published
@@ -106,9 +106,15 @@ test.describe("W6 forms", () => {
   });
 
   test("forms list, builder and submissions baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
-    const slug = uniqSlug("baseline-form");
+    // A fixed slug: the name and slug are on screen in all three shots.
+    const slug = "baseline-form";
+    // No cleanup: the hermetic site has no form delete route and no form Trash kind (`app.ts`), so
+    // this form goes when the cleanup reporter deletes the whole site.
     await createForm(request, slug);
     await submitJson(request, slug, { email: "a@example.test", message: "baseline" });
+    const pin = { createdAt: BASELINE_TIME, updatedAt: BASELINE_TIME, submittedAt: BASELINE_TIME };
+    await narrowListForBaseline({ page, pathname: `${WS_API}/forms`, keep: (row) => row.slug === slug }, { pin });
+    await narrowListForBaseline({ page, pathname: `${WS_API}/forms/${slug}/submissions`, keep: () => true }, { pin });
     await page.goto("/admin/forms");
     await expect(page.getByRole("cell", { name: slug, exact: true })).toBeVisible();
     await expect(page).toHaveScreenshot("forms-list.png", { mask: [page.locator("time, [data-relative-time]")] });
@@ -117,7 +123,7 @@ test.describe("W6 forms", () => {
     await expect(page).toHaveScreenshot("form-builder.png");
     await page.goto(`/admin/forms/${slug}/submissions`);
     await expect(page.getByRole("cell", { name: "a@example.test" })).toBeVisible();
-    await expect(page).toHaveScreenshot("form-submissions.png", { mask: [page.getByRole("cell", { name: /^\d{4}-\d{2}-\d{2}T/ })] });
+    await expect(page).toHaveScreenshot("form-submissions.png");
   });
 });
 
