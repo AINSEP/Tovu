@@ -98,6 +98,14 @@ test("external_mcp_save is on the allowlist — it holds up the same held-open-e
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_save"));
 });
 
+test("credential_copy_from_project and plugin_source_delete only answer their parked cards — a surface callback cannot start either", () => {
+  for (const id of ["credential_copy_from_project", "plugin_source_delete"]) {
+    assert.equal(isMcpUiToolCallAllowed(id), true);
+    assert.equal(isMcpUiToolCallPermitted(id, false), false, `${id}: an untrusted callback cannot start a fresh execution`);
+    assert.equal(isMcpUiToolCallPermitted(id, true), true);
+  }
+});
+
 test("custom_credential_write_files runs normally and cannot be executed by a surface callback", () => {
   assert.equal(isMcpUiToolCallAllowed("custom_credential_write_files"), false);
   assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_write_files"), false);
@@ -148,6 +156,11 @@ const EXPECTED_ALLOWLIST = [
   "widgets_trash_instance",
 
   "credential_save",
+  // 9b20083b6 — owner-only (installation owner + system.write + local host), re-admitted per step;
+  // source/keys/Overwrite are chosen only in its parked card. Exchange-only (`mcpUi.exchangeOnly`).
+  "credential_copy_from_project",
+  // 0f7305e84 — `confirmation: 'plan'` delete card (approvalToolHandler, digest-pinned); draft files only.
+  "plugin_source_delete",
 
   "newsletter_send_campaign",
   "newsletter_schedule_campaign",
