@@ -233,7 +233,7 @@ export async function memoryParityDeps(mods: ParityModules, ctx: ParityContext):
     vendor: { ...base, repo: new InMemoryVendorCredentialSetRepo({ vault }) },
     source: { ...base, repo: new InMemorySourceControlCredentialSetRepo({ vault }) },
     peer: { ...base, repo: new VaultPublishContentPeerRepo({ vault }) },
-    destination: new SealedDatabaseDestinationStore({ sealer: base.sealer, keyring: base.keyring, repo: vault as never }),
+    destination: new SealedDatabaseDestinationStore({ sealer: base.sealer, keyring: base.keyring as never, repo: vault as never }),
   } as ParityDeps;
 }
 

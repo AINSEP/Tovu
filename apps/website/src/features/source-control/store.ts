@@ -357,6 +357,6 @@ export async function resolveDefaultForSourceControl(
     // (parity finding R3); validation alone keeps it only for Bitbucket.
     const stored = resolved.payload?.username;
     return { id: resolved.summary.id, label: resolved.summary.label,
-      connection: typeof stored === "string" && !("username" in connection) ? { ...connection, username: stored } : connection };
+      connection: typeof stored === "string" && !("username" in connection) ? Object.assign(connection, { username: stored }) : connection };
   } catch { throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
 }

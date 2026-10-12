@@ -18,7 +18,7 @@ for (const dialect of PARITY_DIALECTS) {
     test("the migrated destination is read, recorded and replaced", async () => {
       const fixture = await migratedParityFixture(dialect);
       try {
-        const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(fixture.kernel as never), sealer: fixture.sealer, keyring: fixture.keyring });
+        const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(fixture.kernel as never), sealer: fixture.sealer, keyring: fixture.keyring as never });
         const saved = await store.get("ws");
         assert.equal(saved?.connectionString, "postgres://writer:password@db.example.test/content");
         assert.deepEqual(saved?.description, { host: "db.example.test", port: "5432", database: "content", user: "writer" });
