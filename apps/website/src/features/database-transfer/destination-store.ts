@@ -46,8 +46,11 @@ export class DestinationUnreadableError extends Error {
   }
 }
 
-/** Internal persistence follows the shared vault port; public store methods stay unchanged. */
-export type DatabaseDestinationRepoPort = VaultRepoPort & Required<Pick<VaultRepoPort, "findDefault">>;
+/** Internal persistence follows the shared vault port; public store methods stay unchanged.
+ * The destination is a singleton (`secrets_vault_singleton`), so it is read with `findOne`, never
+ * `findDefault`: 0012 copied legacy rows with is_default=false (the old table had no such column),
+ * and a default-only read made an upgraded site's destination invisible (parity finding R1). */
+export type DatabaseDestinationRepoPort = VaultRepoPort & Required<Pick<VaultRepoPort, "findOne">>;
 const destinationScope = { kind: "database-destination" as const, ownerKey: "tovu", principalId: null, provider: null, binding: null };
 const destinationKinds = createTovuVaultKinds({ policy: {
   validateMeta: ({ meta }) => meta, legacyPublishCredential: () => undefined, tokenField: () => undefined,
@@ -66,7 +69,7 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
   /** One indexed singleton read and at most one open; raw crypto errors never leave the store. */
   async get(workspaceId: string): Promise<SavedDatabaseDestination | null> {
     try {
-      const opened = await this.vault.findDefault({ ...destinationScope, workspaceId });
+      const opened = await this.vault.findOne({ ...destinationScope, workspaceId });
       if (!opened) return null;
       if (typeof opened.payload?.connectionString !== "string") throw new VaultError({ code: "invalid-record" });
       const meta = opened.summary.meta;
@@ -80,7 +83,7 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
 
   /** Replaces the singleton through Jini's seal/CAS lifecycle and clears the previous last run. */
   async save(workspaceId: string, destination: SavedDatabaseDestination): Promise<void> {
-    const existing = await this.deps.repo.findDefault({ ...destinationScope, workspaceId });
+    const existing = await this.deps.repo.findOne({ ...destinationScope, workspaceId });
     if (destination.connectionString === '' && existing) return;
     const connectionString = normalizeCredentialToken({ value: destination.connectionString, field: "address", hosted: false });
     await this.vault.put({ ...destinationScope, workspaceId, id: existing?.id,
@@ -91,7 +94,7 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
 
   /** Status is validated metadata, so it remains readable even when the site key is unavailable. */
   async lastRun(workspaceId: string): Promise<DatabaseTransferRunSummary | null> {
-    const existing = await this.deps.repo.findDefault({ ...destinationScope, workspaceId });
+    const existing = await this.deps.repo.findOne({ ...destinationScope, workspaceId });
     if (!existing) return null;
     const meta = destinationKinds.metaParsers["database-destination"]({ meta: existing.meta });
     return meta.lastRun as unknown as DatabaseTransferRunSummary | null;
@@ -104,7 +107,7 @@ export class SealedDatabaseDestinationStore implements DatabaseDestinationStoreP
   async recordRun(workspaceId: string, summary: DatabaseTransferRunSummary): Promise<void> {
     let original: VaultRecord | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
-      const existing = await this.deps.repo.findDefault({ ...destinationScope, workspaceId });
+      const existing = await this.deps.repo.findOne({ ...destinationScope, workspaceId });
       if (!existing || (original && (existing.id !== original.id || JSON.stringify(existing.sealed) !== JSON.stringify(original.sealed)))) return;
       original ??= existing;
       try {

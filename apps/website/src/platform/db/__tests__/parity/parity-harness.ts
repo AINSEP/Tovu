@@ -221,7 +221,8 @@ export async function memoryParityDeps(mods: ParityModules, ctx: ParityContext):
   const sqlVault = new SqlSecretsVaultRepo({ kernel: ctx.kernel as StorageKernel<SecretsVaultDatabase> });
   for (const { workspace_id: workspaceId, id } of await ctx.kernel.query<{ workspace_id: string; id: string }>(sql`SELECT workspace_id, id FROM secrets_vault ORDER BY id`)) {
     const record = await sqlVault.find({ workspaceId, id });
-    if (record) await vault.put({ record, expectedRevision: null });
+    // A fresh insert must be revision 1; the boot re-seal already moved the SQL rows to 2.
+    if (record) await vault.put({ record: { ...record, revision: 1 }, expectedRevision: null });
   }
   const base = baseDeps(ctx);
   return { ...parityDeps(mods, ctx),
@@ -532,10 +533,6 @@ export const PARITY_DELTAS: readonly ParityDelta[] = [
  * rest of the transcript stays guarded. Fixing one = deleting its entry. */
 export interface KnownParityIssue { id: string; transcript: "read" | "write"; keys: RegExp; note: string; orderOnly?: boolean }
 export const KNOWN_PARITY_ISSUES: readonly KnownParityIssue[] = [
-  { id: "R1", transcript: "read", keys: /^destination\./,
-    note: "0012 maps database_transfer_destinations with is_default=false (the legacy table has no is_default), but SealedDatabaseDestinationStore reads via findDefault: after upgrade the saved destination and its last run read as null" },
-  { id: "R1", transcript: "write", keys: /^destination\./,
-    note: "same root cause: recordRun is a silent no-op and save() of a new address throws VaultError (singleton id already taken by the invisible row)" },
   { id: "R2", transcript: "read", keys: /^(custom|peer)\.list@/, orderOnly: true,
     note: "custom-credential and peer lists were label-ordered (the label index drove the scan on both dialects); the vault lists by id, so admin lists reorder" },
   { id: "R2", transcript: "write", keys: /^(custom\.9|peer\.11)\.list$/, orderOnly: true, note: "same list-order change" },
