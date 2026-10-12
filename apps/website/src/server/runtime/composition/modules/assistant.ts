@@ -186,9 +186,16 @@ async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response
   const store = deps.chatRunLedger.durable;
   if (!store) return null;
   const principalId = getAuthedPrincipal(res).id;
-  const messageId = (req.body as { messageId?: unknown } | undefined)?.messageId;
+  const messageId = req.method === "GET" ? req.query.messageId : (req.body as { messageId?: unknown } | undefined)?.messageId;
   const run = typeof messageId === "string" ? await store.load({ messageId }, {}) : await store.find({ runId: req.params.runId!, principalId }, {});
   return run?.principalId === principalId && run.workspaceId === deps.workspaceId ? run : null;
+}
+
+/** Routine polls read the owned saved projection; only recovery signals invoke the finalizer. */
+async function readDurableCheckpoint({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<void> {
+  const run = await ownedDurableRun({ req, res, deps }, {});
+  if (!run) { res.status(404).json({ error: "not found" }); return; }
+  res.json({ message: run.message, conversationId: run.conversationId });
 }
 
 async function recoverDurableRun({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<void> {
@@ -530,6 +537,7 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // run on the box, which would hand one admin the ids of every other admin's runs.
       app.get("/api/runs", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
       app.post("/api/runs/:runId/recover", (req, res, next) => recoverDurableRun({ req, res, deps: routeDeps }, {}).catch(next));
+      app.get("/api/runs/:runId/checkpoint", (req, res, next) => readDurableCheckpoint({ req, res, deps: routeDeps }, {}).catch(next));
       app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
       app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
       app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
