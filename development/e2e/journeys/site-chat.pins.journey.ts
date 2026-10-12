@@ -5,6 +5,7 @@ import { JOURNEY_ADMIN_PASSWORD as PIN_PASSWORD } from "../support/bug-pin-fixtu
 import { expect } from "../support/bug-pin-fixtures.js";
 import { type Locator } from "../support/bug-pin-fixtures.js";
 import { type Page } from "../support/bug-pin-fixtures.js";
+import { PIN_VISITOR_CREDENTIAL, PIN_VISITOR_CREDENTIAL_PATH, pinAdminApi } from "../support/bug-pin-fixtures.js";
 import { ABOUT_TARGET } from "../site-assistant-fixtures.js";
 import { mockAssistantTurn } from "../site-assistant-fixtures.js";
 import { openChatPanel } from "../site-assistant-fixtures.js";
@@ -398,21 +399,31 @@ const CHAT_PATH = "/api/site-assistant/chat";
 test.describe("SPEC-046 AC6/REQ-7 — real per-IP rate limiting on the public chat endpoint", () => {
   test.describe.configure({ mode: "serial" });
 
-  test("requests 1-10 clear the limiter, then the widget's 11th request is readable and leaves the composer usable", async ({ page, request }) => {
-    for (let i = 1; i <= 10; i += 1) {
-      const response = await request.post(CHAT_PATH, { data: { message: `budget probe ${i}` } });
-      // The claim this test exists to establish: none of the first ten trips the limiter. Everything
-      // past this line (the 503 shape) is incidental to THIS environment's missing API key, not REQ-7.
-      expect(response.status(), `request ${i} of 10 was rate-limited early`).not.toBe(429);
-      // 503 NOT_CONFIGURED, not 200: this suite's server has no `GEMINI_API_KEY` (see this file's
-      // header), so a request that clears the limiter fails one branch later instead. Asserted so a
-      // future change that quietly adds a key to this suite's environment fails here loudly — with a
-      // clear "the fixture assumption changed" signal — rather than making the next test's "11th"
-      // claim silently false by letting a real model call consume more of the budget than expected.
-      expect(response.status()).toBe(503);
-      const body = (await response.json()) as { code?: string };
-      expect(body.code).toBe("NOT_CONFIGURED");
-    }
+  test("requests 1-10 clear the limiter, then the widget's 11th request is readable and leaves the composer usable", async ({ page, request, playwright, journeySite }) => {
+    // 3167afa9b: the widget only renders with a saved visitor key + model, which the pin fixture
+    // saves. Remove the key for requests 1-10 so they still fail at the real "not configured" gate
+    // (no provider call), then restore it so the page renders the widget for the 11th.
+    const admin = await pinAdminApi({ playwright, site: journeySite });
+    try {
+      const removed = await admin.delete(PIN_VISITOR_CREDENTIAL_PATH);
+      expect(removed.ok(), `remove visitor key: ${await removed.text()}`).toBe(true);
+      for (let i = 1; i <= 10; i += 1) {
+        const response = await request.post(CHAT_PATH, { data: { message: `budget probe ${i}` } });
+        // The claim this test exists to establish: none of the first ten trips the limiter. Everything
+        // past this line (the 503 shape) is incidental to THIS environment's missing API key, not REQ-7.
+        expect(response.status(), `request ${i} of 10 was rate-limited early`).not.toBe(429);
+        // 503 NOT_CONFIGURED, not 200: the visitor key was removed above (and the env-key fallback is
+        // gone since 3167afa9b), so a request that clears the limiter fails one branch later instead. Asserted so a
+        // future change that quietly adds a key to this suite's environment fails here loudly — with a
+        // clear "the fixture assumption changed" signal — rather than making the next test's "11th"
+        // claim silently false by letting a real model call consume more of the budget than expected.
+        expect(response.status()).toBe(503);
+        const body = (await response.json()) as { code?: string };
+        expect(body.code).toBe("NOT_CONFIGURED");
+      }
+      const restored = await admin.put(PIN_VISITOR_CREDENTIAL_PATH, { data: PIN_VISITOR_CREDENTIAL });
+      expect(restored.ok(), `restore visitor key: ${await restored.text()}`).toBe(true);
+    } finally { await admin.dispose(); }
     await openSitePage(page, "/");
     await openChatPanel(page);
 

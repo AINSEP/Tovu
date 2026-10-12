@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { copyFileSync, cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync, watch } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { PlaywrightWorkerArgs, TestInfo } from "@playwright/test";
+import type { APIRequestContext, PlaywrightWorkerArgs, TestInfo } from "@playwright/test";
 import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform";
 import { test as journeyTest, expect } from "../journeys/_fixtures.js";
 import { createIsolatedJourneySite, JOURNEY_ADMIN_USER, JOURNEY_ADMIN_PASSWORD, type IsolatedJourneySite } from "./isolated-journey-site.js";
@@ -292,14 +292,27 @@ const PIN_STOCK_THEMES: Record<string, readonly string[]> = {
   "Bug pin: theme-liquid-preview": ["templated/storefront", "templated/fashion-modern"],
 };
 
+export const PIN_VISITOR_CREDENTIAL_PATH = "/api/admin/v1/workspaces/workspace-local/assistant/site-credential";
+
+/** 3167afa9b: the public assistant can only be enabled (and its widget only renders) with a saved
+ * visitor key and model. Obviously fake and never dialed: site-chat pins stub the chat transport in
+ * the browser or stop at a gate that runs before any provider call. */
+export const PIN_VISITOR_CREDENTIAL = { provider: "anthropic", apiKey: "sk-ant-api03-NOT-A-REAL-KEY-FOR-TESTS-ONLY", model: "claude-haiku-4-5" } as const;
+
+/** An admin API context on the pin's isolated site; the caller disposes it. */
+export async function pinAdminApi({ playwright, site }: { playwright: Playwright; site: IsolatedJourneySite }, _optional = {}): Promise<APIRequestContext> {
+  return playwright.request.newContext({ baseURL: site.adminURL, storageState: site.storageState,
+    extraHTTPHeaders: await pinSessionHeaders({ storageState: site.storageState }) });
+}
+
 async function configurePin(
   { playwright, site, testInfo, visitorWidget }: { playwright: Playwright; site: IsolatedJourneySite; testInfo: TestInfo; visitorWidget: "react" | "vanilla" }, _optional = {},
 ): Promise<void> {
-  const api = await playwright.request.newContext({ baseURL: site.adminURL, storageState: site.storageState,
-    extraHTTPHeaders: await pinSessionHeaders({ storageState: site.storageState }) });
+  const api = await pinAdminApi({ playwright, site });
   try {
     // Public/theme pins exercise the shipped theme. Enable the public widget through its
-    // real settings route, exactly as the old globalSetups did; all credentials remain blank.
+    // real settings route, exactly as the old globalSetups did, after saving the visitor
+    // credential the enable gate requires.
     const publicAssistant = path.basename(testInfo.file) === "site-chat.pins.journey.ts";
     const shippedTheme = testInfo.titlePath.some((title) => title === "Bug pin: site-chat-fab-presence" || title === "Bug pin: theme-visual");
     const stockThemes = [...new Set(testInfo.titlePath.flatMap((title) => PIN_STOCK_THEMES[title] ?? []))];
@@ -314,6 +327,10 @@ async function configurePin(
       expect(rescanned.ok(), "Pin setup theme rescan succeeded").toBe(true);
       const available = (await rescanned.json()).availableThemeIds;
       for (const theme of stockThemes) expect(available).toContain(path.basename(theme));
+    }
+    if (publicAssistant) {
+      const credential = await api.put(PIN_VISITOR_CREDENTIAL_PATH, { data: PIN_VISITOR_CREDENTIAL });
+      expect(credential.ok(), `Pin setup site-credential: ${await credential.text()}`).toBe(true);
     }
     if (publicAssistant || shippedTheme) {
       for (const [url, data] of [
