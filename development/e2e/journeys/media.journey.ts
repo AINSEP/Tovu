@@ -1,5 +1,5 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 
 import { TINY_PNG, WS_API, expect, test, uniqSlug } from "./_fixtures.js";
 
@@ -27,15 +27,32 @@ async function uploadPng(page: Page, name: string, alt: string): Promise<void> {
   await page.getByRole("button", { name: "Upload", exact: true }).click();
 }
 
+/** Trash then hard-delete (the purge route 409s on an untrashed asset) every asset with one of these titles. */
+async function purgeByTitle(request: APIRequestContext, titles: string[]): Promise<void> {
+  const listed = await request.get(`${WS_API}/media`);
+  expect(listed.status()).toBe(200);
+  for (const { id } of ((await listed.json()) as { media: Array<{ id: string; title: string }> }).media.filter((m) => titles.includes(m.title))) {
+    expect((await request.post(`${WS_API}/media/${id}/trash`)).status()).toBe(200);
+    expect((await request.delete(`${WS_API}/media/${id}`)).status()).toBe(200);
+  }
+}
+
 test.describe("W4 media lifecycle", () => {
+  // Uploads this file's tests leave behind, removed after each test so the library baseline below
+  // shows the same empty library whether it runs alone or after the upload tests.
+  const uploaded: string[] = [];
   test.beforeEach(async ({ journeySite }) => {
     expect(journeySite.database, "Media requires SQLite first-boot core transforms").toBe("sqlite");
+  });
+  test.afterEach(async ({ request }) => {
+    await purgeByTitle(request, uploaded.splice(0));
   });
 
   test("upload a PNG, see it in the library, its public URL serves a WebP rendition and the original keeps its bytes", { tag: ["@unrun"] }, async ({ page, journeySite }) => {
     const name = `${uniqSlug("journey-image")}.png`;
     const title = name.replace(/\.png$/, "");
     const alt = `Alt ${name}`;
+    uploaded.push(title);
     await uploadPng(page, name, alt);
     await expect(page.locator(`img[alt="${alt}"]`)).toBeVisible();
 
@@ -63,6 +80,7 @@ test.describe("W4 media lifecycle", () => {
 
   test("double-clicking Upload stores the file once", { tag: ["@unrun"] }, async ({ page }) => {
     const name = `${uniqSlug("double-upload")}.png`;
+    uploaded.push(name.replace(/\.png$/, ""));
     let uploads = 0;
     page.on("request", (r) => {
       if (r.method() === "POST" && /\/media(\/upload)?$/.test(new URL(r.url()).pathname)) uploads += 1;
