@@ -36,12 +36,16 @@ import { classifySiteDirSafely } from "./site-dir-store.ts";
  * not prose (the CLI's exit code, the tool's structured result) must not have to parse a sentence to
  * tell "you typed the wrong path" apart from "this app is broken".
  */
+// `code` is typed by this merged interface, not a class field: zero runtime footprint, so stripping
+// types leaves no class-field line — a real `code: string;` field would strip to `code;`, a runtime
+// own-property definition that does not exist in the pre-batch JS and shifts `code`'s key-insertion
+// order ahead of `name`. `this.code = code` below still does the actual assignment. Not a
+// `declare code: string;` field either: Playwright's Babel transform (the desktop journeys import
+// this file through the fixtures) rejects `declare` fields and fails every journey at load.
+interface AddSitePointerError {
+  code: string;
+}
 class AddSitePointerError extends Error {
-  declare code: string; // `declare`: zero runtime footprint, so stripping types leaves no class-field
-  // line here — a real `code: string;` field would strip to `code;`, a runtime own-property
-  // definition that does not exist in the pre-batch JS and shifts `code`'s key-insertion order
-  // ahead of `name`. `this.code = code` below still does the actual assignment.
-
   constructor(code: string, message: string) {
     super(message);
     this.name = "AddSitePointerError";
