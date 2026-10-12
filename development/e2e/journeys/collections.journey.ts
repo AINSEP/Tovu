@@ -1,7 +1,7 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { APIRequestContext, Page } from "@playwright/test";
 
-import { API, PUBLIC_URL, createPublishedPageWithHtml, expect, fetchPublic, test, uniq, uniqSlug } from "./_fixtures.js";
+import { API, BASELINE_TIME, PUBLIC_URL, createPublishedPageWithHtml, expect, expectStatus, fetchPublic, narrowListForBaseline, test, uniq, uniqSlug } from "./_fixtures.js";
 
 /**
  * Collections journeys (SCOPE.md W6, first half): define a content type in the admin, add an entry,
@@ -35,6 +35,17 @@ async function createType(request: APIRequestContext, key: string, label: string
     },
   });
   expect(res.status(), await res.text()).toBe(201);
+}
+
+/** Content types are retired, not trashed: deprecate, then tombstone, each at its current version. */
+async function retireType(request: APIRequestContext, key: string): Promise<void> {
+  for (const op of ["deprecate", "tombstone"]) {
+    const res = await request.get(`${API}/content-types`);
+    const rows = (Object.values(await res.json()).find(Array.isArray) ?? []) as Array<{ key: string; version: number }>;
+    const current = rows.find((row) => row.key === key);
+    if (!current) throw new Error(`content type ${key} not listed before ${op}`);
+    await expectStatus(await request.post(`${API}/content-types/${key}/lifecycle`, { data: { op, expectedVersion: current.version } }), 200, `type ${op}`);
+  }
 }
 
 /** `summary` is required, and the server enforces required fields on every write, drafts included. */
@@ -110,17 +121,24 @@ test.describe("W6 collections", () => {
   });
 
   test("collections list, entries list and entry editor baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
-    const key = typeKey("baseline");
+    // A fixed key: it is on screen in the list baseline.
+    const key = "baseline_type";
     await createType(request, key, "Baseline Type");
-    await createEntry(request, key, "baseline-entry", "Baseline entry");
-    await page.goto("/admin/collections");
-    await expect(page.getByText("Baseline Type")).toBeVisible();
-    await expect(page).toHaveScreenshot("collections-list.png", { mask: [page.locator("time, [data-relative-time]")] });
-    await page.goto(`/admin/collections/${key}`);
-    await expect(page.getByText("Baseline entry")).toBeVisible();
-    await expect(page).toHaveScreenshot("collection-entries.png", { mask: [page.locator("time, [data-relative-time]")] });
-    await openEntry(page, key, "baseline-entry");
-    await expect(page).toHaveScreenshot("collection-entry-editor.png");
+    try {
+      await createEntry(request, key, "baseline-entry", "Baseline entry");
+      await narrowListForBaseline({ page, pathname: `${API}/content-types`, keep: (row) => row.key === key });
+      await narrowListForBaseline({ page, pathname: `${API}/entries`, keep: () => true }, { pin: { updatedAt: BASELINE_TIME } });
+      await page.goto("/admin/collections");
+      await expect(page.getByText("Baseline Type")).toBeVisible();
+      await expect(page).toHaveScreenshot("collections-list.png", { mask: [page.locator("time, [data-relative-time]")] });
+      await page.goto(`/admin/collections/${key}`);
+      await expect(page.getByText("Baseline entry")).toBeVisible();
+      await expect(page).toHaveScreenshot("collection-entries.png", { mask: [page.locator("time, [data-relative-time]")] });
+      await openEntry(page, key, "baseline-entry");
+      await expect(page).toHaveScreenshot("collection-entry-editor.png");
+    } finally {
+      await retireType(request, key);
+    }
   });
 });
 

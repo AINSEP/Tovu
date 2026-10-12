@@ -143,7 +143,10 @@ test.describe("phone width (390 px)", () => {
     await page.goto("/admin/plugins");
     await expect(page).toHaveScreenshot("phone-plugins.png");
     await page.goto("/admin/settings");
-    await expect(page).toHaveScreenshot("phone-settings.png");
+    // The CLI cards (and their count) are whatever this machine has installed, with live versions.
+    const installedClis = page.locator(".jini-local-cli .jini-agent-group-head, .jini-local-cli .jini-agent-grid");
+    await expect(page.locator(".jini-local-cli .jini-agent-grid"), "the CLI scan has finished").toBeVisible();
+    await expect(page).toHaveScreenshot("phone-settings.png", { mask: [installedClis] });
   });
 });
 
