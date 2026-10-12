@@ -34,7 +34,8 @@
 import type { Clock } from "@jini-ai/core/primitives";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
-import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, registerContentType, toContentTypeOutbox, type ContentTypeRepoPort } from "@jini-ai/cms/content-types";
+import { registerContentType } from "#src/features/content-types/index";
+import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, toContentTypeOutbox, type ContentTypeRepoPort } from "@jini-ai/cms/content-types";
 import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictError, type EntryListPort, type EntryRepoPort } from "@jini-ai/cms/entries";
 import { isTrashed, updatePost, restorePostForward, findPublishedPostById, findPublishedPostBySlug, PostVersionConflictError, PostNotFoundError, type PostRecord, type BeforeSaveHookPort, type ForgetRemovedPostFn, type PostRepoPort } from "../post/index.js";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";

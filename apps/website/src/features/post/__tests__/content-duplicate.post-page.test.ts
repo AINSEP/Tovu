@@ -314,3 +314,16 @@ test("HTML conversion failure leaves no copy, slug, revision or change set", asy
   assert.deepEqual(await postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: "id-1" }), []);
   assert.deepEqual(await deps.changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });
+
+for (const resource of ["post", "page"] as const) {
+  test(`content_duplicate ${resource}: a reserved derived slug is suffixed and an explicit one is refused`, async () => {
+    const { deps, postRepo } = fakeRouteDeps();
+    await seedPost(postRepo, { kind: resource });
+    const registration = tool(registrationsFor(deps), "content_duplicate");
+    const result = await call(registration, { resource, id: "source-1", overrides: { title: "Admin" } }) as { post: { id: string; slug: string } };
+    assert.equal(result.post.slug, resource === "post" ? "admin-1" : "admin-2");
+    assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: result.post.id }))?.slug, result.post.slug);
+    await assert.rejects(call(registration, { resource, id: "source-1", overrides: { slug: "API" } }), { message: "slug 'api' is reserved" });
+    assert.equal(await postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: "api" }), null);
+  });
+}

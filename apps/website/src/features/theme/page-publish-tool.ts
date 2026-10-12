@@ -16,7 +16,7 @@ export const catalog: AgentToolDefinition[] = [{
   sideEffects: "mutates-durable-state",
   authorization: { permission: "theme.set" },
   inputSchema: { type: "object", additionalProperties: false, required: ["themeId", "page", "published"], properties: {
-    themeId: { type: "string", minLength: 1 }, page: { type: "string", minLength: 1, description: "Standalone page id, without .html, for example about." }, published: { type: "boolean" },
+    themeId: { type: "string", minLength: 1 }, page: { type: "string", minLength: 1, description: "Standalone page id, without .html, for example about. Cannot be admin or api (case-insensitive)." }, published: { type: "boolean" },
   } },
 }];
 export const derivedRisk: DerivedRiskByToolId = new Map([

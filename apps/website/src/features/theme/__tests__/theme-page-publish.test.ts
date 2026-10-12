@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { loadTheme, isPublishableThemePageCandidate, isStandaloneThemePage } from "../theme.js";
+import { setThemePagePublished, ThemePagePublicationError } from "../page-publication.js";
 
 /**
  * @file `theme.json`'s `publishedPages` — the real publish/unpublish mechanism replacing the
@@ -99,4 +100,25 @@ test("isPublishableThemePageCandidate: eligibility is independent of the recorde
   assert.equal(isPublishableThemePageCandidate(theme, "404"), false);
   assert.equal(isPublishableThemePageCandidate(theme, "page-shell"), false);
   assert.equal(isPublishableThemePageCandidate(theme, "does-not-exist"), false);
+});
+
+test("reserved theme page ids cannot be published or routed, even when the manifest lists them", () => {
+  const dir = makeStaticThemeDir({ "pages/admin.html": "<p>Admin</p>", "pages/API.html": "<p>API</p>", "pages/apiary.html": "<p>Apiary</p>" }, { publishedPages: ["admin", "API", "apiary"] });
+  try {
+    const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
+    const manifestBefore = fs.readFileSync(path.join(dir, "theme.json"), "utf8");
+    for (const page of ["admin", "API"]) {
+      assert.equal(isPublishableThemePageCandidate(theme, page), false);
+      assert.equal(isStandaloneThemePage(theme, page), false);
+      assert.throws(() => setThemePagePublished({ themes: [theme], themesDir: dir }, { themeId: "t", page, published: true }), error => {
+        assert.ok(error instanceof ThemePagePublicationError);
+        assert.equal(error.message, `'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a reserved route/a declared template shell`);
+        return true;
+      });
+    }
+    assert.equal(fs.readFileSync(path.join(dir, "theme.json"), "utf8"), manifestBefore);
+    assert.equal(isStandaloneThemePage(theme, "apiary"), true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

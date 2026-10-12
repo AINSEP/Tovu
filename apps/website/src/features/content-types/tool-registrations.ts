@@ -8,11 +8,11 @@ import { withToolMetadata } from '@jini-ai/core';
  */
 import type { ToolContributor } from "#src/assistant/index";
 import {
-  buildContentTypesRegistrations,
   contentTypesDerivedRisk,
   type ContentTypesToolDeps,
 } from "@jini-ai/cms/content-types";
 
+import { buildContentTypesRegistrations } from "./write-service.js";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 

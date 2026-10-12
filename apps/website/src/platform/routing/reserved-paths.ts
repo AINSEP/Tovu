@@ -51,7 +51,11 @@ export type SiteRelativeTargetCheck =
 
 
 
-/** The segment names the admin application owns. Compared case-folded, one segment deep. */
+/**
+ * The segment names the admin application owns. Compared case-folded, one segment deep.
+ * Content cannot claim these surfaces: explicit slugs are refused (BR-03), and derived slugs
+ * skip them through the normal collision suffix search (BR-02).
+ */
 export const RESERVED_SEGMENTS: ReadonlySet<string> = new Set<ReservedSurface>(["admin", "api"]);
 
 /** C0/C1 check delegated to the generic site-path owner.

@@ -98,7 +98,7 @@ export const contentDuplicationAgentToolCatalog: AgentToolDefinition[] = [
           additionalProperties: false,
           properties: {
             title: { type: "string", description: "Optional. Defaults to the source's own title/name with a numeric suffix — '<source title> 2', then '3' for a further copy of the same source — for post/page, form (where it is the copy's name), and media alike. Never 'Copy of <source title>'." },
-            slug: { type: "string", description: "Optional. Defaults to a fresh one derived from the (possibly numbered) title, for post/page and form." },
+            slug: { type: "string", description: "Optional. Defaults to a fresh one derived from the (possibly numbered) title, for post/page and form. For post/page, explicit 'admin' or 'api' is refused case-insensitively; title-derived reserved slugs get a numeric suffix." },
             status: { type: "string", enum: ["draft", "published"], description: "Optional. Defaults to 'draft' for post/page, regardless of the source's own status. NOT accepted for form, which is active/disabled rather than draft/published — the copy inherits the source's state." },
           },
           description: "Optional resource-specific overrides for the copy. Omit for the resource's own defaults.",

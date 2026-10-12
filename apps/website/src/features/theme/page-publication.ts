@@ -43,7 +43,7 @@ export function setThemePagePublished(
     throw new ThemePagePublicationError(`theme '${theme.manifest.id}' is tier '${theme.manifest.tier}' — publish state only applies to static-tier themes`, 400, "NOT_STATIC_TIER");
   }
   if (!isPublishableThemePageCandidate(theme, page)) {
-    throw new ThemePagePublicationError(`'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a declared template shell`, 404, "PAGE_NOT_PUBLISHABLE");
+    throw new ThemePagePublicationError(`'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a reserved route/a declared template shell`, 404, "PAGE_NOT_PUBLISHABLE");
   }
   const raw = JSON.parse(readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: "theme.json" })) as Record<string, unknown>;
   const publishedPages = togglePages(raw, page, published);

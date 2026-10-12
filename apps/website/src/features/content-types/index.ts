@@ -62,7 +62,8 @@ export type {
   RegisterContentTypeRequired,
   UpdateContentTypeFieldsRequired,
 } from "@jini-ai/cms/content-types";
-export { registerContentType, updateContentTypeFields } from "@jini-ai/cms/content-types";
+export { registerContentType, buildContentTypesRegistrations } from "./write-service.js";
+export { updateContentTypeFields } from "@jini-ai/cms/content-types";
 
 export type {
   LifecycleTransitionInput,
@@ -115,7 +116,6 @@ export type { AgentToolDefinition as ContentTypesAgentToolDefinition, AgentToolS
  * `../<domain>/tool-registrations`.
  */
 export {
-  buildContentTypesRegistrations,
   contentTypesDerivedRisk,
   type ContentTypesToolDeps,
 } from "@jini-ai/cms/content-types";

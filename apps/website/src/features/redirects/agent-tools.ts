@@ -126,7 +126,7 @@ const CREATE_SCHEMA = {
   required: ["matchType", "fromPattern", "toTarget", "statusCode"],
   properties: {
     matchType: MATCH_TYPE_PROPERTY,
-    fromPattern: { type: "string", minLength: 1, description: "The source path/pattern to match against incoming requests." },
+    fromPattern: { type: "string", minLength: 1, description: "The source path/pattern to match against incoming requests. Its decoded first segment cannot be 'admin' or 'api' (case-insensitive)." },
     toTarget: TO_TARGET_PROPERTY,
     statusCode: STATUS_CODE_PROPERTY,
     override: OVERRIDE_PROPERTY,
@@ -156,7 +156,7 @@ const UPDATE_SCHEMA = {
   properties: {
     id: REDIRECT_ID_PROPERTY,
     matchType: MATCH_TYPE_PROPERTY,
-    fromPattern: { type: "string", minLength: 1, description: "The source path/pattern to match against incoming requests. Omit to leave unchanged." },
+    fromPattern: { type: "string", minLength: 1, description: "The source path/pattern to match against incoming requests. Its decoded first segment cannot be 'admin' or 'api' (case-insensitive). Omit to leave unchanged." },
     toTarget: { ...TO_TARGET_PROPERTY, description: `${TO_TARGET_PROPERTY.description} Omit to leave unchanged.` },
     statusCode: STATUS_CODE_PROPERTY,
     status: {
