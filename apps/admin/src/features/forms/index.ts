@@ -9,6 +9,7 @@
 import { createElement, type ReactNode } from 'react';
 import '../../styles/native-domain-dialogs.css';
 import '../../styles/form-field-attrs.css';
+import '../../styles/form-field-settings.css';
 import { useModulePanel } from '../../integrations/jini-admin/modules.hooks';
 import { FormsModuleLoading } from '../../integrations/jini-admin/forms-module.hooks';
 

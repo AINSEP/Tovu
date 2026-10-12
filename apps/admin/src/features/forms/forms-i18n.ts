@@ -9,6 +9,8 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * this pass's field labels/buttons/headers, left English for a follow-up pass.
  */
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { FORMS_FIELD_SETTINGS_I18N } from "./forms-field-settings-i18n";
+import { FORMS_LEAVE_GUARD_I18N } from "./forms-leave-guard-i18n";
 
 export const FORMS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1415,6 +1417,8 @@ function mergeDictionaryTranslations(
 }
 
 mergeDictionaryTranslations(FORMS_DICT, FORMS_AUDIT_I18N);
+mergeDictionaryTranslations(FORMS_DICT, FORMS_FIELD_SETTINGS_I18N);
+mergeDictionaryTranslations(FORMS_DICT, FORMS_LEAVE_GUARD_I18N);
 
 /** `FORMS_DICT` had no exported `t` at all before this fix — both `Jini forms/react/hooks/use-form-editor.hooks.ts` and
  *  `Jini forms/react/hooks/use-forms-list.hooks.ts` built their own no-fallback `FORMS_DICT[locale]?.[key] ?? key` inline,

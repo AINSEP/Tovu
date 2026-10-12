@@ -106,9 +106,36 @@ export const FORM_BASELINE_STYLE =
   `:where(.${FORM_CLASS}:not([hidden])){display:flex;flex-direction:column;gap:14px;max-width:480px;}` +
   ":where(.widget-form-field:not([hidden])){display:flex;flex-direction:column;gap:6px;}" +
   ":where(.widget-form-field label){font-weight:600;font-size:0.9rem;}" +
-  ":where(.widget-form-field input),:where(.widget-form-field textarea){font:inherit;padding:8px 10px;" +
+  // Boxed text-like controls only: a checkbox/radio/switch, a range slider or a file picker drawn as
+  // a padded text box looks broken (their own rules follow).
+  ":where(.widget-form-field input:not([type=checkbox],[type=radio],[type=range],[type=file])),:where(.widget-form-field textarea),:where(.widget-form-field select){font:inherit;padding:8px 10px;" +
   "border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--bg,#fff);color:inherit;}" +
   ":where(.widget-form-field textarea){min-height:100px;resize:vertical;}" +
+  ":where(.widget-form-field select[multiple]){min-height:7em;}" +
+  // Radio/checkbox groups render as `<fieldset><legend>` (registry `control: "group"`): drop the UA
+  // box, set the legend like a field label, and put each option's box before its text on one line.
+  ":where(fieldset.widget-form-field:not([hidden])){margin:0;padding:0;border:0;min-width:0;}" +
+  ":where(fieldset.widget-form-field legend){padding:0 0 4px;font-weight:600;font-size:0.9rem;}" +
+  ":where(fieldset.widget-form-field label:not([hidden])){display:flex;align-items:center;gap:8px;font-weight:400;}" +
+  ":where(fieldset.widget-form-field input){margin:0;}" +
+  ":where(.widget-form-field :is(input[type=checkbox],input[type=radio],input[type=range])){accent-color:var(--accent,#2563eb);}" +
+  // Toggle = a checkbox with role=switch: a pill track (`--border-strong`, `--accent` when on) whose
+  // knob is a background gradient rather than `::before`, which Firefox does not draw on inputs.
+  ":where(.widget-form-field input[role=switch]){-webkit-appearance:none;appearance:none;flex-shrink:0;width:2.25rem;height:1.25rem;" +
+  "border:0;border-radius:999px;cursor:pointer;background-color:var(--border-strong,#9ca3af);" +
+  "background-image:radial-gradient(circle closest-side,var(--bg,#fff) 90%,transparent 100%);" +
+  "background-size:1rem 1rem;background-repeat:no-repeat;background-position:2px center;transition:background-position .15s,background-color .15s;}" +
+  ":where(.widget-form-field input[role=switch]:checked){background-color:var(--accent,#2563eb);" +
+  "background-image:radial-gradient(circle closest-side,var(--accent-fg,#fff) 90%,transparent 100%);background-position:calc(100% - 2px) center;}" +
+  ":where(.widget-form-field input[role=switch]:focus-visible){outline:2px solid var(--accent,#2563eb);outline-offset:2px;}" +
+  "@media (prefers-reduced-motion:reduce){:where(.widget-form-field input[role=switch]){transition:none;}}" +
+  ":where(.widget-form-field input[type=range]){width:100%;margin:0;}" +
+  // Filled in by FORM_RANGE_READOUT_SCRIPT; absent (and harmless) without JS.
+  ":where(.tovu-form-range-value){font-size:0.85rem;color:var(--muted,#6b7280);font-variant-numeric:tabular-nums;}" +
+  ":where(.widget-form-field input[type=file]){font:inherit;font-size:0.9rem;color:var(--muted,#6b7280);}" +
+  ":where(.widget-form-field input[type=file])::file-selector-button{font:inherit;font-weight:600;margin-right:10px;padding:6px 12px;" +
+  "border:1px solid var(--border-strong,#9ca3af);border-radius:6px;background:var(--surface,#fff);color:var(--fg,#111827);cursor:pointer;}" +
+  ":where(.widget-form-field-help){color:var(--muted,#6b7280);font-size:0.85rem;}" +
   // Builder checkbox: box first, on the label's line, glyph-sized (must follow the input rule above,
   // equal zero specificity); a revealed field error wraps onto its own line below.
   ":where(.widget-form-field-checkbox){flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;}" +
@@ -127,9 +154,11 @@ export const FORM_BASELINE_STYLE =
   // restated over plain descendants. Builder output is untouched by these rules.
   ":where([data-tovu-form] label:not([hidden])){display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:0.9rem;}" +
   ":where([data-tovu-form] label:has(> input[type=checkbox],> input[type=radio])){flex-direction:row;align-items:center;gap:8px;font-weight:400;}" +
-  ":where([data-tovu-form] :is(input:not([type=checkbox],[type=radio],[type=hidden],[type=submit],[type=button],[type=reset]),textarea,select))" +
+  ":where([data-tovu-form] :is(input:not([type=checkbox],[type=radio],[type=hidden],[type=submit],[type=button],[type=reset],[type=range],[type=file]),textarea,select))" +
   "{font:inherit;padding:8px 10px;border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--bg,#fff);color:inherit;}" +
   ":where([data-tovu-form] textarea){min-height:100px;resize:vertical;}" +
+  ":where([data-tovu-form] :is(input[type=checkbox],input[type=radio],input[type=range])){accent-color:var(--accent,#2563eb);}" +
+  ":where([data-tovu-form] input[type=range]){width:100%;margin:0;}" +
   ":where([data-tovu-form] button:not([type=button],[type=reset])){align-self:flex-start;padding:8px 16px;" +
   "border:1px solid transparent;border-radius:6px;background:var(--fg,#111827);" +
   "color:var(--bg,#fff);font-weight:600;cursor:pointer;}" +
@@ -140,6 +169,24 @@ export const FORM_BASELINE_STYLE =
   "background:var(--surface-2,#f3f4f6);border:1px solid var(--border-strong,#9ca3af);" +
   "border-left:4px solid var(--danger,var(--tovu-form-danger-fallback));color:var(--danger,var(--tovu-form-danger-fallback));font-size:0.9rem;font-weight:600;}" +
   "</style>";
+
+/**
+ * Body of the range-slider value readout: a slider alone never shows the number it is set to. Puts
+ * an `<output class="tovu-form-range-value">` after each form range input and keeps it in step.
+ * Progressive enhancement over the no-JS POST form (the public page CSP allows inline scripts):
+ * without it the slider still submits. Idempotent via `data-tovu-range`, so a page with several
+ * forms (one copy of this per form) wires each slider once. `aria-hidden` because the slider itself
+ * already announces its value; a live readout would repeat it on every step. Exported separately
+ * from the `<script>` wrapper so a test can run it against a fake `document`.
+ */
+export const FORM_RANGE_READOUT_JS =
+  "(function(d){d.querySelectorAll('.tovu-form input[type=range]:not([data-tovu-range]),[data-tovu-form] input[type=range]:not([data-tovu-range])').forEach(function(r){" +
+  "r.setAttribute('data-tovu-range','');var o=d.createElement('output');o.className='tovu-form-range-value';o.setAttribute('aria-hidden','true');" +
+  "if(r.id)o.setAttribute('for',r.id);o.textContent=r.value;r.insertAdjacentElement('afterend',o);" +
+  "r.addEventListener('input',function(){o.textContent=r.value;});});})(document);";
+
+/** {@link FORM_RANGE_READOUT_JS} as the inline `<script>` a rendered form appends after itself. */
+export const FORM_RANGE_READOUT_SCRIPT = `<script>${FORM_RANGE_READOUT_JS}</script>`;
 
 /** Shared shape for {@link renderFormSuccessSlot}/{@link renderFormErrorSlot}. `slug` must already be
  *  HTML-escaped by the caller (this module never re-escapes a value it did not itself produce, same

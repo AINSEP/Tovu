@@ -1,0 +1,31 @@
+/* Frozen form colour/button contract. No test depends on an external site directory. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-solid { background: var(--fg); color: var(--bg); }
+
+:where(.tovu-form) :is(input, textarea, select):where(:not([type="checkbox"], [type="radio"], [type="hidden"], [type="submit"], [type="button"], [type="reset"], [type="range"], [type="file"])) {
+  box-sizing: border-box; width: 100%; min-height: 42px; padding: 10px 14px;
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--bg); color: var(--fg); font: 14px/1.4 var(--font-body);
+}
+
+:where(.tovu-form) button:where(:not([type="button"], [type="reset"], [hidden])) {
+  align-self: flex-start; display: inline-flex; align-items: center; justify-content: center;
+  height: 38px; padding: 0 18px; border: 1px solid transparent; border-radius: 18px;
+  background: var(--fg); color: var(--bg); font: 500 14px/1 var(--font-body);
+  cursor: pointer; transition: opacity 0.15s;
+}

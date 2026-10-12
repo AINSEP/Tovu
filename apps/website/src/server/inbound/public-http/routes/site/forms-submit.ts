@@ -1,3 +1,4 @@
+import { parseFormMultipartMiddleware } from "./forms-multipart.js";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import express, { type Express } from "express";
 import { createFormSubmitHandler } from "@jini-ai/cms/forms/express";
@@ -49,7 +50,7 @@ export interface RegisterFormsSubmitRouteDeps {
  * file) is unaffected — Express dispatches to whichever parser matches the request's actual
  * `Content-Type`, so mounting both here is additive, never a double-parse of the same request. */
 export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmitRouteDeps): void {
-  app.post("/forms/:slug/submit", express.urlencoded({ extended: false }), createFormSubmitHandler({
+  app.post("/forms/:slug/submit", express.urlencoded({ extended: false, limit: "1mb", parameterLimit: 2002 }), express.raw({ type: "multipart/form-data", limit: "12mb" }), parseFormMultipartMiddleware, createFormSubmitHandler({
     workspaceId: deps.workspaceId,
     definitionRepo: deps.submitForm.definitionRepo,
     submit: ({ input }) => submitForm({ deps: deps.submitForm, input }, {}),

@@ -145,7 +145,7 @@ function toFormDefinitionView(record: FormDefinitionRecord): FormDefinitionToolV
 interface FormSubmissionToolView {
   id: string;
   formDefinitionId: string;
-  data: Record<string, string | boolean>;
+  data: FormSubmissionRecord["data"];
   sourceIp: string;
   submittedAt: string;
 }

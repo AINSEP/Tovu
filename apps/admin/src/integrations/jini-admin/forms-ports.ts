@@ -22,7 +22,7 @@ export const formsEvents: FormsEventsPort = {
 /** Delegate request construction to Jini; the host transport owns authentication and errors. */
 export function createFormsHostPorts({ transport }: { transport: FormsTransportPort }, { workspaceId = WORKSPACE_ID }: { workspaceId?: string } = {}): FormsHostPorts {
   return {
-    formsApi: createHttpFormsApi({ transport, basePath: `/workspaces/${workspaceId}/forms` }),
+    formsApi: createHttpFormsApi({ transport, basePath: `/workspaces/${workspaceId}/forms` }, { mediaBasePath: `/workspaces/${workspaceId}/media` }),
     formsTrash: createHttpFormsTrash({ transport, basePath: `/workspaces/${workspaceId}/trash/items` }),
     formsEvents,
     formsNavigation: { navigate({ routePath }, options = {}) { navigate(routePath, options); } },

@@ -93,6 +93,15 @@
   width: 100%;
   box-sizing: border-box;
 }
+/* The type select cut its label ("Toggle switc") once the open dock narrowed the table (Chrome
+   check, 2026-10-11). Its column is wider now (`FormFieldsEditor.tsx`'s colgroup, taken from Max
+   length), and here the select gives back padding: the global select reserves 47px of side padding
+   for one 14px chevron. */
+.form-fields-table select {
+  padding-left: 0.5rem;
+  padding-right: 1.6rem;
+  background-position: right 0.45rem center;
+}
 
 /* Checkbox + its own text sits beside the control, not above it like `.field-label` (which is
    block/uppercase, built for a label that sits above an input) — this is deliberately a separate,

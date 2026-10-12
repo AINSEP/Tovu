@@ -715,7 +715,7 @@ div:where(.tovu-form .widget-form-field:not([hidden])) { display: flex; flex-dir
 /* Builder renders a checkbox after its label; the baseline moves the box first (`order`), and this
    restores the row the column rule above would otherwise override. */
 div:where(.tovu-form .widget-form-field-checkbox) { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; }
-:where(.tovu-form) :is(input, textarea, select):where(:not([type="checkbox"], [type="radio"], [type="hidden"], [type="submit"], [type="button"], [type="reset"])) {
+:where(.tovu-form) :is(input, textarea, select):where(:not([type="checkbox"], [type="radio"], [type="hidden"], [type="submit"], [type="button"], [type="reset"], [type="range"], [type="file"])) {
   box-sizing: border-box; width: 100%; min-height: 42px; padding: 10px 14px;
   border: 1px solid var(--border-strong); border-radius: 10px;
   background: var(--bg); color: var(--fg); font: 14px/1.4 var(--font-body);
@@ -727,6 +727,38 @@ div:where(.tovu-form .widget-form-field-checkbox) { flex-direction: row; flex-wr
 }
 :where(.tovu-form) :is(input, textarea)::placeholder { color: var(--muted); }
 :where(.tovu-form) input:where([type="checkbox"], [type="radio"]) { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--accent); }
+/* Registry field types beyond text (2026-10-11). Radio/checkbox groups are a `<fieldset>` with a
+   `<legend>`: no UA box, legend set like a label, each option's box before its text. */
+fieldset:where(.tovu-form .widget-form-field:not([hidden])) { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+:where(.tovu-form) legend { padding: 0 0 4px; font-size: 13px; font-weight: 500; color: var(--fg); }
+label:where(.tovu-form fieldset label:not([hidden])) { display: flex; flex-direction: row; align-items: center; gap: 10px; font-weight: 400; }
+:where(.tovu-form) select:where([multiple]) { min-height: 120px; }
+/* Toggle = checkbox with role=switch, after the checkbox rule above so its size wins. The knob is a
+   background gradient, not `::before`, which Firefox does not draw on inputs. */
+:where(.tovu-form) input:where([role="switch"]) {
+  -webkit-appearance: none; appearance: none; flex-shrink: 0; width: 36px; height: 20px; border: 0; border-radius: 999px; cursor: pointer;
+  background: radial-gradient(circle closest-side, var(--bg) 90%, transparent 100%) 2px center / 16px 16px no-repeat var(--border-strong);
+  transition: background-position 0.15s, background-color 0.15s;
+}
+:where(.tovu-form) input:where([role="switch"]:checked) {
+  background: radial-gradient(circle closest-side, var(--accent-fg) 90%, transparent 100%) calc(100% - 2px) center / 16px 16px no-repeat var(--accent);
+}
+:where(.tovu-form) input:where([role="switch"]:focus-visible) { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { :where(.tovu-form) input:where([role="switch"]) { transition: none; } }
+:where(.tovu-form) input:where([type="range"]) { width: 100%; margin: 0; accent-color: var(--accent); }
+:where(.tovu-form) input:where([type="file"]) { font: 14px/1.4 var(--font-body); color: var(--muted); }
+:where(.tovu-form) input:where([type="file"])::file-selector-button {
+  height: 34px; margin-right: 12px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 18px;
+  background: var(--bg); color: var(--fg); font: 500 13px/1 var(--font-body); cursor: pointer;
+}
+div:where(.tovu-form .widget-form-field-help) { font-size: 13px; color: var(--muted); }
+output:where(.tovu-form-range-value) { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Native date/time pickers, selects and file buttons draw their icons and popups from `color-scheme`;
+   without it the calendar/clock glyphs stay black on this dark-by-default theme (2026-10-11). */
+:where(.tovu-form) :is(input, select, textarea) { color-scheme: dark; }
+/* The browser scrolls the first invalid field to the very top on submit, under the sticky header. */
+:where(.tovu-form) :is(input, select, textarea) { scroll-margin-top: calc(var(--header-h) + 24px); }
+:root[data-theme="light"] :where(.tovu-form) :is(input, select, textarea) { color-scheme: light; }
 :where(.tovu-form) button:where(:not([type="button"], [type="reset"], [hidden])) {
   align-self: flex-start; display: inline-flex; align-items: center; justify-content: center;
   height: 38px; padding: 0 18px; border: 1px solid transparent; border-radius: 18px;

@@ -94,14 +94,27 @@ const FIELD_DESCRIPTOR_SCHEMA = {
     type: {
       type: "string",
       enum: [...FIELD_TYPES],
-      description: "One of the four supported field types. No other value is accepted.",
+      description: "A registered native field type. Use select for a dropdown; multi-select, radio and checkbox-group require options. Phone renders type=tel, datetime renders datetime-local, toggle renders an accessible switch.",
     },
-    required: { type: "boolean", description: "Whether the visitor must fill this field in. Must be a real boolean, not a string." },
+    required: { type: "boolean", description: "Whether the visitor must fill this field in. Must be a real boolean, not a string. Required checkbox/toggle consent must be checked." },
+    name: { type: "string", pattern: FIELD_ID_PATTERN.source, description: "Optional native input name; must equal id to preserve stored submission keys." },
+    placeholder: { type: "string", maxLength: 500 },
+    helpText: { type: "string", maxLength: 500, description: "Accessible help shown with the field." },
+    default: { oneOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }, { type: "array", maxItems: 100, items: { type: "string" } }], description: "Initial control value, checked state, or selected option values. Must satisfy this field's rules; forbidden for files." },
+    options: { type: "array", minItems: 1, maxItems: 100, items: { type: "object", additionalProperties: false, required: ["value", "label"], properties: { value: { type: "string", minLength: 1, maxLength: 200 }, label: { type: "string", minLength: 1, maxLength: 200 } } }, description: "Required for select, multi-select, radio, checkbox-group. Values must be unique; submissions reject values outside this list." },
+    minLength: { type: "integer", minimum: 0, maximum: MAX_MAX_LENGTH },
+    pattern: { type: "string", maxLength: 300, description: "Full-match text validation. Safe subset: literals, character classes, anchors and one repetition; groups, alternation and backreferences are rejected." },
+    min: { type: ["number", "string"], description: "Numeric lower bound, or ISO native date/time lower bound." },
+    max: { type: ["number", "string"], description: "Numeric upper bound, or ISO native date/time upper bound." },
+    step: { type: "number", exclusiveMinimum: 0, description: "Numeric increment for number/range. Defaults to 1." },
+    accept: { type: "array", minItems: 1, maxItems: 20, items: { type: "string" }, description: "Safe MIME types or image/*, video/*, */*. Omitted means any recognized safe file: PNG/JPEG/GIF/WebP/AVIF, MP4/WebM, PDF. Executables, scripts, markup and archives are always refused." },
+    maxFileSize: { type: "integer", minimum: 1, maximum: 10485760, description: "File size limit in bytes, capped at 10 MiB. All uploads in one multipart POST must fit 12 MiB." },
+    checkboxValue: { type: "string", description: "Optional authored checkbox wire value; every other submitted string is rejected." },
     maxLength: {
       type: ["integer", "null"],
       minimum: MIN_MAX_LENGTH,
       maximum: MAX_MAX_LENGTH,
-      description: `Optional per-field character cap (${MIN_MAX_LENGTH}-${MAX_MAX_LENGTH}). Forbidden for 'checkbox' fields — supplying it there is rejected.`,
+      description: `Optional per-field character cap (${MIN_MAX_LENGTH}-${MAX_MAX_LENGTH}). Only supported on text, textarea, email, phone, url and hidden fields.`,
     },
     className: {
       type: "string",
@@ -200,7 +213,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "forms_create_definition",
     description:
-      "Creates a new form definition from a name, a URL slug, and a complete list of field descriptors. The slug must be unique within the workspace and can never be changed afterwards.",
+      "Creates a new form definition from a name, a URL slug, and a complete list of native field descriptors. For a dropdown, use type=select with options [{value,label}]. The slug must be unique within the workspace and can never be changed afterwards.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.forms.manage" },
     inputSchema: {

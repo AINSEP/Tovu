@@ -26,24 +26,28 @@
  * check: `width` 512px, `max-width` matches `calc(100vw - 2rem)` (evaluates below 512px only on a
  * viewport narrower than ~544px).
  */
+/* 36rem (was 32rem) since the dialog also holds the per-type settings rows
+   (`form-field-settings.css`): an option row is label + value + ↑ ↓ × on one line. */
 .settings-dialog.field-attrs-dialog {
-  width: 32rem;
+  width: 36rem;
   max-width: calc(100vw - 2rem);
   max-height: 85vh;
   overflow-y: auto;
 }
 
-.field-attrs-hint {
-  margin: 0;
-  color: var(--fg-2);
-  font-size: var(--text-sm);
-  line-height: 1.5;
-}
-.field-attrs-hint code {
-  background: var(--surface-2);
-  border-radius: var(--r-sm);
-  padding: 0.05rem 0.35rem;
-  font-size: 0.85em;
+/* Save/Cancel stay in view while the settings scroll (Chrome check, 2026-10-11: on a long option
+   list they scrolled out of the dialog). Sticky to the dialog's own scroll box; the negative bottom
+   and margin cancel the dialog's 1.5rem bottom padding so no scrolled content shows below the bar. */
+.settings-dialog.field-attrs-dialog .editor-actions {
+  position: sticky;
+  bottom: -1.5rem;
+  z-index: 1;
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: -1.5rem;
+  padding: var(--space-3) 0 1.5rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }
 
 .field-attrs-rows {

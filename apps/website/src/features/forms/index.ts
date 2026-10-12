@@ -38,6 +38,7 @@
  */
 /** Tovu forms wiring. Domain rules, records, rendering and persistence live in @jini-ai/cms/forms. */
 import { createHash } from "node:crypto";
+import type { FormFileStorage } from "./form-file-storage.js";
 import type { Logger } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import {
@@ -133,6 +134,7 @@ export function setFormDefinitionStatus({ deps, input }: SetFormDefinitionStatus
 export interface SubmitFormDeps extends Omit<PackageSubmitDeps, "dispatcher" | "logger" | "transaction"> {
   outbox: OutboxPort;
   bus: EventBusPort;
+  files?: FormFileStorage;
 }
 export interface SubmitFormRequired { deps: SubmitFormDeps; input: SubmitFormInput; }
 

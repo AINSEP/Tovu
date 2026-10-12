@@ -1,0 +1,131 @@
+/**
+ * `FieldSettingsSection` (Jini `@jini-ai/admin` forms, inside `FieldAttributesDialog`) — the
+ * per-type settings rows: placeholder, help text, options, default, length, pattern, range, files.
+ * A separate partial for the same reason `form-field-attrs.css` is one (`styles.css` is owned by
+ * other passes); imported by `features/forms/index.ts` next to it.
+ *
+ * Layout rule: one setting per line, short label column beside its control, explanations as ⓘ
+ * tips rather than paragraphs. Short values (numbers, a default choice) stay their own size
+ * instead of stretching across the dialog. The section is its own size container so the rows
+ * stack (label above control) on a phone-width dialog without a viewport media query — the dialog
+ * is `calc(100vw - 2rem)` there, and the same stacking applies however the dialog gets narrow.
+ *
+ * The narrow-pane field TABLE needs no rule here: it is a `.list-table`, so the shared
+ * `@container admin-content (max-width: 620px)` card layout in `styles.css` ("Editable rows (the
+ * form builder's field table, FO-3)") already stacks it, reading each cell's `data-label`.
+ */
+.field-settings {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.field-settings-row {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+/* Multi-line controls (the options list) keep their label level with the first row, not centred
+   against the whole list. */
+.field-settings-row--top { align-items: start; }
+.field-settings-row--top > .field-settings-label { padding-top: 0.6rem; }
+/* `.field-label` is built to sit above a control; beside one it must not add its own margin. */
+.field-settings-row .field-label { margin: 0; }
+/* Text-like inputs fill the control column; numbers, dates and the default choice keep their own
+   short width (`.field-settings-num`/`-compact` below). */
+.field-settings-row > input:not([type="checkbox"], .field-settings-num, .field-settings-compact) { width: 100%; }
+
+.field-settings-label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.field-settings-pair {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+}
+.field-settings-num { width: 6rem; }
+/* Date/time bounds need room for the browser's picker text; numbers do not. */
+.field-settings-pair input:not(.field-settings-num) { width: 11rem; }
+.settings-dialog .field-settings-compact { width: 12rem; max-width: 100%; justify-self: start; }
+.field-settings-code,
+.field-settings-code::placeholder { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+.field-settings-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+/* Options editor: label grows, value is a fixed short column, then the multi-select default box
+   and the ↑ ↓ × buttons. Flex rather than grid so a row without the default box (single-choice
+   types) does not leave an empty track. */
+.field-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.field-options-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.field-option-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+.field-option-label { flex: 1 1 8rem; min-width: 0; }
+.field-option-value { flex: 0 1 8rem; min-width: 0; }
+.field-option-default { display: inline-flex; align-items: center; padding: 0 2px; cursor: pointer; }
+.field-option-actions { display: inline-flex; gap: 2px; }
+.field-option-btn {
+  width: 1.75rem;
+  height: 1.75rem;
+  min-height: 0;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+/* Tertiary "Add option" under the list: content-sized and one step smaller, the same treatment
+   `.field-attrs-rows > .btn-secondary` gives "Add attribute" (stretch-by-default flex column). */
+.field-options > .field-settings-add {
+  align-self: flex-start;
+  padding: 0.35rem 0.6rem;
+  font-size: var(--text-xs);
+}
+
+/* CSS classes + HTML attributes, folded away under the settings. */
+.field-settings-advanced {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+.field-settings-advanced > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-2);
+}
+.field-settings-advanced[open] > summary { margin-bottom: var(--space-3); }
+.field-settings-advanced > :not(summary) + :not(summary) { margin-top: var(--space-3); }
+
+@container (max-width: 26rem) {
+  .field-settings-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .field-settings-row--top > .field-settings-label { padding-top: 0; }
+  /* Option text takes its own line; value, default box and buttons share the next. */
+  .field-option-label { flex-basis: 100%; }
+  .field-option-value { flex: 1 1 6rem; }
+}

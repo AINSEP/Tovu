@@ -31,6 +31,11 @@ describe('Forms host ports', () => {
     expect(request).toHaveBeenLastCalledWith({ path: '/workspaces/w1/trash/items', method: 'POST', body: { type: 'form', id: 'f1' } });
   });
 
+  it('links a file answer to its media original in the same workspace', () => {
+    const ports = createFormsHostPorts({ transport: { request: vi.fn(), url: ({ path }) => `/api/admin/v1${path}` } }, { workspaceId: 'w1' });
+    expect(ports.formsApi.submissionFileUrl?.({ mediaId: 'm/1' })).toBe('/api/admin/v1/workspaces/w1/media/m%2F1/original');
+  });
+
   it('preserves transport errors instead of replacing a Trash conflict', async () => {
     const error = Object.assign(new Error('changed'), { status: 409, code: 'TRASH_VERSION_CHANGED' });
     const request = vi.fn<(input: Parameters<FormsTransportPort['request']>[0]) => Promise<never>>().mockRejectedValue(error);

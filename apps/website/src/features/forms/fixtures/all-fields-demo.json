@@ -1,0 +1,46 @@
+{
+  "name": "All fields demo",
+  "slug": "all-fields-demo",
+  "fields": [
+    { "id": "full_name", "label": "Your name", "type": "text", "required": true, "placeholder": "Jordan Rivera", "maxLength": 120 },
+    { "id": "email", "label": "Email", "type": "email", "required": true, "placeholder": "you@example.com" },
+    { "id": "phone", "label": "Phone", "type": "phone", "required": false, "placeholder": "555 123 4567", "pattern": "[0-9 +.\\-]{7,20}", "helpText": "Digits, spaces, + . or - only." },
+    { "id": "website", "label": "Event website or Instagram", "type": "url", "required": false, "placeholder": "https://" },
+    { "id": "topic", "label": "Topic", "type": "select", "required": true, "placeholder": "Choose a topic", "options": [
+      { "value": "request-planner", "label": "Request Planner or Day-of Producer" },
+      { "value": "current-event", "label": "Current Event" },
+      { "value": "how-it-works", "label": "How it works" },
+      { "value": "issue", "label": "Issue" },
+      { "value": "other", "label": "Other" },
+      { "value": "press", "label": "Press" }
+    ] },
+    { "id": "services", "label": "Services you need", "type": "multi-select", "required": false, "helpText": "Hold Ctrl or Cmd to pick more than one.", "options": [
+      { "value": "full-planning", "label": "Full planning" },
+      { "value": "day-of", "label": "Day-of coordination" },
+      { "value": "vendors", "label": "Vendor sourcing" },
+      { "value": "design", "label": "Design and styling" }
+    ] },
+    { "id": "event_type", "label": "Event type", "type": "radio", "required": true, "default": "wedding", "options": [
+      { "value": "wedding", "label": "Wedding" },
+      { "value": "corporate", "label": "Corporate" },
+      { "value": "birthday", "label": "Birthday" },
+      { "value": "other", "label": "Something else" }
+    ] },
+    { "id": "event_date", "label": "Event date", "type": "date", "required": false, "min": "2026-01-01" },
+    { "id": "start_time", "label": "Start time", "type": "time", "required": false },
+    { "id": "call_slot", "label": "Best time for a call", "type": "datetime", "required": false },
+    { "id": "guest_count", "label": "Guest count", "type": "number", "required": false, "min": 1, "max": 1000, "step": 1, "placeholder": "120" },
+    { "id": "budget", "label": "Budget (thousands)", "type": "range", "required": false, "min": 0, "max": 100, "step": 5, "default": 25 },
+    { "id": "extras", "label": "Also interested in", "type": "checkbox-group", "required": false, "default": ["florals"], "options": [
+      { "value": "catering", "label": "Catering" },
+      { "value": "florals", "label": "Florals" },
+      { "value": "music", "label": "Music" },
+      { "value": "photography", "label": "Photography" }
+    ] },
+    { "id": "tips", "label": "Send me planning tips", "type": "toggle", "required": false },
+    { "id": "inspiration", "label": "Inspiration board", "type": "file", "required": false, "accept": ["image/*", "application/pdf"], "maxFileSize": 5242880, "helpText": "An image or PDF, up to 5 MB." },
+    { "id": "message", "label": "Tell us about your event", "type": "textarea", "required": true, "minLength": 20, "maxLength": 2000 },
+    { "id": "consent", "label": "I agree to be contacted about this request", "type": "checkbox", "required": true },
+    { "id": "source", "label": "Source", "type": "hidden", "required": false, "default": "all-fields-demo" }
+  ]
+}

@@ -19,15 +19,8 @@ import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
  * Article VII: the spec is ground truth here, not this codebase's older per-section convention).
  */
 
-export interface AdminFormFieldDto {
-  id: string;
-  label: string;
-  type: string;
-  required: boolean;
-  maxLength?: number | null;
-  className?: string;
-  attributes?: Record<string, string>;
-}
+/** The domain owns the field contract, including choices/defaults/upload constraints. */
+export type AdminFormFieldDto = FormDefinitionRecord["fields"][number];
 
 export interface AdminFormNotifyDto {
   enabled: boolean;
@@ -52,7 +45,7 @@ export interface AdminFormSubmissionDto {
   id: string;
   formDefinitionId: string;
   workspaceId: string;
-  data: Record<string, string | boolean>;
+  data: FormSubmissionRecord["data"];
   sourceIp: string;
   submittedAt: string;
 }
