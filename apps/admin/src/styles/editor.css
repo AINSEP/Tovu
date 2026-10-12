@@ -191,8 +191,10 @@
 .content-editor-header .content-editor-title {
   flex: 1 1 20rem; max-width: 40rem; min-width: 0; min-height: 0;
   resize: none; overflow: hidden; line-height: 1.25; padding: 0.3rem 0.2rem;
-  /* One line until the title needs a second (owner, 2026-10-10); never taller than two. */
-  field-sizing: content; max-height: calc(2lh + 0.6rem);
+  /* One line until the title needs more (owner, 2026-10-10). No height cap (2026-10-11): a long
+     title at ~1100px (and any phone-width title) wrapped to three lines and the old two-line cap cut
+     the third off with no ellipsis, so the box now grows to show every line; the slug stays pinned right regardless. */
+  field-sizing: content;
   border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent;
   border-image: linear-gradient(to right, var(--border) 65%, transparent) 1;
 }
@@ -203,9 +205,29 @@
 .content-editor-header .content-editor-title:focus {
   border-image: linear-gradient(to right, var(--accent-text) 65%, transparent) 1;
 }
-.content-editor-header > .editor-slug { margin-left: auto; margin-top: 0.4rem; }
-/* The slug box is as wide as the slug (owner, 2026-10-10), never wider than the row. */
-.content-editor-header > .editor-slug input { width: auto; field-sizing: content; min-width: 6rem; max-width: 100%; flex: 0 1 auto; }
+/* `min-width: 0` overrides the flex item's default `min-width: auto`, which floors the group at its
+ * content's min-content width. The `field-sizing: content` input below makes that the whole slug's
+ * width, so a long slug pushed the group (and the input with it) ~516px wide on a 390px phone and the
+ * page clipped it; `max-width: 100%` on the input only works once the group itself can't overflow. */
+.content-editor-header > .editor-slug { margin-left: auto; margin-top: 0.4rem; min-width: 0; }
+/* The slug box is as wide as the slug (owner, 2026-10-10), never wider than the row, and capped at
+ * half of what a long slug filled (~500px -> 16rem) so the title gets the freed space; a longer slug
+ * scrolls inside the input. One cap for Edit post and Edit page: both render `.content-editor-header`. */
+.content-editor-header { --editor-slug-max-width: 16rem; }
+.content-editor-header > .editor-slug input {
+  width: auto; field-sizing: content; min-width: 6rem; max-width: min(100%, var(--editor-slug-max-width)); flex: 0 1 auto;
+}
+/* Above the phone breakpoint the slug group is pinned to the row's right edge at a fixed width (the
+ * 16rem cap), so it stops sliding sideways as the title's length changes (owner, 2026-10-10: "it moves
+ * too much"). The title takes the room on the left and wraps inside it; its flex-basis drops from 20rem
+ * to 10rem so the slug only falls to its own (still right-aligned) row on a narrow tablet instead of
+ * wrapping early. Phones keep the content-sized input on a row under the title (rules below). */
+/* Container, not viewport (2026-10-11): the pair with the narrow-pane rules below, both keyed on the
+ * pane's real width so a desktop pane squeezed by the nav + dock gets the stacked header too. */
+@container admin-content (min-width: 621px) {
+  .content-editor-header .content-editor-title { flex: 1 1 10rem; }
+  .content-editor-header > .editor-slug input { width: var(--editor-slug-max-width); field-sizing: fixed; }
+}
 
 /* Toolbar: the device icons + width readout sit right next to Editor/Preview (3px apart); reload,
  * the template eye and the template select sit on the right, and when they drop under on narrow
@@ -224,22 +246,48 @@
  * slug (its own 1rem top margin plus the page's 24px gap) and its wrapped rows were 16px apart. */
 .content-editor-page > .page-editor-toolbar { margin-top: calc(var(--space-3) - var(--space-6)); row-gap: var(--space-2); }
 
-@media (max-width: 640px) {
+/* Layout half, keyed on the PANE (2026-10-11): it pairs with the container rules above and with
+ * `styles.css`'s shared editor-toolbar rule, which is container-based too — a viewport rule here
+ * would leave a squeezed desktop pane with the shared rule on and these overrides off. The phone
+ * chrome (Delete order, preview control) stays viewport-only in the block after this one. */
+@container admin-content (max-width: 620px) {
   /* The "1280px" readout goes on phones, as it did before the device icons moved next to the view
      tabs (the pressed icon already says which width shows). That also lets a lone reload button
      (the Blog page has no template picker) stay on the tabs' row instead of taking a row of its own. */
   .content-editor-toolbar-start .page-editor-width { display: none; }
+  /* Tighter tab and device buttons so the view tabs and the device icons share one row on a 390px
+     phone (they needed ~390px of a 366px row and the device icons took a row of their own). */
+  .content-editor-toolbar-start .segmented button { padding-inline: 8px; }
+  .content-editor-toolbar-start .segmented[role="group"] button { padding-inline: 7px; }
   /* Title takes the row beside Back; the slug drops to its own full row below. */
   .content-editor-header .content-editor-title { flex: 1 1 0; max-width: none; font-size: 1.3rem; }
   .content-editor-header > .editor-slug { margin-left: 0; flex: 1 1 100%; justify-content: flex-start; }
-  /* The status/Save/Delete group stays together at its natural size (owner: the stretched
-     buttons were "wider unnecessarily"). */
-  .editor-action-row .content-action-group .btn-danger { order: 0; }
   /* The shared phone rule stretches the template group across the row and its select with it;
      here the select keeps its own width and the group stays right-aligned. */
   .content-editor-page .page-editor-toolbar .page-editor-toolbar-end { width: auto; justify-content: flex-start; }
   .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker { flex: none; }
   .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select { flex: none; }
+}
+@media (max-width: 640px) {
+  /* The status/Save/Delete group stays together at its natural size (owner: the stretched
+     buttons were "wider unnecessarily"). Pairs with `styles.css`'s phone-only Delete reorder. */
+  .editor-action-row .content-action-group .btn-danger { order: 0; }
+  /* On a phone the previewed theme's own menu button sits in the same top-right corner, so the
+     floating full-screen control covered it. Here it leaves the preview: in flow, right-aligned on
+     its own line just above the frame (`order: -1`; it follows the pane in the DOM), as a plain
+     icon button since it no longer floats over page content. Same place collapsed and expanded. */
+  .post-preview-surface > .post-preview-fab {
+    position: static; order: -1; align-self: flex-end; margin-bottom: var(--space-1);
+    opacity: 1; color: var(--fg-2); background: transparent; backdrop-filter: none;
+  }
+  .post-preview-surface > .post-preview-fab:hover,
+  .post-preview-surface > .post-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
+  /* With the control now on its own line, the pane's `-space-6` pull (`.post-editor-pane` above)
+     dragged the frame 20px up over the button. The pane drops the pull here, and the surface's own
+     1rem margin turns into `space-2 - space-6` so the button sits 8px under the action row instead of
+     leaving 40px of empty space above it. Expanded keeps `margin-top: 0` (higher-specificity rule). */
+  .post-preview-surface { margin-top: calc(var(--space-2) - var(--space-6)); }
+  .post-preview-surface > .post-editor-pane { margin-top: 0; }
 }
 
 /* The template and Draft/Published selects are as wide as the chosen value, not a fixed 14rem
@@ -256,10 +304,17 @@
  * from the modal's left edge instead of hanging off the right side of a narrow window. */
 .post-settings-panel > .editor-publishing-field:has(> input[type="datetime-local"]) { flex-direction: column; align-items: flex-start; }
 .post-settings-dialog .widget-picker-footer { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
-@media (max-width: 640px) {
+/* Container (2026-10-11): pairs with that shared rule (PO-3 in `styles.css`), now container-based. */
+@container admin-content (max-width: 620px) {
   /* The shared phone rule puts every publishing label on its own line above a full-width control,
      which split "Show post author" from its checkbox. Keep that pair on one line. */
   .post-settings-panel .editor-publishing-field:has(> input[type="checkbox"]) { flex-wrap: nowrap; }
   .post-settings-panel .editor-publishing-field:has(> input[type="checkbox"]) > .field-label { flex-basis: auto; }
   .post-settings-panel .editor-publishing-field > input[type="checkbox"] { width: 16px; }
+}
+
+/* Editor-only: override TipTap’s fixed iframe dimensions without altering saved/public HTML. */
+.editor-body .tiptap [data-youtube-video] { max-width: 100%; }
+.editor-body .tiptap [data-youtube-video] iframe {
+  display: block; width: 100%; max-width: 100%; height: auto; aspect-ratio: 16 / 9;
 }

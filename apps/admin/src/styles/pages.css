@@ -83,7 +83,8 @@
   flex-wrap: wrap;
 }
 
-@media (max-width: 720px) {
+/* Container (2026-10-11): 688px ≈ the old 720px viewport minus a tablet's 2 × 16px page padding. */
+@container admin-content (max-width: 688px) {
   .page-editor-toolbar-end .editor-template-picker select {
     width: auto;
     min-width: 0;
@@ -192,6 +193,32 @@
   pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
 }
 .page-preview-fab:hover .page-preview-fab-tip, .page-preview-fab:focus-visible .page-preview-fab-tip { opacity: 1; }
+/* Desktop, collapsed (2026-10-11): floating in the frame's top-right corner, the control sat over
+   the previewed site's header (its Log in button). It moves just above the frame instead, at the
+   right end of the Save/Delete row (empty on this screen), as a plain icon button since it no longer
+   floats over page content. `bottom: 100% + 9px` matches the measured 9px row-to-frame gap above.
+   Expanded keeps the in-frame float: there is no row above the panel to sit in. */
+@media (min-width: 641px) {
+  .page-preview-host .page-preview-stage > .page-preview-fab {
+    top: auto; bottom: calc(100% + 9px); right: 0;
+    opacity: 1; color: var(--fg-2); background: transparent; backdrop-filter: none;
+  }
+  .page-preview-host .page-preview-stage > .page-preview-fab:hover,
+  .page-preview-host .page-preview-stage > .page-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
+}
+/* Phones: same as the post editor's `.post-preview-fab` (`styles/editor.css`, 2026-10-10). The
+   previewed theme's own menu button sits in the frame's top-right corner, so the floating control
+   covered it; here it moves out onto its own right-aligned line just above the frame (`order: -1`;
+   it follows the frame in the DOM) as a plain icon button, collapsed and expanded alike.
+   `position: relative`, not `static`, so the button stays the containing block of its own tip. */
+@media (max-width: 640px) {
+  .page-preview-stage > .page-preview-fab {
+    position: relative; inset: auto; order: -1; align-self: flex-end; margin-bottom: var(--space-1);
+    opacity: 1; color: var(--fg-2); background: transparent; backdrop-filter: none;
+  }
+  .page-preview-stage > .page-preview-fab:hover,
+  .page-preview-stage > .page-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
+}
 
 /* `position: absolute; inset: 0` against `.admin-main-col` (`styles.css`, which is where its own
    `position: relative` lives), NOT `position: fixed` over the whole viewport — deliberately, so it

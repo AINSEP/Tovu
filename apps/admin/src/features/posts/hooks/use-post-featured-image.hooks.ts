@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AdminMedia } from "@/lib/api";
 import { defaultMediaPickerPort } from "@/components/MediaPickerDialog/media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "@/components/MediaPickerDialog/media-picker-port.hooks";
+import { defaultFeaturedImageRenditionUrl } from "./post-editor-dependencies.hooks";
 
 /**
  * @file The featured-image chooser's picker state (2026-10-05) — the same shape as
@@ -37,12 +38,20 @@ const FEATURED_IMAGE_ACCEPT: readonly string[] = ["image/*"];
 export function usePostFeaturedImage(
   value: string | null,
   onChange: (id: string | null) => void,
-  deps: { port: Pick<MediaPickerPort, "mediaOriginalUrl"> },
+  deps: {
+    port: Pick<MediaPickerPort, "mediaOriginalUrl">;
+    /** A resized rendition's URL, tried before the original (2026-10-10: the cover slot downloaded a
+     *  2.7 MB, 3749 × 5623 original to fill ~751 × 220px). Omitted, the preview is the original. */
+    renditionUrl?: (id: string) => string;
+  },
 ): PostFeaturedImageController {
   const [pickerOpen, setPickerOpen] = useState(false);
   // Keyed by the id that failed rather than a boolean, so choosing another image clears it without
-  // an effect.
+  // an effect. The rendition failing first only drops to the original; the original failing too is
+  // what marks the preview failed.
+  const [renditionFailedId, setRenditionFailedId] = useState<string | null>(null);
   const [failedId, setFailedId] = useState<string | null>(null);
+  const rendition = value && renditionFailedId !== value ? deps.renditionUrl : undefined;
   return {
     pickerOpen,
     openPicker: () => setPickerOpen(true),
@@ -52,14 +61,14 @@ export function usePostFeaturedImage(
       setPickerOpen(false);
     },
     clear: () => onChange(null),
-    previewUrl: value ? deps.port.mediaOriginalUrl(value) : null,
+    previewUrl: !value ? null : rendition ? rendition(value) : deps.port.mediaOriginalUrl(value),
     accept: FEATURED_IMAGE_ACCEPT,
     previewFailed: value !== null && failedId === value,
-    onPreviewError: () => setFailedId(value),
+    onPreviewError: () => (rendition ? setRenditionFailedId(value) : setFailedId(value)),
   };
 }
 
 /** Binds the real media client — the zero-dependency half of the `useX(deps)` / `useWiredX()` pair. */
 export function useWiredPostFeaturedImage(value: string | null, onChange: (id: string | null) => void): PostFeaturedImageController {
-  return usePostFeaturedImage(value, onChange, { port: defaultMediaPickerPort });
+  return usePostFeaturedImage(value, onChange, { port: defaultMediaPickerPort, renditionUrl: defaultFeaturedImageRenditionUrl });
 }

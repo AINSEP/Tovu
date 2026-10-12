@@ -9,6 +9,7 @@ import {
   InteractiveHtmlEditor,
   type CanvasEmbedPlaceholderDescriptor,
   type InteractiveHtmlEditorHandle,
+  type RequestEditHtml,
 } from "@jini-ai/ui/html-editor";
 
 import { isProtectedEmbedElement } from "./lib/embed-placeholder";
@@ -623,7 +624,6 @@ function PageEditorToolbarEnd({
   t: Translate;
 }) {
   const pickerValue = pagePickerValue(templateChoice, availableTemplates);
-  const bareHint = t("Serves only this page's HTML. No theme styles, scripts, header or footer.");
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
@@ -670,11 +670,9 @@ function PageEditorToolbarEnd({
               <option value="">{t("No templates for this theme")}</option>
             </select>
           )}
-          {templateChoice === "" ? (
-            <p className="page-editor-template-hint" title={bareHint}>
-              {bareHint}
-            </p>
-          ) : null}
+          {/* No hint line beside the select for "No template — HTML only" (owner, 2026-10-10): it
+              ran off the right edge on phones and dragged the page sideways. The option's own name
+              says what it does. */}
         </div>
       ) : null}
     </div>
@@ -788,6 +786,8 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     contentRevision,
     t,
     embedPlaceholderDescriber,
+    onRequestEditHtml,
+    onInteractiveSourceError,
     interactiveEditorRef,
     setHtmlFromCanvas,
   } = usePageEditorHook(routeSlug);
@@ -902,6 +902,8 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         onTogglePreviewExpanded={togglePreviewExpanded}
         t={t}
         embedPlaceholderDescriber={embedPlaceholderDescriber}
+        onRequestEditHtml={onRequestEditHtml}
+        onInteractiveSourceError={onInteractiveSourceError}
         interactiveEditorRef={interactiveEditorRef}
         setHtmlFromCanvas={setHtmlFromCanvas}
       />
@@ -1002,6 +1004,8 @@ function PageEditorPane({
   onTogglePreviewExpanded,
   t,
   embedPlaceholderDescriber,
+  onRequestEditHtml,
+  onInteractiveSourceError,
   interactiveEditorRef,
   setHtmlFromCanvas,
 }: {
@@ -1044,6 +1048,8 @@ function PageEditorPane({
   /** Bug A / interactive-bugs plan Slice A3 — see `PageEditorController.embedPlaceholderDescriber`'s
    *  own doc. Passed straight through to the `interactive` surface below. */
   embedPlaceholderDescriber: (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined;
+  onRequestEditHtml?: RequestEditHtml;
+  onInteractiveSourceError?: (error: Error) => void;
   /** Interactive flush (2026-09-23 plan) — see `PageEditorController.interactiveEditorRef`'s own
    *  doc. Attached to the `interactive` surface's `<InteractiveHtmlEditor>` below. */
   interactiveEditorRef: RefObject<InteractiveHtmlEditorHandle | null>;
@@ -1116,6 +1122,9 @@ function PageEditorPane({
       canvasStyling={surface.styling}
       isProtectedElement={isProtectedEmbedElement}
       describeEmbedPlaceholder={embedPlaceholderDescriber}
+      onRequestEditHtml={onRequestEditHtml}
+      onSerializationError={onInteractiveSourceError}
+      translate={t}
     />
   );
 }

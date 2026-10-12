@@ -5,12 +5,13 @@ import type { AdminMedia, AdminPost } from "@/lib/api";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
-import { PostPublishingFields } from "../PostPublishingFields";
+import { PostPublishAtField } from "../PostPublishingFields";
 import { isScheduledPost, isoToLocalDateTimeInput, localDateTimeInputToIso } from "../rules";
 
 /**
  * @file Scheduled publishing + featured image in the post editor (2026-10-05): the local-time
- * conversion rules, the editor hook's load/save of both fields, the picker hook, and the controls.
+ * conversion rules, the editor hook's load/save of both fields, the picker hook, and the publish-at
+ * control (the featured image's control is the cover slot's, tested in `post-cover-image`).
  */
 
 const POST: AdminPost = {
@@ -178,68 +179,39 @@ describe("usePostFeaturedImage", () => {
     rerender({ value: "m-image" });
     expect(result.current.previewFailed).toBe(false);
   });
+
+  it("previews the resized rendition first, drops to the original when it fails, and fails only after both", () => {
+    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
+    const renditionUrl = (id: string) => `/m/${id}/og.v1/image.jpg`;
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, vi.fn(), { port, renditionUrl }), {
+      initialProps: { value: "m1" as string | null },
+    });
+    expect(result.current.previewUrl).toBe("/m/m1/og.v1/image.jpg");
+    act(() => result.current.onPreviewError());
+    expect(result.current.previewUrl).toBe("/media/m1");
+    expect(result.current.previewFailed).toBe(false);
+    act(() => result.current.onPreviewError());
+    expect(result.current.previewFailed).toBe(true);
+    // A new image tries its own rendition again.
+    rerender({ value: "m2" });
+    expect(result.current.previewUrl).toBe("/m/m2/og.v1/image.jpg");
+    expect(result.current.previewFailed).toBe(false);
+    rerender({ value: null });
+    expect(result.current.previewUrl).toBeNull();
+  });
 });
 
-describe("PostPublishingFields", () => {
-  const fakePicker = (overrides: Partial<ReturnType<typeof usePostFeaturedImage>> = {}) => () => ({
-    pickerOpen: false,
-    openPicker: vi.fn(),
-    closePicker: vi.fn(),
-    handleSelect: vi.fn(),
-    clear: vi.fn(),
-    previewUrl: null,
-    accept: ["image/*"],
-    previewFailed: false,
-    onPreviewError: vi.fn(),
-    ...overrides,
-  });
-
+// The featured-image control tests that sat here went with the settings modal's Image tab
+// (owner, 2026-10-11); the same states (empty, set, unavailable, broken preview) are covered on the
+// cover slot in `post-cover-image.unit.test.tsx`.
+describe("PostPublishAtField", () => {
   it("edits the publish-at input and shows the Scheduled badge only when scheduled", () => {
     const setPublishAtInput = vi.fn();
-    const { rerender } = render(
-      <PostPublishingFields publishAtInput="" setPublishAtInput={setPublishAtInput} scheduled={false} featuredMediaId={null} setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker()} />,
-    );
+    const { rerender } = render(<PostPublishAtField publishAtInput="" setPublishAtInput={setPublishAtInput} scheduled={false} t={fakeT} />);
     expect(screen.queryByText("Scheduled")).toBeNull();
     fireEvent.change(screen.getByLabelText("Publish at"), { target: { value: "2099-01-01T09:00" } });
     expect(setPublishAtInput).toHaveBeenCalledWith("2099-01-01T09:00");
-    rerender(
-      <PostPublishingFields publishAtInput="2099-01-01T09:00" setPublishAtInput={setPublishAtInput} scheduled featuredMediaId={null} setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker()} />,
-    );
+    rerender(<PostPublishAtField publishAtInput="2099-01-01T09:00" setPublishAtInput={setPublishAtInput} scheduled t={fakeT} />);
     expect(screen.getByText("Scheduled")).toBeTruthy();
-  });
-
-  it("shows Choose image with no image, and Change + Remove + preview with one", () => {
-    const clear = vi.fn();
-    const { rerender } = render(
-      <PostPublishingFields publishAtInput="" setPublishAtInput={vi.fn()} scheduled={false} featuredMediaId={null} setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker()} />,
-    );
-    expect(screen.getByRole("button", { name: "Choose image" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
-    rerender(
-      <PostPublishingFields publishAtInput="" setPublishAtInput={vi.fn()} scheduled={false} featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ clear, previewUrl: "/media/m1" })} />,
-    );
-    expect(screen.getByRole("button", { name: "Change" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Featured image" }).getAttribute("src")).toBe("/media/m1");
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
-    expect(clear).toHaveBeenCalled();
-  });
-
-  it("a featured media that cannot be shown renders a fixed-size placeholder, not a broken image", () => {
-    render(
-      <PostPublishingFields publishAtInput="" setPublishAtInput={vi.fn()} scheduled={false} featuredMediaId="m-video" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m-video", previewFailed: true })} />,
-    );
-    expect(screen.queryByRole("img", { name: "Featured image" })).toBeNull();
-    const placeholder = screen.getByRole("img", { name: "Featured image unavailable" });
-    expect(placeholder.tagName).toBe("SPAN");
-    expect(placeholder.className).toContain("editor-featured-preview");
-  });
-
-  it("a broken preview image reports through onPreviewError", () => {
-    const onPreviewError = vi.fn();
-    render(
-      <PostPublishingFields publishAtInput="" setPublishAtInput={vi.fn()} scheduled={false} featuredMediaId="m1" setFeaturedMediaId={vi.fn()} t={fakeT} useFeaturedImage={fakePicker({ previewUrl: "/media/m1", onPreviewError })} />,
-    );
-    fireEvent.error(screen.getByRole("img", { name: "Featured image" }));
-    expect(onPreviewError).toHaveBeenCalled();
   });
 });

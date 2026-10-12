@@ -168,6 +168,8 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // Bug A / interactive-bugs plan Slice A3 — no pre-existing test drives the Interactive surface's
     // placeholder card, so an inert stub is enough; a test that needs a real descriptor overrides it.
     embedPlaceholderDescriber: () => undefined,
+    onRequestEditHtml: async () => {},
+    onInteractiveSourceError: () => {},
     // Interactive flush (2026-09-23 plan) — `usePageEditor`'s ref onto `<InteractiveHtmlEditor>`. No
     // pre-existing test here drives it; `PageEditor.interactive-flush.unit.test.tsx` overrides it to
     // prove `PageEditorPane` wires it onto the real component.
@@ -336,7 +338,7 @@ describe("standing-draft autosave recovery banner", () => {
 
   it("compares the recovered capture time with the loaded server timestamp", () => {
     renderEditor({ recoverableDraft: RECOVERABLE, page: { ...BASE_PAGE, version: 2, updatedAt: "2026-09-06T00:10:00.000Z" } });
-    expect(screen.getByText("Restore unsaved changes from 2026-09-06T00:05:00.000Z · Server content is newer.")).toBeInTheDocument();
+    expect(screen.getByText("Restore unsaved changes from 2026-09-06 00:05 · Server content is newer.")).toBeInTheDocument();
   });
 
   it("clicking Restore calls the controller's restoreRecoveredDraft", async () => {
@@ -951,19 +953,12 @@ describe("Template picker (bare-page ruling)", () => {
     expect(screen.queryByText("No template chosen")).not.toBeInTheDocument();
   });
 
-  it("shows the bare hint only when templateChoice is '', not for null or a real filename", () => {
-    const hint = /serves only this page's html/i;
-
+  // The hint line beside "No template — HTML only" was removed (owner, 2026-10-10: it ran off the
+  // right edge on phones and dragged the page sideways).
+  it("shows no hint line beside the select, even with 'No template — HTML only' chosen", () => {
     renderEditor({ templateChoice: "", availableTemplates: ["pages-default.html"] });
-    expect(screen.getByText(hint)).toBeInTheDocument();
-
-    cleanup();
-    renderEditor({ templateChoice: null, availableTemplates: ["pages-default.html"] });
-    expect(screen.queryByText(hint)).not.toBeInTheDocument();
-
-    cleanup();
-    renderEditor({ templateChoice: "pages-default.html", availableTemplates: ["pages-default.html"] });
-    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    expect(screen.queryByText(/serves only this page's html/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Template" })).toHaveValue("");
   });
 
   // The exact regression `pagePickerValue` exists to prevent: a `null` Page (never chosen — "Theme

@@ -1,6 +1,6 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
 import { ApiError, api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
-import { POST_VERSION_CONFLICT_CODE } from "../rules";
+import { postSlugForTitle, POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 
@@ -12,7 +12,7 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPostEditorPort: PostEditorPort = {
   getPost: (id) => api.getPost(id),
-  getPresentation: () => api.getPresentation(),
+  getPresentation: () => api.getPresentation({ kind: "post" }),
   updatePost: (target, patch) => api.updatePost(target, patch),
   deletePost: (id) => api.deletePost(id),
   listPosts: () => api.listPosts(),
@@ -23,6 +23,9 @@ export const defaultPostEditorPort: PostEditorPort = {
   getAutosave: (id) => api.getAutosave(id),
   discardAutosave: (id) => api.discardAutosave(id),
 };
+
+/** The featured/cover image preview's resized URL — `usePostFeaturedImage`'s `renditionUrl` seam. */
+export const defaultFeaturedImageRenditionUrl = (id: string): string => api.mediaPreviewRenditionUrl(id);
 
 /** Seed state for {@link createFakePostEditorPort}. */
 export interface FakePostEditorPortOptions {
@@ -113,7 +116,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
   /** Every `updatePost` patch this fake received, in call order — the assertion surface for "did
    *  the editor actually SEND the basis version", which `post` alone cannot show (a patch the fake
    *  applied and a patch it merely received look identical in the stored row). */
-  readonly updatePostCalls: Array<Partial<AdminPost> & { expectedVersion?: number }>;
+  readonly updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[1]>;
   /** Advances the stored row as though a DIFFERENT operator had just saved it, without the editor
    *  under test knowing — the only way to reach a genuine stale-basis conflict rather than faking
    *  the rejection. */
@@ -129,7 +132,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
   let autosave: StandingDraftAutosaveSnapshot | null = options.autosave ?? null;
   const putAutosaveCalls: StandingDraftAutosaveInput[] = [];
   let discardAutosaveCalled = false;
-  const updatePostCalls: Array<Partial<AdminPost> & { expectedVersion?: number }> = [];
+  const updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[1]> = [];
 
   return {
     get post() {
@@ -172,7 +175,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       // so a hook test reaches a conflict by actually being stale (`simulateConcurrentSave`), not
       // by seeding a canned rejection that would pass just as happily if the editor never sent a
       // version at all.
-      const { expectedVersion, ...fields } = patch;
+      const { expectedVersion, hideCoverImageInBody, slugFromTitle, ...fields } = patch;
       if (expectedVersion !== undefined && expectedVersion !== state.post.version) {
         throw new ApiError(
           `post '${state.post.id}' was modified by another save (expected version ${expectedVersion}, current version ${state.post.version})`,
@@ -182,7 +185,10 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
         );
       }
       // `fields`, not `patch` — `expectedVersion` is a basis to compare, never a column to store.
-      state.post = { ...state.post, ...fields, version: state.post.version + 1 };
+      state.post = { ...state.post, ...fields,
+        ...(slugFromTitle ? { slug: postSlugForTitle({ title: fields.title ?? state.post.title }) } : {}),
+        ...(hideCoverImageInBody !== undefined ? { ext: { ...state.post.ext, "post-presentation": { ...state.post.ext?.["post-presentation"], hideCoverImageInBody } } } : {}),
+        version: state.post.version + 1 };
       return { post: state.post };
     },
 
