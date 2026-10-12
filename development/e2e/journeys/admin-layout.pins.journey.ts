@@ -629,9 +629,13 @@ test.describe("the admin shell never scrolls the document itself", () => {
       const target = scroller.locator('[data-scroll-reach-probe="true"]');
       await expect(target).not.toBeInViewport();
       await scroller.hover();
-      await page.mouse.wheel(0, 100_000);
-      await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
-      await expect(target).toBeInViewport();
+      // Wheel again until the probe shows: a single wheel stopped short of it about 1 run in 6
+      // (likely the deployment cards still growing after the first one rendered).
+      await expect(async () => {
+        await page.mouse.wheel(0, 100_000);
+        await expect(target).toBeInViewport({ timeout: 2_000 });
+      }).toPass();
+      expect(await scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
       expect(await maxDocumentScrollY(page)).toBe(0);
     }
   });
