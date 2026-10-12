@@ -341,10 +341,14 @@ test.describe("theme Explore — file picker stays visible at a narrow viewport 
     const main = page.locator(".theme-explore-main");
     await main.scrollIntoViewIfNeeded();
     await expect(main).toBeInViewport();
+    // boundingBox is viewport-relative: re-measure the tray after the scroll so both boxes share
+    // one scroll position (the 0e49c6551 tray is taller, so the scroll above now always moves).
     const mainBox = await main.boundingBox();
+    const trayBox = await fileList.boundingBox();
     expect(mainBox).not.toBeNull();
-    expect(mainBox!.y).toBeGreaterThanOrEqual(box!.y + box!.height - 1);
-    expect(Math.abs(mainBox!.width - box!.width)).toBeLessThanOrEqual(2);
+    expect(trayBox).not.toBeNull();
+    expect(mainBox!.y).toBeGreaterThanOrEqual(trayBox!.y + trayBox!.height - 1);
+    expect(Math.abs(mainBox!.width - trayBox!.width)).toBeLessThanOrEqual(2);
   });
   }
 });
@@ -505,6 +509,8 @@ test.describe("theme Explore — .liquid template preview", () => {
     await page.goto("/admin/themes/explore?theme=fashion-modern");
     await page.locator(".theme-explore").waitFor({ state: "visible", timeout: 15_000 });
 
+    // 0e49c6551: the tray shows one file group at a time and opens on Pages; theme.json is a Config file.
+    await page.locator(".theme-explore-groups").getByRole("tab", { name: /^Config/ }).click();
     // JSON uses the raw asset viewer, like every other non-template file.
     const fileRow = page.getByRole("button", { name: "theme.json", exact: true });
     await fileRow.waitFor({ state: "visible", timeout: 10_000 });
@@ -512,13 +518,12 @@ test.describe("theme Explore — .liquid template preview", () => {
 
     await expect(page.getByText(/^select a file to preview\.?$/i)).not.toBeVisible();
     await expect(page.getByText(/templated themes don't have a rendered preview yet/i)).not.toBeVisible();
-    const iframe = page.locator(".theme-explore-main .page-preview-iframe");
-    await expect(iframe).toHaveCount(1);
-    // Preview refresh gives raw assets a revision namespace so edits cannot reuse stale bytes.
-    await expect(iframe).toHaveAttribute("src", /\/theme-preview-assets\/[\w-]+\/fashion-modern\/theme\.json\?/);
-    const body = page.frameLocator(".theme-explore-main .page-preview-iframe").locator("body");
-    await expect(body).toContainText('"name"');
-    await expect(body).toContainText("Fashion Modern");
+    // 0e49c6551 (owner, 2026-10-10: Chrome's JSON viewer scaled into the device frame was unreadable):
+    // JSON now previews in the read-only code viewer (themeExplorePreviewMode "code"), not an iframe.
+    await expect(page.locator(".theme-explore-main .page-preview-iframe")).toHaveCount(0);
+    const source = page.getByRole("region", { name: "Theme file source (read-only)" });
+    await expect(source).toContainText('"name"');
+    await expect(source).toContainText("Fashion Modern");
   });
 });
 });

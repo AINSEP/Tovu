@@ -334,17 +334,17 @@ interface Swatch { label: string; actual: string; primary: string }
 
 /**
  * Reads `property` from the element matched by `selector` (or a probe of `probeClass` inside
- * `probeParent` when no such element is rendered), next to `--primary` resolved on that element.
+ * `probeParent` when no such element is rendered), next to `token` (default `--primary`) resolved on that element.
  * A missing `--primary` fails explicitly rather than painting an inherited text colour as the
  * reference. An SVG target (the sidebar icon) is referenced from its HTML parent, since an HTML
  * span inside `<svg>` is not a rendered box.
  */
 async function swatch(
   page: Page,
-  { label, selector, property, pseudo }: { label: string; selector: string; property: string; pseudo?: string },
+  { label, selector, property, pseudo, token = "--primary" }: { label: string; selector: string; property: string; pseudo?: string; token?: string },
   { probeClass, probeParent, probeTag = "button" }: { probeClass?: string; probeParent?: string; probeTag?: string } = {},
 ): Promise<Swatch> {
-  return page.evaluate(({ label, selector, property, pseudo, probeClass, probeParent, probeTag }) => {
+  return page.evaluate(({ label, selector, property, pseudo, token, probeClass, probeParent, probeTag }) => {
     let element = document.querySelector<HTMLElement | SVGElement>(selector);
     let probe: HTMLElement | null = null;
     if (!element && probeClass && probeParent) {
@@ -364,14 +364,14 @@ async function swatch(
     // oklch(55% ...)), by painting it on a throwaway child of the same element.
     const host = element instanceof SVGElement ? element.parentElement ?? element : element;
     const reference = document.createElement("span");
-    reference.style.color = "var(--primary)";
+    reference.style.color = `var(${token})`;
     host.appendChild(reference);
     const primary = getComputedStyle(reference).color;
     reference.remove();
     const actual = getComputedStyle(element, pseudo ?? null).getPropertyValue(property);
     probe?.remove();
     return { label, actual, primary };
-  }, { label, selector, property, pseudo, probeClass, probeParent, probeTag });
+  }, { label, selector, property, pseudo, token, probeClass, probeParent, probeTag });
 }
 
 function expectPrimary(result: Swatch): void {
@@ -447,7 +447,10 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
       const nav = ".cms-item.active";
       await expect(page.locator(nav).first()).toBeVisible();
       expectPrimary(await swatch(page, { label: "sidebar active rail", selector: nav, property: "background-color", pseudo: "::before" }));
-      expectPrimary(await swatch(page, { label: "sidebar active icon", selector: `${nav} svg`, property: "color" }));
+      // cb7cfdcb9 (2026-10-09): the active row's text and icon wear `--selected-text-on-tint`, primary
+      // mixed 12% toward `--fg` for AA contrast on the row's tint, so the icon is not plain primary.
+      const icon = await swatch(page, { label: "sidebar active icon", selector: `${nav} svg`, property: "color", token: "--selected-text-on-tint" });
+      expect(icon.actual, icon.label).toBe(icon.primary);
     });
   });
 }
@@ -967,14 +970,18 @@ async function lastRowClearsSheet(page: Page): Promise<{ cleared: boolean; gap: 
     const bottom = Math.min(rect.bottom, dock.getBoundingClientRect().top);
     // At 375x667 the expanded sheet leaves ~1px above it. Use an integer pixel inside that strip
     // so native wheel hit testing cannot round a fractional midpoint onto the topbar or sheet.
+    // Chromium pixel-snaps the sheet's fractional top edge (53.375 snaps to 53), so the row at
+    // ceil(midpoint) can already belong to the sheet; stay one row above the snapped edge.
     const x = Math.round(rect.left + rect.width / 2);
-    const y = Math.ceil(rect.top + (bottom - rect.top) / 2);
-    return { x, y, exposed: bottom - rect.top,
-      hitsContent: y < bottom && content.contains(document.elementFromPoint(x, y)),
+    const y = Math.max(Math.ceil(rect.top), Math.min(Math.floor(rect.top + (bottom - rect.top) / 2), Math.round(bottom) - 1));
+    const hit = document.elementFromPoint(x, y);
+    return { x, y, exposed: bottom - rect.top, top: rect.top, bottom,
+      hit: hit ? `${hit.tagName.toLowerCase()}.${String(hit.className).split(" ").join(".")}` : "none",
+      hitsContent: y < bottom && content.contains(hit),
       before: content.scrollTop, max: content.scrollHeight - content.clientHeight };
   });
   expect(region.exposed, "a visitor must have exposed content to scroll above the sheet").toBeGreaterThan(0);
-  expect(region.hitsContent, "the native wheel target must hit exposed page content").toBe(true);
+  expect(region.hitsContent, `the native wheel target must hit exposed page content (${JSON.stringify(region)})`).toBe(true);
   expect(region.max).toBeGreaterThan(region.before);
   await page.mouse.move(region.x, region.y);
   await page.mouse.wheel(0, region.max + 1000);

@@ -93,15 +93,23 @@ test.describe("page preview sandbox", () => {
     const editorUrl = await newPage(page);
     await writeHtmlAndSave(
       page,
-      '<main><button id="go" onclick="try{window.top.location.href=\'https://example.com/escaped-by-script\'}catch(e){document.body.dataset.blocked=\'1\'}">Go</button></main>',
+      '<main><button id="go" onclick="try{window.top.location.href=\'https://example.com/escaped-by-script\'}catch(e){}document.body.dataset.attempted=\'1\'">Go</button></main>',
     );
     await page.getByRole("tab", { name: "Preview" }).click();
+    const topNavigations: string[] = [];
+    page.on("framenavigated", (frame) => { if (frame === page.mainFrame()) topNavigations.push(frame.url()); });
     const preview = page.frameLocator('iframe[title="Page preview"]');
-    await preview.getByRole("button", { name: "Go" }).click();
-    await expect(preview.locator("body[data-blocked='1']")).toHaveCount(1);
+    const go = preview.getByRole("button", { name: "Go" });
+    // First line of defence since 34311d276/5f237c87a: sanitizePageHtml (widgets/media-html.ts) strips
+    // script-bearing attributes from the rendered body, so the handler never reaches the frame.
+    // The sandbox (no allow-top-navigation) is the second; either way the admin must not move.
+    await expect(go).not.toHaveAttribute("onclick", /./);
+    await go.click();
+    await expect(preview.locator("body[data-attempted='1']")).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "HTML" })).toBeVisible();
     expect(page.url()).toBe(editorUrl);
-    // A blocked top navigation is a SecurityError inside the frame, caught above; nothing may
-    // surface as an uncaught error on the admin page.
+    expect(topNavigations, "the admin's top frame must not navigate").toEqual([]);
+    // Nothing from the refused navigation may surface as an uncaught error on the admin page.
     expect(pageErrors).toEqual([]);
   });
 

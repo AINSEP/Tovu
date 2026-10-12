@@ -155,7 +155,16 @@ function tabValues(file: string, name: string, field?: string): string[] {
   const filename = file.startsWith(jini)
     ? path.join(REPO_ROOT, "apps/admin/node_modules/@jini-ai/admin/dist", file.slice(jini.length))
     : path.join(REPO_ROOT, "apps/admin/src/features", file);
-  const values = readLiteralArray(filename, name).map(element => {
+  // 2667cbdfd gates Observability's Queries tab as `...(visible ? [{ id: "queries", … }] : [])`.
+  // The journey owner on the default TanStack adapter sees it, so capture the whenTrue literals.
+  const values = readLiteralArray(filename, name).flatMap(element => {
+    if (!ts.isSpreadElement(element)) return [element];
+    let spread = element.expression;
+    while (ts.isParenthesizedExpression(spread)) spread = spread.expression;
+    if (ts.isConditionalExpression(spread) && ts.isArrayLiteralExpression(spread.whenTrue)
+      && ts.isArrayLiteralExpression(spread.whenFalse) && spread.whenFalse.elements.length === 0) return Array.from(spread.whenTrue.elements);
+    throw new Error(`Unsupported spread in ${name} in ${file}`);
+  }).map(element => {
     const value = field && ts.isObjectLiteralExpression(element) ? property(element, field) : element;
     if (!value || !ts.isStringLiteral(value)) throw new Error(`Nonliteral ${name}.${field ?? "id"} in ${file}`);
     return value.text;
