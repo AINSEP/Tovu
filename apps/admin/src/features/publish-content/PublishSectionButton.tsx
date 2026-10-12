@@ -15,15 +15,18 @@ import {
 export interface PublishSectionButtonProps {
   /** Which publishable section (`PUBLISH_SECTIONS`) this button opens the dialog scoped to. */
   section: PublishSectionId;
+  /** Button variant class; `.btn-secondary` unless the host screen says otherwise (Themes uses
+   *  `.btn-primary`, owner 2026-10-11). */
+  className?: string;
 }
 
-export function PublishSectionButton({ section }: PublishSectionButtonProps) {
+export function PublishSectionButton({ section, className = "btn-secondary" }: PublishSectionButtonProps) {
   const { visible, label, onClick } = usePublishSectionButton(section);
   if (!visible) return null;
   return (
     <button
       type="button"
-      className="btn-secondary"
+      className={className}
       onClick={onClick}
       {...agentHandle({ handle: `publish-section-${section}` }, {
         role: "button",

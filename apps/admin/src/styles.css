@@ -3037,17 +3037,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    state keep their normal colours. Scoped to `.themes-page`: other screens' tagged tabs are unchanged. */
 .themes-page .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]) { color: var(--faint); }
 .themes-page .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]):hover { color: var(--muted); }
-/* Themes header right side (owner 2026-10-11): "View site ↗" pinned to the header's top-right corner,
-   the Rescan / Turn off / Publish buttons as one right-aligned row. The link is absolute so it stays in
-   the corner even after the button row wraps under the description; beside the title the row is
-   padded down to clear it. */
+/* Themes header (owner 2026-10-11): "View site ↗" pinned to the header's top-right corner, the
+   Rescan / Turn off / Publish buttons as one row under the description, left edge flush with the
+   title. The side block takes the full row so it always wraps below the text; the link is absolute so
+   it stays in the corner. Colours come from existing variants (black `.btn-explore`, white
+   `.btn-secondary`, orange `.btn-primary`); the white one's label goes from `--fg-2` to `--fg` so it
+   reads black like its siblings' fills. */
 .themes-page > .page-header { position: relative; }
-.themes-header-side { min-width: 0; max-width: 100%; margin-left: auto; padding-top: 2rem; }
+.themes-header-side { flex-basis: 100%; min-width: 0; }
 .themes-header-side > a { position: absolute; top: 0; right: 0; }
-.themes-header-side > .page-actions { justify-content: flex-end; }
-@container admin-content (max-width: 1000px) {
-  .themes-header-side { padding-top: 0; }
-}
+.themes-header-side > .page-actions { justify-content: flex-start; }
+.themes-header-side .btn-secondary:not(:disabled) { color: var(--fg); }
 /* The "this one has something configured" signifier (`TabBarTab.dot`'s own doc) — a small filled
    circle, not a colored ring or outline, so it reads clearly at 6px. `--ok` (the same green
    `.status-ok` uses) rather than `--primary`: this is a fact about STATE ("connected"), not a

@@ -221,6 +221,12 @@ describe("View site link", () => {
       "Turn the theme off",
       "Publish themes",
     ]);
+    // Black, white, orange (owner 2026-10-11).
+    expect(Array.from(row!.children).map((el) => el.className)).toEqual([
+      "btn-explore",
+      "btn-secondary",
+      "btn-primary",
+    ]);
   });
 });
 

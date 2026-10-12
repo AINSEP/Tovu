@@ -473,8 +473,9 @@ function ThemeGrid({
   );
 }
 
-/** The header's right side: "View site ↗" alone in the top-right corner, then one flush button row —
- *  Rescan, Turn the theme off, Publish themes (owner, 2026-10-11). The server
+/** The header's right side: "View site ↗" alone in the top-right corner, then one left-aligned button
+ *  row under the description — Rescan (black), Turn the theme off (white), Publish themes (orange)
+ *  (owner, 2026-10-11). The server
  *  discovers themes once at boot, so anything that reaches the themes folder afterwards —
  *  a copy of an original, a `git pull`, the `npm run theme` CLI — is invisible
  *  here until someone asks it to look again. In-app actions will rescan on their own; this is the
@@ -509,7 +510,7 @@ function ThemesToolbar({
       <div className="page-actions">
         <button
           type="button"
-          className="btn-secondary"
+          className="btn-explore"
           disabled={rescanning || rescan === undefined}
           onClick={() => void rescan?.()}
           {...agentHandle({ handle: "themes-rescan" }, { role: "button", label: "Rescan the themes folder for changes" })}
@@ -535,7 +536,7 @@ function ThemesToolbar({
             {busyTheme === NO_THEME_ID ? t("Turning off…") : t("Turn the theme off")}
           </button>
         )}
-        <PublishSectionButton section="themes" />
+        <PublishSectionButton section="themes" className="btn-primary" />
       </div>
     </div>
   );
