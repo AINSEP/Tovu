@@ -56,8 +56,8 @@ export function useSitesSidebarNav(
   useEffect(() => {
     const nav = doc.getElementById("admin-sidebar");
     if (!nav || !hasName) { setTarget(null); return; }
-    // No row class is added here: React rewrites the shared row's className on every active change,
-    // so styles.css keys off the portaled label's presence with `:has` instead.
+    // No row class is added here: React rewrites the shared row's className on every active change.
+    // The effect below marks the portal target with an unmanaged attribute React leaves alone.
     const discover = () => setTarget(nav.querySelector<HTMLElement>('a.cms-item[href$="/sites"]'));
     discover();
     // Permission/locale changes can replace the shared row without remounting this adapter.
@@ -65,6 +65,13 @@ export function useSitesSidebarNav(
     observer.observe(nav, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [doc, hasName]);
+
+  // Mark before measuring/painting the split label; cleanup restores the shared label on removal.
+  useLayoutEffect(() => {
+    if (!target) return;
+    target.setAttribute("data-cms-sites-split", "");
+    return () => target.removeAttribute("data-cms-sites-split");
+  }, [target]);
 
   useLayoutEffect(() => {
     const element = nameRef.current;

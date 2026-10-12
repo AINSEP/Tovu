@@ -54,6 +54,7 @@ describe("Sites sidebar label", () => {
     await act(async () => { settle(snapshot("")); await response; });
     const link = screen.getByRole("link", { name: "Sites" });
     expect(link.querySelector(".cms-sites-label")).toBeNull();
+    expect(link.getAttribute("data-cms-sites-split")).toBeNull();
     expect(link.getAttribute("title")).toBeNull();
   });
 
@@ -74,7 +75,13 @@ describe("Sites sidebar label", () => {
     expect(reads).toBe(1);
     current = snapshot("next-site");
     act(() => publishContentRefresh(["sites"]));
-    await screen.findByRole("link", { name: "Sites (next-site)" });
+    const link = await screen.findByRole("link", { name: "Sites (next-site)" });
+    expect(link.getAttribute("data-cms-sites-split")).toBe("");
+    current = snapshot("");
+    act(() => publishContentRefresh(["sites"]));
+    await screen.findByRole("link", { name: "Sites" });
+    await waitFor(() => expect(link.getAttribute("data-cms-sites-split")).toBeNull());
+    expect(link.querySelector(".cms-sites-label")).toBeNull();
   });
 
   it("keeps exactly one split label, without decorating the row's className, across active-state changes", async () => {
@@ -82,14 +89,19 @@ describe("Sites sidebar label", () => {
     const tree = (activeId: string) => <FetchQueryProvider><Sidebar activeId={activeId} railStorageKey="sites-active-flip-test">
       <SitesSidebarNav groups={groups} locale="en" options={{ port }} />
     </Sidebar></FetchQueryProvider>;
-    const { rerender } = render(tree("sites"));
+    const { rerender, unmount } = render(tree("sites"));
     const link = await screen.findByRole("link", { name: "Sites (plannie)" });
     await waitFor(() => expect(link.querySelectorAll(".cms-sites-label")).toHaveLength(1));
+    expect(link.getAttribute("data-cms-sites-split")).toBe("");
     rerender(tree("overview"));
+    expect(link.getAttribute("data-cms-sites-split")).toBe("");
     rerender(tree("sites"));
     expect(link.className).toBe("cms-item active");
     expect(link.querySelectorAll(".cms-sites-label")).toHaveLength(1);
     expect(link.querySelector(":scope > span:first-of-type")?.textContent).toBe("Sites (plannie)");
+    expect(link.getAttribute("data-cms-sites-split")).toBe("");
+    unmount();
+    expect(link.getAttribute("data-cms-sites-split")).toBeNull();
   });
 
   it("keeps the full site label in the shared collapsed rail tooltip", async () => {
