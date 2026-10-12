@@ -86,7 +86,7 @@ describe("createPost", () => {
       await result.current.createPost();
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(String(call[0])).toContain("/workspaces/workspace-local/posts");
     expect((call[1] as RequestInit).method).toBe("POST");
     expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ title: "Untitled" });
@@ -130,7 +130,7 @@ describe("togglePostPublish", () => {
       await result.current.togglePostPublish(POST);
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/posts/${POST.id}`);
     expect((call[1] as RequestInit).method).toBe("PUT");
     expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({
@@ -157,7 +157,7 @@ describe("togglePostPublish", () => {
       await result.current.togglePostPublish(DRAFT);
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect((call[1] as RequestInit).method).toBe("PUT");
     expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "published", expectedVersion: DRAFT.version });
   });
@@ -201,7 +201,7 @@ describe("togglePostPublish", () => {
 
     // The request carried the stale basis it actually loaded with — proof the 409 came from a real
     // comparison the client set up, not a response this test could get for free either way.
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "draft", expectedVersion: POST.version });
     // A rejection, not a report: the row in local state must still read exactly as it was loaded —
     // in particular still "published", never silently painted over with "draft".
@@ -245,7 +245,7 @@ describe("removePost", () => {
       await result.current.removePost();
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/posts/${POST.id}`);
     expect((call[1] as RequestInit).method).toBe("DELETE");
     expect(result.current.posts).toEqual([]);
@@ -495,10 +495,10 @@ describe("usePosts — content refresh bus", () => {
       .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
       .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
 
-    act(() => {
-      publishContentRefresh();
-      publishContentRefresh();
-    });
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(resolveFirst).toBeTypeOf("function"));
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(resolveSecond).toBeTypeOf("function"));
 
     // The SECOND (more recent) request settles first, with the newer list.
     await act(async () => {

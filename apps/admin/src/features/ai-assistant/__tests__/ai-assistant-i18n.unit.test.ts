@@ -71,12 +71,12 @@ describe("AI_ASSISTANT_DICT: t() falls back to COMMON_I18N", () => {
 describe("subagent owner consent and dock status translations", () => {
   const keys = [
     "Allow the admin assistant to spawn subagents",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.",
     "Only the owner can change subagent access.", "Loading subagent settings…", "Waiting for confirmation or saving…",
     "Security risk: subagents can act independently.", "Subagents inherit the assistant's bypassed permissions.",
     "You may not see what they do; the chat does not show subagent tool calls.", "Cost and machine load multiply with each subagent.",
     "Allow the assistant to spawn subagents?", "Allow subagents", "failed to save subagent access",
-    "Subagents: on", "Subagents: unknown",
+    "Subagents: on", "Subagents: unknown", "This chat can use subagents",
   ];
   it("translates every new string in all 21 locales without English fallback", () => {
     for (const locale of Object.keys(AI_ASSISTANT_DICT)) for (const key of keys) {

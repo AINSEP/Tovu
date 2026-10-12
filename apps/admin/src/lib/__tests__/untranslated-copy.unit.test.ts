@@ -40,7 +40,7 @@ const NON_ENGLISH_LOCALES = ADMIN_LOCALES.map((option) => option.code).filter((c
  * Words kept in English in every admin locale: protocol, file-format and robots-directive names.
  * A value identical to English is accepted when every word in it is one of these.
  */
-const UNTRANSLATED_TERMS = new Set<string>(["AI", "Dockerfile", "HTML", "ID", "Nofollow", "Noindex", "sha256", "sitemap.xml", "URL", "URLs"]);
+const UNTRANSLATED_TERMS = new Set<string>(["AI", "Dockerfile", "PDF", "HTML", "ID", "Nofollow", "Noindex", "sha256", "sitemap.xml", "URL", "URLs"]);
 
 const LATIN_SCRIPT_LOCALES = ["es", "id", "de", "pt-BR", "pl", "hu", "fr", "tr", "it"];
 
@@ -52,8 +52,15 @@ const LATIN_SCRIPT_LOCALES = ["es", "id", "de", "pt-BR", "pl", "hu", "fr", "tr",
 const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   // Software nouns these languages borrow unchanged.
   Alt: ["es", "id", "de", "pt-BR", "pl", "hu", "fr", "it"],
+  // "Animation" has the same spelling in German and French; Kuinetic is the product name.
+  "Animation · Kuinetic": ["de", "fr"],
   Assets: ["de"],
   Crawling: ["de"],
+  Chats: ["es", "de", "pt-BR"],
+  Dropdown: ["id", "de"],
+  Date: ["fr"],
+  Min: ["id", "it"],
+  Max: ["it"],
   Dashboard: ["de"],
   Database: ["it"],
   Desktop: ["id", "de", "pt-BR", "it"],
@@ -140,11 +147,12 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   Commerce: ["fr"],
   Description: ["fr"],
   exact: ["fr"],
-  Image: ["fr"],
   Images: ["fr"],
   Mobile: ["fr"],
   Note: ["fr"],
   Notifications: ["fr"],
+  Options: ["fr"],
+  "Sites ({siteName})": ["fr"],
   Page: ["fr"],
   Pages: ["fr"],
   Parent: ["fr"],

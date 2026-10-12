@@ -36,7 +36,7 @@ describe("EmbedInsertControl agentHandle", () => {
 
     await openMenu(user);
     expect(screen.getByRole("menuitem", { name: "Media" })).not.toHaveAttribute(AGENT_ELEMENT);
-    expect(screen.getAllByRole("menuitem")).toHaveLength(4);
+    expect(screen.getAllByRole("menuitem")).toHaveLength(5);
     for (const element of document.body.querySelectorAll("*")) {
       expect(element.getAttributeNames().filter((name) => name.startsWith("data-agent-"))).toEqual([]);
     }
@@ -49,6 +49,7 @@ describe("EmbedInsertControl agentHandle", () => {
 
     await openMenu(user);
     expect(screen.getByRole("menuitem", { name: "Media" })).toHaveAttribute(AGENT_ELEMENT, "post-embed-media");
+    expect(screen.getByRole("menuitem", { name: "Gallery" })).toHaveAttribute(AGENT_ELEMENT, "post-embed-gallery");
     expect(screen.getByRole("menuitem", { name: "Form" })).toHaveAttribute(AGENT_ELEMENT, "post-embed-form");
     expect(screen.getByRole("menuitem", { name: "Menu" })).toHaveAttribute(AGENT_ELEMENT, "post-embed-menu");
     expect(screen.getByRole("menuitem", { name: "Widget…" })).toHaveAttribute(AGENT_ELEMENT, "post-embed-widget");

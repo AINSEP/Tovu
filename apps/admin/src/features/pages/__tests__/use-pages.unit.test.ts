@@ -124,8 +124,9 @@ describe("createPage", () => {
     });
     expect(result.current.creating).toBe(true);
 
+    await waitFor(() => expect(resolveCreate).toBeTypeOf("function"));
     await act(async () => {
-      resolveCreate?.(jsonResponse({ post: { ...PAGE, id: "pg2", title: "Untitled" } }));
+      resolveCreate!(jsonResponse({ post: { ...PAGE, id: "pg2", title: "Untitled" } }));
       await createPromise;
     });
     // No `setCreating(false)` on the success path in the source — only the catch branch resets it.
@@ -143,7 +144,7 @@ describe("createPage", () => {
       await result.current.createPage();
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(String(call[0])).toContain("/workspaces/workspace-local/pages");
     expect((call[1] as RequestInit).method).toBe("POST");
     expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ title: "Untitled" });
@@ -191,7 +192,7 @@ describe("togglePagePublish", () => {
       await result.current.togglePagePublish(PAGE);
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/posts/${PAGE.id}`);
     expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({
       title: PAGE.title,
@@ -216,7 +217,7 @@ describe("togglePagePublish", () => {
       await result.current.togglePagePublish(DRAFT);
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "published", expectedVersion: DRAFT.version });
   });
 
@@ -239,7 +240,7 @@ describe("togglePagePublish", () => {
       await result.current.togglePagePublish(PAGE);
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({ status: "draft", expectedVersion: PAGE.version });
     expect(result.current.pages).toEqual([PAGE]);
     expect(result.current.error).toMatch(/modified by another save/);
@@ -306,7 +307,7 @@ describe("removePage", () => {
       await result.current.removePage();
     });
 
-    const call = fetchMock.mock.calls.at(-1)!;
+    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
     expect(String(call[0])).toContain(`/workspaces/workspace-local/pages/${PAGE.id}`);
     expect((call[1] as RequestInit).method).toBe("DELETE");
     expect(result.current.pages).toEqual([]);
@@ -361,6 +362,7 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
     });
     await waitFor(() => expect(result.current.rowSavingId).toBe(OTHER_PAGE.id));
 
+    await waitFor(() => expect(resolveToggle).toBeTypeOf("function"));
     await act(async () => {
       resolveToggle({ post: { ...PAGE, status: "draft", version: PAGE.version + 1 } });
       await Promise.resolve();
@@ -369,6 +371,7 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
     // The unrelated toggle settling must not unlock a DIFFERENT row's in-flight Delete confirm.
     expect(result.current.rowSavingId).toBe(OTHER_PAGE.id);
 
+    await waitFor(() => expect(resolveDelete).toBeTypeOf("function"));
     await act(async () => {
       resolveDelete({ post: OTHER_PAGE });
       await Promise.resolve();
@@ -404,6 +407,7 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
     });
     await waitFor(() => expect(result.current.rowSavingId).toBe(PAGE.id));
 
+    await waitFor(() => expect(resolveDelete).toBeTypeOf("function"));
     await act(async () => {
       resolveDelete({ post: OTHER_PAGE });
       await Promise.resolve();
@@ -411,6 +415,7 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
 
     expect(result.current.rowSavingId).toBe(PAGE.id);
 
+    await waitFor(() => expect(resolveToggle).toBeTypeOf("function"));
     await act(async () => {
       resolveToggle({ post: { ...PAGE, status: "draft", version: PAGE.version + 1 } });
       await Promise.resolve();
@@ -542,13 +547,13 @@ describe("usePages — content refresh bus", () => {
     const callsBefore = listSpy.mock.calls.length;
 
     // A narrowed notification about somebody else's resource must not cost this screen a refetch.
-    act(() => publishContentRefresh(["taxonomy"]));
+    await act(async () => publishContentRefresh(["taxonomy"]));
     expect(listSpy).toHaveBeenCalledTimes(callsBefore);
     expect(result.current.pages).toEqual([PAGE]);
 
     act(() => publishContentRefresh([PAGES_RESOURCE]));
-    expect(listSpy).toHaveBeenCalledTimes(callsBefore + 1);
     await waitFor(() => expect(result.current.pages).toEqual([PAGE, NEW_PAGE]));
+    expect(listSpy).toHaveBeenCalledTimes(callsBefore + 1);
   });
 
   it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
@@ -564,10 +569,10 @@ describe("usePages — content refresh bus", () => {
       .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
       .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
 
-    act(() => {
-      publishContentRefresh();
-      publishContentRefresh();
-    });
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(resolveFirst).toBeTypeOf("function"));
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(resolveSecond).toBeTypeOf("function"));
 
     // The SECOND (more recent) request settles first, with the newer list.
     await act(async () => {

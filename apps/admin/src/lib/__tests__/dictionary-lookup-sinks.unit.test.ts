@@ -30,6 +30,12 @@ const ALLOWED: Record<string, string> = {
   "components/AssistantDock/assistant-dock-i18n.ts:CHAT_PANE_I18N_DICT": "Jini chat adapter",
 };
 
+/** Forms owns the assembled translator; these fragments are inputs only at module initialization. */
+const ASSEMBLED: Record<string, string> = {
+  "features/forms/forms-i18n.ts:FORMS_FIELD_SETTINGS_I18N": "FORMS_DICT",
+  "features/forms/forms-i18n.ts:FORMS_LEAVE_GUARD_I18N": "FORMS_DICT",
+};
+
 const DECLARATION = /\bconst\s+([A-Z][A-Z0-9_]*_(?:DICT|I18N|DICTIONARY))\s*:\s*Record<\s*string\s*,\s*Record<\s*string\s*,\s*string\s*>\s*>/g;
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
@@ -88,7 +94,13 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
       if (!ALLOWED[`${f.path}:${name}`]) hits.add(`${f.path}: ${kind} ${name}`);
     }
     function isConstruction(node: ts.Identifier): boolean {
-      if (!own.has(node.text)) return false;
+      if (!own.has(node.text)) {
+        const target = ASSEMBLED[`${f.path}:${node.text}`];
+        const call = node.parent;
+        return !!target && ts.isCallExpression(call) && call.expression.getText(f.ast) === "mergeDictionaryTranslations" &&
+          call.arguments[1] === node && call.arguments[0]?.getText(f.ast) === target &&
+          ts.isExpressionStatement(call.parent) && call.parent.parent === f.ast;
+      }
       let statement: ts.Node = node;
       while (statement.parent && statement.parent !== f.ast) statement = statement.parent;
       const parent = node.parent;
@@ -115,7 +127,8 @@ function findInlineDictionaryLookups(files: ReadonlyArray<{ path: string; source
     }
     function visit(node: ts.Node): void {
       if (ts.isImportSpecifier(node) && names.has((node.propertyName ?? node.name).text) &&
-        (node.propertyName ?? node.name).text !== "COMMON_I18N") {
+        (node.propertyName ?? node.name).text !== "COMMON_I18N" &&
+        !ASSEMBLED[`${f.path}:${(node.propertyName ?? node.name).text}`]) {
         report((node.propertyName ?? node.name).text, "imports");
       }
       if (ts.isIdentifier(node) && names.has(node.text)) {
@@ -223,6 +236,21 @@ describe("findInlineDictionaryLookups: the detector", () => {
     expect(findInlineDictionaryLookups([declaration])).toEqual([]);
     expect(findInlineDictionaryLookups([declaration, { path: HOOK_FILE.path, source: "Object.entries(WIDGETS_DICT)" }]))
       .toEqual([`${HOOK_FILE.path}: references WIDGETS_DICT`]);
+  });
+
+  it("allows registered Forms fragments only in their owner's top-level assembly", () => {
+    const fragment = { path: "features/forms/forms-field-settings-i18n.ts", source: "export const FORMS_FIELD_SETTINGS_I18N: Record<string, Record<string, string>> = {};" };
+    const owner = { path: "features/forms/forms-i18n.ts", source: [
+      'import { FORMS_FIELD_SETTINGS_I18N } from "./forms-field-settings-i18n";',
+      "export const FORMS_DICT: Record<string, Record<string, string>> = {};",
+      "mergeDictionaryTranslations(FORMS_DICT, FORMS_FIELD_SETTINGS_I18N);",
+      "export const t = createDictionaryTranslator(FORMS_DICT);",
+    ].join("\n") };
+    expect(findInlineDictionaryLookups([fragment, owner])).toEqual([]);
+    expect(findInlineDictionaryLookups([fragment, { ...owner, source: owner.source + "\nconst bypass = FORMS_FIELD_SETTINGS_I18N.es[key];" }]))
+      .toEqual(["features/forms/forms-i18n.ts: references FORMS_FIELD_SETTINGS_I18N"]);
+    expect(findInlineDictionaryLookups([fragment, { ...owner, source: owner.source.replace("mergeDictionaryTranslations(FORMS_DICT, FORMS_FIELD_SETTINGS_I18N);", "function t() { mergeDictionaryTranslations(FORMS_DICT, FORMS_FIELD_SETTINGS_I18N); }") }]))
+      .toEqual(["features/forms/forms-i18n.ts: references FORMS_DICT", "features/forms/forms-i18n.ts: references FORMS_FIELD_SETTINGS_I18N"]);
   });
 
   it("still flags an owner translator that aliases the raw dictionary", () => {

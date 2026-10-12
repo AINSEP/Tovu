@@ -1,3 +1,5 @@
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 /**
  * @file Strings added by the 2026-10-09 AI Assistant layout redesign (status pill, numbered visitor
  * steps, Provider select, ⓘ tips), in all 21 admin locales.
@@ -618,13 +620,19 @@ export const AI_ASSISTANT_LAYOUT_DICT: Record<string, Record<string, string>> = 
   },
 };
 
+export const t = createDictionaryTranslator({ featureDictionary: AI_ASSISTANT_LAYOUT_DICT });
+
 /**
  * Layers {@link AI_ASSISTANT_LAYOUT_DICT} over a feature dictionary, locale by locale (layout wins
  * on a shared key, so its all-locale widget strings replace the earlier `es`-only ones).
  *
  * @complexity Time/space: O(k) in the total number of keys across both dictionaries.
  */
-export function withLayoutStrings(base: Record<string, Record<string, string>>): Record<string, Record<string, string>> {
-  const locales = new Set([...Object.keys(base), ...Object.keys(AI_ASSISTANT_LAYOUT_DICT)]);
-  return Object.fromEntries([...locales].map((locale) => [locale, { ...base[locale], ...AI_ASSISTANT_LAYOUT_DICT[locale] }]));
+export function withLayoutStrings(
+  { base }: { base: typeof t.dictionary },
+  _options: Record<string, never> = {},
+): Record<string, Record<string, string>> {
+  const layout = t.dictionary;
+  const locales = new Set([...Object.keys(base), ...Object.keys(layout)]);
+  return Object.fromEntries([...locales].map((locale) => [locale, { ...base[locale], ...layout[locale] }]));
 }

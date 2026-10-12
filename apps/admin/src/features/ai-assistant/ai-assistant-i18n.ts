@@ -65,7 +65,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "no se pudo guardar el acceso a eliminaciones permanentes",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Permitir que el asistente de administración cree subagentes",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Desactivado por defecto. Solo se aplica a Claude CLI; BYOK y otras CLI no cambian. Los cambios se aplican a nuevas ejecuciones; los subagentes existentes pueden continuar.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Activado por defecto. Solo se aplica a Claude CLI; BYOK y otras CLI no cambian. Los cambios se aplican a nuevas ejecuciones; los subagentes existentes pueden continuar.",
+    "This chat can use subagents": "Este chat puede usar subagentes",
     "Only the owner can change subagent access.": "Solo el propietario puede cambiar el acceso de subagentes.",
     "Loading subagent settings…": "Cargando la configuración de subagentes…",
     "Waiting for confirmation or saving…": "Esperando confirmación o guardando…",
@@ -219,7 +220,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "gagal menyimpan akses penghapusan permanen",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Izinkan asisten admin membuat subagen",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Nonaktif secara bawaan. Hanya berlaku untuk Claude CLI; BYOK dan CLI lain tidak terpengaruh. Perubahan berlaku untuk proses baru; subagen yang ada dapat tetap berjalan.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Aktif secara bawaan. Hanya berlaku untuk Claude CLI; BYOK dan CLI lain tidak terpengaruh. Perubahan berlaku untuk proses baru; subagen yang ada dapat tetap berjalan.",
+    "This chat can use subagents": "Chat ini dapat menggunakan subagen",
     "Only the owner can change subagent access.": "Hanya pemilik yang dapat mengubah akses subagen.",
     "Loading subagent settings…": "Memuat pengaturan subagen…",
     "Waiting for confirmation or saving…": "Menunggu konfirmasi atau menyimpan…",
@@ -356,7 +358,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "Zugriff auf dauerhafte Löschungen konnte nicht gespeichert werden",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Dem Admin-Assistenten erlauben, Unteragenten zu starten",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Standardmäßig aus. Gilt nur für Claude CLI; BYOK und andere CLIs bleiben unberührt. Änderungen gelten für neue Läufe; bestehende Unteragenten können weiterlaufen.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Standardmäßig an. Gilt nur für Claude CLI; BYOK und andere CLIs bleiben unberührt. Änderungen gelten für neue Läufe; bestehende Unteragenten können weiterlaufen.",
+    "This chat can use subagents": "Dieser Chat kann Unteragenten verwenden",
     "Only the owner can change subagent access.": "Nur der Eigentümer kann den Zugriff für Unteragenten ändern.",
     "Loading subagent settings…": "Einstellungen für Unteragenten werden geladen…",
     "Waiting for confirmation or saving…": "Warten auf Bestätigung oder Speichern…",
@@ -493,7 +496,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "无法保存永久删除权限",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "允许管理员助手创建子代理",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "默认关闭。仅适用于 Claude CLI；BYOK 和其他 CLI 不受影响。更改适用于新的运行；现有子代理可能继续运行。",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "默认开启。仅适用于 Claude CLI；BYOK 和其他 CLI 不受影响。更改适用于新的运行；现有子代理可能继续运行。",
+    "This chat can use subagents": "此聊天可以使用子代理",
     "Only the owner can change subagent access.": "只有所有者可以更改子代理访问权限。",
     "Loading subagent settings…": "正在加载子代理设置…",
     "Waiting for confirmation or saving…": "正在等待确认或保存…",
@@ -625,7 +629,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "無法儲存永久刪除權限",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "允許管理員助手建立子代理",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "預設關閉。僅適用於 Claude CLI；BYOK 和其他 CLI 不受影響。變更適用於新的執行；現有子代理可能繼續執行。",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "預設開啟。僅適用於 Claude CLI；BYOK 和其他 CLI 不受影響。變更適用於新的執行；現有子代理可能繼續執行。",
+    "This chat can use subagents": "此聊天可以使用子代理",
     "Only the owner can change subagent access.": "只有擁有者可以變更子代理存取權限。",
     "Loading subagent settings…": "正在載入子代理設定…",
     "Waiting for confirmation or saving…": "正在等待確認或儲存…",
@@ -757,7 +762,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "não foi possível salvar o acesso a exclusões permanentes",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Permitir que o assistente administrativo crie subagentes",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Desativado por padrão. Aplica-se apenas ao Claude CLI; BYOK e outras CLIs não são afetadas. As alterações valem para novas execuções; subagentes existentes podem continuar.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Ativado por padrão. Aplica-se apenas ao Claude CLI; BYOK e outras CLIs não são afetadas. As alterações valem para novas execuções; subagentes existentes podem continuar.",
+    "This chat can use subagents": "Este chat pode usar subagentes",
     "Only the owner can change subagent access.": "Somente o proprietário pode alterar o acesso de subagentes.",
     "Loading subagent settings…": "Carregando configurações de subagentes…",
     "Waiting for confirmation or saving…": "Aguardando confirmação ou salvando…",
@@ -894,7 +900,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "не удалось сохранить доступ к безвозвратному удалению",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Разрешить помощнику администратора запускать субагентов",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "По умолчанию выключено. Только для Claude CLI; BYOK и другие CLI не затронуты. Изменения действуют для новых запусков; существующие субагенты могут продолжить работу.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "По умолчанию включено. Только для Claude CLI; BYOK и другие CLI не затронуты. Изменения действуют для новых запусков; существующие субагенты могут продолжить работу.",
+    "This chat can use subagents": "Этот чат может использовать субагентов",
     "Only the owner can change subagent access.": "Только владелец может изменить доступ субагентов.",
     "Loading subagent settings…": "Загрузка настроек субагентов…",
     "Waiting for confirmation or saving…": "Ожидание подтверждения или сохранение…",
@@ -1031,7 +1038,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "ذخیرهٔ دسترسی حذف دائمی ناموفق بود",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "اجازه به دستیار مدیر برای ایجاد زیرعامل‌ها",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "به‌طور پیش‌فرض خاموش است. فقط برای Claude CLI اعمال می‌شود؛ BYOK و سایر CLIها تغییری نمی‌کنند. تغییرات برای اجراهای جدید است؛ زیرعامل‌های فعلی ممکن است ادامه دهند.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "به‌طور پیش‌فرض روشن است. فقط برای Claude CLI اعمال می‌شود؛ BYOK و سایر CLIها تغییری نمی‌کنند. تغییرات برای اجراهای جدید است؛ زیرعامل‌های فعلی ممکن است ادامه دهند.",
+    "This chat can use subagents": "این گفتگو می‌تواند از زیرعامل‌ها استفاده کند",
     "Only the owner can change subagent access.": "فقط مالک می‌تواند دسترسی زیرعامل‌ها را تغییر دهد.",
     "Loading subagent settings…": "در حال بارگذاری تنظیمات زیرعامل‌ها…",
     "Waiting for confirmation or saving…": "در انتظار تأیید یا در حال ذخیره…",
@@ -1167,7 +1175,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "تعذّر حفظ صلاحية الحذف الدائم",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "السماح لمساعد الإدارة بإنشاء وكلاء فرعيين",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "معطّل افتراضيًا. ينطبق على Claude CLI فقط؛ لا يتأثر BYOK أو أدوات CLI الأخرى. تسري التغييرات على عمليات التشغيل الجديدة؛ قد يستمر الوكلاء الفرعيون الحاليون.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "مفعّل افتراضيًا. ينطبق على Claude CLI فقط؛ لا يتأثر BYOK أو أدوات CLI الأخرى. تسري التغييرات على عمليات التشغيل الجديدة؛ قد يستمر الوكلاء الفرعيون الحاليون.",
+    "This chat can use subagents": "يمكن لهذه المحادثة استخدام وكلاء فرعيين",
     "Only the owner can change subagent access.": "المالك فقط يمكنه تغيير وصول الوكلاء الفرعيين.",
     "Loading subagent settings…": "جارٍ تحميل إعدادات الوكلاء الفرعيين…",
     "Waiting for confirmation or saving…": "بانتظار التأكيد أو جارٍ الحفظ…",
@@ -1302,7 +1311,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "完全削除の権限を保存できませんでした",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "管理者アシスタントによるサブエージェントの起動を許可",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "既定ではオフです。Claude CLI の実行にのみ適用され、BYOK や他の CLI には影響しません。変更は新しい実行に適用され、既存のサブエージェントは継続する場合があります。",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "既定ではオンです。Claude CLI の実行にのみ適用され、BYOK や他の CLI には影響しません。変更は新しい実行に適用され、既存のサブエージェントは継続する場合があります。",
+    "This chat can use subagents": "このチャットではサブエージェントを使用できます",
     "Only the owner can change subagent access.": "サブエージェントへのアクセスを変更できるのは所有者のみです。",
     "Loading subagent settings…": "サブエージェント設定を読み込み中…",
     "Waiting for confirmation or saving…": "確認待ちまたは保存中…",
@@ -1436,7 +1446,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "영구 삭제 권한을 저장하지 못했습니다",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "관리자 도우미의 하위 에이전트 생성 허용",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "기본적으로 꺼져 있습니다. Claude CLI 실행에만 적용되며 BYOK와 다른 CLI에는 영향을 주지 않습니다. 변경 사항은 새 실행에 적용되며 기존 하위 에이전트는 계속 실행될 수 있습니다.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "기본적으로 켜져 있습니다. Claude CLI 실행에만 적용되며 BYOK와 다른 CLI에는 영향을 주지 않습니다. 변경 사항은 새 실행에 적용되며 기존 하위 에이전트는 계속 실행될 수 있습니다.",
+    "This chat can use subagents": "이 채팅은 하위 에이전트를 사용할 수 있습니다",
     "Only the owner can change subagent access.": "소유자만 하위 에이전트 접근 권한을 변경할 수 있습니다.",
     "Loading subagent settings…": "하위 에이전트 설정을 불러오는 중…",
     "Waiting for confirmation or saving…": "확인을 기다리거나 저장하는 중…",
@@ -1570,7 +1581,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "nie udało się zapisać dostępu do trwałego usuwania",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Zezwól asystentowi administratora na uruchamianie podagentów",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Domyślnie wyłączone. Dotyczy tylko Claude CLI; BYOK i inne CLI pozostają bez zmian. Zmiany dotyczą nowych uruchomień; istniejący podagenci mogą kontynuować pracę.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Domyślnie włączone. Dotyczy tylko Claude CLI; BYOK i inne CLI pozostają bez zmian. Zmiany dotyczą nowych uruchomień; istniejący podagenci mogą kontynuować pracę.",
+    "This chat can use subagents": "Ten czat może korzystać z podagentów",
     "Only the owner can change subagent access.": "Tylko właściciel może zmieniać dostęp podagentów.",
     "Loading subagent settings…": "Ładowanie ustawień podagentów…",
     "Waiting for confirmation or saving…": "Oczekiwanie na potwierdzenie lub zapisywanie…",
@@ -1705,7 +1717,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "nem sikerült menteni a végleges törlés engedélyét",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Alügynökök indításának engedélyezése az adminisztrátori asszisztensnek",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Alapértelmezés szerint kikapcsolva. Csak a Claude CLI futásaira vonatkozik; a BYOK és más CLI-k változatlanok. A módosítások az új futásokra érvényesek; a meglévő alügynökök folytathatják a munkát.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Alapértelmezés szerint bekapcsolva. Csak a Claude CLI futásaira vonatkozik; a BYOK és más CLI-k változatlanok. A módosítások az új futásokra érvényesek; a meglévő alügynökök folytathatják a munkát.",
+    "This chat can use subagents": "Ez a csevegés alügynököket használhat",
     "Only the owner can change subagent access.": "Csak a tulajdonos módosíthatja az alügynökök hozzáférését.",
     "Loading subagent settings…": "Alügynök-beállítások betöltése…",
     "Waiting for confirmation or saving…": "Várakozás megerősítésre vagy mentés…",
@@ -1840,7 +1853,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "échec de l’enregistrement de l’accès aux suppressions définitives",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Autoriser l’assistant administrateur à lancer des sous-agents",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Désactivé par défaut. Concerne uniquement Claude CLI ; BYOK et les autres CLI ne changent pas. Les modifications concernent les nouvelles exécutions ; les sous-agents existants peuvent continuer.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Activé par défaut. Concerne uniquement Claude CLI ; BYOK et les autres CLI ne changent pas. Les modifications concernent les nouvelles exécutions ; les sous-agents existants peuvent continuer.",
+    "This chat can use subagents": "Ce chat peut utiliser des sous-agents",
     "Only the owner can change subagent access.": "Seul le propriétaire peut modifier l’accès des sous-agents.",
     "Loading subagent settings…": "Chargement des paramètres des sous-agents…",
     "Waiting for confirmation or saving…": "En attente de confirmation ou enregistrement…",
@@ -1975,7 +1989,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "не вдалося зберегти доступ до безповоротного видалення",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Дозволити помічнику адміністратора запускати субагентів",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Типово вимкнено. Лише для Claude CLI; BYOK та інші CLI не змінюються. Зміни діють для нових запусків; наявні субагенти можуть продовжити роботу.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Типово ввімкнено. Лише для Claude CLI; BYOK та інші CLI не змінюються. Зміни діють для нових запусків; наявні субагенти можуть продовжити роботу.",
+    "This chat can use subagents": "Цей чат може використовувати субагентів",
     "Only the owner can change subagent access.": "Лише власник може змінити доступ субагентів.",
     "Loading subagent settings…": "Завантаження налаштувань субагентів…",
     "Waiting for confirmation or saving…": "Очікування підтвердження або збереження…",
@@ -2109,7 +2124,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "kalıcı silme erişimi kaydedilemedi",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Yönetici asistanının alt ajanlar başlatmasına izin ver",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Varsayılan olarak kapalıdır. Yalnızca Claude CLI çalıştırmaları için geçerlidir; BYOK ve diğer CLI’lar etkilenmez. Değişiklikler yeni çalıştırmalara uygulanır; mevcut alt ajanlar devam edebilir.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Varsayılan olarak açıktır. Yalnızca Claude CLI çalıştırmaları için geçerlidir; BYOK ve diğer CLI’lar etkilenmez. Değişiklikler yeni çalıştırmalara uygulanır; mevcut alt ajanlar devam edebilir.",
+    "This chat can use subagents": "Bu sohbet alt ajanları kullanabilir",
     "Only the owner can change subagent access.": "Alt ajan erişimini yalnızca sahibi değiştirebilir.",
     "Loading subagent settings…": "Alt ajan ayarları yükleniyor…",
     "Waiting for confirmation or saving…": "Onay bekleniyor veya kaydediliyor…",
@@ -2244,7 +2260,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "บันทึกสิทธิ์การลบถาวรไม่สำเร็จ",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "อนุญาตให้ผู้ช่วยผู้ดูแลระบบสร้างเอเจนต์ย่อย",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "ปิดโดยค่าเริ่มต้น ใช้กับการรัน Claude CLI เท่านั้น ไม่มีผลต่อ BYOK และ CLI อื่น การเปลี่ยนแปลงมีผลกับการรันใหม่ เอเจนต์ย่อยที่มีอยู่อาจทำงานต่อได้",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "เปิดโดยค่าเริ่มต้น ใช้กับการรัน Claude CLI เท่านั้น ไม่มีผลต่อ BYOK และ CLI อื่น การเปลี่ยนแปลงมีผลกับการรันใหม่ เอเจนต์ย่อยที่มีอยู่อาจทำงานต่อได้",
+    "This chat can use subagents": "แชตนี้สามารถใช้เอเจนต์ย่อยได้",
     "Only the owner can change subagent access.": "เฉพาะเจ้าของเท่านั้นที่เปลี่ยนสิทธิ์เข้าถึงของเอเจนต์ย่อยได้",
     "Loading subagent settings…": "กำลังโหลดการตั้งค่าเอเจนต์ย่อย…",
     "Waiting for confirmation or saving…": "กำลังรอการยืนยันหรือบันทึก…",
@@ -2378,7 +2395,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "impossibile salvare l’accesso alle eliminazioni permanenti",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "Consenti all’assistente amministrativo di avviare sottoagenti",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Disattivato per impostazione predefinita. Vale solo per Claude CLI; BYOK e le altre CLI non cambiano. Le modifiche valgono per le nuove esecuzioni; i sottoagenti esistenti possono continuare.",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "Attivato per impostazione predefinita. Vale solo per Claude CLI; BYOK e le altre CLI non cambiano. Le modifiche valgono per le nuove esecuzioni; i sottoagenti esistenti possono continuare.",
+    "This chat can use subagents": "Questa chat può usare sottoagenti",
     "Only the owner can change subagent access.": "Solo il proprietario può modificare l’accesso dei sottoagenti.",
     "Loading subagent settings…": "Caricamento delle impostazioni dei sottoagenti…",
     "Waiting for confirmation or saving…": "In attesa di conferma o salvataggio…",
@@ -2513,7 +2531,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "स्थायी हटाने की पहुँच सहेजने में विफल",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "व्यवस्थापक सहायक को उप-एजेंट बनाने की अनुमति दें",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "डिफ़ॉल्ट रूप से बंद। केवल Claude CLI रन पर लागू होता है; BYOK और अन्य CLI अप्रभावित हैं। बदलाव नए रन पर लागू होंगे; मौजूदा उप-एजेंट चलते रह सकते हैं।",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "डिफ़ॉल्ट रूप से चालू। केवल Claude CLI रन पर लागू होता है; BYOK और अन्य CLI अप्रभावित हैं। बदलाव नए रन पर लागू होंगे; मौजूदा उप-एजेंट चलते रह सकते हैं।",
+    "This chat can use subagents": "यह चैट उप-एजेंटों का उपयोग कर सकती है",
     "Only the owner can change subagent access.": "केवल मालिक उप-एजेंट की पहुँच बदल सकता है।",
     "Loading subagent settings…": "उप-एजेंट सेटिंग लोड हो रही हैं…",
     "Waiting for confirmation or saving…": "पुष्टि की प्रतीक्षा या सहेजा जा रहा है…",
@@ -2650,7 +2669,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "مستقل حذف کی رسائی محفوظ نہ ہو سکی",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "منتظم معاون کو ذیلی ایجنٹس بنانے کی اجازت دیں",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "پہلے سے بند ہے۔ صرف Claude CLI اجرا پر لاگو ہوتا ہے؛ BYOK اور دیگر CLI متاثر نہیں ہوتے۔ تبدیلیاں نئے اجرا پر لاگو ہوں گی؛ موجودہ ذیلی ایجنٹس چلتے رہ سکتے ہیں۔",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "پہلے سے فعال ہے۔ صرف Claude CLI اجرا پر لاگو ہوتا ہے؛ BYOK اور دیگر CLI متاثر نہیں ہوتے۔ تبدیلیاں نئے اجرا پر لاگو ہوں گی؛ موجودہ ذیلی ایجنٹس چلتے رہ سکتے ہیں۔",
+    "This chat can use subagents": "یہ چیٹ ذیلی ایجنٹس استعمال کر سکتی ہے",
     "Only the owner can change subagent access.": "صرف مالک ذیلی ایجنٹس کی رسائی بدل سکتا ہے۔",
     "Loading subagent settings…": "ذیلی ایجنٹس کی ترتیبات لوڈ ہو رہی ہیں…",
     "Waiting for confirmation or saving…": "تصدیق کا انتظار یا محفوظ کیا جا رہا ہے…",
@@ -2787,7 +2807,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "failed to save permanent delete access": "স্থায়ী মুছে ফেলার অনুমতি সংরক্ষণ করা যায়নি",
     // Owner-only subagent grant and dock status.
     "Allow the admin assistant to spawn subagents": "অ্যাডমিন সহকারীকে উপ-এজেন্ট তৈরি করতে দিন",
-    "Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "ডিফল্টভাবে বন্ধ। শুধু Claude CLI চালানোর ক্ষেত্রে প্রযোজ্য; BYOK ও অন্য CLI অপরিবর্তিত থাকবে। পরিবর্তন নতুন রানগুলোতে প্রযোজ্য; বিদ্যমান উপ-এজেন্ট চলতে পারে।",
+    "On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.": "ডিফল্টভাবে চালু। শুধু Claude CLI চালানোর ক্ষেত্রে প্রযোজ্য; BYOK ও অন্য CLI অপরিবর্তিত থাকবে। পরিবর্তন নতুন রানগুলোতে প্রযোজ্য; বিদ্যমান উপ-এজেন্ট চলতে পারে।",
+    "This chat can use subagents": "এই চ্যাট উপ-এজেন্ট ব্যবহার করতে পারে",
     "Only the owner can change subagent access.": "শুধু মালিক উপ-এজেন্টের অ্যাক্সেস পরিবর্তন করতে পারেন।",
     "Loading subagent settings…": "উপ-এজেন্টের সেটিংস লোড হচ্ছে…",
     "Waiting for confirmation or saving…": "নিশ্চিতকরণের অপেক্ষায় বা সংরক্ষণ করা হচ্ছে…",
@@ -2895,4 +2916,5 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
  *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
  *  doesn't carry for a locale still renders translated instead of falling straight to English.
  *  Exported so `AiAssistant.tsx` can call it directly instead of duplicating the lookup. */
-export const t = createDictionaryTranslator({ featureDictionary: withLayoutStrings(AI_ASSISTANT_DICT) }, { commonDictionary: COMMON_I18N });
+const baseTranslator = createDictionaryTranslator({ featureDictionary: AI_ASSISTANT_DICT });
+export const t = createDictionaryTranslator({ featureDictionary: withLayoutStrings({ base: baseTranslator.dictionary }) }, { commonDictionary: COMMON_I18N });

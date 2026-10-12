@@ -78,8 +78,8 @@ it("wcmp: the visitor Widget selector defaults to React and saves Lightweight wi
   render(<AiAssistant />);
   const select = await screen.findByRole("combobox", { name: "Widget" });
   expect(select).toHaveValue("react");
-  expect(screen.getByRole("option", { name: "React (~200 KB)" })).toBeInTheDocument();
-  expect(screen.getByRole("option", { name: "Pure JS (~30 KB)" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "React (~210 KB)" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "Pure JS (~35 KB)" })).toBeInTheDocument();
   await user.selectOptions(select, "vanilla");
   await waitFor(() => expect(select).toHaveValue("vanilla"));
   expect(state).toEqual({ publicEnabled: false, widget: "vanilla" });
@@ -182,12 +182,25 @@ describe("the public on/off switch", () => {
   });
 
   it("says the owner's own BYOK key is stored on the server, not in this browser", async () => {
-    // The admin's own key moved server-side (per admin, encrypted) on 2026-08-05; this copy kept
-    // claiming "saved only in this browser" long after.
+    // The owner moved the admin-key explanation onto the Admin tab beside the BYOK form.
     serveSettings({ publicEnabled: false });
+    const serveVisitorSettings = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).includes("/settings/effective")) {
+        return jsonResponse({ data: String(url).includes("namespace=core.execution") ? [{ key: "mode", value: "byok" }] : [] });
+      }
+      if (String(url).includes("/assistant/execution-credential")) {
+        return jsonResponse({ data: { isSet: true, masked: "••••test", protocol: "anthropic", providerId: "anthropic",
+          baseUrl: "https://api.anthropic.com", model: null, maxTokens: null, updatedAt: null } });
+      }
+      if (String(url).includes("/assistant/execution/models")) return jsonResponse({ ok: true, models: [] });
+      return serveVisitorSettings(url, init);
+    });
     const { container } = render(<AiAssistant />);
 
-    await waitFor(() => expect(screen.getByText(/stored on the server, encrypted, for your admin account only/i)).toBeInTheDocument());
+    await userEvent.click(await screen.findByRole("button", { name: "Admin AI Assistant" }));
+    expect(await screen.findByText("Stored on the server, encrypted. Paste a new key to replace it.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("••••test")).toHaveValue("");
     expect(container.textContent).not.toMatch(/only in this browser/i);
   });
 

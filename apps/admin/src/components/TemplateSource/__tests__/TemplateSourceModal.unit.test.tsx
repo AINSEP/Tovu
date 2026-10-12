@@ -100,7 +100,7 @@ describe("a static-tier theme", () => {
       />,
     );
 
-    expect(fetchSpy).toHaveBeenCalledWith("/theme-assets/basic/pages/blog-post.html");
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith("/theme-assets/basic/pages/blog-post.html"));
     // Rendered as literal text (CodeWithLines's own contract — plain `{text}` JSX children, never
     // `dangerouslySetInnerHTML`), so the tag characters show up as visible text, not a real <h1>.
     await waitFor(() => expect(screen.getByText("<h1>Hello template</h1>")).toBeInTheDocument());
@@ -127,7 +127,7 @@ describe("a static-tier theme", () => {
       />,
     );
 
-    expect(fetchSpy).toHaveBeenCalledWith("/theme-assets/basic/render/pages/blog-post.html");
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith("/theme-assets/basic/render/pages/blog-post.html"));
     await waitFor(() => expect(screen.getByText("<h1>Hello template</h1>")).toBeInTheDocument());
   });
 
