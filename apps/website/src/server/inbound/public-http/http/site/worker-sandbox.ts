@@ -50,7 +50,10 @@ let sourceWorkers: Promise<string> | undefined;
 async function compileSourceWorkers({ productRoot }: { productRoot: string }): Promise<string> {
   // Detached hosts may close stdin. Reserve fd 0 before esbuild opens a pipe there:
   // libuv refuses to close a pipe whose descriptor is in the stdio range.
-  try { fstatSync(0); } catch (error) {
+  // `bigint: true` keeps fd 0's mode out of Node's shared Float64 stat buffer: realpathSync reads
+  // that buffer for cached path parts, so a piped stdin's FIFO mode made later CJS requires stop
+  // following symlinks (pnpm-linked argon2 then could not find `@phc/format`).
+  try { fstatSync(0, { bigint: true }); } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EBADF") throw error;
     openSync("/dev/null", "r");
   }

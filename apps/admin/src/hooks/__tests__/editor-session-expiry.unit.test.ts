@@ -66,8 +66,10 @@ it("a failed HTML page Save preserves the exact working HTML, title and slug", a
 
 it("recovery says which timestamp is newer and translates every phrase in every locale", () => {
   const draft = { bodyFormat: "doc" as const, title: "Typed", slug: "typed", baseVersion: 2, savedAt: "2026-10-07T10:00:00.000Z", savedByPrincipalId: "operator-1", serverUpdatedAt: "2026-10-07T11:00:00.000Z" };
-  expect(standingDraftRecoveryMessage({ draft, t: key => key })).toBe("Restore unsaved changes from 2026-10-07T10:00:00.000Z · Server content is newer.");
-  expect(standingDraftRecoveryMessage({ draft: { ...draft, serverUpdatedAt: "2026-10-07T09:00:00.000Z" }, t: key => key })).toBe("Restore unsaved changes from 2026-10-07T10:00:00.000Z · Local changes are newer.");
+  // Identity formatter: this test pins the comparison wording; Jini's own test pins the local-time default.
+  const raw = { formatSavedAt: (iso: string) => iso };
+  expect(standingDraftRecoveryMessage({ draft, t: key => key }, raw)).toBe("Restore unsaved changes from 2026-10-07T10:00:00.000Z · Server content is newer.");
+  expect(standingDraftRecoveryMessage({ draft: { ...draft, serverUpdatedAt: "2026-10-07T09:00:00.000Z" }, t: key => key }, raw)).toBe("Restore unsaved changes from 2026-10-07T10:00:00.000Z · Local changes are newer.");
   for (const values of Object.values(COMMON_I18N)) {
     for (const key of ["Restore unsaved changes from", "Server content is newer.", "Local changes are newer.", "Both copies have the same timestamp."]) expect(values[key]).toBeTruthy();
   }

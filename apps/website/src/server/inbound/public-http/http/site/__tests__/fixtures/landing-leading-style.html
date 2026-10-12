@@ -1,0 +1,360 @@
+<style>
+/* ============================================================================
+   tovu.dev landing page — 2026-09-18 rebuild, ported into the Tovu page body.
+
+   PAGE BODY, NOT A DOCUMENT. It is inserted into the basic theme's
+   pages-default.html inside .post-detail-body. The shell supplies
+   html/head/body, .site-header and .site-footer, and it already loads Geist
+   and kUInetic — so there is no @font-face and no script src here.
+
+   Four changes were forced by the platform when porting the standalone file:
+     a. its own header / nav / footer are dropped; the theme owns page chrome.
+     b. every rule is scoped under .tv so nothing leaks into that chrome.
+     c. the colour-mode convention is INVERTED to match theme-toggle.js, which
+        writes data-theme="light" for light and REMOVES the attribute for dark.
+        Hence :root:not([data-theme="light"]) rather than [data-theme="dark"].
+     d. the base64 fonts and images are replaced by the theme's own Geist and
+        by media-library assets (ai-caps, tovu-commercial-edit, take15-cut-v3).
+
+   §03's dashed "Asset needed" frame is gone: the owner chose take15-cut-v3
+   from the media library for that slot instead (2026-09-18).
+
+   This header lives in a CSS comment on purpose: the auto-generated meta
+   description is derived from the first body text and does NOT strip HTML
+   comments — style contents are stripped.
+   ============================================================================ */
+
+/* ---- 1. TOKENS --------------------------------------------------------- */
+:root {
+  --x-display: 'Geist', 'Inter Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --x-body:    'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --x-mono:    'Geist Mono', ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --x-pad: clamp(88px, 9.5vw, 148px);
+  --x-gap: clamp(40px, 5vw, 72px);
+}
+:root[data-theme="light"] {
+  --x-ink:      #0a0a0a;
+  --x-charcoal: #151515;
+  --x-steel:    #545454;   /* body text, 7.58:1 on Paper */
+  --x-fog:      #858585;   /* rules + icon strokes */
+  --x-dove:     #d5d9e2;   /* the only hairline */
+  --x-ring:     #8f95a2;
+  --x-sand:     #f2ede5;
+  --x-cream:    #f9f8f6;
+  --x-paper:    #ffffff;
+  --x-gold:     #f8b838;   /* the logo's gold; fills only, never text on light */
+  --x-hover:    var(--x-gold);   /* every light-mode hover (owner, 2026-09-28) */
+  --x-fill:     #0a0a0a;
+  --x-on-fill:  #ffffff;
+  --x-panel-fg: #f2ede5;
+  --x-grid:     rgba(10, 10, 10, 0.07);
+
+  --fg: #0a0a0a;
+  --bg: #ffffff;
+  --muted: #545454;
+  --surface: #f9f8f6;
+  --surface-2: #f2ede5;
+  --border: #d5d9e2;
+  --border-strong: #d5d9e2;
+  --accent: #0a0a0a;
+  --accent-fg: #ffffff;
+}
+:root:not([data-theme="light"]) {
+  --x-ink:      #f7f5f1;
+  --x-charcoal: #151515;
+  --x-steel:    #b3ada3;
+  --x-fog:      #8a857c;
+  --x-dove:     rgba(247, 245, 241, 0.14);
+  --x-ring:     rgba(247, 245, 241, 0.42);
+  --x-sand:     #1c1a17;
+  --x-cream:    #141312;
+  --x-paper:    #0a0a0a;
+  --x-gold:     #f8b838;
+  --x-fill:     #f8b838;   /* gold pill on the black ground; black label */
+  --x-on-fill:  #0a0a0a;
+  --x-panel-fg: #e8e4dc;
+  --x-grid:     rgba(247, 245, 241, 0.08);
+
+  --fg: #f7f5f1;
+  --bg: #0a0a0a;
+  --muted: #b3ada3;
+  --surface: #141312;
+  --surface-2: #1c1a17;
+  --border: rgba(247, 245, 241, 0.14);
+  --border-strong: rgba(247, 245, 241, 0.42);
+  --accent: #f8b838;
+  --accent-fg: #0a0a0a;
+}
+
+/* ---- 2. SHELL RESET ----------------------------------------------------- */
+main > article.post-detail { max-width: none; padding: 0; margin: 0; }
+main > article.post-detail > div > .post-detail-body { max-width: none; font-size: 16px; line-height: 1.55; }
+main > article.post-detail .post-detail-header { display: none; }
+
+/* ---- 3. INHERITED CHROME ------------------------------------------------ */
+:root[data-theme="light"] .site-header,
+:root:not([data-theme="light"]) .site-header {
+  background: color-mix(in srgb, var(--x-paper) 82%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.site-header.scrolled { border-bottom-color: var(--x-dove); }
+.site-header .btn, .site-header .nav-toggle { border-radius: 9999px; }
+.site-header .btn-solid { background: var(--x-fill); color: var(--x-on-fill); border-color: transparent; }
+.site-header .btn-solid:hover { opacity: 0.88; }
+.site-header .btn-ghost,
+.site-header .nav-toggle { border-color: transparent; background: transparent; color: var(--x-ink); }
+.site-header .btn-ghost:hover,
+.site-header .nav-toggle:hover { background: transparent; border-color: var(--x-dove); }
+.main-nav .menu-item > a { color: var(--x-steel); }
+.main-nav .menu-item > a:hover,
+.main-nav .menu-item.is-active > a,
+.main-nav .menu-item > a[aria-current="page"] { color: var(--x-ink); }
+.site-footer { border-top: 1px solid var(--x-dove); }
+.site-footer .footer-col h4 { color: var(--x-ink); font-size: 14px; letter-spacing: -0.01em; }
+.site-footer .footer-col a { color: var(--x-steel); font-size: 14px; }
+.site-footer .footer-col a:hover { color: var(--x-ink); }
+.site-footer .footer-col p { color: var(--x-steel); font-size: 14px; }
+.site-footer .footer-bottom { border-top: 1px solid var(--x-dove); color: var(--x-steel); }
+
+/* ---- 4. SCOPE + BASE ---------------------------------------------------- */
+.tv, .tv *, .tv *::before, .tv *::after { box-sizing: border-box; }
+.tv {
+  background: var(--x-paper);
+  color: var(--x-steel);
+  font-family: var(--x-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.tv[hidden] { display: none; }
+.tv img, .tv video, .tv iframe { max-width: 100%; display: block; height: auto; }
+.tv a { color: inherit; text-decoration: none; }
+.tv h1, .tv h2, .tv h3 { font-family: var(--x-display); color: var(--x-ink); margin: 0; font-weight: 500; text-wrap: balance; }
+.tv p { color: var(--x-steel); margin: 0; text-wrap: pretty; }
+.tv ul, .tv ol { list-style: none; margin: 0; padding: 0; }
+.tv li { margin: 0; }
+.tv figure { margin: 0; }
+.tv ::selection { background: var(--x-gold); color: #0a0a0a; }
+
+.tv .wrap { width: 100%; max-width: 1200px; margin-inline: auto; padding-inline: clamp(20px, 4vw, 32px); }
+.tv-section { padding-block: var(--x-pad); }
+.tv-band { background: var(--x-cream); border-block: 1px solid var(--x-dove); }
+
+.tv .display { font-size: clamp(44px, 5.4vw, 74px); line-height: 1.03; letter-spacing: -0.03em; }
+.tv .h2 { font-size: clamp(32px, 3.6vw, 46px); line-height: 1.08; letter-spacing: -0.025em; max-width: 19ch; }
+.tv .h3 { font-size: 22px; line-height: 1.3; letter-spacing: -0.02em; }
+.tv .lede { font-size: clamp(17px, 1.2vw, 19px); line-height: 1.55; max-width: 54ch; }
+.tv .body { font-size: 16px; line-height: 1.55; max-width: 60ch; }
+.tv .eyebrow { font-family: var(--x-mono); font-size: 12px; line-height: 1.6; letter-spacing: 0.09em; text-transform: uppercase; color: var(--x-steel); }
+.tv .head { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: clamp(40px, 4.5vw, 64px); }
+.tv .head.center { align-items: center; text-align: center; }
+.tv .head.center .h2, .tv .head.center .lede { margin-inline: auto; }
+
+/* ---- 5. CONTROLS -------------------------------------------------------- */
+.tv .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 12px 22px; border-radius: 9999px;
+  font-family: var(--x-body); font-size: 14px; font-weight: 500; line-height: 20px;
+  border: 1px solid transparent; cursor: pointer; text-decoration: none;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+.tv .btn-fill { background: var(--x-fill); color: var(--x-on-fill); }
+/* Hover moves the GROUND, never the label. */
+.tv .btn-fill:hover { background: color-mix(in srgb, var(--x-fill) 88%, var(--x-on-fill)); }
+.tv .btn-ghost { background: transparent; color: var(--x-ink); border-color: var(--x-dove); }
+.tv .btn-ghost:hover { border-color: var(--x-fog); background: color-mix(in srgb, var(--x-ink) 5%, transparent); }
+.tv .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.tv a:focus-visible, .tv button:focus-visible { outline: 2px solid var(--x-ink); outline-offset: 3px; border-radius: 9999px; }
+
+/* ---- 6. HERO ------------------------------------------------------------ */
+.tv-hero { padding-block: clamp(80px, 9vw, 144px) clamp(88px, 9.5vw, 140px); }
+.tv-hero .wrap {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  gap: var(--x-gap); align-items: center;
+}
+.tv .hero-text { display: flex; flex-direction: column; align-items: flex-start; gap: 24px; }
+.tv .hero-text .display { max-width: 13ch; }
+.tv .hero-text .cta { margin-top: 8px; }
+/* The media marker is swapped WHOLE for the real element, so style the child. */
+.tv .video-embed video, .tv .video-embed img {
+  display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 16px; border: 1px solid var(--x-dove);
+  box-shadow: 0 1px 2px rgba(10, 10, 10, .04), 0 18px 48px -24px rgba(10, 10, 10, .28);
+}
+
+/* ---- 7. AGENTS BAND ----------------------------------------------------- */
+.tv .caps { width: min(100%, 960px); margin: clamp(44px, 5vw, 72px) auto clamp(40px, 4.5vw, 64px); }
+.tv .caps img { width: 100%; }
+.tv .facts {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(24px, 3vw, 44px);
+  border-top: 1px solid var(--x-dove); padding-top: 32px;
+}
+.tv .facts dt { font-family: var(--x-mono); font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--x-ink); margin-bottom: 8px; }
+.tv .facts dd { margin: 0; font-size: 15px; line-height: 1.5; color: var(--x-steel); }
+.tv .band-cta { display: flex; justify-content: center; margin-top: clamp(40px, 4.5vw, 56px); }
+
+/* ---- 7b. PROOF (§03) ----------------------------------------------------
+   The capture leads, at reading width rather than full bleed. */
+.tv .shot-wide { width: min(100%, 980px); margin-inline: auto; }
+.tv .shot figcaption { margin-top: 14px; font-size: 14px; line-height: 1.45; color: var(--x-steel); }
+
+/* ---- 8. CARD KIT — tiles + file tree ------------------------------------ */
+.tv .tile {
+  height: 100%; min-height: 292px; display: flex; flex-direction: column;
+  background: var(--x-cream); border: 1px solid var(--x-dove); border-radius: 16px; overflow: hidden;
+  transition: border-color .2s ease;
+}
+.tv .tile:hover { border-color: var(--x-fog); }
+.tv-band .tile { background: var(--x-paper); }
+.tv .tile-body { flex: 1 1 auto; padding: 22px; display: flex; flex-direction: column; min-height: 0; }
+.tv .tile-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 22px 18px; font-size: 14px; color: var(--x-ink);
+}
+.tv .tree { font-family: var(--x-mono); font-size: 12.5px; line-height: 1.95; color: var(--x-ink); }
+.tv .tree li { white-space: nowrap; }
+.tv .tree li[data-depth="1"] { padding-left: 18px; }
+.tv .tree li[data-depth="2"] { padding-left: 36px; }
+.tv .tree .file, .tv .tree .note { color: var(--x-steel); }
+
+/* ---- 9. OWNERSHIP ------------------------------------------------------- */
+.tv .own { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--x-gap); align-items: start; }
+.tv .own-facts { display: flex; flex-direction: column; gap: 26px; }
+
+/* ---- 10. BULLETS + CHECKS ----------------------------------------------- */
+.tv .blist { display: flex; flex-direction: column; gap: 8px; }
+.tv .blist li { position: relative; padding-left: 17px; font-size: 14.5px; line-height: 1.5; color: var(--x-steel); }
+.tv .blist li::before { content: ""; position: absolute; left: 0; top: 0.65em; width: 7px; height: 1px; background: var(--x-fog); }
+.tv .tier .blist { margin-top: 10px; }
+.tv .checks { display: flex; flex-direction: column; gap: 11px; }
+.tv .checks li { display: flex; gap: 12px; align-items: baseline; font-size: 15px; line-height: 1.5; color: var(--x-ink); }
+.tv .checks li::before { content: "\2713"; font-family: var(--x-mono); font-size: 13px; color: var(--x-steel); flex: none; }
+
+/* ---- 11. FAQ ------------------------------------------------------------ */
+.tv .faq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(32px, 4vw, 64px); border-top: 1px solid var(--x-dove); }
+.tv .faq > div { padding: 22px 0; border-bottom: 1px solid var(--x-dove); }
+.tv .faq dt { font-family: var(--x-display); font-size: 16px; font-weight: 500; letter-spacing: -0.01em; color: var(--x-ink); margin-bottom: 5px; }
+.tv .faq dd { margin: 0; }
+
+/* ---- 12. CONNECT -------------------------------------------------------- */
+.tv .plug-label { margin-bottom: 18px; }
+.tv .plugs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: clamp(32px, 4vw, 64px); }
+.tv .plugs li {
+  display: grid; grid-template-columns: minmax(0, 11ch) minmax(0, 1fr); gap: 6px 20px;
+  align-items: baseline; padding: 18px 20px; border-top: 1px solid var(--x-dove); border-radius: 10px;
+}
+.tv .plugs li:nth-last-child(-n+2) { border-bottom: 1px solid var(--x-dove); }
+.tv .plug-name { font-family: var(--x-display); font-size: 16px; font-weight: 500; letter-spacing: -0.01em; color: var(--x-ink); }
+.tv .plug-desc { font-size: 14.5px; line-height: 1.5; color: var(--x-steel); }
+
+/* ---- 13. NUMBERS -------------------------------------------------------- */
+.tv-numbers {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--x-dove);
+  background-image: linear-gradient(var(--x-grid) 1px, transparent 1px), linear-gradient(90deg, var(--x-grid) 1px, transparent 1px);
+  background-size: 48px 48px; background-position: center;
+}
+.tv .num { padding: clamp(48px, 6vw, 76px) 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.tv .num + .num { border-left: 1px solid var(--x-dove); }
+.tv .num b {
+  font-family: var(--x-display); font-weight: 500; font-size: clamp(56px, 7.5vw, 92px);
+  line-height: 1; letter-spacing: -0.035em; color: var(--x-ink); font-variant-numeric: tabular-nums;
+}
+.tv .num > span { font-size: 14px; line-height: 1.45; color: var(--x-steel); max-width: 24ch; }
+
+/* ---- 14. LEDGER --------------------------------------------------------- */
+.tv .ledger { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--x-dove); }
+.tv .ledger > li { border-bottom: 1px solid var(--x-dove); padding: 18px 28px 18px 0; }
+.tv .ledger dfn { display: block; font-style: normal; font-family: var(--x-display); font-size: 16px; font-weight: 500; letter-spacing: -0.01em; color: var(--x-ink); margin-bottom: 3px; }
+.tv .ledger p { font-size: 14px; line-height: 1.45; }
+
+/* ---- 15. TIERS ---------------------------------------------------------- */
+.tv .tiers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.tv .tiers > li { display: flex; }
+.tv .tier { height: 100%; background: var(--x-cream); border: 1px solid var(--x-dove); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 8px; transition: border-color .2s ease; }
+.tv .tier:hover { border-color: var(--x-fog); }
+.tv .tier .engine { font-family: var(--x-mono); font-size: 12px; color: var(--x-steel); }
+
+/* ---- 16. TABS ----------------------------------------------------------- */
+/* Underline tabs, not a segmented pill: the page already speaks in hairlines,
+   and a filled chip here would read as a fourth call-to-action. */
+.tv .tabs-eyebrow { text-align: center; margin-bottom: clamp(20px, 2.4vw, 28px); }
+.tv .tabs {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(2px, 1.2vw, 16px);
+  border-bottom: 1px solid var(--x-dove);
+  margin-bottom: clamp(44px, 5vw, 68px);
+}
+.tv .tab {
+  position: relative; appearance: none; background: none; border: 0; cursor: pointer;
+  font-family: var(--x-body); font-size: 15px; font-weight: 500; line-height: 20px;
+  color: var(--x-steel); padding: 12px 14px; min-height: 44px;
+  transition: color .16s ease;
+}
+.tv .tab::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px;
+  background: transparent; transition: background-color .16s ease;
+}
+.tv .tab:hover { color: var(--x-ink); }
+.tv .tab[aria-selected="true"] { color: var(--x-ink); }
+.tv .tab[aria-selected="true"]::after { background: var(--x-ink); }
+.tv .tab:focus-visible { border-radius: 10px; outline-offset: -2px; }
+.tv .tabpanel[hidden] { display: none; }
+.tv .tabpanel:focus { outline: none; }
+
+/* ---- 17. COMING SOON ---------------------------------------------------- */
+.tv .soon { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.tv .soon > li { display: flex; }
+.tv .soon-card {
+  height: 100%; display: flex; flex-direction: column; gap: 10px;
+  background: var(--x-cream); border: 1px solid var(--x-dove); border-radius: 16px;
+  padding: 26px;
+}
+.tv .soon-chip {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--x-mono); font-size: 11px; line-height: 18px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--x-steel);
+  border: 1px solid var(--x-dove); border-radius: 9999px; padding: 3px 10px;
+}
+.tv .soon-chip::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; border: 1.5px solid var(--x-fog); flex: none; }
+.tv .soon-card h3 { margin-top: 2px; }
+
+/* ---- 18. RESPONSIVE ----------------------------------------------------- */
+@media (max-width: 1080px) {
+  .tv .own { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+  .tv .plugs { grid-template-columns: minmax(0, 1fr); }
+  .tv .plugs li:nth-last-child(-n+2) { border-bottom: 0; }
+  .tv .plugs li:last-child { border-bottom: 1px solid var(--x-dove); }
+  .tv .tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  /* Hero collapses: the tour sits UNDER the heading block. */
+  .tv-hero .wrap { grid-template-columns: minmax(0, 1fr); gap: clamp(36px, 6vw, 48px); }
+  .tv .hero-text .display { max-width: 16ch; }
+    /* Once the hero stacks to one column, centre the whole text block (was only at <=640px). */
+    .tv .hero-text { align-items: center; text-align: center; }
+    .tv .hero-text .cta { justify-content: center; }
+  .tv .ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .tv .facts { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+  .tv .tile { min-height: 0; }
+  .tv-numbers { grid-template-columns: minmax(0, 1fr); }
+  .tv .num + .num { border-left: 0; border-top: 1px solid var(--x-dove); }
+  .tv .ledger { grid-template-columns: minmax(0, 1fr); }
+  .tv .ledger > li { padding-right: 0; }
+  .tv .tiers, .tv .faq, .tv .soon { grid-template-columns: minmax(0, 1fr); }
+  .tv .plugs li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .tv .tab { font-size: 14px; padding: 12px 10px; }
+  .tv .cta .btn { width: 100%; max-width: 360px; }
+  .tv .hero-text { align-items: center; text-align: center; }
+  .tv .hero-text .cta { width: 100%; }
+  .tv .hero-text .cta .btn { max-width: 270px; margin-inline: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv *, .tv *::before, .tv *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+</style>
+<section class="tv"><h1>Landing</h1></section>
+<section><style>.section { color: red; }</style><p>Second section</p></section>
