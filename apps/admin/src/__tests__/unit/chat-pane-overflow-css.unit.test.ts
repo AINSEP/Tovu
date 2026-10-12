@@ -60,7 +60,9 @@ describe("chat dock composer stays at the bottom", () => {
     expect(lastDeclaration(body, "flex-direction")).toBe("column");
     expect(lastDeclaration(body, "flex")).toBe("1 1 0");
     expect(lastDeclaration(body, "min-height")).toBe("0");
-    expect(lastDeclaration(body, "overflow")).toBe("hidden");
+    // `clip`, not `hidden`: a hidden box still scrolls programmatically (focus/scrollIntoView),
+    // which floated the composer mid-dock during a run with blank dock below it.
+    expect(lastDeclaration(body, "overflow")).toBe("clip");
     const list = ruleFor(".admin-chat-dock .jini-chat-pane .jini-message-list");
     const controls = ruleFor(".admin-chat-dock .jini-chat-pane__controls");
     expect(lastDeclaration(list, "flex")).toBe("1 1 0");
@@ -70,7 +72,14 @@ describe("chat dock composer stays at the bottom", () => {
     expect(lastDeclaration(list, "padding-bottom")).toBe("8px");
     expect(lastDeclaration(controls, "flex")).toBe("0 0 auto");
     expect(lastDeclaration(controls, "position")).toBe("static");
+    expect(lastDeclaration(controls, "margin-top")).toBe("auto");
     expect(lastDeclaration(ruleFor(".admin-chat-dock .jini-message-list > *"), "flex-shrink")).toBe("0");
+  });
+
+  it("lets no box between the dock and the transcript scroll, so the composer cannot ride up mid-run", () => {
+    expect(lastDeclaration(ruleFor(".admin-chat-dock"), "overflow")).toBe("clip");
+    expect(lastDeclaration(ruleFor(".admin-chat-dock .jini-chat-pane"), "overflow")).toBe("clip");
+    expect(lastDeclaration(ruleFor(".admin-chat-dock .jini-chat-pane__body"), "overflow")).toBe("clip");
   });
 });
 

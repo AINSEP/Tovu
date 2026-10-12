@@ -32,8 +32,10 @@ import {
   type PublishRequestResult,
 } from "@tovu/publish-content-ui";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
+import { openTabEventSource } from "./lib/tab-event-source";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
+import { isEscapeOwnedByInnerLayer } from "./lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
 import type { AdminNavGroup, AdminNavItem } from "./nav";
 
@@ -185,7 +187,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    */
   useEffect(() => {
     if (!user) return;
-    return subscribeSettingsChanges(WORKSPACE_ID);
+    return subscribeSettingsChanges(WORKSPACE_ID, { principalId: user.id });
   }, [user]);
 
   /**
@@ -784,7 +786,8 @@ export function useChatDockLayout(): UseChatDockLayout {
     if (!chatOpen) return;
     function onKeyDown(e: KeyboardEvent) {
       // The composer consumes Escape to dismiss its palette; keep the containing dock open.
-      if (e.key === "Escape" && !e.defaultPrevented) setChatOpen(false);
+      // An open modal (Chat settings) or menu (Chats, gear) owns its Escape too: one press closes only it.
+      if (e.key === "Escape" && !isEscapeOwnedByInnerLayer({ key: e.key, defaultPrevented: e.defaultPrevented, root: document })) setChatOpen(false);
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
@@ -1056,7 +1059,9 @@ export function registerAdminWebMcpTool(
 }
 
 export function useAgentPageBridge(
-  { createBridge = createFrontendSessionBridge }: { createBridge?: typeof createFrontendSessionBridge } = {},
+  { createBridge = createFrontendSessionBridge, openStream = openTabEventSource }: {
+    createBridge?: typeof createFrontendSessionBridge; openStream?: typeof openTabEventSource;
+  } = {},
   _optional: Record<string, never> = {},
 ): UseAgentPageBridge {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
@@ -1071,7 +1076,7 @@ export function useAgentPageBridge(
   useEffect(() => {
     if (!pageDriver) return;
 
-    const bridge = createBridge({ baseUrl: "", fetch, openStream: ({ url }) => new EventSource(url) }, {
+    const bridge = createBridge({ baseUrl: "", fetch, openStream }, {
       pageDriver,
       executors,
       onError: logFrontendSessionError,
@@ -1085,7 +1090,7 @@ export function useAgentPageBridge(
       bridge.close();
       setAgentBridge((current) => (current === bridge ? null : current));
     };
-  }, [pageDriver, executors, createBridge]);
+  }, [pageDriver, executors, createBridge, openStream]);
 
   useEffect(() => {
     if (!pageDriver || !webMcpEnabled) return;

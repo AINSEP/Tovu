@@ -1,6 +1,14 @@
 import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { SubagentsIndicator } from "./SubagentsIndicator";
+import { DockHeaderTip } from "./DockHeaderTip";
+import { DockSettingsMenu } from "./DockSettingsMenu";
+import { dockSettingsMenuItems } from "./dock-header-rules";
+import { ChatSettingsDialog } from "./ChatSettingsDialog";
+import { chatPaneDisplayProps } from "./chat-display-preferences";
+import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
+import { useChatSettingsDialog } from "./hooks/use-chat-settings-dialog.hooks";
+import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
@@ -298,6 +306,8 @@ export interface AssistantDockProps {
   /** Pane implementation seam: host wiring tests inject a recorder without replacing Jini's module. */
   ChatPane?: typeof ChatPane;
   useExecutionPolicy?: typeof useTovuExecutionPolicy;
+  /** The Chat settings → Display choices seam (`useChatDisplayPreferences`); a test passes a fake. */
+  useChatDisplayPreferences?: typeof useChatDisplayPreferences;
   /**
    * This tab's page-control connection, owned by `App.tsx` (it outlives this pane, which unmounts
    * with the dock). `null` until the daemon has attached the surface, or if it never does.
@@ -449,6 +459,7 @@ export function AssistantDock({
   useRuntimeAccess: useRuntimeAccessOverride,
   onFolderDropCaptureReady,
   useExecutionPolicy,
+  useChatDisplayPreferences: useChatDisplayPreferencesOverride = useChatDisplayPreferences,
 }: AssistantDockProps) {
   const agentBridge = resolveAgentBridge(agentBridgeProp);
   const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
@@ -458,6 +469,9 @@ export function AssistantDock({
   // than three separate calls.
   const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
   const conversationDelete = useConfirmRequest({});
+  // Gear → "Open chat settings…": per-operator transcript display, applied to the pane at once.
+  const chatDisplay = useChatDisplayPreferencesOverride();
+  const chatSettingsDialog = useChatSettingsDialog();
 
   const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
@@ -553,6 +567,7 @@ export function AssistantDock({
   const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
     onSelectionChange: executionPolicy.selectionChange(handleLocalCliSelectionChange), onExecutionModeChange: handleExecutionModeChange }, {});
   const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
+  const refreshSignal = useConversationRefreshSignal({ conversationId: chats.activeId });
 
   return (
     <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n}>
@@ -580,6 +595,7 @@ export function AssistantDock({
         onSelectionChange={executionPolicy.selectionChange(handleLocalCliSelectionChange)}
         {...(chats.activeId ? { conversationId: chats.activeId } : {})}
         initialMessages={failureSurface.initialMessages}
+        {...(refreshSignal ? { refreshSignal } : {})}
         // Recent prompt recall is local to this signed-in admin, including in a new chat.
         {...(principalId ? { composerHistoryScope: principalId } : {})}
         // The Local CLI / API · BYOK row (`AgentRuntimePicker`, `@jini-ai/chat`) — previously
@@ -638,23 +654,36 @@ export function AssistantDock({
                 <h2 className="jini-chat-pane__title" title={activeTitle}>
                   {activeTitle}
                 </h2>
-                <SubagentsIndicator t={(key) => translateAiAssistant({ locale, key })} />
               </div>
-              <ConversationList
-                conversations={chats.conversations}
-                activeConversationId={chats.activeId}
-                onSelect={chats.select}
-                onCreate={chats.create}
-                onDelete={chats.remove}
-                // Keep the permanent-delete gate, using the admin dialog's shared focus lifecycle.
-                confirmDelete={(item) => conversationDelete.confirm({ dialog: {
-                  title: chatI18n.t("Delete conversation"),
-                  body: chatI18n.t('Delete "{title}"? This cannot be undone.', { title: item.title ?? chatI18n.t("Untitled") }),
-                  confirmLabel: chatI18n.t("Delete conversation"),
-                  tone: "danger",
-                } })}
-                onRename={chats.rename}
-              />
+              {/* Beside the conversation switcher, not under the title (owner, 2026-10-10). */}
+              <SubagentsIndicator mode={executionConfig.mode} agentId={localCliSelection.agentId}
+                t={(key) => translateAiAssistant({ locale, key })} />
+              {/* Each header button gets the subagents icon's white tip, under it (owner, 2026-10-11). */}
+              <DockHeaderTip label={t("Chats")}>
+                <ConversationList
+                  conversations={chats.conversations}
+                  activeConversationId={chats.activeId}
+                  onSelect={chats.select}
+                  onCreate={chats.create}
+                  onDelete={chats.remove}
+                  // Keep the permanent-delete gate, using the admin dialog's shared focus lifecycle.
+                  confirmDelete={(item) => conversationDelete.confirm({ dialog: {
+                    title: chatI18n.t("Delete conversation"),
+                    body: chatI18n.t('Delete "{title}"? This cannot be undone.', { title: item.title ?? chatI18n.t("Untitled") }),
+                    confirmLabel: chatI18n.t("Delete conversation"),
+                    tone: "danger",
+                  } })}
+                  onRename={chats.rename}
+                  // The white "Chats" tip above replaces the browser's dark native one, so the
+                  // switcher drops its own `title` and takes the same name for screen readers.
+                  triggerLabel={t("Chats")}
+                  nativeTitle={false}
+                />
+              </DockHeaderTip>
+              {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
+              <DockHeaderTip label={t("Settings")}>
+                <DockSettingsMenu label={t("Settings")} items={dockSettingsMenuItems({ t }, { onOpenChatSettings: chatSettingsDialog.show })} />
+              </DockHeaderTip>
             </div>
             {emptyState.empty ? (
               <div className="assistant-empty-state" role="status">
@@ -777,6 +806,8 @@ export function AssistantDock({
         // a picker here would only ever re-label the chat, not move the agent. The real feature
         // belongs to Tovu-Runner (the Electron app), which has an actual filesystem.
         workingDirectoryControlPlacement="none"
+        // Spread, not attributes: a chat build without these props ignores them (see `chatPaneDisplayProps`).
+        {...chatPaneDisplayProps({ preferences: chatDisplay.preferences })}
         // suggestions={[
         //   "Summarise what content types this site defines.",
         //   "List the agent-callable tools and the permission each one needs.",
@@ -784,6 +815,7 @@ export function AssistantDock({
         // ]}
       />
       <ConfirmDialog {...conversationDelete.dialog} />
+      {chatSettingsDialog.open ? <ChatSettingsDialog locale={locale} t={t} display={chatDisplay} onClose={chatSettingsDialog.close} /> : null}
       </div>
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>

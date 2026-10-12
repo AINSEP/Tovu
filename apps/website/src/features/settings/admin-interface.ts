@@ -22,6 +22,11 @@ import { ensureSettingDefinitions, type EnsureSettingDefinitionsDeps, SCOPE_BIT 
 export const ADMIN_INTERFACE_NAMESPACE = "core.interface";
 export const HIDE_CHAT_FAB_WHILE_OPEN_KEY = "hideChatFabWhileOpen";
 export const WRAP_TABS_KEY = "wrapTabs";
+/** The assistant dock's Chat settings → Display (owner, 2026-10-11); mirrored by the admin's
+ *  `components/AssistantDock/chat-display-preferences.ts`. */
+export const CHAT_TOOL_CALLS_KEY = "chatToolCalls";
+export const CHAT_SHOW_USAGE_LINE_KEY = "chatShowUsageLine";
+export const CHAT_SHOW_THINKING_KEY = "chatShowThinking";
 
 const PER_OPERATOR_SCOPES = SCOPE_BIT.user | SCOPE_BIT.workspace;
 
@@ -33,7 +38,7 @@ export interface EnsureAdminInterfaceSettingDefinitionsInput {
 /**
  * Idempotently registers the `core.interface` definitions. Safe on every boot.
  *
- * @complexity O(1), two definitions.
+ * @complexity O(1), five definitions.
  */
 export async function ensureAdminInterfaceSettingDefinitions(
   deps: EnsureSettingDefinitionsDeps,
@@ -44,6 +49,9 @@ export async function ensureAdminInterfaceSettingDefinitions(
     definitions: [
       { key: HIDE_CHAT_FAB_WHILE_OPEN_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
       { key: WRAP_TABS_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
+      { key: CHAT_TOOL_CALLS_KEY, schema: { type: "enum", values: ["show", "collapsed", "hidden"] }, defaultValue: "collapsed", scopes: PER_OPERATOR_SCOPES },
+      { key: CHAT_SHOW_USAGE_LINE_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: PER_OPERATOR_SCOPES },
+      { key: CHAT_SHOW_THINKING_KEY, schema: { type: "boolean" }, defaultValue: false, scopes: PER_OPERATOR_SCOPES },
     ],
     systemPrincipalId: input.systemPrincipalId,
   });
