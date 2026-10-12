@@ -533,12 +533,7 @@ export const PARITY_DELTAS: readonly ParityDelta[] = [
  * rest of the transcript stays guarded. Fixing one = deleting its entry. */
 export interface KnownParityIssue { id: string; transcript: "read" | "write"; keys: RegExp; note: string; orderOnly?: boolean }
 export const KNOWN_PARITY_ISSUES: readonly KnownParityIssue[] = [
-  { id: "R2", transcript: "read", keys: /^(custom|peer)\.list@/, orderOnly: true,
-    note: "custom-credential and peer lists were label-ordered (the label index drove the scan on both dialects); the vault lists by id, so admin lists reorder" },
-  { id: "R2", transcript: "write", keys: /^(custom\.9|peer\.11)\.list$/, orderOnly: true, note: "same list-order change" },
-  { id: "R3", transcript: "read", keys: /^source\.resolveDefault\./,
-    note: "resolveDefaultForSourceControl now validates the payload and drops a stored username for github/gitlab (pre-vault returned it); only bitbucket keeps one" },
-  { id: "R3", transcript: "write", keys: /^source\.6\.resolve-promoted$/, note: "same username drop" },
+  // R1-R3 fixed 2026-10-12: destination singleton read, label-ordered lists, source-control username.
 ];
 
 /** The golden transcript with every reviewed delta applied. */

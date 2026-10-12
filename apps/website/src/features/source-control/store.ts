@@ -351,7 +351,12 @@ export async function resolveDefaultForSourceControl(
   try {
     const resolved = await vault(deps).findDefault({ ...credentialScope({ workspaceId: input.workspaceId, kind: "source-control" }), provider: input.providerId });
     if (resolved && !resolved.payload) throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
-    return resolved ? { id: resolved.summary.id, label: resolved.summary.label,
-      connection: validateConnection({ ...resolved.payload, providerId: resolved.summary.provider }) } : null;
+    if (!resolved) return null;
+    const connection = validateConnection({ ...resolved.payload, providerId: resolved.summary.provider });
+    // A username sealed beside a GitHub/GitLab token is still returned, as before the vault
+    // (parity finding R3); validation alone keeps it only for Bitbucket.
+    const stored = resolved.payload?.username;
+    return { id: resolved.summary.id, label: resolved.summary.label,
+      connection: typeof stored === "string" && !("username" in connection) ? { ...connection, username: stored } : connection };
   } catch { throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage); }
 }
