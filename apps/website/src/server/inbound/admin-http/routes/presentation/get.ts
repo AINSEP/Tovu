@@ -2,8 +2,9 @@ import {
   getPresentationSettings,
   PresentationSettingsNotFoundError,
 } from "#src/features/presentation/index";
-import { findStoredTheme, validThemeIds } from "#src/features/theme/index";
+import { applicableThemeTemplates, findStoredTheme, validThemeIds } from "#src/features/theme/index";
 import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
+import { isPackageShippedTheme } from "#src/features/theme/theme-files";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
 import { registerAdminThemePreviewRoute } from "../themes/preview.js";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
@@ -30,6 +31,11 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
     }
 
     try {
+      const kind = req.query.kind;
+      if (kind !== undefined && kind !== "post" && kind !== "page") {
+        res.status(400).json({ error: "kind must be 'post' or 'page'" });
+        return;
+      }
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
@@ -70,7 +76,8 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
       // `findStoredTheme`, not an exact match: a stored retired id (`basic`, renamed `tovu-theme`)
       // still names the active theme, and the response reports the id the theme list shows.
       const activeTheme = findStoredTheme({ themes: deps.themes, id: result.settings.activeThemeId });
-      const activeThemeTemplates = activeTheme?.manifest.templates ?? [];
+      // Editors request their kind; catalog callers omit it and retain the full list.
+      const activeThemeTemplates = applicableThemeTemplates({ manifest: activeTheme?.manifest, kind });
       // Slug-collision override (2026-08-10) — every page id the active theme ships, so the editor
       // can warn when a post's own slug is currently claimed by one of the theme's own pages.
       const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
@@ -80,9 +87,11 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
       // Themes admin screen (2026-08-10) — tier alongside id for every valid theme, so the Themes
       // screen can group cards by tier without a second round trip. Filtered to `status === "valid"`
       // to match `validThemeIds`'s own filter above (an invalid theme is not one an operator can pick).
+      // `builtIn` (2026-10-10): a theme the package ships, which the card menu won't offer to delete.
       const availableThemes = deps.themes
         .filter((t) => t.status === "valid")
         .map((t) => ({ id: t.manifest.id, name: t.manifest.name, tier: t.manifest.tier, apiVersion: t.manifest.apiVersion,
+          builtIn: isPackageShippedTheme({ manifest: t.manifest, packageThemesRoot: deps.packageThemesDir }),
           previewImageUrl: themeCardPreviewUrl({ theme: { dir: t.dir, id: t.manifest.id, tier: t.manifest.tier }, workspaceId: deps.workspaceId }, { capturesEnabled }) }));
 
       res.json(

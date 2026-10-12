@@ -198,6 +198,9 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
       timeout: 10_000,
     });
 
+    // The file picker shows one group at a time (2026-10-11), so open Styles to reach a stylesheet.
+    await page.getByRole("tab", { name: /^Styles/ }).click();
+    await expect(page.getByRole("tab", { name: /^Styles/ })).toHaveAttribute("aria-selected", "true");
     const titles = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("title") ?? ""));
     const css = titles.find((title) => title.endsWith(".css"));
     expect(css).toBeTruthy();
@@ -294,68 +297,54 @@ test.describe("Bug pin: theme-explore-narrow-sidebar", () => {
  * in-flow content), and the absolutely-positioned `<nav>` filling that box collapses to 0px too. The
  * sidebar is still in the DOM, just invisible.
  *
- * Fix: at that breakpoint, `.theme-explore-files-wrap`/`.theme-explore-files` fall back to normal
+ * Fix: at that breakpoint, `.theme-explore-files-wrap`/`.theme-explore-files` fell back to normal
  * document flow (`position: static`) with an explicit `max-height` cap instead of relying on the
- * stretch trick that no longer has a sibling to match.
+ * stretch trick that no longer had a sibling to match.
+ *
+ * 2026-10-11 (owner: "the file list that's on the left, make that up top ... it's way too small right
+ * now when the assistant chat is open"): the sidebar is gone. The files sit in a full-width tray
+ * above the preview (group tabs plus file chips) in normal flow at every width, with no scroller of
+ * its own (the old one also trapped the wheel at its bottom edge). This pin now holds the same
+ * promise for that layout: the tray is visible with reachable files at a narrow viewport, it does
+ * not scroll internally, and the preview below it is reached through the page's own scroll and
+ * spans the tray's full width.
  */
 
 const NARROW_VIEWPORT = { width: 500, height: 844 } as const;
 
-test.describe("theme Explore — sidebar stays visible at a narrow viewport (2026-08-17 regression)", () => {
+test.describe("theme Explore — file picker stays visible at a narrow viewport (2026-08-17 regression)", () => {
   for (const width of [500, 700]) {
-  test(`the file list has non-zero height and reachable rows at ${width}px`, async ({ page }) => {
+  test(`the file tray has reachable files, no inner scroller, and a full-width preview at ${width}px`, async ({ page }) => {
     await loginAsAdmin(page);
     await page.setViewportSize({ ...NARROW_VIEWPORT, width });
     await page.goto("/admin/themes/explore?theme=tovu-theme", { waitUntil: "domcontentloaded" });
 
     const fileList = page.locator(".theme-explore-files").first();
-    await fileList.waitFor({ state: "attached", timeout: 10_000 });
+    await fileList.waitFor({ state: "visible", timeout: 10_000 });
 
-    // The bug's real symptom: present in the DOM but rendered at 0px tall, so nothing inside it is
-    // reachable. A non-zero bounding-box height is the honest "is it actually visible" check.
+    // The original bug's real symptom was a list present in the DOM but 0px tall.
     const box = await fileList.boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.height).toBeGreaterThanOrEqual(120);
-    // TH-4 (mobile catalog, 2026-10-06) deliberately removes the phone's nested scroll trap.
-    // Tablets retain the cap; phones must grow with the rows and use the page's scroller.
-    if (width > 640) expect(box!.height).toBeLessThanOrEqual(241);
-    else {
-      expect(box!.height).toBeGreaterThan(240);
-      expect(await fileList.evaluate((el) => getComputedStyle(el).overflowY)).toBe("visible");
-    }
+    expect(box!.height).toBeGreaterThanOrEqual(60);
+    // No nested scroll trap: the tray grows with its chips and the page scrolls past it.
+    expect(await fileList.evaluate((el) => getComputedStyle(el).overflowY)).toBe("visible");
+    expect(await fileList.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
 
-    const pagesHeading = page.locator(".theme-explore-files-heading", { hasText: "Pages" });
-    await expect(pagesHeading).toBeVisible();
-
+    await expect(page.getByRole("tab", { name: /^Pages/ })).toBeVisible();
     const firstFileRow = page.locator(".theme-explore-file-row").first();
-    await expect(firstFileRow).toBeVisible();
     await expect(firstFileRow).toBeInViewport();
-    const lastFileRow = page.locator(".theme-explore-file-row").last();
-    const lastButton = lastFileRow.locator("button").first();
-    const lastBox = await lastFileRow.boundingBox();
-    expect(lastBox).not.toBeNull();
-    if (width > 640) {
-      expect(lastBox!.y).toBeGreaterThanOrEqual(box!.y + box!.height);
-      await fileList.hover();
-      await page.mouse.wheel(0, 10_000);
-    } else {
-      expect(lastBox!.y + lastBox!.height).toBeLessThanOrEqual(box!.y + box!.height + 1);
-      await lastButton.scrollIntoViewIfNeeded();
-      expect(await fileList.evaluate((el) => el.scrollTop)).toBe(0);
-    }
-    await expect.poll(() => lastFileRow.evaluate((el) => {
-      const row = el.getBoundingClientRect();
-      const list = el.closest(".theme-explore-files")!.getBoundingClientRect();
-      return row.top >= list.top && row.bottom <= list.bottom + 1;
-    })).toBe(true);
+    const lastButton = page.locator(".theme-explore-file-row").last().locator("button").first();
     await lastButton.click();
     await expect(lastButton).toHaveClass(/\bis-active\b/);
-    // With a growing phone list, the preview is reached through the same page scroll.
-    if (width <= 640) await page.locator(".theme-explore-main").scrollIntoViewIfNeeded();
-    await expect(page.locator(".theme-explore-main")).toBeInViewport();
-    const previewBox = await page.locator(".theme-explore-main").boundingBox();
-    expect(previewBox).not.toBeNull();
-    expect(previewBox!.y).toBeLessThan(NARROW_VIEWPORT.height);
+
+    // The preview sits below the tray, as wide as it, reached through the page's own scroll.
+    const main = page.locator(".theme-explore-main");
+    await main.scrollIntoViewIfNeeded();
+    await expect(main).toBeInViewport();
+    const mainBox = await main.boundingBox();
+    expect(mainBox).not.toBeNull();
+    expect(mainBox!.y).toBeGreaterThanOrEqual(box!.y + box!.height - 1);
+    expect(Math.abs(mainBox!.width - box!.width)).toBeLessThanOrEqual(2);
   });
   }
 });

@@ -1,4 +1,5 @@
 import { Toast } from "@jini-ai/ui";
+import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
@@ -13,7 +14,9 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { interpolate } from "@jini-ai/ui/panel-kit";
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
-import { CompassIcon, DuplicateIcon } from "./themes-visuals";
+import { useThemeDeleteRequest } from "./hooks/use-theme-delete-request.hooks";
+import { buildThemeCardMenuItems, themeDeleteBlock, type ThemeDeleteBlock, type ThemeDeleteRequest } from "./theme-card-menu";
+import { CompassIcon } from "./themes-visuals";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -23,6 +26,7 @@ import {
   themeDisplayName,
   sortThemesForDisplay,
   themeCardSwitch,
+  isSoonThemeTabGroup,
   THEME_TAB_GROUPS,
   type ThemeTabGroup,
 } from "./rules";
@@ -187,15 +191,23 @@ function withThemeDefaults(controller: ThemesController) {
     rescanNotice: controller.rescanNotice ?? null,
     duplicatingTheme: controller.duplicatingTheme ?? null,
     duplicateNotice: controller.duplicateNotice ?? null,
+    themeBuiltIn: controller.themeBuiltIn ?? {},
+    trashNotice: controller.trashNotice ?? null,
   };
 }
 
 /** The tab list for `TabBar` — one tab per configured {@link ThemeTabGroup}, each with its theme
  *  count. (The theme Marketplace tab that used to follow these was deleted 2026-10-04 with the dead
- *  marketplace it listed.) */
+ *  marketplace it listed.) Groups with no shipped authoring yet carry the sidebar's "Soon" pill via
+ *  `TabBarTab.tag` and stay clickable ({@link isSoonThemeTabGroup}, owner 2026-10-11). */
 function buildThemeTabs(t: Translate, grouped: Record<ThemeTabGroup, string[]>): TabBarTab[] {
   return THEME_TAB_GROUPS.map(
-    (group): TabBarTab => ({ id: group, label: tabGroupLabel(t, group), count: grouped[group].length }),
+    (group): TabBarTab => ({
+      id: group,
+      label: tabGroupLabel(t, group),
+      count: grouped[group].length,
+      tag: isSoonThemeTabGroup(group) ? t("Soon") : undefined,
+    }),
   );
 }
 
@@ -225,47 +237,46 @@ function RescanToast({
   );
 }
 
-/** "Duplicated as …" — always a success: a refused duplicate reports through the error banner. */
-function DuplicateToast({ notice, onDismiss }: { notice: string | null; onDismiss: (() => void) | undefined }) {
+/** "Duplicated as …" and "Moved … to Trash" — always a success: a refused duplicate or delete
+ *  reports through the error banner. */
+function SuccessToast({ notice, onDismiss }: { notice: string | null; onDismiss: (() => void) | undefined }) {
   if (!notice) return null;
   return <Toast message={notice} role="status" tone="success" ttlMs={5000} onDismiss={onDismiss} />;
 }
 
 /**
- * A card's Duplicate button — copies the theme into a new one at once (see the hook's `duplicate`
- * doc for why there is no name prompt). Hidden when the controller has no `duplicate` (an older test
- * double), and disabled while any duplicate is in flight so two clicks cannot race two copies.
+ * A card's ⋮ menu (owner 2026-10-10) — Copy theme and Delete theme…, built as a list by
+ * {@link buildThemeCardMenuItems} so a later action is one more entry rather than another icon. The
+ * admin's shared `RowMenu` (Explore's file rows use it too): right-aligned under the trigger, Esc and
+ * arrow keys built in. No ⋮ at all when the controller offers neither action (an older test double).
  */
-function DuplicateThemeButton({
+function ThemeCardMenu({
   themeId,
   name,
   handleBase,
+  block,
   duplicatingTheme,
   duplicate,
+  onRequestDelete,
   t,
 }: {
   themeId: string;
   name: string;
   handleBase: string;
+  block: ThemeDeleteBlock;
   duplicatingTheme: string | null;
   duplicate: ThemesController["duplicate"];
+  onRequestDelete: ((request: ThemeDeleteRequest) => void) | undefined;
   t: Translate;
 }) {
-  if (!duplicate) return null;
-  const busy = duplicatingTheme === themeId;
+  const items = buildThemeCardMenuItems({ themeId, name, block, duplicatingTheme, t }, { duplicate, onRequestDelete });
+  if (items.length === 0) return null;
   return (
-    <button
-      type="button"
-      className="theme-card-icon-btn"
-      disabled={duplicatingTheme !== null}
-      onClick={() => void duplicate(themeId)}
-      aria-label={actionButtonAriaLabel(t("Duplicate"), t("Duplicating…"), busy, name)}
-      aria-busy={busy}
-      title={busy ? t("Duplicating…") : t("Duplicate")}
-      {...agentHandle({ handle: `${handleBase}-duplicate` }, { role: "button", label: `Duplicate the "${themeId}" theme into a new theme` })}
-    >
-      <DuplicateIcon />
-    </button>
+    <RowMenu
+      triggerLabel={interpolate({ template: t("More actions for {name}"), vars: { name } })}
+      agentHandle={`${handleBase}-menu`}
+      items={items}
+    />
   );
 }
 
@@ -364,28 +375,35 @@ function ThemesBanners({
 
 /** The installed-themes tab's own content — empty state or the theme card grid. Extracted to a
  *  top-level component (complexity-ceiling pass) so this branching (including the active/inactive
- *  card-action switch) scores independently of `Themes`'s own complexity. */
+ *  card-action switch) scores independently of `Themes`'s own complexity. It also owns the card
+ *  menu's delete confirmation (`useThemeDeleteRequest`), for the same reason. */
 function ThemeGrid({
   visibleThemes,
   themeNames,
   themePreviewImages,
+  themeBuiltIn,
   settings,
   busyTheme,
   activate,
   duplicatingTheme,
   duplicate,
+  trash,
   t,
 }: {
   visibleThemes: string[];
   themeNames: Record<string, string>;
   themePreviewImages: Record<string, string | null | undefined>;
+  themeBuiltIn: Record<string, boolean>;
   settings: PresentationSettings;
   busyTheme: string | null;
   activate: (themeId: string) => Promise<void>;
   duplicatingTheme: string | null;
   duplicate: ThemesController["duplicate"];
+  trash: ThemesController["trash"];
   t: Translate;
 }) {
+  const deletion = useThemeDeleteRequest({ t, trash: (themeId) => trash ? trash(themeId) : Promise.resolve() });
+  const onRequestDelete = trash ? (request: ThemeDeleteRequest) => void deletion.requestDelete(request) : undefined;
   if (visibleThemes.length === 0) {
     return (
       <div className="card">
@@ -402,43 +420,61 @@ function ThemeGrid({
     // `role="group"` + `aria-label` names the picker as a whole, matching `PageEditor.tsx`'s
     // `role="group" aria-label="Preview width"` — the codebase's existing pattern for "a set of
     // related controls with one label" rather than nothing.
-    <div className="theme-grid" role="group" aria-label={t("Themes")}>
-      {visibleThemes.map((themeId, index) => {
-        const active = isActiveTheme(settings, themeId);
-        const handleBase = cardHandles[index]!;
-        const name = themeDisplayName(themeId, themeNames);
-        return (
-          <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
-            <ThemeCardPreview themeId={themeId} previewImageUrl={themePreviewImages[themeId]} agentHandleBase={handleBase} t={t} />
-            <h3>{name}</h3>
-            <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
-            {/* Icons, not words (owner 2026-10-08): the Activate switch stays left, the Explore
-                (compass) and Duplicate (copy) icon buttons sit together on the right. Each keeps its
-                old verb as its accessible name and its tooltip. */}
-            <div className="theme-card-actions">
-              <ThemeActivateSwitch themeId={themeId} name={name} handleBase={handleBase} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
-              <span className="theme-card-icon-actions">
-                <button
-                  type="button"
-                  className="theme-card-icon-btn"
-                  onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
-                  aria-label={`${t("Explore")} ${name}`}
-                  title={t("Explore")}
-                  {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
-                >
-                  <CompassIcon />
-                </button>
-                <DuplicateThemeButton themeId={themeId} name={name} handleBase={handleBase} duplicatingTheme={duplicatingTheme} duplicate={duplicate} t={t} />
-              </span>
+    <>
+      <div className="theme-grid" role="group" aria-label={t("Themes")}>
+        {visibleThemes.map((themeId, index) => {
+          const active = isActiveTheme(settings, themeId);
+          const handleBase = cardHandles[index]!;
+          const name = themeDisplayName(themeId, themeNames);
+          return (
+            <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
+              <ThemeCardPreview themeId={themeId} previewImageUrl={themePreviewImages[themeId]} agentHandleBase={handleBase} t={t} />
+              <h3>{name}</h3>
+              <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
+              {/* Icons, not words (owner 2026-10-08): the Activate switch stays left, the Explore
+                  (compass) icon button and the ⋮ menu sit together on the right. Duplicate moved into
+                  that menu as "Copy theme" (owner 2026-10-10), beside Delete. */}
+              <div className="theme-card-actions">
+                <ThemeActivateSwitch themeId={themeId} name={name} handleBase={handleBase} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
+                <span className="theme-card-icon-actions">
+                  <button
+                    type="button"
+                    className="theme-card-icon-btn"
+                    onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
+                    aria-label={`${t("Explore")} ${name}`}
+                    title={t("Explore")}
+                    {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
+                  >
+                    <CompassIcon />
+                  </button>
+                  <ThemeCardMenu
+                    themeId={themeId}
+                    name={name}
+                    handleBase={handleBase}
+                    block={themeDeleteBlock({ settings, themeId, builtIn: themeBuiltIn[themeId] === true })}
+                    duplicatingTheme={duplicatingTheme}
+                    duplicate={duplicate}
+                    onRequestDelete={onRequestDelete}
+                    t={t}
+                  />
+                </span>
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+      {/* One dialog for the whole grid ("Delete Plannie copy? It moves to Trash."), and the toast that
+          says why a refused Delete did nothing — `RowMenu` has no disabled item to explain it on. */}
+      <ConfirmDialog {...deletion.dialog} agentHandle="themes-delete-theme" />
+      {deletion.blockedNotice ? (
+        <Toast message={deletion.blockedNotice} role="status" ttlMs={5000} onDismiss={deletion.dismissBlockedNotice} />
+      ) : null}
+    </>
   );
 }
 
-/** "View site" and the rescan control share one row, the rescan pushed to the far right. The server
+/** The header's right side: "View site ↗" alone in the top-right corner, then one flush button row —
+ *  Rescan, Turn the theme off, Publish themes (owner, 2026-10-11). The server
  *  discovers themes once at boot, so anything that reaches the themes folder afterwards —
  *  a copy of an original, a `git pull`, the `npm run theme` CLI — is invisible
  *  here until someone asks it to look again. In-app actions will rescan on their own; this is the
@@ -461,7 +497,7 @@ function ThemesToolbar({
   t: Translate;
 }) {
   return (
-    <div className="page-toolbar">
+    <div className="themes-header-side">
       <a
         href={siteUrl("/")}
         target="_blank"
@@ -470,34 +506,37 @@ function ThemesToolbar({
       >
         {t("View site ↗")}
       </a>
-      <button
-        type="button"
-        className="btn-secondary"
-        disabled={rescanning || rescan === undefined}
-        onClick={() => void rescan?.()}
-        {...agentHandle({ handle: "themes-rescan" }, { role: "button", label: "Rescan the themes folder for changes" })}
-      >
-        {rescanning ? t("Rescanning…") : t("Rescan themes")}
-      </button>
-      {/* Hidden once the theme is already off — a control whose only effect is to re-send the
-          state you are already in reads as broken when nothing changes. Getting back is the
-          Activate switch on any card, which is always present (the active card's switch is a second
-          way off). A toolbar control rather than a card in the grid: the grid is split across tier
-          tabs, so a card would be visible in only one of them and invisible in the rest. */}
-      {isThemeDisabled(settings) ? null : (
+      <div className="page-actions">
         <button
           type="button"
           className="btn-secondary"
-          disabled={busyTheme !== null}
-          onClick={() => void activate(NO_THEME_ID)}
-          {...agentHandle({ handle: "themes-disable" }, {
-            role: "button",
-            label: "Turn the theme off and render the site unstyled",
-          })}
+          disabled={rescanning || rescan === undefined}
+          onClick={() => void rescan?.()}
+          {...agentHandle({ handle: "themes-rescan" }, { role: "button", label: "Rescan the themes folder for changes" })}
         >
-          {busyTheme === NO_THEME_ID ? t("Turning off…") : t("Turn the theme off")}
+          {rescanning ? t("Rescanning…") : t("Rescan themes")}
         </button>
-      )}
+        {/* Hidden once the theme is already off — a control whose only effect is to re-send the
+            state you are already in reads as broken when nothing changes. Getting back is the
+            Activate switch on any card, which is always present (the active card's switch is a second
+            way off). A toolbar control rather than a card in the grid: the grid is split across tier
+            tabs, so a card would be visible in only one of them and invisible in the rest. */}
+        {isThemeDisabled(settings) ? null : (
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={busyTheme !== null}
+            onClick={() => void activate(NO_THEME_ID)}
+            {...agentHandle({ handle: "themes-disable" }, {
+              role: "button",
+              label: "Turn the theme off and render the site unstyled",
+            })}
+          >
+            {busyTheme === NO_THEME_ID ? t("Turning off…") : t("Turn the theme off")}
+          </button>
+        )}
+        <PublishSectionButton section="themes" />
+      </div>
     </div>
   );
 }
@@ -525,6 +564,10 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     duplicate,
     duplicateNotice,
     dismissDuplicateNotice,
+    themeBuiltIn,
+    trash,
+    trashNotice,
+    dismissTrashNotice,
     t,
   } = withThemeDefaults(useThemesHook());
 
@@ -552,7 +595,8 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
   );
 
   return (
-    <div className="page">
+    // `themes-page` scopes the greyed "Soon" tab labels (`styles.css`) to this screen's tab strip.
+    <div className="page themes-page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Studio")}</p>
@@ -561,20 +605,18 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
             {t("The active theme controls what visitors see across the entire public site.")}
           </p>
         </div>
-        <div className="page-actions">
-          <PublishSectionButton section="themes" />
-        </div>
+        <ThemesToolbar
+          settings={settings}
+          rescanning={rescanning}
+          rescan={rescan}
+          busyTheme={busyTheme}
+          activate={activate}
+          t={t}
+        />
       </div>
-      <ThemesToolbar
-        settings={settings}
-        rescanning={rescanning}
-        rescan={rescan}
-        busyTheme={busyTheme}
-        activate={activate}
-        t={t}
-      />
       <RescanToast rescanNotice={rescanNotice} onDismiss={dismissRescanNotice} />
-      <DuplicateToast notice={duplicateNotice} onDismiss={dismissDuplicateNotice} />
+      <SuccessToast notice={duplicateNotice} onDismiss={dismissDuplicateNotice} />
+      <SuccessToast notice={trashNotice} onDismiss={dismissTrashNotice} />
       {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no
           longer resolves, so no card below can ever show its switch on and nothing else said why —
           see `ThemesBanners`'s own doc. */}
@@ -591,7 +633,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           navigate(`${basePath}?tab=${id}`, { replace: true });
         }}
       />
-      <ThemeGrid themePreviewImages={themePreviewImages} visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} duplicatingTheme={duplicatingTheme} duplicate={duplicate} t={t} />
+      <ThemeGrid themePreviewImages={themePreviewImages} themeBuiltIn={themeBuiltIn} visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} duplicatingTheme={duplicatingTheme} duplicate={duplicate} trash={trash} t={t} />
     </div>
   );
 }

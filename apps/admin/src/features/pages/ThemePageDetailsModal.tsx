@@ -19,8 +19,8 @@ import { useThemePageDetailsModal } from "./ThemePageDetailsModal.hooks";
  * know."* Everything the old inline panel showed (file path, whether there is an original to reset
  * to) still lives here, plus two facts that panel never had room for: the row's own publish state/
  * reason (previously only on the switch itself) and any live content record already claiming this
- * page's slug (`row.collidingContent` — the same fact Theme Studio's Explore screen warns about,
- * `ThemeExplore.tsx`'s `ThemeExploreSlugCollisionWarning`).
+ * page's slug (`row.collidingContent` — the same fact Theme Studio's Explore screen reflects in the
+ * Publish toggle's inline hint; its separate warning card was removed 2026-10-10, owner ask).
  *
  * Same native-`<dialog>` foundation as `@jini-ai/admin/react`'s `ConfirmDialog` (already used by
  * this same screen, `Pages.tsx`'s delete confirmation) — `aria-labelledby` pointing at a visible
@@ -184,8 +184,8 @@ function ThemePageCollisionIcon(): ReactNode {
  * this pass; only the presentation changed (this file's own header, PART 3). Deliberately NOT gated
  * on `row.published` too: a page can be off and still lose the URL race depending on the colliding
  * record's own override, so hiding this behind a publish check would hide exactly the case that
- * caused the original owner confusion this modal exists to prevent (`ThemeExploreSlugCollisionWarning`
- * in `ThemeExplore.tsx` makes the identical call for the identical reason).
+ * caused the original owner confusion this modal exists to prevent (Theme Studio's Explore screen
+ * had a warning card gated the same way for the same reason, until it was removed 2026-10-10).
  *
  * The action was a bare `<a>` with no button styling — the thing that read as a "broken text input"
  * in the owner's report. It is now `.btn-warning`, an existing primitive already used elsewhere for

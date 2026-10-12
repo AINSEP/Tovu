@@ -1,4 +1,4 @@
-import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
@@ -86,6 +86,17 @@ export interface ThemesController {
    *  `RescanToast` styles any message containing "Duplicate" as an error. */
   duplicateNotice?: string | null;
   dismissDuplicateNotice?: () => void;
+  /** Theme id -> ships with the package (`builtIn` from `getPresentation`); the card menu won't
+   *  offer to delete those. Optional for the same reason `themeTiers` is; absent means `false`. */
+  themeBuiltIn?: Record<string, boolean>;
+  /** The theme id currently moving to the Trash, or `null`. */
+  trashingTheme?: string | null;
+  /** Move a theme to the Trash (owner 2026-10-10: "Delete = Trash"), then reload the list. The
+   *  confirmation is the caller's (`useThemeDeleteRequest`); this is the round trip only. */
+  trash?: (themeId: string) => Promise<void>;
+  /** "Moved … to Trash" after a successful delete, or `null`. */
+  trashNotice?: string | null;
+  dismissTrashNotice?: () => void;
   /** Bound translator — `Themes.tsx`'s only source of UI copy; see this file's own header. */
   t: Translate;
 }
@@ -106,14 +117,19 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const themeTiers = Object.fromEntries(query.data?.availableThemes.map(theme => [theme.id, theme.tier]) ?? []);
   const themeNames = themeNamesById(query.data?.availableThemes ?? []);
   const themePreviewImages = Object.fromEntries(query.data?.availableThemes.map(theme => [theme.id, theme.previewImageUrl]) ?? []);
+  const themeBuiltIn = Object.fromEntries(query.data?.availableThemes.map(theme => [theme.id, theme.builtIn === true]) ?? []);
   const [actionError, setError] = useState<string | null>(null);
   const error = actionError ?? query.error?.message ?? null;
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["themes"]] });
+  const activation = useFetchMutation({ run: ({ input }: { input: string }) => port.setActiveTheme(input) });
+  const invalidate = useInvalidate();
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);
   const [duplicatingTheme, setDuplicatingTheme] = useState<string | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
+  const [trashingTheme, setTrashingTheme] = useState<string | null>(null);
+  const [trashNotice, setTrashNotice] = useState<string | null>(null);
 
   // Monotonic per-call ids (extracted into `useSettlementGeneration` 2026-09-06, same shape as
   // `use-sites.hooks.ts`'s own `activateSettlement`): `activate` takes a theme id and races an
@@ -180,6 +196,27 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     }
   }
 
+  /**
+   * Move `themeId` to the Trash through the generic Trash route, then reload the list so its card
+   * goes away. `write` invalidates `["themes"]`, so other screens reading the theme list refresh too.
+   * A refusal (the active theme, already in the Trash) lands in the error banner.
+   */
+  async function trash(themeId: string) {
+    setTrashingTheme(themeId);
+    setError(null);
+    setTrashNotice(null);
+    try {
+      const name = themeNames[themeId] ?? themeId;
+      await write.mutate({ input: () => port.trashTheme({ themeId }) });
+      applyPresentation(await loader.load());
+      setTrashNotice(interpolate({ template: t("Moved \"{name}\" to Trash"), vars: { name } }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("failed to delete theme"));
+    } finally {
+      setTrashingTheme(null);
+    }
+  }
+
   function activate(themeId: string) {
     // Minted BEFORE `run`, synchronously, so a second same-tick click observes this claim before
     // its own task ever starts — see `useSerialWrites`' own doc for why minting inside the queued
@@ -189,13 +226,16 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     setError(null);
     return activateWrites.run({ task: async () => {
       try {
-        const r = await write.mutate({ input: () => port.setActiveTheme(themeId) }) as Awaited<ReturnType<typeof port.setActiveTheme>>;
+        const r = await activation.mutate({ input: themeId });
         // Superseded by a newer activate call started after this one — that later call owns
         // `settings`/`busyTheme` now, and applying this stale result would let whichever request
         // happens to settle LAST win regardless of which theme was actually clicked last.
         if (!activateSettlement.isCurrent({ generation })) return;
         const current = loader.peek();
         if (current) applyPresentation({ ...current, settings: r.settings });
+        // Only the latest activation refreshes dependents; an earlier accepted write
+        // would otherwise paint its theme through getPresentation while the last is queued.
+        invalidate({ key: ["themes"] });
       } catch (e) {
         if (!activateSettlement.isCurrent({ generation })) return;
         setError(e instanceof Error ? e.message : t("failed to switch theme"));
@@ -223,6 +263,11 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     duplicate,
     duplicateNotice,
     dismissDuplicateNotice: () => setDuplicateNotice(null),
+    themeBuiltIn,
+    trashingTheme,
+    trash,
+    trashNotice,
+    dismissTrashNotice: () => setTrashNotice(null),
     t,
   };
 }

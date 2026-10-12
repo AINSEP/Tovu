@@ -19,7 +19,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "¿Seguro que quieres eliminar {file}? Esto elimina el archivo de forma permanente. No hay forma de recuperarlo.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Esto reemplaza {file} con la versión del tema original. Se perderán los cambios que hayas hecho en este archivo y esto no se puede deshacer.",
-    "← All themes": "← Todos los temas",
+    "All themes": "Todos los temas",
+    Soon: "Próximamente",
     Declarative: "Declarativo",
     Templated: "Basado en plantillas",
     Static: "Estático",
@@ -48,16 +49,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Página de inicio de respaldo — se muestra en / hasta que una de tus páginas se establezca como página de inicio",
     "Not shown — {title} is your home page": "No se muestra — {title} es tu página de inicio",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} es la página de inicio de este sitio, así que los visitantes la ven en / en lugar de esta página del tema. Esta página del tema solo se muestra cuando ninguna página está establecida como página de inicio.",
     "Always published — error page": "Siempre publicada — página de error",
     "Not a standalone page — used as a content template":
       "No es una página independiente — se usa como plantilla de contenido",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Indica si esta página tiene su propia URL activa en tu sitio. Las páginas del tema empiezan desactivadas, porque un tema incluye contenido genérico de ejemplo y no el tuyo. Activa una cuando la hayas hecho tuya.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Un registro de contenido comparte la URL de esta página: {title}. Cuál de los dos gana depende del estado de publicación de esta página y de la opción de anulación de ese registro, no solo de este interruptor.",
-    "Open {title}": "Abrir {title}",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Se conserva un original intacto por separado, así que puedes cambiar lo que quieras aquí sin perder el punto de partida.",
     Assets: "Recursos",
@@ -107,6 +103,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Código fuente del archivo del tema",
     "Theme file source (read-only)": "Código fuente del archivo del tema (solo lectura)",
     "Theme files": "Archivos del tema",
+    "File groups": "Grupos de archivos",
+    "Show all ({count})": "Mostrar todo ({count})",
+    "Show fewer": "Mostrar menos",
     "Theme preview": "Vista previa del tema",
     "Theme preview, fullscreen": "Vista previa del tema, pantalla completa",
     "This file type is read-only in Explore.": "Este tipo de archivo es de solo lectura en Explorar.",
@@ -164,6 +163,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Guardar como original",
     "Saved as this theme's original": "Guardado como original de este tema",
     "failed to save the original": "No se pudo guardar el original",
+    "More actions for {name}": "Más acciones para {name}",
+    "Copy theme": "Copiar tema",
+    "Delete theme…": "Eliminar tema…",
+    "Delete {name}?": "¿Eliminar {name}?",
+    "It moves to Trash.": "Se moverá a la Papelera.",
+    "Turn this theme off or activate another one first": "Desactiva este tema o activa otro primero",
+    "Built-in themes can't be deleted": "Los temas integrados no se pueden eliminar",
+    "Moved \"{name}\" to Trash": "\"{name}\" se movió a la Papelera",
+    "failed to delete theme": "No se pudo eliminar el tema",
   },
   id: {
     "Reload preview": "Muat ulang pratinjau",
@@ -175,7 +183,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Anda yakin ingin menghapus {file}? Ini menghapus file secara permanen. Tidak ada cara untuk mendapatkannya kembali.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ini akan menggantikan {file} dengan versi dari tema asli. Semua perubahan yang telah Anda buat pada file ini akan hilang, dan ini tidak dapat dibatalkan.",
-    "← All themes": "← Semua tema",
+    "All themes": "Semua tema",
+    Soon: "Segera",
     Declarative: "Deklaratif",
     Templated: "Berbasis templat",
     Static: "Statis",
@@ -204,16 +213,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Beranda cadangan — ditampilkan di / sampai salah satu halaman Anda ditetapkan sebagai beranda",
     "Not shown — {title} is your home page": "Tidak ditampilkan — {title} adalah beranda Anda",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} adalah beranda situs ini, jadi pengunjung melihatnya di / alih-alih halaman tema ini. Halaman tema ini hanya ditampilkan jika tidak ada halaman yang ditetapkan sebagai beranda.",
     "Always published — error page": "Selalu diterbitkan — halaman error",
     "Not a standalone page — used as a content template":
       "Bukan halaman mandiri — digunakan sebagai templat konten",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Menunjukkan apakah halaman ini memiliki URL publik sendiri di situs Anda. Halaman tema dimulai dalam keadaan nonaktif, karena tema berisi konten contoh yang umum, bukan milik Anda. Aktifkan setelah Anda menjadikannya milik Anda.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Sebuah catatan konten berbagi URL halaman ini: {title}. Mana yang menang bergantung pada status penerbitan halaman ini dan pilihan penggantian (override) milik catatan itu sendiri, bukan hanya oleh sakelar ini.",
-    "Open {title}": "Buka {title}",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Salinan asli yang belum diubah disimpan secara terpisah, sehingga Anda dapat mengubah apa pun di sini tanpa kehilangan versi awal.",
     Assets: "Aset",
@@ -263,6 +267,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Kode sumber file tema",
     "Theme file source (read-only)": "Kode sumber file tema (hanya baca)",
     "Theme files": "File tema",
+    "File groups": "Grup file",
+    "Show all ({count})": "Tampilkan semua ({count})",
+    "Show fewer": "Tampilkan lebih sedikit",
     "Theme preview": "Pratinjau tema",
     "Theme preview, fullscreen": "Pratinjau tema, layar penuh",
     "This file type is read-only in Explore.": "Jenis file ini hanya-baca di Explore.",
@@ -320,6 +327,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Simpan sebagai asli",
     "Saved as this theme's original": "Disimpan sebagai asli tema ini",
     "failed to save the original": "Gagal menyimpan salinan asli",
+    "More actions for {name}": "Tindakan lain untuk {name}",
+    "Copy theme": "Salin tema",
+    "Delete theme…": "Hapus tema…",
+    "Delete {name}?": "Hapus {name}?",
+    "It moves to Trash.": "Tema akan dipindahkan ke Sampah.",
+    "Turn this theme off or activate another one first": "Matikan tema ini atau aktifkan tema lain terlebih dahulu",
+    "Built-in themes can't be deleted": "Tema bawaan tidak dapat dihapus",
+    "Moved \"{name}\" to Trash": "\"{name}\" dipindahkan ke Sampah",
+    "failed to delete theme": "Gagal menghapus tema",
   },
   de: {
     "Reload preview": "Vorschau neu laden",
@@ -331,7 +347,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Möchtest du {file} wirklich löschen? Dadurch wird die Datei dauerhaft entfernt. Es gibt keine Möglichkeit, sie wiederherzustellen.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Dies ersetzt {file} mit der Version aus dem Original-Design. Alle Änderungen, die du an dieser Datei vorgenommen hast, gehen verloren, und das kann nicht rückgängig gemacht werden.",
-    "← All themes": "← Alle Designs",
+    "All themes": "Alle Designs",
+    Soon: "Bald",
     Declarative: "Deklarativ",
     Templated: "Vorlagenbasiert",
     Static: "Statisch",
@@ -360,16 +377,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Ersatz-Startseite — wird unter / angezeigt, bis eine deiner Seiten als Startseite festgelegt ist",
     "Not shown — {title} is your home page": "Nicht angezeigt — {title} ist deine Startseite",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} ist die Startseite dieser Website, daher sehen Besucher sie unter / statt dieser Theme-Seite. Diese Theme-Seite wird nur angezeigt, wenn keine Seite als Startseite festgelegt ist.",
     "Always published — error page": "Immer veröffentlicht — Fehlerseite",
     "Not a standalone page — used as a content template":
       "Keine eigenständige Seite — wird als Inhaltsvorlage verwendet",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Ob diese Seite eine eigene öffentliche URL auf deiner Website hat. Theme-Seiten sind zunächst deaktiviert, da ein Theme allgemeine Platzhalterinhalte mitbringt und nicht deine. Aktiviere eine, sobald du sie zu deiner gemacht hast.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Ein Content-Eintrag teilt sich die URL dieser Seite: {title}. Welcher davon gewinnt, hängt vom Veröffentlichungsstatus dieser Seite und der eigenen Override-Entscheidung dieses Eintrags ab, nicht allein von diesem Schalter.",
-    "Open {title}": "{title} öffnen",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Ein unverändertes Original wird separat aufbewahrt, sodass du hier alles ändern kannst, ohne deinen Ausgangspunkt zu verlieren.",
     Assets: "Assets",
@@ -419,6 +431,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Quellcode der Design-Datei",
     "Theme file source (read-only)": "Quellcode der Design-Datei (schreibgeschützt)",
     "Theme files": "Design-Dateien",
+    "File groups": "Dateigruppen",
+    "Show all ({count})": "Alle anzeigen ({count})",
+    "Show fewer": "Weniger anzeigen",
     "Theme preview": "Design-Vorschau",
     "Theme preview, fullscreen": "Design-Vorschau, Vollbild",
     "This file type is read-only in Explore.": "Dieser Dateityp ist in Explore schreibgeschützt.",
@@ -476,6 +491,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Als Original speichern",
     "Saved as this theme's original": "Als Original dieses Designs gespeichert",
     "failed to save the original": "Original konnte nicht gespeichert werden",
+    "More actions for {name}": "Weitere Aktionen für {name}",
+    "Copy theme": "Theme kopieren",
+    "Delete theme…": "Theme löschen…",
+    "Delete {name}?": "{name} löschen?",
+    "It moves to Trash.": "Es wird in den Papierkorb verschoben.",
+    "Turn this theme off or activate another one first": "Schalte dieses Theme zuerst aus oder aktiviere ein anderes",
+    "Built-in themes can't be deleted": "Integrierte Themes können nicht gelöscht werden",
+    "Moved \"{name}\" to Trash": "\"{name}\" in den Papierkorb verschoben",
+    "failed to delete theme": "Theme konnte nicht gelöscht werden",
   },
   "zh-CN": {
     "Reload preview": "重新加载预览",
@@ -487,7 +511,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "确定要删除 {file} 吗？这将永久删除该文件，无法恢复。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "这将把 {file} 替换为原始主题的版本。你对此文件所做的任何改动都将丢失，且此操作无法撤销。",
-    "← All themes": "← 所有主题",
+    "All themes": "所有主题",
+    Soon: "即将推出",
     Declarative: "声明式",
     Templated: "模板式",
     Static: "静态",
@@ -516,15 +541,10 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "备用首页 — 在 / 显示，直到你的某个页面被设为首页",
     "Not shown — {title} is your home page": "未显示 — {title} 是你的首页",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} 是本站的首页，因此访客在 / 看到的是它，而不是这个主题页面。只有在没有页面被设为首页时，才会显示这个主题页面。",
     "Always published — error page": "始终发布——错误页面",
     "Not a standalone page — used as a content template": "非独立页面——用作内容模板",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "此页面是否在你的网站上拥有自己的公开网址。主题页面默认关闭，因为主题自带的是通用占位内容，而不是你的内容。当你把它改成自己的内容后再开启。",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "有一条内容记录与此页面共用同一个网址：{title}。最终由哪一个胜出，取决于此页面的发布状态和该记录自身的覆盖选择，而不仅仅是这个开关。",
-    "Open {title}": "打开 {title}",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "系统会单独保留一份未改动的原始文件，因此你可以在这里自由修改，而不会丢失最初的版本。",
     Assets: "资源",
@@ -574,6 +594,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "主题文件源代码",
     "Theme file source (read-only)": "主题文件源代码（只读）",
     "Theme files": "主题文件",
+    "File groups": "文件分组",
+    "Show all ({count})": "显示全部（{count}）",
+    "Show fewer": "收起",
     "Theme preview": "主题预览",
     "Theme preview, fullscreen": "主题预览，全屏",
     "This file type is read-only in Explore.": "此文件类型在浏览模式下为只读。",
@@ -625,6 +648,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "保存为原始版本",
     "Saved as this theme's original": "已保存为此主题的原始版本",
     "failed to save the original": "无法保存原始版本",
+    "More actions for {name}": "{name} 的更多操作",
+    "Copy theme": "复制主题",
+    "Delete theme…": "删除主题…",
+    "Delete {name}?": "删除 {name}？",
+    "It moves to Trash.": "它将被移到回收站。",
+    "Turn this theme off or activate another one first": "请先关闭此主题或启用其他主题",
+    "Built-in themes can't be deleted": "内置主题无法删除",
+    "Moved \"{name}\" to Trash": "已将“{name}”移到回收站",
+    "failed to delete theme": "无法删除主题",
   },
   "zh-TW": {
     "Reload preview": "重新載入預覽",
@@ -636,7 +668,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "確定要刪除 {file} 嗎？這將永久刪除該檔案，無法復原。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "這將把 {file} 取代為原始佈景主題的版本。你對此檔案所做的任何改動都將遺失，且此操作無法復原。",
-    "← All themes": "← 所有佈景主題",
+    "All themes": "所有佈景主題",
+    Soon: "即將推出",
     Declarative: "宣告式",
     Templated: "範本式",
     Static: "靜態",
@@ -665,15 +698,10 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "備用首頁 — 在 / 顯示，直到你的某個頁面被設為首頁",
     "Not shown — {title} is your home page": "未顯示 — {title} 是你的首頁",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} 是本站的首頁，因此訪客在 / 看到的是它，而不是這個主題頁面。只有在沒有頁面被設為首頁時，才會顯示這個主題頁面。",
     "Always published — error page": "永遠發布 — 錯誤頁面",
     "Not a standalone page — used as a content template": "非獨立頁面 — 用作內容範本",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "此頁面是否在你的網站上擁有自己的公開網址。佈景主題頁面預設為關閉，因為佈景主題附帶的是通用預留內容，而不是你的內容。當你把它改成自己的內容後再開啟。",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "有一筆內容記錄與此頁面共用同一個網址：{title}。最終由哪一個勝出，取決於此頁面的發布狀態和該記錄自身的覆寫選擇，而不只是這個開關。",
-    "Open {title}": "開啟 {title}",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "系統會另外保留一份未經修改的原始檔案，因此你可以在這裡自由修改，而不會遺失最初的版本。",
     Assets: "資源",
@@ -723,6 +751,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "佈景主題檔案原始碼",
     "Theme file source (read-only)": "佈景主題檔案原始碼（唯讀）",
     "Theme files": "佈景主題檔案",
+    "File groups": "檔案分組",
+    "Show all ({count})": "顯示全部（{count}）",
+    "Show fewer": "收合",
     "Theme preview": "佈景主題預覽",
     "Theme preview, fullscreen": "佈景主題預覽，全螢幕",
     "This file type is read-only in Explore.": "此檔案類型在瀏覽模式下為唯讀。",
@@ -778,6 +809,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "儲存為原始版本",
     "Saved as this theme's original": "已儲存為此佈景主題的原始版本",
     "failed to save the original": "無法儲存原始版本",
+    "More actions for {name}": "{name} 的更多動作",
+    "Copy theme": "複製佈景主題",
+    "Delete theme…": "刪除佈景主題…",
+    "Delete {name}?": "刪除 {name}？",
+    "It moves to Trash.": "它會移到垃圾桶。",
+    "Turn this theme off or activate another one first": "請先關閉此佈景主題或啟用其他佈景主題",
+    "Built-in themes can't be deleted": "內建佈景主題無法刪除",
+    "Moved \"{name}\" to Trash": "已將「{name}」移到垃圾桶",
+    "failed to delete theme": "無法刪除佈景主題",
   },
   "pt-BR": {
     "Reload preview": "Recarregar prévia",
@@ -789,7 +829,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Tem certeza de que deseja excluir {file}? Isso remove o arquivo permanentemente. Não há como recuperá-lo.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Isso substitui {file} pela versão do tema original. Todas as alterações feitas neste arquivo serão perdidas, e isso não pode ser desfeito.",
-    "← All themes": "← Todos os temas",
+    "All themes": "Todos os temas",
+    Soon: "Em breve",
     Declarative: "Declarativo",
     Templated: "Baseado em modelo",
     Static: "Estático",
@@ -818,16 +859,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Página inicial reserva — exibida em / até que uma das suas páginas seja definida como página inicial",
     "Not shown — {title} is your home page": "Não exibida — {title} é a sua página inicial",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} é a página inicial deste site, então os visitantes a veem em / em vez desta página do tema. Esta página do tema só é exibida quando nenhuma página está definida como página inicial.",
     "Always published — error page": "Sempre publicada — página de erro",
     "Not a standalone page — used as a content template":
       "Não é uma página independente — usada como modelo de conteúdo",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Se esta página tem a própria URL pública no seu site. As páginas do tema começam desativadas, porque um tema traz conteúdo genérico de exemplo, não o seu. Ative uma quando ela já for sua.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Um registro de conteúdo compartilha a URL desta página: {title}. Qual dos dois vence depende do estado de publicação desta página e da própria escolha de substituição desse registro, não apenas deste botão.",
-    "Open {title}": "Abrir {title}",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Um original intocado é mantido separadamente, para que você possa alterar qualquer coisa aqui sem perder o ponto de partida.",
     Assets: "Recursos",
@@ -877,6 +913,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Código-fonte do arquivo do tema",
     "Theme file source (read-only)": "Código-fonte do arquivo do tema (somente leitura)",
     "Theme files": "Arquivos do tema",
+    "File groups": "Grupos de arquivos",
+    "Show all ({count})": "Mostrar tudo ({count})",
+    "Show fewer": "Mostrar menos",
     "Theme preview": "Visualização do tema",
     "Theme preview, fullscreen": "Visualização do tema, tela cheia",
     "This file type is read-only in Explore.": "Este tipo de arquivo é somente leitura no Explorar.",
@@ -934,6 +973,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Salvar como original",
     "Saved as this theme's original": "Salvo como original deste tema",
     "failed to save the original": "Não foi possível salvar o original",
+    "More actions for {name}": "Mais ações para {name}",
+    "Copy theme": "Copiar tema",
+    "Delete theme…": "Excluir tema…",
+    "Delete {name}?": "Excluir {name}?",
+    "It moves to Trash.": "Ele vai para a Lixeira.",
+    "Turn this theme off or activate another one first": "Desative este tema ou ative outro primeiro",
+    "Built-in themes can't be deleted": "Temas integrados não podem ser excluídos",
+    "Moved \"{name}\" to Trash": "\"{name}\" foi movido para a Lixeira",
+    "failed to delete theme": "Não foi possível excluir o tema",
   },
   ru: {
     "Reload preview": "Перезагрузить предпросмотр",
@@ -945,7 +993,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Вы уверены, что хотите удалить {file}? Это безвозвратно удалит файл. Восстановить его будет невозможно.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Это заменит {file} версией из исходной темы. Все изменения, внесённые в этот файл, будут потеряны, и это нельзя отменить.",
-    "← All themes": "← Все темы",
+    "All themes": "Все темы",
+    Soon: "Скоро",
     Declarative: "Декларативный",
     Templated: "На основе шаблонов",
     Static: "Статический",
@@ -974,16 +1023,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Резервная главная страница — показывается по адресу /, пока одна из ваших страниц не назначена главной",
     "Not shown — {title} is your home page": "Не показывается — {title} является вашей главной страницей",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} — главная страница этого сайта, поэтому посетители видят её по адресу / вместо этой страницы темы. Эта страница темы показывается, только если ни одна страница не назначена главной.",
     "Always published — error page": "Всегда опубликована — страница ошибки",
     "Not a standalone page — used as a content template":
       "Не отдельная страница — используется как шаблон контента",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Есть ли у этой страницы собственный публичный URL на вашем сайте. Страницы темы по умолчанию отключены, поскольку тема содержит универсальный демонстрационный контент, а не ваш. Включите страницу, когда наполните её своим содержимым.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Запись контента использует тот же URL, что и эта страница: {title}. Какая из них победит, зависит от статуса публикации этой страницы и собственного выбора переопределения этой записи, а не только от этого переключателя.",
-    "Open {title}": "Открыть {title}",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "Нетронутый оригинал хранится отдельно, поэтому вы можете менять здесь что угодно, не теряя исходную версию.",
     Assets: "Ресурсы",
@@ -1033,6 +1077,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Исходный код файла темы",
     "Theme file source (read-only)": "Исходный код файла темы (только для чтения)",
     "Theme files": "Файлы темы",
+    "File groups": "Группы файлов",
+    "Show all ({count})": "Показать все ({count})",
+    "Show fewer": "Свернуть",
     "Theme preview": "Просмотр темы",
     "Theme preview, fullscreen": "Просмотр темы, во весь экран",
     "This file type is read-only in Explore.": "Этот тип файла доступен только для чтения в режиме обзора.",
@@ -1090,6 +1137,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Сохранить как оригинал",
     "Saved as this theme's original": "Сохранено как оригинал этой темы",
     "failed to save the original": "Не удалось сохранить оригинал",
+    "More actions for {name}": "Другие действия для {name}",
+    "Copy theme": "Копировать тему",
+    "Delete theme…": "Удалить тему…",
+    "Delete {name}?": "Удалить {name}?",
+    "It moves to Trash.": "Тема будет перемещена в корзину.",
+    "Turn this theme off or activate another one first": "Сначала отключите эту тему или активируйте другую",
+    "Built-in themes can't be deleted": "Встроенные темы нельзя удалить",
+    "Moved \"{name}\" to Trash": "«{name}» перемещена в корзину",
+    "failed to delete theme": "Не удалось удалить тему",
   },
   fa: {
     "Reload preview": "بارگذاری مجدد پیش‌نمایش",
@@ -1101,7 +1157,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "آیا مطمئن هستید که می‌خواهید {file} را حذف کنید؟ این کار فایل را برای همیشه حذف می‌کند. هیچ راهی برای بازیابی آن وجود ندارد.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "این {file} را با نسخه پوسته اصلی جایگزین می‌کند. هر تغییری که در این فایل داده‌اید از بین خواهد رفت و این کار قابل بازگشت نیست.",
-    "← All themes": "← همه پوسته‌ها",
+    "All themes": "همه پوسته‌ها",
+    Soon: "به‌زودی",
     Declarative: "اعلانی",
     Templated: "مبتنی بر قالب",
     Static: "ایستا",
@@ -1130,16 +1187,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "صفحهٔ اصلی جایگزین — تا زمانی که یکی از صفحه‌های شما به‌عنوان صفحهٔ اصلی تنظیم نشده، در / نمایش داده می‌شود",
     "Not shown — {title} is your home page": "نمایش داده نمی‌شود — {title} صفحهٔ اصلی شماست",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} صفحهٔ اصلی این سایت است، بنابراین بازدیدکنندگان به‌جای این صفحهٔ پوسته، آن را در / می‌بینند. این صفحهٔ پوسته فقط وقتی نمایش داده می‌شود که هیچ صفحه‌ای به‌عنوان صفحهٔ اصلی تنظیم نشده باشد.",
     "Always published — error page": "همیشه منتشر شده — صفحه خطا",
     "Not a standalone page — used as a content template":
       "صفحه‌ای مستقل نیست — به‌عنوان قالب محتوا استفاده می‌شود",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "اینکه آیا این صفحه نشانی اینترنتی زنده‌ی خودش را در سایت شما دارد. صفحه‌های پوسته به‌طور پیش‌فرض خاموش هستند، چون پوسته محتوای نمونه‌ی عمومی دارد نه محتوای شما. پس از آنکه صفحه را از آنِ خود کردید، آن را روشن کنید.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "یک رکورد محتوا همین نشانی این صفحه را دارد: {title}. اینکه کدام‌یک برنده می‌شود به وضعیت انتشار این صفحه و انتخاب لغو (override) خودِ آن رکورد بستگی دارد، نه فقط این کلید.",
-    "Open {title}": "باز کردن {title}",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "یک نسخه اصلی دست‌نخورده جداگانه نگه‌داری می‌شود، بنابراین می‌توانید هر چیزی را اینجا تغییر دهید بدون آنکه نقطه شروع خود را از دست بدهید.",
     Assets: "دارایی‌ها",
@@ -1189,6 +1241,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "کد منبع فایل پوسته",
     "Theme file source (read-only)": "کد منبع فایل پوسته (فقط‌خواندنی)",
     "Theme files": "فایل‌های پوسته",
+    "File groups": "گروه‌های فایل",
+    "Show all ({count})": "نمایش همه ({count})",
+    "Show fewer": "نمایش کمتر",
     "Theme preview": "پیش‌نمایش پوسته",
     "Theme preview, fullscreen": "پیش‌نمایش پوسته، تمام‌صفحه",
     "This file type is read-only in Explore.": "این نوع فایل در کاوش فقط‌خواندنی است.",
@@ -1246,6 +1301,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "ذخیره به‌عنوان نسخهٔ اصلی",
     "Saved as this theme's original": "به‌عنوان نسخهٔ اصلی این پوسته ذخیره شد",
     "failed to save the original": "ذخیرهٔ نسخهٔ اصلی انجام نشد",
+    "More actions for {name}": "کارهای بیشتر برای {name}",
+    "Copy theme": "کپی پوسته",
+    "Delete theme…": "حذف پوسته…",
+    "Delete {name}?": "{name} حذف شود؟",
+    "It moves to Trash.": "به سطل زباله منتقل می‌شود.",
+    "Turn this theme off or activate another one first": "ابتدا این پوسته را خاموش کنید یا پوستهٔ دیگری را فعال کنید",
+    "Built-in themes can't be deleted": "پوسته‌های داخلی قابل حذف نیستند",
+    "Moved \"{name}\" to Trash": "«{name}» به سطل زباله منتقل شد",
+    "failed to delete theme": "حذف پوسته ناموفق بود",
   },
   ar: {
     "Reload preview": "إعادة تحميل المعاينة",
@@ -1257,7 +1321,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "هل أنت متأكد أنك تريد حذف {file}؟ سيؤدي هذا إلى حذف الملف نهائيًا. لا توجد طريقة لاستعادته.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "سيستبدل هذا {file} بالنسخة من القالب الأصلي. ستُفقد أي تعديلات أجريتها على هذا الملف، ولا يمكن التراجع عن ذلك.",
-    "← All themes": "← جميع القوالب",
+    "All themes": "جميع القوالب",
+    Soon: "قريبًا",
     Declarative: "تصريحي",
     Templated: "قائم على القوالب",
     Static: "ثابت",
@@ -1286,16 +1351,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "صفحة رئيسية احتياطية — تُعرض في / إلى أن تُعيَّن إحدى صفحاتك كصفحة رئيسية",
     "Not shown — {title} is your home page": "غير معروضة — {title} هي صفحتك الرئيسية",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} هي الصفحة الرئيسية لهذا الموقع، لذا يراها الزوار في / بدلًا من صفحة القالب هذه. لا تُعرض صفحة القالب هذه إلا عندما لا تكون أي صفحة معيّنة كصفحة رئيسية.",
     "Always published — error page": "منشورة دائمًا — صفحة الخطأ",
     "Not a standalone page — used as a content template":
       "ليست صفحة مستقلة — تُستخدم كقالب محتوى",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "ما إذا كانت هذه الصفحة تملك عنوان URL مباشرًا خاصًا بها على موقعك. صفحات القالب تبدأ متوقفة، لأن القالب يأتي بمحتوى عام مؤقت وليس محتواك. فعّلها بعد أن تجعلها خاصة بك.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "يشارك سجل محتوى نفس عنوان URL الخاص بهذه الصفحة: {title}. من يفوز يعتمد على حالة نشر هذه الصفحة وخيار التجاوز الخاص بذلك السجل، وليس على هذا المفتاح وحده.",
-    "Open {title}": "فتح {title}",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
       "يُحتفظ بنسخة أصلية لم تُمس بشكل منفصل، لذا يمكنك تغيير أي شيء هنا دون أن تفقد نقطة البداية.",
     Assets: "الأصول",
@@ -1345,6 +1405,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "المصدر البرمجي لملف القالب",
     "Theme file source (read-only)": "المصدر البرمجي لملف القالب (للقراءة فقط)",
     "Theme files": "ملفات القالب",
+    "File groups": "مجموعات الملفات",
+    "Show all ({count})": "عرض الكل ({count})",
+    "Show fewer": "عرض أقل",
     "Theme preview": "معاينة القالب",
     "Theme preview, fullscreen": "معاينة القالب، بملء الشاشة",
     "This file type is read-only in Explore.": "نوع الملف هذا للقراءة فقط في الاستكشاف.",
@@ -1402,6 +1465,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "حفظ كنسخة أصلية",
     "Saved as this theme's original": "تم الحفظ كنسخة أصلية لهذا القالب",
     "failed to save the original": "تعذّر حفظ النسخة الأصلية",
+    "More actions for {name}": "إجراءات أخرى لـ {name}",
+    "Copy theme": "نسخ القالب",
+    "Delete theme…": "حذف القالب…",
+    "Delete {name}?": "حذف {name}؟",
+    "It moves to Trash.": "سيُنقل إلى سلة المهملات.",
+    "Turn this theme off or activate another one first": "أوقف هذا القالب أو فعّل قالبًا آخر أولًا",
+    "Built-in themes can't be deleted": "لا يمكن حذف القوالب المضمّنة",
+    "Moved \"{name}\" to Trash": "نُقل \"{name}\" إلى سلة المهملات",
+    "failed to delete theme": "تعذّر حذف القالب",
   },
   ja: {
     "Reload preview": "プレビューを再読み込み",
@@ -1413,7 +1485,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} を本当に削除しますか？ この操作でファイルは完全に削除されます。元に戻す方法はありません。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "{file} は元のテーマのバージョンに置き換えられます。このファイルに加えた変更は失われ、元に戻すことはできません。",
-    "← All themes": "← すべてのテーマ",
+    "All themes": "すべてのテーマ",
+    Soon: "近日公開",
     Explore: "閲覧",
     Modified: "変更済み",
     "Modified from the original": "元のファイルから変更されています",
@@ -1440,16 +1513,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "代替ホームページ — いずれかのページがホームページに設定されるまで / に表示されます",
     "Not shown — {title} is your home page": "表示されません — {title} がホームページです",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} はこのサイトのホームページのため、訪問者には / でこのテーマページの代わりにそれが表示されます。このテーマページは、ホームページに設定されたページがない場合にのみ表示されます。",
     "Always published — error page": "常に公開 — エラーページ",
     "Not a standalone page — used as a content template":
       "独立したページではありません — コンテンツテンプレートとして使用されます",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "このページがサイト上に独自の公開URLを持つかどうか。テーマのページは既定でオフです。テーマにはあなたの内容ではなく汎用のサンプル内容が入っているためです。自分の内容にしてからオンにしてください。",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "コンテンツレコード「{title}」がこのページと同じURLを共有しています。どちらが実際に表示されるかは、このページの公開状態とそのレコード自身の上書き設定によって決まり、このスイッチだけでは決まりません。",
-    "Open {title}": "{title} を開く",
     "Rescan themes": "テーマを再スキャン",
     "Rescanning…": "再スキャン中…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -1501,6 +1569,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "テーマファイルのソース",
     "Theme file source (read-only)": "テーマファイルのソース（読み取り専用）",
     "Theme files": "テーマファイル",
+    "File groups": "ファイルグループ",
+    "Show all ({count})": "すべて表示（{count}）",
+    "Show fewer": "表示を減らす",
     "Theme preview": "テーマのプレビュー",
     "Theme preview, fullscreen": "テーマのプレビュー、フルスクリーン",
     "This file type is read-only in Explore.": "このファイル形式はExploreでは読み取り専用です。",
@@ -1557,6 +1628,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "オリジナルとして保存",
     "Saved as this theme's original": "このテーマのオリジナルとして保存しました",
     "failed to save the original": "オリジナルを保存できませんでした",
+    "More actions for {name}": "{name} のその他の操作",
+    "Copy theme": "テーマをコピー",
+    "Delete theme…": "テーマを削除…",
+    "Delete {name}?": "{name} を削除しますか？",
+    "It moves to Trash.": "ゴミ箱に移動します。",
+    "Turn this theme off or activate another one first": "先にこのテーマをオフにするか、別のテーマを有効にしてください",
+    "Built-in themes can't be deleted": "組み込みテーマは削除できません",
+    "Moved \"{name}\" to Trash": "「{name}」をゴミ箱に移動しました",
+    "failed to delete theme": "テーマを削除できませんでした",
   },
   ko: {
     "Reload preview": "미리보기 새로고침",
@@ -1568,7 +1648,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file}을 정말 삭제하시겠습니까? 이 작업은 파일을 영구적으로 삭제합니다. 다시 되돌릴 방법이 없습니다.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "이 작업은 {file}을 원본 테마의 버전으로 대체합니다. 이 파일에 적용한 변경 사항은 모두 사라지며 되돌릴 수 없습니다.",
-    "← All themes": "← 모든 테마",
+    "All themes": "모든 테마",
+    Soon: "준비 중",
     Explore: "둘러보기",
     Modified: "수정됨",
     "Modified from the original": "원본에서 수정됨",
@@ -1595,16 +1676,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "대체 홈페이지 — 페이지 중 하나가 홈페이지로 설정될 때까지 /에 표시됩니다",
     "Not shown — {title} is your home page": "표시되지 않음 — {title}이(가) 홈페이지입니다",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title}이(가) 이 사이트의 홈페이지이므로 방문자는 / 에서 이 테마 페이지 대신 그것을 봅니다. 이 테마 페이지는 홈페이지로 설정된 페이지가 없을 때만 표시됩니다.",
     "Always published — error page": "항상 게시됨 — 오류 페이지",
     "Not a standalone page — used as a content template":
       "독립된 페이지가 아님 — 콘텐츠 템플릿으로 사용됨",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "이 페이지가 사이트에서 자체 공개 URL을 갖는지 여부입니다. 테마 페이지는 기본적으로 꺼져 있습니다. 테마에는 내 콘텐츠가 아니라 일반적인 예시 콘텐츠가 들어 있기 때문입니다. 내 콘텐츠로 바꾼 뒤에 켜세요.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "콘텐츠 레코드 “{title}”이(가) 이 페이지와 동일한 URL을 공유합니다. 어느 쪽이 실제로 표시되는지는 이 페이지의 게시 상태와 해당 레코드 자체의 재정의 선택에 따라 달라지며, 이 스위치만으로 결정되지 않습니다.",
-    "Open {title}": "{title} 열기",
     "Rescan themes": "테마 다시 스캔",
     "Rescanning…": "다시 스캔 중…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -1656,6 +1732,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "테마 파일 소스",
     "Theme file source (read-only)": "테마 파일 소스 (읽기 전용)",
     "Theme files": "테마 파일",
+    "File groups": "파일 그룹",
+    "Show all ({count})": "모두 보기({count})",
+    "Show fewer": "간단히 보기",
     "Theme preview": "테마 미리보기",
     "Theme preview, fullscreen": "테마 미리보기, 전체 화면",
     "This file type is read-only in Explore.": "이 파일 형식은 Explore에서 읽기 전용입니다.",
@@ -1712,6 +1791,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "원본으로 저장",
     "Saved as this theme's original": "이 테마의 원본으로 저장했습니다",
     "failed to save the original": "원본을 저장하지 못했습니다",
+    "More actions for {name}": "{name} 추가 작업",
+    "Copy theme": "테마 복사",
+    "Delete theme…": "테마 삭제…",
+    "Delete {name}?": "{name}을(를) 삭제할까요?",
+    "It moves to Trash.": "휴지통으로 이동합니다.",
+    "Turn this theme off or activate another one first": "먼저 이 테마를 끄거나 다른 테마를 활성화하세요",
+    "Built-in themes can't be deleted": "기본 제공 테마는 삭제할 수 없습니다",
+    "Moved \"{name}\" to Trash": "\"{name}\"을(를) 휴지통으로 이동했습니다",
+    "failed to delete theme": "테마를 삭제하지 못했습니다",
   },
   pl: {
     "Reload preview": "Odśwież podgląd",
@@ -1723,7 +1811,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Czy na pewno chcesz usunąć {file}? Spowoduje to trwałe usunięcie pliku. Nie ma możliwości jego odzyskania.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "To zastąpi {file} wersją z oryginalnego motywu. Wszystkie zmiany wprowadzone w tym pliku zostaną utracone, a tej operacji nie można cofnąć.",
-    "← All themes": "← Wszystkie motywy",
+    "All themes": "Wszystkie motywy",
+    Soon: "Wkrótce",
     Explore: "Przeglądaj",
     Modified: "Zmodyfikowany",
     "Modified from the original": "Zmodyfikowany względem oryginału",
@@ -1750,16 +1839,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Zastępcza strona główna — wyświetlana pod /, dopóki jedna z Twoich stron nie zostanie ustawiona jako strona główna",
     "Not shown — {title} is your home page": "Niewyświetlana — {title} jest Twoją stroną główną",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} jest stroną główną tej witryny, więc odwiedzający widzą ją pod / zamiast tej strony motywu. Ta strona motywu jest wyświetlana tylko wtedy, gdy żadna strona nie jest ustawiona jako strona główna.",
     "Always published — error page": "Zawsze opublikowana — strona błędu",
     "Not a standalone page — used as a content template":
       "Nie jest samodzielną stroną — używana jako szablon treści",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Czy ta strona ma własny publiczny adres URL w Twojej witrynie. Strony motywu są domyślnie wyłączone, ponieważ motyw zawiera ogólną treść zastępczą, a nie Twoją. Włącz stronę, gdy stanie się już Twoja.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Rekord treści współdzieli adres URL z tą stroną: {title}. To, który z nich wygrywa, zależy od stanu publikacji tej strony oraz własnego wyboru zastąpienia tego rekordu, a nie tylko od tego przełącznika.",
-    "Open {title}": "Otwórz {title}",
     "Rescan themes": "Skanuj motywy ponownie",
     "Rescanning…": "Ponowne skanowanie…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -1811,6 +1895,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Kod źródłowy pliku motywu",
     "Theme file source (read-only)": "Kod źródłowy pliku motywu (tylko do odczytu)",
     "Theme files": "Pliki motywu",
+    "File groups": "Grupy plików",
+    "Show all ({count})": "Pokaż wszystkie ({count})",
+    "Show fewer": "Pokaż mniej",
     "Theme preview": "Podgląd motywu",
     "Theme preview, fullscreen": "Podgląd motywu, pełny ekran",
     "This file type is read-only in Explore.": "Ten typ pliku jest tylko do odczytu w Eksploracji.",
@@ -1868,6 +1955,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Zapisz jako oryginał",
     "Saved as this theme's original": "Zapisano jako oryginał tego motywu",
     "failed to save the original": "Nie udało się zapisać oryginału",
+    "More actions for {name}": "Więcej działań dla {name}",
+    "Copy theme": "Kopiuj motyw",
+    "Delete theme…": "Usuń motyw…",
+    "Delete {name}?": "Usunąć {name}?",
+    "It moves to Trash.": "Trafi do Kosza.",
+    "Turn this theme off or activate another one first": "Najpierw wyłącz ten motyw lub aktywuj inny",
+    "Built-in themes can't be deleted": "Wbudowanych motywów nie można usunąć",
+    "Moved \"{name}\" to Trash": "Przeniesiono „{name}” do Kosza",
+    "failed to delete theme": "Nie udało się usunąć motywu",
   },
   hu: {
     "Reload preview": "Előnézet újratöltése",
@@ -1879,7 +1975,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Biztosan törölni szeretnéd a {file} fájlt? Ez véglegesen eltávolítja a fájlt. Nincs mód a visszaszerzésére.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ez lecseréli a {file} fájlt az eredeti sablon verziójára. Az ezen a fájlon végzett módosítások elvesznek, és ez nem vonható vissza.",
-    "← All themes": "← Összes téma",
+    "All themes": "Összes téma",
+    Soon: "Hamarosan",
     Explore: "Böngészés",
     Modified: "Módosítva",
     "Modified from the original": "Az eredetihez képest módosítva",
@@ -1906,16 +2003,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Tartalék kezdőlap — a / címen jelenik meg, amíg valamelyik oldalad nincs kezdőlapként beállítva",
     "Not shown — {title} is your home page": "Nem jelenik meg — {title} a kezdőlapod",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} ennek a webhelynek a kezdőlapja, ezért a látogatók a / címen azt látják e témaoldal helyett. Ez a témaoldal csak akkor jelenik meg, ha egyetlen oldal sincs kezdőlapként beállítva.",
     "Always published — error page": "Mindig közzétéve — hibaoldal",
     "Not a standalone page — used as a content template":
       "Nem önálló oldal — tartalomsablonként használva",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Van-e ennek az oldalnak saját élő URL-je a webhelyeden. A sablon oldalai alapértelmezés szerint ki vannak kapcsolva, mert a sablon általános helykitöltő tartalmat hoz magával, nem a tiédet. Kapcsold be, ha már a sajátoddá tetted.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Egy tartalomrekord osztozik ennek az oldalnak az URL-jén: {title}. Hogy melyik nyer, az az oldal közzétételi állapotától és a rekord saját felülbírálási választásától függ, nem csak ettől a kapcsolótól.",
-    "Open {title}": "{title} megnyitása",
     "Rescan themes": "Sablonok újraszkennelése",
     "Rescanning…": "Újraszkennelés…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -1967,6 +2059,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Sablonfájl forráskódja",
     "Theme file source (read-only)": "Sablonfájl forráskódja (csak olvasható)",
     "Theme files": "Sablonfájlok",
+    "File groups": "Fájlcsoportok",
+    "Show all ({count})": "Összes megjelenítése ({count})",
+    "Show fewer": "Kevesebb megjelenítése",
     "Theme preview": "Sablon előnézete",
     "Theme preview, fullscreen": "Sablon előnézete, teljes képernyő",
     "This file type is read-only in Explore.": "Ez a fájltípus csak olvasható az Exploreban.",
@@ -2024,6 +2119,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Mentés eredetiként",
     "Saved as this theme's original": "Elmentve a téma eredetijeként",
     "failed to save the original": "Nem sikerült menteni az eredetit",
+    "More actions for {name}": "További műveletek: {name}",
+    "Copy theme": "Téma másolása",
+    "Delete theme…": "Téma törlése…",
+    "Delete {name}?": "Törlöd ezt: {name}?",
+    "It moves to Trash.": "A Kukába kerül.",
+    "Turn this theme off or activate another one first": "Előbb kapcsold ki ezt a témát, vagy aktiválj egy másikat",
+    "Built-in themes can't be deleted": "A beépített témák nem törölhetők",
+    "Moved \"{name}\" to Trash": "„{name}” a Kukába került",
+    "failed to delete theme": "Nem sikerült törölni a témát",
   },
   fr: {
     "Reload preview": "Recharger l’aperçu",
@@ -2035,7 +2139,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Voulez-vous vraiment supprimer {file} ? Ceci supprime définitivement le fichier. Il n'y a aucun moyen de le récupérer.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ceci remplace {file} par la version du thème d'origine. Toutes les modifications que vous avez apportées à ce fichier seront perdues, et cette action est irréversible.",
-    "← All themes": "← Tous les thèmes",
+    "All themes": "Tous les thèmes",
+    Soon: "Bientôt",
     Explore: "Explorer",
     Modified: "Modifié",
     "Modified from the original": "Modifié par rapport à l'original",
@@ -2062,16 +2167,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Page d’accueil de secours — affichée à / jusqu’à ce qu’une de vos pages soit définie comme page d’accueil",
     "Not shown — {title} is your home page": "Non affichée — {title} est votre page d’accueil",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} est la page d’accueil de ce site : les visiteurs la voient à / au lieu de cette page du thème. Cette page du thème ne s’affiche que lorsqu’aucune page n’est définie comme page d’accueil.",
     "Always published — error page": "Toujours publiée — page d'erreur",
     "Not a standalone page — used as a content template":
       "Pas une page autonome — utilisée comme modèle de contenu",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Indique si cette page possède sa propre URL publique sur votre site. Les pages du thème sont désactivées par défaut, car un thème fournit un contenu générique d'exemple et non le vôtre. Activez-en une une fois que vous l'avez faite vôtre.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Un contenu partage l'URL de cette page : {title}. Celui qui l'emporte dépend de l'état de publication de cette page et du choix de remplacement propre à ce contenu, pas uniquement de cet interrupteur.",
-    "Open {title}": "Ouvrir {title}",
     "Rescan themes": "Réanalyser les thèmes",
     "Rescanning…": "Réanalyse…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -2123,6 +2223,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Code source du fichier du thème",
     "Theme file source (read-only)": "Code source du fichier du thème (lecture seule)",
     "Theme files": "Fichiers du thème",
+    "File groups": "Groupes de fichiers",
+    "Show all ({count})": "Tout afficher ({count})",
+    "Show fewer": "Afficher moins",
     "Theme preview": "Aperçu du thème",
     "Theme preview, fullscreen": "Aperçu du thème, plein écran",
     "This file type is read-only in Explore.": "Ce type de fichier est en lecture seule dans Explorer.",
@@ -2180,6 +2283,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Enregistrer comme original",
     "Saved as this theme's original": "Enregistré comme original de ce thème",
     "failed to save the original": "Impossible d’enregistrer l’original",
+    "More actions for {name}": "Plus d’actions pour {name}",
+    "Copy theme": "Copier le thème",
+    "Delete theme…": "Supprimer le thème…",
+    "Delete {name}?": "Supprimer {name} ?",
+    "It moves to Trash.": "Il sera placé dans la corbeille.",
+    "Turn this theme off or activate another one first": "Désactivez ce thème ou activez-en un autre d’abord",
+    "Built-in themes can't be deleted": "Les thèmes intégrés ne peuvent pas être supprimés",
+    "Moved \"{name}\" to Trash": "« {name} » placé dans la corbeille",
+    "failed to delete theme": "Impossible de supprimer le thème",
   },
   uk: {
     "Reload preview": "Перезавантажити попередній перегляд",
@@ -2191,7 +2303,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Ви впевнені, що хочете видалити {file}? Це остаточно видалить файл. Відновити його буде неможливо.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Це замінить {file} версією з початкової теми. Усі зміни, внесені до цього файлу, буде втрачено, і це неможливо скасувати.",
-    "← All themes": "← Усі теми",
+    "All themes": "Усі теми",
+    Soon: "Скоро",
     Explore: "Огляд",
     Modified: "Змінено",
     "Modified from the original": "Змінено порівняно з оригіналом",
@@ -2218,16 +2331,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Резервна головна сторінка — показується за адресою /, доки одну з ваших сторінок не призначено головною",
     "Not shown — {title} is your home page": "Не показується — {title} є вашою головною сторінкою",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} — головна сторінка цього сайту, тому відвідувачі бачать її за адресою / замість цієї сторінки теми. Ця сторінка теми показується, лише якщо жодну сторінку не призначено головною.",
     "Always published — error page": "Завжди опублікована — сторінка помилки",
     "Not a standalone page — used as a content template":
       "Не окрема сторінка — використовується як шаблон контенту",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Чи має ця сторінка власну публічну URL-адресу на вашому сайті. Сторінки теми типово вимкнені, бо тема містить загальний демонстраційний вміст, а не ваш. Увімкніть сторінку, коли наповните її своїм вмістом.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Запис контенту використовує ту саму URL-адресу, що й ця сторінка: {title}. Хто з них переможе, залежить від стану публікації цієї сторінки та власного вибору перевизначення цього запису, а не лише від цього перемикача.",
-    "Open {title}": "Відкрити {title}",
     "Rescan themes": "Пересканувати теми",
     "Rescanning…": "Сканування…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -2279,6 +2387,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Вихідний код файлу теми",
     "Theme file source (read-only)": "Вихідний код файлу теми (лише для читання)",
     "Theme files": "Файли теми",
+    "File groups": "Групи файлів",
+    "Show all ({count})": "Показати всі ({count})",
+    "Show fewer": "Згорнути",
     "Theme preview": "Перегляд теми",
     "Theme preview, fullscreen": "Перегляд теми, на весь екран",
     "This file type is read-only in Explore.": "Цей тип файлу доступний лише для читання в режимі огляду.",
@@ -2336,6 +2447,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Зберегти як оригінал",
     "Saved as this theme's original": "Збережено як оригінал цієї теми",
     "failed to save the original": "Не вдалося зберегти оригінал",
+    "More actions for {name}": "Інші дії для {name}",
+    "Copy theme": "Копіювати тему",
+    "Delete theme…": "Видалити тему…",
+    "Delete {name}?": "Видалити {name}?",
+    "It moves to Trash.": "Тему буде переміщено в кошик.",
+    "Turn this theme off or activate another one first": "Спершу вимкніть цю тему або активуйте іншу",
+    "Built-in themes can't be deleted": "Вбудовані теми не можна видалити",
+    "Moved \"{name}\" to Trash": "«{name}» переміщено в кошик",
+    "failed to delete theme": "Не вдалося видалити тему",
   },
   tr: {
     "Reload preview": "Önizlemeyi yeniden yükle",
@@ -2347,7 +2467,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "{file} dosyasını silmek istediğinizden emin misiniz? Bu, dosyayı kalıcı olarak kaldırır. Geri alma yöntemi yoktur.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Bu, {file} dosyasının yerini orijinal temanın sürümüyle değiştirir. Bu dosyada yaptığınız tüm değişiklikler kaybolacak ve bu geri alınamaz.",
-    "← All themes": "← Tüm temalar",
+    "All themes": "Tüm temalar",
+    Soon: "Yakında",
     Explore: "Keşfet",
     Modified: "Değiştirildi",
     "Modified from the original": "Orijinalinden değiştirildi",
@@ -2374,16 +2495,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Yedek ana sayfa — sayfalarınızdan biri ana sayfa olarak ayarlanana kadar / adresinde gösterilir",
     "Not shown — {title} is your home page": "Gösterilmiyor — {title} ana sayfanız",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} bu sitenin ana sayfası olduğundan ziyaretçiler / adresinde bu tema sayfası yerine onu görür. Bu tema sayfası yalnızca hiçbir sayfa ana sayfa olarak ayarlanmadığında gösterilir.",
     "Always published — error page": "Her zaman yayında — hata sayfası",
     "Not a standalone page — used as a content template":
       "Bağımsız bir sayfa değil — içerik şablonu olarak kullanılıyor",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Bu sayfanın sitenizde kendi yayında URL'si olup olmadığı. Tema sayfaları varsayılan olarak kapalıdır, çünkü tema sizin içeriğinizi değil genel örnek içerik getirir. Kendinize ait hale getirdikten sonra açın.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Bir içerik kaydı bu sayfayla aynı URL'yi paylaşıyor: {title}. Hangisinin kazanacağı, bu sayfanın yayın durumuna ve o kaydın kendi geçersiz kılma seçimine bağlıdır, yalnızca bu anahtara değil.",
-    "Open {title}": "{title} öğesini aç",
     "Rescan themes": "Temaları yeniden tara",
     "Rescanning…": "Yeniden taranıyor…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -2435,6 +2551,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Tema dosyası kaynağı",
     "Theme file source (read-only)": "Tema dosyası kaynağı (salt okunur)",
     "Theme files": "Tema dosyaları",
+    "File groups": "Dosya grupları",
+    "Show all ({count})": "Tümünü göster ({count})",
+    "Show fewer": "Daha az göster",
     "Theme preview": "Tema önizlemesi",
     "Theme preview, fullscreen": "Tema önizlemesi, tam ekran",
     "This file type is read-only in Explore.": "Bu dosya türü Explore'da salt okunurdur.",
@@ -2492,6 +2611,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Orijinal olarak kaydet",
     "Saved as this theme's original": "Bu temanın orijinali olarak kaydedildi",
     "failed to save the original": "Orijinal kaydedilemedi",
+    "More actions for {name}": "{name} için diğer işlemler",
+    "Copy theme": "Temayı kopyala",
+    "Delete theme…": "Temayı sil…",
+    "Delete {name}?": "{name} silinsin mi?",
+    "It moves to Trash.": "Çöp Kutusu'na taşınır.",
+    "Turn this theme off or activate another one first": "Önce bu temayı kapatın veya başka bir temayı etkinleştirin",
+    "Built-in themes can't be deleted": "Yerleşik temalar silinemez",
+    "Moved \"{name}\" to Trash": "\"{name}\" Çöp Kutusu'na taşındı",
+    "failed to delete theme": "Tema silinemedi",
   },
   th: {
     "Reload preview": "โหลดตัวอย่างใหม่",
@@ -2503,7 +2631,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "แน่ใจหรือไม่ว่าต้องการลบ {file}? การดำเนินการนี้จะลบไฟล์อย่างถาวร ไม่มีทางกู้คืนได้",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "การดำเนินการนี้จะแทนที่ {file} ด้วยเวอร์ชันจากธีมต้นฉบับ การเปลี่ยนแปลงใด ๆ ที่คุณทำกับไฟล์นี้จะสูญหาย และไม่สามารถยกเลิกได้",
-    "← All themes": "← ธีมทั้งหมด",
+    "All themes": "ธีมทั้งหมด",
+    Soon: "เร็วๆ นี้",
     Explore: "สำรวจ",
     Modified: "แก้ไขแล้ว",
     "Modified from the original": "แก้ไขแล้วจากต้นฉบับ",
@@ -2530,16 +2659,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "หน้าแรกสำรอง — แสดงที่ / จนกว่าจะตั้งหน้าใดหน้าหนึ่งของคุณเป็นหน้าแรก",
     "Not shown — {title} is your home page": "ไม่แสดง — {title} คือหน้าแรกของคุณ",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} คือหน้าแรกของเว็บไซต์นี้ ผู้เข้าชมจึงเห็นหน้านั้นที่ / แทนหน้าธีมนี้ หน้าธีมนี้จะแสดงเฉพาะเมื่อไม่มีหน้าใดถูกตั้งเป็นหน้าแรก",
     "Always published — error page": "เผยแพร่เสมอ — หน้าข้อผิดพลาด",
     "Not a standalone page — used as a content template":
       "ไม่ใช่หน้าอิสระ — ใช้เป็นเทมเพลตเนื้อหา",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "หน้านี้มี URL สาธารณะของตัวเองบนเว็บไซต์ของคุณหรือไม่ หน้าของธีมจะปิดไว้ตั้งแต่แรก เพราะธีมมาพร้อมเนื้อหาตัวอย่างทั่วไป ไม่ใช่เนื้อหาของคุณ เปิดใช้งานเมื่อคุณทำให้เป็นของคุณแล้ว",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "มีระเบียนเนื้อหาใช้ URL เดียวกันกับหน้านี้: {title} ฝ่ายใดจะเป็นฝ่ายที่แสดงจริงขึ้นอยู่กับสถานะการเผยแพร่ของหน้านี้และตัวเลือกการแทนที่ของระเบียนนั้นเอง ไม่ใช่แค่สวิตช์นี้เพียงอย่างเดียว",
-    "Open {title}": "เปิด {title}",
     "Rescan themes": "สแกนธีมใหม่",
     "Rescanning…": "กำลังสแกนใหม่…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -2591,6 +2715,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "ซอร์สโค้ดไฟล์ธีม",
     "Theme file source (read-only)": "ซอร์สโค้ดไฟล์ธีม (อ่านอย่างเดียว)",
     "Theme files": "ไฟล์ธีม",
+    "File groups": "กลุ่มไฟล์",
+    "Show all ({count})": "แสดงทั้งหมด ({count})",
+    "Show fewer": "แสดงน้อยลง",
     "Theme preview": "ตัวอย่างธีม",
     "Theme preview, fullscreen": "ตัวอย่างธีม แบบเต็มหน้าจอ",
     "This file type is read-only in Explore.": "ไฟล์ประเภทนี้เป็นแบบอ่านอย่างเดียวใน Explore",
@@ -2647,6 +2774,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "บันทึกเป็นต้นฉบับ",
     "Saved as this theme's original": "บันทึกเป็นต้นฉบับของธีมนี้แล้ว",
     "failed to save the original": "บันทึกต้นฉบับไม่สำเร็จ",
+    "More actions for {name}": "การทำงานเพิ่มเติมสำหรับ {name}",
+    "Copy theme": "คัดลอกธีม",
+    "Delete theme…": "ลบธีม…",
+    "Delete {name}?": "ลบ {name} ไหม",
+    "It moves to Trash.": "ธีมจะถูกย้ายไปที่ถังขยะ",
+    "Turn this theme off or activate another one first": "ปิดธีมนี้หรือเปิดใช้ธีมอื่นก่อน",
+    "Built-in themes can't be deleted": "ลบธีมในตัวไม่ได้",
+    "Moved \"{name}\" to Trash": "ย้าย \"{name}\" ไปที่ถังขยะแล้ว",
+    "failed to delete theme": "ลบธีมไม่สำเร็จ",
   },
   it: {
     "Reload preview": "Ricarica anteprima",
@@ -2658,7 +2794,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "Sei sicuro di voler eliminare {file}? Questa operazione rimuove definitivamente il file. Non c'è modo di recuperarlo.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Questo sostituisce {file} con la versione del tema originale. Tutte le modifiche apportate a questo file andranno perse e non sarà possibile annullarle.",
-    "← All themes": "← Tutti i temi",
+    "All themes": "Tutti i temi",
+    Soon: "Presto",
     Explore: "Esplora",
     Modified: "Modificato",
     "Modified from the original": "Modificato rispetto all'originale",
@@ -2685,16 +2822,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "Home page di riserva — mostrata in / finché una delle tue pagine non viene impostata come home page",
     "Not shown — {title} is your home page": "Non mostrata — {title} è la tua home page",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} è la home page di questo sito, quindi i visitatori la vedono in / al posto di questa pagina del tema. Questa pagina del tema viene mostrata solo quando nessuna pagina è impostata come home page.",
     "Always published — error page": "Sempre pubblicata — pagina di errore",
     "Not a standalone page — used as a content template":
       "Non è una pagina autonoma — usata come modello di contenuto",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "Indica se questa pagina ha un proprio URL pubblico sul tuo sito. Le pagine del tema partono disattivate, perché un tema include contenuti generici di esempio e non i tuoi. Attivane una quando l'hai resa tua.",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "Un record di contenuto condivide l'URL di questa pagina: {title}. Chi prevale dipende dallo stato di pubblicazione di questa pagina e dalla scelta di sostituzione propria di quel record, non solo da questo interruttore.",
-    "Open {title}": "Apri {title}",
     "Rescan themes": "Nuova scansione dei temi",
     "Rescanning…": "Nuova scansione in corso…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -2746,6 +2878,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "Codice sorgente del file del tema",
     "Theme file source (read-only)": "Codice sorgente del file del tema (sola lettura)",
     "Theme files": "File del tema",
+    "File groups": "Gruppi di file",
+    "Show all ({count})": "Mostra tutti ({count})",
+    "Show fewer": "Mostra meno",
     "Theme preview": "Anteprima del tema",
     "Theme preview, fullscreen": "Anteprima del tema, schermo intero",
     "This file type is read-only in Explore.": "Questo tipo di file è di sola lettura in Explore.",
@@ -2803,6 +2938,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "Salva come originale",
     "Saved as this theme's original": "Salvato come originale di questo tema",
     "failed to save the original": "Impossibile salvare l’originale",
+    "More actions for {name}": "Altre azioni per {name}",
+    "Copy theme": "Copia tema",
+    "Delete theme…": "Elimina tema…",
+    "Delete {name}?": "Eliminare {name}?",
+    "It moves to Trash.": "Verrà spostato nel Cestino.",
+    "Turn this theme off or activate another one first": "Disattiva prima questo tema o attivane un altro",
+    "Built-in themes can't be deleted": "I temi integrati non possono essere eliminati",
+    "Moved \"{name}\" to Trash": "\"{name}\" spostato nel Cestino",
+    "failed to delete theme": "Impossibile eliminare il tema",
   },
   hi: {
     "Reload preview": "पूर्वावलोकन फिर से लोड करें",
@@ -2814,7 +2958,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "क्या आप वाकई {file} को हटाना चाहते हैं? यह फ़ाइल को स्थायी रूप से हटा देगा। इसे वापस पाने का कोई तरीका नहीं है।",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "यह {file} को मूल थीम के संस्करण से बदल देगा। इस फ़ाइल में आपके द्वारा किए गए किसी भी बदलाव को खो दिया जाएगा, और इसे पूर्ववत नहीं किया जा सकता।",
-    "← All themes": "← सभी थीम",
+    "All themes": "सभी थीम",
+    Soon: "जल्द आ रहा है",
     Explore: "एक्सप्लोर करें",
     Modified: "संशोधित",
     "Modified from the original": "मूल से संशोधित",
@@ -2841,16 +2986,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "बैकअप होम पेज — / पर तब तक दिखाया जाता है जब तक आपका कोई पेज होम पेज के रूप में सेट न हो",
     "Not shown — {title} is your home page": "नहीं दिखाया गया — {title} आपका होम पेज है",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} इस साइट का होम पेज है, इसलिए विज़िटर / पर इस थीम पेज के बजाय उसे देखते हैं। यह थीम पेज केवल तब दिखाया जाता है जब कोई पेज होम पेज के रूप में सेट न हो।",
     "Always published — error page": "हमेशा प्रकाशित — एरर पेज",
     "Not a standalone page — used as a content template":
       "स्वतंत्र पेज नहीं — कंटेंट टेम्पलेट के रूप में उपयोग किया जाता है",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "क्या इस पृष्ठ का आपकी साइट पर अपना लाइव URL है। थीम के पृष्ठ डिफ़ॉल्ट रूप से बंद रहते हैं, क्योंकि थीम में आपकी नहीं, बल्कि सामान्य नमूना सामग्री होती है। जब आप इसे अपना बना लें, तब इसे चालू करें।",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "एक कंटेंट रिकॉर्ड इस पेज के समान URL साझा करता है: {title}। कौन जीतता है यह इस पेज की प्रकाशन स्थिति और उस रिकॉर्ड की अपनी ओवरराइड पसंद पर निर्भर करता है, केवल इस स्विच पर नहीं।",
-    "Open {title}": "{title} खोलें",
     "Rescan themes": "थीम फिर से स्कैन करें",
     "Rescanning…": "फिर से स्कैन हो रहा है…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -2902,6 +3042,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "थीम फ़ाइल स्रोत",
     "Theme file source (read-only)": "थीम फ़ाइल स्रोत (केवल पढ़ने के लिए)",
     "Theme files": "थीम फ़ाइलें",
+    "File groups": "फ़ाइल समूह",
+    "Show all ({count})": "सभी दिखाएँ ({count})",
+    "Show fewer": "कम दिखाएँ",
     "Theme preview": "थीम पूर्वावलोकन",
     "Theme preview, fullscreen": "थीम पूर्वावलोकन, फ़ुलस्क्रीन",
     "This file type is read-only in Explore.": "यह फ़ाइल प्रकार Explore में केवल पढ़ने के लिए है।",
@@ -2959,6 +3102,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "मूल के रूप में सहेजें",
     "Saved as this theme's original": "इस थीम के मूल के रूप में सहेजा गया",
     "failed to save the original": "मूल सहेजा नहीं जा सका",
+    "More actions for {name}": "{name} के लिए और कार्रवाइयाँ",
+    "Copy theme": "थीम कॉपी करें",
+    "Delete theme…": "थीम हटाएँ…",
+    "Delete {name}?": "{name} हटाएँ?",
+    "It moves to Trash.": "यह ट्रैश में चली जाएगी।",
+    "Turn this theme off or activate another one first": "पहले यह थीम बंद करें या कोई दूसरी थीम सक्रिय करें",
+    "Built-in themes can't be deleted": "बिल्ट-इन थीम हटाई नहीं जा सकतीं",
+    "Moved \"{name}\" to Trash": "\"{name}\" को ट्रैश में ले जाया गया",
+    "failed to delete theme": "थीम हटाई नहीं जा सकी",
   },
   ur: {
     "Reload preview": "پیش منظر دوبارہ لوڈ کریں",
@@ -2970,7 +3122,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "کیا آپ واقعی {file} کو حذف کرنا چاہتے ہیں؟ یہ فائل کو مستقل طور پر حذف کر دے گا۔ اسے واپس حاصل کرنے کا کوئی طریقہ نہیں ہے۔",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "یہ {file} کو اصل تھیم کے ورژن سے بدل دے گا۔ اس فائل میں آپ کی کی گئی کوئی بھی تبدیلی ضائع ہو جائے گی، اور اسے واپس نہیں لیا جا سکتا۔",
-    "← All themes": "← تمام تھیمز",
+    "All themes": "تمام تھیمز",
+    Soon: "جلد آ رہا ہے",
     Explore: "دریافت کریں",
     Modified: "ترمیم شدہ",
     "Modified from the original": "اصل سے ترمیم شدہ",
@@ -2997,16 +3150,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "متبادل ہوم پیج — / پر اس وقت تک دکھایا جاتا ہے جب تک آپ کا کوئی صفحہ ہوم پیج کے طور پر سیٹ نہ ہو",
     "Not shown — {title} is your home page": "نہیں دکھایا گیا — {title} آپ کا ہوم پیج ہے",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} اس سائٹ کا ہوم پیج ہے، اس لیے وزیٹرز / پر اس تھیم صفحے کے بجائے اسے دیکھتے ہیں۔ یہ تھیم صفحہ صرف تب دکھایا جاتا ہے جب کوئی صفحہ ہوم پیج کے طور پر سیٹ نہ ہو۔",
     "Always published — error page": "ہمیشہ شائع شدہ — ایرر پیج",
     "Not a standalone page — used as a content template":
       "ایک آزاد صفحہ نہیں — مواد کے ٹیمپلیٹ کے طور پر استعمال ہوتا ہے",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "آیا اس صفحے کا آپ کی سائٹ پر اپنا لائیو URL ہے۔ تھیم کے صفحات بطور طے شدہ بند ہوتے ہیں، کیونکہ تھیم میں آپ کا نہیں بلکہ عام نمونہ مواد ہوتا ہے۔ جب آپ اسے اپنا بنا لیں تو اسے آن کریں۔",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "ایک کنٹینٹ ریکارڈ اس صفحے کے ساتھ وہی URL شیئر کرتا ہے: {title}۔ کون سا حاوی ہوتا ہے یہ اس صفحے کی اشاعت کی حالت اور اس ریکارڈ کے اپنے اوور رائیڈ انتخاب پر منحصر ہے، صرف اس سوئچ پر نہیں۔",
-    "Open {title}": "{title} کھولیں",
     "Rescan themes": "تھیمز دوبارہ اسکین کریں",
     "Rescanning…": "دوبارہ اسکین ہو رہا ہے…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -3058,6 +3206,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "تھیم فائل کا سورس",
     "Theme file source (read-only)": "تھیم فائل کا سورس (صرف پڑھنے کے لیے)",
     "Theme files": "تھیم فائلیں",
+    "File groups": "فائل گروپس",
+    "Show all ({count})": "سب دکھائیں ({count})",
+    "Show fewer": "کم دکھائیں",
     "Theme preview": "تھیم پیش منظر",
     "Theme preview, fullscreen": "تھیم پیش منظر، فل اسکرین",
     "This file type is read-only in Explore.": "یہ فائل کی قسم Explore میں صرف پڑھنے کے لیے ہے۔",
@@ -3115,6 +3266,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "اصل کے طور پر محفوظ کریں",
     "Saved as this theme's original": "اس تھیم کے اصل کے طور پر محفوظ کیا گیا",
     "failed to save the original": "اصل محفوظ نہیں ہو سکا",
+    "More actions for {name}": "{name} کے لیے مزید کارروائیاں",
+    "Copy theme": "تھیم کاپی کریں",
+    "Delete theme…": "تھیم حذف کریں…",
+    "Delete {name}?": "{name} حذف کریں؟",
+    "It moves to Trash.": "یہ ردی کی ٹوکری میں چلی جائے گی۔",
+    "Turn this theme off or activate another one first": "پہلے یہ تھیم بند کریں یا کوئی دوسری تھیم فعال کریں",
+    "Built-in themes can't be deleted": "بلٹ اِن تھیمز حذف نہیں کی جا سکتیں",
+    "Moved \"{name}\" to Trash": "\"{name}\" ردی کی ٹوکری میں منتقل کر دی گئی",
+    "failed to delete theme": "تھیم حذف نہیں کی جا سکی",
   },
   bn: {
     "Reload preview": "প্রিভিউ আবার লোড করুন",
@@ -3126,7 +3286,8 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
       "আপনি কি নিশ্চিতভাবে {file} মুছে ফেলতে চান? এটি স্থায়ীভাবে ফাইলটি মুছে ফেলবে। এটি ফিরে পাওয়ার কোনো উপায় নেই।",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "এটি {file}-কে মূল থিমের সংস্করণ দিয়ে প্রতিস্থাপন করবে। এই ফাইলে আপনার করা যেকোনো পরিবর্তন হারিয়ে যাবে, এবং এটি পূর্বাবস্থায় ফেরানো যাবে না।",
-    "← All themes": "← সব থিম",
+    "All themes": "সব থিম",
+    Soon: "শীঘ্রই আসছে",
     Explore: "অন্বেষণ করুন",
     Modified: "পরিবর্তিত",
     "Modified from the original": "মূল থেকে পরিবর্তিত",
@@ -3153,16 +3314,11 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Home page fallback — shown at / until one of your pages is set as the home page":
       "বিকল্প হোম পেজ — আপনার কোনো পেজ হোম পেজ হিসেবে সেট না হওয়া পর্যন্ত / এ দেখানো হয়",
     "Not shown — {title} is your home page": "দেখানো হচ্ছে না — {title} আপনার হোম পেজ",
-    "{title} is this site's home page, so visitors see it at / instead of this theme page. This theme page is only shown when no page is set as the home page.":
-      "{title} এই সাইটের হোম পেজ, তাই দর্শকেরা / এ এই থিম পেজের বদলে সেটি দেখেন। কোনো পেজ হোম পেজ হিসেবে সেট না থাকলেই কেবল এই থিম পেজ দেখানো হয়।",
     "Always published — error page": "সর্বদা প্রকাশিত — এরর পেজ",
     "Not a standalone page — used as a content template":
       "স্বতন্ত্র পেজ নয় — কন্টেন্ট টেমপ্লেট হিসেবে ব্যবহৃত হয়",
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
       "এই পৃষ্ঠাটির আপনার সাইটে নিজস্ব লাইভ URL আছে কিনা। থিমের পৃষ্ঠাগুলি ডিফল্টভাবে বন্ধ থাকে, কারণ থিমে আপনার নয়, সাধারণ নমুনা বিষয়বস্তু থাকে। নিজের মতো করে নেওয়ার পর সেটি চালু করুন।",
-    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
-      "একটি কনটেন্ট রেকর্ড এই পৃষ্ঠার সাথে একই URL শেয়ার করে: {title}। কোনটি জিতবে তা নির্ভর করে এই পৃষ্ঠার প্রকাশনার অবস্থা এবং সেই রেকর্ডের নিজস্ব ওভাররাইড পছন্দের উপর, শুধু এই সুইচের উপর নয়।",
-    "Open {title}": "{title} খুলুন",
     "Rescan themes": "থিম পুনরায় স্ক্যান করুন",
     "Rescanning…": "পুনরায় স্ক্যান হচ্ছে…",
     "An untouched original is kept separately, so you can change anything here without losing what you started from.":
@@ -3214,6 +3370,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Theme file source": "থিম ফাইলের সোর্স",
     "Theme file source (read-only)": "থিম ফাইলের সোর্স (শুধুমাত্র পঠনযোগ্য)",
     "Theme files": "থিম ফাইল",
+    "File groups": "ফাইল গ্রুপ",
+    "Show all ({count})": "সবগুলো দেখান ({count})",
+    "Show fewer": "কম দেখান",
     "Theme preview": "থিম প্রিভিউ",
     "Theme preview, fullscreen": "থিম প্রিভিউ, ফুলস্ক্রিন",
     "This file type is read-only in Explore.": "এই ফাইলের ধরনটি Explore-এ শুধুমাত্র পঠনযোগ্য।",
@@ -3271,6 +3430,15 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "Save as original": "মূল হিসেবে সংরক্ষণ করুন",
     "Saved as this theme's original": "এই থিমের মূল হিসেবে সংরক্ষিত হয়েছে",
     "failed to save the original": "মূল সংরক্ষণ করা যায়নি",
+    "More actions for {name}": "{name}-এর জন্য আরও কাজ",
+    "Copy theme": "থিম কপি করুন",
+    "Delete theme…": "থিম মুছুন…",
+    "Delete {name}?": "{name} মুছবেন?",
+    "It moves to Trash.": "এটি ট্র্যাশে সরানো হবে।",
+    "Turn this theme off or activate another one first": "আগে এই থিমটি বন্ধ করুন বা অন্য একটি থিম চালু করুন",
+    "Built-in themes can't be deleted": "বিল্ট-ইন থিম মোছা যায় না",
+    "Moved \"{name}\" to Trash": "\"{name}\" ট্র্যাশে সরানো হয়েছে",
+    "failed to delete theme": "থিম মোছা যায়নি",
   },
 };
 

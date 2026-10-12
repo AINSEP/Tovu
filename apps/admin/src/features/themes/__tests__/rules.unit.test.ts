@@ -10,6 +10,7 @@ import {
   sortThemesForDisplay,
   themeCardSwitch,
   THEME_TAB_GROUPS,
+  isSoonThemeTabGroup,
   themeDisplayName,
   themeNamesById,
   themeTabGroup,
@@ -248,5 +249,11 @@ describe("themeCardSwitch", () => {
     const activatingColumn = { settings: SETTINGS, busyTheme: "column" };
     expect(themeCardSwitch({ ...activatingColumn, themeId: "column" })).toMatchObject({ busy: true, disabled: true });
     expect(themeCardSwitch({ ...activatingColumn, themeId: "signal" })).toMatchObject({ busy: false, disabled: true });
+  });
+});
+
+describe("isSoonThemeTabGroup", () => {
+  it("tags every tab group except Static as Soon (owner, 2026-10-11) — Static is the one tier Tovu ships", () => {
+    expect(THEME_TAB_GROUPS.filter(isSoonThemeTabGroup)).toEqual(["declarative", "templated", "code"]);
   });
 });

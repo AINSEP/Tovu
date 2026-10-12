@@ -113,6 +113,17 @@ const TIER_TAB_GROUP: Record<ThemeTier, ThemeTabGroup> = {
 export const THEME_TAB_GROUPS: readonly ThemeTabGroup[] = ["declarative", "static", "templated", "code"];
 
 /**
+ * Tab groups with no shipped theme authoring yet, tagged "Soon" on the Themes tab strip (owner,
+ * 2026-10-11). They stay clickable — an operator can still open one and look — so this only drives
+ * the tag and the greyed label, never `disabled`. `static` is the one tier Tovu ships today.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function isSoonThemeTabGroup(group: ThemeTabGroup): boolean {
+  return group !== "static";
+}
+
+/**
  * `themeId`'s tab group — {@link themeTier}'s tier, folded through {@link TIER_TAB_GROUP}.
  *
  * @complexity Time/space: O(1).

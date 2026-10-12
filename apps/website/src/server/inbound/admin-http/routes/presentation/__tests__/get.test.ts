@@ -187,3 +187,57 @@ test("D-22: presentation advertises the actual PNG and null for an absent previe
   assert.equal(body.availableThemes.find((theme) => theme.id === "tovu-starter")?.previewImageUrl, "/theme-assets/tovu-starter/screenshots/index.png");
   assert.equal(body.availableThemes.find((theme) => theme.id === "no-preview")?.previewImageUrl, null);
 });
+
+
+test("presentation get: kind filters templates without changing catalog order or shared defaults", async (t) => {
+  const fixture = createRouteDeps().themes.find((theme) => theme.manifest.id === "tovu-starter");
+  assert.ok(fixture);
+  const app = buildApp({
+    themes: [{ ...fixture, manifest: { ...fixture.manifest,
+      templates: ["page.html", "shared.html", "post.html"],
+      templateFor: { "page.html": ["page"], "post.html": ["post"] },
+    } }],
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [
+      { workspaceId: WORKSPACE_ID, activeThemeId: "tovu-starter", updatedAt: "2026-10-10T00:00:00.000Z" },
+    ] }),
+  });
+  for (const [query, expected] of [
+    ["?kind=post", ["shared.html", "post.html"]],
+    ["?kind=page", ["page.html", "shared.html"]],
+    ["", ["page.html", "shared.html", "post.html"]],
+  ] as const) {
+    const { status, json } = await get(t, app, `${PATH}${query}`);
+    assert.equal(status, 200);
+    assert.deepEqual((json as { activeThemeTemplates: string[] }).activeThemeTemplates, expected);
+  }
+});
+
+test("presentation get: invalid content kind is rejected", async (t) => {
+  const { status } = await get(t, buildApp(), `${PATH}?kind=product`);
+  assert.equal(status, 400);
+});
+
+test("presentation get: builtIn is true only for a theme the package's originals catalog ships", async (t) => {
+  const packageRoot = mkdtempSync(join(tmpdir(), "tovu-builtin-themes-"));
+  t.after(() => rmSync(packageRoot, { recursive: true, force: true }));
+  const fixture = createRouteDeps().themes.find((theme) => theme.manifest.id === "tovu-starter");
+  assert.ok(fixture);
+  mkdirSync(join(packageRoot, "__original-themes__", fixture.manifest.tier, "tovu-starter"), { recursive: true });
+  const app = buildApp({
+    packageThemesDir: packageRoot,
+    themes: [fixture, { ...fixture, manifest: { ...fixture.manifest, id: "plannie-copy" } }],
+  });
+  const { status, json } = await get(t, app);
+  assert.equal(status, 200);
+  const body = json as { availableThemes: Array<{ id: string; builtIn: boolean }> };
+  assert.equal(body.availableThemes.find((theme) => theme.id === "tovu-starter")?.builtIn, true);
+  assert.equal(body.availableThemes.find((theme) => theme.id === "plannie-copy")?.builtIn, false);
+});
+
+test("presentation get: builtIn is false everywhere when no package themes root is configured", async (t) => {
+  const { status, json } = await get(t, buildApp({ packageThemesDir: undefined }));
+  assert.equal(status, 200);
+  const body = json as { availableThemes: Array<{ builtIn: boolean }> };
+  assert.ok(body.availableThemes.length > 0);
+  assert.ok(body.availableThemes.every((theme) => theme.builtIn === false));
+});

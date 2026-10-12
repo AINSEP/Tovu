@@ -13,6 +13,7 @@ import {
   isThemeFileModified,
   loadedFileAfterRename,
   lockedPublishReason,
+  publishToggleTipLabel,
   readOnlyReason,
   requestedSelectionMove,
   selectedFileLabel,
@@ -2824,6 +2825,21 @@ describe("selectedFilePublishState", () => {
       on: true,
       reason: "Home page fallback — shown at / until one of your pages is set as the home page",
     });
+  });
+});
+
+describe("publishToggleTipLabel", () => {
+  it("gives a locked switch's ⓘ its own reason — the reason is no longer visible text (owner, 2026-10-11)", () => {
+    expect(publishToggleTipLabel({ kind: "locked", on: false, reason: "Not shown — Home is your home page" }, t)).toBe(
+      "Not shown — Home is your home page"
+    );
+  });
+
+  it("gives a live switch's ⓘ the general what-publishing-does explanation, whatever its position", () => {
+    const general =
+      "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.";
+    expect(publishToggleTipLabel({ kind: "toggle", published: true }, t)).toBe(general);
+    expect(publishToggleTipLabel({ kind: "toggle", published: false }, t)).toBe(general);
   });
 });
 

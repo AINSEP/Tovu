@@ -219,8 +219,7 @@ export interface ThemeExploreController {
   dirty: boolean;
   /** `useDirtyGuard`'s `confirmLeave` for `dirty` above — `select` already calls it before switching
    *  files; `ThemeExplore.tsx` calls it itself for its own in-app navigations away from this screen
-   *  entirely (the "← All themes" back link, the slug-collision warning's link to the colliding
-   *  record) that `select` never sees. */
+   *  entirely (the "← All themes" back link) that `select` never sees. */
   confirmLeave: DirtyGuard["confirmLeave"];
   /**
    * True only while `source` holds the open file's text as last read, saved, or reset on the server.
@@ -416,6 +415,23 @@ export function selectedFilePublishState(
   // `homeFallbackPublishReason` (`features/pages/lib/theme-page-publish-state.ts`).
   if (file.label === "index") return { kind: "locked", ...homeFallbackPublishReason(file.collidingContent, t) };
   return { kind: "locked", ...lockedPublishReason(file.label, t) };
+}
+
+/**
+ * The text of the one ⓘ beside the publish switch. A locked switch shows its own reason ("Not shown
+ * — Home is your home page", "Always published — error page"); a live switch shows the general
+ * "what publishing does" explanation. Owner, 2026-10-11: the locked reason used to be visible text
+ * next to the switch and made the row long; the row is now just "Publish [switch] ⓘ", with the
+ * reason only in the tooltip. The general text is not shown for a locked page: it is about turning a
+ * page on, which a locked page can't do.
+ *
+ * @complexity O(1).
+ */
+export function publishToggleTipLabel(state: ThemeExplorePublishState, t: Translate): string {
+  if (state.kind === "locked") return state.reason;
+  return t(
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own."
+  );
 }
 
 /**

@@ -819,6 +819,28 @@ export function resolveThemeOriginalSource(
   return null;
 }
 
+/**
+ * Whether this theme id ships with the package itself — the package's own generated originals
+ * catalog has a folder for it. The Themes screen keeps such a theme out of its Delete menu item.
+ *
+ * Deliberately the PACKAGE catalog only, not {@link resolveThemeOriginalSource}'s site-first lookup:
+ * a Duplicate writes the copy's own site original (`duplicate-theme.ts`), so "has an original" is
+ * true for every copy and cannot tell a shipped theme from the owner's own.
+ *
+ * @returns `false` when `packageThemesRoot` is `undefined` (no package fallback configured — see
+ *   {@link resolveThemeOriginalSource}'s doc) or the catalog has no folder for this tier/id.
+ * @throws Never. One `existsSync`.
+ * @complexity O(1).
+ */
+export function isPackageShippedTheme(
+  required: { manifest: Pick<ThemeManifest, "tier" | "id">; packageThemesRoot: string | undefined },
+  _optional: Record<string, never> = {}
+): boolean {
+  const { manifest, packageThemesRoot } = required;
+  if (packageThemesRoot === undefined) return false;
+  return existsSync(join(packageThemesRoot, THEME_CATALOG_DIR, manifest.tier, manifest.id));
+}
+
 /** {@link themeOriginalResetRefusal}'s refusal: a stable `code` for a client to translate, and a fixed
  *  English `message` with nothing interpolated into it. */
 export type ThemeOriginalResetRefusal = { readonly code: "ORIGINAL_LAYOUT_MISMATCH"; readonly message: string };

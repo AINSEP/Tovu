@@ -1,9 +1,11 @@
-import { useThemeExplorePreview } from "./hooks/use-theme-explore-preview.hooks";
+import { themeExplorePreviewMode, useThemeExplorePreview, type ThemeExplorePreviewMode } from "./hooks/use-theme-explore-preview.hooks";
 import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadButton";
+import { CodeView, CodeWrapToggle } from "../../components/CodeView/CodeView";
+import { useCodeWrap } from "../../components/CodeView/use-code-wrap.hooks";
 import { type KeyboardEvent, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { Toast } from "@jini-ai/ui";
+import { Icon, Toast } from "@jini-ai/ui";
 
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
@@ -15,26 +17,24 @@ import { navigate } from "../../lib/router";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
 import { buildAgentListHandles } from "@jini-ai/agentic";
-import { themePageCollisionAdminPath } from "../pages/hooks/use-theme-pages.hooks";
-import { themePageCollisionMessage } from "../pages/lib/theme-page-publish-state";
 import {
-  THEME_FILE_GROUPS,
   canResetThemeFile,
   isThemeFileModified,
+  publishToggleTipLabel,
   readOnlyReason,
   selectedFileLabel,
   selectedFilePublishState,
   themeExploreHtmlMode,
   useWiredThemeExplore,
   type ThemeExploreDetail,
-  type ThemeExploreController,
   type ThemeExploreFile,
+  type ThemeFileGroup,
   type ThemeExplorePublishState,
-  type ThemeExploreSlugCollision,
   type ThemeExploreView,
 } from "./hooks/use-theme-explore.hooks";
 import { useThemeExploreFullscreen } from "./ThemeExplore.hooks";
 import { useWiredThemeExploreTheme } from "./hooks/use-theme-explore-theme.hooks";
+import { useThemeExploreFileGroups, type ThemeExploreFileGroupsController } from "./hooks/use-theme-explore-file-groups.hooks";
 
 /**
  * @file Explore — edit any theme, active or not, and see it rendered.
@@ -136,14 +136,6 @@ const VIEWS: ReadonlyArray<{ key: ThemeExploreView; label: string }> = [
  *  has (a35ce9f12) without becoming a `<TabBar>` — same treatment `PageEditor.tsx`'s identical
  *  `.segmented` view row takes. `label` is the untranslated key; only `id` is read here. */
 const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
-
-/** `selectedFile?.collidingContent ?? null` as a named helper — pulled out of `ThemeExplore`'s
- *  own render body purely to keep that component's cyclomatic complexity under the gate (each
- *  `?.`/`??` is its own branch there). Same value passed to `ThemeExploreSlugCollisionWarning`
- *  either way — see that component's own doc for what this decides. */
-function resolveCollidingContent(selectedFile: ThemeExploreFile | undefined): ThemeExploreSlugCollision | null {
-  return selectedFile?.collidingContent ?? null;
-}
 
 /**
  * The Preview tab's "nothing to show" message when no file is selected.
@@ -294,8 +286,8 @@ function ThemeExploreModifiedMarker({ file, t }: { file: ThemeExploreFile; t: Tr
 }
 
 /**
- * One sidebar row: the filename control (or its inline-rename replacement) plus the ⋮ overflow menu
- * — 2026-08-11 owner ask (Copy/Rename).
+ * One file chip in the picker tray (a sidebar row until 2026-10-11): the filename control (or its
+ * inline-rename replacement) plus the ⋮ overflow menu — 2026-08-11 owner ask (Copy/Rename).
  *
  * `title={file.path}` is the FULL relative path (e.g. `pages/blog-post.html`), not just `file.label`
  * — two files that render the same LABEL under different groups (or, before now, before an ellipsis
@@ -304,7 +296,7 @@ function ThemeExploreModifiedMarker({ file, t }: { file: ThemeExploreFile; t: Tr
  * without us having to do tooltips and all that, do it") — this `title` attribute plus
  * `.theme-explore-file-row button:not(.row-menu-trigger) { overflow: hidden; text-overflow: ellipsis;
  * white-space: nowrap; }` (`styles.css`) is the entire truncation implementation, deliberately with
- * no character cap: the sidebar column is resizable, so any fixed count would be wrong at most widths.
+ * no character cap in code: the chip's own `max-width` (CSS) decides where the ellipsis falls.
  *
  * @complexity O(1) per row — the list's own O(n) iteration lives in the caller's `.map()`.
  */
@@ -413,17 +405,80 @@ function ThemeExploreFileRow({
 }
 
 /**
- * The sidebar file list — one flat list grouped by kind, most-edited groups first (assets last: there
- * are many of them and they are the ones an author is least likely to be looking for). A real nested
- * file tree is a separate component a theme's editable surface (~20 entries, two folders deep) does
- * not need.
+ * The picker's group tabs (Pages, Partials, Styles, ...), one per non-empty group, each with its file
+ * count and a dot when any file in it is modified — the per-file dots are only on screen for the
+ * group that is showing, so the tab carries the signal for the others. A real ARIA tablist with the
+ * same arrow-key handling as the Preview/HTML tabs below it (`useTabBarKeyboard`).
+ *
+ * @complexity O(g) for the fixed group count.
+ */
+function ThemeExploreFileGroupTabs({ groups, t }: { groups: ThemeExploreFileGroupsController; t: Translate }) {
+  const { tabs, activeGroup, chooseGroup } = groups;
+  const activeId = activeGroup ?? "";
+  const { onKeyDown } = useTabBarKeyboard({ tabs, activeId, onChange: (id) => chooseGroup(id as ThemeFileGroup) });
+  return (
+    <div className="theme-explore-groups" role="tablist" aria-label={t("File groups")} onKeyDown={onKeyDown}>
+      {tabs.map((tab) => (
+        <button
+          key={tab.key}
+          type="button"
+          role="tab"
+          id={`theme-explore-group-${tab.key}`}
+          aria-selected={tab.key === activeGroup}
+          aria-controls="theme-explore-files-panel"
+          className={tab.key === activeGroup ? "theme-explore-group is-active" : "theme-explore-group"}
+          tabIndex={resolveTabBarTabIndex({ tabs, activeId, tab })}
+          onClick={() => chooseGroup(tab.key)}
+          {...agentHandle({ handle: `theme-explore-group-${tab.key}` }, { role: "button", label: `Show this theme's ${tab.label} files` })}
+        >
+          {t(tab.label)}
+          <span className="theme-explore-group-count">{tab.count}</span>
+          {tab.modified ? <span className="theme-explore-group-modified" aria-hidden="true" /> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * "Show all (N)" / "Show fewer" under a group longer than the collapsed chip limit (assets, mostly);
+ * nothing for a short group.
+ *
+ * @complexity O(1).
+ */
+function ThemeExploreShowAllToggle({ groups, t }: { groups: ThemeExploreFileGroupsController; t: Translate }) {
+  if (!groups.collapsible) return null;
+  return (
+    <button
+      type="button"
+      className="theme-explore-files-more"
+      aria-expanded={groups.expanded}
+      aria-controls="theme-explore-files-panel"
+      onClick={groups.toggleExpanded}
+    >
+      {groups.expanded ? t("Show fewer") : t("Show all ({count})").replace("{count}", String(groups.groupCount))}
+    </button>
+  );
+}
+
+/**
+ * The file picker tray above the preview (owner, 2026-10-11: "the file list that's on the left, make
+ * that up top ... it's way too small right now when the assistant chat is open"). Group tabs on top,
+ * the active group's files as wrapping chips below; which group shows and whether a long one is
+ * collapsed is `useThemeExploreFileGroups`'s job. Groups keep their old order, most-edited first
+ * (assets last: there are many of them and they are the ones an author is least likely to be
+ * looking for). A real nested file tree is a separate component a theme's editable surface (~20
+ * entries, two folders deep) does not need.
+ *
+ * It used to be a 190px sidebar whose `<nav>` was absolutely positioned inside an empty grid cell so
+ * it could borrow the preview column's height and scroll internally. That trick is gone with the
+ * column: the tray is in normal flow with its own height, so it has no scroller of its own and the
+ * page scrolls past it (the old inner scroller trapped the wheel at its bottom edge).
  *
  * Extracted to top level, not inline in `ThemeExplore`'s own JSX, for the complexity-drift reason this
- * file's own header comment documents: the `.map()` over `THEME_FILE_GROUPS` plus its `if
- * (group.length === 0) return null` guard was contributing branch count to `ThemeExplore` itself even
- * though each row's own rendering was already `ThemeExploreFileRow`.
+ * file's own header comment documents; each chip's own rendering is `ThemeExploreFileRow`.
  *
- * @complexity O(g·n) — `g` fixed group count times `n` files; each row is O(1) of its own.
+ * @complexity O(n) for `n` files: handle building, the group filter and the chip render are each one pass.
  */
 function ThemeExploreFileList({
   files,
@@ -457,52 +512,45 @@ function ThemeExploreFileList({
   // File paths are globally unique across every group (a theme's editable surface is a flat set of
   // relative paths, just displayed grouped by kind), so they disambiguate one row's menu from
   // another's regardless of which group renders it — same reasoning `Taxonomy.tsx`'s `termHandles`
-  // documents for its own flat, cross-group id list. Computed once here, before the per-kind
-  // filtering below, so a path's handle never depends on which group it lands in.
+  // documents for its own flat, cross-group id list. Computed once here, over ALL files before the
+  // group filter, so a path's handle never depends on which group tab is showing.
   const fileMenuHandles = buildAgentListHandles({ prefix: "theme-explore-file", ids: files.map((file) => file.path) }
   );
   const fileMenuHandleByPath = new Map(files.map((file, index) => [file.path, fileMenuHandles[index]!]));
+  const groups = useThemeExploreFileGroups({ files, highlightedPath: selected });
   return (
-    // `.theme-explore-files-wrap` is the actual grid item (see `.theme-explore`'s own CSS comment for
-    // why): it has no in-flow content of its own, only this absolutely-positioned `<nav>`, so it
-    // contributes NOTHING to the grid row's auto-height calculation and just stretches to match
-    // whatever height `.theme-explore-main` naturally ends up being. The `<nav>` then fills that
-    // stretched wrapper exactly (`inset: 0`) and scrolls internally if its OWN content — up to ~60
-    // files across six groups — is taller than that.
-    <div className="theme-explore-files-wrap">
-      <nav className="theme-explore-files" aria-label={t("Theme files")}>
-        {THEME_FILE_GROUPS.map(({ key: kind, label }) => {
-          const group = files.filter((f) => f.kind === kind);
-          if (group.length === 0) return null;
-          return (
-            <div key={kind}>
-              <p className="theme-explore-files-heading">{t(label)}</p>
-              <ul>
-                {group.map((file) => (
-                  <ThemeExploreFileRow
-                    key={file.path}
-                    file={file}
-                    selected={selected}
-                    select={select}
-                    renamingPath={renamingPath}
-                    renameDraft={renameDraft}
-                    setRenameDraft={setRenameDraft}
-                    startRename={startRename}
-                    cancelRename={cancelRename}
-                    commitRename={commitRename}
-                    copyingPath={copyingPath}
-                    copyFile={copyFile}
-                    openDeleteConfirm={openDeleteConfirm}
-                    agentBase={fileMenuHandleByPath.get(file.path)!}
-                    t={t}
-                  />
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </nav>
-    </div>
+    <nav className="theme-explore-files" aria-label={t("Theme files")}>
+      <ThemeExploreFileGroupTabs groups={groups} t={t} />
+      <div
+        id="theme-explore-files-panel"
+        role="tabpanel"
+        aria-labelledby={groups.activeGroup ? `theme-explore-group-${groups.activeGroup}` : undefined}
+        className="theme-explore-files-panel"
+      >
+        <ul className="theme-explore-file-chips">
+          {groups.visibleFiles.map((file) => (
+            <ThemeExploreFileRow
+              key={file.path}
+              file={file}
+              selected={selected}
+              select={select}
+              renamingPath={renamingPath}
+              renameDraft={renameDraft}
+              setRenameDraft={setRenameDraft}
+              startRename={startRename}
+              cancelRename={cancelRename}
+              commitRename={commitRename}
+              copyingPath={copyingPath}
+              copyFile={copyFile}
+              openDeleteConfirm={openDeleteConfirm}
+              agentBase={fileMenuHandleByPath.get(file.path)!}
+              t={t}
+            />
+          ))}
+        </ul>
+        <ThemeExploreShowAllToggle groups={groups} t={t} />
+      </div>
+    </nav>
   );
 }
 
@@ -730,7 +778,8 @@ function themeExploreResetLabel(
 
 /**
  * The outer toolbar's Save/Reset pair — 2026-08-11 toolbar restructure (owner-approved), matching
- * `PageEditor.tsx`'s `[← Pages] [Published ▾] [Save] [Delete]` shape: `← All themes` outline/secondary,
+ * `PageEditor.tsx`'s `[← Pages] [Published ▾] [Save] [Delete]` shape: `← All themes` outline/secondary
+ * (a plain back arrow at the header's far left since 2026-10-11),
  * Save filled, Reset red-outline-destructive, all in one row above the file list/editor instead of
  * docked to the Preview/HTML tab row below (`.theme-explore-toolbar-actions`, further down this file).
  *
@@ -848,6 +897,36 @@ function ThemeExplorePreviewControls({
 }
 
 /**
+ * The toolbar's right-hand controls for the active tab: the device/reload/fullscreen group while
+ * Preview renders a page, the Wrap toggle while Preview shows a data/style/script file as code
+ * (2026-10-10 — a device width means nothing for JSON, see `themeExplorePreviewMode`), and nothing on
+ * the HTML tab. Top level for the complexity-drift reason this file's header comment documents.
+ *
+ * @complexity O(1).
+ */
+function ThemeExploreToolbarActions({
+  view,
+  previewMode,
+  wrap,
+  toggleWrap,
+  controls,
+  t,
+}: {
+  view: ThemeExploreView;
+  previewMode: ThemeExplorePreviewMode;
+  wrap: boolean;
+  toggleWrap: () => void;
+  controls: Omit<Parameters<typeof ThemeExplorePreviewControls>[0], "t">;
+  t: Translate;
+}) {
+  if (view !== "preview") return null;
+  if (previewMode === "code") {
+    return <CodeWrapToggle wrap={wrap} onToggle={toggleWrap} t={t} agentHandleId="theme-explore-wrap-toggle" className="btn-secondary" />;
+  }
+  return <ThemeExplorePreviewControls {...controls} t={t} />;
+}
+
+/**
  * The publish toggle for the currently SELECTED page — 2026-08-30 owner ask: a static theme's public
  * routing used to be pure file presence (`isStandaloneThemePage`, `theme.ts`), with no way to take a
  * page down short of moving its file out of `render/pages/` entirely (the `_unpublished/` folder hack
@@ -863,7 +942,8 @@ function ThemeExplorePreviewControls({
  *   `setPagePublished`) controls the live publish state.
  * - `"locked"` — a page that exists but can never be independently toggled (`index`/`404`/a declared
  *   template shell, see {@link lockedPublishReason}): a DISABLED switch fixed to whichever position
- *   is actually true, plus a short visible reason. PRESENT, not absent — the previous "no publish
+ *   is actually true, with its reason in the ⓘ tooltip (owner, 2026-10-11: it used to be visible
+ *   text beside the switch; the row is now just "Publish [switch] ⓘ"). PRESENT, not absent — the previous "no publish
  *   state, so show nothing" behavior made the control silently vanish for these pages exactly the
  *   same way it correctly vanishes for a stylesheet, and cost real operator confusion (see
  *   {@link selectedFilePublishState}'s own doc).
@@ -877,10 +957,10 @@ function ThemeExplorePreviewControls({
  * glyph rather than relying on the fill alone.
  *
  * An `InfoTip` (reused the same way {@link ThemeExploreCopyTip} does — see that component's own doc
- * for why the native `title` attribute was rejected here too) sits right after the "Publish" label,
- * one explanation for the whole control regardless of which of the two shapes above is currently
- * rendering: what determines whether a page is reachable at its own URL, and that a page is published
- * BY DEFAULT until the first page on a theme is toggled off (owner ask, 2026-08-30) — not the reverse.
+ * for why the native `title` attribute was rejected here too) sits right after the switch. A locked
+ * switch's tip is its reason; a live switch's tip (`publishToggleTipLabel`) explains what determines
+ * whether a page is reachable at its own URL, and that a page is published BY DEFAULT until the
+ * first page on a theme is toggled off (owner ask, 2026-08-30) — not the reverse.
  * Getting that direction backwards in the tooltip copy would be worse than shipping no tooltip at all,
  * so its wording was checked against `theme.ts`'s `ThemeManifest.publishedPages` doc and
  * `theme-page-publish.test.ts` rather than assumed. Deliberately silent on the separate Post-vs-page
@@ -932,90 +1012,9 @@ function ThemeExplorePublishToggle({
       >
         <span className="theme-explore-switch-knob" aria-hidden="true" />
       </button>
-      <InfoTip
-        label={t(
-          "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own."
-        )}
-      />
-      {state.kind === "locked" ? (
-        <span id={reasonId} className="theme-explore-publish-reason">
-          {state.reason}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * This screen's mirror of `PostEditor.tsx`'s `PostEditorSlugCollisionWarning` — the identical
- * underlying fact (another resource already claims this URL), surfaced from the theme-PAGE side
- * instead of the post side. Deliberately a SEPARATE notice from `ThemeExplorePublishToggle`'s own
- * `InfoTip` rather than folded into it — see that component's own doc for why combining the two
- * would confuse the exact thing the tooltip exists to clarify (whether a page has a route AT ALL,
- * vs. which RECORD wins a shared slug — two different mechanisms, `theme.ts`'s
- * `ThemeManifest.publishedPages` for the first, `pages.ts`'s `resolveMarketingPageOrOverride` for
- * the second).
- *
- * Gated on `collidingContent` ALONE — deliberately NOT also on this page's own `published` state.
- * `resolveMarketingPageOrOverride` can let a live Post/Page row win a slug REGARDLESS of whether
- * this theme page is published: an UNPUBLISHED page falls straight through to the ordinary
- * published-post lookup, with no publish-state check of its own at all. So an operator who just
- * switched this page OFF, expecting its URL to 404, needs this warning exactly as much as one who
- * left it ON — gating on `published` would hide the warning for precisely the case that caused the
- * live confusion this feature exists to prevent (a page read "off" and its URL still 200'd).
- *
- * The copy is deliberately non-committal about which side is CURRENTLY winning: that depends on
- * both this page's publish state and the record's own `overridesThemePage` choice, and re-deriving
- * that here would duplicate `resolveMarketingPageOrOverride`'s own precedence logic a second place
- * it could drift from — out of scope for this change (see this feature's own history: surface the
- * collision, do not relitigate precedence). It names the collision and links to the record so the
- * operator can go verify or act.
- *
- * @complexity O(1) — one fixed notice, no iteration.
- */
-function ThemeExploreSlugCollisionWarning({
-  collidingContent,
-  confirmLeave,
-  t,
-}: {
-  collidingContent: ThemeExploreSlugCollision | null;
-  /** Gate before navigating away to the colliding record — this screen's other in-app navigation
-   *  away from an open, possibly dirty file (see `ThemeExplore`'s "← All themes" button and
-   *  `useThemeExplore`'s own `select`, `confirmLeave`'s other two call sites). */
-  confirmLeave: ThemeExploreController["confirmLeave"];
-  t: Translate;
-}) {
-  if (!collidingContent) return null;
-  // `themePageCollisionAdminPath` (`features/pages/hooks/use-theme-pages.hooks.ts`) — a Post's admin
-  // editor route is keyed by id (`/posts/:postId`); a Page's goes through `pageAdminPath`
-  // (`features/pages/rules.ts`), which prefers the slug and falls back to the id only for the one
-  // page whose slug can't be a path segment at all (the root slug `"/"`). `ThemeExploreSlugCollision`
-  // and that hook's own `ThemePageSlugCollision` are independently declared, identically-shaped
-  // `{ id, slug, title, kind }` port types (see `pages/rules.ts`'s own doc on this structural-typing
-  // convention), so this call needs no cast.
-  const adminPath = themePageCollisionAdminPath(collidingContent);
-  return (
-    <div
-      className="notice warning theme-explore-slug-collision-warning"
-      {...agentHandle({ handle: "theme-explore-slug-collision-warning" }, {
-        role: "region",
-        label: "This theme page's URL is also claimed by a content record — see which one actually wins",
-      })}
-    >
-      <p>{themePageCollisionMessage(collidingContent, t)}</p>
-      <a
-        href={`/admin${adminPath}`}
-        onClick={(e) => {
-          e.preventDefault();
-          if (confirmLeave()) navigate(adminPath);
-        }}
-        {...agentHandle({ handle: "theme-explore-slug-collision-open-record" }, {
-          role: "link",
-          label: `Open the colliding content record, ${collidingContent.title}`,
-        })}
-      >
-        {t("Open {title}").replace("{title}", collidingContent.title)}
-      </a>
+      {/* `descriptionId` keeps the locked reason as the switch's `aria-describedby` text: InfoTip
+          renders the label in a hidden span with that id, so screen readers still hear why. */}
+      <InfoTip label={publishToggleTipLabel(state, t)} descriptionId={reasonId} />
     </div>
   );
 }
@@ -1029,10 +1028,16 @@ function ThemeExploreSlugCollisionWarning({
  * merely relocated because sonarjs' cognitive-complexity scoring penalizes NESTED conditionals more
  * heavily than sequential ones at the same depth.
  *
- * @complexity O(1) — three mutually exclusive branches, no iteration.
+ * 2026-10-10: a data/style/script file (`previewMode === "code"`) shows its text in the shared
+ * read-only `CodeView` at normal size instead of the device-scaled iframe. An unloaded buffer shows
+ * as empty, same as the HTML tab's `"unloaded"` case: whatever it holds is not this file.
+ *
+ * @complexity O(n) for n characters of source in the code branch; O(1) otherwise.
  */
 function ThemeExploreMainPane({
   view,
+  previewMode,
+  wrap,
   previewSrc,
   previewWidth,
   selectedFile,
@@ -1042,6 +1047,8 @@ function ThemeExploreMainPane({
   t,
 }: {
   view: ThemeExploreView;
+  previewMode: ThemeExplorePreviewMode;
+  wrap: boolean;
   previewSrc: string | null;
   previewWidth: number;
   selectedFile: ThemeExploreFile | undefined;
@@ -1053,6 +1060,13 @@ function ThemeExploreMainPane({
   if (view === "html") {
     return (
       <ThemeExploreHtmlPane file={selectedFile} source={source} sourceLoaded={sourceLoaded} setSource={setSource} t={t} />
+    );
+  }
+  if (previewMode === "code") {
+    return (
+      <div className="theme-explore-code-view" role="region" aria-label={t("Theme file source (read-only)")}>
+        <CodeView text={sourceLoaded ? source : ""} wrap={wrap} />
+      </div>
     );
   }
   if (previewSrc === null) {
@@ -1218,12 +1232,15 @@ function ThemeExploreContent({
   const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as ThemeExploreView) });
 
   const previewSrc = useThemeExplorePreviewHook({ themeId, detail, files, selected, previewNonce });
+  // Shared by the toolbar's Wrap toggle and the Preview tab's code view; only read for "code" files.
+  const { wrap, toggleWrap } = useCodeWrap();
 
   if (error && !detail) return <div className="notice error">{error}</div>;
   if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
 
   const selectedFile = files.find((f) => f.path === selected);
   const publishState = selectedFilePublishState(selectedFile, t);
+  const previewMode = themeExplorePreviewMode(selectedFile);
 
   return (
     <div className="page">
@@ -1235,7 +1252,7 @@ function ThemeExploreContent({
           Pages, so this screen only needed to adopt the same DOM shape, not new CSS.
 
           The actions column (`.theme-explore-header-actions`) wraps TWO stacked rows now, not one:
-          the ← All themes / Save / Reset button row (`.page-actions`, unchanged), and below it the
+          the Save / Reset button row (`.page-actions`; ← All themes left it 2026-10-11), and below it the
           collapsed "You're editing your own copy" line. That line used to be its own full-width
           `.notice` block between the header and the file list, up to half the page wide (owner
           feedback, 2026-08-11: "it's taking up too much space... just show 'You're editing your own
@@ -1243,8 +1260,35 @@ function ThemeExploreContent({
           Moving it into the header's own actions column, rather than leaving it as a sibling of
           `.page-header` styled to float right, means the file list below gets ALL of the reclaimed
           vertical space for free — one fewer full-width block in `.page`'s flex column, no
-          compensating negative margin needed. */}
+          compensating negative margin needed.
+
+          2026-10-11 (owner: "center the title section ... just make it a back arrow to the left,
+          and leave the Saved and Reset buttons where they are"): "← All themes" left the actions
+          row and is now a plain back arrow alone at the header's left, the same arrow the Edit
+          post/page headers use (`.content-editor-back`). The title block sits centred between it
+          and the actions column; the grid that does that is `.theme-explore-header` in styles.css. */}
       <div className="page-header theme-explore-header">
+        {/* A plain `<button>`, not a `<button>` nested inside an `<a href>` — that nesting
+            (interactive content inside interactive content) is invalid HTML, and a browser
+            agent's accessibility-tree read (or a screen reader) sees either a link wrapping a
+            button or an ambiguous merge of the two roles, depending on the engine. The 2026-08-11
+            toolbar restructure (`ThemeExplore.unit.test.tsx`'s "toolbar restructure" describe
+            block) deliberately settled this control as a BUTTON, so the fix here is to drop the
+            redundant wrapping anchor rather than the button; `navigate()` is a real client-side
+            route change, same as `ThemeGrid`'s own "Explore" button in `Themes.tsx` right above
+            this file. Icon-only since 2026-10-11: `aria-label` names it, `title` is the hover tip
+            (same pair `ThemePreviewReloadButton` uses). */}
+        <button
+          type="button"
+          className="theme-explore-back"
+          aria-label={t("All themes")}
+          title={t("All themes")}
+          onClick={() => {
+            if (confirmLeave()) navigate("/themes");
+          }}
+        >
+          <Icon name="arrow-left" size={22} aria-hidden="true" />
+        </button>
         <div className="page-header-text">
           <p className="page-kicker">{t("Studio")}</p>
           <h1 className="page-title">{detail.name}</h1>
@@ -1254,24 +1298,6 @@ function ThemeExploreContent({
         </div>
         <div className="theme-explore-header-actions">
           <div className="page-actions">
-            {/* A plain `<button>`, not a `<button>` nested inside an `<a href>` — that nesting
-                (interactive content inside interactive content) is invalid HTML, and a browser
-                agent's accessibility-tree read (or a screen reader) sees either a link wrapping a
-                button or an ambiguous merge of the two roles, depending on the engine. The 2026-08-11
-                toolbar restructure (`ThemeExplore.unit.test.tsx`'s "toolbar restructure" describe
-                block) deliberately settled this control as a BUTTON — grouped with Save/Reset in the
-                same row, not a bare link — so the fix here is to drop the redundant wrapping anchor
-                rather than the button; `navigate()` is a real client-side route change, same as
-                `ThemeGrid`'s own "Explore" button in `Themes.tsx` right above this file. */}
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                if (confirmLeave()) navigate("/themes");
-              }}
-            >
-              {t("← All themes")}
-            </button>
             <ThemeExploreToolbarButtons
               selectedFile={selectedFile}
               resetting={resetting}
@@ -1303,6 +1329,11 @@ function ThemeExploreContent({
       ) : null}
       {notice ? <Toast message={notice} tone="success" ttlMs={5000} onDismiss={dismissNotice} /> : null}
 
+      {/* File picker on top, then the toolbar and preview at full width (owner, 2026-10-11). This
+          wrapper is the screen's size container (`container-type` in styles.css), so its layout
+          follows the width it actually gets with the side nav and chat dock open, not the
+          viewport. The toasts above stay outside it on purpose: containment would make this box
+          their containing block instead of the window. */}
       <div className="theme-explore">
         <ThemeExploreFileList
           files={files}
@@ -1349,29 +1380,21 @@ function ThemeExploreContent({
               ) : null}
             </div>
             <div className="theme-explore-toolbar-actions">
-              {view === "preview" ? (
-                <ThemeExplorePreviewControls
-                  device={device}
-                  setDevice={setDevice}
-                  previewSrc={previewSrc}
-                  fullscreenTriggerRef={fullscreenTriggerRef}
-                  setFullscreen={setFullscreen}
-                  t={t}
-                />
-              ) : null}
+              <ThemeExploreToolbarActions
+                view={view}
+                previewMode={previewMode}
+                wrap={wrap}
+                toggleWrap={toggleWrap}
+                controls={{ device, setDevice, previewSrc, fullscreenTriggerRef, setFullscreen }}
+                t={t}
+              />
             </div>
           </div>
 
-          {/* Slug-collision warning — see `ThemeExploreSlugCollisionWarning`'s own doc for why this
-              is gated on `collidingContent` alone, independent of `selectedFile.published`. */}
-          <ThemeExploreSlugCollisionWarning
-            collidingContent={resolveCollidingContent(selectedFile)}
-            confirmLeave={confirmLeave}
-            t={t}
-          />
-
           <ThemeExploreMainPane
             view={view}
+            previewMode={previewMode}
+            wrap={wrap}
             previewSrc={previewSrc}
             previewWidth={previewWidth}
             selectedFile={selectedFile}

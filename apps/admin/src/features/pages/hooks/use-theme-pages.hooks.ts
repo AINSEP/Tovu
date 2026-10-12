@@ -66,7 +66,8 @@ export interface ThemePagesController {
    *  state it reads" move. */
   pageCount: number;
   /**
-   * The id of the theme `pages` came from — `null` until the same load settles.
+   * The id of the theme `pages` came from — `null` until presentation settles.
+   * Retained if the subsequent detail read fails, so that failure does not erase its prerequisite.
    *
    * Needed because each row links into the theme studio (`/admin/themes/explore?theme=&page=`) and
    * every publish call needs it, and a page id alone does not say WHICH theme's copy to act on.
@@ -103,8 +104,8 @@ function pageIdFromPath(path: string): string {
 }
 
 /**
- * Where a colliding content record's own admin editor lives — also called directly by
- * `ThemeExploreSlugCollisionWarning` (`ThemeExplore.tsx`), which used to duplicate this derivation
+ * Where a colliding content record's own admin editor lives — was also called directly by Theme
+ * Studio's Explore warning card (removed 2026-10-10), which used to duplicate this derivation
  * inline before importing it (2026-09-05): a Post's editor route is keyed by slug (`/posts/:slug`,
  * readable-slugs S6a); a Page's goes through {@link pageAdminPath} (`rules.ts`), which prefers the
  * slug and falls back to the id only for the root-slug page. `ThemeExplore.tsx`'s own
@@ -153,16 +154,22 @@ function mapThemePageRows(entries: readonly ThemePagesFileEntry[]): ThemePageRow
  * one on each publish toggle.
  */
 export function useThemePages(port: ThemePagesPort): ThemePagesController {
-  const key = useMemo(() => ["themes", "page-publish-state"] as const, []);
+  // Resolve prerequisites separately: a detail failure must not erase the theme id
+  // already returned by presentation, and a switched theme owns a different detail key.
+  const fetchPresentation = useCallback(async () => {
+    try { return await port.getPresentation(); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load theme pages"); }
+  }, [port]);
+  const presentation = useFetchQuery({ key: ["themes", "presentation"], fetch: fetchPresentation }, { staleTime: 0 });
+  const activeThemeId = presentation.data?.settings.activeThemeId ?? null;
+  const key = useMemo(() => ["themes", "page-publish-state", activeThemeId ?? ""] as const, [activeThemeId]);
   const fetchPages = useCallback(async () => {
     try {
-      const r = await port.getPresentation();
-      const activeThemeId = r.settings.activeThemeId;
       // `NO_THEME_ID` is an operator choice, not an id; fetching it would only 404.
-      const detail = activeThemeId === NO_THEME_ID ? null : await port.getThemeDetail(activeThemeId);
-      return { activeThemeId, pages: detail ? mapThemePageRows(detail.files) : [] };
+      const detail = activeThemeId === null || activeThemeId === NO_THEME_ID ? null : await port.getThemeDetail(activeThemeId);
+      return { pages: detail ? mapThemePageRows(detail.files) : [] };
     } catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load theme pages"); }
-  }, [port]);
+  }, [port, activeThemeId]);
   /* Read-lifecycle rationale retained from the preceding implementation.
    * The query cache now supplies these ordering and lifetime guarantees.
    * `NO_THEME_ID` ("none") is the operator-chosen no-theme sentinel, not a real theme id —
@@ -173,12 +180,11 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
    * than making a call that can only ever fail.
    *
    */
-  const query = useFetchQuery({ key, fetch: fetchPages }, { staleTime: 0 });
+  const query = useFetchQuery({ key, fetch: fetchPages }, { enabled: activeThemeId !== null, staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchPages }, { staleTime: 0 });
   const pages = query.data?.pages ?? null;
-  const activeThemeId = query.data?.activeThemeId ?? null;
   const [actionError, setError] = useState<string | null>(null);
-  const error = actionError ?? query.error?.message ?? null;
+  const error = actionError ?? presentation.error?.message ?? query.error?.message ?? null;
   const publish = useFetchMutation({ run: ({ input }: { input: { themeId: string; pageId: string; published: boolean } }) => port.setPagePublished(input.themeId, input.pageId, input.published) }, { invalidates: [["themes"]] });
   const [savingPageId, setSavingPageId] = useState<string | null>(null);
 
@@ -197,7 +203,7 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
         setSavingPageId(null);
       }
     },
-    [activeThemeId, port]
+    [activeThemeId, publish.mutate, loader]
   );
 
   const pageCount = pages === null ? 0 : pages.length;

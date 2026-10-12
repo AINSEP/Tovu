@@ -235,33 +235,44 @@ describe("preview src — pages, partials, and templates", () => {
   /**
    * 2026-08-17 owner ask (verbatim): "Can we get preview to just render everything, in a simple
    * manner. If it's an image, it renders that. If it's a JavaScript, it just renders like HTML. If
-   * it's JSON same." Before this fix, `previewSrcFor` gated the raw-asset fallback on `!file.readable`
-   * — but `style`/`script`/`config` files ARE `readable: true`, so a CSS/JS/JSON selection returned
-   * `null` and Preview showed nothing but "Select a file to preview." Regression: these are readable
-   * files that must now still resolve to a real preview URL, not fall into the null branch.
+   * it's JSON same." That fix pointed CSS/JS/JSON at the raw `/theme-assets/` URL inside the
+   * device-scaled iframe. Owner screenshot 2026-10-10 ("the preview looks weird, too small"):
+   * Chrome's raw JSON viewer shrunk to a 1280px frame is unreadable. These readable files still show
+   * SOMETHING in Preview (never the "select a file" notice), but as line-numbered code at normal
+   * size, with the device/reload/fullscreen controls replaced by the Wrap toggle.
    */
-  it("points a readable STYLE (CSS) file's preview at the raw /theme-assets/ URL, not null", () => {
-    renderExplore({ selected: "css/styles.css" });
-    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/css/styles.css?v=0&__tovu_preview=test-revision");
+  it.each<{ label: string; path: string; extra?: ThemeExploreFile }>([
+    { label: "STYLE (CSS)", path: "css/styles.css" },
+    { label: "SCRIPT (JS)", path: "js/main.js" },
+    {
+      label: "CONFIG (JSON)",
+      path: "theme.json",
+      extra: { path: "theme.json", label: "theme.json", kind: "config", readable: true, editable: true, resettable: true, modified: false, published: null, collidingContent: null },
+    },
+  ])("shows a readable $label file's Preview as read-only code, not the scaled iframe", ({ path, extra }) => {
+    renderExplore({ files: extra ? [...FILES, extra] : FILES, selected: path, source: "{\n  \"name\": \"x\"\n}" });
+    expect(screen.queryByTitle("Theme preview")).not.toBeInTheDocument();
+    const code = screen.getByRole("region", { name: "Theme file source (read-only)" });
+    expect(code).toHaveTextContent('"name": "x"');
     expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /preview width/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("1280px")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /view preview fullscreen/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Wrap: on" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("points a readable SCRIPT (JS) file's preview at the raw /theme-assets/ URL, not null", () => {
-    renderExplore({ selected: "js/main.js" });
-    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/js/main.js?v=0&__tovu_preview=test-revision");
-    expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
+  it("toggles the code Preview's line wrapping from the toolbar", async () => {
+    const user = userEvent.setup();
+    const { container } = renderExplore({ selected: "css/styles.css" });
+    expect(container.querySelector(".theme-explore-code-view .code-viewer--wrap")).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Wrap: on" }));
+    expect(screen.getByRole("button", { name: "Wrap: off" })).toHaveAttribute("aria-pressed", "false");
+    expect(container.querySelector(".theme-explore-code-view .code-viewer--wrap")).toBeNull();
   });
 
-  it("points a readable CONFIG (JSON) file's preview at the raw /theme-assets/ URL, not null", () => {
-    renderExplore({
-      files: [...FILES, { path: "theme.json", label: "theme.json", kind: "config", readable: true, editable: true, resettable: true, modified: false, published: null, collidingContent: null }],
-      selected: "theme.json",
-    });
-    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/theme.json?v=0&__tovu_preview=test-revision");
-    expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
+  it("shows an empty code Preview while the selected file's source is not loaded", () => {
+    renderExplore({ selected: "css/styles.css", source: "stale buffer from another file", sourceLoaded: false });
+    expect(screen.getByRole("region", { name: "Theme file source (read-only)" })).not.toHaveTextContent("stale buffer");
   });
 
   /**
@@ -300,12 +311,13 @@ describe("preview src — pages, partials, and templates", () => {
  * remaining `previewSrc === null` case is nothing selected at all. An ordinary `other`-group file
  * like `NOTICE.md` used to fall into this generic message too; it now gets a real preview URL like
  * everything else (see the "preview src — pages, partials, and templates" describe block above).
+ * 2026-10-10: Preview shows such a file as read-only code rather than mounting that URL.
  */
 describe("preview notice — generic 'select a file' message", () => {
-  it("points an ordinary readable other-group file's (e.g. NOTICE.md) preview at the raw URL, not the generic notice", () => {
-    renderExplore({ view: "preview", selected: "NOTICE.md" });
-    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.getAttribute("src")).toBe("/theme-preview-assets/test-revision/novice/NOTICE.md?v=0&__tovu_preview=test-revision");
+  it("shows an ordinary readable other-group file (e.g. NOTICE.md) in Preview as code, not the generic notice", () => {
+    renderExplore({ view: "preview", selected: "NOTICE.md", source: "# Notice" });
+    expect(screen.getByRole("region", { name: "Theme file source (read-only)" })).toHaveTextContent("# Notice");
+    expect(screen.queryByTitle("Theme preview")).not.toBeInTheDocument();
     expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
   });
 
@@ -319,6 +331,8 @@ describe("device width control", () => {
   it("shows the Desktop/Tablet/Mobile group in preview view", () => {
     renderExplore({ view: "preview" });
     expect(screen.getByRole("group", { name: /preview width/i })).toBeInTheDocument();
+    // A page keeps the device controls; the Wrap toggle is only for files Preview shows as code.
+    expect(screen.queryByRole("button", { name: /^wrap:/i })).not.toBeInTheDocument();
   });
 
   it("hides the device control in html view", () => {
@@ -416,16 +430,67 @@ describe("fullscreen preview", () => {
  * partials, which hid every file an author changes to make a downloaded theme theirs.
  */
 describe("file list beyond pages and partials", () => {
-  it("groups styles, scripts and assets alongside pages and partials", () => {
+  // 2026-10-11: the groups are tabs above the preview now (owner: "the file list that's on the left,
+  // make that up top"), showing one group's files at a time instead of six stacked lists.
+  it("groups styles, scripts and assets alongside pages and partials, one group tab each", async () => {
+    const user = userEvent.setup();
     render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
     const list = screen.getByRole("navigation", { name: "Theme files" });
-    for (const heading of ["Pages", "Partials", "Styles", "Scripts", "Assets"]) {
-      expect(within(list).getByText(heading)).toBeInTheDocument();
-    }
+    const groups = within(list).getByRole("tablist", { name: "File groups" });
+    // Name plus file count; the fixture has 5 pages, 2 partials, 1 style, 1 script, 1 asset and
+    // 2 other, and no config file, so no Config tab.
+    expect(within(groups).getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Pages5",
+      "Partials2",
+      "Styles1",
+      "Scripts1",
+      "Assets1",
+      "Other2",
+    ]);
+    // Opens on the selected file's group (index → Pages).
+    expect(within(groups).getByRole("tab", { name: /^Pages/ })).toHaveAttribute("aria-selected", "true");
+    expect(within(list).queryByRole("button", { name: "styles.css" })).not.toBeInTheDocument();
+
     // Non-page/partial entries keep their extension — `styles` vs `styles.css` is the distinction
     // an author needs in a Styles list.
+    await user.click(within(groups).getByRole("tab", { name: /^Styles/ }));
+    expect(within(groups).getByRole("tab", { name: /^Styles/ })).toHaveAttribute("aria-selected", "true");
+    expect(within(list).getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "theme-explore-group-style");
     expect(within(list).getByRole("button", { name: "styles.css" })).toBeInTheDocument();
+    expect(within(list).queryByRole("button", { name: "index" })).not.toBeInTheDocument();
+    await user.click(within(groups).getByRole("tab", { name: /^Scripts/ }));
     expect(within(list).getByRole("button", { name: "main.js" })).toBeInTheDocument();
+  });
+
+  it("opens on the group of a selected file outside Pages", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ selected: "js/main.js" })} />);
+    expect(screen.getByRole("tab", { name: /^Scripts/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "main.js" })).toHaveAttribute("aria-current", "true");
+  });
+
+  it("collapses a long group behind Show all, and expands it on click", async () => {
+    const user = userEvent.setup();
+    const manyAssets: ThemeExploreFile[] = Array.from({ length: 14 }, (_, i) => ({
+      path: `assets/icon-${i}.svg`, label: `icon-${i}.svg`, kind: "asset", readable: false, editable: false,
+      resettable: true, modified: false, published: null, collidingContent: null,
+    }));
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ files: manyAssets, selected: "assets/icon-0.svg" })}
+      />
+    );
+    expect(screen.getAllByRole("button", { name: /^icon-/ })).toHaveLength(10);
+    const more = screen.getByRole("button", { name: "Show all (14)" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await user.click(more);
+    expect(screen.getAllByRole("button", { name: /^icon-/ })).toHaveLength(14);
+    expect(screen.getByRole("button", { name: "Show fewer" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("puts no Show all under a short group", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    expect(screen.queryByRole("button", { name: /^Show all/ })).not.toBeInTheDocument();
   });
 
   it("refuses to put a binary file in the editor, offering the preview instead", () => {
@@ -497,19 +562,37 @@ describe("reset to original", () => {
     expect(screen.queryByRole("button", { name: /^reset/i })).not.toBeInTheDocument();
   });
 
-  it("marks exactly the modified files in the file list, with a tooltip saying why", () => {
+  it("marks exactly the modified files in the file list, with a tooltip saying why", async () => {
+    const user = userEvent.setup();
     render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
     const list = screen.getByRole("navigation", { name: "Theme files" });
-    expect(within(list).getAllByRole("img", { name: "Modified" })).toHaveLength(3);
-    for (const label of ["index", "about", "styles.css"]) {
+    const expectMarked = (label: string, marked: boolean) => {
       const row = within(list).getByRole("button", { name: label }).closest("li") as HTMLElement;
-      expect(within(row).getByRole("img", { name: "Modified" })).toHaveAttribute("title", "Modified from the original");
-    }
-    // Resettable-but-identical (`nav`) and no-original-at-all (`mine`): neither is marked.
-    for (const label of ["nav", "mine"]) {
-      const row = within(list).getByRole("button", { name: label }).closest("li") as HTMLElement;
-      expect(within(row).queryByRole("img", { name: "Modified" })).not.toBeInTheDocument();
-    }
+      const dot = within(row).queryByRole("img", { name: "Modified" });
+      if (marked) expect(dot).toHaveAttribute("title", "Modified from the original");
+      else expect(dot).not.toBeInTheDocument();
+    };
+    // Pages shows first: `index` and `about` differ from their originals; `mine` has no original.
+    expect(within(list).getAllByRole("img", { name: "Modified" })).toHaveLength(2);
+    expectMarked("index", true);
+    expectMarked("about", true);
+    expectMarked("mine", false);
+    // Resettable-but-identical (`nav`): not marked.
+    await user.click(within(list).getByRole("tab", { name: /^Partials/ }));
+    expectMarked("nav", false);
+    await user.click(within(list).getByRole("tab", { name: /^Styles/ }));
+    expectMarked("styles.css", true);
+  });
+
+  // Only one group's chips are on screen at a time, so a group tab carries a dot when any file in it
+  // is modified. Decorative (`aria-hidden`): the per-file marker inside the group is the named one.
+  it("dots exactly the group tabs that hold a modified file", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    const dotted = screen
+      .getAllByRole("tab")
+      .filter((tab) => tab.querySelector(".theme-explore-group-modified"))
+      .map((tab) => tab.id);
+    expect(dotted).toEqual(["theme-explore-group-page", "theme-explore-group-style"]);
   });
 });
 
@@ -626,6 +709,7 @@ describe("per-file overflow menu — copy, rename, and delete", () => {
   it("offers Copy, Rename, and Delete for every file, including identity-locked ones (script)", async () => {
     const user = userEvent.setup();
     render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    await user.click(screen.getByRole("tab", { name: /^Scripts/ }));
     await user.click(screen.getByRole("button", { name: /more actions for main\.js/i }));
     expect(screen.getByRole("menuitem", { name: "Copy" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Rename" })).toBeInTheDocument();
@@ -742,8 +826,8 @@ describe("driving the per-file RowMenu through page.* verbs", () => {
   }
 
   it("publishes a distinct, clickable handle per file, path-derived and shared across groups", async () => {
-    // "index"/"about" (pages), "nav" (partial) — three different groups, proving the handle is
-    // computed once across ALL files, not reset per group (see `ThemeExploreFileList`'s own comment).
+    // "index"/"about" (pages) here; "nav" (partial) is behind its group tab since 2026-10-11 — see
+    // the next test, which proves the handle is computed once across ALL files, not per group.
     const { container } = render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
     await screen.findByRole("button", { name: "about" });
     // Scoped to `container`, the same way `App.hooks.tsx` scopes the real bridge to `contentEl`
@@ -753,7 +837,7 @@ describe("driving the per-file RowMenu through page.* verbs", () => {
     const before = await handlesOf(driver);
     expect(before).toContain("theme-explore-file-pages-index-html-menu");
     expect(before).toContain("theme-explore-file-pages-about-html-menu");
-    expect(before).toContain("theme-explore-file-nav-html-menu");
+    expect(before).not.toContain("theme-explore-file-nav-html-menu");
     // Distinct handles — path-derived, not position-derived. A duplicate would not fail loudly; it
     // would make `page.click` silently resolve to whichever menu the DOM reaches first (see
     // `buildAgentListHandles`'s own doc comment).
@@ -777,6 +861,25 @@ describe("driving the per-file RowMenu through page.* verbs", () => {
     expect(bodyHandles).toContain("theme-explore-file-pages-about-html-menu-item-copy");
     // "about"'s own item, not "index"'s — "index"'s menu was never opened.
     expect(bodyHandles).not.toContain("theme-explore-file-pages-index-html-menu-item-copy");
+  });
+
+  // An assistant reaches another group's files the way a person does: through the group tab's own
+  // handle. The file's menu handle is the same path-derived one it would have in any group.
+  it("publishes a handle per group tab that brings that group's file handles into view", async () => {
+    const { container } = render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    await screen.findByRole("button", { name: "about" });
+    // ARIA exposes a tab; agent metadata exposes the supported click verb for this button.
+    expect(container.querySelector("#theme-explore-group-partial")).toHaveAttribute("data-agent-role", "button");
+    const driver = createDomPageDriver({ root: container, pages: {} });
+    const before = await handlesOf(driver);
+    expect(before).toEqual(expect.arrayContaining(["theme-explore-group-page", "theme-explore-group-partial", "theme-explore-group-asset"]));
+
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "theme-explore-group-partial" } });
+    await driver.settle?.({});
+
+    const after = await handlesOf(driver);
+    expect(after).toContain("theme-explore-file-nav-html-menu");
+    expect(after).not.toContain("theme-explore-file-pages-about-html-menu");
   });
 });
 
@@ -896,11 +999,24 @@ describe("delete confirmation", () => {
  * carry the selected file's own name in their label.
  */
 describe("toolbar restructure — back button plus file-bound Save/Reset", () => {
-  it("renders '← All themes' as a button, not a bare link", () => {
+  it("renders the back control as a button, not a bare link", () => {
     render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
-    const back = screen.getByRole("button", { name: "← All themes" });
+    const back = screen.getByRole("button", { name: "All themes" });
     expect(back.tagName).toBe("BUTTON");
-    expect(back).toHaveClass("btn-secondary");
+  });
+
+  // Owner, 2026-10-11: "just make it a back arrow to the left, and leave the Saved and Reset buttons
+  // where they are" — an icon-only arrow named by aria-label/title, first in the header, before the
+  // title block, and no longer inside the Save/Reset row.
+  it("renders 'All themes' as an icon-only back arrow at the header's left, outside the Save/Reset row", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ selected: "pages/about.html" })} />);
+    const back = screen.getByRole("button", { name: "All themes" });
+    expect(back).toHaveTextContent(/^$/);
+    expect(back).toHaveAttribute("title", "All themes");
+    const header = back.closest(".theme-explore-header") as HTMLElement;
+    expect(header.firstElementChild).toBe(back);
+    expect(back.closest(".page-actions")).toBeNull();
+    expect(screen.getByRole("button", { name: "Saved" }).closest(".theme-explore-header-actions")).not.toBeNull();
   });
 
   it("labels Save with the selected file's name, and calls save() on click", async () => {
@@ -987,7 +1103,8 @@ describe("error toast", () => {
  * `_unpublished/` folder convention with a real control.
  *
  * Three shapes, not two: absent entirely for a file the publish question never applies to at all (a
- * partial, a stylesheet, …); a DISABLED "locked" switch with a visible reason for a page that exists
+ * partial, a stylesheet, …); a DISABLED "locked" switch with its reason in the ⓘ tooltip (owner,
+ * 2026-10-11 — it used to be visible text beside the switch) for a page that exists
  * but can never be independently toggled (`index`/`404`/a declared template shell) — the regression
  * this pass specifically closes, see the "locked pages" block below; and a live, enabled switch for
  * a real candidate page.
@@ -1030,6 +1147,20 @@ describe("publish toggle — the selected page's publish state", () => {
       expect(toggle).toHaveAttribute("aria-checked", "false");
       expect(toggle).toBeDisabled();
       expect(screen.getByText("Not a standalone page — used as a content template")).toBeInTheDocument();
+    });
+
+    it.each([
+      ["pages/404.html", "Publish 404", "Always published — error page"],
+      ["pages/blog-post.html", "Publish blog-post", "Not a standalone page — used as a content template"],
+    ])("puts %s's reason ONLY in the ⓘ tooltip — the row is just Publish, the switch and ⓘ (owner, 2026-10-11)", (path, switchName, reason) => {
+      renderExplore({ selected: path });
+      const row = screen.getByText("Publish").closest(".theme-explore-publish-toggle") as HTMLElement;
+      // No visible reason text in the row: the only copy of it is InfoTip's hidden description span.
+      expect(within(row).getByText(reason)).not.toBeVisible();
+      expect(row.querySelector(".theme-explore-publish-reason")).toBeNull();
+      // The ⓘ is named by the reason, and the switch still announces it as its description.
+      expect(within(row).getByRole("button", { name: reason })).toHaveTextContent("ⓘ");
+      expect(within(row).getByRole("switch", { name: switchName })).toHaveAccessibleDescription(reason);
     });
 
     it("clicking a locked switch never calls setPagePublished", async () => {
@@ -1114,9 +1245,14 @@ describe("publish toggle — the selected page's publish state", () => {
       ).toBeTruthy();
     });
 
-    it("also renders for a LOCKED page (404) — the explanation applies regardless of which of the two shapes is showing", () => {
+    // Owner, 2026-10-11: a locked page's one ⓘ carries its own reason instead (see the "locked
+    // pages" block above) — the general text is about turning a page on, which it can't do.
+    it("is replaced by the page's own reason for a LOCKED page (404) — still exactly one ⓘ in the row", () => {
       renderExplore({ selected: "pages/404.html" });
-      expect(screen.getByLabelText(PUBLISH_INFO_LABEL)).toBeInTheDocument();
+      expect(screen.queryByLabelText(PUBLISH_INFO_LABEL)).not.toBeInTheDocument();
+      const row = screen.getByText("Publish").closest(".theme-explore-publish-toggle") as HTMLElement;
+      expect(row.querySelectorAll(".info-tip-icon")).toHaveLength(1);
+      expect(within(row).getByLabelText("Always published — error page")).toBeInTheDocument();
     });
 
     it("is reachable and openable by keyboard alone, not hover-only", () => {
@@ -1134,106 +1270,43 @@ describe("publish toggle — the selected page's publish state", () => {
 });
 
 /**
- * Slug-collision warning (2026-08-30) — the theme-page side of the identical fact
- * `PostEditor.tsx`'s `PostEditorSlugCollisionWarning` already surfaces from the post side: another
- * resource claims this page's own URL.
- *
- * Deliberately exercised on an UNPUBLISHED page (`pages/mine.html`, `published: false` in the base
- * `FILES` fixture) rather than a published one — see `ThemeExploreSlugCollisionWarning`'s own doc
- * for why: `resolveMarketingPageOrOverride` never even consults an unpublished theme page's own
- * state before letting a live post win the slug, so gating this warning on `published` would hide
- * it for exactly the case that caused the live confusion this feature exists to prevent (a page
- * switched OFF, expecting its URL to 404, whose URL still 200'd via a colliding post).
+ * 2026-10-10 (owner: "Get rid of that card completely"): a theme page whose URL a content record
+ * already claims no longer gets a `.notice.warning` card under the toolbar ("… is this site's home
+ * page, so visitors see it at / instead of this theme page …" + an "Open …" link). The only
+ * surviving signal is the Publish toggle's own hint, which for `index` reads "Not shown —
+ * {title} is your home page" (`selectedFilePublishState` → `homeFallbackPublishReason`) — since
+ * 2026-10-11 only in the toggle's ⓘ tooltip, not as visible text (owner).
  */
-describe("slug-collision warning — a content record claims this page's own URL", () => {
-  const COLLIDING_CONTENT = { id: "post-1", slug: "mine", title: "What Is Tovu?", kind: "post" as const };
-  // Widened past `typeof COLLIDING_CONTENT` (`kind: "post"` only) so a `kind: "page"` fixture —
-  // used by the tests below it — type-checks with no cast; pre-existing narrowness this file's own
-  // `kind: "page" as const` fixtures were already silently failing tsc against (2026-09-03 fix,
-  // caught widening this same collision fixture to cover the root-slug case).
-  type CollidingContent = { id: string; slug: string; title: string; kind: "post" | "page" };
+describe("no slug-collision card — a content record claims this page's own URL", () => {
+  const HOME_PAGE = { id: "home-1", slug: "/", title: "Home", kind: "page" as const };
+  const POST = { id: "post-1", slug: "mine", title: "What Is Tovu?", kind: "post" as const };
 
-  function filesWithCollision(path: string, collidingContent: CollidingContent | null) {
+  function filesWithCollision(path: string, collidingContent: { id: string; slug: string; title: string; kind: "post" | "page" }) {
     return FILES.map((f) => (f.path === path ? { ...f, collidingContent } : f));
   }
 
-  it("renders nothing when the selected file has no colliding content", () => {
-    renderExplore({ selected: "pages/mine.html" });
+  function expectNoCollisionCard() {
+    expect(document.querySelector(".theme-explore-slug-collision-warning")).not.toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="theme-explore-slug-collision-open-record"]')).not.toBeInTheDocument();
+    expect(screen.queryByText(/instead of this theme page/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Open (Home|What Is Tovu\?)/ })).not.toBeInTheDocument();
+  }
+
+  it("shows no card for index while a Page is the home page, but keeps the hint as the Publish toggle's ⓘ tooltip (not visible text)", () => {
+    renderExplore({ selected: "pages/index.html", files: filesWithCollision("pages/index.html", HOME_PAGE) });
+    expectNoCollisionCard();
+    expect(screen.getByRole("switch", { name: "Publish index" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Not shown — Home is your home page" })).toHaveTextContent("ⓘ");
+    expect(screen.getByText("Not shown — Home is your home page")).not.toBeVisible();
   });
 
-  it("renders the warning, naming the colliding record, for an UNPUBLISHED page — the toggle's own state does not gate this", () => {
-    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
-    const toggle = screen.getByRole("switch", { name: "Publish mine" });
-    expect(toggle).toHaveAttribute("aria-checked", "false");
-    const warning = document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]');
-    expect(warning).toBeInTheDocument();
-    expect(within(warning as HTMLElement).getByText(/A content record shares this page's URL: What Is Tovu\?/)).toBeInTheDocument();
-  });
-
-  it("renders the warning for a PUBLISHED page too — a colliding post can still win by default even when the page is on", () => {
-    renderExplore({ selected: "pages/about.html", files: filesWithCollision("pages/about.html", COLLIDING_CONTENT) });
-    expect(document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]')).toBeInTheDocument();
-  });
-
-  it("does not render for a DIFFERENT selected file just because some other file has a collision", () => {
-    renderExplore({ selected: "pages/about.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
-    expect(document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]')).not.toBeInTheDocument();
-  });
-
-  it("links to the colliding POST's own editor route (keyed by slug, not id — S6a, commit 8d93a65c9)", () => {
-    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
-    const link = screen.getByRole("link", { name: /What Is Tovu\?/ });
-    expect(link).toHaveAttribute("href", "/admin/posts/mine");
-  });
-
-  it("links to the colliding PAGE's own editor route (keyed by slug, not id)", () => {
-    const collidingPage = { id: "page-1", slug: "mine", title: "Old Mine Page", kind: "page" as const };
-    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", collidingPage) });
-    const link = screen.getByRole("link", { name: /Old Mine Page/ });
-    expect(link).toHaveAttribute("href", "/admin/pages/mine");
-  });
-
-  /**
-   * Regression test — a colliding Page holding the literal root slug `"/"` must fall back to the
-   * id (`pageAdminPath`, `features/pages/rules.ts`, 2026-09-03), since `/admin/pages//` cannot
-   * match the admin router's `/:slug` pattern and the link would silently do nothing. Must FAIL
-   * against a bare `/pages/${slug}` template and pass now that this route goes through
-   * `pageAdminPath`.
-   */
-  it("links to the colliding PAGE's own editor route by id when it holds the root slug '/'", () => {
-    const collidingHomePage = { id: "home-1", slug: "/", title: "Home", kind: "page" as const };
-    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", collidingHomePage) });
-    const link = screen.getByRole("link", { name: /Home/ });
-    expect(link).toHaveAttribute("href", "/admin/pages/home-1");
-  });
-
-  it("clicking the link navigates via the SPA router instead of a full page load", async () => {
-    window.history.replaceState(null, "", "/");
-    const user = userEvent.setup();
-    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
-    const link = screen.getByRole("link", { name: /What Is Tovu\?/ });
-
-    await user.click(link);
-
-    // Slug-keyed since S6a (commit 8d93a65c9), same as the href assertion above.
-    expect(window.location.pathname).toBe("/admin/posts/mine");
-    window.history.replaceState(null, "", "/");
-  });
-
-  it.each([false, true])("consults the unsaved-edit guard before following the collision link (%s)", async (allowed) => {
-    const origin = "/admin/themes/explore?theme=novice&page=mine";
-    window.history.replaceState(null, "", origin);
-    try {
-      const user = userEvent.setup();
-      const confirmLeave = vi.fn(() => allowed);
-      renderExplore({ dirty: true, confirmLeave, selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
-      await user.click(screen.getByRole("link", { name: /What Is Tovu\?/ }));
-      expect(confirmLeave).toHaveBeenCalledTimes(1);
-      expect(window.location.pathname + window.location.search).toBe(allowed ? "/admin/posts/mine" : origin);
-    } finally {
-      window.history.replaceState(null, "", "/");
-    }
+  it.each([
+    ["an UNPUBLISHED page", "pages/mine.html"],
+    ["a PUBLISHED page", "pages/about.html"],
+  ])("shows no card for %s that a content record shares the URL of", (_label, path) => {
+    renderExplore({ selected: path, files: filesWithCollision(path, POST) });
+    expectNoCollisionCard();
   });
 });
 
@@ -1389,7 +1462,7 @@ describe("reset confirm dialog — confirming actually resets", () => {
   });
 });
 
-describe("'← All themes' navigates back to the theme list", () => {
+describe("the 'All themes' back arrow navigates back to the theme list", () => {
   it.each([false, true])("consults the unsaved-edit guard before navigating back (%s)", async (allowed) => {
     const origin = "/admin/themes/explore?theme=novice";
     window.history.replaceState(null, "", origin);
@@ -1397,7 +1470,7 @@ describe("'← All themes' navigates back to the theme list", () => {
       const user = userEvent.setup();
       const confirmLeave = vi.fn(() => allowed);
       renderExplore({ dirty: true, confirmLeave });
-      await user.click(screen.getByRole("button", { name: "← All themes" }));
+      await user.click(screen.getByRole("button", { name: "All themes" }));
       expect(confirmLeave).toHaveBeenCalledTimes(1);
       expect(window.location.pathname + window.location.search).toBe(allowed ? "/admin/themes" : origin);
     } finally {
@@ -1410,7 +1483,7 @@ describe("'← All themes' navigates back to the theme list", () => {
     const user = userEvent.setup();
     renderExplore();
 
-    await user.click(screen.getByRole("button", { name: "← All themes" }));
+    await user.click(screen.getByRole("button", { name: "All themes" }));
 
     expect(window.location.pathname).toBe("/admin/themes");
     window.history.replaceState(null, "", "/");

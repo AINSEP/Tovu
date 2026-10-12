@@ -1,9 +1,9 @@
-import { Icon } from "@jini-ai/ui";
 /**
  * @file The Themes screen's card-action glyphs (owner 2026-10-08: the card's text buttons became
- * icons). Copy is Jini UI's shared `copy` shape; Jini has no compass, so Explore's glyph stays local
- * here — the same split `plugins-visuals.tsx` uses (shared shapes from Jini, unique artwork local).
- * Both are decorative: the button around each one carries the accessible name.
+ * icons). Jini has no compass, so Explore's glyph stays local here — the same split
+ * `plugins-visuals.tsx` uses (shared shapes from Jini, unique artwork local). The Duplicate (copy)
+ * glyph went with its button when Copy moved into the card's ⋮ menu (owner 2026-10-10). Decorative:
+ * the button around it carries the accessible name.
  */
 
 /** The 24px grid, 1.5 stroke and round joins every admin line icon shares (`plugins-visuals.tsx`). */
@@ -31,7 +31,3 @@ export function CompassIcon({ size = 18 }: IconProps) {
   );
 }
 
-/** Duplicate — two overlapping pages, the copy-button glyph. */
-export function DuplicateIcon({ size = 18 }: IconProps) {
-  return <Icon name="copy" size={size} focusable={undefined} {...LINE_ICON} />;
-}

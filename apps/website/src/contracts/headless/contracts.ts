@@ -124,6 +124,9 @@ export interface HeadlessThemeSummary {
    * templates live under `pages/` (v1) or `render/pages/` (v2). Mirrors `ThemeManifest.apiVersion`.
    */
   apiVersion?: 2;
+  /** Ships with the package itself (its originals catalog has this id), so the Themes screen does
+   *  not offer to delete it. A copy of a shipped theme is `false`. Optional for older servers. */
+  builtIn?: boolean;
 }
 
 export interface AdminPresentation {
@@ -146,8 +149,10 @@ export interface AdminPresentation {
    * doesn't declare one. BOTH the Post editor's and the Pages editor's picker read this SAME field to
    * populate their options. The unified `content` marker makes the template list common;
    * see `ThemeManifest.templates` (`features/theme/theme.ts`) for the
-   * reasoning and what it does NOT solve — template applicability). An empty array means a picker has
-   * nothing to offer and stays hidden, not broken.
+   * historical reasoning). Editor GETs now supply `kind=post` or `kind=page` to filter this
+   * array using `ThemeManifest.templateFor`, preserving manifest order. Omitting kind retains the
+   * full catalog. An empty array means a picker has nothing to offer and stays hidden unless its
+   * content row already has a saved choice, which the editor keeps visible.
    */
   activeThemeTemplates: string[];
   /**

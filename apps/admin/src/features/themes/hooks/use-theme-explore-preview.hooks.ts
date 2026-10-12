@@ -19,6 +19,31 @@ function isLiquidTemplateFile(file: ThemeExploreFile): boolean {
   return file.path.toLowerCase().endsWith(".liquid");
 }
 
+/** What the Preview tab shows for a file — see {@link themeExplorePreviewMode}. */
+export type ThemeExplorePreviewMode = "render" | "code";
+
+/**
+ * Whether the Preview tab renders `file` in the device-scaled iframe (`"render"`) or shows its text
+ * in the read-only line-numbered code viewer (`"code"`).
+ *
+ * Owner screenshot, 2026-10-10 ("the preview looks weird, too small"): a `theme.json` in Preview
+ * loaded Chrome's raw JSON viewer into the 1280px frame and scaled it down to unreadable. A device
+ * width only means something for a page that lays itself out, so `"render"` is kept for pages,
+ * partials and `.liquid` templates, plus binary files and the `asset` group (images, fonts), which
+ * still render as themselves (see {@link previewSrcFor}). `asset` is checked, not just `readable`,
+ * because `.svg` is readable text server-side (`explore.ts`'s `TEXT_READABLE_EXTENSIONS`) yet is an
+ * image the owner expects to see drawn. Every other readable file (JSON, CSS, JS, Markdown, `other`)
+ * is `"code"`. `undefined` (nothing selected) stays `"render"`, so the existing "Select a file to
+ * preview." notice is unchanged.
+ *
+ * @complexity O(k) time, O(1) space for k characters in the file path (the `.liquid` check).
+ */
+export function themeExplorePreviewMode(file: ThemeExploreFile | undefined): ThemeExplorePreviewMode {
+  if (!file || !file.readable || file.kind === "asset") return "render";
+  if (isLiquidTemplateFile(file) || file.kind === "page" || file.kind === "partial") return "render";
+  return "code";
+}
+
 /**
  * The URL for the selected file's preview, or `null` when the file has no meaningful one.
  *
@@ -42,6 +67,8 @@ function isLiquidTemplateFile(file: ThemeExploreFile): boolean {
  *   render as themselves. 2026-08-17 owner ask (verbatim): "Can we get preview to just render everything,
  *   in a simple manner. If it's an image, it renders that. If it's a JavaScript, it just renders like
  *   HTML. If it's JSON same." — every file type should show SOMETHING in Preview, not just images.
+ *   2026-10-10: readable non-page files still get this URL, but the Preview tab now shows their text
+ *   in the code viewer instead of mounting it (see {@link themeExplorePreviewMode}).
  * @complexity O(k) time and space for k characters in the theme id and selected file path/label.
  */
 export function previewSrcFor(

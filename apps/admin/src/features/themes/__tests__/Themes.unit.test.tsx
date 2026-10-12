@@ -185,19 +185,18 @@ describe("theme grid", () => {
     expect(unknownCard.querySelector("p")).toBeEmptyDOMElement();
   });
 
-  it("renders Explore and Duplicate as icon-only buttons with a tooltip (owner 2026-10-08: compass, copy)", () => {
+  it("renders Explore and the ⋮ menu as icon-only buttons (owner 2026-10-08 compass; 2026-10-10 ⋮ replaced Duplicate)", () => {
     render(<Themes useThemesHook={() => baseController({ duplicate: vi.fn(async () => {}) })} />);
     const columnCard = screen.getByText("column").closest(".theme-card") as HTMLElement;
     const explore = within(columnCard).getByRole("button", { name: "Explore column" });
-    const duplicate = within(columnCard).getByRole("button", { name: "Duplicate column" });
+    const menu = within(columnCard).getByRole("button", { name: "More actions for column" });
     expect(explore).toHaveAttribute("title", "Explore");
-    expect(duplicate).toHaveAttribute("title", "Duplicate");
-    for (const control of [explore, duplicate, within(columnCard).getByRole("switch")]) {
+    for (const control of [explore, menu, within(columnCard).getByRole("switch")]) {
       // No visible label text — the glyph (or the switch knob) is the whole control.
       expect(control.textContent).toBe("");
     }
     expect(explore.querySelector("svg")).not.toBeNull();
-    expect(duplicate.querySelector("svg")).not.toBeNull();
+    expect(menu.querySelector("svg")).not.toBeNull();
   });
 });
 
@@ -209,6 +208,19 @@ describe("View site link", () => {
     expect(link).toHaveAttribute("rel", "noreferrer");
     expect(link).toHaveAttribute("href", "/");
     expect(new URL((link as HTMLAnchorElement).href).pathname).toBe("/");
+  });
+
+  it("sits in the page header, above one button row of Rescan, Turn the theme off and Publish (owner 2026-10-11)", () => {
+    render(<Themes useThemesHook={() => baseController()} />);
+    const link = screen.getByRole("link", { name: /view site/i });
+    expect(link.closest(".page-header")).not.toBeNull();
+    const row = screen.getByRole("button", { name: "Publish themes" }).parentElement;
+    expect(row).toHaveClass("page-actions");
+    expect(Array.from(row!.children).map((el) => el.textContent)).toEqual([
+      "Rescan themes",
+      "Turn the theme off",
+      "Publish themes",
+    ]);
   });
 });
 
@@ -233,12 +245,27 @@ describe("tier tabs", () => {
     // in rules.ts (commit fd81d10, 2026-08-11 owner feedback: Static reads before Templated
     // since Tovu ships a working static theme today and no templated one yet). Do not
     // "fix" this back to alphabetical/original order — that commit deliberately reordered it.
+    // "Soon" is the `TabBarTab.tag` pill between label and count (owner, 2026-10-11) — see the
+    // "Soon tags" test below.
     expect(tabs.map((tab) => tab.textContent)).toEqual([
-      "Declarative1",
+      "DeclarativeSoon1",
       "Static2",
-      "Templated0",
-      "Code0",
+      "TemplatedSoon0",
+      "CodeSoon0",
     ]);
+  });
+
+  it("tags Declarative, Templated and Code with the sidebar's Soon pill but leaves them clickable; Static has no tag (owner 2026-10-11)", async () => {
+    const user = userEvent.setup();
+    render(<Themes useThemesHook={() => baseController({ themeTiers: { signal: "static" } })} />);
+    for (const name of [/^Declarative/, /^Templated/, /^Code/]) {
+      const tab = screen.getByRole("tab", { name });
+      expect(tab.querySelector(".tab-bar-tag")?.textContent).toBe("Soon");
+      expect(tab).not.toBeDisabled();
+    }
+    expect(screen.getByRole("tab", { name: /^Static/ }).querySelector(".tab-bar-tag")).toBeNull();
+    await user.click(screen.getByRole("tab", { name: /^Code/ }));
+    expect(window.location.search).toBe("?tab=code");
   });
 
   it("folds a handlebars-tier theme into the same Templated tab a templated-tier theme uses — owner feedback: 5 raw tiers, 4 conceptual tabs", () => {
@@ -247,7 +274,7 @@ describe("tier tabs", () => {
         useThemesHook={() => baseController({ themeTiers: { "tovu-official": "handlebars" } })}
       />,
     );
-    expect(screen.getByRole("tab", { name: "Templated1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "TemplatedSoon1" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /^Handlebars/ })).not.toBeInTheDocument();
   });
 

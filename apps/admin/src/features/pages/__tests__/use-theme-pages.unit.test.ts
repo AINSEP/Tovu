@@ -76,8 +76,8 @@ describe("useThemePages", () => {
 
   /**
    * 2026-08-31 pass: the Theme Pages tab's details modal shows any live content record already
-   * claiming a page's slug — the same fact Theme Studio's Explore screen warns about
-   * (`ThemeExploreSlugCollisionWarning`). `getThemeDetail`'s own `collidingContent` now flows
+   * claiming a page's slug — the same fact Theme Studio's Explore screen reflects in its Publish
+   * toggle's inline hint. `getThemeDetail`'s own `collidingContent` now flows
    * straight through into the row, same `?? null` normalization `published` already gets.
    */
   it("carries a file's collidingContent straight into its row, defaulting to null when absent", async () => {

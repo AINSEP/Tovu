@@ -12,13 +12,16 @@ export const defaultThemesPort: ThemesPort = {
   rescanThemes: () => api.rescanThemes(),
   setActiveTheme: (activeThemeId) => api.setActiveTheme(activeThemeId),
   duplicateTheme: (themeId, newName) => api.duplicateTheme(themeId, newName),
+  trashTheme: async ({ themeId }) => {
+    await api.trash({ type: "theme", id: themeId });
+  },
 };
 
 /** Seed state for {@link createFakeThemesPort}. */
 export interface FakeThemesPortOptions {
   settings?: PresentationSettings;
   availableThemeIds?: string[];
-  availableThemes?: Array<{ id: string; name?: string; tier: ThemeTier; previewImageUrl?: string | null }>;
+  availableThemes?: Array<{ id: string; name?: string; tier: ThemeTier; previewImageUrl?: string | null; builtIn?: boolean }>;
   /** Lets a test script what a rescan reports without the fake reimplementing the
    *  server's own theme-directory scan. */
   onRescan?: () => { added: string[]; removed: string[]; total: number; availableThemeIds: string[]; duplicateIds: string[] };
@@ -58,6 +61,16 @@ export function createFakeThemesPort(options: FakeThemesPortOptions = {}): Theme
       availableThemeIds.push(id);
       availableThemes.push({ id, name: newName, tier: source.tier });
       return { theme: { id, name: newName } };
+    },
+
+    /** Drops the theme from the installed list and refuses the active one, the way the server's
+     *  `theme` Trash mover does. */
+    async trashTheme({ themeId }) {
+      if (settings.activeThemeId === themeId) throw new Error(`theme '${themeId}' is the active theme`);
+      const index = availableThemes.findIndex((theme) => theme.id === themeId);
+      if (index === -1) throw new Error(`theme '${themeId}' was not found`);
+      availableThemes.splice(index, 1);
+      availableThemeIds.splice(availableThemeIds.indexOf(themeId), 1);
     },
   };
 }

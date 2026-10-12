@@ -18,10 +18,13 @@ export interface ThemesPort {
   getPresentation(): Promise<{
     settings: PresentationSettings;
     availableThemeIds: string[];
-    availableThemes: Array<{ id: string; name?: string; tier: ThemeTier; previewImageUrl?: string | null }>;
+    availableThemes: Array<{ id: string; name?: string; tier: ThemeTier; previewImageUrl?: string | null; builtIn?: boolean }>;
   }>;
   rescanThemes(): Promise<{ added: string[]; removed: string[]; total: number; availableThemeIds: string[]; duplicateIds: string[] }>;
   setActiveTheme(activeThemeId: string): Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>;
   /** Copy a theme into a new one named `newName` (server derives the id). Resolves with the copy's id and name. */
   duplicateTheme(themeId: string, newName: string): Promise<{ theme: { id: string; name: string } }>;
+  /** Move a whole theme to the Trash (the generic `POST /trash/items`, `type: "theme"`). The server
+   *  refuses the active theme (`THEME_ACTIVE`); restoring happens from the Trash screen. */
+  trashTheme(required: { themeId: string }): Promise<void>;
 }

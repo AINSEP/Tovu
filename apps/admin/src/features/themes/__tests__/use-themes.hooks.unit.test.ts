@@ -69,13 +69,14 @@ describe("useThemes — activate race safety", () => {
       { promise: Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>; resolve: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }
     > = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
+    const persistTheme = port.setActiveTheme;
     const setActiveTheme = vi.fn((activeThemeId: string) => {
       let resolve!: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void;
       const promise = new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((r) => {
         resolve = r;
       });
       deferred[activeThemeId] = { promise, resolve };
-      return promise;
+      return promise.then(async value => { await persistTheme(activeThemeId); return value; });
     });
     port.setActiveTheme = setActiveTheme;
 
@@ -112,7 +113,7 @@ describe("useThemes — activate race safety", () => {
 
     // The operator's LAST click (slate) is what is shown, reached the server AFTER quartz's stale
     // response had already been dropped.
-    expect(result.current.settings?.activeThemeId).toBe("slate");
+    await waitFor(() => expect(result.current.settings?.activeThemeId).toBe("slate"));
   });
 
   /**
@@ -166,12 +167,13 @@ describe("useThemes — activate race safety", () => {
     const deferred: Record<string, { reject: (reason: unknown) => void; resolveOk: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }> = {};
     const promises: Record<string, Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>> = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
+    const persistTheme = port.setActiveTheme;
     port.setActiveTheme = vi.fn((activeThemeId: string) => {
       const promise = new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve, reject) => {
         deferred[activeThemeId] = { reject, resolveOk: resolve };
       });
       promises[activeThemeId] = promise;
-      return promise;
+      return promise.then(async value => { await persistTheme(activeThemeId); return value; });
     });
 
     const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
@@ -221,12 +223,14 @@ describe("useThemes — two activations back to back persist the theme the scree
     let inFlight = 0;
     const calls: string[] = [];
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
+    const persistTheme = port.setActiveTheme;
     port.setActiveTheme = vi.fn((themeId: string) => {
       calls.push(themeId);
       return new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve) => {
         inFlight += 1;
         maxInFlight = Math.max(maxInFlight, inFlight);
         pending.push(() => {
+          void persistTheme(themeId);
           persisted = themeId;
           inFlight -= 1;
           resolve({ settings: settingsFor(themeId), availableThemeIds: ["basic", "quartz", "slate"] });
@@ -258,7 +262,7 @@ describe("useThemes — two activations back to back persist the theme the scree
     await waitFor(() => expect(result.current.busyTheme).toBeNull(), { timeout: 5000 });
 
     expect(persisted).toBe("slate");
-    expect(result.current.settings?.activeThemeId).toBe("slate");
+    await waitFor(() => expect(result.current.settings?.activeThemeId).toBe("slate"));
     expect(maxInFlight).toBe(1);
     expect(calls).toEqual(["quartz", "slate"]);
   });

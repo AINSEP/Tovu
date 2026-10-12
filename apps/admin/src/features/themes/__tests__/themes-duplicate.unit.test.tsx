@@ -81,23 +81,27 @@ function controller(overrides: Partial<ThemesController> = {}): ThemesController
   return { settings: SETTINGS, themes: ["basic", "column"], error: null, busyTheme: null, activate: vi.fn(async () => {}), t: identity, ...overrides };
 }
 
-describe("Themes — Duplicate button", () => {
-  it("each card's Duplicate calls duplicate with that card's theme id", async () => {
+// Duplicate lives in each card's ⋮ menu as "Copy theme" since 2026-10-10 (its icon button is gone).
+describe("Themes — Copy theme (card menu)", () => {
+  it("each card's Copy theme calls duplicate with that card's theme id", async () => {
     const duplicate = vi.fn(async () => {});
     render(<Themes useThemesHook={() => controller({ duplicate, duplicatingTheme: null })} />);
-    await userEvent.click(screen.getByRole("button", { name: "Duplicate column" }));
+    await userEvent.click(screen.getByRole("button", { name: "More actions for column" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Copy theme" }));
     expect(duplicate).toHaveBeenCalledWith("column");
   });
 
-  it("shows the busy label on the card being copied and disables every Duplicate meanwhile", () => {
-    render(<Themes useThemesHook={() => controller({ duplicate: vi.fn(async () => {}), duplicatingTheme: "basic" })} />);
-    expect(screen.getByRole("button", { name: "Duplicating… basic" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Duplicate column" })).toBeDisabled();
+  it("shows the busy label and does nothing while a copy is in flight", async () => {
+    const duplicate = vi.fn(async () => {});
+    render(<Themes useThemesHook={() => controller({ duplicate, duplicatingTheme: "basic" })} />);
+    await userEvent.click(screen.getByRole("button", { name: "More actions for column" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Duplicating…" }));
+    expect(duplicate).not.toHaveBeenCalled();
   });
 
   it("is absent for a controller without duplicate (older test doubles)", () => {
     render(<Themes useThemesHook={() => controller()} />);
-    expect(screen.queryByRole("button", { name: /^Duplicate/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^More actions for/ })).not.toBeInTheDocument();
   });
 
   it("shows the success toast from duplicateNotice", () => {
