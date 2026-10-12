@@ -197,7 +197,8 @@ test("a folder moved before launch shows as missing; a wrong folder is refused; 
 
     await stubFolderPicker(app, emptyFolder("locate-wrong"));
     await locate.click();
-    await expect(card.locator(".card__actionerror")).toContainText("is not a complete Tovu site");
+    // Path-bearing refusals show recovery copy, not the folder path, since 5a9fdc111 (pinned in d0c2a837e).
+    await expect(card.locator(".card__actionerror")).toHaveText("Could not add this website. Check the folder and try again.");
     await expect(card.locator(".card__missing")).toBeVisible();
 
     await stubFolderPicker(app, newDir);
