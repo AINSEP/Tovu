@@ -252,3 +252,29 @@ test("resolveMediaPublicUrls: a transform format outside EXT_BY_TRANSFORM_FORMAT
   );
   assert.equal(result.get(asset.id), `/m/${asset.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.avif`);
 });
+
+
+test("mediawidget audio URLs share the original-byte owner without requiring an image transform", async () => {
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  const asset = fakeAsset({ slug: "sound" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "audio/wav" });
+  const urls = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [asset]);
+  assert.equal(urls.get(asset.id), "/m/sound/original");
+});
+
+// A host can resolve native players without an image-transform port; images still need that port.
+test("mediawidget URL batch resolves audio/video originals independently of unresolved images", async () => {
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  const audio = fakeAsset({ id: "audio-id", slug: "sound" });
+  const video = fakeAsset({ id: "video-id", slug: "clip" });
+  const image = fakeAsset({ id: "image-id", slug: "photo" });
+  const trashed = fakeAsset({ id: "trashed-id", slug: "gone", status: "trashed" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: audio.source.sha256, contentType: "audio/mpeg" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: video.source.sha256, contentType: "video/mp4" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: image.source.sha256, contentType: "image/png" });
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: trashed.source.sha256, contentType: "audio/wav" });
+  const urls = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [audio, video, image, trashed]);
+  assert.deepEqual([...urls].sort(([a], [b]) => a.localeCompare(b)), [
+    ["audio-id", "/m/sound/original"], ["image-id", null], ["trashed-id", null], ["video-id", "/m/clip/original"],
+  ]);
+});

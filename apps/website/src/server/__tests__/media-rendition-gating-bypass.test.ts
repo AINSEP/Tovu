@@ -725,3 +725,44 @@ for (const visibility of ["paid", "tiers"] as const) {
     });
   }
 }
+
+// mediawidget: the existing public asset gate follows the same slug/content owners as rendering.
+for (const shape of ['inline-media', 'raw-html', 'placement', 'saved-widget'] as const) {
+  test(`mediawidget gate protects members-only ${shape} slug media from anonymous asset requests`, async () => {
+    await withServer(async (baseUrl, deps) => {
+      const { media } = await uploadOne(deps, mp4Bytes(`gated-${shape}`), 'member-clip.mp4', 'video/mp4');
+      const { buildWidgetInstanceFieldsJson } = await import('@jini-ai/cms/widgets');
+      const now = '2026-10-10T00:00:00.000Z';
+      await deps.entryRepo.save({ id: 'media-widget', workspaceId: deps.workspaceId, type: 'widget', slug: 'member-media', title: 'Member media', status: 'draft', bodyJson: null, fieldsJson: buildWidgetInstanceFieldsJson({ payload: { widgetType: 'media', status: 'active', config: { mode: 'media', items: [{ slug: media.slug }], layout: 'single' } } }), publishedAt: null, createdAt: now, updatedAt: now, version: 1 });
+      const bodyHtml = shape === 'inline-media' ? `<div data-embed-config='${JSON.stringify({ type: 'media', content: { items: [{ slug: media.slug }] } })}'></div>`
+        : `<div data-embed-config='${JSON.stringify({ type: 'media', content: { mode: 'html', html: `<video data-media-slug="${media.slug}" controls></video>` } })}'></div>`;
+      const bodyJson = { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { placementId: 'p', widgetEntryId: 'media-widget', ...(shape === 'placement' ? { content: { items: [{ slug: media.slug }] } } : {}) } }] };
+      await deps.postRepo.save(makePost({ id: `post-${shape}`, slug: `post-${shape}`, memberAccessJson: MEMBERS_ONLY, ...(shape === 'inline-media' || shape === 'raw-html' ? { kind: 'page', bodyFormat: 'html', bodyHtml } : { bodyJson }) }, deps.workspaceId));
+      const anonymous = await fetch(`${baseUrl}/m/${media.slug}/original`);
+      assert.equal(anonymous.status, 404);
+      assert.equal(anonymous.headers.get('cache-control'), 'private, no-store');
+      deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+      const member = await fetch(`${baseUrl}/m/${media.slug}/original`, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
+      assert.equal(member.status, 200);
+      assert.deepEqual(new Uint8Array(await member.arrayBuffer()), mp4Bytes(`gated-${shape}`));
+    });
+  });
+}
+
+
+test("mediawidget audio uses the existing gated, sniffed, range-capable original endpoint", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const bytes = new Uint8Array(24); bytes.set(bytesFrom("RIFF"), 0); bytes.set(bytesFrom("WAVE"), 8);
+    const { media } = await uploadOne(deps, bytes, "sound.wav", "audio/wav");
+    await deps.postRepo.save(makePost({ id: "audio-page", slug: "audio-page", bodyFormat: "html", bodyHtml: `<audio data-media-slug="${media.slug}"></audio>`, memberAccessJson: MEMBERS_ONLY }, deps.workspaceId));
+    const anonymous = await fetch(`${baseUrl}/m/${media.slug}/original`);
+    assert.equal(anonymous.status, 404);
+    assert.equal(anonymous.headers.get("cache-control"), "private, no-store");
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const member = await fetch(`${baseUrl}/m/${media.slug}/original`, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}`, range: "bytes=0-11" } });
+    assert.equal(member.status, 206);
+    assert.equal(member.headers.get("content-type"), "audio/wav");
+    assert.equal(member.headers.get("content-range"), "bytes 0-11/24");
+    assert.deepEqual(new Uint8Array(await member.arrayBuffer()), bytes.slice(0, 12));
+  });
+});

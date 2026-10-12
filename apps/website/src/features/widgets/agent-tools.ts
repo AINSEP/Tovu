@@ -108,6 +108,7 @@ const PLACEMENT_SCHEMA = {
       description: "Stable id for this placement slot. Omit when adding a NEW placement — one is minted automatically. Supply an EXISTING placementId (from content_read.widget_region) to keep editing the same slot rather than creating a new one.",
     },
     widgetEntryId: WIDGET_INSTANCE_ID_SCHEMA,
+    content: { type: "object", description: "Optional per-placement Media config overlay: slug items or raw HTML; omitted display settings inherit saved config." },
     enabled: { type: "boolean", description: "Whether this placement renders. A disabled placement stays in the list but is skipped at render time." },
   },
 } as const;
@@ -197,7 +198,7 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
       properties: {
         widgetType: { type: "string", enum: WIDGET_TYPE_KEYS, description: "One of the registered widget types. An unregistered type is rejected." },
         title: { type: "string", minLength: 1, description: "Human-readable instance title, shown in the admin library." },
-        config: { type: "object", description: "The type's config bag. Its required shape depends on widgetType — see that type's own registered schema; a rejection names every failing field." },
+        config: { type: "object", description: "Media config: {mode:media,items:[{slug,alt?,caption?}],layout:single|grid|carousel|masonry,columns:1..6,aspectRatio:16/9,htmlAttributes?} or {mode:html,html}. Use media library slugs only; Raw HTML supports {{media:slug}} and data-media-slug. At most 50 items; HTML at most 65536 characters. Placement content overrides saved config. Legacy Gallery images/mediaId still read. Other types: their config shape depends on widgetType — see that type's own registered schema; a rejection names every failing field." },
         slug: { type: "string", description: "Optional stable slug. Auto-derived from title if omitted." },
       },
     },
@@ -214,7 +215,7 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
       properties: {
         widgetInstanceId: WIDGET_INSTANCE_ID_SCHEMA,
         baseVersion: BASE_VERSION_SCHEMA,
-        config: { type: "object", description: "The COMPLETE replacement config bag for this instance's widgetType." },
+        config: { type: "object", description: "The COMPLETE replacement config bag. Media: {mode:media,items:[{slug,alt?,caption?}],layout:single|grid|carousel|masonry,columns:1..6,aspectRatio?,htmlAttributes?} or {mode:html,html} with {{media:slug}} / data-media-slug. Maximum 50 items or 65536 HTML characters; empty items allowed. Raw HTML is sanitized by the page-body policy. Legacy Gallery images/mediaId still read." },
       },
     },
   },

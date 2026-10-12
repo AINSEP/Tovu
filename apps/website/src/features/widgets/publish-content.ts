@@ -1,7 +1,7 @@
 import { WIDGET_REGION_BINDINGS_TABLE } from "./repo.sqlite.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { collectPlacementReferences } from "#src/features/publish-content/content-references";
-import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
+import { collectMediaConfigKeys, collectMediaUrlKeys } from "#src/features/publish-content/media-references";
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
 import type { PublishContentContributor, PublishContentReference, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
 
@@ -92,6 +92,7 @@ function widgetMediaReferences(widgetType: string, config: Record<string, unknow
   const registration = findWidgetTypeRegistration({ raw: widgetType });
   if (!registration) return [];
   const keys = new Set(collectWidgetConfigStrings({ schema: registration.configSchema, config }).flatMap((text) => [...collectMediaUrlKeys(text)]));
+  for (const key of collectMediaConfigKeys({ config })) keys.add(key);
   return [...keys].map((key) => ({ entityType: "media", key }));
 }
 

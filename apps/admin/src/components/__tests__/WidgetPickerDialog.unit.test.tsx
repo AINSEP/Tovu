@@ -101,7 +101,7 @@ it("does not steal focus onto Title once existing instances resolve as present",
 });
 
 it("still focuses Title once instances resolve as empty (a genuinely fresh widget type)", async () => {
-  fetchMock.mockResolvedValue(jsonResponse({ widgets: [] }));
+  fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ widgets: [] })));
   render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
 
   await screen.findByLabelText("Title");
@@ -274,7 +274,7 @@ describe("WidgetAddControl — real flow (unmocked useWidgetAddControl)", () => 
     const user = userEvent.setup();
     // No existing instances of ANY type — forces the dialog straight to "Create new", the section
     // the Title input lives in.
-    fetchMock.mockResolvedValue(jsonResponse({ widgets: [] }));
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ widgets: [] })));
     const onResolved = vi.fn();
 
     render(<WidgetAddControl triggerLabel="Insert widget" onResolved={onResolved} />);

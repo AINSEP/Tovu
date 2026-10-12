@@ -23,8 +23,9 @@ const EXT_BY_TRANSFORM_FORMAT: Record<string, string> = { jpeg: "jpg", png: "png
 /** The exact deps {@link resolveMediaPublicUrls} (read: `getMany`) and {@link buildMediaRegistrationsForTovu}'s
  *  `recordUploadContentType` wiring (write: `set` — see this file's header, "Content-type recording")
  *  need beyond `MediaToolDeps`'s own fields — both OPTIONAL so a test double (or a future host reusing
- *  `buildMediaRegistrationsForTovu` without wiring these) degrades to `publicUrl: null`/no recording
- *  for every asset rather than throwing; see those functions' own docs. `RouteDeps` (this host's real
+ *  `buildMediaRegistrationsForTovu` without wiring these) can omit them without throwing. Missing
+ *  content-type storage leaves all URLs unresolved; missing transforms leaves only image URLs
+ *  unresolved. Content-type recording is a no-op without its store. `RouteDeps` (this host's real
  *  composition-root deps bag) always supplies both in production — `mediaContentTypeStore`/
  *  `transformDefinitionRepo` are established `RouteDeps` fields (`server/routes/types.ts`), not new
  *  wiring this file introduces. `mediaContentTypeStore` is `Pick`-narrowed to only the two methods
@@ -47,7 +48,7 @@ function resolveOneAssetPublicUrl(
 ): string | null {
   const key = mediaUrlKey(asset);
   const contentType = contentTypes.get(asset.source.sha256);
-  if (contentType?.startsWith("video/")) return mediaPublicPath(key, { kind: "original" });
+  if (contentType?.startsWith("video/") || contentType?.startsWith("audio/")) return mediaPublicPath(key, { kind: "original" });
   if (!latest) return null;
   const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
   return mediaPublicPath(key, { kind: "transform", name: CORE_PUBLIC_TRANSFORM_NAME, version: latest.version, ext });
@@ -56,8 +57,8 @@ function resolveOneAssetPublicUrl(
 /**
  * Batch-resolves each of `assets`' `/m/...` public URL — the real implementation behind
  * `MediaToolDeps.resolvePublicUrls` for this host. See this file's header for the full contract
- * (image vs. video, the no-backfill disclosed scope adjustment, why this lives here and not in a
- * route module).
+ * (images vs. original-byte video/audio, the no-backfill disclosed scope adjustment, why this lives
+ * here and not in a route module).
  *
  * @returns a map from `MediaRecord.id` to its resolved URL, or `null` for a trashed asset, an asset
  * with no registered "public" core transform yet (boot has not run `ensureCoreMediaTransform`), or
@@ -71,7 +72,7 @@ export async function resolveMediaPublicUrls(
   assets: readonly MediaRecord[]
 ): Promise<Map<string, string | null>> {
   const result = new Map<string, string | null>();
-  if (!deps.mediaContentTypeStore || !deps.transformDefinitionRepo) {
+  if (!deps.mediaContentTypeStore) {
     for (const asset of assets) result.set(asset.id, null);
     return result;
   }
@@ -86,10 +87,12 @@ export async function resolveMediaPublicUrls(
   const sha256s = [...new Set(active.map((asset) => asset.source.sha256))];
   const contentTypes = await deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s });
 
-  const latest = await getLatestTransformDefinition({
+  // Original-byte players do not depend on image-transform registration. Keep images unresolved
+  // when the host omits that port, while still resolving sniffed audio/video through their owner.
+  const latest = deps.transformDefinitionRepo ? await getLatestTransformDefinition({
     deps: { transformRepo: deps.transformDefinitionRepo },
     input: { workspaceId: deps.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
-  });
+  }) : null;
 
   for (const asset of active) {
     result.set(asset.id, resolveOneAssetPublicUrl(asset, contentTypes, latest));

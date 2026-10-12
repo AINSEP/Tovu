@@ -1,7 +1,8 @@
+import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/features/publish-content/media-references";
+import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
 
-import { scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 import { guardMediaRenditionRepo } from "#src/features/media/guard-rendition-repo";
 import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { isTrashed, type PostRecord } from "#src/features/post/index";
@@ -121,19 +122,8 @@ function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
   // pre-order, the same visit order the recursive version had.
   // Completeness matters most here: this set gates members-only media, so the walk must never stop
   // early at a depth bound — an asset it misses would be served under the fail-open default.
-  const stack: unknown[] = [root];
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (Array.isArray(node)) {
-      for (let i = node.length - 1; i >= 0; i--) stack.push(node[i]);
-      continue;
-    }
-    if (!isPlainObject(node)) continue;
-    if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
-      out.add(node.attrs.assetId);
-    }
-    if (Array.isArray(node.content)) stack.push(node.content);
-  }
+  // The shared authored-reference collector owns that iterative walk, including placement content.
+  for (const key of collectReferencedMediaKeys({ bodyJson: root })) out.add(key);
 }
 
 /**
@@ -168,7 +158,7 @@ function isGatedEntry(entry: PostRecord): boolean {
  * `data-embed-config='{"type":"media","id":"…"}'` marker. So before this function existed, every
  * embed on an `"html"` Page and every video anywhere was invisible to the gate.
  *
- * Uses `Jini/packages/cms/src/widgets/markers/marker.ts`'s `scanEmbedMarkers` directly rather than `widgets/`'s
+ * Uses the shared authored-reference collector, backed by `scanEmbedMarkers`, rather than `widgets/`'s
  * `scanHtmlEmbeds` wrapper, for two reasons: `scanHtmlEmbeds` truncates at
  * `MAX_HTML_EMBEDS_PER_PAGE` (a render-time resource bound — a gate that stopped scanning at
  * marker 50 would hand marker 51 straight to an anonymous caller), and it discards `rejected`,
@@ -189,15 +179,8 @@ function isGatedEntry(entry: PostRecord): boolean {
  * @complexity O(n) over `bodyHtml`'s length (one shared regex scan), plus O(k) over the markers found.
  */
 function addHtmlEmbedAssetIds(bodyHtml: string, out: Set<string>): void {
-  for (const marker of scanEmbedMarkers({ html: bodyHtml }).markers) {
-    if (marker.type !== "media") continue;
-    // Same `id ?? slug` precedence `resolver-service.ts`'s `parseMediaEmbedRef` resolves with (2026-09-16):
-    // a marker that renders via its `"slug"` key must count as a referrer here too, or a members-only
-    // page's asset serves to anyone. The slug is matched against `resolveAssetAliases`'s id+slug set.
-    const slug = typeof marker.config.slug === "string" ? marker.config.slug : undefined;
-    const ref = marker.id ?? slug;
-    if (ref) out.add(ref);
-  }
+  // The same untruncated marker scan now includes compound media, raw tokens and content overlays.
+  for (const key of collectReferencedMediaKeys({ bodyHtml })) out.add(key);
 }
 
 /** Every asset id one entry references, across BOTH body columns, plus whether this scan knows how
@@ -210,13 +193,15 @@ interface EntryAssetScan {
   readonly readable: boolean;
 }
 
-function scanEntryAssets(entry: PostRecord): EntryAssetScan {
+function scanEntryAssets(entry: PostRecord, savedWidgets?: ReadonlyMap<string, Record<string, unknown>>): EntryAssetScan {
   const ids = new Set<string>();
   collectMediaRefAssetIds(entry.bodyJson, ids);
   if (entry.bodyHtml !== null) addHtmlEmbedAssetIds(entry.bodyHtml, ids);
   // Featured image (2026-10-05): a gated post's header image is gated with it, same as a body image.
   if (entry.featuredMediaId) ids.add(entry.featuredMediaId);
-  return { ids, readable: READABLE_BODY_FORMATS.has(entry.bodyFormat) };
+  const widgets = collectPlacedWidgetMediaKeys({ bodyJson: entry.bodyJson, bodyHtml: entry.bodyHtml, savedWidgets });
+  for (const key of widgets.keys) ids.add(key);
+  return { ids, readable: READABLE_BODY_FORMATS.has(entry.bodyFormat) && widgets.readable };
 }
 
 /**
@@ -262,9 +247,9 @@ function referencesAnyAlias(scan: EntryAssetScan, aliases: ReadonlySet<string>):
   return false;
 }
 
-function classifyEntry(entry: PostRecord, aliases: ReadonlySet<string>): EntryRelation {
+function classifyEntry(entry: PostRecord, aliases: ReadonlySet<string>, savedWidgets?: ReadonlyMap<string, Record<string, unknown>>): EntryRelation {
   if (!isLiveReferrerCandidate(entry)) return "irrelevant";
-  const scan = scanEntryAssets(entry);
+  const scan = scanEntryAssets(entry, savedWidgets);
   if (referencesAnyAlias(scan, aliases)) return "referrer";
   if (!scan.readable && isGatedEntry(entry)) return "opaque";
   return "irrelevant";
@@ -295,11 +280,24 @@ interface AssetReferenceScan {
  * disclosed single-workspace scale.
  */
 async function scanEntriesForAsset(
-  deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId">,
+  deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId" | "entryRepo">,
   aliases: ReadonlySet<string>
 ): Promise<AssetReferenceScan> {
   const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
-  const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, aliases) }));
+  const needsWidgets = entries.some(entry => isLiveReferrerCandidate(entry) && !collectPlacedWidgetMediaKeys({ bodyJson: entry.bodyJson, bodyHtml: entry.bodyHtml }).readable);
+  const savedWidgets = deps.entryRepo && needsWidgets ? new Map<string, Record<string, unknown>>() : undefined;
+  if (deps.entryRepo && savedWidgets) {
+    for (const row of await deps.entryRepo.listByWorkspace({ workspaceId: deps.workspaceId }, { type: 'widget' })) {
+      if ((row as typeof row & { deletedAt?: string | null }).deletedAt != null) continue;
+      try {
+        const payload = parseWidgetInstancePayload({ fieldsJson: row.fieldsJson });
+        if (payload.status !== 'active') continue;
+        savedWidgets.set(row.id, payload.config);
+        savedWidgets.set(row.slug, payload.config);
+      } catch { /* Malformed widgets do not render; they cannot serve an asset. */ }
+    }
+  }
+  const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, aliases, savedWidgets) }));
   const pick = (want: EntryRelation): PostRecord[] =>
     classified.filter((candidate) => candidate.relation === want).map((candidate) => candidate.entry);
   return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
@@ -617,12 +615,11 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
  * apart. The one behavioral difference from the admin route: no `requireAdminSession`/`media.read`
  * gate, since this URL is meant to sit in a `<video src>` on a public page.
  *
- * VIDEO-ONLY, DELIBERATELY: an asset whose sniffed content type does not start with `"video/"`
- * 404s here rather than serving. This route is not a general "fetch any asset's raw bytes
- * publicly" escape hatch — an image asset must still only ever reach the public web through
- * {@link registerMediaRenditionRoute}'s sanitizing re-encode above. Narrowing to video keeps that
- * existing design intent (every publicly-served image passes through `sharp`) intact; widening
- * this route to other types later is a deliberate future decision, not a side effect of this one.
+ * VIDEO/AUDIO ONLY (owner-approved mediawidget, 2026-10-10/11): the earlier video-only
+ * boundary is deliberately widened for recognized audio, which also has no image transform.
+ * This remains a narrow original-byte path: image assets must still reach the public web through
+ * {@link registerMediaRenditionRoute}'s sanitizing re-encode above. Unknown bytes and markup stay
+ * 404; sniffing, range handling and the member gate keep their existing owners.
  *
  * ADR-030 §4 gate (2026-09-03 sweep): {@link resolveMediaAccessDecision} runs before the blob is
  * even fetched, same as {@link registerMediaRenditionRoute} above — a denied caller gets the SAME
@@ -659,8 +656,8 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
 
       const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
       const sniffed = sniffContentType({ bytes });
-      if (!sniffed.startsWith("video/")) {
-        // Not a video asset (or an unrecognized/corrupt one) — this route only ever serves video;
+      if (!sniffed.startsWith("video/") && !sniffed.startsWith("audio/")) {
+        // Neither recognized video nor audio (or an unrecognized/corrupt asset).
         // everything else's public URL is `registerMediaRenditionRoute`'s transform-backed one.
         // `private, no-store` for the same reason the rendition route's not-found branch uses it
         // (2026-09-05): it must be byte-identical to this route's own gate-denied 404 just above,

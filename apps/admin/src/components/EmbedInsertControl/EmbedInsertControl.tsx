@@ -92,11 +92,12 @@ function EmbedMenu(props: {
   onPickMedia: () => void;
   onPickForm: () => void;
   onPickMenu: () => void;
+  onPickGallery: () => void;
   onEnterWidgetMode: () => void;
   agentHandle?: string;
   t: (key: string) => string;
 }) {
-  const { open, onPickMedia, onPickForm, onPickMenu, onEnterWidgetMode, agentHandle: base, t } = props;
+  const { open, onPickMedia, onPickForm, onPickMenu, onPickGallery, onEnterWidgetMode, agentHandle: base, t } = props;
   if (!open) return null;
 
   return (
@@ -132,6 +133,12 @@ function EmbedMenu(props: {
             type="button"
             role="menuitem"
             className="tb-btn"
+            onClick={onPickGallery}
+            {...handleSpread(base, "gallery", { role: "button", label: "Insert a gallery" })}
+          >
+            {t("Gallery")}
+          </button>
+          <button type="button" role="menuitem" className="tb-btn"
             onClick={onEnterWidgetMode}
             {...handleSpread(base, "widget", { role: "button", label: "Insert any other widget type" })}
           >
@@ -192,7 +199,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
   const triggerRef = useRef<HTMLButtonElement>(null);
   const locale = useAdminLocale();
   const t = (key: string) => sharedComponentsT({ locale: locale, key: key });
-  const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, insertWidget } =
+  const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget } =
     useEmbed(props.editor);
 
   if (!props.editor) return null;
@@ -229,6 +236,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
           menuControl.setPickerType("menu");
           setOpen(false);
         }}
+        onPickGallery={() => { galleryControl.setPickerType("gallery"); setOpen(false); }}
         onEnterWidgetMode={() => {
           // The menu item unmounts on open; give the native dialog a persistent
           // opener to restore instead of capturing the removed item's body fallback.
@@ -270,6 +278,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
         onCancel={() => formControl.setPickerType(null)}
         agentHandle={base ? `${base}-form-dialog` : undefined}
       />
+      <WidgetShortcutPicker pickerType={galleryControl.pickerType} error={galleryControl.error} onUseExisting={galleryControl.handleUseExisting} onCreateNew={galleryControl.handleCreateNew} onCancel={() => galleryControl.setPickerType(null)} agentHandle={subHandle(base, "gallery-dialog")} />
       <WidgetShortcutPicker
         pickerType={menuControl.pickerType}
         error={menuControl.error}

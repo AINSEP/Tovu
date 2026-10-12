@@ -390,6 +390,7 @@ describe("EmbedInsertControl — useEmbed injection", () => {
       setMediaPicking: vi.fn(),
       formControl: fakeAddControl(),
       menuControl: fakeAddControl(),
+      galleryControl: fakeAddControl(),
       insertWidget: vi.fn(),
     });
 
@@ -415,6 +416,7 @@ describe("EmbedInsertControl — useEmbed injection", () => {
       setMediaPicking: vi.fn(),
       formControl: fakeAddControl(),
       menuControl: fakeAddControl(),
+      galleryControl: fakeAddControl(),
       insertWidget: vi.fn(),
     });
 
@@ -438,6 +440,7 @@ describe("EmbedInsertControl — useEmbed injection", () => {
       setMediaPicking: vi.fn(),
       formControl: fakeAddControl({ error: "failed to create form widget" }),
       menuControl: fakeAddControl({ error: "failed to create menu widget" }),
+      galleryControl: fakeAddControl(),
       insertWidget: vi.fn(),
     });
 

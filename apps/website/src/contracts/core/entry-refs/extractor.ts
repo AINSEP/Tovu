@@ -19,7 +19,7 @@ import { isNonArrayRecord } from "@jini-ai/core";
  * `extractHtmlEntryRefs()` sibling indexes supported markers in HTML page bodies.
  */
 import type { UUID } from "@jini-ai/core/primitives";
-import { describeRejection, scanEmbedMarkers, type EmbedMarkerRejection } from "@jini-ai/cms/widgets/markers";
+import { describeRejection, galleryMediaReferences, scanEmbedMarkers, type EmbedMarkerRejection } from "@jini-ai/cms/widgets/markers";
 import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
 
 export interface ExtractEntryRefsInput {
@@ -89,6 +89,7 @@ function collectWidgetEmbedRefs(root: unknown, rootPath: string, input: ExtractE
       });
     }
 
+    if (isNonArrayRecord(attrs)) addMediaConfigRefs({ config: attrs.value.content, path: `${path}.attrs.content`, input, refs });
     if (Array.isArray(candidate.value.content)) stack.push({ node: candidate.value.content, path: `${path}.content` });
   }
 }
@@ -108,6 +109,7 @@ function collectPlacementRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[])
     const candidate = { value: placement };
     if (!isNonArrayRecord(candidate) || typeof candidate.value.widgetEntryId !== "string") return;
 
+    addMediaConfigRefs({ config: candidate.value.content, path: `bodyJson.placements[${index}].content`, input, refs });
     refs.push({
       workspaceId: input.workspaceId,
       sourceEntryId: input.sourceEntryId,
@@ -148,6 +150,15 @@ function collectNamespaceConfigRefs(
   }
 }
 
+/** Media reference keys include authored slugs. Read services match both id and slug; this pure
+ * extractor intentionally does no repository I/O inside the caller's write transaction. */
+function addMediaConfigRefs({ config, path, input, refs }: { config: unknown; path: string; input: Pick<ExtractEntryRefsInput, 'workspaceId' | 'sourceEntryId'>; refs: EntryRefRow[] }): void {
+  for (const [index, ref] of galleryMediaReferences({ config }).entries()) refs.push({
+    workspaceId: input.workspaceId, sourceEntryId: input.sourceEntryId, sourceKind: 'config-field',
+    fieldPath: `${path}.media[${index}]`, targetKind: 'asset', targetId: ref.mediaId,
+  });
+}
+
 /**
  * REQ-31/32: ref-typed config fields inside fields.ext.<namespace>.config, across every
  * namespace in `fieldsExt`.
@@ -164,6 +175,12 @@ function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[
     if (!isNonArrayRecord(config)) continue;
 
     collectNamespaceConfigRefs(namespace, config.value, input, refs);
+    if (namespace === "widget" && (namespaceRecord.value.widgetType === "gallery" || namespaceRecord.value.widgetType === "media")) {
+      for (const { mediaId, index } of galleryMediaReferences({ config: config.value })) refs.push({
+        workspaceId: input.workspaceId, sourceEntryId: input.sourceEntryId, sourceKind: "config-field",
+        fieldPath: `fields.ext.${namespace}.config.media[${index}]`, targetKind: "asset", targetId: mediaId,
+      });
+    }
   }
 }
 
@@ -311,12 +328,33 @@ export function extractHtmlEntryRefs(input: {
   readonly workspaceId: UUID;
   readonly sourceEntryId: UUID;
   readonly html: string;
-}): readonly EntryRefRow[] {
+}, _optional: Record<string, never> = {}): readonly EntryRefRow[] {
   const { markers, rejected } = scanEmbedMarkers({ html: input.html });
   warnRejectedMarkers(rejected, input.sourceEntryId);
 
   const refs: EntryRefRow[] = [];
+  addMediaConfigRefs({ config: { html: input.html }, path: 'bodyHtml.raw', input, refs });
+  let singleTargetRefs = 0;
+  let galleryMarkers = 0;
   for (const marker of markers) {
+    if (marker.type.toLowerCase() !== 'gallery') addMediaConfigRefs({ config: marker.config, path: `bodyHtml[embed:${marker.type.toLowerCase()}#${marker.occurrence}]`, input, refs });
+    if (marker.type.toLowerCase() === "gallery") {
+      galleryMarkers += 1;
+      if (galleryMarkers > MAX_HTML_PAGE_EMBED_REFS) continue;
+      // Keep image-specific locators, including repeated media ids. Index authored references
+      // even if layout/alt validation fails: safe-delete must still see the dependent page.
+      for (const image of galleryMediaReferences({ config: marker.config })) {
+        refs.push({
+          workspaceId: input.workspaceId,
+          sourceEntryId: input.sourceEntryId,
+          sourceKind: "page-html-embed",
+          fieldPath: `bodyHtml[embed:gallery#${marker.occurrence}].images[${image.index}].mediaId`,
+          targetKind: "asset",
+          targetId: image.mediaId,
+        });
+      }
+      continue;
+    }
     const targetKind = HTML_EMBED_TARGET_KINDS.get(marker.type.toLowerCase());
     if (!targetKind) continue;
     const id = marker.id;
@@ -330,7 +368,9 @@ export function extractHtmlEntryRefs(input: {
       targetKind,
       targetId: id,
     });
-    if (refs.length >= MAX_HTML_PAGE_EMBED_REFS) break;
+    // Gallery images do not consume unrelated markers' existing single-target reference budget.
+    singleTargetRefs += 1;
+    if (singleTargetRefs >= MAX_HTML_PAGE_EMBED_REFS) break;
   }
 
   return refs;

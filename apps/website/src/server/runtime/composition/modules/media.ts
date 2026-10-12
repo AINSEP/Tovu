@@ -1,3 +1,4 @@
+import { registerAdminMediaWhereUsedRoute, type MediaWhereUsedDeps } from "#src/server/inbound/admin-http/routes/media/where-used";
 import { registerAdminMediaDeleteRoute } from "#src/server/inbound/admin-http/routes/media/delete";
 import { registerAdminMediaGetProvidersRoute } from "#src/server/inbound/admin-http/routes/media/get-providers";
 import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
@@ -54,11 +55,12 @@ import type { ServerModuleHandle } from "./types.js";
  * new plumbing at the call site: `server/app.ts` already passes this factory the full `routeDeps`
  * object, which has carried `postRepo` and the three member repos since ADR-030.
  */
-export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps): ServerModuleHandle {
+export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps): ServerModuleHandle {
   return {
     name: "media",
     registerRoutes: (app) => {
       registerAdminMediaListRoute(app, deps);
+      registerAdminMediaWhereUsedRoute({ app, deps });
       registerAdminMediaUploadRoute(app, deps);
       registerAdminMediaImportUrlRoute({ app, deps });
       registerAdminMediaReplaceRoute({ app, deps });

@@ -1,3 +1,4 @@
+import { MediaContentEditor } from "./MediaContentEditor";
 import { agentHandle } from "@jini-ai/agentic";
 import { isUserCollection } from "../../features/collections/rules";
 import type { AdminContentType, AdminFormDefinition, AdminMenu, AdminWidgetType, ContentTypeFieldKind } from "../../lib/api";
@@ -56,6 +57,7 @@ import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependenci
  * | `recent-entries` (labeled "Collection list") | `<base>-max-items`, `<base>-collection`, `<base>-sort`, `<base>-layout`, `<base>-columns` (cards layout only), `<base>-field-<fieldName>` per checkbox, `<base>-filter-field`, `<base>-filter-value` (filter row, shown only once a collection is chosen), `<base>-category-term-id` |
  * | `menu` | `<base>-menu-ref` (a real `<select>` — `page.select_option` resolves it) |
  * | `contact-form` | `<base>-form-definition-id` (a real `<select>`), `<base>-success-message` |
+ * | `media` / `gallery` | see `MediaContentEditor.tsx`'s own "Agent handles" section |
  *
  * `social-links` rows are keyed by array INDEX, not a stable id — the one deliberate exception to
  * this workspace's "never an index" list-handle rule (see `@jini-ai/agentic`'s
@@ -541,6 +543,11 @@ export function WidgetConfigFields(
 ) {
   const { t = (key: string) => key } = props;
   switch (props.widgetType) {
+    // Gallery is a compatibility alias over the media widget's resolver (mediawidget contract), so
+    // both get the same two-tab Media / Raw HTML editor; legacy `images` configs are read in place.
+    case "media":
+    case "gallery":
+      return <MediaContentEditor widgetType={props.widgetType} config={props.config} onChange={props.onChange} t={t} agentHandle={props.agentHandle} />;
     case "text":
       return <TextConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} t={t} />;
     case "social-links":
@@ -584,6 +591,8 @@ export function WidgetConfigFields(
  * `MenuEditor.tsx`'s equally-closed, equally-hardcoded `AdminMenuTargetKind` `<select>` options; no
  * server round-trip to "list widget types" exists or is needed for v1 (`ui.spec.md` §5). */
 export const WIDGET_TYPE_OPTIONS: Array<{ value: AdminWidgetType; label: string }> = [
+  { value: "media", label: "Media" },
+  { value: "gallery", label: "Gallery" },
   { value: "text", label: "Text" },
   { value: "social-links", label: "Social Links" },
   { value: "recent-entries", label: "Collection list" },
@@ -594,6 +603,10 @@ export const WIDGET_TYPE_OPTIONS: Array<{ value: AdminWidgetType; label: string 
 /** Default (empty-but-valid-shaped) config per type, for a freshly-opened create form. */
 export function defaultWidgetConfig(widgetType: AdminWidgetType): Record<string, unknown> {
   switch (widgetType) {
+    case "media":
+      return { mode: "media", items: [], layout: "single" };
+    case "gallery":
+      return { images: [], layout: "grid", columns: 3 };
     case "text":
       return { body: "" };
     case "social-links":

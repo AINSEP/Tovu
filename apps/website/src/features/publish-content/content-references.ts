@@ -1,7 +1,7 @@
 import { embedMarkerTarget, scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 import { extractEntryRefs } from "#src/contracts/core/entry-refs/extractor";
 
-import { collectReferencedMediaKeys } from "./media-references.js";
+import { collectMediaConfigKeys, collectReferencedMediaKeys } from "./media-references.js";
 import type { PublishContentReference } from "./type-registry.js";
 
 /**
@@ -58,5 +58,8 @@ export function collectPlacementReferences(state: Readonly<Record<string, unknow
   const rows = extractEntryRefs({ workspaceId: "", sourceEntryId: "", sourceEntryType: "", bodyJson: { placements: state.placements }, fieldsExt: {} });
   const out = new Map<string, PublishContentReference>();
   for (const row of rows) if (row.sourceKind === "widget-area-placement") add(out, "widget", row.targetId);
+  if (Array.isArray(state.placements)) for (const placement of state.placements) {
+    if (typeof placement === 'object' && placement !== null) for (const key of collectMediaConfigKeys({ config: (placement as Record<string, unknown>).content })) add(out, 'media', key);
+  }
   return [...out.values()];
 }

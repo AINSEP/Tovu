@@ -1,4 +1,4 @@
-import { act, renderHook } from "@/__tests__/fetch-query-render";
+import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeWidgetPickerPort } from "../WidgetPickerDialog/widget-picker-dependencies.hooks";
@@ -67,8 +67,7 @@ describe("useExistingInstances", () => {
     expect(result.current.instances).toBeNull();
     expect(result.current.error).toBeNull();
 
-    await flush();
-    expect(result.current.instances).toEqual([EXISTING_WIDGET]);
+    await waitFor(() => expect(result.current.instances).toEqual([EXISTING_WIDGET]));
     expect(result.current.error).toBeNull();
   });
 
@@ -76,9 +75,8 @@ describe("useExistingInstances", () => {
     fetchMock.mockRejectedValue(new Error("network down"));
     const { result } = renderHook(() => useExistingInstances("text"));
 
-    await flush();
+    await waitFor(() => expect(result.current.error).toBe("network down"));
     expect(result.current.instances).toBeNull();
-    expect(result.current.error).toBe("network down");
   });
 });
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import Ajv from "ajv";
-import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig } from "@jini-ai/cms/widgets/markers";
+import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
 
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
@@ -54,6 +54,24 @@ test("pages_write_html and pages_write_region document the collection embed mark
     const description = byName.get(name)?.descriptor.description ?? "";
     assert.match(description, /"type":"collection"/, `${name} must mention the collection marker`);
     assert.match(description, /<template>/, `${name} must mention <template> placeholders`);
+  }
+});
+
+test('page authoring tools show a valid gallery marker and describe its required image/layout contract', () => {
+  const { byName } = harness();
+  for (const name of ['pages_write_html', 'pages_write_region']) {
+    const description = byName.get(name)?.descriptor.description ?? '';
+    const match = /<div data-embed-config='([^']*"type":"gallery"[^']*)'/.exec(description);
+    assert.ok(match, `${name} must include usable gallery HTML`);
+    const config = JSON.parse(match[1]!);
+    assert.equal(config.type, 'gallery');
+    assert.deepEqual(parseGalleryConfig({ config }).errors, []);
+    const mediaMatch = /<div data-embed-config='([^']*"type":"media"[^']*)'/.exec(description);
+    assert.ok(mediaMatch, `${name} must include usable Media HTML`);
+    assert.deepEqual(JSON.parse(mediaMatch[1]), { type: 'media', content: { mode: 'media', items: [{ slug: 'photo-slug', alt: 'Description' }], layout: 'grid' } });
+    assert.match(description, /grid\|carousel\|masonry/);
+    assert.match(description, /alt/);
+    assert.match(description, /lightbox/);
   }
 });
 

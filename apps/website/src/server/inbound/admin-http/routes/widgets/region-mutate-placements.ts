@@ -1,3 +1,4 @@
+import type { JsonObject } from "@jini-ai/core/primitives";
 import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
 import { mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
 import type { WidgetPlacementNode } from "@jini-ai/cms/widgets";
@@ -5,10 +6,10 @@ import { mapWidgetErrorToResponse, toAdminWidgetAreaResponse } from "#src/server
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 
-function isPlacementShape(value: unknown): value is { placementId: string; widgetEntryId: string; enabled: boolean } {
+function isPlacementShape(value: unknown): value is { placementId: string; widgetEntryId: string; enabled: boolean; content?: JsonObject } {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
-  return typeof v.placementId === "string" && typeof v.widgetEntryId === "string" && typeof v.enabled === "boolean";
+  return typeof v.placementId === "string" && typeof v.widgetEntryId === "string" && typeof v.enabled === "boolean" && (v.content === undefined || (typeof v.content === "object" && v.content !== null && !Array.isArray(v.content)));
 }
 
 /**
@@ -17,17 +18,17 @@ function isPlacementShape(value: unknown): value is { placementId: string; widge
  * duplicate `placementId`s and arbitrary extra properties passed straight through into the stored
  * area doc verbatim. Validates every element's shape, rejects duplicate `placementId`s (it is meant
  * to be a stable, unique locator — `entry_refs`' `fieldPath` and reorder/diagnostics all address a
- * placement by it), and returns a NORMALIZED array (exactly the three known fields) so nothing
+ * placement by it), and returns a NORMALIZED array (the three reference fields and optional content) so nothing
  * extra a client sends ends up persisted. Returns `null` on any violation.
  */
-function parsePlacements(raw: readonly unknown[]): WidgetPlacementNode[] | null {
+export function parseWidgetRegionPlacements({ raw }: { raw: readonly unknown[] }, _optional: Record<string, never> = {}): WidgetPlacementNode[] | null {
   const placements: WidgetPlacementNode[] = [];
   const seenIds = new Set<string>();
   for (const item of raw) {
     if (!isPlacementShape(item)) return null;
     if (seenIds.has(item.placementId)) return null;
     seenIds.add(item.placementId);
-    placements.push({ placementId: item.placementId, widgetEntryId: item.widgetEntryId, enabled: item.enabled });
+    placements.push({ placementId: item.placementId, widgetEntryId: item.widgetEntryId, enabled: item.enabled, ...(item.content !== undefined ? { content: item.content } : {}) });
   }
   return placements;
 }
@@ -49,7 +50,7 @@ export const registerAdminWidgetRegionMutatePlacementsRoute: RouteRegistrar = (a
       res.status(400).json({ error: "baseVersion and placements[] are required", code: "VALIDATION_ERROR" });
       return;
     }
-    const placements = parsePlacements(body.placements);
+    const placements = parseWidgetRegionPlacements({ raw: body.placements });
     if (!placements) {
       res.status(400).json({
         error: "each placement must be { placementId: string, widgetEntryId: string, enabled: boolean }, with no duplicate placementId",

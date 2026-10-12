@@ -59,6 +59,9 @@ export async function seedContentStore(kernel: ContentKernel, seed: ContentDbSee
     for (const post of seed.posts) {
       await insertRow(kernel, schema.posts, { ...post, bodyJson: JSON.stringify(post.bodyJson), ext: JSON.stringify(post.ext ?? {}) });
     }
+    for (const entry of seed.contentEntries ?? []) {
+      await insertRow(kernel, schema.entries, { ...entry, fieldsJson: JSON.stringify(entry.fieldsJson) });
+    }
     await insertRow(kernel, schema.presentationSettings, seed.presentation);
   });
 }

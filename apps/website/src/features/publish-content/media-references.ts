@@ -1,4 +1,4 @@
-import { embedMarkerTarget, scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
+import { embedMarkerTarget, galleryMediaReferences, scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 
 /**
  * @file Which media a packed post/page state points at — owner decision 2026-09-25, "images go along
@@ -65,28 +65,83 @@ function addMarkKeys(marks: unknown, out: Set<string>): void {
 export function collectMediaUrlKeys(text: string): ReadonlySet<string> {
   const keys = new Set<string>();
   addUrlKeys(text, keys);
+  for (const ref of galleryMediaReferences({ config: { html: text } })) keys.add(ref.mediaId);
+  return keys;
+}
+
+/** Shared authored-config reference scan, independent of layout/render validity. */
+export function collectMediaConfigKeys({ config }: { config: unknown }, _optional: Record<string, never> = {}): ReadonlySet<string> {
+  const keys = new Set(galleryMediaReferences({ config }).map(ref => ref.mediaId));
+  if (isPlainObject(config) && typeof config.html === 'string') addUrlKeys(config.html, keys);
   return keys;
 }
 
 /** Walks a TipTap tree collecting every `image`/`media` node's `assetId` and legacy `src` key, plus
  *  any media URL in a mark's attrs. @complexity O(n) in the tree's size. */
-function addDocKeys(node: unknown, out: Set<string>): void {
-  if (Array.isArray(node)) {
-    for (const child of node) addDocKeys(child, out);
-    return;
+function addDocKeys(root: unknown, out: Set<string>): void {
+  const stack: unknown[] = [root];
+  while (stack.length) {
+    const node = stack.pop();
+    if (Array.isArray(node)) { for (const child of node) stack.push(child); continue; }
+    if (!isPlainObject(node)) continue;
+    if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs)) {
+      if (typeof node.attrs.assetId === "string") out.add(node.attrs.assetId);
+      else if (typeof node.attrs.src === "string") addUrlKeys(node.attrs.src, out);
+    }
+    if (node.type === 'widgetEmbed' && isPlainObject(node.attrs)) for (const key of collectMediaConfigKeys({ config: node.attrs.content })) out.add(key);
+    addMarkKeys(node.marks, out);
+    if (Array.isArray(node.content)) stack.push(node.content);
   }
-  if (!isPlainObject(node)) return;
-  if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs)) {
-    if (typeof node.attrs.assetId === "string") out.add(node.attrs.assetId);
-    else if (typeof node.attrs.src === "string") addUrlKeys(node.attrs.src, out);
+}
+
+/** Saved widget media belongs to the same authored reference owner as inline content. Hosts
+ * supply the already-batched saved configs; content overlays are applied before scanning. A host
+ * without that read port reports an incomplete scan instead of treating gated media as public. */
+export function collectPlacedWidgetMediaKeys(
+  { bodyJson, bodyHtml, savedWidgets }: { bodyJson?: unknown; bodyHtml?: string | null; savedWidgets?: ReadonlyMap<string, Record<string, unknown>> },
+  _optional: Record<string, never> = {},
+): { keys: ReadonlySet<string>; readable: boolean } {
+  const keys = new Set<string>();
+  let readable = true;
+  const collect = (key: string, content: unknown): void => {
+    if (!savedWidgets) { readable = false; return; }
+    const config = savedWidgets.get(key);
+    if (!config) return; // Missing/trashed widgets do not render; there is no served asset to gate.
+    const merged = isPlainObject(content) ? { ...config, ...content } : config;
+    const mode = merged.mode ?? (merged.items !== undefined ? 'media' : merged.html !== undefined ? 'html' : 'legacy');
+    const active = mode === 'html' ? { html: merged.html } : mode === 'media' ? { items: merged.items } : merged;
+    for (const ref of collectMediaConfigKeys({ config: active })) keys.add(ref);
+  };
+  const stack: unknown[] = [bodyJson];
+  while (stack.length) {
+    const node = stack.pop();
+    if (Array.isArray(node)) { for (const child of node) stack.push(child); continue; }
+    if (!isPlainObject(node)) continue;
+    if (node.type === 'widgetEmbed' && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === 'string') collect(node.attrs.widgetEntryId, node.attrs.content);
+    if (Array.isArray(node.content)) stack.push(node.content);
   }
-  addMarkKeys(node.marks, out);
-  if (Array.isArray(node.content)) addDocKeys(node.content, out);
+  if (typeof bodyHtml === 'string') for (const marker of scanEmbedMarkers({ html: bodyHtml }).markers) {
+    if (marker.type.toLowerCase() !== 'widget') continue;
+    const target = embedMarkerTarget({ type: marker.type, config: marker.config });
+    if (target && target.key !== 'none') collect(target.value, marker.config.content);
+  }
+  return { keys, readable };
 }
 
 /** @complexity O(n) over `html`'s length (one shared marker scan plus one URL scan). */
 function addHtmlKeys(html: string, out: Set<string>): void {
+  for (const ref of galleryMediaReferences({ config: { html } })) out.add(ref.mediaId);
   for (const marker of scanEmbedMarkers({ html: html }).markers) {
+    for (const key of collectMediaConfigKeys({ config: marker.config })) out.add(key);
+    if (marker.type.toLowerCase() === "gallery") {
+      for (const image of galleryMediaReferences({ config: marker.config })) out.add(image.mediaId);
+      // Read decoded config values too: a browser save entity-encodes JSON quotes in HTML.
+      if (Array.isArray(marker.config.images)) {
+        for (const image of marker.config.images) {
+          if (isPlainObject(image) && typeof image.src === "string") addUrlKeys(image.src, out);
+        }
+      }
+    }
     if (marker.type.toLowerCase() !== "media") continue;
     const target = embedMarkerTarget({ type: marker.type, config: marker.config });
     if (target !== undefined && target.key !== "none") out.add(target.value);

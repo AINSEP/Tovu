@@ -51,6 +51,8 @@ const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 /** First-run demo content a caller may supply to `prepareContentStore` (`../prepare-content-store.ts`). */
 export interface ContentDbSeedData {
   workspace: typeof schema.workspaces.$inferInsert;
+  /** Optional starter widgets/collections stored as portable content entries. */
+  contentEntries?: Array<Omit<typeof schema.entries.$inferInsert, "fieldsJson"> & { fieldsJson: unknown }>;
   /**
    * `bodyJson` and (SPEC-005) `ext` are both JSON-text columns whose seed callers hand us the
    * parsed object — the same shape `PostRecord` carries — so both are widened here and serialized

@@ -1,4 +1,4 @@
-import { api, type AdminContentType, type AdminFormDefinition, type AdminMenu } from "../../lib/api";
+import { api, authenticatedAdminRequest, WORKSPACE_ID, type AdminContentType, type AdminFormDefinition, type AdminMenu } from "../../lib/api";
 import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 
 /**
@@ -13,6 +13,19 @@ export const defaultWidgetConfigFieldsPort: WidgetConfigFieldsPort = {
   listForms: () => api.listForms(),
   listContentTypes: () => api.listContentTypes(),
 };
+
+/** Tovu's authenticated preview adapter; the server owns widget rendering and active-theme CSS.
+ * @complexity O(n) JSON parsing plus one abortable HTTP request.
+ */
+export async function renderWidgetPreviewDocument(
+  { source }: { source: string },
+  { signal, request = authenticatedAdminRequest }: { signal?: AbortSignal; request?: typeof authenticatedAdminRequest } = {},
+): Promise<string> {
+  const result = await request<{ html: string; document: string }>({
+    path: `/workspaces/${WORKSPACE_ID}/widgets/preview`, method: 'POST', body: JSON.parse(source),
+  }, { signal });
+  return result.document;
+}
 
 /** Seed state for {@link createFakeWidgetConfigFieldsPort}. */
 export interface FakeWidgetConfigFieldsPortOptions {

@@ -204,6 +204,19 @@ const REF_SOURCE: PublishContentExportEnvelope = {
   blobManifest: ["sha-a", "sha-b", "sha-c"],
 };
 
+test('gallery image dependencies and their blobs accompany a scoped page export', () => {
+  const source: PublishContentExportEnvelope = {
+    ...REF_SOURCE,
+    entities: [...REF_SOURCE.entities.filter(e => e.entityType === 'media'), stated('page', 'gallery-page', {
+      bodyHtml: `<div data-embed-config='{"type":"gallery","layout":"grid","images":[{"mediaId":"m1","alt":"Logo"},{"mediaId":"m2","alt":"Hero"},{"mediaId":"m1","alt":"Again"}]}'></div>`,
+    })],
+  };
+  const { envelope, includedFor } = includeReferencedEntities(applyPublishScope(source, { entityTypes: ['page'] }), source, REF_HANDLERS);
+  assert.deepEqual(envelope.entities.map(e => entityKey(e.entityType, e.id)).sort(), ['media:m1', 'media:m2', 'page:gallery-page']);
+  assert.deepEqual([...envelope.blobManifest].sort(), ['sha-a', 'sha-b']);
+  assert.deepEqual(Object.fromEntries(includedFor), { 'media:m1': ['page:gallery-page'], 'media:m2': ['page:gallery-page'] });
+});
+
 test("includeReferencedEntities adds exactly the media the kept pages reference, by id or slug", () => {
   const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["page"] });
   const { envelope, includedFor } = includeReferencedEntities(scoped, REF_SOURCE, REF_HANDLERS);

@@ -5,6 +5,7 @@ import { registerAdminWidgetEmbedRemoveRoute } from "#src/server/inbound/admin-h
 import { registerAdminWidgetEmbedReorderRoute } from "#src/server/inbound/admin-http/routes/widgets/embed-reorder";
 import { registerAdminWidgetGetRoute } from "#src/server/inbound/admin-http/routes/widgets/get-by-id";
 import { registerAdminWidgetListRoute } from "#src/server/inbound/admin-http/routes/widgets/list";
+import { registerAdminWidgetPreviewRoute } from "#src/server/inbound/admin-http/routes/widgets/preview";
 import { registerAdminWidgetRegionBindRoute } from "#src/server/inbound/admin-http/routes/widgets/region-bind";
 import { registerAdminWidgetRegionGetRoute } from "#src/server/inbound/admin-http/routes/widgets/region-get";
 import { registerAdminWidgetRegionMutatePlacementsRoute } from "#src/server/inbound/admin-http/routes/widgets/region-mutate-placements";
@@ -35,6 +36,7 @@ export function createWidgetsModule(deps: RouteDeps): ServerModuleHandle {
       // BEFORE `get-by-id.ts`/`update.ts`'s `/widgets/:id` (param path). The AI tool routes
       // (`/widgets/tools/*`) have the same shape and MUST also precede them for the same reason.
       registerAdminWidgetListRoute(app, deps);
+      registerAdminWidgetPreviewRoute(app, deps);
       registerAdminWidgetRegionsListRoute(app, deps);
       registerAdminWidgetRegionBindRoute(app, deps);
       registerAdminWidgetRegionGetRoute(app, deps);

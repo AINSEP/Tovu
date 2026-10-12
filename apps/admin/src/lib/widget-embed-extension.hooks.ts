@@ -4,6 +4,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import { api, describeApiError, type AdminWidget } from "./api";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
 import type { WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
+import { initialPlacementDraft, placementContentAttr, supportsPlacementContent, type PlacementContentDraft } from "./widget-embed-placement-content";
 
 /**
  * @file State, the widget fetch and handlers for `WidgetEmbedNodeView` (`widget-embed-extension.tsx`),
@@ -30,6 +31,13 @@ export interface WidgetEmbedChangeDialog {
    *  describable error and leaves the node (and the open dialog) untouched. */
   onCreateNew: WidgetPickerDialogProps["onCreateNew"];
   onCancel: WidgetPickerDialogProps["onCancel"];
+}
+
+/** The Style dialog's "Content for this spot" draft — only for media/gallery widgets. */
+export interface WidgetEmbedPlacementContent extends PlacementContentDraft {
+  widgetType: string;
+  setCustom: (custom: boolean) => void;
+  setContent: (content: Record<string, unknown>) => void;
 }
 
 /** Everything `WidgetEmbedNodeView` renders from. */
@@ -60,8 +68,13 @@ export interface WidgetEmbedNodeViewController {
   /** Closes the Style dialog without writing anything. */
   closeStyle: () => void;
   /** Writes the dialog's `cssClass`/`htmlAttributes` onto the node (never `alt`, which this dialog
-   *  never exposes) and closes it — same shape as `media-embed-extension.hooks.ts`'s `saveEdit`. */
+   *  never exposes) and closes it — same shape as `media-embed-extension.hooks.ts`'s `saveEdit`.
+   *  For a media/gallery widget it also writes `content` (the override, or `null` for "Use the
+   *  widget's content"); for any other type `content` is left exactly as it was. */
   saveStyle: (value: MediaEditDialogValue) => void;
+  /** Non-`null` while the Style dialog is open for a media/gallery widget — the per-placement
+   *  content override (mediawidget contract) the dialog renders below the style fields. */
+  placementContent: WidgetEmbedPlacementContent | null;
 }
 
 /**
@@ -81,6 +94,7 @@ export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeVie
   const [isBroken, setIsBroken] = useState(false);
   const [changing, setChanging] = useState(false);
   const [styling, setStyling] = useState(false);
+  const [placementDraft, setPlacementDraft] = useState<PlacementContentDraft>({ custom: false, content: {} });
 
   useEffect(() => {
     if (!widgetEntryId) {
@@ -113,6 +127,8 @@ export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeVie
     setChanging(false);
   }
 
+  const contentEditable = supportsPlacementContent(widget?.widgetType);
+
   return {
     placementId,
     widget,
@@ -122,12 +138,28 @@ export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeVie
     remove: () => props.deleteNode(),
     styleInitial: { alt: null, cssClass, htmlAttributes },
     styling,
-    openStyle: () => setStyling(true),
+    openStyle: () => {
+      // Re-seeded on every open so Cancel discards an edited override, like the style fields.
+      setPlacementDraft(initialPlacementDraft({ attrsContent: props.node.attrs.content, widgetConfig: widget?.config }));
+      setStyling(true);
+    },
     closeStyle: () => setStyling(false),
     saveStyle: (value) => {
-      props.updateAttributes({ cssClass: value.cssClass, htmlAttributes: value.htmlAttributes });
+      props.updateAttributes({
+        cssClass: value.cssClass,
+        htmlAttributes: value.htmlAttributes,
+        ...(contentEditable ? { content: placementContentAttr({ draft: placementDraft }) } : {}),
+      });
       setStyling(false);
     },
+    placementContent: styling && contentEditable && widget
+      ? {
+          ...placementDraft,
+          widgetType: widget.widgetType,
+          setCustom: (custom) => setPlacementDraft((draft) => ({ ...draft, custom })),
+          setContent: (content) => setPlacementDraft((draft) => ({ ...draft, content })),
+        }
+      : null,
     changeDialog:
       changing && widget
         ? {

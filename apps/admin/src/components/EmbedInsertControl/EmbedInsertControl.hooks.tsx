@@ -1,3 +1,4 @@
+import type { WidgetPickerPort } from "../WidgetPickerDialog/widget-picker-port.hooks";
 import { useState } from "react";
 import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog";
 
@@ -41,7 +42,7 @@ function newPlacementId(): string {
  *   `insertWidget`'s optional chaining here — the component's own `if (!editor) return null`
  *   early-return still guards the JSX, same as before this split.
  */
-export function useEmbedInsertControl(editor: EmbedEditor | null) {
+export function useEmbedInsertControl(editor: EmbedEditor | null, { widgetPort, mintPlacementId = newPlacementId }: { widgetPort?: WidgetPickerPort; mintPlacementId?: () => string } = {}) {
   const [open, setOpen] = useState(false);
   const [widgetMode, setWidgetMode] = useState(false);
   const [mediaPicking, setMediaPicking] = useState(false);
@@ -53,15 +54,16 @@ export function useEmbedInsertControl(editor: EmbedEditor | null) {
   // slot. A null editor stays a no-op: the component renders nothing until the editor exists.
   const insertWidget = (widgetEntryId: string) => {
     if (!editor) return;
-    const placed = editor.commands.insertWidgetEmbed({ placementId: newPlacementId(), widgetEntryId });
+    const placed = editor.commands.insertWidgetEmbed({ placementId: mintPlacementId(), widgetEntryId });
     if (!placed) throw new Error("the editor could not place the widget at the cursor");
   };
 
-  const formControl = useWidgetAddControl({ triggerLabel: "Form", onResolved: insertWidget });
-  const menuControl = useWidgetAddControl({ triggerLabel: "Menu", onResolved: insertWidget });
+  const formControl = useWidgetAddControl({ triggerLabel: "Form", onResolved: insertWidget }, { port: widgetPort });
+  const menuControl = useWidgetAddControl({ triggerLabel: "Menu", onResolved: insertWidget }, { port: widgetPort });
+  const galleryControl = useWidgetAddControl({ triggerLabel: "Gallery", onResolved: insertWidget }, { port: widgetPort });
 
   // `insertWidget` is returned too, not just consumed by the two pinned controls above — the
   // "Widget…" full-flow path in the component's JSX (via the untouched `WidgetAddControl`) calls it
   // directly from its own `onResolved`, exactly as the pre-split component did inline.
-  return { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, insertWidget };
+  return { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget };
 }

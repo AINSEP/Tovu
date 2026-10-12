@@ -47,7 +47,7 @@ function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
   };
 }
 
-test("createCoreResolvers: returns exactly the 3 v1 dynamic resolver type keys, each with a callable resolveMany", () => {
+test("createCoreResolvers: returns the built-in dynamic resolver type keys including Gallery, each with a callable resolveMany", () => {
   const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
     entryList: new TrashAwareInMemoryEntryRepo(),
     navMenuReadModel: fakeMenuReadModel(null),
@@ -55,7 +55,7 @@ test("createCoreResolvers: returns exactly the 3 v1 dynamic resolver type keys, 
     contentTypes: noContentTypes(),
   });
 
-  assert.deepEqual(Object.keys(resolvers).sort(), ["contact-form", "menu", "recent-entries"]);
+  assert.deepEqual(Object.keys(resolvers).sort(), ["contact-form", "gallery", "menu", "recent-entries"]);
   assert.equal(typeof resolvers["recent-entries"]?.resolveMany, "function");
   assert.equal(typeof resolvers.menu?.resolveMany, "function");
   assert.equal(typeof resolvers["contact-form"]?.resolveMany, "function");

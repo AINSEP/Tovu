@@ -81,6 +81,13 @@ export function readTemplate(required: ReadTemplateRequired, optional: ReadTempl
     // The starter theme renders its index directly when no Home page exists. Workspace and
     // presentation settings are sufficient; neither a sample post nor a placeholder page is needed.
     posts: optional.withSampleContent === true ? seedContent.entries : [],
+    // This is starter data, not a boot migration: the workspace guard never adds it to existing sites.
+    contentEntries: [{
+      id: "widget-default-gallery", workspaceId: seedContent.workspace.id, type: "widget", slug: "gallery",
+      status: "draft", title: "Gallery", bodyJson: null, publishedAt: null, version: 1,
+      createdAt: seedContent.workspace.createdAt, updatedAt: seedContent.workspace.createdAt,
+      fieldsJson: { ext: { widget: { payload: JSON.stringify({ widgetType: "gallery", status: "active", config: { images: [], layout: "grid", columns: 3 } }) } } },
+    }],
     presentation: seedContent.presentation,
   };
 

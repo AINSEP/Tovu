@@ -2,6 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { checkMarkupFile, checkTovuAgentAttributePresence } from "../markup.js";
 import { scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
+import { resolveSeverity } from '../profiles.js';
+
+test('gallery validation accepts the new vocabulary and reports image-specific errors and alt warnings', () => {
+  const markup = (config: Record<string, unknown>) => `<div data-embed-config='${JSON.stringify({ type: 'gallery', ...config })}'></div>`;
+  assert.deepEqual(checkMarkupFile({ relativePath: 'pages/gallery.html', content: markup({ images: [{ mediaId: 'one', alt: '' }], layout: 'masonry' }) }), []);
+  const issues = checkMarkupFile({ relativePath: 'pages/gallery.html', content: markup({ images: [{ src: 'javascript:alert(1)' }], layout: 'slider' }) });
+  assert.ok(issues.some(issue => issue.ruleId === 'markup-gallery-config-invalid' && issue.message.includes('images[0].src')));
+  assert.ok(issues.some(issue => issue.ruleId === 'markup-gallery-config-invalid' && issue.message.includes('layout')));
+  assert.ok(issues.some(issue => issue.ruleId === 'markup-gallery-alt-missing' && issue.message.includes('images[0].alt')));
+  for (const profile of ['author', 'install', 'publish'] as const) {
+    assert.equal(resolveSeverity({ ruleId: 'markup-gallery-alt-missing', profile }), 'warning');
+    assert.equal(resolveSeverity({ ruleId: 'markup-gallery-config-invalid', profile }), 'error');
+  }
+});
 
 // F4.4: each invalid marker isolates one guard; no unrelated manifest errors.
 test("invalid JSON and unquoted attributes are reported against their own file", () => {

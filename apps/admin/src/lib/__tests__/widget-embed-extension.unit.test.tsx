@@ -308,8 +308,30 @@ describe("WidgetEmbedNodeView", () => {
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByLabelText("CSS class (optional)")).toHaveValue("hero");
-    expect(screen.getByLabelText("HTML attributes (optional)")).toHaveValue('data-kui="x"');
+    // HTML attributes are the widget editor's key = value rows over the same string (2026-10-11).
+    expect(screen.getByRole("group", { name: "HTML attributes (optional)" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Attribute name 1")).toHaveValue("data-kui");
+    expect(screen.getByLabelText("Attribute value 1")).toHaveValue("x");
     expect(screen.queryByLabelText(/Alt text/)).not.toBeInTheDocument();
+  });
+
+  it("Style's attribute rows save back as the node's htmlAttributes string", async () => {
+    const user = userEvent.setup();
+    const updateAttributes = vi.fn();
+    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
+    render(
+      <WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1", htmlAttributes: 'data-kui="x"' }, { updateAttributes })} />,
+    );
+    await screen.findByText("Hero text");
+    await user.click(screen.getByRole("button", { name: "Style" }));
+    await screen.findByRole("dialog");
+
+    await user.click(screen.getByRole("button", { name: "Add attribute" }));
+    await user.type(screen.getByLabelText("Attribute name 2"), "aria-label");
+    await user.type(screen.getByLabelText("Attribute value 2"), "Hero");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateAttributes).toHaveBeenCalledWith(expect.objectContaining({ htmlAttributes: 'data-kui="x" aria-label="Hero"' }));
   });
 
   it("Style is available even before the widget has resolved, unlike Change", () => {
@@ -430,19 +452,19 @@ describe("WidgetEmbed — real @tiptap/core Editor integration", () => {
 
       const json = editor.getJSON();
       const embedNode = json.content?.find((n) => n.type === "widgetEmbed");
-      expect(embedNode?.attrs).toEqual({ placementId: "p1", widgetEntryId: "w1", cssClass: null, htmlAttributes: null });
+      expect(embedNode?.attrs).toEqual({ placementId: "p1", widgetEntryId: "w1", cssClass: null, htmlAttributes: null, content: null });
     } finally {
       editor.destroy();
     }
   });
 
-  it("addAttributes: placementId, widgetEntryId, cssClass and htmlAttributes all default to null when omitted", () => {
+  it("addAttributes: placementId, widgetEntryId, cssClass, htmlAttributes and content all default to null when omitted", () => {
     const editor = newEditor();
     try {
       editor.commands.insertContent({ type: "widgetEmbed" });
       const json = editor.getJSON();
       const embedNode = json.content?.find((n) => n.type === "widgetEmbed");
-      expect(embedNode?.attrs).toEqual({ placementId: null, widgetEntryId: null, cssClass: null, htmlAttributes: null });
+      expect(embedNode?.attrs).toEqual({ placementId: null, widgetEntryId: null, cssClass: null, htmlAttributes: null, content: null });
     } finally {
       editor.destroy();
     }
@@ -459,7 +481,7 @@ describe("WidgetEmbed — real @tiptap/core Editor integration", () => {
       try {
         reparsed.commands.setContent(html);
         const embedNode = reparsed.getJSON().content?.find((n) => n.type === "widgetEmbed");
-        expect(embedNode?.attrs).toEqual({ placementId: "p2", widgetEntryId: "w2", cssClass: null, htmlAttributes: null });
+        expect(embedNode?.attrs).toEqual({ placementId: "p2", widgetEntryId: "w2", cssClass: null, htmlAttributes: null, content: null });
       } finally {
         reparsed.destroy();
       }
@@ -481,7 +503,7 @@ describe("WidgetEmbed — real @tiptap/core Editor integration", () => {
       try {
         reparsed.commands.setContent(html);
         const embedNode = reparsed.getJSON().content?.find((n) => n.type === "widgetEmbed");
-        expect(embedNode?.attrs).toEqual({ placementId: "p3", widgetEntryId: "w3", cssClass: "hero", htmlAttributes: 'data-kui="x"' });
+        expect(embedNode?.attrs).toEqual({ placementId: "p3", widgetEntryId: "w3", cssClass: "hero", htmlAttributes: 'data-kui="x"', content: null });
       } finally {
         reparsed.destroy();
       }
@@ -621,7 +643,7 @@ describe("WidgetEmbed mounted node view", () => {
       await user.click(screen.getByRole("option", { name: "Replacement widget" }));
       await user.click(screen.getByRole("button", { name: "Use this widget" }));
       expect(editor.getJSON().content?.find((node) => node.type === "widgetEmbed")?.attrs).toEqual({
-        placementId: "p1", widgetEntryId: "w2", cssClass: null, htmlAttributes: null,
+        placementId: "p1", widgetEntryId: "w2", cssClass: null, htmlAttributes: null, content: null,
       });
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(await screen.findByText("Replacement widget")).toBeInTheDocument();

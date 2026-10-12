@@ -33,7 +33,8 @@ export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
  * `pages.ts`/`get-by-slug.ts` already use.
  */
 export type MediaRenditionRouteDeps = MediaRouteDeps &
-  Pick<RouteDeps, "postRepo" | "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo">;
+  Pick<RouteDeps, "postRepo" | "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo"> &
+  Partial<Pick<RouteDeps, "entryRepo">>;
 
 export type MediaRenditionRouteRegistrar = (app: Express, deps: MediaRenditionRouteDeps) => void;
 

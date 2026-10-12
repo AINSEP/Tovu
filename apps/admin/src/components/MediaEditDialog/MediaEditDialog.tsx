@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 
@@ -43,9 +43,17 @@ export interface MediaEditDialogProps {
    *  {@link useWiredMediaEditDialog}; a test can pass a fake here to exercise this component's
    *  rendering without a real `useAdminLocale()` fetch or a real `document` keydown listener. */
   useDialog?: typeof useWiredMediaEditDialog;
+  /** Extra fields rendered after the style fields, before Cancel/Save — the `widgetEmbed` node's
+   *  "Content for this spot" override (2026-10-11). The caller owns their state and reads it in its
+   *  own `onSave`; this dialog only lays them out. */
+  children?: ReactNode;
+  /** Replaces the HTML attributes text box with the caller's own control over the same string —
+   *  the `widgetEmbed` node passes `HtmlAttributeRows`, the key = value rows its widget editor uses
+   *  (owner, 2026-10-11). Omitted: the text box, as the `media` node's Edit dialog has always had. */
+  renderHtmlAttributes?: (field: { value: string; onChange: (value: string) => void }) => ReactNode;
 }
 
-export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, useDialog = useWiredMediaEditDialog }: MediaEditDialogProps) {
+export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, useDialog = useWiredMediaEditDialog, children, renderHtmlAttributes }: MediaEditDialogProps) {
   const { alt, cssClass, htmlAttributes, setAlt, setCssClass, setHtmlAttributes, htmlAttributesError, save, t } = useDialog(
     initial,
     onSave,
@@ -88,18 +96,30 @@ export function MediaEditDialog({ initial, onSave, onCancel, showAlt = true, use
 
         {/* Same live, as-you-type hint `EditMediaPanel`'s asset-level field shows — never gates
             Save, see `MediaEditDialog.hooks.tsx`'s own header for why. */}
-        <div className="field">
-          <label className="field-label" htmlFor={htmlAttributesId}>
-            {t("HTML attributes (optional)")}
-          </label>
-          <input
-            id={htmlAttributesId}
-            value={htmlAttributes}
-            onChange={(e) => setHtmlAttributes(e.target.value)}
-            aria-invalid={htmlAttributesError ? true : undefined}
-          />
-          {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
-        </div>
+        {renderHtmlAttributes ? (
+          <div className="field" role="group" aria-labelledby={htmlAttributesId}>
+            <span className="field-label" id={htmlAttributesId}>
+              {t("HTML attributes (optional)")}
+            </span>
+            {renderHtmlAttributes({ value: htmlAttributes, onChange: setHtmlAttributes })}
+            {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
+          </div>
+        ) : (
+          <div className="field">
+            <label className="field-label" htmlFor={htmlAttributesId}>
+              {t("HTML attributes (optional)")}
+            </label>
+            <input
+              id={htmlAttributesId}
+              value={htmlAttributes}
+              onChange={(e) => setHtmlAttributes(e.target.value)}
+              aria-invalid={htmlAttributesError ? true : undefined}
+            />
+            {htmlAttributesError ? <p className="field-error">{htmlAttributesError}</p> : null}
+          </div>
+        )}
+
+        {children}
 
         <div className="widget-picker-footer">
           <span className="editor-actions">

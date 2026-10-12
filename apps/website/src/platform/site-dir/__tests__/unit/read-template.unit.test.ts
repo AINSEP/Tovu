@@ -53,7 +53,7 @@ import { resolveProductRoot } from "../../product-root.js";
  *   Given an unknown/missing templateId -> throws InternalError (BR-01 step 3; nothing created yet)
  */
 
-test("new-site default keeps workspace and theme settings with zero content entries", () => {
+test("new-site default keeps workspace and theme settings with zero authored posts", () => {
   const result = readTemplate({ templateId: "starter" });
   assert.deepEqual(result.seed.posts, []);
   assert.deepEqual(result.seed.workspace, seededWorkspace);

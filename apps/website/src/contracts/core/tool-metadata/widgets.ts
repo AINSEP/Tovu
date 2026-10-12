@@ -19,7 +19,7 @@ export const toolMetadata = {
   },
   "widgets_create_instance": {
     search: {
-      keywords: "widget create add new block sidebar footer",
+      keywords: "widget gallery images photos grid carousel masonry create add new block sidebar footer",
       queries: [
         "Can you create a new widget?",
         "How do I make a new widget instance with a specific config?",

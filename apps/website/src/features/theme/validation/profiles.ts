@@ -83,6 +83,8 @@ export function resolveSeverity(
   _optional: Record<string, never> = {}
 ): ThemeValidationSeverity {
   const { ruleId, profile } = required;
+  // Missing author alt is flagged; a managed image can still supply its stored alt at render time.
+  if (ruleId === "markup-gallery-alt-missing") return "warning";
   if (PUBLISH_ONLY_RULES.has(ruleId)) {
     return profile === "publish" ? "error" : "warning";
   }

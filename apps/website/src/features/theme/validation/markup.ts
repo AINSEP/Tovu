@@ -1,4 +1,4 @@
-import { scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
+import { parseGalleryConfig, scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
 import type { ThemeValidationIssue } from "./profiles.js";
 import { checkWebMcpMarkup } from './webmcp-markup.js';
 
@@ -15,9 +15,9 @@ import { checkWebMcpMarkup } from './webmcp-markup.js';
  * owner 2026-10-04, resolves through the contact-form widget path.
  */
 
-/** The complete, current `data-embed-config` `type` vocabulary — eleven values, kept in sync with
+/** The complete, current `data-embed-config` `type` vocabulary — thirteen values, kept in sync with
  * `resolver-service.ts`'s `HTML_EMBED_RESOLVERS` (widget/form/taxonomy/media/post/content) plus
- * `THEME_OWNED_MARKER_TYPES` (menu/partial/post-previews/collection/featured-image). Duplicated here rather than
+ * `THEME_OWNED_MARKER_TYPES` (menu/partial/post-previews/collection/featured-image/post-author). Duplicated here rather than
  * imported: both are `resolver-service.ts`-internal (`const`, not exported), and this validator is a
  * different feature's territory to own — same reasoning `THEME_OWNED_MARKER_TYPES`'s own doc gives for
  * its own, independent duplication of the same literals. Re-verify against current `HEAD` if this drifts. */
@@ -26,6 +26,7 @@ const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set([
   "form",
   "taxonomy",
   "media",
+  "gallery",
   "post",
   "content",
   "menu",
@@ -33,6 +34,7 @@ const KNOWN_EMBED_TYPES: ReadonlySet<string> = new Set([
   "post-previews",
   "collection",
   "featured-image",
+  "post-author",
 ]);
 
 /** Tolerant pre-scan for unquoted `data-embed-config` values the REAL runtime scanner
@@ -86,6 +88,11 @@ export function checkMarkupFile(
     });
   }
   for (const marker of markers) {
+    if (marker.type.toLowerCase() === "gallery" || (marker.type.toLowerCase() === "media" && (marker.config.content !== undefined || marker.config.items !== undefined || marker.config.html !== undefined))) {
+      const result = parseGalleryConfig({ config: marker.config.content ?? marker.config }, { allowEmpty: true });
+      for (const message of result.errors) issues.push({ ruleId: "markup-gallery-config-invalid", message: `'${relativePath}': gallery #${marker.occurrence}: ${message}`, path: relativePath });
+      for (const message of result.warnings) issues.push({ ruleId: "markup-gallery-alt-missing", message: `'${relativePath}': gallery #${marker.occurrence}: ${message}`, path: relativePath });
+    }
     if (!KNOWN_EMBED_TYPES.has(marker.type)) {
       issues.push({
         ruleId: "markup-embed-config-unknown-type",

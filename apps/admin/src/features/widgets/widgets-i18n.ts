@@ -32,6 +32,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Entradas recientes",
     Menu: "Menú",
     "Contact Form": "Formulario de contacto",
+    Media: "Multimedia",
+    Gallery: "Galería",
     // WidgetRegions.tsx
     Widgets: "Widgets",
     "Widget Regions": "Regiones de widgets",
@@ -109,6 +111,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Entri Terbaru",
     Menu: "Menu",
     "Contact Form": "Formulir Kontak",
+    Media: "Media",
+    Gallery: "Galeri",
     Widgets: "Widget",
     "Widget Regions": "Wilayah Widget",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -173,6 +177,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Neueste Einträge",
     Menu: "Menü",
     "Contact Form": "Kontaktformular",
+    Media: "Medien",
+    Gallery: "Galerie",
     Widgets: "Widgets",
     "Widget Regions": "Widget-Bereiche",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -237,6 +243,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "最新条目",
     Menu: "菜单",
     "Contact Form": "联系表单",
+    Media: "媒体",
+    Gallery: "图库",
     Widgets: "小组件",
     "Widget Regions": "小组件区域",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -298,6 +306,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "最新項目",
     Menu: "選單",
     "Contact Form": "聯絡表單",
+    Media: "媒體",
+    Gallery: "圖庫",
     Widgets: "小工具",
     "Widget Regions": "小工具區域",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -359,6 +369,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Entradas Recentes",
     Menu: "Menu",
     "Contact Form": "Formulário de Contato",
+    Media: "Mídia",
+    Gallery: "Galeria",
     Widgets: "Widgets",
     "Widget Regions": "Regiões de Widgets",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -423,6 +435,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Последние записи",
     Menu: "Меню",
     "Contact Form": "Контактная форма",
+    Media: "Медиа",
+    Gallery: "Галерея",
     Widgets: "Виджеты",
     "Widget Regions": "Области виджетов",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -487,6 +501,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "ورودی‌های اخیر",
     Menu: "منو",
     "Contact Form": "فرم تماس",
+    Media: "رسانه",
+    Gallery: "گالری",
     Widgets: "ابزارک‌ها",
     "Widget Regions": "نواحی ابزارک",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -551,6 +567,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "أحدث الإدخالات",
     Menu: "قائمة",
     "Contact Form": "نموذج التواصل",
+    Media: "الوسائط",
+    Gallery: "المعرض",
     Widgets: "الودجات",
     "Widget Regions": "مناطق الودجات",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -614,6 +632,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "最近のエントリ",
     Menu: "メニュー",
     "Contact Form": "お問い合わせフォーム",
+    Media: "メディア",
+    Gallery: "ギャラリー",
     Widgets: "ウィジェット",
     "Widget Regions": "ウィジェット領域",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -677,6 +697,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "최근 항목",
     Menu: "메뉴",
     "Contact Form": "문의 양식",
+    Media: "미디어",
+    Gallery: "갤러리",
     Widgets: "위젯",
     "Widget Regions": "위젯 영역",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -740,6 +762,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Najnowsze wpisy",
     Menu: "Menu",
     "Contact Form": "Formularz kontaktowy",
+    Media: "Media",
+    Gallery: "Galeria",
     Widgets: "Widżety",
     "Widget Regions": "Regiony widżetów",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -804,6 +828,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Legutóbbi bejegyzések",
     Menu: "Menü",
     "Contact Form": "Kapcsolatfelvételi űrlap",
+    Media: "Médiatár",
+    Gallery: "Galéria",
     Widgets: "Modulok",
     "Widget Regions": "Modulterületek",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -868,6 +894,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Entrées récentes",
     Menu: "Menu",
     "Contact Form": "Formulaire de contact",
+    Media: "Médias",
+    Gallery: "Galerie",
     Widgets: "Widgets",
     "Widget Regions": "Régions de widgets",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -932,6 +960,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Останні записи",
     Menu: "Меню",
     "Contact Form": "Контактна форма",
+    Media: "Медіа",
+    Gallery: "Галерея",
     Widgets: "Віджети",
     "Widget Regions": "Області віджетів",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -996,6 +1026,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Son Girişler",
     Menu: "Menü",
     "Contact Form": "İletişim Formu",
+    Media: "Medya",
+    Gallery: "Galeri",
     Widgets: "Widget'lar",
     "Widget Regions": "Widget Bölgeleri",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -1060,6 +1092,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "รายการล่าสุด",
     Menu: "เมนู",
     "Contact Form": "แบบฟอร์มติดต่อ",
+    Media: "สื่อ",
+    Gallery: "แกลเลอรี",
     Widgets: "วิดเจ็ต",
     "Widget Regions": "พื้นที่วิดเจ็ต",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -1123,6 +1157,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "Voci recenti",
     Menu: "Menu",
     "Contact Form": "Modulo di contatto",
+    Media: "Media",
+    Gallery: "Galleria",
     Widgets: "Widget",
     "Widget Regions": "Regioni widget",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -1187,6 +1223,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "हाल की एंट्री",
     Menu: "मेन्यू",
     "Contact Form": "संपर्क फ़ॉर्म",
+    Media: "मीडिया",
+    Gallery: "गैलरी",
     Widgets: "विजेट",
     "Widget Regions": "विजेट क्षेत्र",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -1251,6 +1289,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "حالیہ اندراجات",
     Menu: "مینو",
     "Contact Form": "رابطہ فارم",
+    Media: "میڈیا",
+    Gallery: "گیلری",
     Widgets: "ویجٹس",
     "Widget Regions": "ویجٹ ریجنز",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':
@@ -1315,6 +1355,8 @@ const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Collection list": "সাম্প্রতিক এন্ট্রি",
     Menu: "মেনু",
     "Contact Form": "যোগাযোগ ফর্ম",
+    Media: "মিডিয়া",
+    Gallery: "গ্যালারি",
     Widgets: "উইজেট",
     "Widget Regions": "উইজেট রিজিয়ন",
     'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.':

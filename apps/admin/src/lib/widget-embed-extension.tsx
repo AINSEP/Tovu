@@ -6,6 +6,9 @@ import { useWidgetEmbedNodeView } from "./widget-embed-extension.hooks";
 import { MediaEditDialog } from "../components/MediaEditDialog/MediaEditDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
+import { PlacementContentFields } from "../components/WidgetConfigFields/PlacementContentFields";
+import { HtmlAttributeRows } from "../components/WidgetConfigFields/HtmlAttributeRows";
+import { t as sharedComponentsT } from "../components/shared-components-i18n";
 import { t as translateApp } from "../app-i18n";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 
@@ -27,7 +30,7 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     widgetEmbed: {
-      insertWidgetEmbed: (attrs: { placementId: string; widgetEntryId: string }) => ReturnType;
+      insertWidgetEmbed: (attrs: { placementId: string; widgetEntryId: string; content?: Record<string, unknown> }) => ReturnType;
     };
   }
 }
@@ -99,7 +102,12 @@ export function WidgetEmbedNodeView(props: NodeViewProps) {
         </button>
       </span>
       {view.styling ? (
-        <MediaEditDialog initial={view.styleInitial} onSave={view.saveStyle} onCancel={view.closeStyle} showAlt={false} />
+        <MediaEditDialog initial={view.styleInitial} onSave={view.saveStyle} onCancel={view.closeStyle} showAlt={false}
+          renderHtmlAttributes={(field) => <HtmlAttributeRows {...field} t={(key) => sharedComponentsT({ locale, key })} />}>
+          {view.placementContent ? (
+            <PlacementContentFields {...view.placementContent} t={(key) => sharedComponentsT({ locale, key })} />
+          ) : null}
+        </MediaEditDialog>
       ) : null}
       {view.changeDialog ? (
         <WidgetPickerDialog
@@ -125,6 +133,8 @@ export const WidgetEmbed = Node.create({
     return {
       placementId: { default: null },
       widgetEntryId: { default: null },
+      // Per-placement JSON persists in the document; server resolution merges it over saved config.
+      content: { default: null, rendered: false },
       // Per-instance style override (2026-09-23, W2 — owner ask: "widget embed attributes pass
       // through like the other types"), same two field names/shape as the `media` node's own
       // `cssClass`/`htmlAttributes` (`media-embed-extension.tsx`). The editor UI (the Style action,
@@ -164,7 +174,7 @@ export const WidgetEmbed = Node.create({
 });
 
 interface WidgetEmbedEditor {
-  commands: { insertWidgetEmbed: (attrs: { placementId: string; widgetEntryId: string }) => boolean };
+  commands: { insertWidgetEmbed: (attrs: { placementId: string; widgetEntryId: string; content?: Record<string, unknown> }) => boolean };
 }
 
 /** Mints a fresh `placementId` and inserts the node at the current cursor position

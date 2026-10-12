@@ -615,12 +615,13 @@ export const TIPTAP_DOC_SCHEMA = {
               type: "object",
               additionalProperties: false,
               required: ["placementId"],
-              properties: { placementId: { type: "string", description: "An existing embed placement id, as returned by widgets_insert_embed." } },
+              properties: { placementId: { type: "string", description: "An existing embed placement id, as returned by widgets_insert_embed." }, content: { type: "object", description: "Optional per-placement Media content overriding saved config; slug items or raw HTML." } },
             },
           },
           description:
             "A block-level widget embed reference (see this schema's own top-level doc). Read-and-recognize only through this tool — author new embeds via widgets_insert_embed, not by hand-writing this node. " +
             "The node MAY also carry attrs.cssClass/attrs.htmlAttributes (2026-09-23, per-post styling, same two optional raw-text fields the media node supports — see media's own description above): " +
+            "For Media widgets, attrs.content is an optional placement override: {items:[{slug:<media-slug>,alt?,caption?}],layout:single|grid|carousel|masonry} or {mode:html,html:<HTML>}. Slugs resolve through the media library; raw HTML supports {{media:slug}} and data-media-slug and uses the page-body sanitizer. " +
             "render.ts's renderDocWidgetEmbed wraps the rendered widget in a <div class=\"widget-embed …\"> carrying them when set, or renders unwrapped when both are absent. htmlAttributes is re-validated " +
             "at render time against the SAME shared allowlist the media node uses (2026-09-23 widget-attrs plan, S1) — class/id/style/data-*/aria-* and more are kept; on* handlers, javascript:/vbscript:/data: " +
             "URLs and unsafe style values are dropped one token at a time (every other accepted token in the same htmlAttributes string still lands, e.g. data-x and style survive even when onclick is present); " +

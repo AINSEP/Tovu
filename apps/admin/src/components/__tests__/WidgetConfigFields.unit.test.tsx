@@ -542,8 +542,10 @@ describe("ContactFormConfigFields", () => {
 });
 
 describe("WIDGET_TYPE_OPTIONS", () => {
-  it("lists exactly the five closed v1 widget types, value and label paired", () => {
+  it("lists the built-in widget types including Media and Gallery, value and label paired", () => {
     expect(WIDGET_TYPE_OPTIONS).toEqual([
+      { value: "media", label: "Media" },
+      { value: "gallery", label: "Gallery" },
       { value: "text", label: "Text" },
       { value: "social-links", label: "Social Links" },
       { value: "recent-entries", label: "Collection list" },
@@ -555,6 +557,8 @@ describe("WIDGET_TYPE_OPTIONS", () => {
 
 describe("defaultWidgetConfig", () => {
   it.each([
+    ["media", { mode: "media", items: [], layout: "single" }],
+    ["gallery", { images: [], layout: "grid", columns: 3 }],
     ["text", { body: "" }],
     ["social-links", { links: [] }],
     ["recent-entries", { maxItems: 5 }],

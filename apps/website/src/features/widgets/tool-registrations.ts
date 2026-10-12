@@ -37,7 +37,7 @@ import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetPlacementNode, WidgetTypeKey } from "@jini-ai/cms/widgets";
 import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "@jini-ai/cms/widgets";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator, type JsonObject } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -208,6 +208,7 @@ async function resolveWidgetPlacementView(routeDeps: WidgetsToolDeps, placement:
     placementId: placement.placementId,
     widgetEntryId: placement.widgetEntryId,
     enabled: placement.enabled,
+    ...((placement as WidgetPlacementNode & { content?: Record<string, unknown> }).content !== undefined ? { content: (placement as WidgetPlacementNode & { content?: Record<string, unknown> }).content } : {}),
     widgetTitle: widget?.title ?? null,
     widgetType: payload?.widgetType ?? null,
     broken: !widget || !payload || payload.status !== "active",
@@ -381,7 +382,8 @@ export function buildWidgetsRegistrations(
         const placementId = typeof raw.placementId === "string" && raw.placementId.length > 0 ? raw.placementId : routeDeps.idGen.newId();
         if (seenIds.has(placementId)) throw new ToolInputError({ message: `duplicate placementId '${placementId}'` });
         seenIds.add(placementId);
-        return { placementId, widgetEntryId, enabled: raw.enabled };
+        if (raw.content !== undefined && (typeof raw.content !== 'object' || raw.content === null || Array.isArray(raw.content))) throw new ToolInputError({ message: 'placement content must be an object' });
+        return { placementId, widgetEntryId, enabled: raw.enabled, ...(raw.content !== undefined ? { content: raw.content as JsonObject } : {}) };
       });
 
       const binding = await routeDeps.widgetBindingRepo.findByRegion({ workspaceId: routeDeps.workspaceId, regionKey });
