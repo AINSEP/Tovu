@@ -52,11 +52,16 @@ type SiteDeps = Awaited<ReturnType<typeof createSiteRouteDeps>>;
 
 /** Settles every boot promise before the store closes and the folder is removed, so no boot task
  *  outlives its test (the same set `create-site-route-deps.postgres.test.ts` drains). */
+async function settleBoot(deps: SiteDeps): Promise<void> {
+  await Promise.all(
+    [deps.identityReady, deps.settingsReady, deps.seoReady, deps.commentsReady, deps.commentsSettingsReady, deps.executionSettingsReady, deps.settingsUiTabsReady, deps.analyticsSettingsReady, deps.siteTitleReady, deps.pluginRuntimeReady, deps.blobHydrationReady, deps.adminPasswordResetReady, deps.legacyPublishCredentialsReady].map((ready) => Promise.resolve(ready).catch(() => undefined))
+  );
+}
+
+/** Close only after every boot writer has settled. */
 function closeAfter(t: TestContext, deps: SiteDeps): void {
   t.after(async () => {
-    await Promise.all(
-      [deps.identityReady, deps.settingsReady, deps.seoReady, deps.commentsReady, deps.commentsSettingsReady, deps.executionSettingsReady, deps.settingsUiTabsReady, deps.analyticsSettingsReady, deps.siteTitleReady, deps.pluginRuntimeReady, deps.blobHydrationReady, deps.adminPasswordResetReady].map((ready) => Promise.resolve(ready).catch(() => undefined))
-    );
+    await settleBoot(deps);
     await deps.contentKernel?.close();
   });
 }
@@ -180,4 +185,29 @@ test("the composed plugin callbacks: enabling word-count over HTTP makes the nex
 
   assert.equal((await send("PATCH", `${ws}/plugins/word-count`, { enabled: false })).status, 200);
   assert.equal((await createPost("Off", "one two")).ext?.["word-count"], undefined, "onPluginDisabled detached it again");
+});
+
+test("boot re-attaches a persisted enabled plugin after the SDK host exists", async (t) => {
+  withBootEnv(t, {});
+  const dir = siteDir(t);
+  const dbPath = path.join(dir, "content.db");
+  const seeded = await createSiteRouteDeps(dbPath);
+  await settleBoot(seeded);
+  try {
+    await seeded.pluginActivationRepo.save({ workspaceId: seeded.workspaceId, pluginId: "word-count",
+      version: "1.0.0", enabled: true, updatedAt: seeded.clock.nowIso() });
+  } finally { await seeded.contentKernel?.close(); }
+
+  const warnings = t.mock.method(console, "warn", () => {});
+  const rebooted = await createSiteRouteDeps(dbPath);
+  closeAfter(t, rebooted);
+  await rebooted.pluginRuntimeReady;
+  assert.ok(rebooted.pluginHost);
+  assert.equal(rebooted.pluginLoadedVersion?.({ id: "word-count" }), "1.0.0");
+  assert.deepEqual(await rebooted.previewPluginBeforeSave("word-count", {
+    id: "reboot-preview", workspaceId: rebooted.workspaceId, title: "After reboot", slug: "after-reboot",
+    status: "draft", bodyJson: { type: "doc", content: [{ type: "text", text: "one two three" }] }, ext: {},
+  }), { count: 3 });
+  assert.equal(warnings.mock.calls.some(call => call.arguments.some(value =>
+    String(value).includes("boot re-attach failed"))), false);
 });

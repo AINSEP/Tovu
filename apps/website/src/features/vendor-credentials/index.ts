@@ -1,11 +1,9 @@
 /**
  * @file Public surface for the `vendor-credentials` feature (ADR-009 §1): the `vendor_credential_sets`
- * table's record/repo types, its AAD and the in-memory repo. The table is read and written through
+ * vault adapter's record/repo types and the in-memory repo. The table is read and written through
  * `deployments/publish-credentials/store.ts` (deploy hosts, validated against the deploy plugin's
- * descriptors); legacy publish rows are copied in at boot (`vendor-table-backfill.ts`).
+ * descriptors); legacy publish rows are folded once by migration 0012.
  */
-export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorCredentialSetSummary } from "@jini-ai/platform/secrets/credential-sets";
+export type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorCredentialSetSummary } from "./types.js";
 
-export { buildVendorCredentialAad } from "./aad.js";
-
-export { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";
+export { InMemoryVendorCredentialSetRepo } from "../deployments/publish-credentials/repo.memory.js";

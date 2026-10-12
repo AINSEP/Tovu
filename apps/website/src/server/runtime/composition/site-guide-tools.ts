@@ -11,7 +11,7 @@ export const SITE_GUIDE_SCHEMA = {
     topic: { type: "string", pattern: "^[a-z][a-z0-9-]{0,63}$", description: "For explain only: an id returned by overview." },
   },
 } as const;
-const catalog = indexCatalogById({ catalog: [{
+export const catalog = indexCatalogById({ catalog: [{
   name: "site_guide",
   description: "Explains how THIS site works. Call overview before planning or building, then explain with a topic id. Returns permission-filtered capability cards, live facts, workflows and tool/doc pointers. Read only; it neither builds the site nor replaces search_tools for callable actions. Hidden topics are unavailable; failed fact reads mean unknown, not disabled. Core topics remain available with the guide plugin disabled.",
   sideEffects: "none" as const, authorization: { permission: "admin.assistant.use" }, inputSchema: SITE_GUIDE_SCHEMA,

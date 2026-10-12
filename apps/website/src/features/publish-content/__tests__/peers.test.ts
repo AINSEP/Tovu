@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import { buildPublishContentPeerAad, PUBLISH_CONTENT_PEER_AAD_VERSION } from "../peer-aad.js";
+import { buildVaultAad, VaultError } from "@jini-ai/platform/secrets/credential-sets";
 import {
   createPublishContentPeer,
   deletePublishContentPeer,
@@ -142,7 +142,7 @@ test("a ciphertext sealed for one peer cannot be opened as another peer's — th
   assert.ok(first?.sealed);
   // Present peer-1's ciphertext under peer-2's AAD: AEAD auth-tag verification must fail.
   await assert.rejects(
-    () => deps.sealer.open({ sealed: first.sealed! }, { aad: buildPublishContentPeerAad({ workspaceId: WORKSPACE, id: "peer-2" }) }),
+    () => deps.sealer.open({ sealed: first.sealed! }, { aad: buildVaultAad({ workspaceId: WORKSPACE, id: "peer-2", kind: "publish-peer", ownerKey: "tovu", principalId: null, binding: null }) }),
     (err: unknown) => err instanceof Error
   );
   const second = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-2" });
@@ -173,11 +173,14 @@ test("an unopenable ciphertext surfaces as the typed secret-store error, never a
   );
 });
 
-test("a create stamps the current AAD version so a future v2 is a row-by-row migration", async () => {
+test("create persists a vault JSON payload under Jini AAD", async () => {
   const deps = writeDeps();
   await createDefaultPeer(deps);
   const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
-  assert.equal(stored?.aadVersion, PUBLISH_CONTENT_PEER_AAD_VERSION);
+  assert.ok(stored?.sealed);
+  const record = (await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "peer-1" }))!;
+  assert.equal(record.kind, "publish-peer");
+  assert.deepEqual(JSON.parse(await deps.sealer.open({ sealed: stored.sealed }, { aad: buildVaultAad(record) })), { apiKey: API_KEY });
 });
 
 test("create validates every operator-supplied field", async () => {
@@ -307,4 +310,36 @@ test("peers are workspace-scoped — another workspace's rows are never listed",
 
   const ours = await listPublishContentPeers({ repo: deps.repo }, { workspaceId: WORKSPACE });
   assert.deepEqual(ours.map((p) => p.id), ["peer-1"]);
+});
+
+test("metadata-only peers need no key and remain removable after vault storage", async () => {
+  const deps = writeDeps();
+  await deps.repo.insert({ workspaceId: WORKSPACE, id: "bare", label: "connected", baseUrl: "https://peer.example.test",
+    remoteWorkspaceId: "remote", sealed: null, masked: null, aadVersion: 1, createdAt: "now", updatedAt: "now" });
+  const vault = (await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "bare" }))!;
+  assert.equal(vault.sealed, null);
+  assert.equal(vault.last4, null);
+  assert.equal(vault.tokenLength, null);
+  assert.deepEqual(await listPublishContentPeers(deps, { workspaceId: WORKSPACE }), [{ id: "bare", label: "connected",
+    baseUrl: "https://peer.example.test", remoteWorkspaceId: "remote", masked: null, hasCredential: false }]);
+  await assert.rejects(resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "bare" }), PublishContentPeerCredentialMissingError);
+  await deletePublishContentPeer(deps, { workspaceId: WORKSPACE, id: "bare" });
+  assert.equal(await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "bare" }), null);
+});
+
+test("short peer keys have no vault suffix and label-only edits require no crypto", async () => {
+  const deps = writeDeps();
+  await createPublishContentPeer(deps, { workspaceId: WORKSPACE, label: "short", baseUrl: "https://peer.example.test",
+    remoteWorkspaceId: "remote", apiKey: "shortkey" });
+  const old = (await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "peer-1" }))!;
+  assert.equal(old.last4, null);
+  const noCrypto = async (): Promise<never> => { throw new Error("must not touch crypto"); };
+  await updatePublishContentPeer({ ...deps, sealer: { seal: noCrypto, open: noCrypto } },
+    { workspaceId: WORKSPACE, id: "peer-1", label: "renamed" });
+  const renamed = (await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "peer-1" }))!;
+  assert.deepEqual(renamed.sealed, old.sealed);
+  assert.equal(renamed.label, "renamed");
+  assert.equal((await getPublishContentPeerSummary(deps, { workspaceId: WORKSPACE, id: "peer-1" }))?.masked, "••••");
+  await assert.rejects(deps.repo.vault.patchMeta({ workspaceId: WORKSPACE, id: "peer-1", expectedRevision: old.revision,
+    patch: { remoteWorkspaceId: "stale" }, updatedAt: "now" }), VaultError);
 });

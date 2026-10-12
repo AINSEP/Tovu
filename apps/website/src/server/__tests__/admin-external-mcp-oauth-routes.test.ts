@@ -1,4 +1,5 @@
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
+import { MAX_AUTHORIZATION_STATE_LENGTH } from "@jini-ai/oauth";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -6,7 +7,7 @@ import test from "node:test";
 import express from "express";
 
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService, saveExternalMcpServer } from "../../assistant/index.js";
-import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
+import { type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
@@ -51,13 +52,20 @@ interface ScriptStep {
   readonly throws?: Error;
 }
 
-function scriptedFetch(script: readonly ScriptStep[]) {
+function scriptedFetch(script: readonly ScriptStep[], options: { rejectReplayedCodes?: boolean } = {}) {
   let calls = 0;
+  const usedCodes = new Set<string>();
   const requests: { url: string; init: RequestInit | undefined }[] = [];
   const fetchFn: typeof fetch = async (url, init): Promise<Response> => {
     requests.push({ url: String(url), init });
     const step = script[Math.min(calls, script.length - 1)] ?? {};
     calls += 1;
+    const form = new URLSearchParams(String(init?.body));
+    if (options.rejectReplayedCodes && form.get("grant_type") === "authorization_code") {
+      const code = form.get("code") ?? "";
+      if (usedCodes.has(code)) return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+      usedCodes.add(code);
+    }
     if (step.throws) throw step.throws;
     return new Response(JSON.stringify(step.json ?? {}), {
       status: step.status ?? 200,
@@ -67,16 +75,15 @@ function scriptedFetch(script: readonly ScriptStep[]) {
   return { fetchFn, requests };
 }
 
-async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string } = {}) {
+async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: string; rejectReplayedCodes?: boolean } = {}) {
   const base = createRouteDeps();
-  const http = scriptedFetch(options.script ?? []);
+  const http = scriptedFetch(options.script ?? [], options);
   const oauthDeps: Parameters<typeof createExternalMcpOAuthService>[0] = {
     workspaceId: base.workspaceId,
     repo: base.externalMcpServerRepo,
     sealer: base.siteAssistantSecretSealer,
     keyring: base.siteAssistantSecretKeyring,
     clock: base.clock,
-    pending: createPendingAuthorizationStore({ clock: base.clock }),
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
       fetchFn: ({ url }, init) => (http.fetchFn)(url, init) },
@@ -160,7 +167,9 @@ test("connect returns a redirect URL carrying PKCE, and no secret", async (t) =>
   const url = new URL(body.auth.authorizationUrl);
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.ok(url.searchParams.get("code_challenge"));
-  assert.match(url.searchParams.get("state") ?? "", /^[A-Za-z0-9_-]{32}$/);
+  const state = url.searchParams.get("state") ?? "";
+  assert.match(state, /^[A-Za-z0-9_-]+$/);
+  assert.ok(state.length > 256 && state.length <= MAX_AUTHORIZATION_STATE_LENGTH);
   const again = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
   assert.equal(again.status, 200);
   const second = await again.json() as { auth: { authorizationUrl: string } };
@@ -215,6 +224,63 @@ test("a full handshake connects, and no response anywhere carries a token or the
   assert.ok(!listBody.includes("at-wire"), "the access token must never cross the wire");
   assert.ok(!listBody.includes("rt-wire"), "the refresh token must never cross the wire");
   assert.ok(!listBody.includes(DUMMY_SECRET), "the client secret must never cross the wire");
+});
+
+test("sealed-state callback rejects tampering, expiry and oversize before provider exchange", async (t) => {
+  const { app, deps, http } = await buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
+  const { auth } = await connect.json() as { auth: { authorizationUrl: string } };
+  const state = new URL(auth.authorizationUrl).searchParams.get("state")!;
+  const envelope = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+  const bytes = Buffer.from(envelope.ciphertext, "base64");
+  bytes[0] = bytes[0]! ^ 1;
+  envelope.ciphertext = bytes.toString("base64");
+  for (const invalid of [Buffer.from(JSON.stringify(envelope)).toString("base64url"), "x".repeat(MAX_AUTHORIZATION_STATE_LENGTH + 1)]) {
+    const response = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(invalid)}&code=c`);
+    assert.equal(response.status, 400);
+    assert.match(await response.text(), /state_expired/);
+  }
+  const nowMs = deps.clock.nowMs.bind(deps.clock);
+  deps.clock.nowMs = () => nowMs() + 600_000;
+  t.after(() => { deps.clock.nowMs = nowMs; });
+  const expired = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`);
+  assert.equal(expired.status, 400);
+  assert.match(await expired.text(), /state_expired/);
+  assert.equal(http.requests.length, 0);
+});
+
+test("callback checks its exact URI and a replayed code is refused by the provider fake", async (t) => {
+  const { app, http } = await buildTestApp({ rejectReplayedCodes: true, script: [{ json: { access_token: "at-wire" } }] });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
+  const { auth } = await connect.json() as { auth: { authorizationUrl: string } };
+  const state = new URL(auth.authorizationUrl).searchParams.get("state")!;
+  const path = `${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${SERVER_ID}?state=${encodeURIComponent(state)}&code=c`;
+  const wrongUri = await fetch(`${baseUrl}${path}`, { headers: { "x-forwarded-proto": "https" } });
+  assert.equal(wrongUri.status, 400);
+  assert.match(await wrongUri.text(), /state_expired/);
+  assert.equal(http.requests.length, 0);
+  assert.equal((await fetch(`${baseUrl}${path}`)).status, 200);
+  const replay = await fetch(`${baseUrl}${path}`);
+  assert.equal(replay.status, 400);
+  assert.match(await replay.text(), /exchange_failed/);
+  assert.equal(http.requests.length, 2);
+});
+
+test("callback refuses state issued for another server before contacting the provider", async (t) => {
+  const { app, deps, http } = await buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: SERVER_ID });
+  assert.ok(row);
+  await deps.externalMcpServerRepo.upsert({ ...row, serverId: "other-server", sealedOAuth: null });
+  const connect = await req(baseUrl, `${BASE}/oauth/connect`, cookie, { method: "POST", body: "{}" });
+  const { auth } = await connect.json() as { auth: { authorizationUrl: string } };
+  const state = new URL(auth.authorizationUrl).searchParams.get("state")!;
+  const response = await fetch(`${baseUrl}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/other-server?state=${encodeURIComponent(state)}&code=c`);
+  assert.equal(response.status, 400);
+  assert.match(await response.text(), /state_expired/);
+  assert.equal(http.requests.length, 0);
 });
 
 test("a callback carrying an attacker-shaped state renders the fixed failure page, uninterpolated", async (t) => {

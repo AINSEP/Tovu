@@ -103,7 +103,7 @@ test("no_state: an empty state is refused before the service is ever called", as
   assert.deepEqual(extractPostMessagePayload(html), { type: "tovu:external-mcp-connected", reason: "no_state" });
 });
 
-test("state_expired: OAUTH_INVALID_STATE from the service — covers unknown, expired and replayed alike", async (t) => {
+test("state_expired: OAUTH_INVALID_STATE from the service — covers tampered, expired and wrongly-bound state", async (t) => {
   const deps: ExternalMcpOAuthCallbackRouteDeps = {
     oauth: fakeOAuthService(async () => {
       throw new OAuthError({ code: "OAUTH_INVALID_STATE", message: "the authorization request could not be matched — it may have expired or already been used", operatorAction: "Start the connection again from Settings → External MCP." });
@@ -240,7 +240,7 @@ test("no provider response text, in any form, ever reaches the response — the 
   }
 });
 
-test("callback forwards the exact server and normalized query fields, including empty and repeated parameters", async (t) => {
+test("callback forwards the exact server, callback URI and normalized query fields", async (t) => {
   const calls: unknown[] = [];
   const deps: ExternalMcpOAuthCallbackRouteDeps = {
     oauth: fakeOAuthService(async (input) => { calls.push(input); }),
@@ -258,8 +258,27 @@ test("callback forwards the exact server and normalized query fields, including 
     const before = calls.length;
     const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?${scenario.query}`);
     assert.equal(response.status, scenario.status, scenario.query);
-    assert.deepEqual(calls.slice(before), scenario.params ? [{ serverId: SERVER_ID, params: scenario.params }] : []);
+    assert.deepEqual(calls.slice(before), scenario.params ? [{ serverId: SERVER_ID,
+      redirectUri: `${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}`, params: scenario.params }] : []);
   }
+});
+
+test("callback URI includes the trusted public origin but excludes provider query parameters", async (t) => {
+  const previous = process.env.TOVU_PUBLIC_URL;
+  process.env.TOVU_PUBLIC_URL = "https://public.example.com";
+  t.after(() => {
+    if (previous === undefined) delete process.env.TOVU_PUBLIC_URL;
+    else process.env.TOVU_PUBLIC_URL = previous;
+  });
+  const calls: unknown[] = [];
+  const baseUrl = await startTestServer(buildApp({
+    oauth: fakeOAuthService(async input => { calls.push(input); }),
+    callbackLimiter: fixedRateLimiter({ allowed: true }),
+  }), t);
+  const response = await fetch(`${baseUrl}/api/mcp-servers/oauth/callback/${SERVER_ID}?state=s&code=c&ignored=x`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls, [{ serverId: SERVER_ID,
+    redirectUri: `https://public.example.com/api/mcp-servers/oauth/callback/${SERVER_ID}`, params: { state: "s", code: "c" } }]);
 });
 
 test("callback IP budgets stay independent after another client exhausts its allowance", async (t) => {

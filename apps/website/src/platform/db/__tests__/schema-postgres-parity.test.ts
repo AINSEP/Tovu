@@ -225,37 +225,11 @@ test("sealed-shape CHECK SQL text is semantically exact on every credential tabl
   // Column lists transcribed from each table's own `check(...)` declaration in schema.sqlite.ts, not
   // inferred — a table with the wrong column list here would itself be a bug in this test, which is
   // exactly why the assertion below is on the literal generated text, not on this list's shape.
-  const cases: ReadonlyArray<{ table: object; checkName: string; sealedColumns: readonly string[] }> = [
-    {
-      table: sqliteSchema.siteAssistantCredentials,
-      checkName: "site_assistant_credentials_sealed_shape",
-      sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg", "masked"],
-    },
-    {
-      table: sqliteSchema.adminExecutionCredentials,
-      checkName: "admin_execution_credentials_sealed_shape",
-      sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg", "masked"],
-    },
-    {
-      table: sqliteSchema.mediaProviderCredentials,
-      checkName: "media_provider_credentials_sealed_shape",
-      sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg", "keyTail"],
-    },
-    {
-      table: sqliteSchema.externalMcpServers,
-      checkName: "external_mcp_servers_sealed_shape",
-      sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg"],
-    },
-    {
-      // The SECOND sealed group on this table — the OAuth blob (`{ clientSecret?, tokens? }`), which
-      // varies independently of the env block: a server can hold an OAuth token and no env block, or
-      // both. Two CHECKs rather than one combined constraint, so neither group's shape can be
-      // satisfied by the other group's columns being set.
-      table: sqliteSchema.externalMcpServers,
-      checkName: "external_mcp_servers_oauth_sealed_shape",
-      sealedColumns: ["oauthSealedKeyId", "oauthSealedCiphertext", "oauthSealedNonce", "oauthSealedAlg"],
-    },
-  ];
+  const cases: ReadonlyArray<{ table: object; checkName: string; sealedColumns: readonly string[] }> = [{
+    table: sqliteSchema.secretsVault,
+    checkName: "secrets_vault_sealed_shape",
+    sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg"],
+  }];
   assert.equal(
     cases.length,
     sourceTables().reduce((n, { table }) => n + getTableConfig(table).checks.filter((c) => c.name.endsWith("_sealed_shape")).length, 0),
@@ -277,13 +251,39 @@ test("posts_body_format_shape CHECK preserves the exact-one-body-column-populate
 });
 
 test("every index's column list and order in the generated schema exactly matches source, and no source index carries an untested WHERE predicate or expression column", () => {
+  const vaultGroup = ["workspace_id", "kind", "owner_key", "(principal_id IS NULL)", "coalesce(principal_id,'')", "(provider IS NULL)", "coalesce(provider,'')"];
+  const vaultExpressions: Record<string, { columns: readonly string[]; where: string }> = {
+    secrets_vault_default: { columns: vaultGroup, where: "is_default = true" },
+    secrets_vault_group_label: { columns: [...vaultGroup, "label"], where: "kind IN ('vendor','source-control')" },
+    secrets_vault_singleton: { columns: ["workspace_id", "kind"], where: "kind IN ('site-assistant','database-destination')" },
+    secrets_vault_personal: { columns: ["workspace_id", "kind", "principal_id"], where: "kind = 'personal-execution'" },
+    secrets_vault_media: { columns: ["workspace_id", "kind", "provider"], where: "kind = 'media-provider'" },
+    secrets_vault_label: { columns: ["workspace_id", "kind", "label"], where: "kind IN ('custom','publish-peer')" },
+  };
+  const vaultArguments: Record<string, string> = {
+    "(principal_id IS NULL)": 'sql`(${t.principalId} IS NULL)`',
+    "coalesce(principal_id,'')": "sql`coalesce(${t.principalId},'')`",
+    "(provider IS NULL)": 'sql`(${t.provider} IS NULL)`',
+    "coalesce(provider,'')": "sql`coalesce(${t.provider},'')`",
+  };
+  const bare = (value: SQL) => new SQLiteSyncDialect().sqlToQuery(value).sql.replace(/"[^" ]+"\."([^" ]+)"/g, "$1");
   for (const { exportName, table } of sourceTables()) {
     const cfg = getTableConfig(table);
     const tsNames = tsPropertyNames(table, cfg.columns);
     for (const idx of cfg.indexes) {
       const describe = `${exportName}'s index "${idx.config.name}"`;
-      // Every column in schema.sqlite.ts's indexes today is a plain column (confirmed by this assertion,
-      // not assumed) — a source index that starts using asc()/desc()/an expression would need this
+      const vaultCase = exportName === "secretsVault" ? vaultExpressions[idx.config.name] : undefined;
+      if (vaultCase) {
+        const columns = idx.config.columns.map(column => is(column, SQL) ? bare(column) : column.name);
+        assert.deepEqual(columns, vaultCase.columns, describe);
+        assert.ok(is(idx.config.where, SQL), `${describe}: required partial predicate`);
+        assert.equal(bare(idx.config.where), vaultCase.where, describe);
+        const args = idx.config.columns.map(column => is(column, SQL) ? vaultArguments[bare(column)] : `t.${tsNames.get(column as SQLiteColumn)}`).join(", ");
+        assert.ok(GENERATED.includes(`uniqueIndex(${JSON.stringify(idx.config.name)}).on(${args}).where(sql\`${vaultCase.where}\`),`), describe);
+        continue;
+      }
+      // Every remaining index uses plain columns; vault expressions above are independently pinned.
+      // The assertion keeps any further asc()/desc()/expression change explicit: it needs this
       // test extended to assert its exact translated text before this test could trust it, the same
       // way the fixtures test proves that translation independently of the real schema.
       for (const entry of idx.config.columns) {
@@ -480,7 +480,9 @@ test("every CHECK keeps its name and full SQL semantics", () => {
       const expected = sourceDialect.sqlToQuery(check.value);
       const actual = targetDialect.sqlToQuery(other.value);
       assert.deepEqual(actual.params, expected.params, `${check.name}: parameters`);
-      assert.equal(normalize(actual.sql), normalize(expected.sql), `${check.name}: SQL`);
+      // PostgreSQL jsonb rejects invalid JSON on write; the remaining check is object shape.
+      const expectedSql = check.name === "secrets_vault_meta" ? "jsonb_typeof(meta) = 'object'" : normalize(expected.sql);
+      assert.equal(normalize(actual.sql), expectedSql, `${check.name}: SQL`);
     }
   }
 });
@@ -497,4 +499,19 @@ test("generated JSON column callbacks preserve serialized writes and parsed/stri
     assert.equal(column.mapToDriverValue("null"), "null");
     assert.equal(column.mapFromDriverValue(null), "null");
   }
+});
+
+test("vault metadata remains a JSON object and both MCP pointers target the workspace-scoped vault", () => {
+  const source = getTableConfig(sqliteSchema.secretsVault);
+  const target = getPgTableConfig(pgSchema.secretsVault);
+  assert.deepEqual(source.indexes.map(index => index.config.name).sort(), [
+    "secrets_vault_default", "secrets_vault_group_label", "secrets_vault_label", "secrets_vault_media",
+    "secrets_vault_personal", "secrets_vault_principal", "secrets_vault_scope", "secrets_vault_singleton",
+  ]);
+  assert.deepEqual(target.indexes.map(index => index.config.name).sort(), source.indexes.map(index => index.config.name).sort());
+  const pointers = getPgTableConfig(pgSchema.externalMcpServers).foreignKeys.filter(key => key.reference().foreignTable === pgSchema.secretsVault);
+  assert.deepEqual(pointers.map(key => key.reference().columns.map(column => column.name)), [
+    ["workspace_id", "env_secret_id"], ["workspace_id", "oauth_secret_id"],
+  ]);
+  for (const pointer of pointers) assert.equal(pointer.onDelete, "restrict");
 });

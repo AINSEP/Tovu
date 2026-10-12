@@ -1,3 +1,4 @@
+import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { CredentialTokenHint, CredentialConnection } from '../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
@@ -61,6 +62,7 @@ export type SourceControlConnectionInput =
  *  `SealedSecret` — nothing in this feature decrypts it yet; see this file's header on the
  *  connect-an-identity-only scope). */
 export interface SourceControlCredentialSetRecord {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly workspaceId: UUID;
   readonly id: UUID;
   readonly providerId: SourceControlProviderId;
@@ -107,6 +109,7 @@ export interface SourceControlCredentialSummary {
  * `(workspaceId, providerId)`, in the SAME transaction as the write. `delete` promotes the group's
  * most-recently-updated remaining row to default if the deleted row WAS the default. */
 export interface SourceControlCredentialSetRepoPort {
+  readonly vault?: VaultRepoPort;
   insert(record: SourceControlCredentialSetRecord): Promise<void>;
   /** Full-row replace by `(workspaceId, id)` — used for both a label rename and a connection
    *  rotation. Same UNIQUE-violation possibility as `insert` (renaming into another row's label). */

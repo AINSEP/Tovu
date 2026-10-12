@@ -1,3 +1,4 @@
+import { assistantVaultRepo } from "#src/assistant/assistant-vault";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -218,7 +219,7 @@ test("PUT rejects a null apiKey (present, not a string, not caught by the trim()
 
 test("PUT 500s (generic) when the repo explodes on an otherwise-valid request", async (t) => {
   const deps = createRouteDeps();
-  deps.siteAssistantCredentialRepo.findByWorkspaceId = async () => {
+  assistantVaultRepo({ repo: deps.siteAssistantCredentialRepo }).findOne = async () => {
     throw new Error("db exploded");
   };
   const { app } = buildTestApp(deps);

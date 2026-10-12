@@ -1,10 +1,12 @@
-import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, credentialTokenHint, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
+import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
-import { buildMediaProviderCredentialAad } from "./aad.js";
+import { type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { createTovuStoreVault } from "../../server/runtime/composition/vault-kinds.js";
+import { mediaProviderVault, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
 
 /**
  * @file Per-workspace media-generation vendor credentials — what the admin's Media → "Media
@@ -31,34 +33,24 @@ import { buildMediaProviderCredentialAad } from "./aad.js";
  * `media_generate_asset`, the first real decrypting reader this table has ever had. Mirrors
  * `custom-credentials/store.ts`'s own `resolveCustomCredentialByLabel` exactly.
  *
- * AAD (2026-09-02 gap closure): this table used to seal with no additional authenticated data at
- * all (`ports.ts`'s `SecretSealerPort.seal`/`open` doc used to name this file as one of the callers
- * that sealed with no AAD — that doc is now stale in the other direction, see its own header) — a
- * ciphertext was transplantable between provider rows because the underlying AES key is shared
- * app-wide. Every NEW seal now binds `aad.ts`'s `buildMediaProviderCredentialAad({workspaceId,
- * providerId})` and marks the row `aadVersion: 1`; every `open` supplies that same aad ONLY when
- * the row says `aadVersion === 1` — a row still at `aadVersion === 0` (every row written before this
- * change) is opened with no `aad` at all, exactly as it was sealed, because AES-GCM auth-tag
- * verification fails closed on any aad mismatch and this table's ciphertext is never re-stamped with
- * a new AAD merely by reading it. `development/scripts/backfill-media-provider-credential-aad.ts`
- * migrates existing rows to `aadVersion: 1` by opening under no aad and re-sealing the identical
- * plaintext under the derived aad.
+ * Jini binds the workspace and vault identity before opening sealed JSON. Legacy AAD handling
+ * lives exclusively in boot normalization/recovery; feature reads never try a legacy fallback.
  */
 
 /** One provider's stored credential row. `sealed`/`keyTail` are both-null or both-set, enforced by
  *  the table's own CHECK — a row may legitimately hold only `baseUrl`/`model` with no key yet. */
 export interface MediaProviderCredentialRecord {
+  /** Private adapter context; non-enumerable and never part of the view. */
+  readonly vaultRecord?: VaultRecord;
   workspaceId: UUID;
   providerId: string;
   baseUrl: string | null;
   model: string | null;
   sealed: SealedSecret | null;
-  /** Last {@link KEY_TAIL_LENGTH} characters of the key. `null` iff `sealed` is `null`. */
+  /** Safe last four characters, withheld for short/unknown-length tokens. */
   keyTail: string | null;
-  /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
-   *  verification fails. `1` = sealed under `aad.ts`'s `buildMediaProviderCredentialAad`; open MUST
-   *  supply the byte-identical string. Meaningless (and always `0`) when `sealed` is `null`. See
-   *  this file's own header for the full migration story. */
+  /** Compatibility marker: 1 for a vault envelope, 0 for no envelope. Legacy versions are
+   * normalized at boot; the Jini service alone determines AAD for all normal reads. */
   aadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
@@ -89,6 +81,7 @@ export type MediaProviderCredentialReplacePlanner = (
  *  per workspace, unlike the two single-row credential stores, so the port needs a list read and a
  *  bulk delete rather than a single find and a `clearKey`. */
 export interface MediaProviderCredentialRepoPort {
+  readonly vault?: VaultRepoPort;
   listByWorkspaceId(workspaceId: UUID): Promise<MediaProviderCredentialRecord[]>;
   upsert(record: MediaProviderCredentialRecord): Promise<void>;
   /** Idempotent: ids with no row are skipped, not an error. A no-op on an empty list. */
@@ -110,7 +103,7 @@ export interface MediaProviderCredentialRepoPort {
    *
    * Not reentrant — callers invoke this exactly once, at the outermost level of their own body.
    *
-   * @returns the rows written, exactly as the plan supplied them.
+   * @returns the rows written, with authoritative hints and private vault context.
    */
   replaceWorkspace(input: {
     workspaceId: UUID;
@@ -139,10 +132,6 @@ export interface MediaProviderCredentialView {
 /** Credentials keyed by engine-canonical provider id. */
 export type MediaProviderCredentialMap = Record<string, MediaProviderCredentialView>;
 
-/** Matches `@jini-ai/ui`'s own `KEY_TAIL_MAX_LENGTH`, which clamps whatever it receives to this
- *  same length — storing more would be discarded at render time anyway. */
-const KEY_TAIL_LENGTH = 4;
-
 /** Longest accepted `baseUrl`/`model`. Not a vendor limit — a bound on what an admin payload may
  *  write into a text column, so a malformed client cannot store unbounded blobs. */
 const MAX_FIELD_LENGTH = 2048;
@@ -159,27 +148,24 @@ export class MediaProviderCredentialValidationError extends Error {}
  *  to its own `503 SECRET_STORE_UNCONFIGURED` rather than a generic `400`. */
 export class MediaProviderCredentialSecretStoreUnconfiguredError extends Error {}
 
-/** Owner 2026-10-07 amendment to historical never-decrypt comments: optional server-side
- * unsealing derives only the safe length/tail hint. A failed open leaves metadata readable. */
-async function toView(record: MediaProviderCredentialRecord, sealer?: SecretSealerPort): Promise<MediaProviderCredentialView> {
+/** Stored safe hints keep metadata readable without opening any envelopes, even with no site key. */
+async function toView(record: MediaProviderCredentialRecord): Promise<MediaProviderCredentialView> {
   const view: MediaProviderCredentialView = {};
   if (record.baseUrl !== null) view.baseUrl = record.baseUrl;
   if (record.model !== null) view.model = record.model;
   if (record.sealed !== null) {
     view.apiKeyConfigured = true;
-    if (sealer) {
-      try {
-        const aad = record.aadVersion === 1 ? buildMediaProviderCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId }) : undefined;
-        view.apiKeyHint = credentialTokenHint({ token: await sealer.open({ sealed: record.sealed }, { aad }) });
-        if (view.apiKeyHint.last4 !== null) view.apiKeyTail = view.apiKeyHint.last4;
-      } catch { /* A missing site key must not hide the non-secret provider configuration. */ }
+    const row = record.vaultRecord;
+    if (row?.tokenLength !== null && row?.tokenLength !== undefined) {
+      view.apiKeyHint = { length: row.tokenLength, last4: row.tokenLength >= 12 ? row.last4 : null };
+      if (view.apiKeyHint.last4 !== null) view.apiKeyTail = view.apiKeyHint.last4;
     }
   }
   return view;
 }
 
-async function toMap(records: readonly MediaProviderCredentialRecord[], sealer?: SecretSealerPort): Promise<MediaProviderCredentialMap> {
-  return Object.fromEntries(await Promise.all(records.map(async record => [record.providerId, await toView(record, sealer)])));
+async function toMap(records: readonly MediaProviderCredentialRecord[]): Promise<MediaProviderCredentialMap> {
+  return Object.fromEntries(await Promise.all(records.map(async record => [record.providerId, await toView(record)])));
 }
 
 export interface MediaProviderCredentialReadDeps {
@@ -192,13 +178,12 @@ export interface MediaProviderCredentialReadDeps {
  * missing or rotated site key cannot make this fail.
  *
  * @complexity O(n) over the workspace's provider rows, itself bounded by the catalogue size.
- * @overallScore 100
  */
 export async function getMediaProviderCredentials(
   deps: MediaProviderCredentialReadDeps,
   input: { workspaceId: UUID }
 ): Promise<MediaProviderCredentialMap> {
-  return toMap(await deps.repo.listByWorkspaceId(input.workspaceId), deps.sealer);
+  return toMap(await deps.repo.listByWorkspaceId(input.workspaceId));
 }
 
 /** One provider's incoming edit. `apiKey` present and non-blank sets a new key; absent or blank
@@ -227,10 +212,9 @@ export interface MediaProviderCredentialWriteDeps extends MediaProviderCredentia
   clock: ClockPort;
 }
 
-/** What {@link saveMediaProviderCredentials} needs: it writes only through `replaceWorkspace`, so a
- *  caller adapting the repo (the agent tool's single-provider save) supplies just that method. */
+/** Writes use only `replaceWorkspace`; new envelopes are prepared through the vault port. */
 export type MediaProviderCredentialSaveDeps = Omit<MediaProviderCredentialWriteDeps, "repo"> & {
-  repo: Pick<MediaProviderCredentialRepoPort, "replaceWorkspace">;
+  repo: Pick<MediaProviderCredentialRepoPort, "replaceWorkspace" | "vault">;
 };
 
 function trimmedOrNull(value: string | undefined): string | null {
@@ -256,6 +240,10 @@ function assertValidEntry(providerId: string, entry: MediaProviderCredentialInpu
     if (typeof value !== "string") {
       throw new MediaProviderCredentialValidationError(`${field} for "${providerId}" must be a string`);
     }
+    if (field !== "apiKey") {
+      try { assertCredentialFreeField({ value, field }); }
+      catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
+    }
     if (field !== "apiKey" && value.length > MAX_FIELD_LENGTH) {
       throw new MediaProviderCredentialValidationError(
         `${field} for "${providerId}" exceeds ${MAX_FIELD_LENGTH} characters`
@@ -264,88 +252,46 @@ function assertValidEntry(providerId: string, entry: MediaProviderCredentialInpu
   }
 }
 
-/** One provider's freshly sealed key, plus the aad-version marker the seal was made under — always
- *  `1` here, since every fresh seal binds `aad.ts`'s `buildMediaProviderCredentialAad` (this file's
- *  own header). */
-interface FreshlySealedProviderKey {
-  sealed: SealedSecret;
-  keyTail: string;
-  aadVersion: number;
-}
-
-/** Seals every entry's NEW `apiKey` (skips a blank/absent one — an operator editing only `baseUrl`
- *  never has to re-paste a key they cannot see), bound to `(workspaceId, providerId)` via
- *  `aad.ts`'s `buildMediaProviderCredentialAad`. Runs before any write opens — see
- *  {@link saveMediaProviderCredentials}'s own doc for why the ordering matters. */
+/** Prepare only supplied keys before the replacement transaction. The later planner re-reads
+ * CURRENT rows for all preserved keys, so a rotation during this await cannot be resurrected.
+ * @complexity Catalogue-bounded reads/seals; no writes or per-row opens.
+ */
 async function sealNewProviderKeys(
-  deps: Pick<MediaProviderCredentialWriteDeps, "sealer" | "keyring">,
-  workspaceId: UUID,
-  entries: ReadonlyArray<[string, MediaProviderCredentialInput]>
-): Promise<Map<string, FreshlySealedProviderKey>> {
-  const sealedByProviderId = new Map<string, FreshlySealedProviderKey>();
-  for (const [providerId, entry] of entries) {
-    if (entry.apiKey === undefined || entry.apiKey === '') continue;
+  deps: MediaProviderCredentialSaveDeps,
+  input: SaveMediaProviderCredentialsInput,
+): Promise<Map<string, VaultRecord>> {
+  const fresh = new Map<string, VaultRecord>();
+  const vault = createTovuStoreVault({ ...deps, kind: "media-provider",
+    storageError: () => new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  for (const [providerId, entry] of Object.entries(input.providers)) {
+    if (entry.apiKey === undefined || entry.apiKey === "") continue;
     let apiKey: string;
-    try { apiKey = normalizeCredentialToken({ value: entry.apiKey, field: 'apiKey' }); }
+    try { apiKey = normalizeCredentialToken({ value: entry.apiKey, field: "apiKey" }); }
     catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
-    try {
-      const activeKey = await deps.keyring.activeKey();
-      const aad = buildMediaProviderCredentialAad({ workspaceId, providerId });
-      sealedByProviderId.set(providerId, {
-        sealed: await deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad }),
-        keyTail: apiKey.length >= 12 ? apiKey.slice(-KEY_TAIL_LENGTH) : "",
-        aadVersion: 1,
-      });
-    } catch (err) {
-      throw new MediaProviderCredentialSecretStoreUnconfiguredError(
-        CREDENTIAL_MESSAGES.storage
-      );
-    }
+    const scope = mediaVaultScope({ workspaceId: input.workspaceId, providerId });
+    const existing = (await deps.repo.vault!.list(scope))[0];
+    fresh.set(providerId, await vault.prepare({ ...scope,
+      id: existing?.id ?? `vault:${JSON.stringify(["media-provider", providerId])}`, expectedRevision: existing?.revision ?? null,
+      provider: providerId, label: providerId, meta: { ...existing?.meta, baseUrl: trimmedOrNull(entry.baseUrl), model: trimmedOrNull(entry.model) },
+      payload: { apiKey }, hintToken: apiKey }));
   }
-  return sealedByProviderId;
+  return fresh;
 }
 
-/** The `sealed`/`keyTail`/`aadVersion` triple is resolved as ONE unit rather than field-by-field so
- *  none can drift out of sync: a fresh seal wins, else the existing triple is kept whole, else there
- *  is none (`aadVersion` defaults to `0` — meaningless with no `sealed` value, this file's own
- *  header). */
-function resolveSealedKeyPair(
-  existing: MediaProviderCredentialRecord | undefined,
-  freshlySealed: FreshlySealedProviderKey | undefined
-): { sealed: SealedSecret | null; keyTail: string | null; aadVersion: number } {
-  if (freshlySealed) return freshlySealed;
-  if (existing) return { sealed: existing.sealed, keyTail: existing.keyTail, aadVersion: existing.aadVersion };
-  return { sealed: null, keyTail: null, aadVersion: 0 };
-}
-
-/** Merges one submitted entry against its existing row (if any) into the row to write — an
- *  absent/blank `apiKey` never clears an existing sealed key (see
- *  {@link saveMediaProviderCredentials}'s own doc). */
-function buildProviderUpsertRow(
-  workspaceId: UUID,
-  providerId: string,
-  entry: MediaProviderCredentialInput,
-  existing: MediaProviderCredentialRecord | undefined,
-  freshlySealed: FreshlySealedProviderKey | undefined,
-  now: ISODateTime
-): MediaProviderCredentialRecord {
-  const { sealed, keyTail, aadVersion } = resolveSealedKeyPair(existing, freshlySealed);
-  if (sealed === null) throw new MediaProviderCredentialValidationError('Enter a token. Spaces alone are not a token.');
-  for (const field of ['baseUrl', 'model'] as const) {
-    try { assertCredentialFreeField({ value: entry[field] ?? '', field }); }
-    catch (err) { if (err instanceof CredentialInputError) throw new MediaProviderCredentialValidationError(err.message); throw err; }
-  }
-  return {
-    workspaceId,
-    providerId,
-    baseUrl: trimmedOrNull(entry.baseUrl),
-    model: trimmedOrNull(entry.model),
-    sealed,
-    keyTail,
-    aadVersion,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  };
+/** Pure merge against the transaction's snapshot; hints and envelope travel as one private unit. */
+function buildProviderUpsertRow(input: {
+  workspaceId: UUID; providerId: string; entry: MediaProviderCredentialInput;
+  existing?: MediaProviderCredentialRecord; fresh?: VaultRecord; now: ISODateTime;
+}, _options = {}): MediaProviderCredentialRecord {
+  const { workspaceId, providerId, entry, existing, fresh, now } = input;
+  const credential = fresh ? mediaVaultRecord({ row: fresh }) : existing;
+  if (!credential?.sealed) throw new MediaProviderCredentialValidationError('Enter a token. Spaces alone are not a token.');
+  const row: MediaProviderCredentialRecord = { workspaceId, providerId,
+    baseUrl: trimmedOrNull(entry.baseUrl), model: trimmedOrNull(entry.model),
+    sealed: credential.sealed, keyTail: credential.keyTail, aadVersion: credential.aadVersion,
+    createdAt: existing?.createdAt ?? now, updatedAt: now };
+  Object.defineProperty(row, "vaultRecord", { value: credential.vaultRecord });
+  return row;
 }
 
 /**
@@ -364,8 +310,8 @@ function buildProviderUpsertRow(
  *
  * Sealing up front is also what lets the merge itself be synchronous: this function hands
  * `replaceWorkspace` a plain function of the workspace's CURRENT rows, and the repo runs that read,
- * that merge, and every resulting write inside one transaction with no suspension point in between.
- * Reading the stored rows out here instead — the shape this function used to have — reintroduces a
+ * that merge, and every resulting write inside one transaction under the writer lock.
+ * Reading preserved keys out here instead — the shape this function used to have — reintroduces a
  * window in which a concurrent rotation lands between the read and the write and is then reverted by
  * this call's own merge, because a metadata-only entry re-writes the sealed key it read.
  *
@@ -375,7 +321,6 @@ function buildProviderUpsertRow(
  *   site key is unavailable — never downgraded to a plaintext write or a silent skip.
  * @complexity O(n) over the submitted providers, plus one keyring derivation per NEW key. `n` is
  *   bounded by the catalogue: unknown ids are rejected, so the payload cannot exceed its size.
- * @overallScore 100
  */
 export async function saveMediaProviderCredentials(
   deps: MediaProviderCredentialSaveDeps,
@@ -393,7 +338,7 @@ export async function saveMediaProviderCredentials(
 
   // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
   // why this is the ONLY async step left before the transaction opens.
-  const sealedByProviderId = await sealNewProviderKeys(deps, input.workspaceId, entries);
+  const sealedByProviderId = await sealNewProviderKeys(deps, input);
 
   const submittedIds = new Set(entries.map(([providerId]) => providerId));
 
@@ -402,14 +347,8 @@ export async function saveMediaProviderCredentials(
   const plan: MediaProviderCredentialReplacePlanner = (existingRows) => {
     const existingByProviderId = new Map(existingRows.map((row) => [row.providerId, row]));
     const upserts = entries.map(([providerId, entry]) =>
-      buildProviderUpsertRow(
-        input.workspaceId,
-        providerId,
-        entry,
-        existingByProviderId.get(providerId),
-        sealedByProviderId.get(providerId),
-        now
-      )
+      buildProviderUpsertRow({ workspaceId: input.workspaceId, providerId, entry,
+        existing: existingByProviderId.get(providerId), fresh: sealedByProviderId.get(providerId), now })
     );
     return {
       upserts,
@@ -419,7 +358,7 @@ export async function saveMediaProviderCredentials(
     };
   };
 
-  return toMap(await deps.repo.replaceWorkspace({ workspaceId: input.workspaceId, plan }), deps.sealer);
+  return toMap(await deps.repo.replaceWorkspace({ workspaceId: input.workspaceId, plan }));
 }
 
 export interface MediaProviderCredentialResolveDeps {
@@ -449,29 +388,17 @@ export interface ResolvedMediaProviderCredential {
  *
  * @throws {MediaProviderCredentialSecretStoreUnconfiguredError} A row with a sealed key exists but
  *   `sealer.open()` failed — the site key is missing/rotated, or the stored row is corrupted.
- * @complexity O(n) in the workspace's own (small, catalogue-bounded) provider-credential row count,
- *   plus one decrypt when a key is present.
+ * @complexity One indexed provider-group read, at most one selected envelope open.
  */
 export async function resolveMediaProviderCredential(
   deps: MediaProviderCredentialResolveDeps,
   input: { workspaceId: UUID; providerId: string }
 ): Promise<ResolvedMediaProviderCredential | null> {
-  const records = await deps.repo.listByWorkspaceId(input.workspaceId);
-  const record = records.find((row) => row.providerId === input.providerId);
-  if (!record || record.sealed === null) return null;
-
-  let apiKey: string;
-  try {
-    // `aad` only when this row was sealed under one (`aadVersion === 1`) — a legacy row
-    // (`aadVersion === 0`, every row written before the 2026-09-02 AAD gap closure) was sealed with
-    // NO aad and must be opened the same way, or auth-tag verification fails closed. See this
-    // file's own header.
-    const aad = record.aadVersion === 1 ? buildMediaProviderCredentialAad({ workspaceId: input.workspaceId, providerId: input.providerId }) : undefined;
-    apiKey = await deps.sealer.open({ sealed: record.sealed }, { aad });
-  } catch (err) {
-    throw new MediaProviderCredentialSecretStoreUnconfiguredError(
-      CREDENTIAL_MESSAGES.storage
-    );
-  }
-  return { apiKey, baseUrl: record.baseUrl, model: record.model };
+  const vault = createTovuStoreVault({ ...deps, repo: { vault: mediaProviderVault({ vault: deps.repo.vault!, providerId: input.providerId }) }, kind: "media-provider",
+    storageError: () => new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  const resolved = await vault.findOne(mediaVaultScope(input));
+  if (!resolved?.payload) return null;
+  if (typeof resolved.payload.apiKey !== "string") throw new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  return { apiKey: resolved.payload.apiKey, baseUrl: resolved.summary.meta.baseUrl as string | null,
+    model: resolved.summary.meta.model as string | null };
 }

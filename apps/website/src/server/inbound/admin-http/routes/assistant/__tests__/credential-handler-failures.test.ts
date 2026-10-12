@@ -4,6 +4,7 @@ import test from "node:test";
 import express from "express";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 
+import { assistantVaultRepo, assistantVaultContext } from "#src/assistant/assistant-vault";
 import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
 import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
 import { InMemorySettingsRepo, createSettingsPrincipalLookup, set, type ResolvedSetting } from "#src/features/settings/index";
@@ -71,9 +72,9 @@ const fail = async () => { throw new Error("db failed at /private/credentials.db
 // satisfy the 500 assertion. Mutation: echo the thrown error or let its rejection escape.
 test("execution GET redacts an owner-scoped repository read failure", async (t) => {
   const deps = depsForHandler();
-  const fault = t.mock.method(deps.adminExecutionCredentialRepo, "findByWorkspaceAndPrincipal", fail);
+  const fault = t.mock.method(assistantVaultRepo({ repo: deps.adminExecutionCredentialRepo }), "findOne", fail);
   assertInternalError(await invoke(registerAdminAssistantGetExecutionCredentialRoute, deps, "get", "execution-credential"));
-  assert.deepEqual(fault.mock.calls.map(({ arguments: args }) => args), [[{ workspaceId: "ws-7", principalId: "admin-9" }]]);
+  assert.deepEqual(fault.mock.calls.map(({ arguments: args }) => args), [[assistantVaultContext({ kind: "personal-execution", workspaceId: "ws-7", principalId: "admin-9" })]]);
 });
 
 test("execution DELETE redacts a clear-key failure for the caller's row", async (t) => {
@@ -85,23 +86,28 @@ test("execution DELETE redacts a clear-key failure for the caller's row", async 
 
 test("execution PUT redacts a failed write and leaves the repository empty", async (t) => {
   const deps = depsForHandler();
-  const fault = t.mock.method(deps.adminExecutionCredentialRepo, "upsert", fail);
+  const fault = t.mock.method(assistantVaultRepo({ repo: deps.adminExecutionCredentialRepo }), "put", fail);
   assertInternalError(await invoke(registerAdminAssistantPutExecutionCredentialRoute, deps, "put", "execution-credential", {
     protocol: "openai", providerId: "local-provider", baseUrl: "https://example.org/v1", model: "custom-model", maxTokens: 1234,
   }));
-  assert.deepEqual(fault.mock.calls.map(({ arguments: args }) => args), [[{
-    workspaceId: "ws-7", principalId: "admin-9", protocol: "openai", providerId: "local-provider",
-    baseUrl: "https://example.org/v1", model: "custom-model", maxTokens: 1234,
-    sealed: null, masked: null, aadVersion: 0, createdAt: NOW, updatedAt: NOW,
-  }]]);
+  assert.equal(fault.mock.callCount(), 1);
+  const write = fault.mock.calls[0].arguments[0];
+  assert.ok(write);
+  const { record, expectedRevision } = write;
+  assert.equal(expectedRevision, null);
+  assert.equal(record.kind, "personal-execution");
+  assert.equal(record.principalId, "admin-9");
+  assert.equal(record.provider, "local-provider");
+  assert.deepEqual(record.meta, { protocol: "openai", baseUrl: "https://example.org/v1", model: "custom-model", maxTokens: 1234 });
+  assert.equal(record.sealed, null);
   assert.equal(await deps.adminExecutionCredentialRepo.findByWorkspaceAndPrincipal({ workspaceId: "ws-7", principalId: "admin-9" }), null);
 });
 
 test("site credential GET redacts a workspace repository read failure", async (t) => {
   const deps = depsForHandler();
-  const fault = t.mock.method(deps.siteAssistantCredentialRepo, "findByWorkspaceId", fail);
+  const fault = t.mock.method(assistantVaultRepo({ repo: deps.siteAssistantCredentialRepo }), "findOne", fail);
   assertInternalError(await invoke(registerAdminAssistantGetSiteCredentialRoute, deps, "get", "site-credential"));
-  assert.deepEqual(fault.mock.calls.map(({ arguments: args }) => args), [["ws-7"]]);
+  assert.deepEqual(fault.mock.calls.map(({ arguments: args }) => args), [[assistantVaultContext({ kind: "site-assistant", workspaceId: "ws-7" })]]);
 });
 
 test("site credential DELETE redacts a workspace clear-key failure", async (t) => {

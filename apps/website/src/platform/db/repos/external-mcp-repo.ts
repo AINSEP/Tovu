@@ -1,4 +1,8 @@
-import type { Insertable, Selectable } from "kysely";
+import { sql, type Selectable } from "kysely";
+import { SqlSecretsVaultRepo, type SecretsVaultDatabase, type SecretsVaultTable } from "@jini-ai/db/secrets-vault";
+import { VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { externalMcpVaultEnvelope, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "#src/assistant/external-mcp-vault";
+import type { StorageKernel } from "../kernel/port.js";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
@@ -13,27 +17,41 @@ import { toBool } from "../kernel/dialect.js";
  * `assistant/external-mcp-store.memory.ts` is the first. `sqlite/external-mcp-repo.sqlite.ts` is
  * the thin subclass the composition root builds from the content db handle.
  *
- * Both `sealed_*` groups are moved as opaque units — this file never inspects or validates their
- * contents (that is `AesGcmSecretSealer`'s and `external-mcp-store.ts`'s job); it only translates
- * each group's all-null-or-all-set shape into and out of `SealedSecret | null`.
+ * Secret envelopes live in Jini's vault, with two pointers on the server. Reads hydrate both
+ * pointers in one query; writes join the host transaction before replacing pointers or status.
  *
  * One method here is NOT a plain translation: {@link SqlExternalMcpServerRepo.tryClaimOAuthRefreshLease}
  * is a compare-and-set, and it is the only place in this adapter where the SQL shape carries a
  * correctness guarantee rather than a storage detail. See its doc.
  */
 
-type Row = Selectable<ExternalMcpServersTable>;
+type ServerTable = ExternalMcpServersTable;
+type Row = Selectable<ServerTable>;
 type ServerKey = { workspaceId: UUID; serverId: string };
+type McpDatabase = SecretsVaultDatabase & { external_mcp_servers: ServerTable };
+type JoinedRow = Row & Record<string, unknown>;
+const vaultColumns = ["workspace_id", "id", "kind", "owner_key", "principal_id", "binding", "provider", "label", "is_default",
+  "revision", "sealed_key_id", "sealed_ciphertext", "sealed_nonce", "sealed_alg", "last4", "token_length", "meta", "created_at", "updated_at"] as const;
 
-function toRecord(row: Row): ExternalMcpServerRecord {
-  const sealedEnv =
-    row.sealed_key_id !== null && row.sealed_ciphertext !== null && row.sealed_nonce !== null && row.sealed_alg !== null
-      ? { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg }
-      : null;
-  const sealedOAuth =
-    row.oauth_sealed_key_id !== null && row.oauth_sealed_ciphertext !== null && row.oauth_sealed_nonce !== null && row.oauth_sealed_alg !== null
-      ? { keyId: row.oauth_sealed_key_id, ciphertext: row.oauth_sealed_ciphertext, nonce: row.oauth_sealed_nonce, alg: row.oauth_sealed_alg }
-      : null;
+function joinedEnvelope({ row, prefix, kind }: { row: JoinedRow; prefix: "env" | "oauth"; kind: "mcp-env" | "mcp-auth" }) {
+  if (row[`${prefix}_secret_id`] === null) return null;
+  const vault = Object.fromEntries(vaultColumns.map(column => [column, row[`${prefix}_${column}`]])) as unknown as SecretsVaultTable;
+  if (!vault.id || vault.workspace_id !== row.workspace_id || vault.owner_key !== row.server_id || vault.kind !== kind ||
+    vault.principal_id !== null || vault.binding !== null) throw new VaultError({ code: "context" });
+  const parts = [vault.sealed_key_id, vault.sealed_ciphertext, vault.sealed_nonce, vault.sealed_alg];
+  if (parts.some(value => typeof value !== "string")) throw new VaultError({ code: "invalid-record" });
+  const record: VaultRecord = { workspaceId: vault.workspace_id, id: vault.id, kind: vault.kind, ownerKey: vault.owner_key,
+    principalId: vault.principal_id, binding: vault.binding, provider: vault.provider, label: vault.label,
+    isDefault: toBool(vault.is_default) ?? false, revision: Number(vault.revision),
+    sealed: { keyId: vault.sealed_key_id!, ciphertext: vault.sealed_ciphertext!, nonce: vault.sealed_nonce!, alg: vault.sealed_alg! },
+    last4: vault.last4, tokenLength: vault.token_length, meta: typeof vault.meta === "string" ? JSON.parse(vault.meta) : vault.meta,
+    createdAt: vault.created_at, updatedAt: vault.updated_at };
+  return externalMcpVaultEnvelope({ record });
+}
+
+function toRecord(row: JoinedRow): ExternalMcpServerRecord {
+  const sealedEnv = joinedEnvelope({ row, prefix: "env", kind: "mcp-env" });
+  const sealedOAuth = joinedEnvelope({ row, prefix: "oauth", kind: "mcp-auth" });
   return {
     workspaceId: row.workspace_id,
     serverId: row.server_id,
@@ -61,14 +79,14 @@ function toRecord(row: Row): ExternalMcpServerRecord {
     oauthTokenEnvName: row.oauth_token_env_name,
     oauthRefreshLeaseUntil: row.oauth_refresh_lease_until,
     sealedOAuth,
-    aadVersion: row.aad_version,
-    oauthAadVersion: row.oauth_aad_version,
+    aadVersion: 1,
+    oauthAadVersion: 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-function toRow(record: ExternalMcpServerRecord): Insertable<ExternalMcpServersTable> {
+function toRow(record: ExternalMcpServerRecord, pointers: { env_secret_id: string | null; oauth_secret_id: string | null }) {
   return {
     workspace_id: record.workspaceId,
     server_id: record.serverId,
@@ -85,10 +103,7 @@ function toRow(record: ExternalMcpServerRecord): Insertable<ExternalMcpServersTa
     write_grants_updated_by_principal_id: record.writeGrantsUpdatedByPrincipalId,
     write_grants_updated_at: record.writeGrantsUpdatedAt,
     env_names: record.envNames,
-    sealed_key_id: record.sealedEnv?.keyId ?? null,
-    sealed_ciphertext: record.sealedEnv?.ciphertext ?? null,
-    sealed_nonce: record.sealedEnv?.nonce ?? null,
-    sealed_alg: record.sealedEnv?.alg ?? null,
+    ...pointers,
     oauth_provider_id: record.oauthProviderId,
     oauth_grant: record.oauthGrant,
     oauth_client_id: record.oauthClientId,
@@ -98,59 +113,70 @@ function toRow(record: ExternalMcpServerRecord): Insertable<ExternalMcpServersTa
     oauth_expires_at: record.oauthExpiresAt,
     oauth_token_env_name: record.oauthTokenEnvName,
     oauth_refresh_lease_until: record.oauthRefreshLeaseUntil,
-    oauth_sealed_key_id: record.sealedOAuth?.keyId ?? null,
-    oauth_sealed_ciphertext: record.sealedOAuth?.ciphertext ?? null,
-    oauth_sealed_nonce: record.sealedOAuth?.nonce ?? null,
-    oauth_sealed_alg: record.sealedOAuth?.alg ?? null,
-    aad_version: record.aadVersion,
-    oauth_aad_version: record.oauthAadVersion,
     created_at: record.createdAt,
     updated_at: record.updatedAt,
   };
 }
 
 export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  private readonly store: StorageKernel<McpDatabase>;
+  readonly vaultRepo: SqlSecretsVaultRepo;
+  constructor(protected readonly kernel: ContentKernel) {
+    this.store = kernel as unknown as StorageKernel<McpDatabase>;
+    this.vaultRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  }
 
-  async listByWorkspaceId(workspaceId: UUID): Promise<ExternalMcpServerRecord[]> {
-    const rows = await this.kernel.run((db) =>
-      db.selectFrom("external_mcp_servers").selectAll().where("workspace_id", "=", workspaceId).execute()
-    );
+  /** One query hydrates both pointers for the entire roster, including empty rosters.
+   * @complexity O(server count + envelope bytes); two indexed LEFT JOINs, no per-row I/O.
+   */
+  private async read({ workspaceId, serverId }: { workspaceId: UUID; serverId?: string }): Promise<ExternalMcpServerRecord[]> {
+    const projection = (["env", "oauth"] as const).flatMap(prefix => vaultColumns.map(column =>
+      sql`${sql.ref(`${prefix}.${column}`)} AS ${sql.ref(`${prefix}_${column}`)}`));
+    const rows = await this.kernel.query<JoinedRow>(sql`SELECT s.*, ${sql.join(projection)} FROM external_mcp_servers s
+      LEFT JOIN secrets_vault env ON env.workspace_id=s.workspace_id AND env.id=s.env_secret_id
+      LEFT JOIN secrets_vault oauth ON oauth.workspace_id=s.workspace_id AND oauth.id=s.oauth_secret_id
+      WHERE s.workspace_id=${workspaceId} ${serverId === undefined ? sql`` : sql`AND s.server_id=${serverId}`}`);
     return rows.map(toRecord);
   }
 
+  async listByWorkspaceId(workspaceId: UUID): Promise<ExternalMcpServerRecord[]> {
+    return this.read({ workspaceId });
+  }
+
   async findByServerId(input: ServerKey): Promise<ExternalMcpServerRecord | null> {
-    const row = await this.kernel.run((db) =>
-      db
-        .selectFrom("external_mcp_servers")
-        .selectAll()
-        .where("workspace_id", "=", input.workspaceId)
-        .where("server_id", "=", input.serverId)
-        .executeTakeFirst()
-    );
-    return row ? toRecord(row) : null;
+    return (await this.read(input))[0] ?? null;
   }
 
   async upsert(record: ExternalMcpServerRecord): Promise<void> {
-    const row = toRow(record);
-    await this.kernel.run((db) =>
-      db
-        .insertInto("external_mcp_servers")
-        .values(row)
-        .onConflict((oc) => oc.columns(["workspace_id", "server_id"]).doUpdateSet(row))
-        .execute()
-    );
+    await this.kernel.transaction(async () => {
+      // Match Jini's writer lock before reading pointers, including callbacks and token refresh.
+      await this.kernel.lockKey(`secrets_vault:${record.workspaceId}`);
+      const previous = await this.store.run(db => db.selectFrom("external_mcp_servers")
+        .select(["env_secret_id", "oauth_secret_id"]).where("workspace_id", "=", record.workspaceId)
+        .where("server_id", "=", record.serverId).executeTakeFirst());
+      const env_secret_id = await persistExternalMcpVaultEnvelope({ repo: this.vaultRepo, sealed: record.sealedEnv, identity: record, kind: "mcp-env" });
+      const oauth_secret_id = await persistExternalMcpVaultEnvelope({ repo: this.vaultRepo, sealed: record.sealedOAuth, identity: record, kind: "mcp-auth" });
+      const row = toRow(record, { env_secret_id, oauth_secret_id });
+      await this.store.run(db => db.insertInto("external_mcp_servers").values(row)
+        .onConflict(oc => oc.columns(["workspace_id", "server_id"]).doUpdateSet(row)).execute());
+      // The upsert unlinks old pointers first; RESTRICT foreign keys remain satisfied throughout.
+      if (previous?.env_secret_id !== env_secret_id) await deleteExternalMcpVaultEnvelope({ repo: this.vaultRepo, workspaceId: record.workspaceId, id: previous?.env_secret_id ?? null });
+      if (previous?.oauth_secret_id !== oauth_secret_id) await deleteExternalMcpVaultEnvelope({ repo: this.vaultRepo, workspaceId: record.workspaceId, id: previous?.oauth_secret_id ?? null });
+    });
   }
 
   async deleteByServerId(input: ServerKey): Promise<boolean> {
-    const result = await this.kernel.run((db) =>
-      db
-        .deleteFrom("external_mcp_servers")
-        .where("workspace_id", "=", input.workspaceId)
-        .where("server_id", "=", input.serverId)
-        .executeTakeFirst()
-    );
-    return Number(result.numDeletedRows) > 0;
+    return this.kernel.transaction(async () => {
+      await this.kernel.lockKey(`secrets_vault:${input.workspaceId}`);
+      const previous = await this.store.run(db => db.selectFrom("external_mcp_servers")
+        .select(["env_secret_id", "oauth_secret_id"]).where("workspace_id", "=", input.workspaceId)
+        .where("server_id", "=", input.serverId).executeTakeFirst());
+      if (!previous) return false;
+      await this.store.run(db => db.deleteFrom("external_mcp_servers").where("workspace_id", "=", input.workspaceId)
+        .where("server_id", "=", input.serverId).execute());
+      for (const id of [previous.env_secret_id, previous.oauth_secret_id]) await deleteExternalMcpVaultEnvelope({ repo: this.vaultRepo, workspaceId: input.workspaceId, id });
+      return true;
+    });
   }
 
   /**

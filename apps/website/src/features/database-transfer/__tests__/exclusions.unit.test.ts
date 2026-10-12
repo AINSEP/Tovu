@@ -21,9 +21,13 @@ test("every core table with a secret-shaped column is excluded from the copy", (
   assert.deepEqual(leaking, []);
 });
 
-test("every excluded name is a real core table, and none of them is copied", () => {
+test("every excluded name is a current or migrated-away core table, and none of them is copied", () => {
   const coreNames = new Set(collectCoreTables().map(({ table }) => getTableConfig(table).name));
-  assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => !coreNames.has(name)), []);
+  // Old snapshots must still exclude the tables folded/dropped by the vault cutover.
+  const retiredNames = ["admin_execution_credentials", "custom_credential_sets", "database_transfer_destinations",
+    "media_provider_credentials", "oauth_pending_authorizations", "publish_content_peers", "publish_credential_sets",
+    "site_assistant_credentials", "source_control_credential_sets", "vendor_credential_sets"];
+  assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => !coreNames.has(name)).sort(), retiredNames.sort());
   const copied = new Set(collectTransferTables().map((table) => table.name));
   assert.deepEqual(Object.keys(EXCLUDED_CORE_TABLES).filter((name) => copied.has(name)), []);
 });
@@ -36,6 +40,6 @@ test("the copy excludes every agreed login, saved-key and confirmation table", (
     "external_mcp_servers", "external_mcp_tool_approvals", "media_provider_credentials",
     "oauth_device_authorizations", "oauth_pending_authorizations", "publish_content_peers",
     "publish_credential_sets", "site_assistant_credentials", "source_control_credential_sets",
-    "vendor_credential_sets", "gated_mutation_tokens",
+    "vendor_credential_sets", "gated_mutation_tokens", "secrets_vault",
   ].sort());
 });

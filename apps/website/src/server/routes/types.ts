@@ -9,6 +9,7 @@ import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 import type { ExportReport } from "#src/features/site-export/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
+import type { LocalCredentialCopy } from "#src/server/runtime/composition/local-credential-copy";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
@@ -69,7 +70,6 @@ import type { MediaProviderCredentialRepoPort } from "../../features/media/index
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
 import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../../assistant/external-mcp-tool-approval-ports.js";
 import type { DeviceAuthorizationStore, ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
-import type { PendingAuthorizationStore } from "@jini-ai/oauth";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -285,9 +285,8 @@ export interface MediaDeps {
   blobHydrationReady?: Promise<HydrateBlobStoreFromSeedResult | undefined>;
   /**
    * Resolves once the composition root's detached boot tail has finished: the legacy trashed-widget
-   * adoption and, on the owner process, `copyLegacyPublishCredentialsAtBoot` (legacy
-   * `publish_credential_sets` rows moved into `vendor_credential_sets`). Never rejects; both steps log
-   * their own failures. Optional like `blobHydrationReady`: only the real SQLite composition
+   * adoption. Legacy publish credentials are folded once by migration 0012, so this tail
+   * never recopies a deleted credential. Never rejects; adoption logs its own failures. Optional like `blobHydrationReady`: only the real SQLite composition
    * (`server/runtime/composition/deps.ts`) wires it. No route gates on it; it lets a boot test (or
    * anything closing the store) await that tail instead of deleting the site directory under it (F1833).
    */
@@ -391,47 +390,17 @@ export interface CredentialsDeps {
    * The OAuth subsystem for `authMode: "oauth"` external MCP connections
    * (`assistant/external-mcp-oauth.ts`), or absent.
    *
-   * OPTIONAL. Not because the state it holds is process-bound (see
-   * `externalMcpOAuthPending`/`externalMcpOAuthDevices` below for why that claim used to be here and
-   * was wrong) — a caller with no persistent `content.db` to attach a real store to, or a narrow test
-   * double that has no reason to wire OAuth at all, may still leave this unset, and
-   * `modules/external-mcp.ts` then registers no OAuth routes: an unauthenticated public callback
-   * endpoint that can complete nothing should not exist.
+   * OPTIONAL: a narrow test double may have no reason to wire OAuth. The external-MCP module
+   * registers no OAuth routes in that case, since a callback that can complete nothing is useless.
    */
   externalMcpOAuth?: ExternalMcpOAuthService;
   /**
-   * The pending-authorization / device-authorization stores `externalMcpOAuth` above is built from —
-   * exposed as their OWN fields, alongside the service, rather than only living inside it.
-   *
-   * Why: `agent-daemon-server.ts` builds its OWN, second `ExternalMcpOAuthService` instance (its own
-   * header explains why — the refresh/reportAuthFailure half of the service needs to run in that
-   * process too), and that second instance needs the SAME `pending`/`devices` stores this one uses,
-   * not a second pair pointed at the same table through a second, independently-opened `content.db`
-   * handle (which would re-run that file's `migrate()` a second time per boot — the exact hazard
-   * `toolAttemptAuditSink`'s own doc on this interface already argues against reintroducing). Built
-   * ONCE per composition root and threaded through both instances instead.
-   *
-   * These are what actually make `beginConnect`/`completeAuthorizationCallback`/
-   * `pollDeviceAuthorization` work across processes: `composition/deps.ts`'s `createSiteRouteDeps`
-   * backs them with `platform/db/sqlite/oauth-pending-store.sqlite.ts`'s `content.db`-backed
-   * adapters, so a handshake begun in the agent daemon (`external_mcp_oauth_connect` is an assistant
-   * tool — it runs there) can be completed by the public callback route running in the main web
-   * server. `composition/app.ts`'s hermetic root, which owns no `content.db` at all, backs them with
-   * the in-memory adapters instead — correct whenever that root's `RouteDeps` live in ONE process
-   * (which is all a narrow test double needs), but NOT a cross-process guarantee: under
-   * `TOVU_DB=memory` both `src/index.ts` and `agent-daemon-server.ts` call that root in their OWN
-   * process, so a chat-initiated authorization_code `external_mcp_oauth_connect` begun in the daemon
-   * and redeemed by the main server's public callback fails `OAUTH_INVALID_STATE`. That is the same
-   * per-process isolation `agent-daemon-server.ts`'s header already discloses for memory mode.
-   * Admin-initiated connects (begin and callback both in the main server) and the `device_code`
-   * grant (begin and poll both in the daemon) are unaffected.
-   *
-   * OPTIONAL for the same structural reason `externalMcpOAuth` is: a narrower test double that never
-   * sets these gets no fallback rather than a broken build. A caller reading them without a
-   * composition root's guarantee that they are set (`agent-daemon-server.ts`, notably) falls back to
-   * building its own in-memory pair rather than crashing.
+   * The device-authorization store shared by the web service and the daemon's second service.
+   * Built once per composition root, avoiding a second database handle and repeated migrations.
+   * The SQL root persists device attempts; the hermetic root uses a process-local memory adapter.
+   * A narrow builder may omit it, in which case the daemon falls back to its memory adapter.
+   * Redirect callbacks use sealed state and the same site key, with no pending-store wiring.
    */
-  externalMcpOAuthPending?: PendingAuthorizationStore;
   externalMcpOAuthDevices?: DeviceAuthorizationStore;
   /**
    * This process's own best-effort public origin (`"https://localhost:3000"`-shaped) — the scheme
@@ -475,8 +444,7 @@ export interface CredentialsDeps {
    *
    * Since 2026-09-29 this is where publish credentials live (`deployments/publish-credentials/store.ts`
    * reads and writes them here, by each deploy host's declared vendor); the legacy
-   * `publish_credential_sets` rows are copied in at boot (`vendor-table-backfill.ts`) and no longer
-   * read. Source-control credentials still live in `sourceControlCredentialSetRepo`.
+   * `publish_credential_sets` rows are folded by migration 0012 and no longer read. Source-control credentials still live in `sourceControlCredentialSetRepo`.
    */
   vendorCredentialSetRepo: VendorCredentialSetRepoPort;
   /**
@@ -1000,6 +968,8 @@ export interface DatabaseOpsDeps {
    * a second connection to the same file. Set only by `server/deps.ts`; `server/app.ts`'s hermetic
    * composition has no content database. */
   contentKernel?: ContentKernel;
+  /** Local source reader/transfer; absent in the hermetic root, which has no target content DB. */
+  localCredentialCopy?: LocalCredentialCopy;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real in
    * `server/deps.ts` (`store-bound-services.ts`): the async kernel stamp on every dialect
    * (`platform/db/watermark-kernel.ts`), which Jini cms awaits; `noopStampWatermark` in `server/app.ts`'s in-memory composition,
@@ -1066,6 +1036,10 @@ export interface WidgetsDeps {
  * not a content-model repo.
  */
 export interface PluginRuntimeDeps {
+  pluginContributions?: import("@jini-ai/plugins/host").PluginContributionRegistry;
+  pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
+  pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
+  pluginLoadedVersion?: (required: { id: string }, optional?: Record<string, never>) => string | undefined;
   pluginHost?: import("#src/contracts/headless/plugin-host").PluginHostPort;
   pluginInstaller?: import("@jini-ai/plugins/host/node").PluginInstallerPort;
   /**

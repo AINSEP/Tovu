@@ -9,6 +9,9 @@ import test from "node:test";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
 import { findMissingSeedBlobs, seedSite } from "../seed-site.mjs";
+import { vaultFixture, vaultStep } from "../../../apps/website/src/platform/db/migrations/__tests__/secrets-vault.fixture.js";
+import { sqliteConnectionOf } from "../../../apps/website/src/platform/db/kernel/drivers/sqlite.js";
+import { sql } from "kysely";
 
 /**
  * @file Direct unit test for `seed-site.mjs`'s `findMissingSeedBlobs()` — the build-time guard that
@@ -337,8 +340,10 @@ test("seedSite: succeeds against a live db that has never chatted, with explicit
         VALUES ('session-1', 'ws-test', 'user-1', 'synthetic-token-hash', '2026-09-30', '2026-10-01', '192.0.2.1', 'synthetic-agent');
       INSERT INTO api_keys (id, workspace_id, principal_id, label, key_hash, prefix, created_at)
         VALUES ('key-1', 'ws-test', 'user-1', 'synthetic-key', 'synthetic-key-hash', 'test_', '2026-09-30');
-      INSERT INTO site_assistant_credentials (workspace_id, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg, masked, created_at, updated_at)
-        VALUES ('ws-test', 'synthetic-id', 'synthetic-ciphertext', 'synthetic-nonce', 'aes-256-gcm', '••••test', '2026-09-30', '2026-09-30');
+      -- secrets_vault (unlike the per-store tables it replaced) has a workspaces FK.
+      INSERT INTO workspaces (id, name, slug, created_at) VALUES ('ws-test', 'Test', 'ws-test', '2026-09-30');
+      INSERT INTO secrets_vault (workspace_id, id, kind, owner_key, label, is_default, revision, meta, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg, created_at, updated_at)
+        VALUES ('ws-test', 'synthetic-vault-id', 'site-assistant', 'tovu', '', 0, 1, '{"baseUrl":null,"model":null}', 'synthetic-id', 'synthetic-ciphertext', 'synthetic-nonce', 'aes-256-gcm', '2026-09-30', '2026-09-30');
       INSERT INTO form_definitions (id, workspace_id, name, slug, fields_json, notify_json, created_at, updated_at)
         VALUES ('form-1', 'ws-test', 'Synthetic form', 'synthetic-form', '[]', '{}', '2026-09-30', '2026-09-30');
       INSERT INTO form_submissions (id, workspace_id, form_definition_id, data_json, source_ip, submitted_at)
@@ -360,7 +365,7 @@ test("seedSite: succeeds against a live db that has never chatted, with explicit
       assert.equal(witness.pragma("integrity_check", { simple: true }), "ok");
       assert.deepEqual(witness.prepare("SELECT title, body_json FROM posts WHERE id = 'retained-post'").get(), { title: "Retained title", body_json: '{"type":"doc","content":[]}' });
       assert.deepEqual(witness.prepare("SELECT username, password_hash, last_login_at FROM identity_users WHERE principal_id = 'user-1'").get(), { username: "synthetic-user", password_hash: "synthetic-hash", last_login_at: null });
-      for (const name of ["sessions", "api_keys", "site_assistant_credentials", "form_submissions"]) {
+      for (const name of ["sessions", "api_keys", "secrets_vault", "form_submissions"]) {
         assert.equal((witness.prepare(`SELECT count(*) AS n FROM ${name}`).get() as { n: number }).n, 0, `${name} must be pruned`);
       }
     } finally { witness.close(); }
@@ -397,4 +402,34 @@ test("seedSite: missing and untracked blobs refuse publication and preserve an e
     assert.deepEqual(readFileSync(seedDbPath), priorSeed);
     assert.deepEqual(readFileSync(liveDbPath), liveBytes);
   } finally { rmSync(liveDir, { recursive: true, force: true }); }
+});
+
+test("S2 seed pruning unlinks MCP parents, removes vault/device rows and restore artifacts, and preserves the live database", async () => {
+  const fixture = await vaultFixture("sqlite");
+  const liveDir = mkdtempSync(join(tmpdir(), "tovu-seed-vault-"));
+  try {
+    await fixture.kernel.transaction(() => vaultStep.up(fixture.kernel, { note: () => {} }));
+    await fixture.kernel.execute(sql`CREATE TABLE _vault_backup_tovu_migrations (id text PRIMARY KEY)`);
+    await fixture.kernel.execute(sql`INSERT INTO _vault_backup_tovu_migrations VALUES ('restore-only')`);
+    await fixture.kernel.execute(sql`CREATE TABLE ${sql.table('_vault_backup_odd"name')} (value text)`);
+    await fixture.kernel.execute(sql`INSERT INTO ${sql.table('_vault_backup_odd"name')} VALUES ('saved-secret')`);
+    const liveDbPath = join(liveDir, "content.db");
+    const seedDbPath = join(liveDir, "content.seed.db");
+    writeFileSync(liveDbPath, sqliteConnectionOf(fixture.kernel)!.serialize());
+    const before = readFileSync(liveDbPath);
+    await seedSite({ siteName: "vault-seed", liveDir, liveDbPath, seedDbPath });
+    assert.deepEqual(readFileSync(liveDbPath), before);
+    const seed = new Database(seedDbPath, { readonly: true });
+    try {
+      for (const table of ["secrets_vault", "external_mcp_servers", "external_mcp_tool_approvals", "oauth_device_authorizations",
+        "_vault_backup_tovu_migrations", '_vault_backup_odd"name']) {
+        const [row] = seed.prepare(`SELECT count(*) AS n FROM "${table.replaceAll('"', '""')}"`).all() as { n: number }[];
+        assert.equal(row.n, 0, `${table} must not ship in a seed`);
+      }
+      assert.equal((seed.prepare("SELECT count(*) AS n FROM workspaces").get() as { n: number }).n, 2);
+    } finally { seed.close(); }
+  } finally {
+    await fixture.kernel.close();
+    rmSync(liveDir, { recursive: true, force: true });
+  }
 });

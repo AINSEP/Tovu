@@ -1,3 +1,5 @@
+import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
+import { createLocalCredentialCopy } from "./local-credential-copy.js";
 import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
 import { createTovuPluginHost } from "./plugin-host.js";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
@@ -40,7 +42,6 @@ import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/life
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
-import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
 import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
@@ -69,9 +70,8 @@ import { loadMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapte
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
-import { copyPublishCredentialsToVendorTable } from "#src/features/deployments/publish-credentials/vendor-table-backfill";
 import { InMemoryPublishCredentialVerificationCache } from "#src/features/deployments/static-publish/index";
-import { loadDeployTargetRegistry, loadDeployTargetRegistryFromSource } from "#src/features/deployments/deploy-targets/registry";
+import { loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
   createChatRunLedger,
@@ -207,6 +207,8 @@ import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/h
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
+import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
@@ -272,11 +274,8 @@ import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#s
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
-import { createExternalMcpOAuthService } from "#src/assistant/index";
-import {
-  createSqliteDeviceAuthorizationStore,
-  createSqlitePendingAuthorizationStore,
-} from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
+import { createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
+import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
 // Kept LAST on purpose. `app.ts` imports this file back (`builtInThemesDir` and the three
 // `resolve*RootDir` functions), so `createApp` below closes the `deps.ts` <-> `app.ts` cycle that
@@ -1054,7 +1053,7 @@ async function composeSiteRouteDeps(
   const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
   const skillLayout = resolveSkillLayout({ siteDir: resolvedSiteBinding.dir });
   const resolvedThemesDir = resolveThemesDirOverride(resolvedSiteBinding, overrides);
-  seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
+  seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir, siteRoot: resolvedSiteBinding.dir });
   // The one content kernel (SQLite: over `content.db`, one per connection; Postgres: the site's
   // database), read by the prelude below and handed to boot modules as `deps.contentKernel`.
   const kernel = store.content;
@@ -1150,11 +1149,6 @@ async function composeSiteRouteDeps(
     }),
     ...pluginFailureThresholdOverride(overrides),
   });
-  // P0a fix (2026-09-23) — fire-and-forget at boot, mirrors `commentsReady`/`newsletterReady`: a
-  // fresh process's `pluginRuntime.hookRegistry` starts empty, so without this, a plugin durably
-  // marked `enabled` before a restart would silently stop firing until an operator re-toggled it.
-  // `buildBootModules` awaits this (as `deps.pluginRuntimeReady`) before the server starts serving.
-  const pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
   // Composition root: the ONLY place the serving site reads its first-boot owner login from env.
@@ -1627,7 +1621,7 @@ async function composeSiteRouteDeps(
     originRegistry,
     reservedSegments: RESERVED_SEGMENTS,
   }, { hits: { outbox, clock, idGen } }));
-  onStoreClose(registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen }) }));
+  onStoreClose(registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) }));
   onStoreClose(registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink }));
 
   // ADR-041 §2 — opens the sidecar ops journal alongside content.db. `mkdirSync` (recursive) is
@@ -1690,6 +1684,10 @@ async function composeSiteRouteDeps(
   // `NavMenuReadModel` is the one dependency with no prior real adapter anywhere in the codebase
   // (see `navigation/read-model.ts`'s file header).
   wireCoreResolvers({
+    // Defer captures: media MIME metadata is assembled later in this composition root.
+    galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
+      host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
+    } }),
     menus: { resolveMenuDoc },
     collectionList: {
       parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout,
@@ -1834,18 +1832,18 @@ async function composeSiteRouteDeps(
     sources: siteKeySourcesList,
   });
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+  // 0012 retains legacy AAD until this fenced pass; no credential consumer may start first.
+  await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {
+    keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,
+    loadContributions: agentPluginLifecycle.loadPluginContributions,
+  });
+  const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(kernel);
   // Held as a local rather than constructed inline, because the OAuth service below must be given
   // the SAME repo instance the routes read through — two instances would refresh a token into one
   // and read it back from the other.
   const externalMcpServerRepo = new SqliteExternalMcpServerRepo(kernel);
-  // Same "one shared instance" reasoning as `externalMcpServerRepo` above, and also exposed as their
-  // own `RouteDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` fields below — see that doc for
-  // why `agent-daemon-server.ts`'s own second `ExternalMcpOAuthService` instance must reuse these
-  // rather than building a second pair over a second, independently-opened `content.db` handle.
-  // Backed by THIS root's `db` — the same file the main web server's public OAuth callback route and
-  // the agent daemon's `external_mcp_oauth_connect` tool both open their own handle onto, which is
-  // what lets either process complete a handshake the other started.
-  const externalMcpOAuthPending = createSqlitePendingAuthorizationStore({ db: kernel, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
+  // Device begin/poll share this root's durable store without opening another database handle.
+  // Redirect callbacks carry their own sealed state and only need the same site key.
   const externalMcpOAuthDevices = createSqliteDeviceAuthorizationStore({ db: kernel, workspaceId, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });
 
   // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
@@ -2036,6 +2034,11 @@ async function composeSiteRouteDeps(
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     workspaceId: workspaceId,
+    localCredentialCopy: createLocalCredentialCopy({ targetKernel: kernel, targetWorkspaceId: workspaceId,
+      targetSiteDir: resolvedSiteBinding.dir, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,
+      registry: await loadSiteVaultKinds({ workspaceId, siteDir: resolvedSiteBinding.dir }, {
+        loadContributions: agentPluginLifecycle.loadPluginContributions,
+      }) }),
     workspaceRepo: new SqliteWorkspaceRepo(kernel),
     trash,
     // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
@@ -2106,7 +2109,11 @@ async function composeSiteRouteDeps(
     presentationRepo,
     settingsRepo,
     getEffective,
-    set,
+    set: (required) => set(required, {
+      canEnablePublicAssistant: async ({ workspaceId }) => (await resolvePublicAssistantAvailability({
+        repo: siteAssistantCredentialRepo, sealer: siteAssistantSecretSealer, workspaceId,
+      })).ready,
+    }),
     instructionsNamespace: INSTRUCTIONS_NAMESPACE,
     seoReady,
     seoDeps,
@@ -2116,7 +2123,7 @@ async function composeSiteRouteDeps(
     // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
     // `server/app.ts`'s `createRouteDeps()`.
     adminAssistantEnabled: isAdminAssistantEnabled(),
-    siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(kernel),
+    siteAssistantCredentialRepo,
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
     // Transfer uses this composition's exact chat store, including any TOVU_CHAT_DB override.
@@ -2144,12 +2151,9 @@ async function composeSiteRouteDeps(
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
      * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its
-     * pending-authorization and device-authorization stores must be shared by the connect route and
-     * the public callback route — two routes in the same module, one instance, and a composition
-     * root is where "one instance" is expressible. See `routes/types.ts`'s `externalMcpOAuth` doc
-     * for why the field is optional at all, and its `externalMcpOAuthPending`/`externalMcpOAuthDevices`
-     * doc for why `pending`/`devices` below are the SAME locals exposed as their own fields rather
-     * than built fresh here.
+     * device begin/poll must use the same durable store. Redirect state carries its own encrypted
+     * verifier and binding between the daemon and the callback, using this root's site key.
+     * See `routes/types.ts`'s `externalMcpOAuthDevices` doc for the shared store's lifetime.
      */
     externalMcpOAuth: createExternalMcpOAuthService({
       httpPorts: externalMcpOAuthHttpPorts,
@@ -2158,11 +2162,9 @@ async function composeSiteRouteDeps(
       sealer: siteAssistantSecretSealer,
       keyring: siteAssistantSecretKeyring,
       clock,
-      pending: externalMcpOAuthPending,
       devices: externalMcpOAuthDevices,
       onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock }),
     }),
-    externalMcpOAuthPending,
     externalMcpOAuthDevices,
     // See `routes/types.ts`'s `derivedPublicOrigin` doc. Reuses `devCapabilityScheme` (derived just
     // above for the dev-capability origin seed) rather than calling `resolveDevTls` a second time —
@@ -2412,8 +2414,13 @@ async function composeSiteRouteDeps(
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     previewPluginBeforeSave: pluginRuntime.previewPluginBeforeSave,
     pluginInstaller: pluginRuntime.pluginInstaller,
+    pluginSource: pluginRuntime.pluginSource,
+    pluginSourcePolicy: pluginRuntime.pluginSourcePolicy,
+    pluginLoadedVersion: pluginRuntime.pluginLoadedVersion,
+    pluginContributions: pluginRuntime.pluginContributions,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
-    pluginRuntimeReady,
+    // Replaced after the host exists, before these dependencies leave composition.
+    pluginRuntimeReady: Promise.resolve(),
     // Task 6 of the publish-content (Publish Content) feature — see `routes/types.ts`'s
     // `publishContentBundleRepo` doc. Real, DB-backed (hoisted above so Task 8's
     // `publishContentApplyPort` reads the SAME store); `server/runtime/composition/app.ts`'s
@@ -2537,53 +2544,15 @@ async function composeSiteRouteDeps(
     });
   void widgetAdoptionReady;
 
-  // After the boot writers above settle (same shared-connection transaction hazard). Exposed as
-  // `legacyPublishCredentialsReady` (still fire-and-forget for boot) so whoever owns the store's
-  // lifetime can await the tail instead of racing it (F1833).
-  routeDeps.legacyPublishCredentialsReady =
-    (overrides?.storeRole ?? "owner") === "owner"
-      ? widgetAdoptionReady.then(() => copyLegacyPublishCredentialsAtBoot(routeDeps, kernel))
-      : widgetAdoptionReady;
+  // Keep the boot-tail contract used by shutdown. Legacy credentials are folded once by 0012;
+  // recurring copies would resurrect a credential deleted from the vault.
+  routeDeps.legacyPublishCredentialsReady = widgetAdoptionReady;
 
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
+  // Start re-attachment only after its SDK's host getter is safe. Earlier composition awaits
+  // (including vault normalization) must never race this pass. Boot awaits this before serving.
+  routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
   return routeDeps;
-}
-
-/**
- * Moves legacy `publish_credential_sets` rows into `vendor_credential_sets`, where publishing reads
- * them (`publish-credentials/vendor-table-backfill.ts`). Every boot, on the owner process only;
- * idempotent, so a boot with nothing left to copy writes nothing. Fire-and-forget: logged, never
- * aborts boot.
- */
-async function copyLegacyPublishCredentialsAtBoot(routeDeps: NewsletterRouteDeps, kernel: ContentKernel): Promise<void> {
-  const workspaceId = routeDeps.workspaceId;
-  try {
-    const registries = [
-      await routeDeps.loadDeployTargets(workspaceId),
-      await loadDeployTargetRegistryFromSource({ pluginId: "deploy", packageRoot: join(bundledAgentPluginsDir(), "deploy") }),
-    ];
-    const report = await copyPublishCredentialsToVendorTable(
-      {
-        legacyRepo: new SqlitePublishCredentialSetRepo(kernel),
-        vendorRepo: routeDeps.vendorCredentialSetRepo,
-        sealer: routeDeps.siteAssistantSecretSealer,
-        keyring: routeDeps.siteAssistantSecretKeyring,
-        registries,
-      },
-      { workspaceId }
-    );
-    for (const id of report.copied) {
-      // eslint-disable-next-line no-console
-      console.info(`[publish-credentials] moved saved credential '${id}' to vendor_credential_sets`);
-    }
-    for (const { id, reason } of report.skipped) {
-      // eslint-disable-next-line no-console
-      console.warn(`[publish-credentials] saved credential '${id}' was not moved to vendor_credential_sets (tried again next boot): ${reason}`);
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`copyPublishCredentialsToVendorTable failed at boot: ${(err as Error).message}`);
-  }
 }
 
 /**

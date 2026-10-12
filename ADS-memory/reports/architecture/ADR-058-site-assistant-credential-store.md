@@ -322,3 +322,24 @@ root-key reuse via a dedicated fail-closed `EnvOrFileKeyring` instance (§2), wr
 `src/server/routes/admin/assistant/`, the `AesGcmSecretSealer` implementation file location, the
 `SiteAssistantCredentialRepoPort` + SQLite adapter, and the `site-assistant.ts` header/resolution-order
 edit (§6). Phase 3 owns the wrapper design flagged in "Open item" above.
+
+## Amendment — shared secrets vault (2026-10-11)
+
+Authority: [owner-approved vault decision](../../.local-artifacts/vault-design-2026-10-11/RESULT-after-round2.md)
+and [coordinator cuts](../../.local-artifacts/vault-impl-2026-10-11/vaultplan-REVIEW.md).
+This supersedes §1's dedicated-table choice, §5's “Different table” distinction,
+§7's dedicated `site_assistant_credentials` DDL, and the Handoff's dedicated-store freeze.
+Saved credentials use one `secrets_vault`, owned by Jini's credential-set lifecycle and SQL adapter;
+Tovu supplies kind catalogs, permissions, legacy codecs and pinned migration DDL.
+The `site-assistant` singleton and `personal-execution` principal scope remain structurally separate.
+Sections 2–4's encryption, fail-closed key handling and write-only API requirements remain binding;
+secrets remain outside the settings ledger and plaintext never enters summaries or diagnostics.
+One ADR-066 step copies all source ciphertext unchanged with original legacy AAD context,
+retains collision mappings, checks row/envelope coverage, then folds the old credential tables.
+PG/PGlite retain `_vault_backup_*` source copies plus the pre-step ledger; SQLite uses its runner backup.
+Boot normalizes under the shared operation lock and Jini workspace writer lock, reopens/compares,
+and CAS-writes revisions. Missing keys or unresolved legacy rows forbid green coverage.
+Normal feature reads use only Jini vault AAD; legacy codecs remain restricted to normalization/recovery.
+Redirect/PKCE pending state becomes stateless; `oauth_device_authorizations` remains unchanged.
+The step is registered only at activation after consumers are ready and the dev server is stopped;
+automatic draining of old writers is outside this work.

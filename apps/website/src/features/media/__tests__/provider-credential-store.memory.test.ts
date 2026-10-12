@@ -4,6 +4,7 @@ import test from "node:test";
 import type { UUID } from "@jini-ai/core/primitives";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import type { MediaProviderCredentialRecord } from "../provider-credential-store.js";
+import { VaultError } from "@jini-ai/platform/secrets/credential-sets";
 
 /**
  * @file Direct `MediaProviderCredentialRepoPort` contract coverage for
@@ -120,4 +121,42 @@ test("deleteByProviderIds only deletes within the given workspace, never a same-
 
   assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), []);
   assert.equal((await repo.listByWorkspaceId(OTHER_WORKSPACE)).length, 1);
+});
+
+test("a duplicate provider in a batch rolls back its first write and every tombstone", async () => {
+  const repo = new InMemoryMediaProviderCredentialRepo();
+  await repo.upsert(makeRecord({ providerId: "grok", model: "kept" }));
+  await assert.rejects(repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => ({
+    upserts: [makeRecord({ model: "first" }), makeRecord({ model: "duplicate" })],
+    tombstoneProviderIds: ["grok"],
+  }) }), VaultError);
+  assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), [makeRecord({ providerId: "grok", model: "kept" })]);
+});
+
+test("a wrong-workspace planned row aborts without writing either workspace", async () => {
+  const repo = new InMemoryMediaProviderCredentialRepo();
+  await repo.upsert(makeRecord({ model: "kept" }));
+  await assert.rejects(repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => ({
+    upserts: [makeRecord({ workspaceId: OTHER_WORKSPACE })], tombstoneProviderIds: ["openai"],
+  }) }), VaultError);
+  assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), [makeRecord({ model: "kept" })]);
+  assert.deepEqual(await repo.listByWorkspaceId(OTHER_WORKSPACE), []);
+});
+
+test("duplicate tombstones stay idempotent in the vault batch", async () => {
+  const repo = new InMemoryMediaProviderCredentialRepo();
+  await repo.upsert(makeRecord());
+  await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["openai", "openai", "missing"] });
+  assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), []);
+});
+
+test("a provider inserted by a concurrent primitive write cannot evade a whole-map replacement", async () => {
+  const repo = new InMemoryMediaProviderCredentialRepo();
+  // Queue the insert first. The replacement must take its snapshot after the insert commits.
+  const inserted = repo.upsert(makeRecord({ providerId: "grok" }));
+  const replaced = repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: current => ({
+    upserts: [makeRecord()], tombstoneProviderIds: current.map(row => row.providerId),
+  }) });
+  await Promise.all([inserted, replaced]);
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map(row => row.providerId), ["openai"]);
 });

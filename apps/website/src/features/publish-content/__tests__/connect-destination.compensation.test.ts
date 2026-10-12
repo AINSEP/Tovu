@@ -20,7 +20,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PUBLISH_CONTENT_PEER_AAD_VERSION } from "../peer-aad.js";
 import { connectAndRecordDestination, disconnectAndForgetDestination } from "../connect-destination.js";
 import { InMemoryPublishContentPeerRepo, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "../peers.js";
 
@@ -58,7 +57,7 @@ function connectedRow(): PublishContentPeerRecord {
     remoteWorkspaceId: REMOTE_WORKSPACE,
     sealed: null,
     masked: null,
-    aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
+    aadVersion: 1,
     createdAt: "2026-09-20T10:00:00.000Z",
     updatedAt: "2026-09-20T10:00:00.000Z",
   };
@@ -72,6 +71,7 @@ function repoFailingOn(
   const inner = new InMemoryPublishContentPeerRepo();
   return {
     inner,
+    vault: inner.vault,
     insert: async (record) => {
       if (method === "insert") throw new Error(message);
       return inner.insert(record);

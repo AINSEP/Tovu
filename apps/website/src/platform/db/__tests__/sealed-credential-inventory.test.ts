@@ -1,488 +1,80 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import { sql } from "kysely";
+import { listSealedCredentials, SealedCredentialInventoryLimitError } from "../sealed-credential-inventory.js";
+import { eachDialect } from "../kernel/__tests__/dialect-matrix.js";
+import { createSqlDeviceAuthorizationStore } from "../repos/oauth-pending-store.js";
+import { fixture, WS, NOW } from "./vault-credential.fixture.js";
 
-import type { UUID } from "@jini-ai/core/primitives";
-
-import { buildExecutionCredentialAad } from "#src/assistant/execution-credential-aad";
-import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad } from "#src/assistant/external-mcp-aad";
-import { buildSiteAssistantCredentialAad } from "#src/assistant/site-credential-aad";
-import { resolveSiteAssistantApiKey, setSiteAssistantCredential } from "#src/assistant/site-credential-store";
-import { buildCustomCredentialAad } from "#src/features/custom-credentials/aad";
-import { buildDatabaseDestinationAad } from "#src/features/database-transfer/destination-aad";
-import { buildPublishCredentialAad } from "#src/features/deployments/publish-credentials/index";
-import { buildMediaProviderCredentialAad } from "#src/features/media/aad";
-import { buildPublishContentPeerAad } from "#src/features/publish-content/peer-aad";
-import { buildSourceControlCredentialAad } from "#src/features/source-control/aad";
-import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
-import type { SecretSealerPort } from "#src/features/webhooks/index";
-import { InMemoryKeyring } from "../../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../../features/webhooks/secret-sealer.aesgcm.js";
-import { seedPrincipals, seedWorkspaces } from "../kernel/__tests__/content-seeds.js";
-import { type ContentKernel, eachDialect } from "../kernel/__tests__/dialect-matrix.js";
-import { SEALED_COLUMN_DESCRIPTORS } from "#src/server/runtime/composition/sealed-credential-descriptors";
-import { SqlSiteAssistantCredentialRepo } from "../repos/site-credential-repo.js";
-import {
-  discoverSealedColumns,
-  listSealedCredentials,
-  SealedCredentialInventoryLimitError,
-  type SealedColumnDescriptor,
-  type SealedCredentialInventory,
-  type SealedCredentialInventoryDeps,
-} from "../sealed-credential-inventory.js";
-
-/**
- * @file `listSealedCredentials` against a real, migrated content database — SQLite (`:memory:`) and
- * PGlite, via `eachDialect` — and the real AES-GCM sealer. Every fixture blob is sealed with its store's own AAD builder, and every plaintext,
- * tail, mask and bearer value is a distinctive `LEAK-` marker so the no-secret assertions can search
- * the whole serialized inventory for any of them.
- */
-
-const WS = "ws-inventory";
-const NOW = "2026-09-16T00:00:00.000Z";
-const LEAK = "LEAK-";
-
-type Sealer = Pick<SecretSealerPort, "seal" | "open">;
-
-/** Every table a fixture writes, emptied (PGlite) before each test. */
-const TABLES = [
-  "workspaces", "principals", "site_assistant_credentials", "admin_execution_credentials", "publish_credential_sets",
-  "source_control_credential_sets", "custom_credential_sets", "vendor_credential_sets", "media_provider_credentials",
-  "external_mcp_servers", "oauth_pending_authorizations", "oauth_device_authorizations", "publish_content_peers",
-  "database_transfer_destinations",
-];
-
-interface Fixture {
-  readonly kernel: ContentKernel;
-  readonly keyring: InMemoryKeyring;
-  readonly sealer: AesGcmSecretSealer;
-  /** Every value that must never appear in any inventory output. */
-  readonly secrets: string[];
-}
-
-async function insertRow(kernel: ContentKernel, table: string, row: Record<string, unknown>): Promise<void> {
-  const columns = sql.join(Object.keys(row).map((column) => sql.id(column)));
-  await kernel.execute(sql`INSERT INTO ${sql.id(table)} (${columns}) VALUES (${sql.join(Object.values(row))})`);
-}
-
-/** Creates a fixture-only table, dropped again when the test ends (the PGlite instance is shared by the file). */
-async function createFixtureTable(t: { after(fn: () => Promise<void>): void }, kernel: ContentKernel, table: string, columnsDdl: string): Promise<void> {
-  t.after(() => kernel.execute(sql`DROP TABLE IF EXISTS ${sql.id(table)}`));
-  await kernel.execute(sql`CREATE TABLE ${sql.id(table)} (${sql.raw(columnsDdl)})`);
-}
-
-async function sealedQuad(input: { sealer: Sealer; keyring: InMemoryKeyring; plaintext: string; aad: string | undefined; prefix?: string; secrets: string[] }) {
-  // Empty AAD supplies zero bytes, preserving legacy rows that were sealed without a binding.
-  const sealed = await input.sealer.seal({ plaintext: input.plaintext, key: await input.keyring.activeKey(), aad: input.aad ?? "" });
-  input.secrets.push(input.plaintext, sealed.ciphertext, sealed.nonce);
-  const p = input.prefix ?? "";
-  return { [`${p}sealed_key_id`]: sealed.keyId, [`${p}sealed_ciphertext`]: sealed.ciphertext, [`${p}sealed_nonce`]: sealed.nonce, [`${p}sealed_alg`]: sealed.alg };
-}
-
-/**
- * One sealed row in every production sealed column, each sealed by `sealWith` under that store's AAD.
- * The rows in `kernel` are sealed under `sealWith`'s site key.
- */
-async function seedEverySealedColumn(kernel: ContentKernel, sealWith: { sealer: Sealer; keyring: InMemoryKeyring }, secrets: string[]): Promise<void> {
-  await seedPrincipals(kernel, WS, ["principal-1"]);
-  const seal = (table: string, aad: string | undefined, prefix?: string) =>
-    sealedQuad({ ...sealWith, plaintext: `${LEAK}plaintext-${table}-${prefix ?? ""}`, aad, prefix, secrets });
-  const stamps = { created_at: NOW, updated_at: NOW };
-
-  await insertRow(kernel, "site_assistant_credentials", {
-    workspace_id: WS, provider: "anthropic", aad_version: 1, masked: `${LEAK}masked-site`, ...stamps,
-    ...(await seal("site_assistant_credentials", buildSiteAssistantCredentialAad({ workspaceId: WS as UUID }))),
-  });
-  await insertRow(kernel, "admin_execution_credentials", {
-    workspace_id: WS, principal_id: "principal-1", protocol: "openai", provider_id: "openai", aad_version: 1, masked: `${LEAK}masked-exec`, ...stamps,
-    ...(await seal("admin_execution_credentials", buildExecutionCredentialAad({ workspaceId: WS as UUID, principalId: "principal-1" as UUID }))),
-  });
-  await insertRow(kernel, "publish_credential_sets", {
-    id: "pub-1", workspace_id: WS, provider_id: "netlify", label: "Main site", is_default: 1, ...stamps,
-    ...(await seal("publish_credential_sets", buildPublishCredentialAad({ workspaceId: WS as UUID, providerId: "netlify", id: "pub-1" as UUID }))),
-  });
-  await insertRow(kernel, "source_control_credential_sets", {
-    id: "sc-1", workspace_id: WS, provider_id: "github", label: "Repo", is_default: 1, ...stamps,
-    ...(await seal("source_control_credential_sets", buildSourceControlCredentialAad({ workspaceId: WS as UUID, providerId: "github", id: "sc-1" as UUID }))),
-  });
-  await insertRow(kernel, "custom_credential_sets", {
-    id: "custom-1", workspace_id: WS, label: "Mailer", category: "email", base_url: "https://mail.example.test", username: `${LEAK}username`, ...stamps,
-    ...(await seal("custom_credential_sets", buildCustomCredentialAad({ workspaceId: WS as UUID, id: "custom-1" as UUID }))),
-  });
-  await insertRow(kernel, "vendor_credential_sets", {
-    id: "vendor-1", workspace_id: WS, vendor_id: "vercel", label: "Deploys", token_tail: `${LEAK}token-tail`, is_default: 1, ...stamps,
-    ...(await seal("vendor_credential_sets", buildVendorCredentialAad({ workspaceId: WS as UUID, vendorId: "vercel", id: "vendor-1" as UUID }))),
-  });
-  await insertRow(kernel, "media_provider_credentials", {
-    workspace_id: WS, provider_id: "fal", key_tail: `${LEAK}key-tail-media`, aad_version: 1, ...stamps,
-    ...(await seal("media_provider_credentials", buildMediaProviderCredentialAad({ workspaceId: WS as UUID, providerId: "fal" }))),
-  });
-  await insertRow(kernel, "external_mcp_servers", {
-    workspace_id: WS, server_id: "linear", transport: "http", auth_mode: "oauth", enabled: 1, url: `https://mcp.example.test/?token=${LEAK}url-token`,
-    aad_version: 1, oauth_aad_version: 1, ...stamps,
-    ...(await seal("external_mcp_servers", buildExternalMcpEnvAad({ workspaceId: WS, serverId: "linear" }))),
-    ...(await seal("external_mcp_servers", buildExternalMcpOAuthAad({ workspaceId: WS, serverId: "linear" }), "oauth_")),
-  });
-  const state = `${LEAK}oauth-state`;
-  secrets.push(state);
-  await insertRow(kernel, "oauth_pending_authorizations", {
-    state, owner_key: `${WS}:linear`, provider_id: "linear", redirect_uri: "https://site.example.test/cb", scopes_json: "[]", created_at: NOW, expires_at: NOW,
-    ...(await seal("oauth_pending_authorizations", `${WS}:linear`)),
-  });
-  secrets.push(`${LEAK}user-code`);
-  await insertRow(kernel, "oauth_device_authorizations", {
-    workspace_id: WS, server_id: "linear", user_code: `${LEAK}user-code`, verification_uri: "https://device.example.test", interval_seconds: 5, expires_at: NOW, created_at: NOW,
-    ...(await seal("oauth_device_authorizations", `${WS}:linear`)),
-  });
-  // `publish_content_peers` — added by migration 0066 (the publish-content feature), two days after
-  // this fixture's own introduction, and never added here; `label` is a real non-secret identity
-  // column (like `publish_credential_sets.label`'s "Main site" above), so it gets a plain value, not
-  // a `LEAK-` marker — only `masked` (never read by the descriptor) does.
-  await insertRow(kernel, "publish_content_peers", {
-    id: "peer-1", workspace_id: WS, label: "Peer One", base_url: "https://peer.example.test", remote_workspace_id: "remote-ws-1",
-    masked: `${LEAK}masked-peer`, aad_version: 1, ...stamps,
-    ...(await seal("publish_content_peers", buildPublishContentPeerAad({ workspaceId: WS as UUID, id: "peer-1" as UUID }))),
-  });
-  // `database_transfer_destinations` — the database-transfer feature's sealed address (migration 0076).
-  await insertRow(kernel, "database_transfer_destinations", {
-    workspace_id: WS, host: "db.example.test", port: "5432", database_name: "postgres", user_name: `${LEAK}db-user`, aad_version: 1, saved_at: "x",
-    ...(await seal("database_transfer_destinations", buildDatabaseDestinationAad({ workspaceId: WS }))),
-  });
-  secrets.push(`${LEAK}db-user`);
-  secrets.push(
-    `${LEAK}masked-site`, `${LEAK}masked-exec`, `${LEAK}username`, `${LEAK}token-tail`, `${LEAK}key-tail-media`,
-    `${LEAK}url-token`, `${LEAK}masked-peer`
-  );
-}
-
-async function freshFixture(kernel: ContentKernel): Promise<Fixture> {
-  const keyring = new InMemoryKeyring();
-  const sealer = new AesGcmSecretSealer(keyring);
-  const secrets: string[] = [];
-  await seedEverySealedColumn(kernel, { sealer, keyring }, secrets);
-  return { kernel, keyring, sealer, secrets };
-}
-
-function depsFor(fixture: Pick<Fixture, "kernel">, overrides: Partial<SealedCredentialInventoryDeps> & { sealer: Sealer; keyring: SealedCredentialInventoryDeps["keyring"] }): SealedCredentialInventoryDeps {
-  return { kernel: fixture.kernel, hasSiteKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS, ...overrides };
-}
-
-function assertNoSecretIn(inventory: SealedCredentialInventory, secrets: readonly string[]): void {
-  const serialized = JSON.stringify(inventory);
-  assert.equal(serialized.includes(LEAK), false, `inventory output carries a ${LEAK} marker: ${serialized}`);
-  for (const secret of secrets) assert.equal(serialized.includes(secret), false, "inventory output carries a sealed value, nonce, or secret column");
-}
-
-function countingSealer(inner: Sealer): Sealer & { calls: number } {
-  const counter = {
-    calls: 0,
-    seal: async (input: Parameters<Sealer["seal"]>[0]) => (counter.calls++, inner.seal(input)),
-    open: async (input: Parameters<Sealer["open"]>[0], optional: Parameters<Sealer["open"]>[1] = {}) => (counter.calls++, inner.open(input, optional)),
-  };
-  return counter;
-}
-
-const columnKey = (entry: { table: string; column: string }) => `${entry.table}.${entry.column}`;
-
-for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
-  test(`every sealed column in a freshly migrated content.db is discovered from the catalog, and each has exactly one descriptor [${each.name}]`, async () => {
-    const kernel = each.make();
-    const discovered = (await discoverSealedColumns(kernel)).map(columnKey).sort();
-    const described = SEALED_COLUMN_DESCRIPTORS.map(columnKey).sort();
-
-    assert.deepEqual(described, discovered);
-    assert.equal(new Set(described).size, described.length, "a sealed column has two descriptors");
-    assert.ok(discovered.includes("external_mcp_servers.oauth_sealed_ciphertext"), "a prefixed sealed column must be discovered too");
+/** @file S5: catalog completeness, safe vault identity, metadata-only parity, key health and limits. */
+for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel })) {
+  test(`vault inventory counts envelopes separately, retains device flow and never emits secrets [${each.name}]`, async () => {
+    const fx = await fixture(each.make());
+    const saved = await fx.put({ id: "sealed" });
+    await fx.put({ id: "settings", key: null, kind: "media-provider", provider: "fal", meta: { baseUrl: null, model: null } });
+    const device = createSqlDeviceAuthorizationStore({ kernel: fx.kernel, workspaceId: WS, ...fx.right, clock: { nowMs: () => Date.parse(NOW) } });
+    await device.put("server", { deviceCode: "LEAK-device-code", userCode: "LEAK-user-code", verificationUri: "https://auth.example.test",
+      verificationUriComplete: null, intervalSeconds: 5, expiresAt: "2026-10-11T01:00:00.000Z" });
+    await fx.kernel.execute(sql`CREATE TABLE _vault_backup_inventory (sealed_ciphertext text)`);
+    await fx.kernel.execute(sql`INSERT INTO _vault_backup_inventory VALUES ('LEAK-backup')`);
+    try {
+      const inventory = await listSealedCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
+      assert.deepEqual(inventory.totals, { sealed: 2, opens: 2, doesNotOpen: 0, unknown: 0 });
+      assert.deepEqual(inventory.metadataOnly, [{ workspaceId: WS, rowId: "settings", label: "media-provider (settings)" }]);
+      assert.equal(inventory.columns.some(column => column.table.startsWith("_vault_backup_")), false);
+      const text = JSON.stringify(inventory);
+      for (const secret of ["LEAK", saved.sealed!.ciphertext, saved.sealed!.nonce]) assert.equal(text.includes(secret), false);
+    } finally { await fx.kernel.execute(sql`DROP TABLE _vault_backup_inventory`); }
   });
 
-  test(`rows sealed under the active key with each store's own AAD all report opensUnderActiveKey=true, with non-secret labels [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }));
-
-    assert.equal(inventory.entries.length, SEALED_COLUMN_DESCRIPTORS.length);
-    assert.deepEqual(inventory.totals, { sealed: 13, opens: 13, doesNotOpen: 0, unknown: 0 });
-    for (const entry of inventory.entries) {
-      assert.equal(entry.opensUnderActiveKey, true, `${columnKey(entry)} should open`);
-      assert.equal(entry.unknownReason, null);
-      assert.equal(entry.sealedKeyId, "v1");
-    }
-    assert.equal(inventory.activeKeyId, "v1");
-    assert.ok(inventory.columns.every((column) => column.coverage === "classified" && column.sealedRows === 1));
-
-    const byColumn = new Map(inventory.entries.map((entry) => [columnKey(entry), entry]));
-    assert.deepEqual(byColumn.get("vendor_credential_sets.sealed_ciphertext"), {
-      table: "vendor_credential_sets", column: "sealed_ciphertext", workspaceId: WS, rowId: "vendor-1",
-      label: 'Vendor credentials "Deploys" (vercel)', sealedKeyId: "v1", opensUnderActiveKey: true, unknownReason: null,
-    });
-    assert.equal(byColumn.get("external_mcp_servers.oauth_sealed_ciphertext")?.label, 'MCP server "linear" OAuth credentials');
-    const pending = byColumn.get("oauth_pending_authorizations.sealed_ciphertext");
-    assert.equal(pending?.rowId, null, "the OAuth state is a bearer value and must not become the row id");
-    assertNoSecretIn(inventory, fixture.secrets);
+  test(`inventory covers unknown catalog columns and incomplete quads [${each.name}]`, async () => {
+    const fx = await fixture(each.make());
+    await fx.kernel.execute(sql`CREATE TABLE inventory_unknown (sealed_ciphertext text, sealed_key_id text)`);
+    await fx.kernel.execute(sql`INSERT INTO inventory_unknown VALUES ('opaque','key')`);
+    try {
+      const inventory = await listSealedCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
+      assert.deepEqual(inventory.totals, { sealed: 1, opens: 0, doesNotOpen: 0, unknown: 1 });
+      assert.equal(inventory.columns.find(column => column.table === "inventory_unknown")?.coverage, "no-descriptor");
+      assert.equal(inventory.entries[0]?.unknownReason, "incomplete-sealed-row");
+      assert.equal(inventory.entries[0]?.rowId, null);
+    } finally { await fx.kernel.execute(sql`DROP TABLE inventory_unknown`); }
   });
 
-  test(`the same rows sealed under a DIFFERENT site key report opensUnderActiveKey=false rather than throwing [${each.name}]`, async () => {
-    const other = await freshFixture(each.make());
-    const activeKeyring = new InMemoryKeyring();
-    const inventory = await listSealedCredentials(depsFor(other, { sealer: new AesGcmSecretSealer(activeKeyring), keyring: activeKeyring }));
-
-    assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 13, unknown: 0 });
-    assert.ok(inventory.entries.every((entry) => entry.opensUnderActiveKey === false && entry.unknownReason === null));
-    assertNoSecretIn(inventory, other.secrets);
+  test(`wrong key, unavailable key, absent source, unsupported alg and unknown lineage stay distinct [${each.name}]`, async () => {
+    const fx = await fixture(each.make());
+    const record = await fx.put({ id: "one" });
+    const deps = { kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true };
+    assert.equal((await listSealedCredentials({ ...deps, ...fx.wrong })).entries[0]?.opensUnderActiveKey, false);
+    let derived = 0;
+    const absent = await listSealedCredentials({ ...deps, hasSiteKeySource: () => false,
+      keyring: { activeKey: async () => { derived += 1; throw new Error("must not mint"); } } });
+    assert.equal(absent.entries[0]?.unknownReason, "no-site-key");
+    assert.equal(derived, 0);
+    const unavailable = await listSealedCredentials({ ...deps, sealer: { seal: async () => { throw new Error("LEAK-error"); }, open: fx.right.sealer.open.bind(fx.right.sealer) } });
+    assert.equal(unavailable.entries[0]?.unknownReason, "active-key-unavailable");
+    const unknown = await listSealedCredentials({ ...deps, aadFor: () => { throw new Error("LEAK-error"); } });
+    assert.equal(unknown.entries[0]?.unknownReason, "unrecognized-aad-version");
+    await fx.repo.put({ expectedRevision: record.revision, record: { ...record, revision: record.revision + 1,
+      sealed: { ...record.sealed!, alg: "future-alg" } } });
+    assert.equal((await listSealedCredentials(deps)).entries[0]?.unknownReason, "unsupported-alg");
+    assert.equal(JSON.stringify(unknown).includes("LEAK-error"), false);
   });
 
-  test(`a sealed table with NO descriptor is still counted — its rows are unknown/no-descriptor, not skipped [${each.name}]`, async (t) => {
-    const fixture = await freshFixture(each.make());
-    await createFixtureTable(t, fixture.kernel, "plugin_vault", "vault_token TEXT PRIMARY KEY, sealed_key_id TEXT, sealed_ciphertext TEXT, sealed_nonce TEXT, sealed_alg TEXT");
-    const quad = await sealedQuad({ sealer: fixture.sealer, keyring: fixture.keyring, plaintext: `${LEAK}vault-plaintext`, aad: "vault", secrets: fixture.secrets });
-    await insertRow(fixture.kernel, "plugin_vault", { vault_token: `${LEAK}vault-pk-1`, ...quad });
-    await insertRow(fixture.kernel, "plugin_vault", { vault_token: `${LEAK}vault-pk-2`, ...quad });
-    await insertRow(fixture.kernel, "plugin_vault", { vault_token: `${LEAK}vault-pk-3` });
-    fixture.secrets.push(`${LEAK}vault-pk-1`, `${LEAK}vault-pk-2`);
-
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }));
-
-    assert.equal(inventory.totals.sealed, 15, "13 registered + 2 sealed vault rows; the NULL vault row holds nothing");
-    assert.deepEqual(inventory.columns.find((column) => column.table === "plugin_vault"), {
-      table: "plugin_vault", column: "sealed_ciphertext", coverage: "no-descriptor", sealedRows: 2,
-    });
-    const vault = inventory.entries.filter((entry) => entry.table === "plugin_vault");
-    assert.equal(vault.length, 2);
-    for (const entry of vault) {
-      assert.deepEqual(entry, {
-        table: "plugin_vault", column: "sealed_ciphertext", workspaceId: null, rowId: null,
-        label: "Sealed credential in unregistered column plugin_vault.sealed_ciphertext", sealedKeyId: "v1",
-        opensUnderActiveKey: "unknown", unknownReason: "no-descriptor",
-      });
-    }
-    assertNoSecretIn(inventory, fixture.secrets);
-  });
-
-  test(`removing a production descriptor does not make the count drop — that column turns unknown instead [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    const withoutVendor = SEALED_COLUMN_DESCRIPTORS.filter((descriptor) => descriptor.table !== "vendor_credential_sets");
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring, descriptors: withoutVendor }));
-
-    assert.deepEqual(inventory.totals, { sealed: 13, opens: 12, doesNotOpen: 0, unknown: 1 });
-    const vendor = inventory.entries.find((entry) => entry.table === "vendor_credential_sets");
-    assert.equal(vendor?.opensUnderActiveKey, "unknown");
-    assert.equal(vendor?.unknownReason, "no-descriptor");
-  });
-
-  test(`undeterminable: with no site key source present, every row is unknown/no-site-key and the sealer is never called [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    const sealer = countingSealer(fixture.sealer);
-    // F1604: activeKey() is a derivation too (an auto-generating keyring mints its file on that
-    // first read), so the keyring itself must stay untouched — counting sealer calls alone misses it.
-    let activeKeyReads = 0;
-    const keyring: SealedCredentialInventoryDeps["keyring"] = {
-      activeKey: async () => {
-        activeKeyReads += 1;
-        throw new Error(`${LEAK}activeKey read with no key source`);
+  test(`inventory refuses understated limits and rechecks active key after a failed open [${each.name}]`, async () => {
+    const fx = await fixture(each.make());
+    await fx.put({ id: "one" }); await fx.put({ id: "two" });
+    const deps = { kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true };
+    await assert.rejects(listSealedCredentials(deps, { maxEntries: 1 }), error => error instanceof SealedCredentialInventoryLimitError && error.sealedRows === 2);
+    await assert.rejects(listSealedCredentials(deps, { maxEntries: 0 }), RangeError);
+    let probes = 0;
+    const inventory = await listSealedCredentials({ ...deps, sealer: {
+      seal: async input => { if (++probes > 1) throw new Error("key lost"); return fx.right.sealer.seal(input); },
+      open: async (input, options) => {
+        if (options?.aad === "sealed-credential-inventory-probe:v1") return fx.right.sealer.open(input, options);
+        throw new Error("key lost");
       },
-    };
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring, hasSiteKeySource: () => false }));
-
-    assert.equal(activeKeyReads, 0, "no key source: the keyring's activeKey() must never be read");
-    assert.equal(sealer.calls, 0, "no derivation may run when no key source exists — a keyring could mint one");
-    assert.equal(inventory.activeKeyId, null);
-    assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
-    assert.ok(inventory.entries.every((entry) => entry.unknownReason === "no-site-key"));
-    assertNoSecretIn(inventory, fixture.secrets);
-  });
-
-  test(`undeterminable: a keyring whose activeKey() rejects makes every row unknown, attempts no seal/open, and leaks no error text [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    const sealer = countingSealer(fixture.sealer);
-    const keyring: SealedCredentialInventoryDeps["keyring"] = {
-      activeKey: async () => { throw new Error(`${LEAK}key file unreadable`); },
-    };
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer, keyring }));
-
-    assert.equal(sealer.calls, 0, "with no readable key there is nothing to probe or open with");
-    assert.equal(inventory.activeKeyId, null);
-    assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
-    assert.ok(inventory.entries.every((entry) => entry.opensUnderActiveKey === "unknown" && entry.unknownReason === "active-key-unavailable"));
-    assertNoSecretIn(inventory, fixture.secrets);
-  });
-
-  test(`undeterminable: a probe that round-trips the WRONG plaintext without throwing makes every row unknown, never true or false [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    const opened: Array<string | undefined> = [];
-    const lying: Sealer = {
-      seal: (input) => fixture.sealer.seal(input),
-      open: async (input, optional = {}) => {
-        opened.push(optional.aad);
-        await fixture.sealer.open(input, optional);
-        return `${LEAK}not the probe plaintext`;
-      },
-    };
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: lying, keyring: fixture.keyring }));
-
-    assert.deepEqual(opened, ["sealed-credential-inventory-probe:v1"], "only the probe is opened; no row is tried with an unproven key");
-    assert.equal(inventory.activeKeyId, (await fixture.keyring.activeKey()).keyId);
-    assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
-    assert.ok(inventory.entries.every((entry) => entry.opensUnderActiveKey === "unknown" && entry.unknownReason === "active-key-unavailable"));
-    assertNoSecretIn(inventory, fixture.secrets);
-  });
-
-  test(`a descriptor whose aadFor throws turns only its own rows unknown/descriptor-error, with no leaked error text [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    const descriptors = SEALED_COLUMN_DESCRIPTORS.map((descriptor) =>
-      descriptor.table === "vendor_credential_sets"
-        ? { ...descriptor, aadFor: () => { throw new Error(`${LEAK}aad callback failure`); } }
-        : descriptor);
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring, descriptors }));
-
-    assert.deepEqual(inventory.totals, { sealed: 13, opens: 12, doesNotOpen: 0, unknown: 1 });
-    const vendor = inventory.entries.filter((entry) => entry.table === "vendor_credential_sets");
-    assert.deepEqual(vendor.map((entry) => [entry.opensUnderActiveKey, entry.unknownReason, entry.workspaceId, entry.rowId]), [["unknown", "descriptor-error", null, null]]);
-    assert.ok(inventory.entries.filter((entry) => entry.table !== "vendor_credential_sets").every((entry) => entry.opensUnderActiveKey === true));
-    assertNoSecretIn(inventory, fixture.secrets);
-  });
-
-  test(`undeterminable: a key source that cannot round-trip a probe makes every row unknown — never false — and no error text leaks [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    const broken: Sealer = {
-      seal: async () => { throw new Error(`${LEAK}key material in a seal error`); },
-      open: async () => { throw new Error(`${LEAK}key material in an open error`); },
-    };
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: broken, keyring: fixture.keyring }));
-
-    assert.deepEqual(inventory.totals, { sealed: 13, opens: 0, doesNotOpen: 0, unknown: 13 });
-    assert.ok(inventory.entries.every((entry) => entry.unknownReason === "active-key-unavailable"));
-    assertNoSecretIn(inventory, fixture.secrets);
-  });
-
-  test(`undeterminable: a key that stops working mid-scan turns the failing row unknown, not false [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    let healthy = true;
-    const flaky: Sealer = {
-      seal: async (input) => {
-        if (!healthy) throw new Error("keyring went away");
-        return fixture.sealer.seal(input);
-      },
-      open: async (input, optional = {}) => {
-        if (optional.aad !== "sealed-credential-inventory-probe:v1") healthy = false;
-        if (!healthy) throw new Error("keyring went away");
-        return fixture.sealer.open(input, optional);
-      },
-    };
-    const inventory = await listSealedCredentials(depsFor(fixture, { sealer: flaky, keyring: fixture.keyring }));
-
+    } });
+    assert.equal(inventory.totals.unknown, 2);
     assert.equal(inventory.totals.doesNotOpen, 0);
-    assert.ok(inventory.entries.every((entry) => entry.unknownReason === "active-key-unavailable"));
-  });
-
-  test(`an unrecognized aad_version is unknown, a legacy aad_version=0 no-AAD row opens, and another row's AAD reads false [${each.name}]`, async () => {
-    const keyring = new InMemoryKeyring();
-    const sealer = new AesGcmSecretSealer(keyring);
-    const kernel = each.make();
-    const secrets: string[] = [];
-    await seedWorkspaces(kernel, [WS, "ws-legacy", "ws-transplant"]);
-    const row = (workspace_id: string, aad_version: number) => ({ workspace_id, provider: "anthropic", aad_version, masked: "x", created_at: NOW, updated_at: NOW });
-
-    await insertRow(kernel, "site_assistant_credentials", { ...row(WS, 2), ...(await sealedQuad({ sealer, keyring, plaintext: "a", aad: buildSiteAssistantCredentialAad({ workspaceId: WS as UUID }), secrets })) });
-    await insertRow(kernel, "site_assistant_credentials", { ...row("ws-legacy", 0), ...(await sealedQuad({ sealer, keyring, plaintext: "b", aad: undefined, secrets })) });
-    await insertRow(kernel, "site_assistant_credentials", {
-      ...row("ws-transplant", 1),
-      ...(await sealedQuad({ sealer, keyring, plaintext: "c", aad: buildSiteAssistantCredentialAad({ workspaceId: WS as UUID }), secrets })),
-    });
-
-    const inventory = await listSealedCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS });
-    const byWorkspace = new Map(inventory.entries.map((entry) => [entry.workspaceId, entry]));
-
-    assert.equal(byWorkspace.get(WS)?.opensUnderActiveKey, "unknown");
-    assert.equal(byWorkspace.get(WS)?.unknownReason, "unrecognized-aad-version");
-    assert.equal(byWorkspace.get("ws-legacy")?.opensUnderActiveKey, true);
-    assert.equal(byWorkspace.get("ws-transplant")?.opensUnderActiveKey, false);
-  });
-
-  test(`descriptor faults are unknown, never thrown: unsupported alg, incomplete quad, missing column, NULL identity, sealed identity column [${each.name}]`, async (t) => {
-    const keyring = new InMemoryKeyring();
-    const sealer = new AesGcmSecretSealer(keyring);
-    const kernel = each.make();
-    const secrets: string[] = [];
-    await createFixtureTable(t, kernel, "fixture_sealed", "id TEXT, name TEXT, sealed_key_id TEXT, sealed_ciphertext TEXT, sealed_nonce TEXT, sealed_alg TEXT");
-    const good = await sealedQuad({ sealer, keyring, plaintext: `${LEAK}fixture`, aad: "fixture", secrets });
-    await insertRow(kernel, "fixture_sealed", { id: "alg", name: "n", ...good, sealed_alg: "xchacha20poly1305" });
-    await insertRow(kernel, "fixture_sealed", { id: "incomplete", name: "n", ...good, sealed_nonce: null });
-    await insertRow(kernel, "fixture_sealed", { id: "null-name", name: null, ...good });
-
-    const descriptor = (identityColumns: string[]): SealedColumnDescriptor => ({
-      table: "fixture_sealed",
-      column: "sealed_ciphertext",
-      identityColumns,
-      workspaceId: () => null,
-      rowId: (row) => String(row.id),
-      label: (row) => {
-        if (typeof row.name !== "string") throw new Error(`${LEAK}descriptor error text`);
-        return `Fixture ${row.name}`;
-      },
-      aadFor: () => ({ kind: "aad", aad: "fixture" }),
-    });
-    const run = (descriptors: SealedColumnDescriptor[]) => listSealedCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, descriptors });
-
-    const fits = await run([descriptor(["id", "name"])]);
-    assert.deepEqual(fits.entries.map((entry) => [entry.rowId, entry.unknownReason]), [["alg", "unsupported-alg"], ["incomplete", "incomplete-sealed-row"], [null, "descriptor-error"]]);
-    assertNoSecretIn(fits, secrets);
-
-    const missingColumn = await run([descriptor(["id", "no_such_column"])]);
-    assert.ok(missingColumn.entries.every((entry) => entry.unknownReason === "descriptor-schema-mismatch" && entry.rowId === null));
-    assert.equal(missingColumn.columns.find((column) => column.table === "fixture_sealed")?.coverage, "descriptor-schema-mismatch");
-
-    const sealedAsIdentity = await run([descriptor(["id", "sealed_ciphertext"])]);
-    assert.ok(sealedAsIdentity.entries.every((entry) => entry.unknownReason === "descriptor-schema-mismatch"));
-    assertNoSecretIn(sealedAsIdentity, secrets);
-  });
-
-  test(`a credential written through the real site-credential store is reported as opening, agreeing with the store's own read [${each.name}]`, async () => {
-    const keyring = new InMemoryKeyring();
-    const sealer = new AesGcmSecretSealer(keyring);
-    const kernel = each.make();
-    await seedWorkspaces(kernel, [WS]);
-    const repo = new SqlSiteAssistantCredentialRepo(kernel);
-    await setSiteAssistantCredential({ repo, sealer, keyring, clock: { nowMs: () => Date.parse(NOW) } } as Parameters<typeof setSiteAssistantCredential>[0], {
-      workspaceId: WS as UUID,
-      apiKey: `${LEAK}real-store-api-key`,
-      provider: "anthropic",
-    });
-
-    const inventory = await listSealedCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, descriptors: SEALED_COLUMN_DESCRIPTORS });
-
-    assert.equal(await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WS as UUID }).then((resolved) => resolved?.apiKey), `${LEAK}real-store-api-key`);
-    assert.deepEqual(inventory.totals, { sealed: 1, opens: 1, doesNotOpen: 0, unknown: 0 });
-    assertNoSecretIn(inventory, [`${LEAK}real-store-api-key`]);
-  });
-
-  test(`the inventory is read-only: no row in any sealed table changes, and nothing is written [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    const snapshot = async () => {
-      const tables: Record<string, unknown[]> = {};
-      for (const ref of await discoverSealedColumns(fixture.kernel)) {
-        tables[ref.table] = await fixture.kernel.query(sql`SELECT * FROM ${sql.id(ref.table)} ORDER BY 1`);
-      }
-      return tables;
-    };
-    // SQLite counts every row any statement changed on the connection; Postgres has no per-connection
-    // equivalent, so the table snapshot above is the dialect-neutral half of the check.
-    const totalChanges = async () => (each.dialect === "sqlite" ? await fixture.kernel.query(sql`SELECT total_changes() AS n`) : null);
-    const before = await snapshot();
-    const changesBefore = await totalChanges();
-
-    await listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }));
-
-    assert.deepEqual(await totalChanges(), changesBefore);
-    assert.deepEqual(await snapshot(), before);
-  });
-
-  test(`above maxEntries the inventory refuses with counts only, rather than returning an understated list [${each.name}]`, async () => {
-    const fixture = await freshFixture(each.make());
-    await assert.rejects(listSealedCredentials(depsFor(fixture, { sealer: fixture.sealer, keyring: fixture.keyring }), { maxEntries: 10 }), (error: unknown) => {
-      assert.ok(error instanceof SealedCredentialInventoryLimitError);
-      assert.equal(error.message, "sealed-credential inventory found 13 sealed rows, over its limit of 10; refusing to return an understated count");
-      assert.equal(error.sealedRows, 13);
-      return true;
-    });
   });
 }

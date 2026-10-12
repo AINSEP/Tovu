@@ -89,6 +89,12 @@ const PRUNE_TABLES = [
   "site_assistant_credentials",
   "publish_credential_sets",
   "external_mcp_servers",
+  // MCP parents are pruned first: their vault pointers must be unlinked before vault deletion.
+  "secrets_vault",
+  "database_transfer_destinations",
+  "publish_content_peers",
+  "oauth_pending_authorizations",
+  "oauth_device_authorizations",
   // Dropped by migration 0075; kept so a live DB that has not applied 0075 yet still has its sealed
   // Composio key pruned rather than shipped (pruning skips tables that do not exist).
   "composio_config",
@@ -157,14 +163,14 @@ function checkpointAndVerify(db) {
   }
 }
 
-/** @returns the {@link PRUNE_TABLES} entries that actually exist as tables in `db` right now. */
+/** @returns Existing {@link PRUNE_TABLES} entries and vault restore artifacts, in prune order. */
 function existingPruneTables(db) {
   const placeholders = PRUNE_TABLES.map(() => "?").join(", ");
   const rows = db
-    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`)
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND (name IN (${placeholders}) OR substr(name, 1, 14) = '_vault_backup_')`)
     .all(...PRUNE_TABLES);
   const present = new Set(rows.map((row) => row.name));
-  return PRUNE_TABLES.filter((table) => present.has(table));
+  return [...PRUNE_TABLES.filter((table) => present.has(table)), ...rows.map((row) => row.name).filter((name) => name.startsWith("_vault_backup_"))];
 }
 
 /**
@@ -178,8 +184,8 @@ function existingPruneTables(db) {
  * never chatted, including a brand-new one. An unconditional `DELETE FROM "<table>"` for those three
  * threw `SqliteError: no such table` in exactly that case; checking `sqlite_master` first (mirroring
  * `dropEmptyLegacyChatTables`'s own `existingChatTables` guard) makes "the table was already gone"
- * an expected, logged outcome rather than a crash. Which tables get pruned and the secret-table list
- * itself are unchanged — this only skips a DELETE against a table that isn't there.
+ * an expected, logged outcome rather than a crash. Restore artifacts are pruned too: a backup
+ * table still carries live credentials even when its original table has already been folded.
  */
 function pruneTransientTables(db) {
   const tablesToPrune = existingPruneTables(db);
@@ -188,7 +194,7 @@ function pruneTransientTables(db) {
   const removed = {};
   const pruneAll = db.transaction(() => {
     for (const table of tablesToPrune) {
-      removed[table] = db.prepare(`DELETE FROM "${table}"`).run().changes;
+      removed[table] = db.prepare(`DELETE FROM "${table.replaceAll('"', '""')}"`).run().changes;
     }
   });
   pruneAll();

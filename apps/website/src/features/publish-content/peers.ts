@@ -1,6 +1,8 @@
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
-import { buildPublishContentPeerAad, PUBLISH_CONTENT_PEER_AAD_VERSION } from "./peer-aad.js";
+import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { credentialTokenHint } from "#src/contracts/core/credential-token";
+import { createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
 import { normalizePeerBaseUrl } from "./peer-url.js";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
 
@@ -8,7 +10,7 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/
  * @file Task 10 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 10.
  *
- * `publish_content_peers` CRUD — a named remote Tovu this workspace can push content to or pull it
+ * `publish-peer` vault CRUD — a named remote Tovu this workspace can push content to or pull it
  * from. A peer is a URL plus a sealed API key and nothing else (plan §0b: never a platform
  * identifier, so the same row works against Fly, Railway, Render, AWS or a bare VPS).
  *
@@ -28,12 +30,8 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/
  * `hasCredential` (a boolean) are the only credential-shaped fields that exist on it. The sealed
  * columns are not merely omitted from the read model; the read model has nowhere to put them.
  *
- * STORAGE SHAPE, and why it is the vendor-neutral one: the sealed bytes live in `content.db`'s own
- * `sealed_*` columns, wrapped under the install's site key (`KeyringPort`, an env var today —
- * `TOVU_SITE_KEY` — with an OS-keychain adapter as the rule-of-two second). Nothing
- * here reaches for a platform secret store, so there is no `fly secrets` / AWS Secrets Manager /
- * SSM / Render env-group dependency to port. Confirmed by reading
- * `features/deployments/publish-credentials/store.ts` before copying it, per this task's brief.
+ * STORAGE SHAPE: Jini's vault owns persistence, JSON sealing and context-bound AAD. The site
+ * key remains installation-owned; no vendor secret-store dependency is introduced here.
  */
 
 /** Thrown when a named peer does not exist in this workspace. */
@@ -78,7 +76,7 @@ export class PublishContentPeerCredentialMissingError extends Error {
   }
 }
 
-/** A `publish_content_peers` row, decrypted-shape (`sealed` is the DB's opaque {@link SealedSecret};
+/** The existing peer record projected from the vault (`sealed` is the DB's opaque {@link SealedSecret};
  *  the raw API key only exists in memory after {@link resolvePeerCredential} opens it). */
 export interface PublishContentPeerRecord {
   readonly workspaceId: string;
@@ -91,7 +89,7 @@ export interface PublishContentPeerRecord {
    *  clear deliberately, the same "public label, not secret material" reasoning
    *  `publishCredentialSets.accountLabel` documents. */
   readonly masked: string | null;
-  /** The {@link buildPublishContentPeerAad} format version this row's ciphertext was sealed under. */
+  /** Compatibility version; vault AAD is owned by Jini. */
   readonly aadVersion: number;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -117,6 +115,7 @@ export interface PublishContentPeerSummary {
  *  may reject on the `(workspace_id, label)` UNIQUE index; this module turns that driver error into
  *  {@link PublishContentPeerDuplicateLabelError} rather than propagating it raw. */
 export interface PublishContentPeerRepoPort {
+  readonly vault: VaultRepoPort;
   insert(record: PublishContentPeerRecord): Promise<void>;
   /** Full-row replace by `(workspaceId, id)`. */
   update(record: PublishContentPeerRecord): Promise<void>;
@@ -143,24 +142,43 @@ export interface PublishContentPeerWriteDeps extends PublishContentPeerReadDeps 
   readonly idGen: { newId(): string };
 }
 
-/** How many trailing characters of an API key {@link maskApiKey} reveals. */
-const MASK_VISIBLE_SUFFIX = 4;
-
-/** Below this length a key reveals NOTHING — four characters of an eight-character key is half the
- *  secret, and this feature must never be the reason a short key becomes guessable. */
-const MASK_MIN_KEY_LENGTH = 12;
-
-/**
- * Builds the display-only hint stored in `masked`. Never reversible, never enough to authenticate
- * with: at most the last {@link MASK_VISIBLE_SUFFIX} characters, and nothing at all for a key too
- * short to spare them.
- *
- * @complexity O(1).
- * @example maskApiKey("tovu_live_abcdefgh1234"); // => "••••1234"
- */
+/** Jini owns hint length policy; the feature keeps its existing display format. */
 export function maskApiKey(apiKey: string): string {
-  if (apiKey.length < MASK_MIN_KEY_LENGTH) return "••••";
-  return `••••${apiKey.slice(-MASK_VISIBLE_SUFFIX)}`;
+  const hint = credentialTokenHint({ token: apiKey });
+  return `••••${hint.last4 ?? ""}`;
+}
+
+const peerKinds = createTovuVaultKinds({ policy: {
+  validateMeta: ({ meta }) => meta, legacyPublishCredential: () => undefined, tokenField: () => "apiKey",
+} });
+const peerScope = { kind: "publish-peer" as const, ownerKey: "tovu", principalId: null, provider: null };
+
+/** Keep feature permissions at the calling route/tool; restrict this adapter to its own kind.
+ * @complexity O(1); constructing a service performs no I/O.
+ */
+function peerVault({ repo, sealer, keyring, now }: {
+  repo: PublishContentPeerRepoPort; sealer: SecretSealerPort; keyring?: KeyringPort; now?: () => string;
+}, _options = {}): SecretsVaultService {
+  const unavailable = async (): Promise<never> => { throw new Error("peer read cannot access keyring"); };
+  return new SecretsVaultService({ repo: repo.vault, sealer,
+    keyring: keyring ?? { activeKey: unavailable, derive: unavailable, deriveSigningSecret: unavailable },
+    metaParsers: peerKinds.metaParsers, now: now ?? (() => new Date().toISOString()), newId: () => { throw new Error("peer ID must be supplied"); },
+    authorize: async ({ context }) => {
+      if (context.kind !== peerScope.kind || context.ownerKey !== peerScope.ownerKey || context.principalId !== null) throw new VaultError({ code: "context" });
+    },
+  });
+}
+
+/** Vault to the existing internal record; summaries never expose the envelope.
+ * @complexity O(metadata size) validation, then fixed projection.
+ */
+function peerRecord({ record }: { record: VaultRecord }, _options = {}): PublishContentPeerRecord {
+  if (record.kind !== "publish-peer" || record.ownerKey !== "tovu" || record.principalId !== null || record.provider !== null || record.binding !== null) throw new VaultError({ code: "context" });
+  const meta = peerKinds.metaParsers["publish-peer"]({ meta: record.meta });
+  return { workspaceId: record.workspaceId, id: record.id, label: record.label, baseUrl: meta.baseUrl as string,
+    remoteWorkspaceId: meta.remoteWorkspaceId as string, sealed: record.sealed,
+    masked: record.sealed ? `••••${record.tokenLength !== null && record.tokenLength >= 12 ? record.last4?.slice(-4) ?? "" : ""}` : null,
+    aadVersion: 1, createdAt: record.createdAt, updatedAt: record.updatedAt };
 }
 
 /**
@@ -209,29 +227,6 @@ function requireBaseUrl(raw: unknown): string {
   return result.baseUrl;
 }
 
-/**
- * Wraps `sealer.seal()`/`keyring.activeKey()` failure into the fail-closed
- * {@link PublishContentPeerSecretStoreUnconfiguredError} contract — never falls through to a
- * plaintext write. The underlying error's message is carried through because it names the
- * MISCONFIGURATION (an unset site key), never the plaintext being sealed.
- *
- * @complexity O(1) plus one key derivation and one AEAD seal.
- */
-async function sealApiKey(
-  deps: Pick<PublishContentPeerWriteDeps, "sealer" | "keyring">,
-  input: { workspaceId: string; id: string; apiKey: string }
-): Promise<SealedSecret> {
-  try {
-    const activeKey = await deps.keyring.activeKey();
-    const aad = buildPublishContentPeerAad({ workspaceId: input.workspaceId, id: input.id });
-    return await deps.sealer.seal({ plaintext: input.apiKey, key: activeKey, aad });
-  } catch (err) {
-    throw new PublishContentPeerSecretStoreUnconfiguredError(
-      `publish-content peer secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
-}
-
 /** True iff `err` is the `(workspace_id, label)` UNIQUE index rejecting a write, from any database
  *  (`isUniqueViolation`, storage kernel: SQLite's message, Postgres SQLSTATE 23505).
  *  @complexity O(n) in the message length. */
@@ -267,32 +262,20 @@ export async function createPublishContentPeer(
   const apiKey = requireBoundedField(input.apiKey, "apiKey");
 
   const id = deps.idGen.newId();
-  const sealed = await sealApiKey(deps, { workspaceId: input.workspaceId, id, apiKey });
   const now = nowIso({ clock: deps.clock });
-
-  const record: PublishContentPeerRecord = {
-    workspaceId: input.workspaceId,
-    id,
-    label,
-    baseUrl,
-    remoteWorkspaceId,
-    sealed,
-    masked: maskApiKey(apiKey),
-    aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
-    createdAt: now,
-    updatedAt: now,
-  };
-
   try {
-    await deps.repo.insert(record);
+    await peerVault({ ...deps, now: () => now }).put({ ...peerScope, workspaceId: input.workspaceId, id,
+      binding: null, expectedRevision: null, label, meta: { baseUrl, remoteWorkspaceId },
+      payload: { apiKey }, hintToken: apiKey });
   } catch (err) {
-    if (isUniqueLabelViolation(err)) {
+    if (isUniqueLabelViolation(err) || (err instanceof VaultError && err.code === "conflict" &&
+      (await deps.repo.listByWorkspace({ workspaceId: input.workspaceId })).some(row => row.label === label))) {
       throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
     }
-    throw err;
+    if (err instanceof VaultError) throw err;
+    throw new PublishContentPeerSecretStoreUnconfiguredError("publish-content peer secret store is unconfigured");
   }
-
-  return toPeerSummary(record);
+  return { id, label, baseUrl, remoteWorkspaceId, masked: maskApiKey(apiKey), hasCredential: true };
 }
 
 export interface UpdatePeerInput {
@@ -327,37 +310,31 @@ export async function updatePublishContentPeer(
       ? existing.remoteWorkspaceId
       : requireBoundedField(input.remoteWorkspaceId, "remoteWorkspaceId");
 
-  let sealed = existing.sealed;
-  let masked = existing.masked;
-  let aadVersion = existing.aadVersion;
-  if (input.apiKey !== undefined) {
-    const apiKey = requireBoundedField(input.apiKey, "apiKey");
-    sealed = await sealApiKey(deps, { workspaceId: input.workspaceId, id: input.id, apiKey });
-    masked = maskApiKey(apiKey);
-    aadVersion = PUBLISH_CONTENT_PEER_AAD_VERSION;
+  const now = nowIso({ clock: deps.clock });
+  if (input.apiKey === undefined) {
+    try { await deps.repo.update({ ...existing, label, baseUrl, remoteWorkspaceId, updatedAt: now }); }
+    catch (err) {
+      if (isUniqueLabelViolation(err)) throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
+      throw err;
+    }
+    return toPeerSummary({ ...existing, label, baseUrl, remoteWorkspaceId });
   }
-
-  const record: PublishContentPeerRecord = {
-    ...existing,
-    label,
-    baseUrl,
-    remoteWorkspaceId,
-    sealed,
-    masked,
-    aadVersion,
-    updatedAt: nowIso({ clock: deps.clock }),
-  };
-
+  const apiKey = requireBoundedField(input.apiKey, "apiKey");
+  const current = await deps.repo.vault.find({ workspaceId: input.workspaceId, id: input.id });
+  if (!current) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
   try {
-    await deps.repo.update(record);
+    await peerVault({ ...deps, now: () => now }).put({ ...peerScope, workspaceId: input.workspaceId, id: input.id,
+      binding: null, expectedRevision: current.revision, label, meta: { ...current.meta, baseUrl, remoteWorkspaceId },
+      payload: { apiKey }, hintToken: apiKey });
   } catch (err) {
-    if (isUniqueLabelViolation(err)) {
+    if (isUniqueLabelViolation(err) || (err instanceof VaultError && err.code === "conflict" &&
+      (await deps.repo.listByWorkspace({ workspaceId: input.workspaceId })).some(row => row.id !== input.id && row.label === label))) {
       throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
     }
-    throw err;
+    if (err instanceof VaultError) throw err;
+    throw new PublishContentPeerSecretStoreUnconfiguredError("publish-content peer secret store is unconfigured");
   }
-
-  return toPeerSummary(record);
+  return { id: input.id, label, baseUrl, remoteWorkspaceId, masked: maskApiKey(apiKey), hasCredential: true };
 }
 
 /**
@@ -415,7 +392,7 @@ export interface ResolvedPeerCredential {
  * @throws {PublishContentPeerSecretStoreUnconfiguredError} when the site key is unavailable or the
  * ciphertext fails auth-tag verification — a typed error rather than whatever raw error
  * `SecretSealerPort.open()` produced, so a boundary never renders a driver message.
- * @complexity O(1) — one read and one AEAD open.
+ * @complexity Two row reads and one AEAD open; no group scan.
  */
 export async function resolvePeerCredential(
   deps: { repo: PublishContentPeerRepoPort; sealer: SecretSealerPort },
@@ -429,18 +406,14 @@ export async function resolvePeerCredential(
     );
   }
 
-  const aad = buildPublishContentPeerAad({
-    workspaceId: record.workspaceId,
-    id: record.id,
-    aadVersion: record.aadVersion,
-  });
   let apiKey: string;
   try {
-    apiKey = await deps.sealer.open({ sealed: record.sealed }, { aad });
-  } catch (err) {
-    throw new PublishContentPeerSecretStoreUnconfiguredError(
-      `peer '${record.label}' credential could not be opened: ${err instanceof Error ? err.message : String(err)}`
-    );
+    const opened = await peerVault(deps).get({ ...peerScope, ...input, binding: null });
+    if (typeof opened?.payload?.apiKey !== "string") throw new VaultError({ code: "invalid-record" });
+    apiKey = opened.payload.apiKey;
+  } catch {
+    // Raw crypto/driver errors can describe secrets; only the feature's safe error crosses out.
+    throw new PublishContentPeerSecretStoreUnconfiguredError(`peer '${record.label}' credential could not be opened`);
   }
 
   return {
@@ -452,54 +425,55 @@ export async function resolvePeerCredential(
   };
 }
 
-/**
- * In-memory {@link PublishContentPeerRepoPort} — the ADR-006 rule-of-two second adapter beside
- * `platform/db/sqlite/publish-content-peer-repo.sqlite.ts`, colocated here exactly as
- * `bundle-staging.ts` colocates `InMemoryPublishContentBundleRepo`.
- *
- * Enforces the `(workspaceId, label)` UNIQUE index in the SAME shape the SQLite driver reports it,
- * so a test exercising the duplicate-label path proves the real translation rather than a friendlier
- * in-memory one.
+/** Thin compatibility facade: Jini owns storage, uniqueness, defaults and revision CAS.
+ * Metadata-only connected destinations retain the nullable envelope marker.
  */
-export class InMemoryPublishContentPeerRepo implements PublishContentPeerRepoPort {
-  private readonly rows = new Map<string, PublishContentPeerRecord>();
+export class VaultPublishContentPeerRepo implements PublishContentPeerRepoPort {
+  constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
+  readonly vault: VaultRepoPort;
 
-  private static key(workspaceId: string, id: string): string {
-    return `${workspaceId}:${id}`;
-  }
+  async insert(record: PublishContentPeerRecord): Promise<void> { await this.write({ record, insert: true }); }
+  async update(record: PublishContentPeerRecord): Promise<void> { await this.write({ record, insert: false }); }
 
-  /** @complexity O(n) in the stored row count (the uniqueness scan). */
-  private assertLabelFree(record: PublishContentPeerRecord): void {
-    for (const existing of this.rows.values()) {
-      if (existing.workspaceId !== record.workspaceId) continue;
-      if (existing.id === record.id) continue;
-      if (existing.label === record.label) {
+  /** Preserve opaque bytes for metadata edits; Jini guards the replacement revision.
+   * @complexity O(metadata size), one read and one CAS write; only conflicts query labels.
+   */
+  private async write({ record, insert }: { record: PublishContentPeerRecord; insert: boolean }, _options = {}): Promise<void> {
+    const existing = insert ? null : await this.vault.find(record);
+    if (!insert && !existing) return;
+    if (existing) peerRecord({ record: existing });
+    const meta = peerKinds.metaParsers["publish-peer"]({ meta: { ...existing?.meta, baseUrl: record.baseUrl, remoteWorkspaceId: record.remoteWorkspaceId } });
+    const saved: VaultRecord = { ...peerScope, workspaceId: record.workspaceId, id: record.id, binding: null,
+      label: record.label, meta, sealed: record.sealed, isDefault: existing?.isDefault ?? false,
+      revision: (existing?.revision ?? 0) + 1, last4: record.sealed ? existing?.last4 ?? null : null,
+      tokenLength: record.sealed ? existing?.tokenLength ?? null : null, createdAt: existing?.createdAt ?? record.createdAt, updatedAt: record.updatedAt };
+    try { await this.vault.put({ record: saved, expectedRevision: existing?.revision ?? null }); }
+    catch (err) {
+      if (err instanceof VaultError && err.code === "conflict" &&
+        (await this.vault.list({ ...peerScope, workspaceId: record.workspaceId })).some(row => row.id !== record.id && row.label === record.label)) {
         throw new Error("UNIQUE constraint failed: publish_content_peers.workspace_id, publish_content_peers.label");
       }
+      throw err;
     }
   }
-
-  async insert(record: PublishContentPeerRecord): Promise<void> {
-    this.assertLabelFree(record);
-    this.rows.set(InMemoryPublishContentPeerRepo.key(record.workspaceId, record.id), record);
-  }
-
-  async update(record: PublishContentPeerRecord): Promise<void> {
-    this.assertLabelFree(record);
-    this.rows.set(InMemoryPublishContentPeerRepo.key(record.workspaceId, record.id), record);
-  }
-
   async findById(input: { workspaceId: string; id: string }): Promise<PublishContentPeerRecord | null> {
-    return this.rows.get(InMemoryPublishContentPeerRepo.key(input.workspaceId, input.id)) ?? null;
+    const record = await this.vault.find(input);
+    return record ? peerRecord({ record }) : null;
   }
-
   async listByWorkspace(input: { workspaceId: string }): Promise<PublishContentPeerRecord[]> {
-    return Array.from(this.rows.values()).filter((row) => row.workspaceId === input.workspaceId);
+    return (await this.vault.list({ ...peerScope, ...input })).map(record => peerRecord({ record }));
   }
-
   async delete(input: { workspaceId: string; id: string }): Promise<void> {
-    this.rows.delete(InMemoryPublishContentPeerRepo.key(input.workspaceId, input.id));
+    const existing = await this.vault.find(input);
+    if (!existing) return;
+    peerRecord({ record: existing });
+    await this.vault.delete({ ...input, expectedRevision: existing.revision });
   }
+}
+
+/** Same facade as SQL, backed by Jini's memory adapter rather than a second lifecycle. */
+export class InMemoryPublishContentPeerRepo extends VaultPublishContentPeerRepo {
+  constructor(_required = {}, _options = {}) { super({ vault: new InMemoryVaultRepo({}) }); }
 }
 
 /**
@@ -595,7 +569,7 @@ export async function saveConnectedDestination(
     // at publish time, so there is nothing to store between publishes.
     sealed: null,
     masked: null,
-    aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
+    aadVersion: 1,
     createdAt: match?.createdAt ?? now,
     updatedAt: now,
   };

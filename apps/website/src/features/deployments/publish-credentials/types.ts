@@ -1,3 +1,4 @@
+import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { CredentialTokenHint } from '../../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
@@ -60,13 +61,14 @@ export type PublishProviderId = string;
 export type PublishConnectionInput = { readonly providerId: PublishProviderId } & Readonly<Record<string, string>>;
 
 /** LEGACY (2026-09-29): publish credentials now live in `vendor_credential_sets` (`store.ts`). This
- *  record and {@link PublishCredentialSetRepoPort} remain only so `vendor-table-backfill.ts` can read
- *  the old rows it copies at boot; nothing else may read them.
+ *  record and {@link PublishCredentialSetRepoPort} retain the compatibility DTO after migration
+ *  0012 folds the legacy rows into the vendor vault kind; no recurring backfill remains.
  *
  *  A `publish_credential_sets` row, decrypted-shape (`sealed` is the DB's opaque
  *  `SealedSecret` — the actual `PublishConnectionInput` only exists in memory after
  *  `resolveForPublish` opens it; see `store.ts`). */
 export interface PublishCredentialSetRecord {
+  readonly tokenHint?: CredentialTokenHint | null;
   readonly workspaceId: UUID;
   readonly id: UUID;
   readonly providerId: PublishProviderId;
@@ -123,6 +125,7 @@ export interface PublishCredentialSummary {
  * "first row for a provider auto-defaults"); this port only guarantees the GROUP-WIDE invariant once
  * that value is decided. */
 export interface PublishCredentialSetRepoPort {
+  readonly vault?: VaultRepoPort;
   insert(record: PublishCredentialSetRecord): Promise<void>;
   /** Full-row replace by `(workspaceId, id)` — used for both a label rename and a connection
    *  rotation. Same UNIQUE-violation possibility as `insert` (renaming into another row's label). */

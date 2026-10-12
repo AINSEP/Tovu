@@ -10,14 +10,14 @@ import { SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from '../../contra
 import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallPermitted } from '../mcp-ui-tool-calls.js';
 import { realToolCatalog } from './real-tool-catalog.fixture.js';
 
-/** Phase 16 baseline captured from the shared working tree before projection edits, with exact
- * search strings. Relocated prose is retained data, never counted as removed implementation. */
+/** Phase 16 baseline with reviewed render/gallery discovery and human-only credential copy
+ * additions. Exact search strings and callback restrictions remain independently pinned. */
 const baseline = JSON.parse(readFileSync(new URL('./fixtures/tool-metadata.baseline.json', import.meta.url), 'utf8')) as {
   keywords: Record<string, string>; queries: Record<string, string[]>; approvals: Record<string, unknown>;
   policyConfirmationIds: string[]; secretForms: Record<string, unknown>; redeemableIds: string[]; exchangeOnlyIds: string[];
 };
 
-test('projected search, approval and callback metadata exactly matches the pre-change baseline', () => {
+test('projected search, approval and callback metadata exactly matches the reviewed baseline', () => {
   assert.deepEqual(TOOL_SEARCH_KEYWORDS, baseline.keywords);
   assert.deepEqual(DOC2QUERY, baseline.queries);
   assert.deepEqual(TOOL_APPROVAL_POLICY, baseline.approvals);

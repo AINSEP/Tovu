@@ -7,7 +7,8 @@ import { saveExternalMcpServer, readEnabledExternalMcpConfigs } from '../../../a
 import { probeExternalMcpServer } from '../../../server/runtime/services/external-mcp-probe.js';
 import { buildExternalMcpRegistrations } from '../../external-mcp/tool-registrations.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { SealedDatabaseDestinationStore, type DatabaseDestinationRecord } from '../../database-transfer/destination-store.js';
+import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
+import { SealedDatabaseDestinationStore } from '../../database-transfer/destination-store.js';
 import { createDestinationExchangeReporter } from '../../database-transfer/destination-exchange.js';
 import { buildDestinationForm, SET_DESTINATION_TOOL_ID } from '../../database-transfer/destination-ui.js';
 import { CREDENTIAL_MESSAGES } from '../../../contracts/core/credential-token.js';
@@ -80,14 +81,15 @@ for (const [token, message] of [['   ', CREDENTIAL_MESSAGES.blank], ['x'.repeat(
   assert.equal(answer.probes, 0); assert.equal(answer.result.saved, false); assert.equal(answer.result.message, message);
   assert.equal((await answer.repo.listByWorkspaceId(workspaceId)).length, 0);
 });
-test('database destination uses real sealing, keeps blank updates, refuses whitespace, and derives a safe outcome hint', async () => {
-  const crypto = cryptoDeps(); let row: DatabaseDestinationRecord | null = null;
-  const store = new SealedDatabaseDestinationStore({ ...crypto, repo: { find: async () => row, upsert: async record => { row = record; }, setLastRun: async () => {} } });
+test('database destination uses real sealing, keeps blank updates, refuses whitespace, and never derives a hint from the URI', async () => {
+  const crypto = cryptoDeps();
+  const store = new SealedDatabaseDestinationStore({ ...crypto, repo: new InMemoryVaultRepo({}) });
   const address = 'postgres://owner:canary-password@example.test:5432/project';
   const description = { host: 'example.test', port: '5432', database: 'project', user: 'owner' };
   const destination = (connectionString: string) => ({ connectionString, description, savedAt: clock.nowIso() });
   await store.save(workspaceId, destination(` \n${address}\n `));
   assert.equal((await store.get(workspaceId))?.connectionString === address, true, 'sealed URI round-trip is exact');
+  assert.equal((await store.get(workspaceId))?.tokenHint, undefined);
   await store.save(workspaceId, destination(''));
   await assert.rejects(store.save(workspaceId, destination('   ')), (error: unknown) => error instanceof Error && error.message === CREDENTIAL_MESSAGES.blank);
   assert.equal((await store.get(workspaceId))?.connectionString === address, true, 'bad updates do not clear the URI');

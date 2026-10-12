@@ -7,7 +7,7 @@ import { test as base, expect, type Page } from "../support/bug-pin-fixtures.js"
 import { waitForAgentDaemon } from "../support/bug-pin-daemon.js";
 import { createAdminChatDriver } from "../support/admin-chat-driver.js";
 import { createCredentialLeakAudit, type CredentialLeakAudit } from "../support/credential-card-leak-audit.js";
-import { buildCustomCredentialAad } from "../../../apps/website/src/features/custom-credentials/aad.js";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { FixedSiteKeyKeyring } from "../../../apps/website/src/features/webhooks/keyring.env.js";
 import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 
@@ -51,7 +51,7 @@ interface CredentialRow {
 }
 function credentialRows({ contentDb }: { contentDb: string }, _options = {}): CredentialRow[] {
   const db = new Database(contentDb, { fileMustExist: true });
-  try { return db.prepare("SELECT * FROM custom_credential_sets WHERE workspace_id = ?").all(WS) as CredentialRow[]; }
+  try { return db.prepare("SELECT * FROM secrets_vault WHERE kind = 'custom' AND workspace_id = ?").all(WS) as CredentialRow[]; }
   finally { db.close(); }
 }
 async function persistedTranscript(
@@ -120,7 +120,7 @@ test.describe("Bug pin: localhost credential-card safety", { tag: ["@real-servic
       const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring(manifest.env.TOVU_SITE_KEY, row.sealed_key_id));
       const opened = JSON.parse(await sealer.open({ sealed: {
         keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg,
-      } }, { aad: buildCustomCredentialAad({ workspaceId: WS, id: row.id }) })) as { token: string };
+      } }, { aad: buildVaultAad({ workspaceId: WS, id: row.id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })) as { token: string };
       // Compare booleans so failure diagnostics never print either plaintext operand.
       expect(Buffer.from(opened.token).equals(Buffer.from(savedCanary)), "saved secret opens byte-for-byte").toBe(true);
       const listing = await page.request.get(CREDENTIALS);

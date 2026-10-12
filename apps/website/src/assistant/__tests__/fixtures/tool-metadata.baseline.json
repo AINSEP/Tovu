@@ -1,5 +1,7 @@
 {
   "keywords": {
+    "assistant_chats_list": "previous earlier interrupted chat conversation history search resume continue what we were doing",
+    "assistant_chat_read": "read previous chat transcript history tail messages resume interrupted continue conversation",
     "content_stats": "how many count number of posts pages articles statistics stats word count words long length percentage chart pie breakdown",
     "analytics_list_recent_hits": "analytics traffic visitors visits views page views hits who visited popular pages referrers where from recent",
     "system_get_mail_status": "email mail not arriving didn't get email sending configured smtp provider delivery magic link",
@@ -136,7 +138,7 @@
     "taxonomy_plan_merge_term": "tag category term merge combine duplicate preview before",
     "taxonomy_execute_merge_term": "tag category term merge combine execute run confirm confirmed apply proceed",
     "widgets_bind_region": "widget sidebar footer region area slot place put add section",
-    "widgets_create_instance": "widget create add new block sidebar footer",
+    "widgets_create_instance": "widget gallery images photos grid carousel masonry create add new block sidebar footer",
     "widgets_list_regions": "widget regions areas slots sidebar footer available",
     "widgets_list_instances": "widget widgets list existing placed blocks",
     "widgets_get_instance": "widget read view details one existing current where used which pages use uses used usage where banner",
@@ -264,7 +266,7 @@
     "custom_credential_set_username": "credential username set add fix repair update change login sign in basic auth account name saved api key token 401 unauthorized broken not working",
     "agent_plugin_connect": "connect sign in signin login link account database setup set up enable activate authorize authorization oauth plugin",
     "web_screenshot_page": "screenshot screenshots screen capture captures snapshot picture image see look looks looking like view visual visually appearance layout design style styling render rendered rendering page pages webpage website websites site url link compare comparison parity side-by-side match matches mobile tablet desktop responsive viewport existing competitor reference import copy",
-    "web_fetch_page": "web webpage webpages page pages website websites site url urls link internet online public external remote fetch fetching read reading open visit browse scrape scraping crawl download get view html markdown text sitemap sitemaps robots css stylesheet import copy migrate existing competitor reference",
+    "web_fetch_page": "web webpage webpages page pages website websites site url urls link internet online public external remote fetch fetching read reading open visit browse scrape scraping crawl download get view html markdown text sitemap sitemaps robots css stylesheet import copy migrate existing competitor reference render rendered javascript js spa softr wix webflow xhr json data cookie screenshot",
     "theme_duplicate": "theme duplicate copy clone fork new theme from existing create make start redesign variant based on scaffold",
     "comments_get_comment": "comment single details read approved spam trash id version",
     "taxonomy_get_term": "term tag category details parent taxonomy id read one",
@@ -275,9 +277,23 @@
     "members_update_profile": "member visitor profile update edit rename name",
     "webhooks_update_subscription": "webhook subscription edit update label target url topics endpoint",
     "site_guide": "how tovu works site guide learn building blocks forms widgets markers themes members SEO deploy plugins Jini",
-    "identity_user_change_username": "username login name rename change update user account own profile"
+    "identity_user_change_username": "username login name rename change update user account own profile",
+    "plugin_source_create": "plugin source code create scaffold site local server content filter fields types",
+    "plugin_source_open": "plugin source open draft edit installed working copy",
+    "plugin_source_list": "plugin source draft list files code",
+    "plugin_source_read": "plugin source draft read file code",
+    "plugin_source_write": "plugin source draft write file code create overwrite",
+    "plugin_source_edit": "plugin source draft edit file code exact replace string",
+    "plugin_source_delete": "plugin source draft delete file permanently remove",
+    "plugin_source_seal": "plugin source seal validate integrity install version patch reload code",
+    "plugin_source_rollback": "plugin source rollback previous version restore code",
+    "credential_copy_from_project": "copy import reuse keys credentials tokens local project site source overwrite"
   },
   "queries": {
+    "assistant_chats_list": [
+      "I had to start a new chat. Can you find what we were doing?",
+      "Find my previous conversation."
+    ],
     "publish_content_publish": [
       "Publish my changes to the live site.",
       "Publish only the About page.",
@@ -1701,6 +1717,7 @@
     ],
     "web_fetch_page": [
       "Fetch a web page.",
+      "Read the JavaScript-rendered content and data of a Softr or SPA website.",
       "Read a website.",
       "Open this URL and tell me what it says.",
       "Turn this existing website into pages and posts.",
@@ -1743,9 +1760,21 @@
     "deployment_execute_static_publish": [
       "Publish the site to production hosting.",
       "Deploy this website and make it live."
+    ],
+    "credential_copy_from_project": [
+      "Copy keys from another local project.",
+      "Reuse another site's saved API keys in this project."
     ]
   },
   "approvals": {
+    "assistant_chats_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "assistant_chat_read": {
+      "class": "read",
+      "confirmation": "direct"
+    },
     "content_read.backup_restore_point": {
       "class": "read",
       "confirmation": "direct"
@@ -3056,6 +3085,47 @@
     "identity_user_change_username": {
       "class": "edit",
       "confirmation": "direct"
+    },
+    "plugin_source_create": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "plugin_source_open": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "plugin_source_list": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "plugin_source_read": {
+      "class": "read",
+      "confirmation": "direct"
+    },
+    "plugin_source_write": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "plugin_source_edit": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "plugin_source_delete": {
+      "class": "delete",
+      "confirmation": "plan"
+    },
+    "plugin_source_seal": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "plugin_source_rollback": {
+      "class": "edit",
+      "confirmation": "direct"
+    },
+    "credential_copy_from_project": {
+      "class": "edit",
+      "confirmation": "direct",
+      "input": "human-form"
     }
   },
   "policyConfirmationIds": [
@@ -3101,7 +3171,8 @@
     "trash_item",
     "trash_purge_item",
     "webhooks_delete_subscription",
-    "widgets_trash_instance"
+    "widgets_trash_instance",
+    "plugin_source_delete"
   ],
   "secretForms": {
     "credential_save": {
@@ -3183,7 +3254,9 @@
     "assistant_demo_choices",
     "assistant_ask_choice",
     "assistant_tool_failure_recovery",
-    "external_mcp_reauth_prompt"
+    "external_mcp_reauth_prompt",
+    "plugin_source_delete",
+    "credential_copy_from_project"
   ],
   "exchangeOnlyIds": [
     "credential_save",
@@ -3232,7 +3305,9 @@
     "trash_item",
     "trash_purge_item",
     "webhooks_delete_subscription",
-    "widgets_trash_instance"
+    "widgets_trash_instance",
+    "plugin_source_delete",
+    "credential_copy_from_project"
   ],
   "chatPermanentDeletes": {
     "defaultEnabled": false,

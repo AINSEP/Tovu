@@ -26,7 +26,7 @@ type CountedTable = "principal_roles" | "principal_policies" | "sessions" | "api
  * Deletes, in decision 2's order: `principal_roles`, `principal_policies`, `sessions`, `api_keys`
  * (only keys bound to this principal — a key an agent/api_key principal ISSUED has its own,
  * different `principalId` and is untouched), `setting_values_user`,
- * `admin_execution_credentials` (its FK already cascades with `principals` below; deleted
+ * principal-bound `secrets_vault` rows (their FK already cascades with `principals` below; deleted
  * explicitly anyway so this method's own behavior does not depend on cascade ordering for a
  * credential row), `identity_users`, `principals`.
  *
@@ -65,7 +65,7 @@ export class SqlUserPurge implements UserPurgePort {
       const userSettings = await deleteCounted("setting_values_user");
       await this.kernel.run(async (db) => {
         await db
-          .deleteFrom("admin_execution_credentials")
+          .deleteFrom("secrets_vault")
           .where("workspace_id", "=", workspaceId)
           .where("principal_id", "=", principalId)
           .execute();

@@ -44,6 +44,9 @@ import {
 } from "../../features/content-types/index.js";
 import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { credentialSaveCatalog } from "../../features/custom-credentials/credential-save-tool.js";
+import { catalog as credentialCopyCatalog } from "../../features/custom-credentials/credential-copy-tool.js";
+import { catalog as siteGuideCatalog } from "../../server/runtime/composition/site-guide-tools.js";
+import { assistantHistoryToolCatalog } from "@jini-ai/chat/store/runtime";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
 import { domainDnsAgentToolCatalog } from "../../features/domain-dns/tools.js";
 import { deployOpsAgentToolCatalog } from "../../features/deployments/deploy-ops/agent-tools.js";
@@ -100,6 +103,7 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
+import { pluginSourceAgentToolCatalog } from '../../features/plugin-runtime/source-tools.js';
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 
 const contributions = {
@@ -202,6 +206,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   recovery: recoveryAgentToolCatalog as unknown as AgentToolDefinition[],
   plugins: pluginAgentToolCatalog as unknown as AgentToolDefinition[],
   "plugins-install": pluginsInstallCatalog,
+  'plugin-source': pluginSourceAgentToolCatalog,
   "skills-install": skillsInstallCatalog,
   workspace: getWorkspaceAgentToolCatalog() as unknown as AgentToolDefinition[],
   settings: getSettingsAgentToolCatalog() as unknown as AgentToolDefinition[],
@@ -230,6 +235,9 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "site-backup": siteBackupAgentToolCatalog as unknown as AgentToolDefinition[],
   "custom-credentials": customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[],
   "credential-save": credentialSaveCatalog as unknown as AgentToolDefinition[],
+  "credential-copy": credentialCopyCatalog,
+  "site-guide": [...siteGuideCatalog.values()] as unknown as AgentToolDefinition[],
+  "assistant-history": [...assistantHistoryToolCatalog.values()],
   "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
   "media-providers": mediaProvidersAgentToolCatalog as unknown as AgentToolDefinition[],
   "media-import": mediaImportAgentToolCatalog as unknown as AgentToolDefinition[],

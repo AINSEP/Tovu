@@ -6,7 +6,7 @@ import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
-import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
+import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from "./oauth-callback-url.js";
 
 /**
  * @file The PUBLIC external-MCP OAuth callback — a route that is not behind `requireAdminSession`
@@ -17,16 +17,15 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
  * cookie. An authenticated callback would reject every real handshake. The cookie policy is correct
  * and stays untouched.
  *
- * What authenticates the request instead is the OAuth `state`
- * (`oauth/pending-authorizations.ts`): 24 cryptographically random bytes minted server-side,
- * single-use, expiring, and BOUND to `${workspaceId}:${serverId}` so a state issued for one
- * connection cannot be redeemed against another. Credential material never travels through the
- * browser — the token exchange is a server-side POST during completion.
+ * What authenticates the request instead is the OAuth `state`, sealed with the site key and bound
+ * to workspace, server, provider, exact redirect URI and expiry. The encrypted verifier can cross
+ * processes without a pending row. The provider's single-use code prevents replay within the TTL;
+ * token exchange remains a server-side POST and plaintext credentials never reach the browser.
  *
  * ## Everything on this request is untrusted
  *
  * `state`, `code` and `error` arrive from a third party. They are narrowed to strings here and
- * validated (charset, length, single-use redemption) in `oauth/authorization-code.ts` before any of
+ * validated (length, authentication, expiry and binding) in `oauth/authorization-code.ts` before any of
  * them reaches a token endpoint. Nothing from the request reaches the response body — see
  * `routes/oauth/callback-page.ts`.
  *
@@ -60,8 +59,8 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
  *
  * What authorizes this trigger, given the route itself carries no session: the SAME `state` this
  * route already requires to reach `completeAuthorizationCallback` at all (this file's own header,
- * above) — 24 cryptographically random, single-use bytes minted only by the admin-session-gated
- * `POST .../oauth/connect` route (`admin-http/routes/external-mcp/oauth.ts`). A remote MCP server or
+ * above) — encrypted state minted by the admin-session-gated connect route or an authorized
+ * assistant tool, followed by the provider's single-use code exchange. A remote MCP server or
  * an unauthenticated caller cannot manufacture a valid `state`, so by the time this trigger fires, an
  * admin session is already the reason this code path is running at all — the same "operator-
  * authorized" property `beginConnect`'s own gate establishes, just observed one hop later.
@@ -95,7 +94,7 @@ function parseCallbackQuery(query: Record<string, unknown>): { state: string; co
  * the six fixed strings in {@link OAuthCallbackFailureReason} — nothing it reads from `error` can
  * reach the return value directly.
  *
- * `OAUTH_INVALID_STATE` covers an unknown, expired, replayed, or wrongly-owned state alike (see
+ * `OAUTH_INVALID_STATE` covers malformed, tampered, expired, or wrongly-bound state alike (see
  * `authorization-code.ts`'s `completeAuthorizationCode` doc) — `"state_expired"` is the one reason
  * name from the vocabulary that fits all of those, and is distinct from `"no_state"`, which the route
  * itself reports before ever calling the service (the query carried no `state` at all). Any
@@ -137,7 +136,8 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
     }
 
     try {
-      await deps.oauth.completeAuthorizationCallback({ serverId: String(req.params.serverId ?? ""), params });
+      const serverId = String(req.params.serverId ?? "");
+      await deps.oauth.completeAuthorizationCallback({ serverId, redirectUri: externalMcpOAuthCallbackUrl(req, serverId), params });
       // The seal-and-persist is already awaited inside `completeAuthorizationCallback`, so by the
       // time this responds the token is durable — the operator's next action is to close the window,
       // and reporting success over a write still in flight would report a connection that is one

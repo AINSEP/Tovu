@@ -216,7 +216,7 @@ test("the private form saves a reachable destination, and neither the form, its 
   const h = harness(t);
   const { result, form, outcome } = await typeDestination(h, { address: CONNECTION });
   assert.deepEqual(result, { saved: true, destination: { host: "localhost", port: "5432", database: FIXTURE_DB, user: process.env.PGUSER ?? "la" }, replaces: null,
-    tokenHint: { length: CONNECTION.length, last4: CONNECTION.slice(-4) }, connection: "connected" });
+    tokenHint: null, connection: "connected" });
   assert.match(form, /<input class="mcpui-input" type="password" id="mcpui-field-address" name="address"/, "the address field is masked");
   assert.match(outcome, /Destination saved/);
   for (const text of [JSON.stringify(result), form, outcome, ...h.logs]) assert.doesNotMatch(text, new RegExp(PASSWORD));

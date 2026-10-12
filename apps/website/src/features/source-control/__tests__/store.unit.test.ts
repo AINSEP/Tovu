@@ -1,3 +1,4 @@
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
@@ -6,6 +7,7 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { KeyringPort } from "../../webhooks/index.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
+import { credentialScope } from "../../vendor-credentials/vault-adapter.js";
 import { loadSourceControlProviderRegistryFromSource, type LoadSourceControlProviders } from "../provider-registry.js";
 import {
   createSourceControlCredential,
@@ -532,17 +534,10 @@ test("bitbucket rejects a blank (whitespace-only) username, distinctly from a MI
  *  never mis-translated into DuplicateLabelError. */
 test("createSourceControlCredential propagates a non-unique-violation repo failure unchanged, never mistaking it for a duplicate label", async () => {
   const real = new InMemorySourceControlCredentialSetRepo();
-  const failingInsertRepo = {
-    insert: async () => {
-      throw new Error("SQLITE_BUSY: database is locked");
-    },
-    update: real.update.bind(real),
-    findById: real.findById.bind(real),
-    findDefaultByProvider: real.findDefaultByProvider.bind(real),
-    listByProvider: real.listByProvider.bind(real),
-    listByWorkspace: real.listByWorkspace.bind(real),
-    delete: real.delete.bind(real),
-  };
+  class FailingVault extends InMemoryVaultRepo {
+    override async put(): Promise<never> { throw new Error("SQLITE_BUSY: database is locked"); }
+  }
+  const failingInsertRepo = new InMemorySourceControlCredentialSetRepo({ vault: new FailingVault({}) });
   const deps = makeDeps({ repo: failingInsertRepo });
   await assert.rejects(
     createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "github", token: "t" } }),
@@ -556,17 +551,8 @@ test("updateSourceControlCredential propagates a non-unique-violation repo failu
   const deps = makeDeps({ repo: real });
   const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "github", token: "t" } });
 
-  const failingUpdateRepo = {
-    insert: real.insert.bind(real),
-    update: async () => {
-      throw new Error("SQLITE_BUSY: database is locked");
-    },
-    findById: real.findById.bind(real),
-    findDefaultByProvider: real.findDefaultByProvider.bind(real),
-    listByProvider: real.listByProvider.bind(real),
-    listByWorkspace: real.listByWorkspace.bind(real),
-    delete: real.delete.bind(real),
-  };
+  real.vault.put = async () => { throw new Error("SQLITE_BUSY: database is locked"); };
+  const failingUpdateRepo = real;
   const brokenUpdateDeps = makeDeps({ repo: failingUpdateRepo });
   await assert.rejects(
     updateSourceControlCredential(brokenUpdateDeps, { workspaceId: WORKSPACE, id: created.id, label: "renamed" }),
@@ -651,4 +637,99 @@ test('a pending old probe cannot overwrite a newer token rotation or label', asy
   assert.equal(current?.label, 'renamed');
   assert.equal(current?.accountLabel, null, 'the old account label cannot attach to a new token');
   assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: 'github' }))?.connection.token === 'replacement-credential-b8G3', true);
+});
+
+test("vault default resolution never lists sibling credentials", async () => {
+  const deps = makeDeps({ loadSourceControlProviders: noProviders });
+  const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Default", connection: { providerId: "github", token: "default-secret" } });
+  deps.repo.vault!.list = async () => { throw new Error("default reads must not list"); };
+  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" }))?.id, created.id);
+});
+
+test("vault summary hints require no per-row reads or opens and suppress short tails", async () => {
+  const deps = makeDeps({ loadSourceControlProviders: noProviders });
+  await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Short", connection: { providerId: "github", token: "short" } });
+  await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Long", connection: { providerId: "github", token: "twelvechars!" } });
+  deps.repo.vault!.find = async () => { throw new Error("summary list must not hydrate rows"); };
+  const listed = await listSourceControlCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  assert.deepEqual(listed.map(row => row.tokenHint), [{ length: 5, last4: null }, { length: 12, last4: "ars!" }]);
+});
+
+test("a source identity probe completing after deletion cannot recreate its vault row", async () => {
+  let begin!: () => void;
+  let finish!: () => void;
+  const started = new Promise<void>(resolve => { begin = resolve; });
+  const pending = new Promise<void>(resolve => { finish = resolve; });
+  const deps = makeDeps({ fetchFn: async () => { begin(); await pending; return Response.json({ login: "old-account" }); } });
+  const saving = createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Pending", connection: { providerId: "github", token: "pending-secret" } });
+  await started;
+  const saved = (await listSourceControlCredentials(deps, { workspaceId: WORKSPACE }))[0]!;
+  await deleteSourceControlCredential(deps, { workspaceId: WORKSPACE, id: saved.id });
+  finish();
+  await saving;
+  const reboot = new InMemorySourceControlCredentialSetRepo({ vault: deps.repo.vault! });
+  assert.deepEqual(await listSourceControlCredentials({ repo: reboot }, { workspaceId: WORKSPACE }), []);
+});
+
+test("a source identity probe completing after rotation cannot heal the new token", async () => {
+  let begin!: () => void;
+  let finish!: () => void;
+  let probes = 0;
+  const started = new Promise<void>(resolve => { begin = resolve; });
+  const pending = new Promise<void>(resolve => { finish = resolve; });
+  const deps = makeDeps({ fetchFn: async () => {
+    if (++probes === 1) { begin(); await pending; return Response.json({ login: "old-account" }); }
+    return Response.json({ login: "new-account" });
+  } });
+  const saving = createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Pending", connection: { providerId: "github", token: "original-token" } });
+  await started;
+  const saved = (await listSourceControlCredentials(deps, { workspaceId: WORKSPACE }))[0]!;
+  await updateSourceControlCredential(deps, { workspaceId: WORKSPACE, id: saved.id, connection: { providerId: "github", token: "replacement-token" } });
+  finish();
+  await saving;
+  assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }))?.accountLabel, "new-account");
+  assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" }))?.connection.token, "replacement-token");
+});
+
+for (const selectDefault of [false, true]) {
+  test(`provider-only source moves preserve the envelope and atomically select defaults (explicit=${selectDefault})`, async () => {
+    const deps = makeDeps({ loadSourceControlProviders: noProviders });
+    const original = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Moving", connection: { providerId: "github", token: "original-secret" } });
+    const sibling = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Remaining", connection: { providerId: "github", token: "remaining-secret" } });
+    const destination = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Destination", connection: { providerId: "gitlab", token: "destination-secret" } });
+    assert.ok(deps.repo.updateAccountLabel);
+    await deps.repo.updateAccountLabel({ workspaceId: WORKSPACE, id: original.id, accountLabel: "old-account" });
+    const before = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: original.id });
+    const noCrypto = { seal: async () => { throw new Error("move must not seal"); }, open: async () => { throw new Error("move must not open"); } };
+    const moved = await updateSourceControlCredential({ ...deps, keyring: new BrokenKeyring(), sealer: noCrypto },
+      { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "gitlab", token: "" }, ...(selectDefault ? { isDefault: true } : {}) });
+    const after = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: original.id });
+    assert.equal(moved.id, original.id);
+    assert.equal(moved.createdAt, original.createdAt);
+    assert.equal(moved.providerId, "gitlab");
+    assert.equal(moved.accountLabel, null);
+    assert.equal(moved.isDefault, selectDefault);
+    assert.deepEqual(after?.sealed, before?.sealed);
+    assert.deepEqual(moved.tokenHint, original.tokenHint);
+    assert.equal(after?.revision, before!.revision + 1);
+    assert.equal((await deps.repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "github" }))?.id, sibling.id);
+    assert.equal((await deps.repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "gitlab" }))?.id, selectDefault ? original.id : destination.id);
+    assert.equal((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "gitlab" }))?.connection.token, selectDefault ? "original-secret" : "destination-secret");
+    if (!selectDefault) {
+      const returned = await updateSourceControlCredential({ ...deps, sealer: noCrypto }, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "github" }, isDefault: true });
+      assert.equal(returned.isDefault, true);
+      assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: "github" }))?.connection, { providerId: "github", token: "original-secret" });
+    }
+  });
+}
+
+test("source provider moves reject label collisions and incompatible paired credentials without changing either group", async () => {
+  const deps = makeDeps({ loadSourceControlProviders: noProviders });
+  const original = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Collision", connection: { providerId: "github", token: "original-secret" } });
+  await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "Collision", connection: { providerId: "gitlab", token: "destination-secret" } });
+  const before = await deps.repo.vault!.list({ ...credentialScope({ workspaceId: WORKSPACE, kind: "source-control" }) });
+  await assert.rejects(updateSourceControlCredential(deps, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "gitlab" }, isDefault: true }), SourceControlCredentialDuplicateLabelError);
+  await assert.rejects(updateSourceControlCredential(deps, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "bitbucket" } }), SourceControlCredentialValidationError);
+  await assert.rejects(updateSourceControlCredential(deps, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "unknown" } }), SourceControlCredentialValidationError);
+  assert.deepEqual(await deps.repo.vault!.list({ ...credentialScope({ workspaceId: WORKSPACE, kind: "source-control" }) }), before);
 });

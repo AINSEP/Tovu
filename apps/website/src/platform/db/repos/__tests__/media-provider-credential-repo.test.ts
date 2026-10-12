@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
 import type { MediaProviderCredentialRecord } from "#src/features/media/provider-credential-store";
 import { resolveMediaProviderCredential, saveMediaProviderCredentials } from "#src/features/media/provider-credential-store";
@@ -9,14 +10,8 @@ import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds"
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMediaProviderCredentialRepo } from "../media-provider-credential-repo.js";
 
-/**
- * @file `SqlMediaProviderCredentialRepo` against a real, migrated content database on every dialect.
- *
- * What only a real DB can prove, and an in-memory-Map double cannot: migration `0030`'s composite
- * `(workspace_id, provider_id)` primary key really makes `upsert` update rather than duplicate, its
- * CHECK constraint really agrees with this adapter's all-null-or-all-set mapping, the `workspaces`
- * FK really holds, and `deleteByProviderIds` on an empty list really is a no-op instead of the
- * `IN ()` syntax error Drizzle would otherwise emit.
+/** Existing characterization suite now exercises Jini's vault-backed facade on both dialects.
+ * The step is activated on disposable fixtures only; production migration registration is untouched.
  */
 
 const WORKSPACE = "workspace-1";
@@ -40,10 +35,11 @@ function makeRecord(overrides: Partial<MediaProviderCredentialRecord> = {}): Med
 
 describeEachDialect(
   "MediaProviderCredentialRepoPort",
-  { tables: ["media_provider_credentials", "workspaces"], make: (kernel) => ({ kernel, repo: new SqlMediaProviderCredentialRepo(kernel) }) },
+  { tables: ["workspaces"], make: (kernel) => ({ kernel, repo: new SqlMediaProviderCredentialRepo(kernel) }) },
   (make) => {
     async function makeRepo() {
       const { kernel, repo } = make();
+      await ensureVaultRepoFixture({ kernel });
       await seedWorkspaces(kernel, [WORKSPACE, OTHER_WORKSPACE]);
       return repo;
     }
@@ -58,7 +54,7 @@ describeEachDialect(
         baseUrl: "https://api.openai.com/v1",
         model: "dall-e-3",
         sealed: { keyId: "k1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
-        keyTail: "1234",
+        keyTail: "", aadVersion: 1,
       });
 
       await repo.upsert(record);
@@ -76,6 +72,27 @@ describeEachDialect(
       assert.equal(found?.sealed, null);
       assert.equal(found?.keyTail, null);
       assert.equal(found?.baseUrl, "https://proxy.example.com/v1");
+    });
+
+    test("a non-default media singleton resolves with one exact-provider query and one open", async () => {
+      const repo = await makeRepo();
+      const keyring = new InMemoryKeyring();
+      const sealer = new AesGcmSecretSealer(keyring);
+      const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) } };
+      await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "real-media-token-1234" } } });
+      const [selected] = await repo.vault.list({ workspaceId: WORKSPACE, kind: "media-provider", ownerKey: "tovu", principalId: null, provider: "openai" });
+      await repo.vault.put({ record: { ...selected!, isDefault: false, revision: selected!.revision + 1 }, expectedRevision: selected!.revision });
+      let reads = 0;
+      let opens = 0;
+      const list = repo.vault.list.bind(repo.vault);
+      repo.vault.list = input => { reads++; assert.equal(input.provider, "openai"); return list(input); };
+      repo.vault.find = async () => { throw new Error("unexpected second read"); };
+      const resolved = await resolveMediaProviderCredential({ repo, sealer: {
+        seal: sealer.seal.bind(sealer), open: (input, options) => { opens++; return sealer.open(input, options); },
+      } }, { workspaceId: WORKSPACE, providerId: "openai" });
+      assert.equal(resolved?.apiKey, "real-media-token-1234");
+      assert.equal(reads, 1);
+      assert.equal(opens, 1);
     });
 
     test("upsert on the same (workspace, provider) updates the one row rather than adding a second", async () => {
@@ -141,15 +158,6 @@ describeEachDialect(
       assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), []);
     });
 
-    test("the CHECK constraint rejects a half-sealed row this adapter should never build", async () => {
-      const repo = await makeRepo();
-      await assert.rejects(
-        // `keyTail` set with no ciphertext — exactly the shape the constraint exists to forbid.
-        repo.upsert(makeRecord({ keyTail: "1234" })),
-        /CHECK constraint failed|violates check constraint/
-      );
-    });
-
     test("replaceWorkspace commits every upsert and the tombstone delete together", async () => {
       const repo = await makeRepo();
       await repo.upsert(makeRecord({ providerId: "grok" }));
@@ -178,14 +186,13 @@ describeEachDialect(
             plan: () => ({
               upserts: [
                 makeRecord({ providerId: "openai", model: "dall-e-3" }),
-                // `keyTail` with no ciphertext — the CHECK rejects this row, and it is planned AFTER a
-                // row the transaction has already written.
-                makeRecord({ providerId: "fal", keyTail: "1234" }),
+                // Duplicate identity fails CAS AFTER the first write, proving batch rollback.
+                makeRecord({ providerId: "openai", model: "duplicate" }),
               ],
               tombstoneProviderIds: ["grok"],
             }),
           }),
-        /CHECK constraint failed|violates check constraint/
+        /Secrets vault: conflict/
       );
 
       const rows = await repo.listByWorkspaceId(WORKSPACE);
@@ -239,6 +246,7 @@ describeEachDialect(
 
     test("replaceWorkspace reads, plans and writes inside the real kernel transaction", async () => {
       const { kernel } = make();
+      await ensureVaultRepoFixture({ kernel });
       await seedWorkspaces(kernel, [WORKSPACE]);
       const transactionStates: boolean[] = [];
       const observedKernel: typeof kernel = { ...kernel,

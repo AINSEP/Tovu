@@ -1,6 +1,8 @@
 import { CONTENT_MIGRATIONS, type MigrationStep } from "../migrations/index.js";
 import { POSTS_AUTHOR_SQLITE_STATEMENTS } from "../migrations/0009_posts_author.js";
 import { MEMBERS_CREDENTIALS_REVOKED_AT_SQL } from "../migrations/0010_members_credentials_revoked_at.js";
+import { CORE_COMMERCE_TABLES_IN_DROP_ORDER } from "../migrations/0011_drop_empty_core_commerce_tables.js";
+import { secretsVaultStatements, MCP_VAULT_SQLITE_STATEMENTS } from "../migrations/0012_secrets_vault.js";
 import { readFrozenChain } from "../migrations/legacy-sqlite.js";
 import type { ContentDb } from "./content-db.js";
 
@@ -108,6 +110,22 @@ export function bootstrapFreshContentDb(
       for (const statement of POSTS_AUTHOR_SQLITE_STATEMENTS) client.exec(statement);
     },
     "0010_members_credentials_revoked_at": () => client.exec(MEMBERS_CREDENTIALS_REVOKED_AT_SQL),
+    "0011_drop_empty_core_commerce_tables": () => {
+      // Fresh-only: the frozen chain seeds no commerce rows; upgrades use 0011's count guard.
+      for (const table of CORE_COMMERCE_TABLES_IN_DROP_ORDER) client.exec(`DROP TABLE IF EXISTS "${table}"`);
+    },
+    "0012_secrets_vault": () => {
+      // The frozen chain seeds no credentials. Share 0012's final DDL; upgrades alone copy data.
+      for (const statement of secretsVaultStatements({ dialect: "sqlite" })) client.exec(statement);
+      client.exec("ALTER TABLE external_mcp_servers ADD COLUMN env_secret_id text");
+      client.exec("ALTER TABLE external_mcp_servers ADD COLUMN oauth_secret_id text");
+      for (const statement of MCP_VAULT_SQLITE_STATEMENTS) client.exec(statement);
+      for (const table of ["site_assistant_credentials", "admin_execution_credentials", "media_provider_credentials",
+        "custom_credential_sets", "publish_content_peers", "database_transfer_destinations",
+        "vendor_credential_sets", "source_control_credential_sets", "publish_credential_sets", "oauth_pending_authorizations"]) {
+        client.exec(`DROP TABLE "${table}"`);
+      }
+    },
   };
   if (migrations.length !== Object.keys(operations).length ||
       migrations.some(step => !Object.hasOwn(operations, step.id))) {

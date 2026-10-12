@@ -4,21 +4,18 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
+import { type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
-import { EXTERNAL_MCP_AAD_VERSION } from "../external-mcp-aad.js";
+import { EXTERNAL_MCP_VAULT_VERSION } from "../external-mcp-store.js";
+import { sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
+import type { VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 
 /**
- * @file Regression proof for the write-path version desync.
- *
- * `sealExternalMcpOAuthPayload` binds AAD unconditionally, but `openExternalMcpOAuthPayload` only
- * passes AAD when the row's `oauthAadVersion` says to. `external-mcp-oauth.ts`'s writers rebuild
- * their row with `{ ...record, sealedOAuth }`, which carries the row's OLD version forward next to
- * a ciphertext that was just re-sealed WITH AAD. On a legacy row still at version 0 that leaves the
- * blob permanently unopenable — the read takes the no-AAD branch, the auth tag fails, and the
- * client secret and both tokens are gone with no error until the next read.
+ * @file Characterize every OAuth writer against normalized vault envelopes: callback, refresh,
+ * disconnect, reauth, self-registration and device polling must retain the client secret.
+ * Legacy AAD conversion is owned by the boot codec, not these ordinary feature writers.
  */
 
 const WORKSPACE = "workspace-1";
@@ -75,7 +72,6 @@ async function harness(fetchFn?: typeof fetch) {
 
   const service = createExternalMcpOAuthService({
     workspaceId: WORKSPACE, repo, sealer, keyring, clock,
-    pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
       fetchFn: ({ url }, init) => (fetchFn ?? scriptedFetch([{ access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 }]))(url, init) },
@@ -85,34 +81,31 @@ async function harness(fetchFn?: typeof fetch) {
   return { repo, sealer, keyring, clock, service };
 }
 
-/** Rewrites the row into exactly the shape it had before AAD existed: blob sealed with no AAD, version 0. */
-async function downgradeToLegacyRow(
+/** Seed a boot-normalized vault payload without changing the existing OAuth writer probes. */
+async function seedVaultPayload(
   repo: InMemoryExternalMcpServerRepo,
   sealer: AesGcmSecretSealer,
   keyring: InMemoryKeyring,
-  payload: Record<string, unknown> = { clientSecret: "s3cr3t" },
+  payload: VaultMeta = { clientSecret: "s3cr3t" },
 ): Promise<void> {
   const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
   assert.ok(row);
-  const legacy = await sealer.seal({
-    plaintext: JSON.stringify(payload),
-    key: await keyring.activeKey(),
-  });
-  await repo.upsert({ ...row, sealedOAuth: legacy, oauthAadVersion: 0 });
+  const sealedOAuth = await sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: row, kind: "mcp-auth", payload });
+  await repo.upsert({ ...row, sealedOAuth, oauthAadVersion: 1 });
 }
 
 async function connect(service: Awaited<ReturnType<typeof harness>>["service"]): Promise<void> {
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   assert.equal(started.kind, "redirect_required");
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "auth-code" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "auth-code" } });
 }
 
-test("a legacy v0 row survives a token persist — the writer must not carry the old version next to a re-sealed blob", async () => {
+test("a normalized vault row survives a token persist — the writer must not carry the old version next to a re-sealed blob", async () => {
   const { repo, sealer, keyring, service } = await harness();
-  await downgradeToLegacyRow(repo, sealer, keyring);
+  await seedVaultPayload(repo, sealer, keyring);
 
-  // Sanity: the legacy row is readable BEFORE the write, so any failure after it is the write's fault.
+  // Sanity: the vault row is readable BEFORE the write, so any failure after it is the write's fault.
   const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
   assert.equal((await openExternalMcpOAuthPayload(sealer, before!)).clientSecret, "s3cr3t");
 
@@ -120,8 +113,8 @@ test("a legacy v0 row survives a token persist — the writer must not carry the
 
   const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
   assert.ok(after);
-  // The blob was re-sealed WITH aad, so the row must now say so. Before the fix this stayed 0.
-  assert.equal(after.oauthAadVersion, EXTERNAL_MCP_AAD_VERSION, "writer left the row's version behind its ciphertext");
+  // The public compatibility lineage remains current while Jini authenticates the vault context.
+  assert.equal(after.oauthAadVersion, EXTERNAL_MCP_VAULT_VERSION, "writer left the row's version behind its ciphertext");
 
   const payload = await openExternalMcpOAuthPayload(sealer, after);
   assert.equal(payload.tokens?.accessToken, "at-1");
@@ -130,7 +123,7 @@ test("a legacy v0 row survives a token persist — the writer must not carry the
 
 test("the desync is unopenable, not merely mislabelled — proving the data loss is real", async () => {
   const { repo, sealer, keyring } = await harness();
-  await downgradeToLegacyRow(repo, sealer, keyring);
+  await seedVaultPayload(repo, sealer, keyring);
   const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
 
   // Hand-build the exact desynced row the buggy writer produced: AAD-bound ciphertext, version 0.
@@ -152,22 +145,22 @@ test("the desync is unopenable, not merely mislabelled — proving the data loss
 
 test("every OAuth write leaves version and ciphertext in step", async () => {
   const { repo, sealer, keyring, service } = await harness();
-  await downgradeToLegacyRow(repo, sealer, keyring);
+  await seedVaultPayload(repo, sealer, keyring);
   await connect(service);
 
   const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
   assert.ok(row);
   // The standing invariant: a row holding a blob must never be behind the current AAD version.
   if (row.sealedOAuth !== null) {
-    assert.equal(row.oauthAadVersion, EXTERNAL_MCP_AAD_VERSION);
+    assert.equal(row.oauthAadVersion, EXTERNAL_MCP_VAULT_VERSION);
   }
   await assert.doesNotReject(() => openExternalMcpOAuthPayload(sealer, row));
 });
 
 for (const operation of ["disconnect", "reportAuthFailure"] as const) {
-  test(`a legacy v0 row survives ${operation}'s independent clear-token writer`, async () => {
+  test(`a normalized vault row survives ${operation}'s independent clear-token writer`, async () => {
     const { repo, sealer, keyring, service } = await harness();
-    await downgradeToLegacyRow(repo, sealer, keyring, {
+    await seedVaultPayload(repo, sealer, keyring, {
       clientSecret: "s3cr3t", tokens: { accessToken: "legacy-at", refreshToken: "legacy-rt", tokenType: "Bearer" },
     });
     const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
@@ -176,7 +169,7 @@ for (const operation of ["disconnect", "reportAuthFailure"] as const) {
     else await assert.rejects(service.reportAuthFailure(SERVER, new Error("remote rejected token")), /authorization expired or was revoked/);
     const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
     assert.ok(after);
-    assert.equal(after.oauthAadVersion, EXTERNAL_MCP_AAD_VERSION);
+    assert.equal(after.oauthAadVersion, EXTERNAL_MCP_VAULT_VERSION);
     assert.equal(after.oauthStatus, operation === "disconnect" ? "disconnected" : "needs_reauth");
     const payload = await openExternalMcpOAuthPayload(sealer, after);
     assert.equal(payload.clientSecret, "s3cr3t");
@@ -185,7 +178,7 @@ for (const operation of ["disconnect", "reportAuthFailure"] as const) {
 }
 
 for (const registerClient of [false, true]) {
-  test(`a legacy v0 row survives self-configuration ${registerClient ? "with DCR" : "keeping the operator client"}`, async () => {
+  test(`a normalized vault row survives self-configuration ${registerClient ? "with DCR" : "keeping the operator client"}`, async () => {
     const { repo, sealer, keyring, service } = await harness(scriptedFetch([
       { resource: "https://mcp.example.com/mcp", authorization_servers: ["https://auth.example.com"] },
       {
@@ -196,7 +189,7 @@ for (const registerClient of [false, true]) {
       { client_id: "dcr-client", client_secret: "dcr-secret", token_endpoint_auth_method: "client_secret_post" },
     ]));
     const tokens = { accessToken: "legacy-at", refreshToken: "legacy-rt", tokenType: "Bearer" };
-    await downgradeToLegacyRow(repo, sealer, keyring, { clientSecret: "s3cr3t", tokens });
+    await seedVaultPayload(repo, sealer, keyring, { clientSecret: "s3cr3t", tokens });
     const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
     assert.ok(before);
     assert.equal((await openExternalMcpOAuthPayload(sealer, before)).clientSecret, "s3cr3t");
@@ -206,7 +199,7 @@ for (const registerClient of [false, true]) {
     assert.equal((await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI })).kind, "redirect_required");
     const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
     assert.ok(after);
-    assert.equal(after.oauthAadVersion, EXTERNAL_MCP_AAD_VERSION);
+    assert.equal(after.oauthAadVersion, EXTERNAL_MCP_VAULT_VERSION);
     assert.equal(after.oauthStatus, "pending");
     const payload = await openExternalMcpOAuthPayload(sealer, after);
     assert.equal(payload.clientSecret, registerClient ? "dcr-secret" : "s3cr3t");
@@ -214,12 +207,12 @@ for (const registerClient of [false, true]) {
   });
 }
 
-test("a legacy v0 row survives device-code token persistence", async () => {
+test("a normalized vault row survives device-code token persistence", async () => {
   const { repo, sealer, keyring, service, clock } = await harness(scriptedFetch([
     { device_code: "dc-1", user_code: "UC-1", verification_uri: "https://auth.example.com/device", expires_in: 600, interval: 1 },
     { access_token: "device-at", refresh_token: "device-rt", expires_in: 3600 },
   ]));
-  await downgradeToLegacyRow(repo, sealer, keyring);
+  await seedVaultPayload(repo, sealer, keyring);
   const before = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
   assert.ok(before);
   assert.equal((await openExternalMcpOAuthPayload(sealer, before)).clientSecret, "s3cr3t");
@@ -229,7 +222,7 @@ test("a legacy v0 row survives device-code token persistence", async () => {
   assert.deepEqual(await service.pollDeviceAuthorization({ serverId: SERVER }), { status: "connected" });
   const after = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
   assert.ok(after);
-  assert.equal(after.oauthAadVersion, EXTERNAL_MCP_AAD_VERSION);
+  assert.equal(after.oauthAadVersion, EXTERNAL_MCP_VAULT_VERSION);
   const payload = await openExternalMcpOAuthPayload(sealer, after);
   assert.equal(payload.clientSecret, "s3cr3t");
   assert.equal(payload.tokens?.accessToken, "device-at");

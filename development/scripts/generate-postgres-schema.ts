@@ -500,7 +500,7 @@ function renderSqlText(value: unknown, owningTable: object, describe: () => stri
   if (!is(value, SQL)) {
     throw new Error(`${describe()} did not produce a Drizzle SQL value — Drizzle internals changed; revisit renderSqlText()`);
   }
-  return value.queryChunks
+  const rendered = value.queryChunks
     .map((chunk) => {
       if (is(chunk, StringChunk)) return chunk.value.join("");
       if (is(chunk, Column)) return renderColumnIdentifier(chunk as unknown as SQLiteColumn, owningTable, describe);
@@ -518,6 +518,8 @@ function renderSqlText(value: unknown, owningTable: object, describe: () => stri
       );
     })
     .join("");
+  // jsonb already enforces valid JSON; preserve the vault's object-only metadata constraint.
+  return rendered.replace(/^json_valid\(([a-z_][a-z0-9_]*)\) AND json_type\(\1\) = 'object'$/, "jsonb_typeof($1) = 'object'");
 }
 
 /** Resolves one CHECK/WHERE column reference to its bare, unquoted SQL identifier — the single place
@@ -636,7 +638,10 @@ function renderExtras(
     const actions =
       (meta.onDelete ? `.onDelete(${JSON.stringify(meta.onDelete)})` : "") +
       (meta.onUpdate ? `.onUpdate(${JSON.stringify(meta.onUpdate)})` : "");
-    return `    foreignKey({ columns: [${localCols}], foreignColumns: [${foreignCols}] })${actions},`;
+    // An explicit name is the constraint's identity on Postgres; dropping it would let Drizzle
+    // derive a different one than the migration that created the constraint.
+    const name = target.name ? `name: ${JSON.stringify(target.name)}, ` : "";
+    return `    foreignKey({ ${name}columns: [${localCols}], foreignColumns: [${foreignCols}] })${actions},`;
   });
 
   return { indexes, composite, checks, foreignKeys };

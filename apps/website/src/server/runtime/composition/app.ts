@@ -74,7 +74,7 @@ import {
   MEDIA_IMPORT_EGRESS_POLICY,
 } from "#src/platform/http/egress-policies";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
-import { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
@@ -206,6 +206,8 @@ import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
+import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
+import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
@@ -251,6 +253,7 @@ import { registerThemePreviewStatic } from "../../inbound/public-http/middleware
 import { registerThemeStaticAssets } from "../../inbound/public-http/middleware/theme-static-assets.js";
 import { registerThemePagePreview } from "../../inbound/public-http/middleware/theme-page-preview.js";
 import { applyRenderThemeOverride } from "../../inbound/public-http/middleware/render-theme-override.js";
+import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerSiteChatComparisonRoutes } from "../../inbound/public-http/routes/site/chat-comparison.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
@@ -268,8 +271,7 @@ import { createWorkspaceModule } from "./modules/workspace.js";
 import { createIntegrationsModule } from "./modules/integrations.js";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
 import { createExternalMcpModule } from "./modules/external-mcp.js";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/assistant/index";
-import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createTrashModule } from "./modules/trash.js";
@@ -301,6 +303,7 @@ import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/s
 import { registerAdminDockerfileSourceRoute } from "../../inbound/admin-http/routes/system/dockerfile-source.js";
 import { registerAdminExportSiteRoutes } from "../../inbound/admin-http/routes/system/export-site.js";
 import { registerAdminCustomCredentialsRoutes } from "../../inbound/admin-http/routes/system/custom-credentials.js";
+import { registerAdminCredentialCopyRoutes } from "../../inbound/admin-http/routes/system/credential-copy.js";
 import { registerAdminPublishCredentialsRoutes } from "../../inbound/admin-http/routes/system/publish-credentials.js";
 import { registerAdminSourceControlCredentialsRoutes } from "../../inbound/admin-http/routes/system/source-control-credentials.js";
 import { registerAdminSiteKeyRoutes } from "../../inbound/admin-http/routes/system/site-key.js";
@@ -308,6 +311,7 @@ import { siteKeyRecovery } from "./site-key-recovery.js";
 import { registerAdminFsFilesCustomRootRoutes } from "../../inbound/admin-http/routes/fs-files/custom-root.js";
 import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
+import { createFormFileStorage } from "../../../features/forms/form-file-storage.js";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { createRedirectsModule } from "./modules/redirects.js";
 import { createDatabaseRecoveryModule } from "./modules/database-recovery.js";
@@ -854,7 +858,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     originRegistry,
     reservedSegments: RESERVED_SEGMENTS,
   }, { hits: { outbox, clock, idGen } });
-  registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen }) });
+  registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) });
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
 
   // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
@@ -876,6 +880,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
   wireCoreResolvers({
+    // Defer captures: media MIME metadata is assembled later in this composition root.
+    galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
+      host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
+    } }),
     menus: { resolveMenuDoc },
     collectionList: {
       parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout,
@@ -927,18 +935,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // distinct so this root's wiring shape matches `deps.ts`'s one-instance-per-purpose shape.
   const siteAssistantSecretKeyring = new InMemoryKeyring();
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+  const siteAssistantCredentialRepo = new InMemorySiteAssistantCredentialRepo();
   // Held as a local rather than constructed inline, because the OAuth service below must be given
   // the SAME repo instance the routes read through — two instances would refresh a token into one
   // and read it back from the other.
   const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
-  // Same "one shared instance" reasoning as `externalMcpServerRepo` above, and also exposed as their
-  // own `RouteDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` fields below. Within one
-  // process this pair is what makes a connect/callback/poll handshake share state — but this root is
-  // process-local, so it cannot do that across processes: `agent-daemon-server.ts` builds its OWN
-  // such pair in its own process (see `routes/types.ts`'s doc for the full `TOVU_DB=memory` caveat),
-  // which is why the sqlite root's `content.db`-backed pair, not this one, is what carries a chat
-  // handshake to completion.
-  const externalMcpOAuthPending = createPendingAuthorizationStore({ clock });
+  // Device begin/poll share this process-local store. Redirect state uses the site's sealer;
+  // this hermetic root's ephemeral key still limits its callbacks to the same process.
   const externalMcpOAuthDevices = createDeviceAuthorizationStore();
 
   // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
@@ -1165,14 +1168,18 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     presentationRepo,
     settingsRepo,
     getEffective,
-    set,
+    set: (required) => set(required, {
+      canEnablePublicAssistant: async ({ workspaceId }) => (await resolvePublicAssistantAvailability({
+        repo: siteAssistantCredentialRepo, sealer: siteAssistantSecretSealer, workspaceId,
+      })).ready,
+    }),
     instructionsNamespace: INSTRUCTIONS_NAMESPACE,
     settingsReady,
     seoReady,
     seoDeps,
     sitemapService,
     assistantSettingsReady,
-    siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
+    siteAssistantCredentialRepo,
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
@@ -1183,9 +1190,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     /**
      * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
      * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its
-     * pending-authorization and device-authorization stores are in-memory and must be shared by the
-     * connect route and the public callback route — two routes in the same module, one instance,
-     * and a composition root is where "one instance" is expressible. See
+     * device-authorization store must be shared by connect and poll. Redirect state is sealed with
+     * this root's site key, also used by the public callback. A composition root owns both lifetimes.
+     * See
      * `routes/types.ts`'s `externalMcpOAuth` doc for why the field is optional at all.
      */
     externalMcpOAuth: createExternalMcpOAuthService({
@@ -1195,11 +1202,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       sealer: siteAssistantSecretSealer,
       keyring: siteAssistantSecretKeyring,
       clock,
-      pending: externalMcpOAuthPending,
       devices: externalMcpOAuthDevices,
       onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, clock }),
     }),
-    externalMcpOAuthPending,
     externalMcpOAuthDevices,
     derivedPublicOrigin,
     executionSettingsReady,
@@ -1401,6 +1406,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     readPluginPackageFiles: pluginRuntime.readPluginPackageFiles,
     previewPluginBeforeSave: pluginRuntime.previewPluginBeforeSave,
     pluginInstaller: pluginRuntime.pluginInstaller,
+    pluginSource: pluginRuntime.pluginSource,
+    pluginSourcePolicy: pluginRuntime.pluginSourcePolicy,
+    pluginLoadedVersion: pluginRuntime.pluginLoadedVersion,
+    pluginContributions: pluginRuntime.pluginContributions,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // In-memory activationRepo starts empty every test run, so there is nothing to re-attach —
     // mirrors `commentsReady`'s identical hermetic-vs-real split.
@@ -1749,6 +1758,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
   // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
   app.use(parsePublicJsonBody);
+  registerPluginContributionRoutes({ app, deps: routeDeps, auth: createPluginRouteAuthPorts({ deps: routeDeps }) });
 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
@@ -1900,6 +1910,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Access Tokens page's "Add custom provider" form: CRUD over saved user-defined provider
   // connections (`custom_credential_sets`). `custom-credentials.write`-gated on every verb.
   registerAdminCustomCredentialsRoutes(app, routeDeps);
+  registerAdminCredentialCopyRoutes({ app, deps: routeDeps });
   // Security panel → site key tab: view/generate the TOVU_SITE_KEY site key's
   // generated-file fallback. `admin.security.site-key.manage`-gated on both verbs — see that route
   // file's own header for exactly what this does and does not cover (since 2026-09-09 it seals
@@ -2227,6 +2238,19 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
       clock: routeDeps.clock,
       idGen: routeDeps.idGen,
       rateLimiter: routeDeps.formsRateLimiter,
+      files: createFormFileStorage({ media: {
+        clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
+        blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
+      }, contentTypes: routeDeps.mediaContentTypeStore,
+        resolveCreatedByPrincipal: async ({ workspaceId }) => {
+          // Uploads have no signed-in operator. Await identity's existing seed and attribute the
+          // write to its active System principal, rather than minting a dangling anonymous id.
+          await routeDeps.identityReady;
+          const principal = (await routeDeps.principalRepo.list({ workspaceId })).find(row => row.kind === "system" && row.status === "active" && row.displayName === "System");
+          if (!principal) throw new Error("form uploads require the site's System principal");
+          return principal.id;
+        },
+      }, {}),
     },
   });
 

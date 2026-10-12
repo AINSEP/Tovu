@@ -27,7 +27,7 @@ import {
  * ## Secrets
  *
  * An MCP server's `env` block routinely carries live credentials, so it is sealed through ADR-058's
- * `SecretSealerPort` using the same keyring instance the BYOK/media-provider stores share
+ * Jini vault service using the same keyring instance the BYOK/media-provider stores share
  * — `src/webhooks/ports.ts` states the rule this follows: keep secret material out of the
  * portable `content.db`.
  *
@@ -119,12 +119,10 @@ export class ExternalMcpSecretStoreUnconfiguredError extends Error {
 }
 
 /** One stored row. `sealedEnv` is null when the server needs no credentials, which is normal. */
-import {
-  buildExternalMcpEnvAad,
-  buildExternalMcpOAuthAad,
-  EXTERNAL_MCP_AAD_VERSION,
-} from "./external-mcp-aad.js";
-import type { ExternalMcpAadIdentity } from "./external-mcp-aad.js";
+/** Compatibility DTO version for normalized vault envelopes; historical formats live in recovery. */
+export const EXTERNAL_MCP_VAULT_VERSION = 1;
+type ExternalMcpIdentity = { workspaceId: string; serverId: string };
+import { openExternalMcpVaultPayload, sealExternalMcpVaultPayload } from "./external-mcp-vault.js";
 
 export interface ExternalMcpServerRecord {
   workspaceId: UUID;
@@ -192,9 +190,9 @@ export interface ExternalMcpServerRecord {
   oauthRefreshLeaseUntil: ISODateTime | null;
   /** Sealed `{ clientSecret?, tokens? }`. See `external-mcp-oauth.ts` for the read-modify-write rule. */
   sealedOAuth: SealedSecret | null;
-  /** AAD lineage of `sealedEnv`. `0` = sealed before this table had AAD; see `external-mcp-aad.ts`. */
+  /** Compatibility read field; normalized vault envelopes use lineage 1. */
   aadVersion: number;
-  /** AAD lineage of `sealedOAuth`, tracked separately from `aadVersion` — the two blobs are written by different flows. */
+  /** Compatibility read field; actual authenticated context lives on the vault row. */
   oauthAadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
@@ -804,13 +802,7 @@ async function openExternalMcpEnv(
 ): Promise<{ readonly ok: true; readonly env: Record<string, string> } | { readonly ok: false; readonly reason: string }> {
   if (record.sealedEnv === null) return { ok: true, env: {} };
   try {
-    // Branching read: a row still at aad_version 0 was sealed before this table had AAD and must
-    // keep opening through the legacy no-aad path until the backfill re-seals it.
-    const opened = await sealer.open({ sealed: record.sealedEnv },
-      record.aadVersion >= EXTERNAL_MCP_AAD_VERSION ? { aad: buildExternalMcpEnvAad(record) } : {},
-    );
-    const parsed: unknown = JSON.parse(opened);
-    const env = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
+    const env = await openExternalMcpVaultPayload({ sealer, sealed: record.sealedEnv, identity: record, kind: "mcp-env" }) as Record<string, string>;
     return { ok: true, env };
   } catch {
     // These reasons reach admissions and chat tools. Parser/sealer errors can contain secret plaintext.
@@ -1575,7 +1567,7 @@ function carryForwardExternalMcpSealedEnv(
   return {
     sealedEnv: existing?.sealedEnv ?? null,
     envNames: parseJsonArray(existing?.envNames ?? null),
-    aadVersion: existing?.aadVersion ?? EXTERNAL_MCP_AAD_VERSION,
+    aadVersion: existing?.aadVersion ?? EXTERNAL_MCP_VAULT_VERSION,
   };
 }
 
@@ -1585,20 +1577,16 @@ function carryForwardExternalMcpSealedEnv(
  *  @throws {ExternalMcpSecretStoreUnconfiguredError} When no site key is available to seal under. */
 async function sealFreshExternalMcpEnv(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
-  identity: ExternalMcpAadIdentity,
+  identity: ExternalMcpIdentity,
   rawEnv: string,
 ): Promise<{ readonly sealedEnv: SealedSecret | null; readonly envNames: string[]; readonly aadVersion: number }> {
   const env = parseEnvBlock(rawEnv);
   const envNames = Object.keys(env);
-  if (envNames.length === 0) return { sealedEnv: null, envNames, aadVersion: EXTERNAL_MCP_AAD_VERSION };
+  if (envNames.length === 0) return { sealedEnv: null, envNames, aadVersion: EXTERNAL_MCP_VAULT_VERSION };
 
   try {
-    const sealedEnv = await deps.sealer.seal({
-      plaintext: JSON.stringify(env),
-      key: await deps.keyring.activeKey(),
-      aad: buildExternalMcpEnvAad(identity),
-    });
-    return { sealedEnv, envNames, aadVersion: EXTERNAL_MCP_AAD_VERSION };
+    const sealedEnv = await sealExternalMcpVaultPayload({ deps, identity, kind: "mcp-env", payload: env });
+    return { sealedEnv, envNames, aadVersion: EXTERNAL_MCP_VAULT_VERSION };
   } catch (err) {
     throw new ExternalMcpSecretStoreUnconfiguredError(
       CREDENTIAL_MESSAGES.storage,
@@ -1608,7 +1596,7 @@ async function sealFreshExternalMcpEnv(
 
 async function resolveExternalMcpSealedEnv(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
-  identity: ExternalMcpAadIdentity,
+  identity: ExternalMcpIdentity,
   rawEnv: string | undefined,
   existing: ExternalMcpServerRecord | null,
 ): Promise<{ readonly sealedEnv: SealedSecret | null; readonly envNames: string[]; readonly aadVersion: number }> {
@@ -1776,13 +1764,7 @@ export async function openExternalMcpOAuthPayload(
   if (record.sealedOAuth === null) return {};
   let parsed: unknown;
   try {
-    // Branching read, same rule as the env blob — and the aad is derived from THIS row's identity,
-    // so another row's ciphertext sitting in this column fails its auth tag instead of opening.
-    parsed = JSON.parse(
-      await sealer.open({ sealed: record.sealedOAuth },
-        record.oauthAadVersion >= EXTERNAL_MCP_AAD_VERSION ? { aad: buildExternalMcpOAuthAad(record) } : {},
-      ),
-    );
+    parsed = await openExternalMcpVaultPayload({ sealer, sealed: record.sealedOAuth, identity: record, kind: "mcp-auth" });
   } catch (err) {
     throw new ExternalMcpSecretStoreUnconfiguredError(
       "Stored OAuth credentials could not be decrypted.",
@@ -1805,13 +1787,9 @@ export async function openExternalMcpOAuthPayload(
  * @complexity O(1) — one seal.
  */
 /**
- * A sealed OAuth blob together with the AAD lineage it was sealed under.
- *
- * These are returned as ONE value on purpose. `open` decides whether to pass AAD by reading the
- * row's version, so a writer that stores the ciphertext while carrying the row's old version
- * forward leaves the blob permanently unopenable — silently, until the next read. Handing back a
- * bare `SealedSecret` made that the caller's job to remember, and three separate writers had to
- * remember it. This makes it impossible to take one without the other.
+ * A sealed OAuth blob with its compatibility lineage. Vault identity travels with the opaque
+ * envelope so carried credentials keep the exact ID/context they were authenticated under.
+ * The server repository commits that vault row, its pointer, status and expiry together.
  */
 export interface SealedExternalMcpOAuth {
   readonly sealedOAuth: SealedSecret | null;
@@ -1820,21 +1798,18 @@ export interface SealedExternalMcpOAuth {
 
 export async function sealExternalMcpOAuthPayload(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
-  identity: ExternalMcpAadIdentity,
+  identity: ExternalMcpIdentity,
   payload: ExternalMcpSealedOAuthPayload,
 ): Promise<SealedExternalMcpOAuth> {
   const hasSecret =
     (payload.clientSecret !== undefined && payload.clientSecret !== "") || payload.tokens !== undefined || Boolean(payload.staticAccessToken);
-  if (!hasSecret) return { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
+  if (!hasSecret) return { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_VAULT_VERSION };
   try {
-    const sealedOAuth = await deps.sealer.seal({
-      // The version travels INSIDE the ciphertext, so it is authenticated along with the secret and
-      // cannot be edited by anyone who can write the row.
-      plaintext: JSON.stringify({ ...payload, schemaVersion: EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION }),
-      key: await deps.keyring.activeKey(),
-      aad: buildExternalMcpOAuthAad(identity),
+    const sealedOAuth = await sealExternalMcpVaultPayload({ deps, identity, kind: "mcp-auth",
+      // The discriminator remains authenticated inside the payload, never plain metadata.
+      payload: JSON.parse(JSON.stringify({ ...payload, schemaVersion: EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION })),
     });
-    return { sealedOAuth, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
+    return { sealedOAuth, oauthAadVersion: EXTERNAL_MCP_VAULT_VERSION };
   } catch (err) {
     throw new ExternalMcpSecretStoreUnconfiguredError(
       CREDENTIAL_MESSAGES.storage,
@@ -1853,14 +1828,14 @@ export async function sealExternalMcpOAuthPayload(
  */
 async function resolveSealedOAuthBlob(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
-  identity: ExternalMcpAadIdentity,
+  identity: ExternalMcpIdentity,
   clientSecret: string | undefined,
   carryToken: ExternalMcpServerRecord | null,
 ): Promise<SealedExternalMcpOAuth> {
   // Nothing to preserve and nothing to write: skip the keyring entirely rather than seal an empty
   // object, which is what keeps a `none`/`static_env` row's OAuth blob genuinely absent.
   if (carryToken === null && (clientSecret === undefined || clientSecret === "")) {
-    return { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
+    return { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_VAULT_VERSION };
   }
 
   const existingPayload = carryToken === null ? {} : await openExternalMcpOAuthPayload(deps.sealer, carryToken);
@@ -1936,12 +1911,12 @@ export function normalizeExternalMcpAccessToken(
  */
 async function resolveSealedStaticAccessToken(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
-  identity: ExternalMcpAadIdentity,
+  identity: ExternalMcpIdentity,
   rawToken: string | undefined,
   existing: ExternalMcpServerRecord | null,
   transport: ExternalMcpTransport,
 ): Promise<SealedExternalMcpOAuth> {
-  const none: SealedExternalMcpOAuth = { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
+  const none: SealedExternalMcpOAuth = { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_VAULT_VERSION };
   if (rawToken === undefined || rawToken === "") {
     return existing !== null && externalMcpRecordHasStaticAccessToken(existing)
       ? { sealedOAuth: existing.sealedOAuth, oauthAadVersion: existing.oauthAadVersion }
@@ -1992,7 +1967,7 @@ function resolveStaticAccessTokenEnvName(
  */
 async function resolveSavedCredentialColumns(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
-  identity: ExternalMcpAadIdentity,
+  identity: ExternalMcpIdentity,
   context: {
     readonly authMode: ExternalMcpAuthMode;
     readonly transport: ExternalMcpTransport;
@@ -2051,7 +2026,7 @@ export async function saveExternalMcpServer(
   const authMode = resolveSavedAuthMode(input, existing);
   const oauthFields = resolveOAuthFields(authMode, transport, input, existing);
   const runtime = carryOAuthRuntimeState(authMode, oauthFields, existing);
-  const aadIdentity: ExternalMcpAadIdentity = { workspaceId: input.workspaceId, serverId };
+  const aadIdentity: ExternalMcpIdentity = { workspaceId: input.workspaceId, serverId };
   const { sealedEnv, envNames, aadVersion } = await resolveExternalMcpSealedEnv(deps, aadIdentity, input.env, existing);
   const { sealedOAuth, oauthAadVersion, oauthTokenEnvName } = await resolveSavedCredentialColumns(deps, aadIdentity, {
     authMode,

@@ -1,4 +1,6 @@
-import { OAuthError } from "@jini-ai/oauth";
+import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
+import { MAX_AUTHORIZATION_STATE_LENGTH, OAuthError } from "@jini-ai/oauth";
+import { formatAad } from "@jini-ai/platform/secrets";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,7 +10,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import type { KeyringPort, SecretSealerPort } from "../../features/webhooks/ports.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
+import { type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import {
   createDeviceAuthorizationStore,
   createExternalMcpConnectionGate,
@@ -63,13 +65,20 @@ interface ScriptStep {
   readonly throws?: Error;
 }
 
-function scriptedFetch(script: readonly ScriptStep[]): { fetchFn: typeof fetch; callCount(): number; requests: { url: string; init: RequestInit | undefined }[] } {
+function scriptedFetch(script: readonly ScriptStep[], options: { rejectReplayedCodes?: boolean } = {}): { fetchFn: typeof fetch; callCount(): number; requests: { url: string; init: RequestInit | undefined }[] } {
   let calls = 0;
+  const usedCodes = new Set<string>();
   const requests: { url: string; init: RequestInit | undefined }[] = [];
   const fetchFn = (async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
     requests.push({ url: String(url), init });
     const step = script[Math.min(calls, script.length - 1)] ?? {};
     calls += 1;
+    const form = new URLSearchParams(String(init?.body));
+    if (options.rejectReplayedCodes && form.get("grant_type") === "authorization_code") {
+      const code = form.get("code") ?? "";
+      if (usedCodes.has(code)) return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+      usedCodes.add(code);
+    }
     if (step.throws) throw step.throws;
     return new Response(JSON.stringify(step.json ?? {}), {
       status: step.status ?? 200,
@@ -90,12 +99,12 @@ function makeClock(startIso = "2026-08-25T12:00:00.000Z") {
   };
 }
 
-async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: string; clientAuth?: OAuthProviderDescriptor['clientAuth'] } = {}) {
+async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: string; clientAuth?: OAuthProviderDescriptor['clientAuth']; rejectReplayedCodes?: boolean } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();
   const sealer = new AesGcmSecretSealer(keyring);
   const clock = makeClock();
-  const http = scriptedFetch(options.script ?? []);
+  const http = scriptedFetch(options.script ?? [], options);
 
   await saveExternalMcpServer(
     { repo, sealer, keyring, clock },
@@ -128,7 +137,6 @@ async function makeHarness(options: { script?: readonly ScriptStep[]; grant?: st
     sealer,
     keyring,
     clock,
-    pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
       fetchFn: ({ url }, init) => (http.fetchFn)(url, init) },
@@ -150,7 +158,7 @@ async function connect(service: ReturnType<typeof createExternalMcpOAuthService>
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   assert.equal(started.kind, "redirect_required");
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code } });
 }
 
 test("saving an OAuth connection stores its identity in plaintext and its secret sealed", async () => {
@@ -194,7 +202,7 @@ test("a completed handshake writes expiresAt in PLAINTEXT — readable with no s
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   assert.equal(started.kind, "redirect_required");
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "auth-code" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "auth-code" } });
 
   const row = await readRow(repo);
   assert.equal(row.oauthStatus, "connected");
@@ -220,7 +228,7 @@ test("a provider that is unreachable at connect time fails ONCE, fast, and is no
 
   let caught: unknown;
   try {
-    await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+    await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   } catch (error) {
     caught = error;
   }
@@ -231,21 +239,22 @@ test("a provider that is unreachable at connect time fails ONCE, fast, and is no
   assert.equal(http.callCount(), 1, "an authorization code is single-use — retrying can burn one that worked");
 });
 
-test("a replayed callback cannot re-exchange, and does not reach the provider", async () => {
+test("a replayed code reaches the provider once and its single-use check rejects it", async () => {
   const { http, service } = await makeHarness({
+    rejectReplayedCodes: true,
     script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
   const params = { state: state ?? "", code: "auth-code" };
 
-  await service.completeAuthorizationCallback({ serverId: SERVER, params });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params });
 
   await assert.rejects(
-    () => service.completeAuthorizationCallback({ serverId: SERVER, params }),
-    (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE",
+    () => service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params }),
+    (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_GRANT" && error.providerErrorCode === "invalid_grant",
   );
-  assert.equal(http.callCount(), 1);
+  assert.equal(http.callCount(), 2);
 });
 
 test("a refresh reseals the token WITHOUT losing the client secret sharing its blob", async () => {
@@ -257,7 +266,7 @@ test("a refresh reseals the token WITHOUT losing the client secret sharing its b
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
 
   clock.advance(60 * 60 * 1000);
   assert.equal(await service.tokenResolver.resolveAccessToken({ serverId: SERVER }), "at-2");
@@ -301,7 +310,7 @@ test("a provider answering invalid_grant transitions to needs_reauth, clears the
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   clock.advance(60 * 60 * 1000);
 
   let caught: unknown;
@@ -359,7 +368,7 @@ test("needs_reauth is DURABLE — a second call does not re-probe the provider",
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   clock.advance(60 * 60 * 1000);
 
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
@@ -378,7 +387,7 @@ test("a TRANSIENT refresh failure does not mark the connection needs_reauth", as
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   clock.advance(60 * 60 * 1000);
 
   await assert.rejects(
@@ -397,7 +406,7 @@ test("boot-time federation injects the access token into the operator's chosen e
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
 
   const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: service.tokenResolver }, WORKSPACE);
 
@@ -418,7 +427,7 @@ test("a needs_reauth connection is REPORTED at boot, not silently dropped", asyn
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   clock.advance(60 * 60 * 1000);
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
 
@@ -532,7 +541,7 @@ test("disconnect clears the token, preserves the client secret, and returns the 
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
 
   await service.disconnect({ serverId: SERVER });
 
@@ -690,7 +699,7 @@ test("re-pointing an OAuth connection's client id discards the token it no longe
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   assert.equal((await readRow(repo)).oauthStatus, "connected");
 
   await saveExternalMcpServer(
@@ -722,7 +731,7 @@ test("a save that changes nothing about the OAuth binding leaves the live connec
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "c" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
 
   // The shape an enable/disable toggle sends: nothing about OAuth changes.
   await saveExternalMcpServer(
@@ -1029,15 +1038,14 @@ function repoWhoseUpsertRejects(inner: ExternalMcpServerRepoPort, error: Error):
  *  connect" — the operator's actual situation, not a process that never worked. */
 function serviceWithBrokenDependency(
   base: Awaited<ReturnType<typeof makeHarness>>,
-  overrides: { sealer?: SecretSealerPort; keyring?: KeyringPort; repo?: ExternalMcpServerRepoPort },
+  overrides: { sealer?: SecretSealerPort; keyring?: KeyringPort; repo?: ExternalMcpServerRepoPort; workspaceId?: string },
 ): ReturnType<typeof createExternalMcpOAuthService> {
   return createExternalMcpOAuthService({
-    workspaceId: WORKSPACE,
+    workspaceId: overrides.workspaceId ?? WORKSPACE,
     repo: overrides.repo ?? base.repo,
     sealer: overrides.sealer ?? base.sealer,
     keyring: overrides.keyring ?? base.keyring,
     clock: base.clock,
-    pending: createPendingAuthorizationStore({ clock: base.clock }),
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
       fetchFn: ({ url }, init) => (base.http.fetchFn)(url, init) },
@@ -1046,6 +1054,75 @@ function serviceWithBrokenDependency(
 }
 
 const CONNECTED_SCRIPT: readonly ScriptStep[] = [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }];
+
+test("sealed redirect state survives rebuilding the service and carries only encrypted verifier material", async () => {
+  const h = await makeHarness({ script: CONNECTED_SCRIPT });
+  const started = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+  assert.equal(started.kind, "redirect_required");
+  if (started.kind !== "redirect_required") throw new Error("expected redirect");
+  const url = new URL(started.authorizationUrl);
+  const state = url.searchParams.get("state")!;
+  assert.ok(state.length > 256 && state.length <= MAX_AUTHORIZATION_STATE_LENGTH);
+  const sealed = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+  const aad = formatAad({ kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify([WORKSPACE, SERVER])] });
+  const payload = JSON.parse(await h.sealer.open({ sealed }, { aad }));
+  assert.equal(payload.workspaceId, WORKSPACE);
+  assert.equal(payload.serverId, SERVER);
+  assert.equal(payload.providerId, PROVIDER.providerId);
+  assert.equal(payload.redirectUri, REDIRECT_URI);
+  assert.equal(payload.exp, h.clock.nowMs() + 600_000);
+  assert.equal(payload.principalId, undefined, "the existing OAuth flow binds no principal");
+  assert.ok(!url.href.includes(payload.codeVerifier));
+  const rebuilt = serviceWithBrokenDependency(h, {});
+  await rebuilt.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state, code: "c" } });
+  const form = new URLSearchParams(String(h.http.requests[0]?.init?.body));
+  assert.equal(form.get("code_verifier"), payload.codeVerifier);
+  assert.equal(form.get("redirect_uri"), REDIRECT_URI);
+  assert.equal((await readRow(h.repo)).oauthStatus, "connected");
+});
+
+test("expired, tampered and oversize sealed redirect state cannot reach exchange", async () => {
+  const h = await makeHarness({ script: CONNECTED_SCRIPT });
+  const started = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+  if (started.kind !== "redirect_required") throw new Error("expected redirect");
+  const state = new URL(started.authorizationUrl).searchParams.get("state")!;
+  const envelope = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+  const ciphertext = Buffer.from(envelope.ciphertext, "base64");
+  ciphertext[0] = ciphertext[0]! ^ 1;
+  envelope.ciphertext = ciphertext.toString("base64");
+  for (const invalid of [Buffer.from(JSON.stringify(envelope)).toString("base64url"), "x".repeat(MAX_AUTHORIZATION_STATE_LENGTH + 1)]) {
+    await assert.rejects(() => h.service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: invalid, code: "c" } }),
+      (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE");
+  }
+  h.clock.advance(600_000);
+  await assert.rejects(() => h.service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state, code: "c" } }),
+    (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE");
+  assert.equal(h.http.callCount(), 0);
+  assert.equal((await readRow(h.repo)).oauthStatus, "pending");
+});
+
+test("sealed redirect state rejects another workspace, server and exact callback URI", async () => {
+  const h = await makeHarness({ script: CONNECTED_SCRIPT });
+  const started = await h.service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
+  if (started.kind !== "redirect_required") throw new Error("expected redirect");
+  const state = new URL(started.authorizationUrl).searchParams.get("state")!;
+  const row = await readRow(h.repo);
+  // Public-client targets need no client secret: a copied credential must not mask the state check.
+  await h.repo.upsert({ ...row, workspaceId: "other-workspace", sealedOAuth: null });
+  await h.repo.upsert({ ...row, serverId: "other-server", sealedOAuth: null });
+  const wrongWorkspace = serviceWithBrokenDependency(h, { workspaceId: "other-workspace" });
+  for (const [service, serverId, redirectUri] of [
+    [wrongWorkspace, SERVER, REDIRECT_URI],
+    [h.service, "other-server", REDIRECT_URI],
+    [h.service, SERVER, `${REDIRECT_URI}/`],
+  ] as const) {
+    await assert.rejects(() => service.completeAuthorizationCallback({ serverId, redirectUri, params: { state, code: "c" } }),
+      (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE");
+  }
+  assert.equal(h.http.callCount(), 0);
+  await h.service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state, code: "c" } });
+  assert.equal(h.http.callCount(), 1, "failed binding checks do not burn a valid sealed state");
+});
 
 test("disconnect still clears an UNOPENABLE blob and reaches disconnected — a rotated site key must not wedge the escape hatch", async () => {
   const base = await makeHarness({ script: CONNECTED_SCRIPT });
@@ -1175,4 +1252,54 @@ test("a nonrotating refresh token stays sealed for the next refresh", async () =
   assert.equal(await service.tokenResolver.resolveAccessToken({ serverId: SERVER }), "at-3");
   const body = new URLSearchParams(String(http.requests[2].init?.body));
   assert.equal(body.get("refresh_token"), "rt-1");
+});
+
+
+test("vault-backed memory writes publish both envelopes, status and expiry together", async () => {
+  const { repo, sealer, keyring } = await makeHarness();
+  const original = await readRow(repo);
+  const env = await sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: original, kind: "mcp-env", payload: { API_KEY: "env-before" } });
+  await repo.upsert({ ...original, sealedEnv: env });
+  const before = await readRow(repo);
+  const replacementEnv = await sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: before, kind: "mcp-env", payload: { API_KEY: "env-after" } });
+  const wrongServerAuth = await sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: { ...before, serverId: "other-server" },
+    kind: "mcp-auth", payload: { clientSecret: "other-secret" } });
+  await assert.rejects(repo.upsert({ ...before, sealedEnv: replacementEnv, sealedOAuth: wrongServerAuth,
+    oauthStatus: "connected", oauthExpiresAt: "2099-01-01T00:00:00.000Z" }));
+  assert.deepEqual(await readRow(repo), before);
+  assert.equal((await openExternalMcpOAuthPayload(sealer, await readRow(repo))).clientSecret, "s3cr3t");
+});
+
+test("a carried vault pointer deleted by another writer cannot resurrect its old payload", async () => {
+  const { repo, sealer, keyring } = await makeHarness();
+  const before = await readRow(repo);
+  const replacement = await sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: before, kind: "mcp-auth", payload: { clientSecret: "replacement" } });
+  await repo.upsert({ ...before, sealedOAuth: replacement });
+  const current = await readRow(repo);
+  assert.notEqual(externalMcpVaultRecord({ sealed: before.sealedOAuth!, identity: before, kind: "mcp-auth" }).id,
+    externalMcpVaultRecord({ sealed: current.sealedOAuth!, identity: current, kind: "mcp-auth" }).id);
+  await assert.rejects(repo.upsert(before));
+  assert.deepEqual(await readRow(repo), current);
+  assert.equal((await openExternalMcpOAuthPayload(sealer, current)).clientSecret, "replacement");
+});
+
+test("the vault envelope stays opaque in JSON and a plain envelope cannot lose its ownership check", async () => {
+  const { repo, sealer } = await makeHarness();
+  const row = await readRow(repo);
+  assert.ok(row.sealedOAuth);
+  assert.deepEqual(Object.keys(row.sealedOAuth).sort(), ["alg", "ciphertext", "keyId", "nonce"]);
+  assert.ok(!JSON.stringify(row).includes("s3cr3t"));
+  const detached = JSON.parse(JSON.stringify(row.sealedOAuth));
+  await assert.rejects(openExternalMcpOAuthPayload(sealer, { ...row, sealedOAuth: detached }), /could not be decrypted/);
+});
+
+
+test("returned memory vault envelopes cannot mutate stored credentials through aliases", async () => {
+  const { repo, sealer } = await makeHarness();
+  const row = await readRow(repo);
+  const originalCiphertext = row.sealedOAuth!.ciphertext;
+  (row.sealedOAuth as { ciphertext: string }).ciphertext = "tampered";
+  assert.equal((await readRow(repo)).sealedOAuth!.ciphertext, originalCiphertext);
+  await assert.rejects(repo.upsert(row));
+  assert.equal((await openExternalMcpOAuthPayload(sealer, await readRow(repo))).clientSecret, "s3cr3t");
 });

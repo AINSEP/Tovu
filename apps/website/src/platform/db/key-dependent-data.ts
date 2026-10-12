@@ -1,3 +1,4 @@
+import { isVaultRestoreArtifact } from "./vault-credential-inventory.js";
 import { sql } from "kysely";
 
 import { listColumns, listTables, tableExists } from "./kernel/dialect.js";
@@ -17,7 +18,8 @@ import type { StorageKernel } from "./kernel/port.js";
  *
  * Sealed columns come from the catalog (`listTables` + `listColumns`), every column whose name ends
  * in `sealed_ciphertext` — the same discovery `sealed-credential-inventory.ts` uses, so
- * `external_mcp_servers.oauth_sealed_ciphertext` counts too. `webhook_subscriptions` counts on any
+ * `secrets_vault.sealed_ciphertext` and retained device codes count too. Restore artifacts
+ * are excluded consistently with inventory; metadata-only configurations need no key. `webhook_subscriptions` counts on any
  * row: its signing secrets derive from the key without a sealed column.
  */
 
@@ -33,6 +35,7 @@ const WEBHOOK_SUBSCRIPTIONS_TABLE = "webhook_subscriptions";
  */
 export async function hasKeyDependentData<DB>(kernel: StorageKernel<DB>): Promise<boolean> {
   for (const table of await listTables(kernel)) {
+    if (isVaultRestoreArtifact({ table })) continue;
     for (const column of await listColumns(kernel, table)) {
       if (!column.name.endsWith(SEALED_COLUMN_SUFFIX)) continue;
       const hit = await kernel.query(

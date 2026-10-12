@@ -29,7 +29,6 @@ const TABLES = [
   "principal_policies",
   "api_keys",
   "setting_values_user",
-  "admin_execution_credentials",
   "outbox_events",
 ] as const;
 

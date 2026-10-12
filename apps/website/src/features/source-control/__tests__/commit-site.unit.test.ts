@@ -12,7 +12,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { createSourceControlCredential } from "../store.js";
-import { buildSourceControlCredentialAad } from "../aad.js";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import {
   commitSiteToSourceControl,
   previewCommitExport,
@@ -244,23 +244,15 @@ test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no 
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
 });
 
-/**
- * Branch-coverage fill (2026-09-04): `resolveCommitCredential`'s own inline comment calls this guard
- * "unreachable in practice" because the normal write path (`store.ts`'s `createSourceControlCredential`/
- * `updateSourceControlCredential`) can never store a row whose sealed connection disagrees with its own
- * `providerId` column. That is a claim about ONE caller, not a proof the branch is unreachable from this
- * function's own seam: `credentialDeps.repo`/`credentialDeps.sealer` are both injected ports, so this
- * test constructs the disagreement directly — a row filed under `providerId: "github"` (so
- * `findDefaultByProvider({providerId:"github"})` finds it) whose SEALED payload decrypts to a `gitlab`
- * connection (bypassing `store.ts`'s write-time validation entirely, exactly the "not through the normal
- * path" scenario the guard exists for) — proving the typed guard fires instead of forwarding a
- * wrong-provider token to a GitHub API call.
+/** Provider metadata is authoritative after a provider-only move (S3dr); sealed providerId may
+ * retain its old value. The security invariant is that an indexed lookup cannot return a row
+ * from another provider group. Jini checks that context before opening the envelope.
  */
-test("commitSiteToSourceControl: a resolved credential whose DECRYPTED connection disagrees with the queried provider is rejected as NO_CREDENTIALS_CONFIGURED, never forwarded to the git adapter", async () => {
+test("commitSiteToSourceControl: a vault result from another provider group is rejected as NO_CREDENTIALS_CONFIGURED before opening or forwarding its token", async (t) => {
   const deps = testRouteDeps();
   const { workspaceId } = deps;
   const id = deps.idGen.newId();
-  const aad = buildSourceControlCredentialAad({ workspaceId, providerId: "github", id });
+  const aad = buildVaultAad({ workspaceId, id, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null });
   const sealed = await deps.siteAssistantSecretSealer.seal({
     plaintext: JSON.stringify({ providerId: "gitlab", token: "evil-mismatched-token" }),
     key: await deps.siteAssistantSecretKeyring.activeKey(),
@@ -269,16 +261,22 @@ test("commitSiteToSourceControl: a resolved credential whose DECRYPTED connectio
   await deps.sourceControlCredentialSetRepo.insert({
     workspaceId,
     id,
-    // Satisfies findDefaultByProvider's own filter — the disagreement lives entirely in the sealed
-    // payload above, never in this stored column, which store.ts's real write path always keeps in sync.
-    providerId: "github",
-    label: "direct-invoke test row — never producible via store.ts's own write path",
+    providerId: "gitlab",
+    label: "Wrong provider group",
     sealed,
     isDefault: true,
     accountLabel: null,
     createdAt: deps.clock.nowIso(),
     updatedAt: deps.clock.nowIso(),
   });
+  const vault = deps.sourceControlCredentialSetRepo.vault!;
+  const wrongGroup = await vault.find({ workspaceId, id });
+  assert.ok(wrongGroup);
+  const lookup = t.mock.method(vault, "findDefault", async () => wrongGroup, {});
+  const open = t.mock.method(deps.siteAssistantSecretSealer, "open", async () => {
+    assert.fail("a wrong-provider envelope must not be opened");
+  });
+  deps.exportSiteBound = async () => { assert.fail("export must not start for a wrong-provider credential"); };
 
   const result = await commitSiteToSourceControl(
     { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
@@ -287,40 +285,34 @@ test("commitSiteToSourceControl: a resolved credential whose DECRYPTED connectio
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
-  assert.equal(result.message, "The resolved default credential is not a 'github' connection.");
+  assert.equal(result.message, "credential could not be resolved: The credential could not be saved or unlocked. Check the site credential store.");
+  assert.equal(lookup.mock.callCount(), 1);
+  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null, provider: "github" }]);
+  assert.equal(open.mock.callCount(), 0);
+  assert.doesNotMatch(JSON.stringify(result), /evil-mismatched-token/);
 });
 
-/**
- * Branch-coverage fill (2026-09-04): `resolveCommitCredential`'s OWN catch (around
- * `resolveDefaultForSourceControl`) has the identical `err instanceof Error ? err.message :
- * String(err)` ternary `exportForCommit`'s catch has — the `brokenSealer` test above only ever throws
- * `decryptRecord`'s own `SourceControlCredentialSecretStoreUnconfiguredError` (a real `Error`), so the
- * non-`Error` arm was never reached from THIS catch specifically. `credentialDeps.repo` is an injected
- * port, so a repo whose `findDefaultByProvider` throws a raw, non-`Error` value proves it directly.
- */
-test("commitSiteToSourceControl: a credential repo throwing a non-Error value still produces a readable NO_CREDENTIALS_CONFIGURED message via String(err)", async () => {
+/** Vault failures use the store's safe public message, including non-Error adapter failures. */
+test("commitSiteToSourceControl: a vault repo throwing a non-Error value produces a safe NO_CREDENTIALS_CONFIGURED message without exposing adapter details", async (t) => {
   const deps = testRouteDeps();
-  const throwingRepo: RouteDeps["sourceControlCredentialSetRepo"] = {
-    insert: () => { throw new Error("must not be called on this path"); },
-    update: () => { throw new Error("must not be called on this path"); },
-    findById: () => { throw new Error("must not be called on this path"); },
-    listByProvider: () => { throw new Error("must not be called on this path"); },
-    listByWorkspace: () => { throw new Error("must not be called on this path"); },
-    delete: () => { throw new Error("must not be called on this path"); },
-    findDefaultByProvider: () => {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate: proving the `err
-      // instanceof Error` ternary's non-Error arm.
-      throw "raw string repo failure, not an Error instance";
-    },
-  };
+  const failure = "raw string repo failure with private token ghp_adapter_detail";
+  const lookup = t.mock.method(deps.sourceControlCredentialSetRepo.vault!, "findDefault", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate non-Error adapter failure.
+    throw failure;
+  }, {});
+  deps.exportSiteBound = async () => { assert.fail("export must not start after a credential lookup fails"); };
   const result = await commitSiteToSourceControl(
-    { providerId: "github", credentialDeps: { repo: throwingRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { providerId: "github", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
-  assert.equal(result.message, "credential could not be resolved: raw string repo failure, not an Error instance");
+  assert.equal(result.message, "credential could not be resolved: The credential could not be saved or unlocked. Check the site credential store.");
+  assert.equal(lookup.mock.callCount(), 1);
+  assert.deepEqual(lookup.mock.calls[0]!.arguments, [{ workspaceId: deps.workspaceId, kind: "source-control", ownerKey: "tovu", principalId: null, binding: null, provider: "github" }]);
+  assert.equal(JSON.stringify(result).includes(failure), false);
+  assert.doesNotMatch(JSON.stringify(result), /ghp_adapter_detail/);
 });
 
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {

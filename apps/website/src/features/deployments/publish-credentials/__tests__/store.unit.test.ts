@@ -4,7 +4,7 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { KeyringPort } from "#src/features/webhooks/index";
-import { InMemoryVendorCredentialSetRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import {
   createPublishCredential,
   deletePublishCredential,
@@ -22,10 +22,8 @@ import {
   type PublishCredentialWriteDeps,
 } from "../store.js";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
-import { buildVendorCredentialAad } from "#src/features/vendor-credentials/aad";
-import { buildPublishCredentialAad } from "../aad.js";
-import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
-import { copyPublishCredentialsToVendorTable } from "../vendor-table-backfill.js";
+import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { credentialScope } from "#src/features/vendor-credentials/vault-adapter";
 import type { DeployTargetRegistry, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -242,12 +240,12 @@ test("createPublishCredential rejects a second credential with the same (workspa
 /** Postgres/PGlite reports the label's UNIQUE index as SQLSTATE `23505` with its own wording, not
  *  SQLite's "UNIQUE constraint failed" — the store must still map it to the typed duplicate-label error. */
 test("createPublishCredential maps a Postgres UNIQUE violation (SQLSTATE 23505) to PublishCredentialDuplicateLabelError", async () => {
-  class PgDuplicateRepo extends InMemoryVendorCredentialSetRepo {
-    override async insert(): Promise<void> {
+  class PgDuplicateRepo extends InMemoryVaultRepo {
+    override async put(): Promise<never> {
       throw Object.assign(new Error('duplicate key value violates unique constraint "publish_credential_sets_label_idx"'), { code: "23505" });
     }
   }
-  const deps = makeDeps({ repo: new PgDuplicateRepo({}) });
+  const deps = makeDeps({ repo: new InMemoryVendorCredentialSetRepo({ vault: new PgDuplicateRepo({}) }) });
   await assert.rejects(
     () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Main repo", connection: { providerId: "vercel", token: "token-a" } }),
     PublishCredentialDuplicateLabelError
@@ -766,7 +764,7 @@ test("updatePublishCredential with a NEW connection resets accountLabel back to 
 // Storage: `vendor_credential_sets` (2026-09-29). A row belongs to the vendor its host declares.
 // ---------------------------------------------------------------------------------------------
 
-test("a saved connection lands in its host's vendor group, sealed as {vendorId, ...fields} under the vendor AAD", async () => {
+test("a saved connection lands in its host's vendor group, sealed as {vendorId, ...fields} under the vault AAD", async () => {
   const deps = makeDeps();
   const summary = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Pages", connection: { providerId: "github-pages", token: "ghp_abcd9876" } });
 
@@ -774,7 +772,7 @@ test("a saved connection lands in its host's vendor group, sealed as {vendorId, 
   assert.equal(summary.tokenTail, "9876");
   const row = await deps.repo.findById({ workspaceId: WORKSPACE, id: summary.id });
   assert.equal(row?.vendorId, "github");
-  const plaintext = await deps.sealer.open({ sealed: row!.sealed }, { aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "github", id: summary.id }) });
+  const plaintext = await deps.sealer.open({ sealed: row!.sealed }, { aad: buildVaultAad({ ...credentialScope({ workspaceId: WORKSPACE, kind: "vendor" }), id: summary.id }) });
   assert.deepEqual(JSON.parse(plaintext), { vendorId: "github", token: "ghp_abcd9876" });
 });
 
@@ -783,7 +781,7 @@ test("a row written by the vendor-credentials store (the custom-provider form) r
   const sealed = await deps.sealer.seal({
     plaintext: JSON.stringify({ vendorId: "s3-compatible", region: "auto", bucket: "b", accessKeyId: "AK", secretAccessKey: "SK12", publicUrl: "https://x" }),
     key: await deps.keyring.activeKey(),
-    aad: buildVendorCredentialAad({ workspaceId: WORKSPACE, vendorId: "s3-compatible", id: "v-1" }),
+    aad: buildVaultAad({ ...credentialScope({ workspaceId: WORKSPACE, kind: "vendor" }), id: "v-1" }),
   });
   await deps.repo.insert({ workspaceId: WORKSPACE, id: "v-1", vendorId: "s3-compatible", label: "custom", sealed, tokenTail: "SK12", isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW });
 
@@ -814,23 +812,80 @@ test("hasDefaultForPublish reads the host's vendor group without decrypting", as
   assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "no-such-host" }), false);
 });
 
-test("a legacy row copied by the boot backfill is what a publish resolves", async () => {
+test("a deleted credential stays deleted when adapters are reconstructed over the persistent vault", async () => {
   const deps = makeDeps();
-  const legacyRepo = new InMemoryPublishCredentialSetRepo();
-  const sealed = await deps.sealer.seal({
-    plaintext: JSON.stringify({ providerId: "netlify", token: "nf-token" }),
-    key: await deps.keyring.activeKey(),
-    aad: buildPublishCredentialAad({ workspaceId: WORKSPACE, providerId: "netlify", id: "legacy-1" }),
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Saved", connection: { providerId: "netlify", token: "nf-token" } });
+  await deletePublishCredential(deps, { workspaceId: WORKSPACE, id: created.id });
+  const reboot = { ...deps, repo: new InMemoryVendorCredentialSetRepo({ vault: deps.repo.vault! }) };
+  assert.equal(await resolveDefaultForPublish(reboot, { workspaceId: WORKSPACE, providerId: "netlify" }), null);
+  assert.deepEqual(await listPublishCredentials(reboot, { workspaceId: WORKSPACE }), []);
+});
+
+test("vault publish default lookup never lists the vendor group", async () => {
+  const deps = makeDeps();
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Default", connection: { providerId: "vercel", token: "default-token" } });
+  deps.repo.vault!.list = async () => { throw new Error("indexed default lookup required"); };
+  assert.equal(await hasDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), true);
+  assert.equal((await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }))?.id, created.id);
+});
+
+test("publish hints use stored lengths without opening or hydrating each row", async () => {
+  const deps = makeDeps();
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Short", connection: { providerId: "vercel", token: "abcdefghijk" } });
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Long", connection: { providerId: "vercel", token: "abcdefghijkl" } });
+  deps.repo.vault!.find = async () => { throw new Error("list must not hydrate rows"); };
+  const listed = await listPublishCredentials({ ...deps, sealer: { seal: async () => { throw new Error("unused"); }, open: async () => { throw new Error("unused"); } } }, { workspaceId: WORKSPACE });
+  assert.deepEqual(listed.map(row => [row.tokenHint, row.tokenTail]), [[{ length: 11, last4: null }, ""], [{ length: 12, last4: "ijkl" }, "ijkl"]]);
+});
+
+test("label/default updates need no key and retain the vault ciphertext and hints", async () => {
+  const deps = makeDeps();
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Saved", connection: { providerId: "vercel", token: "twelve-chars!" } });
+  const before = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: created.id });
+  await updatePublishCredential({ ...deps, keyring: new BrokenKeyring() }, { workspaceId: WORKSPACE, id: created.id, label: "Renamed", isDefault: true });
+  const after = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: created.id });
+  assert.deepEqual(after?.sealed, before?.sealed);
+  assert.equal(after?.last4, before?.last4);
+  assert.equal(after?.tokenLength, before?.tokenLength);
+  assert.equal(after?.revision, before!.revision + 1);
+});
+
+for (const selectDefault of [false, true]) {
+  test(`provider-only publish moves preserve the envelope and atomically select defaults (explicit=${selectDefault})`, async () => {
+    const deps = makeDeps();
+    const original = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Moving", connection: { providerId: "github-pages", token: "original-secret" } });
+    const sibling = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Remaining", connection: { providerId: "github-pages", token: "remaining-secret" } });
+    const destination = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Destination", connection: { providerId: "vercel", token: "destination-secret" } });
+    await healAccountLabel(deps, { workspaceId: WORKSPACE, id: original.id, accountLabel: "old-account" });
+    const before = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: original.id });
+    const noCrypto = { seal: async () => { throw new Error("move must not seal"); }, open: async () => { throw new Error("move must not open"); } };
+    const moved = await updatePublishCredential({ ...deps, keyring: new BrokenKeyring(), sealer: noCrypto },
+      { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "vercel", token: "" }, ...(selectDefault ? { isDefault: true } : {}) });
+    const after = await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: original.id });
+    assert.equal(moved.id, original.id);
+    assert.equal(moved.createdAt, original.createdAt);
+    assert.equal(moved.providerId, "vercel");
+    assert.equal(moved.accountLabel, null);
+    assert.equal(moved.isDefault, selectDefault);
+    assert.deepEqual(after?.sealed, before?.sealed);
+    assert.deepEqual(moved.tokenHint, original.tokenHint);
+    assert.equal(after?.revision, before!.revision + 1);
+    assert.equal((await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "github-pages" }))?.id, sibling.id);
+    assert.equal((await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }))?.id, selectDefault ? original.id : destination.id);
+    assert.deepEqual((await resolveForPublish(deps, { workspaceId: WORKSPACE, id: original.id }))?.connection, { providerId: "vercel", token: "original-secret" });
+    const empty = await updatePublishCredential({ ...deps, sealer: noCrypto }, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "netlify" }, isDefault: false });
+    assert.equal(empty.isDefault, true, "an empty destination auto-defaults even with explicit false");
+    assert.deepEqual((await deps.repo.vault!.find({ workspaceId: WORKSPACE, id: original.id }))?.sealed, before?.sealed);
   });
-  await legacyRepo.insert({ workspaceId: WORKSPACE, id: "legacy-1", providerId: "netlify", label: "Netlify", sealed, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW });
+}
 
-  assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "netlify" }), null, "the legacy table is no longer read");
-  await copyPublishCredentialsToVendorTable(
-    { legacyRepo, vendorRepo: deps.repo, sealer: deps.sealer, keyring: deps.keyring, registries: [await loadBundledDeployTargets()] },
-    { workspaceId: WORKSPACE },
-  );
-
-  const resolved = await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "netlify" });
-  assert.equal(resolved?.id, "legacy-1");
-  assert.deepEqual(resolved?.connection, { providerId: "netlify", token: "nf-token" });
+test("publish provider moves reject label collisions and incompatible secret schemas without changing either group", async () => {
+  const deps = makeDeps();
+  const original = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Collision", connection: { providerId: "github-pages", token: "original-secret" } });
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Collision", connection: { providerId: "vercel", token: "destination-secret" } });
+  const scope = credentialScope({ workspaceId: WORKSPACE, kind: "vendor" });
+  const before = await deps.repo.vault!.list(scope);
+  await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "vercel" }, isDefault: true }), PublishCredentialDuplicateLabelError);
+  await assert.rejects(updatePublishCredential(deps, { workspaceId: WORKSPACE, id: original.id, connection: { providerId: "s3-compatible" } }), PublishCredentialValidationError);
+  assert.deepEqual(await deps.repo.vault!.list(scope), before);
 });

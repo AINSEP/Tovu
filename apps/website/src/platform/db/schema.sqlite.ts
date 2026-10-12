@@ -170,7 +170,7 @@ export const posts = sqliteTable(
      * — every existing "who created this row" column in this
      * schema is an unenforced reference, not a live FK, because a "created by" fact must survive the
      * referenced principal being deleted (the one place this schema DOES use a real FK on
-     * `principal_id`, `adminExecutionCredentials`, is a live per-admin credential meant to be
+     * `principal_id` in `secretsVault` is a live per-admin credential meant to be
      * cascade-deleted with its owner — the opposite intent from an audit trail).
      *
      * Nullable, additive, no backfill: every one of the ~54 pre-existing rows was created before this
@@ -701,8 +701,9 @@ export const memberTiers = sqliteTable(
   (table) => [
     uniqueIndex("member_tiers_workspace_slug_unique").on(table.workspaceId, table.slug),
     /**
-     * Commerce (2026-08-12 debate, section 5) — the target half of `commerceProducts`'
-     * `grantsMemberTierId` composite FK below. SQLite (and Postgres) require a composite FK's
+     * Historical commerce (2026-08-12 debate, section 5) required this target index for its
+     * `grantsMemberTierId` composite FK (retired by 0011). Keep the index to avoid an unrelated
+     * member-tier schema change. SQLite (and Postgres) require a composite FK's
      * target columns to be a PK or carry a UNIQUE index; `id` alone is already unique (it's the
      * PK) but the pair `(workspace_id, id)` is not, so a same-`id` row can otherwise only be
      * looked up, never enforced as "and it belongs to this workspace" at the DB level. Additive:
@@ -1645,284 +1646,6 @@ export const agentToolAttempts = sqliteTable(
 );
 
 /**
- * Where this site's database copies go (`features/database-transfer`): one saved Postgres destination
- * per workspace, typed by the human into a private form. The connection string (with its password) is
- * sealed whole under `features/database-transfer/destination-aad.ts`'s AAD; only its non-secret
- * description (host, port, database, user) is plaintext, because the tools already show it.
- * `last_run_json` is the last copy's summary (never row data, never the address). Never copied by a
- * database transfer itself (`exclusions.ts`: saved keys). No foreign key, like
- * `site_assistant_credentials`: a single row per workspace, keyed by it.
- */
-export const databaseTransferDestinations = sqliteTable("database_transfer_destinations", {
-  workspaceId: text("workspace_id").primaryKey(),
-  host: text("host").notNull(),
-  port: text("port").notNull(),
-  databaseName: text("database_name").notNull(),
-  userName: text("user_name").notNull(),
-  /** `SealedSecret.keyId`. */
-  sealedKeyId: text("sealed_key_id").notNull(),
-  /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the connection string. */
-  sealedCiphertext: text("sealed_ciphertext").notNull(),
-  /** Base64 12-byte AES-GCM IV. */
-  sealedNonce: text("sealed_nonce").notNull(),
-  sealedAlg: text("sealed_alg").notNull(),
-  /** Always `1` (born with AAD); stored so a future AAD format is data, not a guess. */
-  aadVersion: integer("aad_version").notNull(),
-  savedAt: text("saved_at").notNull(),
-  lastRunJson: text("last_run_json"),
-});
-
-/**
- * The SITE's provider credential for the public visitor assistant (ADR-058) — one row per
- * workspace, single-row-per-workspace shape matching `originSettings`/`presentationSettings` above
- * (`workspace_id` as the primary key, no surrogate id, upsert semantics).
- *
- * Deliberately NOT a `core.execution.*` settings-ledger row: ADR-028 §6 blocks `secret:true`
- * registration outright, and a non-secret registration would put a live provider key in the
- * append-only, exportable `setting_revisions` history with no redaction path. This table holds only
- * ciphertext — the `sealed*` columns are `AesGcmSecretSealer`'s output (`SecretSealerPort`,
- * `src/webhooks/ports.ts`), never plaintext, and the write-only API (`site-credential.ts` routes)
- * never reads them back out to a client. `masked` is the one exception: computed once from the
- * plaintext at write time and stored as its own plain column, so a GET can answer "is a key set, and
- * what does it end in" as a pure DB read with zero decrypt/crypto involvement (ADR-058 §3).
- *
- * The CHECK makes "half a sealed secret" unrepresentable — all five `sealed*`/`masked` columns are
- * NULL together (no key stored) or non-NULL together (a key is stored), the same totality discipline
- * ADR-028 applies to its own value shapes.
- */
-export const siteAssistantCredentials = sqliteTable(
-  "site_assistant_credentials",
-  {
-    workspaceId: text("workspace_id").primaryKey(),
-    provider: text("provider").notNull().default("google"),
-    baseUrl: text("base_url"),
-    model: text("model"),
-    /** `SealedSecret.keyId` — names the site-key generation the value was wrapped under. */
-    sealedKeyId: text("sealed_key_id"),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
-    sealedCiphertext: text("sealed_ciphertext"),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce"),
-    /** Always `'aes-256-gcm'` today; stored rather than hardcoded so a future algorithm change is
-     *  data, not a silent reinterpretation of old rows. */
-    sealedAlg: text("sealed_alg"),
-    /** `••••<last 4 chars>` — precomputed at write time, matching `@jini-ai/ui`'s existing
-     *  `maskedKeyLabel` convention (`features/media-providers/rules.js`). */
-    masked: text("masked"),
-    /**
-     * Migration `0055` (2026-09-02, AAD-gap closure). `0` = `sealed_ciphertext` was sealed with NO
-     * additional authenticated data (every row written before this migration) and MUST be opened
-     * with no `aad` either, or auth-tag verification fails; `1` = sealed under
-     * `site-credential-aad.ts`'s `buildSiteAssistantCredentialAad`, and open MUST supply the
-     * byte-identical string. Meaningless when `sealed_ciphertext` is `NULL` (no key stored) —
-     * defaults to `0` there and nothing ever reads it in that state.
-     *
-     * Exists because AAD is authenticated but never stored (`secret-sealer.aesgcm.ts`'s own header):
-     * a legacy row's ciphertext auth tag only verifies under NO aad, so open() cannot simply start
-     * passing one — it must know, per row, which lineage that row's ciphertext belongs to. New
-     * writes always seal with `aad` and set this to `1`; `development/scripts/backfill-site-
-     * assistant-credential-aad.ts` flips existing `0` rows to `1` by opening under no aad and
-     * re-sealing the same plaintext under the derived aad — see that script's own header.
-     */
-    aadVersion: integer("aad_version").notNull().default(0),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    check(
-      "site_assistant_credentials_sealed_shape",
-      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.masked} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.masked} IS NOT NULL)`
-    ),
-  ]
-);
-
-/**
- * The ADMIN's own BYOK credential (design: `ADS-memory/reports/analysis/2026-08-05-admin-byok-
- * keystore-design.md`, owner-approved) — one row per `(workspace_id, principal_id)`, powering the
- * admin assistant dock's "API · BYOK" execution mode (ADR-049, `server/modules/assistant-byok.ts`).
- * NOT `siteAssistantCredentials` above — that one is per-WORKSPACE and backs the PUBLIC visitor
- * assistant; this one is per-admin and backs that admin's own dock. Different scope, different
- * consumer, on purpose — see that table's own header for why the two must never merge.
- *
- * Scoped to `(workspace_id, principal_id)` rather than `workspace_id` alone because the credential
- * it replaces (`apps/admin/src/lib/execution-settings.ts`'s browser-`localStorage` key) is
- * per-BROWSER today: two admins on the same install already carry independent keys, and collapsing
- * to one shared workspace key would let one admin's save silently overwrite another's. The
- * `(workspaceId, principalId)` composite-key shape mirrors `settingValuesUser` above — the existing
- * precedent for "belongs to one admin, in one workspace" data — minus a `settingId` column, since
- * (like `siteAssistantCredentials`) this is a single-row-per-scope shape, not a per-key ledger.
- *
- * Unlike `settingValuesUser`'s `principal_id` (whose comment says identity has no SQL table to
- * reference), `principals` below IS a real SQL table with a real adapter today — that comment
- * predates it — so `principal_id` here carries a genuine FK.
- *
- * Sealed via the SAME `AesGcmSecretSealer`/`KeyringPort` instances ADR-058 wires (reused, not
- * re-derived — `SecretSealerPort` is a generic seal/open primitive; it does not need a second
- * domain-separation boundary per table). Sealed-shape CHECK copied verbatim from
- * `site_assistant_credentials_sealed_shape`.
- */
-export const adminExecutionCredentials = sqliteTable(
-  "admin_execution_credentials",
-  {
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    principalId: text("principal_id")
-      .notNull()
-      .references(() => principals.id, { onDelete: "cascade" }),
-    /** "anthropic" | "openai" | "azure" | "google" — matches `ResolvedByokCredential.protocol`. */
-    protocol: text("protocol").notNull().default("anthropic"),
-    /** Preset id (e.g. `"anthropic"`); NULL = a custom endpoint. Mirrors `ByokConfig.providerId`. */
-    providerId: text("provider_id"),
-    baseUrl: text("base_url"),
-    model: text("model"),
-    maxTokens: integer("max_tokens"),
-    /** `SealedSecret.keyId`; NULL iff no key stored. */
-    sealedKeyId: text("sealed_key_id"),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
-    sealedCiphertext: text("sealed_ciphertext"),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce"),
-    /** Always `'aes-256-gcm'` today. */
-    sealedAlg: text("sealed_alg"),
-    /** `••••<last 4 chars>`, precomputed at write time — same convention as ADR-058 §3. */
-    masked: text("masked"),
-    /** Migration `0055` (2026-09-02, AAD-gap closure) — same `0`=legacy-no-aad /
-     *  `1`=`buildExecutionCredentialAad`-bound contract as `site_assistant_credentials.aad_version`
-     *  above; see that column's own doc for the full reasoning this one shares verbatim. Backfilled
-     *  by `development/scripts/backfill-execution-credential-aad.ts`. */
-    aadVersion: integer("aad_version").notNull().default(0),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.workspaceId, table.principalId] }),
-    check(
-      "admin_execution_credentials_sealed_shape",
-      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.masked} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.masked} IS NOT NULL)`
-    ),
-  ]
-);
-
-/**
- * Named, workspace-scoped provider connections for static-site publishing (GitHub Pages / Vercel /
- * Netlify / Cloudflare Pages) — what the admin's Static Site tab "Advanced: publish with server-side
- * provider credentials" form persists (`features/deployments/publish-credentials/`). Design:
- * `ADS-memory/reports/external-audit/runs/2026-08-15-terra-xhigh-publish-credentials-design.md`.
- *
- * Composite PK `(workspace_id, id)`, NOT `workspace_id` alone like `siteAssistantCredentials`/
- * `adminExecutionCredentials` above — those are single-row-per-scope settings rows; this table is a
- * per-scope LEDGER, because a workspace can hold more than one named connection to the SAME provider
- * (e.g. two GitHub tokens for two different repos). `id` is a caller-supplied UUID, not an
- * autoincrement surrogate, matching every other UUID-keyed content row in this schema (`posts.id`
- * etc.) rather than `agentToolAttempts`' autoincrement (that table has no natural key to reuse; this
- * one does — `(workspace_id, provider_id, label)` is the human-meaningful identity, `id` exists only
- * so PUT/DELETE has a stable target across a label rename). UNIQUE `(workspace_id, provider_id,
- * label)` enforces the human-meaningful identity is actually unique per workspace.
- *
- * Sealed via the SAME shared `AesGcmSecretSealer`/`KeyringPort` instances the two tables above reuse
- * (one sealing capability app-wide — see `secret-sealer.aesgcm.ts`'s own header) — but UNLIKE those
- * two tables, every `sealed*` column here is `NOT NULL`, not nullable-together-via-CHECK. Those two
- * precedent tables model a single settings row that can exist BEFORE any key is ever saved (rendering
- * `isSet: false`); a row in THIS table cannot exist before a connection is saved — `POST .../publish/
- * credentials` requires a `connection` in its very own request body (see
- * `publish-credentials/store.ts`'s `createPublishCredential`), so "a row with no sealed payload" is
- * not a state this table's writers can ever produce, and giving it a nullable CHECK it can never
- * legitimately satisfy in the NULL branch would just be dead schema surface.
- *
- * Every `sealed*` payload is sealed with an `aad` (`SecretSealerPort`'s new optional parameter, this
- * same 2026-08-15 change) bound to `workspaceId + providerId + id` — see
- * `publish-credentials/aad.ts`'s `buildPublishCredentialAad` for the one place that string format is
- * defined. This is what makes a row's ciphertext non-transplantable to a different workspace, a
- * different provider, or a different credential set even though the underlying AES key is shared
- * app-wide (Terra's 2026-08-15 finding: at the time, the two tables above sealed with no AAD at all
- * and did not have this property, and retrofitting them was out of scope for this table's own
- * dispatch — that retrofit is `site_assistant_credentials.aad_version`/
- * `admin_execution_credentials.aad_version` above, closed 2026-09-02).
- *
- * Deliberately NO `masked` column — a divergence from BOTH tables above, made on Terra's explicit
- * recommendation: label + `updatedAt` already identify a connection well enough for a human to
- * recognize it, and not even storing a last-4 keeps zero token-derived material outside the sealed
- * blob (`site_assistant_credentials`/`admin_execution_credentials`'s `masked` column, by contrast,
- * stores plaintext-derived characters unencrypted specifically so a GET can answer "what does it end
- * in" with no decrypt — a tradeoff this design consciously declines to repeat for a deployment
- * secret with WRITE access to a real external account).
- *
- * The sealed payload itself is the WHOLE `PublishConnectionInput` connection object serialized as one
- * JSON blob (token AND its provider-specific companion fields — `owner`/`repo` for github-pages,
- * `teamId` for vercel, `siteId` for netlify, `accountId`/`projectName` for cloudflare-pages), not a
- * bare token — see `publish-credentials/types.ts`'s own header for why a single `sealed_ciphertext`
- * column per row is correct here and no per-field encrypted columns are needed.
- */
-export const publishCredentialSets = sqliteTable(
-  "publish_credential_sets",
-  {
-    id: text("id").notNull(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    /** `"github-pages" | "vercel" | "netlify" | "cloudflare-pages"` — see
-     *  `publish-credentials/types.ts`'s `PublishProviderId`. */
-    providerId: text("provider_id").notNull(),
-    /** Human-chosen label, unique per `(workspace_id, provider_id)` — the identity a human picks a
-     *  connection by, since this table (unlike the two above) holds more than one row per provider. */
-    label: text("label").notNull(),
-    /** `SealedSecret.keyId`. */
-    sealedKeyId: text("sealed_key_id").notNull(),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the whole serialized connection object. */
-    sealedCiphertext: text("sealed_ciphertext").notNull(),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce").notNull(),
-    /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
-     *  reason the two precedent tables above give. */
-    sealedAlg: text("sealed_alg").notNull(),
-    /**
-     * Migration `0041` addition (2026-08-15, Contract v2 Correction B) — replaces the original
-     * design's "reject a publish when 2+ credentials exist for one provider, ambiguous" rule, which
-     * broke the whole point of named connections the first time a workspace saved a second one.
-     * `resolveForPublish`'s provider-scoped resolution now reads the row with `is_default = 1`
-     * instead. The write path (`publish-credentials/store.ts`) maintains the invariant "at most one
-     * `TRUE` per `(workspace_id, provider_id)`" — a provider's first-ever saved connection becomes
-     * default automatically, setting a new default clears the old one in the same transaction, and
-     * deleting the default promotes the group's most-recently-updated remaining row. No DB-level
-     * CHECK/partial-unique-index enforces this (SQLite partial indexes can't express "at most one
-     * TRUE per group" without excluding legitimate `0` rows too) — the write path is the sole
-     * chokepoint, same trust model this table's `sealed*` columns already rely on for the AAD
-     * binding above. */
-    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
-    /**
-     * The verified credential's own public account login/username (GitHub's `login`, Vercel's
-     * `username`) — held in the clear because a decrypt-on-read would put an AEAD open on a cheap
-     * path, and because this value already appears, unencrypted, in a PUBLIC
-     * URL a real publish prints (`https://<login>.github.io/<repo>/`), so sealing it here would
-     * protect nothing while forcing `deployment_get_static_publish_capabilities` to decrypt (or stay
-     * blind) just to answer "whose account is this."
-     *
-     * `NULL` until the first successful identity check — `publish-credentials/store.ts`'s create/
-     * update paths never populate this themselves (see that file's own header for why: this table's
-     * write path is shared with an agent-facing caller for the s3-compatible provider, and a network
-     * probe does not belong on that path); it is written ONLY by a human-gated verify
-     * (`static-publish/verify.ts`'s `verifyPublishCredentialById`, via the admin route's
-     * `healAccountLabel` call — 2026-08-16, the fix for "verification lived in
-     * `InMemoryPublishCredentialVerificationCache` only, so a routine server restart silently reverted
-     * a working, previously-verified credential back to no known account"). Reset to `NULL` whenever
-     * `updatePublishCredential` reseals a NEW connection (`store.ts`'s own reasoning: a label naming
-     * the OLD token's account is worse than no label once the token itself has changed) — never simply
-     * carried over, and never left stale by a failed re-verify (`verify.ts`'s `"invalid"`/
-     * `"unreachable"` results carry no `accountLabel` at all, so a failed check cannot overwrite a
-     * previously-healed value with nothing).
-     */
-    accountLabel: text("account_label"),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.workspaceId, table.id] }),
-    uniqueIndex("publish_credential_sets_workspace_provider_label_unique").on(table.workspaceId, table.providerId, table.label),
-  ]
-);
-
-/**
  * Append-only publish-history ledger (2026-08-16, owner-requested rework of the original
  * flat-JSON-file design — see `static-publish/publish-history.ts`'s own header for the full
  * before/after story). One row per publish that actually produced an outcome (`ok: true` or
@@ -1994,344 +1717,69 @@ export const publishHistory = sqliteTable(
 );
 
 /**
- * Per-workspace saved connections for the admin Source Control page (2026-08-15) — "I have a
- * GitHub/GitLab/Bitbucket personal access token" as its own concept, deliberately NOT a row in
- * `publishCredentialSets` above even though the column shape is identical. `PublishProviderId` is
- * aliased onto `AdminStaticPublishTargetId` on purpose (see that type's own header) so the provider
- * set a credential can be saved for and the provider set a publish can target can never drift apart;
- * widening it with `"github"`/`"gitlab"`/`"bitbucket"` would corrupt that guarantee by making one
- * value simultaneously mean "a saved source-control identity" and "a legal `triggerPublish` target",
- * neither of which GitLab or Bitbucket (not deploy targets) or a *source* GitHub account (a
- * different credential than `github-pages`) actually is. A second table with the same shape is the
- * correct fix, not a wider union on the first one.
- *
- * Every column below is a structural copy of `publishCredentialSets`' own (see that table's own doc
- * comment for the full reasoning this one inherits verbatim): the same composite
- * `(workspace_id, id)` primary key, the same `(workspace_id, provider_id, label)` UNIQUE identity,
- * the same four `sealed*` columns (all `NOT NULL` — a row cannot exist before a connection is saved,
- * same reasoning), the same deliberate absence of a `masked` column, and the same write-path-owned
- * `is_default` group invariant (at most one `TRUE` per `(workspace_id, provider_id)`, no DB-level
- * CHECK). Sealed via the SAME shared `AesGcmSecretSealer`/`KeyringPort` instances every other sealed
- * table in this file reuses, under an AAD bound to `workspaceId + providerId + id`
- * (`features/source-control/aad.ts`'s `buildSourceControlCredentialAad`) so a row's ciphertext is
- * not transplantable to a different workspace, provider, or credential set.
- *
- * The sealed payload is the whole `SourceControlConnectionInput` object (token, plus Bitbucket's
- * paired `username` — Bitbucket's own API authenticates the pair, not the token alone), not a bare
- * token — same one-ciphertext-per-row reasoning `publishCredentialSets` gives for its own multi-field
- * providers.
+ * ADR-058 vault amendment / step 0012: one workspace-scoped vault owns saved credentials.
+ * Secret values use the shared AesGcmSecretSealer, never the append-only/exportable settings ledger.
+ * The sealed quad is all-null or all-present; metadata-only assistant/media/custom rows need no key.
+ * Plain metadata and length-aware last4 hints support lists without opening a secret (short tokens
+ * expose no tail). Destination descriptions and last-run summaries are metadata, never connection URIs.
+ * Personal execution keys cascade with their principal; content attribution survives user deletion.
+ * Singleton, provider and label indexes preserve the folded stores' identities. NULL and empty scope
+ * values stay distinct; one default per group is enforced even when principal/provider is NULL.
+ * MCP pointers restrict deletion until unlinked; 0012 owns the kind/owner validation triggers, which
+ * Drizzle cannot declare. OAuth device attempts remain separate; redirects carry sealed state.
  */
-export const sourceControlCredentialSets = sqliteTable(
-  "source_control_credential_sets",
-  {
-    id: text("id").notNull(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    /** `"github" | "gitlab" | "bitbucket"` — see `features/source-control/types.ts`'s
-     *  `SourceControlProviderId`. */
-    providerId: text("provider_id").notNull(),
-    /** Human-chosen label, unique per `(workspace_id, provider_id)` — always
-     *  `SOURCE_CONTROL_CREDENTIAL_ROW_LABEL` (`"default"`) today, since the admin page's flat
-     *  one-row-per-provider UI never asks an operator to type one, but the column stays free-text
-     *  (not an enum) for the same future-multi-connection-per-provider reason `publishCredentialSets`
-     *  keeps its own `label` free-text. */
-    label: text("label").notNull(),
-    /** `SealedSecret.keyId`. */
-    sealedKeyId: text("sealed_key_id").notNull(),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the whole serialized connection object. */
-    sealedCiphertext: text("sealed_ciphertext").notNull(),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce").notNull(),
-    /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
-     *  reason `publishCredentialSets` gives. */
-    sealedAlg: text("sealed_alg").notNull(),
-    /** At most one `TRUE` per `(workspace_id, provider_id)`, maintained by
-     *  `features/source-control/store.ts`'s write path — same invariant, same "no DB-level CHECK"
-     *  reasoning `publishCredentialSets.isDefault` documents. */
-    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
-    /**
-     * The verified account's public login (GitHub's `login` only, today) — same "held in the clear,
-     * not sealed" reasoning this table's own sibling `publishCredentialSets.accountLabel` documents
-     * (see its doc comment for the full case).
-     *
-     * `NULL` until populated. Unlike `publishCredentialSets`, this table has no shared agent-facing
-     * write path to protect (nothing under `features/source-control/`'s own tool catalog ever calls
-     * `createSourceControlCredential`/`updateSourceControlCredential` — see `store.ts`'s own header)
-     * and no existing verify concept to piggyback on, so `store.ts`'s create/update paths populate this
-     * column directly, inline, at save time — a best-effort identity probe against the SAME plaintext
-     * token they are about to seal, reusing `static-publish/verify.ts`'s reviewed, single-field GitHub
-     * `/user` -> `login` extractor (`extractGitHubLogin`) rather than a second, independently-reviewed
-     * one. `gitlab`/`bitbucket` connections always leave this `NULL`: neither provider has a reviewed
-     * single-field identity extractor the way GitHub's `login` does (see `verify.ts`'s header on why
-     * s3-compatible gets the identical "no reviewed field" treatment on the publish side) — guessing at
-     * an unreviewed response shape here would violate this codebase's own "never email/plan/billing/org,
-     * one field only" discipline for account-identity reads.
-     */
-    accountLabel: text("account_label"),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.workspaceId, table.id] }),
-    uniqueIndex("source_control_credential_sets_workspace_provider_label_unique").on(table.workspaceId, table.providerId, table.label),
-  ]
-);
-
-/**
- * User-defined provider credentials for the admin Access Tokens page's "Add custom provider"
- * capability (`apps/admin/src/features/security/`, 2026-08-17) — a workspace-typed name (e.g.
- * "name.com", "GoDaddy") plus an API base URL, an access token, and an optional username, filed
- * under one of the page's own category buckets. Deliberately a THIRD, separate table from
- * `publishCredentialSets`/`sourceControlCredentialSets` above rather than a widened provider-id
- * union on either: both of those are CLOSED discriminated unions over a small, reviewed set of
- * named providers with their own per-provider semantics (a publish target, a source-control
- * identity) — a custom row has no fixed provider identity at all (the operator types the name),
- * so it has no closed union to join. Structurally closest to `sourceControlCredentialSets`
- * (composite `(workspace_id, id)` PK, one sealed blob per row) but with no `provider_id`/
- * `is_default`/`account_label` — none of those concepts apply when every row is already its own,
- * independent, standalone credential rather than one of several named connections under a shared
- * provider.
- *
- * `category`/`base_url` are held in the clear (not sealed), same "the read model must be able to
- * group/filter/link without decrypting" reasoning `AccessTokenProviderInfo.category`/`tokenPageUrl`
- * already rely on for the page's seven built-in providers — the admin list route never decrypts
- * (mirrors `listSourceControlCredentials`'s own "never touches the sealer" contract), so anything
- * the list/filter UI needs to read must already be plaintext on the row. `token` is the only
- * genuinely secret field, sealed as this table's own one connection-object ciphertext, same
- * one-ciphertext-per-row discipline every sibling credential table here documents. `username` used
- * to be sealed alongside it and is now its own plaintext column (2026-09-01) — see that column's
- * own doc below for why an account identifier never belonged inside the ciphertext, and for the
- * two-pass migration that is still mid-flight (it is written to BOTH places until Pass 2 lands).
- */
-export const customCredentialSets = sqliteTable(
-  "custom_credential_sets",
-  {
-    id: text("id").notNull(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    /** Operator-typed display name (e.g. "name.com") — unique per workspace, since a custom row has
-     *  no other provider identity to disambiguate by. */
-    label: text("label").notNull(),
-    /** One of the Access Tokens page's own category-filter ids (`"source-control" | "hosting" |
-     *  "media" | "ai" | "ops" | "general"`) — see `apps/admin/src/features/security/rules.ts`'s
-     *  `AccessTokenRowCategoryId`. Validated against that same closed set server-side
-     *  (`features/custom-credentials/store.ts`'s `validateCategory`), not DB-enforced (SQLite has no
-     *  portable enum CHECK across this repo's dialect-parity story — same reasoning every other
-     *  string-typed id column here already accepts). */
-    category: text("category").notNull(),
-    /** The vendor's API base URL (e.g. `https://api.vercel.com`) — plaintext, not a secret. This is
-     *  the credential's PRIMARY allowed host; see `additionalHostsJson` below for the rest. */
-    baseUrl: text("base_url").notNull(),
-    /**
-     * 2026-08-31 (owner-driven: a single fly.io credential needs BOTH `api.fly.io` (GraphQL) and
-     * `api.machines.dev` (Machines REST) — one saved `base_url` cannot cover a real provider with
-     * more than one API host). A JSON array of EXTRA origin strings this credential's token may be
-     * sent to, beyond `base_url` — e.g. `["https://api.machines.dev"]`. `NULL`/absent means "no
-     * extra hosts", not "unconfigured" — same "plain text, no Drizzle json-mode column" convention
-     * every JSON-shaped column in this schema uses (`manifest.ts`'s own `isJsonColumnName` doc);
-     * manually (de)serialized at `custom-credential-repo.sqlite.ts`'s adapter boundary. Plaintext,
-     * not sealed — same "the read model must read it without decrypting" reasoning `base_url` above
-     * already documents; a host is not a secret. This is a SECURITY column in the identical sense
-     * `external_mcp_servers.allowed_tool_names` is (`this file's own doc on that column):
-     * `features/custom-credentials/credentialed-request.ts`'s per-request host-binding check is
-     * derived from `base_url` + this column and NOTHING else — it is the full allowlist a request's
-     * resolved URL origin is checked against, never widened by tool input.
-     */
-    additionalHostsJson: text("additional_hosts_json"),
-    /**
-     * 2026-09-01 (owner-driven). The credential's own account login — the optional second half of
-     * `{token, username?}` for a provider whose API authenticates a PAIR rather than a bare bearer
-     * token. Plaintext, deliberately: a username is an account IDENTIFIER, not a secret, and it is
-     * already rendered on screen in the Access Tokens edit form. Same "held in the clear because a
-     * decrypt-on-read would put an AEAD open on a cheap path" reasoning
-     * `vendorCredentialSets.accountLabel` and `publishCredentialSets.accountLabel` above each
-     * document for their own column — and this table's own `category`/`base_url` doc above already
-     * establishes the governing rule: the admin list route and `custom_credential_list` never
-     * decrypt, so anything the read model must return has to be plaintext on the row.
-     *
-     * Before this column, `username` lived INSIDE `sealed_ciphertext` beside the token, which cost
-     * two real bugs: the admin edit form rendered a saved username as blank on every load (it had no
-     * non-decrypting source to read it from), and `custom_credential_list` had to omit it entirely.
-     *
-     * `NULL` means "this credential has no username", not "not yet migrated" — the two are
-     * indistinguishable on the row by design, and nothing branches on the difference. Existing rows
-     * are populated by `development/scripts/backfill-custom-credential-usernames.ts` (Pass 1), which
-     * decrypts each row once and copies the value out WITHOUT rewriting the ciphertext; until a
-     * later Pass 2 stops sealing it, `username` is written to BOTH this column and the sealed
-     * connection object, so every existing decrypting reader keeps working unchanged.
-     */
-    username: text("username"),
-    /** `SealedSecret.keyId`. */
-    sealedKeyId: text("sealed_key_id").notNull(),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the serialized `{token, username?}`
-     *  connection object. */
-    sealedCiphertext: text("sealed_ciphertext").notNull(),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce").notNull(),
-    /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
-     *  reason every sibling credential table here gives. */
-    sealedAlg: text("sealed_alg").notNull(),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.workspaceId, table.id] }),
-    uniqueIndex("custom_credential_sets_workspace_label_unique").on(table.workspaceId, table.label),
-  ]
-);
-
-/**
- * Migration `0045` (2026-08-16, owner-decided redesign) — the vendor-scoped replacement for the two
- * tables directly above. `publishCredentialSets`/`sourceControlCredentialSets` each key a row on a
- * DESTINATION id (`"github-pages"`, `"github"`) even when the underlying secret authenticates the
- * SAME company — a GitHub personal access token had to be typed and sealed twice, once per table,
- * with no way for either save to know the other existed. This table keys on `vendor_id` instead — a
- * company/protocol identity (`"github" | "gitlab" | "bitbucket" | "vercel" | "netlify" |
- * "cloudflare" | "s3-compatible"`, `../features/vendor-credentials/types.ts`'s `VendorId`) — so
- * Source Control and the Static Site publish tab both read from, and both save into, the SAME
- * roster of GitHub tokens.
- *
- * `publish_credential_sets`/`source_control_credential_sets` are NOT dropped by this migration and
- * keep serving every existing route/tool/store unchanged — this table is additive-only. A separate,
- * explicitly-run backfill (`development/scripts/backfill-vendor-credentials.ts`, modeled on
- * `backfill-slug-collision-defaults.ts`'s dry-run-by-default / `--apply` / restore-point-first
- * shape) copies each existing row across, decrypting under its OLD table's AAD and re-sealing the
- * SAME plaintext bytes under THIS table's own AAD (`buildVendorCredentialAad`,
- * `../features/vendor-credentials/aad.ts`) — never a bare re-wrap, and never a plaintext rewrite:
- * see that script's own header for why the connection JSON itself is copied verbatim rather than
- * having its embedded `providerId` field renamed to a vendor id as part of this pass (deferred to
- * whichever slice builds the real `VendorConnectionInput` union). The cutover that points routes/
- * tools/UI at this table instead of the two above, and the migration that drops them, are later
- * work — see the backfill script's own header for exactly what remains before that is safe.
- *
- * Column shape mirrors the two tables above almost exactly (same composite `(workspace_id, id)`
- * primary key, same four `sealed*` columns, same write-path-owned `is_default` group invariant, same
- * deliberately-unsealed `account_label`) with two differences:
- *
- * - `vendor_id` replaces `provider_id` — see this table's own header above for what changed and why.
- * - `label` is UNIQUE per `(workspace_id, vendor_id)` same as before, but is now a REAL user-typed
- *   name rather than a hardcoded literal: both predecessor tables' admin UIs wrote the same constant
- *   string on every save (`PUBLISH_CREDENTIAL_ROW_LABEL`/`SOURCE_CONTROL_CREDENTIAL_ROW_LABEL`,
- *   `apps/admin/src/features/source-control/rules.ts`) even though the column itself has always
- *   supported a real one — the schema was ahead of the UI. The backfill script disambiguates any
- *   label collision this causes (both predecessor rows for one workspace+vendor pair literally
- *   named `"default"` is the expected common case, not an edge case) — see that script's own header.
- *
- * `token_tail` is new: the LAST FOUR CHARACTERS of the connection's primary secret
- * (`connection.token` for every vendor except `s3-compatible`, whose bearer-token-shaped field is
- * `secretAccessKey` instead — see `VendorConnectionInput`'s own doc once it exists), stored
- * unencrypted beside `sealed*` for the same reason `accountLabel` documents on the tables above: a
- * cheap, no-decrypt read the picker UI needs on every render (`"Github Access Token ••••MPWg"`), and
- * four characters of a ~40-90 character token is not meaningful secret material on its own — the
- * same judgment call `deployment_get_static_publish_capabilities`'s rewritten contract makes
- * explicit (`../features/deployments/publish-agent-tools.ts`'s own header) for why an agent may see
- * it too. Unlike `accountLabel`, `token_tail` is `NOT NULL`: it is always derivable at seal time from
- * the very same plaintext being sealed, so there is no "not yet verified" state to model with NULL —
- * see `sourceControlCredentialSets.accountLabel`'s own doc for how THAT column's NULL vs. populated
- * split is a genuine two-state fact this one does not share.
- */
-export const vendorCredentialSets = sqliteTable(
-  "vendor_credential_sets",
-  {
-    id: text("id").notNull(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    /** `"github" | "gitlab" | "bitbucket" | "vercel" | "netlify" | "cloudflare" | "s3-compatible"` —
-     *  see `../features/vendor-credentials/types.ts`'s `VendorId`. */
-    vendorId: text("vendor_id").notNull(),
-    /** Human-chosen label, unique per `(workspace_id, vendor_id)` — see this table's own doc for why
-     *  this is now genuinely user-typed rather than a hardcoded literal. */
-    label: text("label").notNull(),
-    /** `SealedSecret.keyId`. */
-    sealedKeyId: text("sealed_key_id").notNull(),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the whole serialized connection object. */
-    sealedCiphertext: text("sealed_ciphertext").notNull(),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce").notNull(),
-    /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
-     *  reason the two predecessor tables give. */
-    sealedAlg: text("sealed_alg").notNull(),
-    /** Last 4 characters of the connection's primary secret, plaintext — see this table's own doc
-     *  for the full reasoning and which field counts as "primary" per vendor. */
-    tokenTail: text("token_tail").notNull(),
-    /** At most one `TRUE` per `(workspace_id, vendor_id)`, maintained by the write path that owns
-     *  this table — same invariant, same "no DB-level CHECK" reasoning the two predecessor tables'
-     *  own `isDefault` columns document. */
-    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
-    /** The verified account's public login/username, held in the clear — same reasoning the two
-     *  predecessor tables' own `accountLabel` columns document. `NULL` until populated. */
-    accountLabel: text("account_label"),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.workspaceId, table.id] }),
-    uniqueIndex("vendor_credential_sets_workspace_vendor_label_unique").on(table.workspaceId, table.vendorId, table.label),
-  ]
-);
-
-/**
- * Per-workspace media-generation vendor credentials, one row per `(workspace_id, provider_id)` —
- * what the admin's Media → "Media providers" tab persists (`media/provider-credential-store.ts`).
- *
- * Workspace-scoped, NOT per-principal like `adminExecutionCredentials` above: generation spends
- * real money and produces assets published to the whole site, so the install has one roster of
- * vendor keys rather than one per admin. That is the opposite call from the BYOK table, and
- * deliberately so — see that table's header for the per-admin reasoning it does not share.
- *
- * `provider_id` holds an ENGINE-CANONICAL id from `@jini-ai/integrations/media-providers`'
- * `MEDIA_PROVIDERS` (`grok`, `nanobanana`, `fal`, `custom-image`, …) — NOT the differently-spelled
- * ids in `@jini-ai/ui`'s own `DEFAULT_MEDIA_PROVIDER_CATALOG` (`xai-grok-imagine`, `nano-banana`,
- * `fal-ai`, `custom-image-api`, …). The dispatch engine looks credentials up by the former, so
- * storing the latter would persist keys that silently never resolve. The store validates every id
- * against that catalogue on write, which is what keeps the two from drifting apart again.
- *
- * Multi-row per workspace, so `sealed*`/`masked` follow the same all-null-or-all-set CHECK as the
- * two credential tables above: a provider row may legitimately carry only `base_url`/`model` with
- * no key yet.
- */
-export const mediaProviderCredentials = sqliteTable(
-  "media_provider_credentials",
-  {
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    /** Engine-canonical provider id — see this table's header for why the spelling matters. */
-    providerId: text("provider_id").notNull(),
-    baseUrl: text("base_url"),
-    model: text("model"),
-    /** `SealedSecret.keyId` — names the site-key generation the value was wrapped under. */
-    sealedKeyId: text("sealed_key_id"),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
-    sealedCiphertext: text("sealed_ciphertext"),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce"),
-    /** Always `'aes-256-gcm'` today; stored rather than hardcoded so a future algorithm change is
-     *  data, not a silent reinterpretation of old rows. */
-    sealedAlg: text("sealed_alg"),
-    /** Last 4 characters of the key, precomputed at write time — feeds `@jini-ai/ui`'s
-     *  `maskedKeyLabel` as its `apiKeyTail`. Stored as the bare tail, not the `••••`-prefixed
-     *  label, because that package clamps and renders the prefix itself. */
-    keyTail: text("key_tail"),
-    /** Migration `0055` (2026-09-02, AAD-gap closure) — same `0`=legacy-no-aad /
-     *  `1`=`buildMediaProviderCredentialAad`-bound contract as `site_assistant_credentials.aad_version`
-     *  documents in full; per `(workspace_id, provider_id)` row, not per workspace. Backfilled by
-     *  `development/scripts/backfill-media-provider-credential-aad.ts`. */
-    aadVersion: integer("aad_version").notNull().default(0),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.workspaceId, table.providerId] }),
-    check(
-      "media_provider_credentials_sealed_shape",
-      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.keyTail} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.keyTail} IS NOT NULL)`
-    ),
-  ]
-);
+export const secretsVault = sqliteTable("secrets_vault", {
+  workspaceId: text("workspace_id").notNull(),
+  id: text("id").notNull(),
+  kind: text("kind").notNull(),
+  ownerKey: text("owner_key").notNull(),
+  principalId: text("principal_id"),
+  binding: text("binding"),
+  provider: text("provider"),
+  label: text("label").notNull(),
+  isDefault: integer("is_default", { mode: "boolean" }).notNull(),
+  revision: integer("revision").notNull(),
+  sealedKeyId: text("sealed_key_id"),
+  sealedCiphertext: text("sealed_ciphertext"),
+  sealedNonce: text("sealed_nonce"),
+  sealedAlg: text("sealed_alg"),
+  last4: text("last4"),
+  tokenLength: integer("token_length"),
+  /** JSON object of non-secret per-kind metadata and migration provenance. */
+  meta: text("meta").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  // 0012 declares these inline, so Postgres names them `<table>_<column>_fkey`; the generated
+  // Postgres schema carries the same names.
+  foreignKey({ name: "secrets_vault_workspace_id_fkey", columns: [table.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+  foreignKey({ name: "secrets_vault_principal_id_fkey", columns: [table.principalId], foreignColumns: [principals.id] }).onDelete("cascade"),
+  check("secrets_vault_kind", sql`${table.kind} IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth')`),
+  check("secrets_vault_revision", sql`${table.revision} > 0`),
+  check("secrets_vault_token_length", sql`${table.tokenLength} IS NULL OR ${table.tokenLength} >= 0`),
+  check("secrets_vault_meta", sql`json_valid(${table.meta}) AND json_type(${table.meta}) = 'object'`),
+  check("secrets_vault_boolean", sql`${table.isDefault} IN (false,true)`),
+  check("secrets_vault_sealed_shape", sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL)`),
+  check("secrets_vault_personal_principal", sql`${table.kind} <> 'personal-execution' OR ${table.principalId} IS NOT NULL`),
+  check("secrets_vault_media_provider", sql`${table.kind} <> 'media-provider' OR ${table.provider} IS NOT NULL`),
+  check("secrets_vault_principal_scope", sql`${table.kind} = 'personal-execution' OR ${table.principalId} IS NULL`),
+  check("secrets_vault_owner", sql`${table.kind} IN ('mcp-env','mcp-auth') OR ${table.ownerKey} = 'tovu'`),
+  check("secrets_vault_provider_scope", sql`${table.kind} NOT IN ('custom','publish-peer','database-destination') OR ${table.provider} IS NULL`),
+  check("secrets_vault_hint", sql`${table.last4} IS NULL OR (${table.tokenLength} IS NOT NULL AND ${table.tokenLength} >= 12 AND length(${table.last4}) = 4)`),
+  index("secrets_vault_scope").on(table.workspaceId, table.kind, table.ownerKey, table.principalId, table.provider),
+  index("secrets_vault_principal").on(table.principalId, table.workspaceId, table.kind),
+  uniqueIndex("secrets_vault_singleton").on(table.workspaceId, table.kind).where(sql`${table.kind} IN ('site-assistant','database-destination')`),
+  uniqueIndex("secrets_vault_personal").on(table.workspaceId, table.kind, table.principalId).where(sql`${table.kind} = 'personal-execution'`),
+  uniqueIndex("secrets_vault_media").on(table.workspaceId, table.kind, table.provider).where(sql`${table.kind} = 'media-provider'`),
+  uniqueIndex("secrets_vault_default").on(table.workspaceId, table.kind, table.ownerKey,
+    sql`(${table.principalId} IS NULL)`, sql`coalesce(${table.principalId},'')`,
+    sql`(${table.provider} IS NULL)`, sql`coalesce(${table.provider},'')`).where(sql`${table.isDefault} = true`),
+  uniqueIndex("secrets_vault_group_label").on(table.workspaceId, table.kind, table.ownerKey,
+    sql`(${table.principalId} IS NULL)`, sql`coalesce(${table.principalId},'')`,
+    sql`(${table.provider} IS NULL)`, sql`coalesce(${table.provider},'')`, table.label).where(sql`${table.kind} IN ('vendor','source-control')`),
+  uniqueIndex("secrets_vault_label").on(table.workspaceId, table.kind, table.label).where(sql`${table.kind} IN ('custom','publish-peer')`),
+]);
 
 /**
  * Per-workspace external MCP server connections — what the admin's Settings → External MCP tab
@@ -2369,10 +1817,9 @@ export const mediaProviderCredentials = sqliteTable(
  * which are set without unsealing — the same split the UI's `secret-textarea` field kind makes
  * (names visible, values masked).
  *
- * Sealed via the SAME ADR-058 `AesGcmSecretSealer`/`KeyringPort` instances the three credential
- * tables above reuse. The all-null-or-all-set CHECK covers only the four `sealed_*` columns: a row
- * may legitimately hold no env at all (a server launched with no credentials is normal), and
- * `env_names` varies independently of whether a blob is present.
+ * Env and OAuth values use the same shared sealer/keyring through two vault pointers.
+ * A server may legitimately have neither payload. Names and token expiry remain plaintext so
+ * operators and schedulers can read them without opening credentials.
  */
 export const externalMcpServers = sqliteTable(
   "external_mcp_servers",
@@ -2422,16 +1869,11 @@ export const externalMcpServers = sqliteTable(
     writeGrantsUpdatedByPrincipalId: text("write_grants_updated_by_principal_id"),
     /** When `write_allowed_tool_names` was last changed. NULL under the same condition. */
     writeGrantsUpdatedAt: text("write_grants_updated_at"),
-    /** JSON array of env variable NAMES, plaintext. Values live in the sealed columns below. */
+    /** JSON array of env variable NAMES, plaintext. Values live in the vault. */
     envNames: text("env_names"),
-    /** `SealedSecret.keyId`; NULL iff no env block is stored. */
-    sealedKeyId: text("sealed_key_id"),
-    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
-    sealedCiphertext: text("sealed_ciphertext"),
-    /** Base64 12-byte AES-GCM IV. */
-    sealedNonce: text("sealed_nonce"),
-    /** Always `'aes-256-gcm'` today; stored so a future algorithm change is data. */
-    sealedAlg: text("sealed_alg"),
+    /** Values remain sealed in the vault; names stay readable without a key. */
+    envSecretId: text("env_secret_id"),
+    oauthSecretId: text("oauth_secret_id"),
     /** Registered `src/platform/oauth/` provider id this connection authorizes against, when it names one. */
     oauthProviderId: text("oauth_provider_id"),
     /** `'authorization_code' | 'device_code'`. Device grant is first-class: a self-hosted install
@@ -2462,37 +1904,15 @@ export const externalMcpServers = sqliteTable(
      *  with separate DB handles; without a compare-and-set here both can redeem the same single-use
      *  rotating refresh token and kill the connection. Time-bounded so a crash cannot wedge it. */
     oauthRefreshLeaseUntil: text("oauth_refresh_lease_until"),
-    /** Sealed `{ clientSecret?, tokens? }`. `SealedSecret.keyId`; NULL iff nothing is stored. */
-    oauthSealedKeyId: text("oauth_sealed_key_id"),
-    oauthSealedCiphertext: text("oauth_sealed_ciphertext"),
-    oauthSealedNonce: text("oauth_sealed_nonce"),
-    oauthSealedAlg: text("oauth_sealed_alg"),
-    /**
-     * AAD lineage of `sealed_*` (the env block). `0` = sealed before this table had AAD at all;
-     * `1` = bound to `assistant/external-mcp-aad.ts`'s `buildExternalMcpEnvAad`. Defaults to `0` so
-     * existing rows keep their meaning and stay openable through the legacy path until backfilled.
-     */
-    aadVersion: integer("aad_version").notNull().default(0),
-    /**
-     * AAD lineage of `oauth_sealed_*`, tracked SEPARATELY from `aad_version`: the two blobs are
-     * written by different flows (operator edit vs. token refresh), so one can be re-sealed under
-     * AAD while the other has not been. One shared counter would make a half-migrated row
-     * indistinguishable from a fully-migrated one and brick whichever blob it lied about.
-     */
-    oauthAadVersion: integer("oauth_aad_version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.serverId] }),
-    check(
-      "external_mcp_servers_sealed_shape",
-      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL)`
-    ),
-    check(
-      "external_mcp_servers_oauth_sealed_shape",
-      sql`(${table.oauthSealedKeyId} IS NULL AND ${table.oauthSealedCiphertext} IS NULL AND ${table.oauthSealedNonce} IS NULL AND ${table.oauthSealedAlg} IS NULL) OR (${table.oauthSealedKeyId} IS NOT NULL AND ${table.oauthSealedCiphertext} IS NOT NULL AND ${table.oauthSealedNonce} IS NOT NULL AND ${table.oauthSealedAlg} IS NOT NULL)`
-    ),
+    foreignKey({ name: "external_mcp_env_secret_fk", columns: [table.workspaceId, table.envSecretId],
+      foreignColumns: [secretsVault.workspaceId, secretsVault.id] }).onDelete("restrict"),
+    foreignKey({ name: "external_mcp_oauth_secret_fk", columns: [table.workspaceId, table.oauthSecretId],
+      foreignColumns: [secretsVault.workspaceId, secretsVault.id] }).onDelete("restrict"),
   ]
 );
 
@@ -2523,9 +1943,10 @@ export const externalMcpToolApprovals = sqliteTable(
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.serverId, table.toolName] }),
-    // Named: the generated name is 97 characters, past MySQL's 64-character identifier cap.
+    // Named: the generated name is 97 characters, past MySQL's 64-character identifier cap. This is
+    // the 63-character name Postgres' 0000 baseline gave it, which the generated Postgres schema keeps.
     foreignKey({
-      name: "external_mcp_tool_approvals_server_fk",
+      name: "external_mcp_tool_approvals_workspace_id_server_id_ext_37c98be6",
       columns: [table.workspaceId, table.serverId],
       foreignColumns: [externalMcpServers.workspaceId, externalMcpServers.serverId],
     }).onDelete("cascade"),
@@ -2533,69 +1954,14 @@ export const externalMcpToolApprovals = sqliteTable(
 );
 
 /**
- * The in-flight `state` ledger for authorization-code + PKCE handshakes, shared by every process
- * that opens this `content.db` — the durable form of `src/platform/oauth/pending-authorizations.ts`'s
- * `PendingAuthorizationStore` port. See that file's header for the four security properties every
- * implementation of the port must hold (random `state`, single-use, expiring, owner-bound); this
- * table is the SQLite adapter's storage, not a new set of rules.
- *
- * Cross-process by design, not by accident: `assistant/external-mcp-oauth.ts`'s `beginConnect` can
- * run inside the agent daemon (the `external_mcp_oauth_connect` tool) while the public OAuth
- * callback that completes the same handshake runs inside the main web server — two separate OS
- * processes, each with its own in-memory space. A `Map` in either process is invisible to the
- * other; a row in this table is visible to both the moment it commits.
- *
- * `code_verifier` is the RFC 7636 PKCE secret. Sealed with the SAME ADR-058 sealer/keyring
- * `external_mcp_servers` above shares, AAD-bound to `owner_key` so a copied ciphertext cannot be
- * replayed under a different connection's row even by someone with raw table access. Always sealed,
- * never null — a provider with `usesPkce: false` still seals the empty string, so the shape needs no
- * all-null-or-all-set CHECK the way `external_mcp_servers`' OPTIONAL sealed blobs do.
- *
- * No `workspace_id` column: `owner_key` already encodes `${workspaceId}:${serverId}`
- * (`external-mcp-oauth.ts`'s `ownerKeyOf`), and `state` is a fresh 24-byte random value per row, so
- * a second column to prevent cross-workspace collision would be redundant.
- *
- * Rows are ephemeral by design (a 10-minute default TTL) and pruned opportunistically on `put`
- * rather than by a timer — the same "no background work" tradeoff the in-memory implementation this
- * table replaced already made; `idx_oauth_pending_expires_at` is what keeps that prune an indexed
- * range scan instead of a full table scan as rows accumulate between prunes.
- */
-export const oauthPendingAuthorizations = sqliteTable(
-  "oauth_pending_authorizations",
-  {
-    /** 24 random bytes, base64url — see this table's header on why that alone authenticates the
-     *  public callback. */
-    state: text("state").primaryKey(),
-    /** `${workspaceId}:${serverId}` today, but this table (like its port) knows nothing about what
-     *  minted the key — see `pending-authorizations.ts`'s `PendingAuthorization.ownerKey` doc. */
-    ownerKey: text("owner_key").notNull(),
-    providerId: text("provider_id").notNull(),
-    /** `SealedSecret.keyId` for the sealed `code_verifier` below. */
-    sealedKeyId: text("sealed_key_id").notNull(),
-    sealedCiphertext: text("sealed_ciphertext").notNull(),
-    sealedNonce: text("sealed_nonce").notNull(),
-    sealedAlg: text("sealed_alg").notNull(),
-    /** Replayed verbatim on the token exchange — see `PendingAuthorization.redirectUri`'s doc. */
-    redirectUri: text("redirect_uri").notNull(),
-    /** JSON array of requested scope strings. */
-    scopesJson: text("scopes_json").notNull(),
-    createdAt: text("created_at").notNull(),
-    expiresAt: text("expires_at").notNull(),
-  },
-  (table) => [index("idx_oauth_pending_expires_at").on(table.expiresAt)]
-);
-
-/**
  * One in-progress RFC 8628 device authorization per connection — the durable form of
  * `assistant/external-mcp-oauth.ts`'s `DeviceAuthorizationStore` port, for the identical
- * cross-process reason `oauthPendingAuthorizations` above exists (see that table's header).
+ * cross-process reason the agent daemon and callback/poll routes may run in separate processes.
  *
- * Composite-PK by `(workspace_id, server_id)`, matching `external_mcp_servers`'s own shape: unlike
- * `state` above, `server_id` is an OPERATOR-CHOSEN string unique only within a workspace, so a bare
+ * Composite-PK by `(workspace_id, server_id)`, matching `external_mcp_servers`'s own shape: because `server_id` is an OPERATOR-CHOSEN string unique only within a workspace, so a bare
  * `server_id` key would let two workspaces that happen to choose the same id collide.
  *
- * `device_code` is the RFC 8628 secret sent on every poll — sealed the same way `code_verifier` is
- * above, AAD-bound to `${workspace_id}:${server_id}` for the identical replay-across-rows reason.
+ * `device_code` is the RFC 8628 secret sent on every poll — sealed with the shared sealer/keyring, AAD-bound to `${workspace_id}:${server_id}` for the identical replay-across-rows reason.
  * `user_code` / `verification_uri` / `verification_uri_complete` are safe to render to an operator
  * and stay plaintext, matching `DeviceAuthorization`'s own doc.
  */
@@ -2646,308 +2012,6 @@ export const analyticsEvents = sqliteTable(
     eventPropsJson: text("event_props_json"),
   },
   (table) => [index("idx_analytics_events_workspace_list").on(table.workspaceId, table.id)]
-);
-
-// ---------------------------------------------------------------------------
-// Commerce (2026-08-12 swarm-consensus debate, section 5 — "Commerce and the tri-dialect data
-// model"). First vertical slice only: catalog (products/prices), orders/order_items, and the
-// webhook inbox that makes provider event ingestion idempotent AND ordered. Refunds, proration,
-// carts, and multi-provider reconciliation are explicitly next-slice work — see each table's doc.
-//
-// Column-vs-document rule applied throughout (converged unanimously across the debate): if a
-// query, index, constraint, join, or sort ever touches a field, it is a column; if it is read
-// back whole by id and only ever rendered, it is JSON, never indexed. The only JSON column in
-// this slice is `commerceWebhookEvents.payloadJson` — a provider-owned payload Tovu never
-// queries into. Every other field the debate looked at (currency, amounts, status, timestamps,
-// the ordering cursor) is a real column, per that rule.
-//
-// SQLite JSON storage stays `text("*_json")`, matching every other JSON column in this file
-// (see this file's own module doc: "portable to Postgres `jsonb` later"). This is a TOOLING
-// decision, not a durability or contract one — persisting SQLite's binary JSONB is safe
-// (sqlite.org/jsonb.html commits to backward compatibility across versions) and its JSON
-// functions (`json()`, `json_extract()`, `jsonb_extract()`, `json_type()`) work directly against
-// a `jsonb()`-written BLOB. The actual blocker is that `jsonb()` is NOT a `drizzle-orm/
-// sqlite-core` column builder (verified against the installed package: `integer`, `real`,
-// `text`, `blob`, `numeric` is the complete list) and Drizzle's `customType.fromDriver` cannot
-// rewrite a SELECT to wrap the column in `json(...)`, so binary storage would mean hand-written
-// `sql` fragments at every call site. What would change this: a Drizzle `jsonb` column builder,
-// or a codegen layer that rewrites SELECTs. The unwired JSONB codec this decision was grounded in
-// (`sqlite/jsonb-column.ts`) was deleted in the storage-kernel move; it is in git history.
-// ---------------------------------------------------------------------------
-
-/**
- * Commerce products — the sellable thing. Deliberately NOT folded into `memberTiers` above:
- * that table carries `welcomePagePath`/`visibleInPortal` (portal-presentation fields, meaningless
- * for a one-time digital good) and locks pricing to exactly two recurring slots
- * (`monthlyPriceCents`/`yearlyPriceCents`, no one-time representation at all). `grantsMemberTierId`
- * is the one bridge column: set only when purchasing this product is how a member obtains a tier.
- * Commerce owns financial truth; `memberSubscriptions` stays the access-entitlement projection —
- * this slice does not yet derive one from an order (see the commerce feature's own README/report
- * for what remains).
- */
-export const commerceProducts = sqliteTable(
-  "commerce_products",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
-    slug: text("slug").notNull(),
-    /** Open string, not a DB enum — matches this file's existing convention (e.g. `posts.status`). */
-    kind: text("kind").notNull(), // 'one_time' | 'membership' | 'digital' ...
-    status: text("status").notNull(), // 'active' | 'archived'
-    description: text("description"),
-    /**
-     * Set only when this product's purchase grants a `memberTiers` row. The composite FK below
-     * targets `(memberTiers.workspaceId, memberTiers.id)`, not just `.id` — a plain single-column
-     * FK to `memberTiers.id` would accept a tier id that belongs to a DIFFERENT workspace, which
-     * is exactly the cross-tenant mistake C2 (every table workspace-scoped) exists to prevent.
-     * NULL is exempt from FK enforcement by SQL's ordinary MATCH SIMPLE semantics, so a product
-     * with no tier bridge needs no special-casing here.
-     */
-    grantsMemberTierId: text("grants_member_tier_id"),
-    /**
-     * Migration 0038 — variable-key, per-product display attributes (theme example: "Material" ->
-     * "Thick premium weight combed cotton", "Care" -> "...", "Warranty" -> "..."; different
-     * products use different keys). Column-vs-document call, made explicitly rather than by
-     * silently stretching this file's "provider-owned payload" JSON scope: this data is
-     * author-owned, not provider-owned, so that framing doesn't literally apply — but the
-     * decisive property under the underlying rule still holds. Nothing today queries, filters, or
-     * sorts on a spec label, so it is a document.
-     *
-     * PROMOTION TRIGGER, recorded so it isn't re-litigated from scratch later: the day someone
-     * wants "filter by material: cotton", this is NOT an index-the-JSON-path fix — SQLite and
-     * MySQL only index a NAMED EXTRACTED SCALAR, not an arbitrary JSON path per row, so there is
-     * no way to index "whichever key happens to be present." It needs
-     * `product_attribute_definitions` (a controlled label vocabulary) + `product_attribute_values`
-     * (typed value, FK to definition) — a migration, not a follow-up index.
-     */
-    specsJson: text("specs_json"),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-    version: integer("version").notNull(),
-  },
-  (table) => [
-    uniqueIndex("commerce_products_workspace_slug_unique").on(table.workspaceId, table.slug),
-    foreignKey({
-      name: "commerce_products_grants_member_tier_fk",
-      columns: [table.workspaceId, table.grantsMemberTierId],
-      foreignColumns: [memberTiers.workspaceId, memberTiers.id],
-    }).onDelete("restrict"),
-    check("commerce_products_status_check", sql`${table.status} IN ('active', 'archived')`),
-  ]
-);
-
-/**
- * Migration 0038 — ordered product image gallery. Deliberately a thin join over the EXISTING
- * `media`/`assetBlobs` system (content-addressed storage, alt/title/caption already modeled
- * there) rather than a parallel media table — this table carries only the product<->media
- * relationship and its display position, nothing about the image asset itself.
- */
-export const commerceProductImages = sqliteTable(
-  "commerce_product_images",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    productId: text("product_id")
-      .notNull()
-      .references(() => commerceProducts.id, { onDelete: "cascade" }),
-    mediaId: text("media_id")
-      .notNull()
-      .references(() => media.id, { onDelete: "restrict" }),
-    /** Gallery display order, ascending. Ties broken by `id` (insertion order) at read time. */
-    position: integer("position").notNull().default(0),
-    createdAt: text("created_at").notNull(),
-  },
-  (table) => [
-    uniqueIndex("commerce_product_images_product_media_unique").on(table.productId, table.mediaId),
-    index("idx_commerce_product_images_product_position").on(table.productId, table.position),
-  ]
-);
-
-/**
- * Commerce prices — one or more price points per product. Rows are never mutated once referenced
- * by an order: `commerceOrderItems` snapshots `unitAmountCents`/`currency`/`description` at
- * purchase time instead of joining live (Stripe's own Invoice Line Item object does the same —
- * verified against `docs.stripe.com/api/invoice-line-item/object` during the 2026-08-12 debate),
- * so a later price change never rewrites history. `status: 'archived'` retires a price without
- * deleting it; `onDelete: "restrict"` on `commerceOrderItems.priceId` enforces that a referenced
- * price can never be hard-deleted out from under a historical order.
- */
-export const commercePrices = sqliteTable(
-  "commerce_prices",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    productId: text("product_id")
-      .notNull()
-      .references(() => commerceProducts.id, { onDelete: "restrict" }),
-    unitAmountCents: integer("unit_amount_cents").notNull(),
-    /**
-     * Migration 0038 — the struck-through "was" price shown next to `unitAmountCents`'s "now"
-     * price (a static list-price display, not a time-boxed promotion or coupon — those are a
-     * separate, genuinely temporal/conditional concern this column deliberately does not model).
-     * A column, not a document: it is the same class of fact as `unitAmountCents` itself (a
-     * typed, filterable/sortable money figure), and money is never JSON under this file's own
-     * convention. NULL means "not on sale." The CHECK below prevents a data-entry error from
-     * displaying a fake discount (a compare-at price that isn't actually higher than the real one).
-     */
-    compareAtAmountCents: integer("compare_at_amount_cents"),
-    /** Lowercase ISO-4217, matching Stripe's own convention — enforced by the CHECK below. */
-    currency: text("currency").notNull(),
-    /** NULL = one-time. 'month' | 'year' = recurring, mirroring `memberTiers`' monthly/yearly split. */
-    billingInterval: text("billing_interval"),
-    status: text("status").notNull(), // 'active' | 'archived'
-    createdAt: text("created_at").notNull(),
-    version: integer("version").notNull(),
-  },
-  (table) => [
-    index("idx_commerce_prices_product").on(table.productId),
-    check("commerce_prices_unit_amount_cents_check", sql`${table.unitAmountCents} >= 0`),
-    check(
-      "commerce_prices_compare_at_amount_cents_check",
-      sql`${table.compareAtAmountCents} IS NULL OR ${table.compareAtAmountCents} > ${table.unitAmountCents}`
-    ),
-    check(
-      "commerce_prices_currency_check",
-      sql`length(${table.currency}) = 3 AND ${table.currency} = lower(${table.currency})`
-    ),
-    check("commerce_prices_status_check", sql`${table.status} IN ('active', 'archived')`),
-    check(
-      "commerce_prices_billing_interval_check",
-      sql`${table.billingInterval} IS NULL OR ${table.billingInterval} IN ('month', 'year')`
-    ),
-  ]
-);
-
-/**
- * Orders — the financial-truth header row for one checkout. `providerEventAt` is the ordering
- * cursor: the provider's own event timestamp for the last webhook event actually applied to this
- * row, compared — never blindly overwritten — on every subsequent delivery by
- * `features/commerce/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE`. `totalAmountCents` is
- * denormalized from `commerceOrderItems` (computed once at checkout, not DB-enforced — SQLite
- * CHECK cannot aggregate across rows): the column-vs-document rule makes it a column anyway
- * because it is reported/sorted on, the same reasoning this file already applies denormalizing
- * `workspaceId` into `outboxEvents` above.
- */
-export const commerceOrders = sqliteTable(
-  "commerce_orders",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    memberId: text("member_id")
-      .notNull()
-      .references(() => members.id, { onDelete: "restrict" }),
-    status: text("status").notNull(), // 'pending' | 'paid' | 'failed' | 'canceled'
-    currency: text("currency").notNull(),
-    totalAmountCents: integer("total_amount_cents").notNull(),
-    provider: text("provider").notNull(),
-    providerCustomerRef: text("provider_customer_ref"),
-    providerPaymentRef: text("provider_payment_ref"),
-    /** Ordering cursor — see table header. NULL until the first webhook event is applied. */
-    providerEventAt: text("provider_event_at"),
-    placedAt: text("placed_at").notNull(),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-    version: integer("version").notNull(),
-  },
-  (table) => [
-    index("idx_commerce_orders_workspace_member").on(table.workspaceId, table.memberId),
-    check("commerce_orders_total_amount_cents_check", sql`${table.totalAmountCents} >= 0`),
-    check(
-      "commerce_orders_currency_check",
-      sql`length(${table.currency}) = 3 AND ${table.currency} = lower(${table.currency})`
-    ),
-    check(
-      "commerce_orders_status_check",
-      sql`${table.status} IN ('pending', 'paid', 'failed', 'canceled')`
-    ),
-  ]
-);
-
-/**
- * Order line items — one row per priced item, snapshotted (see `commercePrices`' header).
- * `productId` is denormalized off `priceId` for reporting without a join, same pattern as
- * `outboxEvents.workspaceId` above. `orderId` cascades with its parent order; `priceId`/
- * `productId` are `onDelete: "restrict"` so a historical line item can never be orphaned by
- * deleting the catalog row it snapshot from.
- */
-export const commerceOrderItems = sqliteTable(
-  "commerce_order_items",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    orderId: text("order_id")
-      .notNull()
-      .references(() => commerceOrders.id, { onDelete: "cascade" }),
-    priceId: text("price_id")
-      .notNull()
-      .references(() => commercePrices.id, { onDelete: "restrict" }),
-    productId: text("product_id")
-      .notNull()
-      .references(() => commerceProducts.id, { onDelete: "restrict" }),
-    description: text("description").notNull(),
-    unitAmountCents: integer("unit_amount_cents").notNull(),
-    quantity: integer("quantity").notNull().default(1),
-    currency: text("currency").notNull(),
-    createdAt: text("created_at").notNull(),
-  },
-  (table) => [
-    index("idx_commerce_order_items_order").on(table.orderId),
-    check("commerce_order_items_unit_amount_cents_check", sql`${table.unitAmountCents} >= 0`),
-    check("commerce_order_items_quantity_check", sql`${table.quantity} > 0`),
-  ]
-);
-
-/**
- * Webhook inbox — idempotency AND the audit trail for provider events (2026-08-12 debate: "these
- * are different problems"). `payloadJson` stores the full, opaque provider payload whole,
- * unindexed — the one legitimate JSON-document field in this slice (see file-level note above);
- * every field a query/constraint touches (`workspaceId`, `provider`, `eventId`, `status`,
- * `receivedAt`) is a real column instead.
- *
- * `UNIQUE(provider, eventId)` — deliberately NOT scoped by `workspaceId` — is the replay guard: a
- * provider's `eventId` is already globally unique per provider, and narrowing the constraint by
- * workspace would let the same event double-process if a provider ever misrouted it across
- * workspaces. That constraint stops replay; it does NOT stop out-of-order delivery by itself —
- * `features/commerce/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE providerEventAt < ?`
- * against `commerceOrders` is the ordering half.
- */
-export const commerceWebhookEvents = sqliteTable(
-  "commerce_webhook_events",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "restrict" }),
-    provider: text("provider").notNull(),
-    eventId: text("event_id").notNull(),
-    eventType: text("event_type").notNull(),
-    /** The provider's own event timestamp (e.g. Stripe's `event.created`), NOT `receivedAt`. */
-    eventOccurredAt: text("event_occurred_at").notNull(),
-    payloadJson: text("payload_json").notNull(),
-    status: text("status").notNull(), // 'received' | 'applied' | 'ignored' | 'failed'
-    receivedAt: text("received_at").notNull(),
-    processedAt: text("processed_at"),
-    lastError: text("last_error"),
-  },
-  (table) => [
-    uniqueIndex("commerce_webhook_events_provider_event_unique").on(table.provider, table.eventId),
-    index("idx_commerce_webhook_events_claim").on(table.status, table.receivedAt),
-    check(
-      "commerce_webhook_events_status_check",
-      sql`${table.status} IN ('received', 'applied', 'ignored', 'failed')`
-    ),
-  ]
 );
 
 // Deployment tables from migration 0037 were retired by 0004_drop_unused_deployment_tables; deploy plugins own live deploys.
@@ -3118,38 +2182,6 @@ export const publishContentBundles = sqliteTable(
     expiresAt: text("expires_at").notNull(),
   },
   (table) => [index("idx_publish_content_bundles_workspace").on(table.workspaceId, table.expiresAt)]
-);
-
-/**
- * An outbound peer this instance can push to or pull from. Unlike the three tables above, this is
- * a persistent per-workspace config row, not sync bookkeeping or an audit log — so it follows
- * `publishCredentialSets`' convention instead: a real `workspaces` FK (`onDelete: "cascade"` — a
- * deleted workspace's saved peers have no meaning left to keep) and the identical sealed-secret
- * shape (`sealedKeyId`/`sealedCiphertext`/`sealedNonce`/`sealedAlg`/`masked` + `aadVersion`) over
- * the same `KeyringPort`/`SecretSealerPort` — no new crypto, no new AAD discipline.
- */
-export const publishContentPeers = sqliteTable(
-  "publish_content_peers",
-  {
-    id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    label: text("label").notNull(),
-    baseUrl: text("base_url").notNull(),
-    remoteWorkspaceId: text("remote_workspace_id").notNull(),
-    sealedKeyId: text("sealed_key_id"),
-    sealedCiphertext: text("sealed_ciphertext"),
-    sealedNonce: text("sealed_nonce"),
-    sealedAlg: text("sealed_alg"),
-    /** The peer's own credential, held in the clear for display — same "public label, not secret
-     *  material" reasoning `publishCredentialSets`' analogous column documents. */
-    masked: text("masked"),
-    aadVersion: integer("aad_version").notNull().default(0),
-    createdAt: text("created_at").notNull(),
-    updatedAt: text("updated_at").notNull(),
-  },
-  (table) => [uniqueIndex("publish_content_peers_workspace_label_unique").on(table.workspaceId, table.label)]
 );
 
 /**

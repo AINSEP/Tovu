@@ -348,6 +348,8 @@ export interface SiteKeyKeyCheck {
   readonly sealed: number;
   readonly opens: number;
   readonly storageSecret: "absent" | "opens" | "locked";
+  readonly metadataOnly?: number;
+  readonly legacy?: number;
 }
 
 /** The site's store plus a candidate key, as the recovery helpers take it. */
@@ -508,10 +510,10 @@ async function importSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter, 
 
   let restorePointId: string | undefined;
   let resealed = 0;
-  if (current.hex !== undefined && current.fingerprint !== fingerprint) {
+  if ((current.hex !== undefined && current.fingerprint !== fingerprint) || (check.legacy ?? 0) > 0) {
     restorePointId = await takeRestorePoint(deps, input.actorId, "site-key-import");
     if (restorePointId === undefined) return refusal("RESTORE_POINT_UNAVAILABLE");
-    resealed = (await siteKey.resealFrom({ ...store, previousHex: current.hex })).resealed;
+    resealed = (await siteKey.resealFrom({ ...store, previousHex: current.hex ?? parsed.hex })).resealed;
   }
   const installed = siteKey.installSiteKey({ siteDir, hex: parsed.hex });
   if (installed === undefined) return refusal("SITE_META_UNREADABLE");
@@ -565,7 +567,7 @@ async function previewStartFresh(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWrit
   const plan = await planStartFresh(deps, siteKey);
   if (isRouteResult(plan)) return plan;
   const removes = plan.check.sealed - plan.check.opens;
-  return { status: 200, body: { removes, affectedWebhooks: plan.affectedWebhooks, detail: startFreshDetail(removes, plan.affectedWebhooks) } };
+  return { status: 200, body: { removes, metadataOnly: plan.check.metadataOnly ?? 0, affectedWebhooks: plan.affectedWebhooks, detail: startFreshDetail(removes, plan.affectedWebhooks) } };
 }
 
 /**

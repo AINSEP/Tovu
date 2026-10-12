@@ -1,6 +1,7 @@
 import type { CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
+import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { SealedSecret } from "@jini-ai/platform/secrets";
 
 /**
@@ -10,10 +11,8 @@ import type { SealedSecret } from "@jini-ai/platform/secrets";
  * `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc), no `isDefault` group invariant, no
  * `accountLabel` probe. Every row is already its own independent, standalone credential.
  *
- * Architectural role: domain types only — no I/O, no sealer/keyring dependency. `store.ts` is the
- * one place a {@link CustomProviderConnectionInput} is validated, serialized, and sealed;
- * `repo.memory.ts`/`../../db/sqlite/custom-credential-repo.sqlite.ts` are the two
- * `CustomCredentialSetRepoPort` adapters (ADR-006 rule-of-two).
+ * Architectural role: domain contracts only, with no I/O. `store.ts` validates feature input;
+ * Jini's vault owns serialization, sealing and persistence through the memory/SQL facades.
  */
 
 /** The Access Tokens page's own category-filter ids, minus `"all"` — mirrors
@@ -34,17 +33,17 @@ export const CUSTOM_CREDENTIAL_CATEGORIES: readonly CustomCredentialCategoryId[]
  *  `username` is the one field here that is NOT a secret: it is an account identifier, and since
  *  2026-09-01 its authoritative home is the plaintext `custom_credential_sets.username` column. It
  *  stays on this input type because that is the shape a caller (and the admin form) supplies a
- *  connection in, and it is still sealed alongside the token until the migration's Pass 2 stops
- *  doing so — see `db/schema.sqlite.ts`'s `customCredentialSets.username` doc for the two-pass plan. */
+ *  connection in. Vault payloads contain only the token; boot normalization removes legacy copies. */
 export interface CustomProviderConnectionInput {
   readonly token: string;
   readonly username?: string;
 }
 
-/** A `custom_credential_sets` row, decrypted-shape (`sealed` is the DB's opaque `SealedSecret` —
- *  the actual `CustomProviderConnectionInput` only exists in memory after a caller decrypts it;
- *  no caller does today — see `store.ts`'s own header). */
+/** Historical sealed-row DTO retained for feature callers; private context carries vault CAS. */
 export interface CustomCredentialSetRecord {
+  /** Non-enumerable adapter context; not part of any public summary. */
+  readonly vaultRecord?: VaultRecord;
+  readonly vaultExpectedRevision?: number | null;
   readonly workspaceId: UUID;
   readonly id: UUID;
   readonly label: string;
@@ -97,6 +96,7 @@ export function allowedOriginsFor(record: { readonly baseUrl: string; readonly a
  *  assumes the caller already checked/accepted the `(workspaceId, label)` UNIQUE constraint may
  *  reject it — see `store.ts`'s `isUniqueLabelViolation`. */
 export interface CustomCredentialSetRepoPort {
+  readonly vault?: VaultRepoPort;
   insert(record: CustomCredentialSetRecord): Promise<void>;
   /** Full-row replace by `(workspaceId, id)` — used for both a rename/re-categorize and a
    *  connection rotation. Same UNIQUE-violation possibility as `insert` (renaming into another

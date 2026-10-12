@@ -1,3 +1,6 @@
+import { sql } from "kysely";
+import { heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
+import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -29,9 +32,15 @@ async function seedWorkspaces(kernel: ContentKernel): Promise<void> {
   );
 }
 
-function makeAll(kernel: ContentKernel) {
+function makeAll(base: ContentKernel) {
+  const seeded = base.transaction(async () => {
+    await ensureVaultRepoFixture({ kernel: base });
+    await base.execute(sql`DELETE FROM secrets_vault`);
+    await seedWorkspaces(base);
+  });
+  const kernel = heldUntil(base, seeded);
   return {
-    seeded: seedWorkspaces(kernel),
+    seeded,
     baselines: publishContentBaselineRepoFor(kernel),
     bundles: publishContentBundleRepoFor(kernel),
     peers: publishContentPeerRepoFor(kernel),
@@ -44,7 +53,6 @@ const TABLES = [
   "workspaces",
   "publish_content_baselines",
   "publish_content_bundles",
-  "publish_content_peers",
   "publish_content_runs",
   "publish_history",
 ];
@@ -56,7 +64,7 @@ const PEER: PublishContentPeerRecord = {
   baseUrl: "https://staging.example.com",
   remoteWorkspaceId: "remote-ws",
   sealed: { keyId: "k1", ciphertext: "c1", nonce: "n1", alg: "aes-256-gcm" },
-  masked: "tovu_…cdef",
+  masked: "••••",
   aadVersion: 1,
   createdAt: "2026-09-18T00:00:00.000Z",
   updatedAt: "2026-09-18T00:00:00.000Z",

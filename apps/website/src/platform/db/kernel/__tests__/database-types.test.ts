@@ -97,3 +97,13 @@ test("a migrated SQLite content.db has every generated table and column, with co
   for (const table of generated.keys()) if (!seen.has(table)) problems.push(`${table}: missing on SQLite`);
   assert.deepEqual(problems, []);
 });
+
+test("vault generated contracts expose safe metadata and MCP pointers, with no folded-table types", () => {
+  const text = fs.readFileSync(GENERATED, "utf8");
+  assert.match(text, /export interface SecretsVaultTable \{[\s\S]*?is_default: Bool;[\s\S]*?meta: string;/);
+  const mcp = text.match(/export interface ExternalMcpServersTable \{([^}]+)\}/)![1]!;
+  assert.match(mcp, /env_secret_id: string \| null;/);
+  assert.match(mcp, /oauth_secret_id: string \| null;/);
+  assert.doesNotMatch(mcp, /sealed_|aad_version/);
+  assert.doesNotMatch(text, /export interface (?:SiteAssistantCredentials|AdminExecutionCredentials|OauthPendingAuthorizations)Table/);
+});

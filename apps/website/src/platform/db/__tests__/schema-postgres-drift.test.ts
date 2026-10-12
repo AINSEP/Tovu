@@ -76,6 +76,13 @@ test("generate mode writes exactly the checked-in schema to an isolated path, an
     assert.equal(runGenerator({ check: false }, { outPath: fixture, stdout, stderr: recorder() }), 0);
     assert.match(stdout.text(), /^wrote /);
     assert.equal(readFileSync(fixture, "utf8"), readFileSync(path.join(REPO_ROOT, "apps/website/src/platform/db/schema.postgres.ts"), "utf8"));
+    const generated = readFileSync(fixture, "utf8");
+    assert.match(generated, /pgTable\("secrets_vault"/);
+    assert.match(generated, /jsonb_typeof\(meta\) = 'object'/);
+    assert.match(generated, /envSecretId: text\("env_secret_id"\)/);
+    assert.match(generated, /oauthSecretId: text\("oauth_secret_id"\)/);
+    assert.match(generated, /pgTable\("oauth_device_authorizations"/);
+    assert.doesNotMatch(generated, /pgTable\("(?:site_assistant_credentials|oauth_pending_authorizations)"/);
     const checkOut = recorder();
     assert.equal(runGenerator({ check: true }, { outPath: fixture, stdout: checkOut, stderr: recorder() }), 0);
     assert.match(checkOut.text(), /up to date/);

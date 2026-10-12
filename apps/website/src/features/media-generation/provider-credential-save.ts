@@ -14,16 +14,19 @@ import { saveMediaProviderCredentials, type MediaProviderCredentialRepoPort, typ
 export async function saveMediaProviderKey(input: { deps: MediaProviderCredentialWriteDeps; workspaceId: string; provider: string; apiKey: string }, _optional = {}): Promise<{ configured: boolean; tokenHint: CredentialTokenHint | null }> {
   const { deps, workspaceId, provider, apiKey } = input;
   // Only `replaceWorkspace`: the store's save writes through nothing else.
-  const repo: Pick<MediaProviderCredentialRepoPort, 'replaceWorkspace'> = {
+  const repo: Pick<MediaProviderCredentialRepoPort, 'replaceWorkspace' | 'vault'> = {
+    vault: deps.repo.vault,
     replaceWorkspace: spec => deps.repo.replaceWorkspace({
       workspaceId: spec.workspaceId,
       // Pure synchronous merge runs on CURRENT rows, after sealing, with no stale pre-read map.
       plan: current => {
         const patch = spec.plan(current);
         const existing = current.find(row => row.providerId === provider);
-        return { tombstoneProviderIds: [], upserts: patch.upserts.map(row => ({
-          ...row, baseUrl: existing?.baseUrl ?? null, model: existing?.model ?? null,
-        })) };
+        return { tombstoneProviderIds: [], upserts: patch.upserts.map(row => {
+          const merged = { ...row, baseUrl: existing?.baseUrl ?? null, model: existing?.model ?? null };
+          Object.defineProperty(merged, 'vaultRecord', { value: row.vaultRecord });
+          return merged;
+        }) };
       },
     }),
   };

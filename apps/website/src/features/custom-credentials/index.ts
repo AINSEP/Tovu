@@ -12,8 +12,6 @@ export {
   type CustomProviderConnectionInput,
 } from "./types.js";
 
-export { buildCustomCredentialAad } from "./aad.js";
-
 export {
   createCustomCredential,
   CustomCredentialDuplicateLabelError,

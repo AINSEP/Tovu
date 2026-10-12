@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 88
+ * Tables: 73
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, customType, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -20,29 +20,6 @@ const jsonText = customType<{ data: string; driverData: unknown }>({
   toDriver: (value) => value,
   fromDriver: (value) => (typeof value === "string" ? value : JSON.stringify(value)),
 });
-
-export const adminExecutionCredentials = pgTable("admin_execution_credentials", {
-  workspaceId: text("workspace_id").notNull(),
-  principalId: text("principal_id").notNull(),
-  protocol: text("protocol").notNull().default("anthropic"),
-  providerId: text("provider_id"),
-  baseUrl: text("base_url"),
-  model: text("model"),
-  maxTokens: bigint("max_tokens", { mode: "number" }),
-  sealedKeyId: text("sealed_key_id"),
-  sealedCiphertext: text("sealed_ciphertext"),
-  sealedNonce: text("sealed_nonce"),
-  sealedAlg: text("sealed_alg"),
-  masked: text("masked"),
-  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    primaryKey({ columns: [t.workspaceId, t.principalId] }),
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    foreignKey({ columns: [t.principalId], foreignColumns: [principals.id] }).onDelete("cascade"),
-    check("admin_execution_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND masked IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND masked IS NOT NULL)`),
-  ]);
 
 export const agentToolAttempts = pgTable("agent_tool_attempts", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
@@ -160,127 +137,6 @@ export const changeSets = pgTable("change_sets", {
     uniqueIndex("idx_change_sets_idempotency").on(t.workspaceId, t.idempotencyKey),
   ]);
 
-export const commerceOrderItems = pgTable("commerce_order_items", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  orderId: text("order_id").notNull(),
-  priceId: text("price_id").notNull(),
-  productId: text("product_id").notNull(),
-  description: text("description").notNull(),
-  unitAmountCents: bigint("unit_amount_cents", { mode: "number" }).notNull(),
-  quantity: bigint("quantity", { mode: "number" }).notNull().default(1),
-  currency: text("currency").notNull(),
-  createdAt: text("created_at").notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.orderId], foreignColumns: [commerceOrders.id] }).onDelete("cascade"),
-    foreignKey({ columns: [t.priceId], foreignColumns: [commercePrices.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.productId], foreignColumns: [commerceProducts.id] }).onDelete("restrict"),
-    check("commerce_order_items_unit_amount_cents_check", sql`unit_amount_cents >= 0`),
-    check("commerce_order_items_quantity_check", sql`quantity > 0`),
-    index("idx_commerce_order_items_order").on(t.orderId),
-  ]);
-
-export const commerceOrders = pgTable("commerce_orders", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  memberId: text("member_id").notNull(),
-  status: text("status").notNull(),
-  currency: text("currency").notNull(),
-  totalAmountCents: bigint("total_amount_cents", { mode: "number" }).notNull(),
-  provider: text("provider").notNull(),
-  providerCustomerRef: text("provider_customer_ref"),
-  providerPaymentRef: text("provider_payment_ref"),
-  providerEventAt: text("provider_event_at"),
-  placedAt: text("placed_at").notNull(),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-  version: bigint("version", { mode: "number" }).notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.memberId], foreignColumns: [members.id] }).onDelete("restrict"),
-    check("commerce_orders_total_amount_cents_check", sql`total_amount_cents >= 0`),
-    check("commerce_orders_currency_check", sql`length(currency) = 3 AND currency = lower(currency)`),
-    check("commerce_orders_status_check", sql`status IN ('pending', 'paid', 'failed', 'canceled')`),
-    index("idx_commerce_orders_workspace_member").on(t.workspaceId, t.memberId),
-  ]);
-
-export const commercePrices = pgTable("commerce_prices", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  productId: text("product_id").notNull(),
-  unitAmountCents: bigint("unit_amount_cents", { mode: "number" }).notNull(),
-  compareAtAmountCents: bigint("compare_at_amount_cents", { mode: "number" }),
-  currency: text("currency").notNull(),
-  billingInterval: text("billing_interval"),
-  status: text("status").notNull(),
-  createdAt: text("created_at").notNull(),
-  version: bigint("version", { mode: "number" }).notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.productId], foreignColumns: [commerceProducts.id] }).onDelete("restrict"),
-    check("commerce_prices_unit_amount_cents_check", sql`unit_amount_cents >= 0`),
-    check("commerce_prices_compare_at_amount_cents_check", sql`compare_at_amount_cents IS NULL OR compare_at_amount_cents > unit_amount_cents`),
-    check("commerce_prices_currency_check", sql`length(currency) = 3 AND currency = lower(currency)`),
-    check("commerce_prices_status_check", sql`status IN ('active', 'archived')`),
-    check("commerce_prices_billing_interval_check", sql`billing_interval IS NULL OR billing_interval IN ('month', 'year')`),
-    index("idx_commerce_prices_product").on(t.productId),
-  ]);
-
-export const commerceProductImages = pgTable("commerce_product_images", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  productId: text("product_id").notNull(),
-  mediaId: text("media_id").notNull(),
-  position: bigint("position", { mode: "number" }).notNull().default(0),
-  createdAt: text("created_at").notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.productId], foreignColumns: [commerceProducts.id] }).onDelete("cascade"),
-    foreignKey({ columns: [t.mediaId], foreignColumns: [media.id] }).onDelete("restrict"),
-    uniqueIndex("commerce_product_images_product_media_unique").on(t.productId, t.mediaId),
-    index("idx_commerce_product_images_product_position").on(t.productId, t.position),
-  ]);
-
-export const commerceProducts = pgTable("commerce_products", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull(),
-  kind: text("kind").notNull(),
-  status: text("status").notNull(),
-  description: text("description"),
-  grantsMemberTierId: text("grants_member_tier_id"),
-  specsJson: jsonText("specs_json"),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-  version: bigint("version", { mode: "number" }).notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    foreignKey({ columns: [t.workspaceId, t.grantsMemberTierId], foreignColumns: [memberTiers.workspaceId, memberTiers.id] }).onDelete("restrict"),
-    check("commerce_products_status_check", sql`status IN ('active', 'archived')`),
-    uniqueIndex("commerce_products_workspace_slug_unique").on(t.workspaceId, t.slug),
-  ]);
-
-export const commerceWebhookEvents = pgTable("commerce_webhook_events", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  provider: text("provider").notNull(),
-  eventId: text("event_id").notNull(),
-  eventType: text("event_type").notNull(),
-  eventOccurredAt: text("event_occurred_at").notNull(),
-  payloadJson: jsonText("payload_json").notNull(),
-  status: text("status").notNull(),
-  receivedAt: text("received_at").notNull(),
-  processedAt: text("processed_at"),
-  lastError: text("last_error"),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
-    check("commerce_webhook_events_status_check", sql`status IN ('received', 'applied', 'ignored', 'failed')`),
-    uniqueIndex("commerce_webhook_events_provider_event_unique").on(t.provider, t.eventId),
-    index("idx_commerce_webhook_events_claim").on(t.status, t.receivedAt),
-  ]);
-
 export const contentTypeRevisions = pgTable("content_type_revisions", {
   seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   contentTypeKey: text("content_type_key").notNull(),
@@ -309,41 +165,6 @@ export const contentTypes = pgTable("content_types", {
     uniqueIndex("content_types_workspace_key_unique").on(t.workspaceId, t.key),
     index("idx_content_types_workspace").on(t.workspaceId),
   ]);
-
-export const customCredentialSets = pgTable("custom_credential_sets", {
-  id: text("id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  label: text("label").notNull(),
-  category: text("category").notNull(),
-  baseUrl: text("base_url").notNull(),
-  additionalHostsJson: jsonText("additional_hosts_json"),
-  username: text("username"),
-  sealedKeyId: text("sealed_key_id").notNull(),
-  sealedCiphertext: text("sealed_ciphertext").notNull(),
-  sealedNonce: text("sealed_nonce").notNull(),
-  sealedAlg: text("sealed_alg").notNull(),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    primaryKey({ columns: [t.workspaceId, t.id] }),
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    uniqueIndex("custom_credential_sets_workspace_label_unique").on(t.workspaceId, t.label),
-  ]);
-
-export const databaseTransferDestinations = pgTable("database_transfer_destinations", {
-  workspaceId: text("workspace_id").primaryKey(),
-  host: text("host").notNull(),
-  port: text("port").notNull(),
-  databaseName: text("database_name").notNull(),
-  userName: text("user_name").notNull(),
-  sealedKeyId: text("sealed_key_id").notNull(),
-  sealedCiphertext: text("sealed_ciphertext").notNull(),
-  sealedNonce: text("sealed_nonce").notNull(),
-  sealedAlg: text("sealed_alg").notNull(),
-  aadVersion: bigint("aad_version", { mode: "number" }).notNull(),
-  savedAt: text("saved_at").notNull(),
-  lastRunJson: jsonText("last_run_json"),
-});
 
 export const databaseWriteWatermark = pgTable("database_write_watermark", {
   id: bigint("id", { mode: "number" }).primaryKey(),
@@ -424,10 +245,8 @@ export const externalMcpServers = pgTable("external_mcp_servers", {
   writeGrantsUpdatedByPrincipalId: text("write_grants_updated_by_principal_id"),
   writeGrantsUpdatedAt: text("write_grants_updated_at"),
   envNames: jsonText("env_names"),
-  sealedKeyId: text("sealed_key_id"),
-  sealedCiphertext: text("sealed_ciphertext"),
-  sealedNonce: text("sealed_nonce"),
-  sealedAlg: text("sealed_alg"),
+  envSecretId: text("env_secret_id"),
+  oauthSecretId: text("oauth_secret_id"),
   oauthProviderId: text("oauth_provider_id"),
   oauthGrant: text("oauth_grant"),
   oauthClientId: text("oauth_client_id"),
@@ -437,19 +256,13 @@ export const externalMcpServers = pgTable("external_mcp_servers", {
   oauthExpiresAt: text("oauth_expires_at"),
   oauthTokenEnvName: text("oauth_token_env_name"),
   oauthRefreshLeaseUntil: text("oauth_refresh_lease_until"),
-  oauthSealedKeyId: text("oauth_sealed_key_id"),
-  oauthSealedCiphertext: text("oauth_sealed_ciphertext"),
-  oauthSealedNonce: text("oauth_sealed_nonce"),
-  oauthSealedAlg: text("oauth_sealed_alg"),
-  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
-  oauthAadVersion: bigint("oauth_aad_version", { mode: "number" }).notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     primaryKey({ columns: [t.workspaceId, t.serverId] }),
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    check("external_mcp_servers_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
-    check("external_mcp_servers_oauth_sealed_shape", sql`(oauth_sealed_key_id IS NULL AND oauth_sealed_ciphertext IS NULL AND oauth_sealed_nonce IS NULL AND oauth_sealed_alg IS NULL) OR (oauth_sealed_key_id IS NOT NULL AND oauth_sealed_ciphertext IS NOT NULL AND oauth_sealed_nonce IS NOT NULL AND oauth_sealed_alg IS NOT NULL)`),
+    foreignKey({ name: "external_mcp_env_secret_fk", columns: [t.workspaceId, t.envSecretId], foreignColumns: [secretsVault.workspaceId, secretsVault.id] }).onDelete("restrict"),
+    foreignKey({ name: "external_mcp_oauth_secret_fk", columns: [t.workspaceId, t.oauthSecretId], foreignColumns: [secretsVault.workspaceId, secretsVault.id] }).onDelete("restrict"),
   ]);
 
 export const externalMcpToolApprovals = pgTable("external_mcp_tool_approvals", {
@@ -461,7 +274,7 @@ export const externalMcpToolApprovals = pgTable("external_mcp_tool_approvals", {
   grantedAt: text("granted_at").notNull(),
 }, (t) => [
     primaryKey({ columns: [t.workspaceId, t.serverId, t.toolName] }),
-    foreignKey({ columns: [t.workspaceId, t.serverId], foreignColumns: [externalMcpServers.workspaceId, externalMcpServers.serverId] }).onDelete("cascade"),
+    foreignKey({ name: "external_mcp_tool_approvals_workspace_id_server_id_ext_37c98be6", columns: [t.workspaceId, t.serverId], foreignColumns: [externalMcpServers.workspaceId, externalMcpServers.serverId] }).onDelete("cascade"),
   ]);
 
 export const formDefinitions = pgTable("form_definitions", {
@@ -538,25 +351,6 @@ export const media = pgTable("media", {
   htmlAttributes: text("html_attributes"),
 }, (t) => [
     uniqueIndex("idx_media_workspace_slug").on(t.workspaceId, t.slug),
-  ]);
-
-export const mediaProviderCredentials = pgTable("media_provider_credentials", {
-  workspaceId: text("workspace_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  baseUrl: text("base_url"),
-  model: text("model"),
-  sealedKeyId: text("sealed_key_id"),
-  sealedCiphertext: text("sealed_ciphertext"),
-  sealedNonce: text("sealed_nonce"),
-  sealedAlg: text("sealed_alg"),
-  keyTail: text("key_tail"),
-  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    primaryKey({ columns: [t.workspaceId, t.providerId] }),
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    check("media_provider_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND key_tail IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND key_tail IS NOT NULL)`),
   ]);
 
 export const mediaSlugHistory = pgTable("media_slug_history", {
@@ -762,22 +556,6 @@ export const oauthDeviceAuthorizations = pgTable("oauth_device_authorizations", 
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
   ]);
 
-export const oauthPendingAuthorizations = pgTable("oauth_pending_authorizations", {
-  state: text("state").primaryKey(),
-  ownerKey: text("owner_key").notNull(),
-  providerId: text("provider_id").notNull(),
-  sealedKeyId: text("sealed_key_id").notNull(),
-  sealedCiphertext: text("sealed_ciphertext").notNull(),
-  sealedNonce: text("sealed_nonce").notNull(),
-  sealedAlg: text("sealed_alg").notNull(),
-  redirectUri: text("redirect_uri").notNull(),
-  scopesJson: jsonText("scopes_json").notNull(),
-  createdAt: text("created_at").notNull(),
-  expiresAt: text("expires_at").notNull(),
-}, (t) => [
-    index("idx_oauth_pending_expires_at").on(t.expiresAt),
-  ]);
-
 export const originSettings = pgTable("origin_settings", {
   workspaceId: text("workspace_id").primaryKey(),
   scheme: text("scheme").notNull(),
@@ -968,25 +746,6 @@ export const publishContentBundles = pgTable("publish_content_bundles", {
     index("idx_publish_content_bundles_workspace").on(t.workspaceId, t.expiresAt),
   ]);
 
-export const publishContentPeers = pgTable("publish_content_peers", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  label: text("label").notNull(),
-  baseUrl: text("base_url").notNull(),
-  remoteWorkspaceId: text("remote_workspace_id").notNull(),
-  sealedKeyId: text("sealed_key_id"),
-  sealedCiphertext: text("sealed_ciphertext"),
-  sealedNonce: text("sealed_nonce"),
-  sealedAlg: text("sealed_alg"),
-  masked: text("masked"),
-  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    uniqueIndex("publish_content_peers_workspace_label_unique").on(t.workspaceId, t.label),
-  ]);
-
 export const publishContentRuns = pgTable("publish_content_runs", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
@@ -1003,25 +762,6 @@ export const publishContentRuns = pgTable("publish_content_runs", {
   itemsJson: jsonText("items_json"),
 }, (t) => [
     index("idx_publish_content_runs_workspace").on(t.workspaceId, t.startedAt),
-  ]);
-
-export const publishCredentialSets = pgTable("publish_credential_sets", {
-  id: text("id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  label: text("label").notNull(),
-  sealedKeyId: text("sealed_key_id").notNull(),
-  sealedCiphertext: text("sealed_ciphertext").notNull(),
-  sealedNonce: text("sealed_nonce").notNull(),
-  sealedAlg: text("sealed_alg").notNull(),
-  isDefault: boolean("is_default").notNull().default(false),
-  accountLabel: text("account_label"),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    primaryKey({ columns: [t.workspaceId, t.id] }),
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    uniqueIndex("publish_credential_sets_workspace_provider_label_unique").on(t.workspaceId, t.providerId, t.label),
   ]);
 
 export const publishHistory = pgTable("publish_history", {
@@ -1113,6 +853,52 @@ export const roles = pgTable("roles", {
   isBuiltin: bigint("is_builtin", { mode: "number" }).notNull(),
 }, (t) => [
     uniqueIndex("idx_roles_workspace_name").on(t.workspaceId, t.name),
+  ]);
+
+export const secretsVault = pgTable("secrets_vault", {
+  workspaceId: text("workspace_id").notNull(),
+  id: text("id").notNull(),
+  kind: text("kind").notNull(),
+  ownerKey: text("owner_key").notNull(),
+  principalId: text("principal_id"),
+  binding: text("binding"),
+  provider: text("provider"),
+  label: text("label").notNull(),
+  isDefault: boolean("is_default").notNull(),
+  revision: bigint("revision", { mode: "number" }).notNull(),
+  sealedKeyId: text("sealed_key_id"),
+  sealedCiphertext: text("sealed_ciphertext"),
+  sealedNonce: text("sealed_nonce"),
+  sealedAlg: text("sealed_alg"),
+  last4: text("last4"),
+  tokenLength: bigint("token_length", { mode: "number" }),
+  meta: jsonText("meta").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.id] }),
+    foreignKey({ name: "secrets_vault_workspace_id_fkey", columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    foreignKey({ name: "secrets_vault_principal_id_fkey", columns: [t.principalId], foreignColumns: [principals.id] }).onDelete("cascade"),
+    check("secrets_vault_kind", sql`kind IN ('site-assistant','personal-execution','media-provider','custom','publish-peer','database-destination','vendor','source-control','mcp-env','mcp-auth')`),
+    check("secrets_vault_revision", sql`revision > 0`),
+    check("secrets_vault_token_length", sql`token_length IS NULL OR token_length >= 0`),
+    check("secrets_vault_meta", sql`jsonb_typeof(meta) = 'object'`),
+    check("secrets_vault_boolean", sql`is_default IN (false,true)`),
+    check("secrets_vault_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
+    check("secrets_vault_personal_principal", sql`kind <> 'personal-execution' OR principal_id IS NOT NULL`),
+    check("secrets_vault_media_provider", sql`kind <> 'media-provider' OR provider IS NOT NULL`),
+    check("secrets_vault_principal_scope", sql`kind = 'personal-execution' OR principal_id IS NULL`),
+    check("secrets_vault_owner", sql`kind IN ('mcp-env','mcp-auth') OR owner_key = 'tovu'`),
+    check("secrets_vault_provider_scope", sql`kind NOT IN ('custom','publish-peer','database-destination') OR provider IS NULL`),
+    check("secrets_vault_hint", sql`last4 IS NULL OR (token_length IS NOT NULL AND token_length >= 12 AND length(last4) = 4)`),
+    index("secrets_vault_scope").on(t.workspaceId, t.kind, t.ownerKey, t.principalId, t.provider),
+    index("secrets_vault_principal").on(t.principalId, t.workspaceId, t.kind),
+    uniqueIndex("secrets_vault_singleton").on(t.workspaceId, t.kind).where(sql`kind IN ('site-assistant','database-destination')`),
+    uniqueIndex("secrets_vault_personal").on(t.workspaceId, t.kind, t.principalId).where(sql`kind = 'personal-execution'`),
+    uniqueIndex("secrets_vault_media").on(t.workspaceId, t.kind, t.provider).where(sql`kind = 'media-provider'`),
+    uniqueIndex("secrets_vault_default").on(t.workspaceId, t.kind, t.ownerKey, sql`(${t.principalId} IS NULL)`, sql`coalesce(${t.principalId},'')`, sql`(${t.provider} IS NULL)`, sql`coalesce(${t.provider},'')`).where(sql`is_default = true`),
+    uniqueIndex("secrets_vault_group_label").on(t.workspaceId, t.kind, t.ownerKey, sql`(${t.principalId} IS NULL)`, sql`coalesce(${t.principalId},'')`, sql`(${t.provider} IS NULL)`, sql`coalesce(${t.provider},'')`, t.label).where(sql`kind IN ('vendor','source-control')`),
+    uniqueIndex("secrets_vault_label").on(t.workspaceId, t.kind, t.label).where(sql`kind IN ('custom','publish-peer')`),
   ]);
 
 export const sessions = pgTable("sessions", {
@@ -1213,46 +999,10 @@ export const settingValuesWorkspace = pgTable("setting_values_workspace", {
     uniqueIndex("pk_setting_values_workspace").on(t.workspaceId, t.settingId),
   ]);
 
-export const siteAssistantCredentials = pgTable("site_assistant_credentials", {
-  workspaceId: text("workspace_id").primaryKey(),
-  provider: text("provider").notNull().default("google"),
-  baseUrl: text("base_url"),
-  model: text("model"),
-  sealedKeyId: text("sealed_key_id"),
-  sealedCiphertext: text("sealed_ciphertext"),
-  sealedNonce: text("sealed_nonce"),
-  sealedAlg: text("sealed_alg"),
-  masked: text("masked"),
-  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    check("site_assistant_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND masked IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND masked IS NOT NULL)`),
-  ]);
-
 export const siteTitlePreexistingWorkspaces = pgTable("site_title_preexisting_workspaces", {
   workspaceId: text("workspace_id").primaryKey(),
   preservedAt: text("preserved_at"),
 });
-
-export const sourceControlCredentialSets = pgTable("source_control_credential_sets", {
-  id: text("id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  label: text("label").notNull(),
-  sealedKeyId: text("sealed_key_id").notNull(),
-  sealedCiphertext: text("sealed_ciphertext").notNull(),
-  sealedNonce: text("sealed_nonce").notNull(),
-  sealedAlg: text("sealed_alg").notNull(),
-  isDefault: boolean("is_default").notNull().default(false),
-  accountLabel: text("account_label"),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    primaryKey({ columns: [t.workspaceId, t.id] }),
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    uniqueIndex("source_control_credential_sets_workspace_provider_label_unique").on(t.workspaceId, t.providerId, t.label),
-  ]);
 
 export const taxonomies = pgTable("taxonomies", {
   id: text("id").primaryKey(),
@@ -1323,26 +1073,6 @@ export const trashedItems = pgTable("trashed_items", {
     uniqueIndex("trashed_items_identity_unique").on(t.workspaceId, t.entityType, t.entityId),
     index("idx_trashed_items_purge_after").on(t.purgeAfter),
     index("idx_trashed_items_workspace_trashed_at").on(t.workspaceId, t.trashedAt),
-  ]);
-
-export const vendorCredentialSets = pgTable("vendor_credential_sets", {
-  id: text("id").notNull(),
-  workspaceId: text("workspace_id").notNull(),
-  vendorId: text("vendor_id").notNull(),
-  label: text("label").notNull(),
-  sealedKeyId: text("sealed_key_id").notNull(),
-  sealedCiphertext: text("sealed_ciphertext").notNull(),
-  sealedNonce: text("sealed_nonce").notNull(),
-  sealedAlg: text("sealed_alg").notNull(),
-  tokenTail: text("token_tail").notNull(),
-  isDefault: boolean("is_default").notNull().default(false),
-  accountLabel: text("account_label"),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-}, (t) => [
-    primaryKey({ columns: [t.workspaceId, t.id] }),
-    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
-    uniqueIndex("vendor_credential_sets_workspace_vendor_label_unique").on(t.workspaceId, t.vendorId, t.label),
   ]);
 
 export const webhookDeliveries = pgTable("webhook_deliveries", {

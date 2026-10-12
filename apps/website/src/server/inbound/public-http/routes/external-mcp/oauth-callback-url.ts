@@ -13,8 +13,9 @@ import { resolvePublicOrigin } from "../oauth/public-origin.js";
  * The path lives OUTSIDE `/api/admin` for the reason that file already documents: `tovu_session` is
  * `SameSite=Strict`, so a top-level redirect arriving from the provider's origin carries no cookie
  * and would be rejected by `requireAdminSession` before any handler ran. What authenticates the
- * request instead is the single-use, expiring, connection-bound `state`
- * (`oauth/pending-authorizations.ts`), plus a per-IP rate limiter in front as defence in depth.
+ * request instead is sealed, expiring, connection-bound `state` plus the provider's single-use
+ * code, with a per-IP rate limiter in front as defence in depth. This same URL is reconstructed
+ * on the callback to check the exact redirect URI before exchanging the code.
  */
 
 /** Public, non-admin mount point. */

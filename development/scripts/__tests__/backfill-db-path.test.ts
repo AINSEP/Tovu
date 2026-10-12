@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,27 +16,6 @@ import { resolveExistingDbPath, missingDbPathMessage } from "../backfill-db-path
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
-
-const SCRIPTS = [
-  "backfill-execution-credential-aad.ts",
-  "backfill-media-provider-credential-aad.ts",
-  "backfill-site-assistant-credential-aad.ts",
-  "backfill-external-mcp-aad.ts",
-] as const;
-
-function runExpectingFailure(script: string, dbPath: string): { status: number | null; output: string } {
-  try {
-    const stdout = execFileSync("node", ["--import", "tsx", path.join("development", "scripts", script), "--db", dbPath], {
-      cwd: REPO_ROOT,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return { status: 0, output: stdout };
-  } catch (error) {
-    const err = error as { status?: number | null; stdout?: string; stderr?: string };
-    return { status: err.status ?? null, output: `${err.stdout ?? ""}${err.stderr ?? ""}` };
-  }
-}
 
 test("resolveExistingDbPath: returns the resolved path when the database is really there", () => {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "backfill-db-path-"));
@@ -69,54 +48,6 @@ test("resolveExistingDbPath: rejects a directory as loudly as a missing file", (
   assert.throws(() => resolveExistingDbPath(scratch), { message: missingDbPathMessage(path.resolve(scratch)) });
 });
 
-for (const script of SCRIPTS) {
-  test(`${script}: exits non-zero and creates NOTHING when the database is absent`, () => {
-    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "backfill-db-path-"));
-    const missing = path.join(scratch, "infra", "content.db");
-
-    const { status, output } = runExpectingFailure(script, missing);
-
-    assert.notEqual(status, 0, `${script} exited 0 against a nonexistent database`);
-    assert.ok(
-      output.includes(missingDbPathMessage(path.resolve(missing))),
-      `${script} did not emit the exact missing-database message. Got:\n${output}`,
-    );
-    // The actual defect: a fresh database appearing where the operator pointed at nothing.
-    assert.equal(fs.existsSync(missing), false, `${script} CREATED a database at a path that did not exist`);
-    // And it must never claim a clean result it never looked for.
-    assert.ok(!/would be migrated/.test(output), `${script} reported a migration count without a real database`);
-  });
-}
-
-/**
- * The guard only ever sees the path a script actually resolves, so a script whose DEFAULT names a
- * database that really exists never reaches it — which is what `backfill-external-mcp-aad.ts` did
- * until 2026-09-06 (it defaulted to `sites/tovu-com/content.db`, a live site database, so a
- * forgotten `--db` ran against production instead of erroring).
- *
- * Asserted against the source text rather than by invoking each script with no `--db`: a regression
- * here would point that invocation at a real database, which is the precise outcome this test
- * exists to forbid. The second assertion keeps the first one meaningful — the shared default is
- * only a guaranteed refusal for as long as nothing is created at it.
- */
-test("every AAD backfill script defaults --db to a path this repo never creates", () => {
-  for (const script of SCRIPTS) {
-    const source = fs.readFileSync(path.join(REPO_ROOT, "development", "scripts", script), "utf8");
-    const declaration = /^const DEFAULT_DB_PATH = (.+);$/m.exec(source);
-    assert.equal(
-      declaration?.[1],
-      'path.join(REPO_ROOT, "infra", "content.db")',
-      `${script} does not default --db to the deliberately absent infra/content.db — omitting --db must be refused, never run against a real database`,
-    );
-  }
-
-  assert.equal(
-    fs.existsSync(path.join(REPO_ROOT, "infra", "content.db")),
-    false,
-    "infra/content.db now exists — the shared default is no longer a guaranteed refusal",
-  );
-});
-
 test("every backfill, convert, migrate and cleanup CLI refuses its effective default in an isolated repository", async (t) => {
   const scriptsDir = path.join(REPO_ROOT, "development", "scripts");
   const scripts = fs.readdirSync(scriptsDir).filter((name) => {
@@ -124,7 +55,16 @@ test("every backfill, convert, migrate and cleanup CLI refuses its effective def
     const source = fs.readFileSync(path.join(scriptsDir, name), "utf8");
     return /resolveExistingDbPath\(|runAadBackfill\(/.test(source) && /\bmain\(/.test(source);
   });
-  assert.ok(scripts.length >= SCRIPTS.length + 8, "discovery must include the non-AAD database CLIs");
+  // S5 retired the AAD backfills; pin the remaining CLIs so discovery cannot pass vacuously.
+  assert.deepEqual(scripts.sort(), [
+    "backfill-media-slugs.ts",
+    "backfill-reset-admin-password.ts",
+    "backfill-slug-collision-defaults.ts",
+    "backfill-trashed-items.ts",
+    "cleanup-stale-owner-sessions.ts",
+    "convert-legacy-doc-pages-to-html.ts",
+    "migrate-page-embed-markers.ts",
+  ]);
   const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "backfill-defaults-")));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   {

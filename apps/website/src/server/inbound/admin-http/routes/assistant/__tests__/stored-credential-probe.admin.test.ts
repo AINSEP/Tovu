@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-store.memory";
+import { InMemorySiteAssistantCredentialRepo } from "#src/assistant/site-credential-store.memory";
 import type { AssistantExecutionRouteDeps } from "../execution-deps.js";
 import { resolveProbeCredential } from "../stored-credential-probe.js";
 
@@ -31,77 +34,39 @@ interface StoredRows {
   site?: { apiKey: string; baseUrl: string | null } | null;
 }
 
-/**
- * Builds the narrow deps slice `resolveProbeCredential` reads, backed by plain objects.
- *
- * The sealer is shared by both repos in production (one sealing capability app-wide), so it is one
- * fake here too: `open` returns whatever ciphertext string it was handed, which lets each fake row
- * carry its own plaintext key without a real crypto round-trip.
- *
- * `adminReads`/`siteReads` count the calls, which is how the "never touched the other row" and
- * "no decrypt on a request that cannot proceed" assertions below are made observable rather than
- * inferred.
- */
+/** The real compatibility adapters use vault fixtures; lookup counters still prove scope and
+ * the plaintext sealer fixture now carries Jini's JSON payload rather than a legacy raw key. */
 function buildDeps(rows: StoredRows) {
   const counters = { adminReads: 0, siteReads: 0 };
   const now = new Date().toISOString();
-
+  function vaultFor(personal: boolean) {
+    const vault = new InMemoryVaultRepo({});
+    vault.findOne = async input => {
+      if (personal) counters.adminReads += 1;
+      else counters.siteReads += 1;
+      assert.equal(input.workspaceId, WORKSPACE);
+      assert.equal(input.kind, personal ? "personal-execution" : "site-assistant");
+      assert.equal(input.principalId, personal ? PRINCIPAL : null, "the personal lookup uses the SESSION principal");
+      const row = personal ? rows.admin : rows.site;
+      if (!row) return null;
+      return { workspaceId: WORKSPACE, id: personal ? "admin" : "site", ownerKey: "tovu",
+        kind: personal ? "personal-execution" : "site-assistant", principalId: personal ? PRINCIPAL : null,
+        binding: null, provider: personal ? "google-gemini" : "google", label: "", isDefault: true, revision: 1,
+        meta: { baseUrl: row.baseUrl, model: null, ...(personal ? { protocol: "google", maxTokens: null } : {}) },
+        sealed: { keyId: "v1", ciphertext: JSON.stringify({ apiKey: row.apiKey }), nonce: "fixture", alg: "aes-256-gcm" },
+        last4: null, tokenLength: null, createdAt: now, updatedAt: now };
+    };
+    return vault;
+  }
   const deps = {
-    workspaceId: WORKSPACE,
-    authorize: async () => ({ allowed: true as const, reason: "" }),
-    adminExecutionCredentialRepo: {
-      async findByWorkspaceAndPrincipal(required: { workspaceId: string; principalId: string }) {
-        counters.adminReads += 1;
-        assert.equal(required.workspaceId, WORKSPACE);
-        assert.equal(required.principalId, PRINCIPAL, "the admin row must be looked up by the SESSION principal");
-        if (!rows.admin) return null;
-        return {
-          workspaceId: WORKSPACE,
-          principalId: PRINCIPAL,
-          protocol: "google",
-          providerId: "google-gemini",
-          baseUrl: rows.admin.baseUrl,
-          model: null,
-          maxTokens: null,
-          sealed: rows.admin.apiKey,
-          masked: "••••cret",
-          aadVersion: 0,
-          createdAt: now,
-          updatedAt: now,
-        };
-      },
-      async upsert() {},
-      async clearKey() {},
-    },
-    siteAssistantCredentialRepo: {
-      async findByWorkspaceId() {
-        counters.siteReads += 1;
-        if (!rows.site) return null;
-        return {
-          workspaceId: WORKSPACE,
-          provider: "google",
-          baseUrl: rows.site.baseUrl,
-          model: null,
-          sealed: rows.site.apiKey,
-          masked: "••••site",
-          aadVersion: 0,
-          createdAt: now,
-          updatedAt: now,
-        };
-      },
-      async upsert() {},
-      async clearKey() {},
-    },
+    workspaceId: WORKSPACE, authorize: async () => ({ allowed: true as const, reason: "" }),
+    adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo({ vault: vaultFor(true) }),
+    siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo({ vault: vaultFor(false) }),
     siteAssistantSecretSealer: {
-      async seal() {
-        throw new Error("a probe must never seal anything");
-      },
-      async open({ sealed }: { sealed: unknown }) {
-        return String(sealed);
-      },
+      async seal() { throw new Error("a probe must never seal anything"); },
+      async open({ sealed }: { sealed: { ciphertext: string } }) { return sealed.ciphertext; },
     },
   } as unknown as AssistantExecutionRouteDeps;
-
   return { deps, counters };
 }
 

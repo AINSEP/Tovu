@@ -1,7 +1,7 @@
 import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../platform/oauth/endpoint-safety.js";
 import { randomBytes } from "node:crypto";
 import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
-import type { PendingAuthorizationStore } from "@jini-ai/oauth";
+import { formatAad } from "@jini-ai/platform/secrets";
 // Shared OAuth design rationale: Jini/packages/oauth/src/authorization-code.ts.
 
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
@@ -12,6 +12,7 @@ import {
   beginDeviceAuthorization,
   buildOperatorOAuthProvider,
   completeAuthorizationCode,
+  createSealedAuthorizationState,
   createTokenRefresher,
   discoverAuthorizationServer,
   createOAuthProviderRegistry,
@@ -26,7 +27,6 @@ import {
   type OAuthClientAuthMethod,
   type OAuthProviderDescriptor,
   type OAuthTokenSet,
-  type PendingAuthorizationStore as JiniPendingAuthorizationStore,
   type OAuthHttpPorts,
   type OAuthAppOptions,
   type OAuthProviderRegistry,
@@ -264,7 +264,6 @@ export interface ExternalMcpOAuthDeps {
   readonly sealer: SecretSealerPort;
   readonly keyring: KeyringPort;
   readonly clock: ClockPort;
-  readonly pending: PendingAuthorizationStore;
   readonly devices: DeviceAuthorizationStore;
   /** Required guarded transport and endpoint policy: no raw-fetch fallback can send a credential. */
   readonly httpPorts: OAuthHttpPorts;
@@ -346,8 +345,9 @@ export interface ExternalMcpOAuthService {
    * Finishes an authorization-code handshake from the public callback route.
    *
    * @param input.params - The callback's query parameters, already narrowed to strings. Untrusted.
+   * @param input.redirectUri - Canonical callback URI from the host's existing trusted origin policy.
    */
-  completeAuthorizationCallback(input: { serverId: string; params: AuthorizationCallbackParams }): Promise<void>;
+  completeAuthorizationCallback(input: { serverId: string; redirectUri: string; params: AuthorizationCallbackParams }, optionalArgs?: Record<string, never>): Promise<void>;
   /**
    * Polls a device authorization exactly once.
    *
@@ -811,6 +811,22 @@ function ownerKeyOf(workspaceId: UUID, serverId: string): string {
   return `${workspaceId}:${serverId}`;
 }
 
+/** Thin site-key codec; Jini owns the expiring redirect payload and all binding checks.
+ * @complexity O(state bytes), bounded by Jini; one site-key seal/open, no pending-store I/O.
+ */
+function sealedRedirectState({ deps, serverId }: { deps: ExternalMcpOAuthDeps; serverId: string }, _optional: Record<string, never> = {}) {
+  const aad = formatAad({ kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify([deps.workspaceId, serverId])] });
+  return createSealedAuthorizationState({ clock: deps.clock, workspaceId: deps.workspaceId, serverId, codec: {
+    async seal({ plaintext }, _options = {}) {
+      const sealed = await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey(), aad });
+      return Buffer.from(JSON.stringify(sealed), "utf8").toString("base64url");
+    },
+    async open({ state }, _options = {}) {
+      return deps.sealer.open({ sealed: JSON.parse(Buffer.from(state, "base64url").toString("utf8")) }, { aad });
+    },
+  } });
+}
+
 /** Writes a token set into the row: sealed blob (preserving the client secret) plus the PLAINTEXT
  *  status and expiry beside it. One place, so the plaintext metadata cannot drift from the blob.
  *  @complexity O(1) — one unseal, one seal, one upsert. */
@@ -979,25 +995,14 @@ async function setOAuthStatus(
  *
  * @returns The service plus its `tokenResolver`, which `readEnabledExternalMcpConfigs` takes.
  * @complexity Construction is O(1) and performs no I/O.
- * @tradeoffs Whether the start of a handshake and its completion can land on different processes
- *   depends entirely on which `pending`/`devices` implementation the caller injects. The agent
- *   daemon is NOT an idle bystander here — `external_mcp_oauth_connect` is an assistant tool, and
- *   assistant tools execute inside the daemon, so `beginConnect` for a browser-redirect grant
- *   genuinely runs there while the public callback that completes it runs in the main web server, a
- *   separate OS process. The in-memory implementations
- *   (`oauth/pending-authorizations.ts`'s `createPendingAuthorizationStore`,
- *   this file's own `createDeviceAuthorizationStore`) cannot survive that split — a `Map` in one
- *   process is invisible to the other. The DB-backed implementations
- *   (`platform/db/repos/oauth-pending-store.ts`) can, because both processes open the same
- *   `content.db`. Every production composition root injects the DB-backed pair for exactly this
- *   reason; the in-memory pair remains correct only for a caller that can guarantee both halves of
- *   a handshake run in the same process (a narrow test double, or a composition root with no
- *   persistent `content.db` at all).
+ * @tradeoffs The assistant daemon can start a redirect that the web server completes: encrypted
+ *   state carries the verifier and connection binding across that split using the same site key.
+ *   No pending row or shared process memory is needed. The provider's single-use code and the
+ *   state's expiry prevent replay. Device authorization still uses the injected durable store;
+ *   its in-memory adapter is only suitable when begin and poll run in the same process.
  */
-export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps): ExternalMcpOAuthService {
+export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps, _optional: Record<string, never> = {}): ExternalMcpOAuthService {
   const deps = { ...required, providers: required.providers ?? createOAuthProviderRegistry({ guard: required.httpPorts.guard }) };
-  // Preserve atomic redemption; RFC 8707 activation awaits the durable resource handoff.
-  const pending: JiniPendingAuthorizationStore = deps.pending;
   const refresher = createTokenRefresher({
     clock: deps.clock,
     sleep: ({ ms }) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
@@ -1095,7 +1100,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps): E
       }
 
       const started = await withTovuOAuthCopy({ call: () => beginAuthorizationCode(
-        { provider, pending, guard: deps.httpPorts.guard,
+        { provider, stateless: sealedRedirectState({ deps, serverId: record.serverId }), guard: deps.httpPorts.guard,
           randomBytesFn: ({ byteLength }) => randomBytes(byteLength),
           options: oauthClientOptions(record, redirectUri),
           ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
@@ -1110,7 +1115,7 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps): E
       return { kind: "redirect_required", authorizationUrl: started.authorizationUrl, expiresAt: started.expiresAt };
     },
 
-    async completeAuthorizationCallback(input) {
+    async completeAuthorizationCallback(input, _options = {}) {
       const record = await requireOAuthRecord(deps, input.serverId);
       const provider = resolveProviderDescriptor(deps, record);
       const client = await resolveClient(deps, record, provider);
@@ -1118,7 +1123,8 @@ export function createExternalMcpOAuthService(required: ExternalMcpOAuthDeps): E
       let tokens: OAuthTokenSet;
       try {
         tokens = await withTovuOAuthCopy({ call: () => completeAuthorizationCode(
-          { ...deps.httpPorts, provider, pending, clock: deps.clock,
+          { ...deps.httpPorts, provider, stateless: sealedRedirectState({ deps, serverId: record.serverId }), clock: deps.clock,
+            redirectUri: input.redirectUri,
             ownerKey: ownerKeyOf(deps.workspaceId, record.serverId),
             client,
             params: input.params,

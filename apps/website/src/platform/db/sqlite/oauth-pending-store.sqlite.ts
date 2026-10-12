@@ -2,32 +2,17 @@ import type { UUID, Clock } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
 import type { DeviceAuthorizationStore } from "#src/assistant/external-mcp-oauth";
-import type { OAuthRandomBytes, PendingAuthorizationStore } from "@jini-ai/oauth";
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
-import { createSqlDeviceAuthorizationStore, createSqlPendingAuthorizationStore } from "../repos/oauth-pending-store.js";
+import { createSqlDeviceAuthorizationStore } from "../repos/oauth-pending-store.js";
 import type { ContentDb } from "./content-db.js";
 
 export { deviceAad } from "../repos/oauth-pending-store.js";
 
 /**
- * @file The cross-process OAuth handshake stores on a site's SQLite `content.db`: the one Kysely
+ * @file The cross-process device authorization store on a site's SQLite `content.db`: the one Kysely
  * query body (`repos/oauth-pending-store.ts`, whose header carries the security posture), built
  * from the content db handle so the composition root's calls stay as they are.
  */
-
-export interface SqlitePendingAuthorizationStoreDeps {
-  /** The connection's kernel, or the content db handle it is derived from. */
-  readonly db: ContentKernel | ContentDb;
-  readonly clock: Clock;
-  readonly sealer: Pick<SecretSealerPort, "seal" | "open">;
-  readonly keyring: Pick<KeyringPort, "activeKey">;
-}
-
-/** Injected only so tests can pin `state`. Defaults to `node:crypto`'s CSPRNG. */
-/** {@link createSqlPendingAuthorizationStore} on `deps.db`. */
-export function createSqlitePendingAuthorizationStore(deps: SqlitePendingAuthorizationStoreDeps, optional: { ttlMs?: number; maxEntries?: number; randomBytesFn?: OAuthRandomBytes } = {}): PendingAuthorizationStore {
-  return createSqlPendingAuthorizationStore({ ...deps, kernel: contentKernel(deps.db) }, optional);
-}
 
 export interface SqliteDeviceAuthorizationStoreDeps {
   /** The connection's kernel, or the content db handle it is derived from. */

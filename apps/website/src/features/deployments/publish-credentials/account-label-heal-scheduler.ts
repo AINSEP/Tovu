@@ -15,7 +15,7 @@ import type { PublishCredentialSummary, PublishProviderId } from "./types.js";
  * at a time.
  *
  * Why this exists — the mechanism it fixes:
- * `publish_credential_sets.account_label` starts `null` on every row and is only ever populated by a
+ * `secrets_vault.meta.accountLabel` starts `null` on every row and is only ever populated by a
  * human-gated `verifyPublishCredentialById` -> `healAccountLabel` pass (`store.ts`'s own header). That
  * pass already runs automatically on every save (`POST`/`PUT`, unconditionally when a connection is
  * supplied) — so a NEWLY saved credential heals itself immediately — but a row whose very first

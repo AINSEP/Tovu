@@ -3,6 +3,8 @@ import ts from "typescript";
 import type { ToolRegistry } from "@jini-ai/core";
 import { registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
+import { createChatDeleteScope } from "#src/assistant/permanent-delete-tool-gate";
+import { DEFAULT_PERMANENT_DELETES_POLICY } from "#src/contracts/headless/assistant-permanent-deletes-policy";
 import { createLiveToolCatalogQuery, type LiveToolCatalogQuery } from "#src/assistant/tool-catalog-live-query";
 import { withToolCatalogAudit, UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID } from "#src/assistant/tool-audit-preset";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
@@ -19,6 +21,7 @@ export async function mountDaemonCatalog(registry: ToolRegistry, auditSink: Tool
   const handlers = new Map<string, (request: unknown, response: unknown) => Promise<void>>();
   const live = await evaluateDaemonStatements<LiveToolCatalogQuery>(statements.slice(statements.indexOf(initial), statements.indexOf(mount) + 1), {
     registry, auditSink, buildToolCatalogQuery, createLiveToolCatalogQuery, withToolCatalogAudit,
+    deleteScope: createChatDeleteScope({ readPolicy: async () => DEFAULT_PERMANENT_DELETES_POLICY }),
     UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
     routeDeps: { workspaceId: "ws-daemon-catalog" }, refreshSkillsCatalog: () => {},
     app: { get: (path: string, handler: typeof handlers extends Map<string, infer H> ? H : never) => {

@@ -9,8 +9,6 @@ export type {
   PublishProviderId,
 } from "./types.js";
 
-export { buildPublishCredentialAad } from "./aad.js";
-
 export {
   createPublishCredential,
   deletePublishCredential,
@@ -42,10 +40,4 @@ export {
   type AccountLabelHealSchedulerDeps,
 } from "./account-label-heal-scheduler.js";
 
-export { InMemoryPublishCredentialSetRepo } from "./repo.memory.js";
-
-export {
-  copyPublishCredentialsToVendorTable,
-  type VendorTableBackfillDeps,
-  type VendorTableBackfillReport,
-} from "./vendor-table-backfill.js";
+export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";

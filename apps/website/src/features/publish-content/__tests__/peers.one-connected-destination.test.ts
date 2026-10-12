@@ -20,7 +20,6 @@ import test from "node:test";
 
 import type { SealedSecret } from "#src/features/webhooks/index";
 
-import { PUBLISH_CONTENT_PEER_AAD_VERSION } from "../peer-aad.js";
 import {
   InMemoryPublishContentPeerRepo,
   saveConnectedDestination,
@@ -98,7 +97,7 @@ test("moving the connection leaves a hand-configured destination and its credent
     remoteWorkspaceId: "remote-hand",
     sealed: SEALED_BLOB,
     masked: "tovu_live_…cdef",
-    aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
+    aadVersion: 1,
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
   };
@@ -131,7 +130,7 @@ test("selectConnectedDestination never picks arbitrarily between two connected r
     remoteWorkspaceId: "remote-a",
     sealed: null,
     masked: null,
-    aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
+    aadVersion: 1,
     createdAt: "2026-09-20T10:00:00.000Z",
     updatedAt: "2026-09-20T10:00:00.000Z",
   };
@@ -153,7 +152,7 @@ test("selectConnectedDestination answers only for CONNECTED rows — a hand-conf
     remoteWorkspaceId: "remote-a",
     sealed: null,
     masked: null,
-    aadVersion: PUBLISH_CONTENT_PEER_AAD_VERSION,
+    aadVersion: 1,
     createdAt: "2026-09-20T10:00:00.000Z",
     updatedAt: "2026-09-20T10:00:00.000Z",
   };

@@ -1,3 +1,5 @@
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { externalMcpVaultRecord } from "../external-mcp-vault.js";
 import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -8,7 +10,6 @@ process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../features/webhooks/keyring.env.js";
-import { buildExternalMcpEnvAad, buildExternalMcpOAuthAad } from "../external-mcp-aad.js";
 import {
   openExternalMcpOAuthPayload,
   readEnabledExternalMcpConfigs,
@@ -33,22 +34,12 @@ const WORKSPACE = "workspace-1";
 const SERVER_A = "server-a";
 const SERVER_B = "server-b";
 
-test("external-mcp AAD: the two blobs on one row get DIFFERENT aad, so neither can be swapped into the other's slot", () => {
-  const env = buildExternalMcpEnvAad({ workspaceId: WORKSPACE, serverId: SERVER_A });
-  const oauth = buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: SERVER_A });
-
-  assert.equal(env, `external-mcp-env:v1:${WORKSPACE}:${SERVER_A}`);
-  assert.equal(oauth, `external-mcp-oauth:v1:${WORKSPACE}:${SERVER_A}`);
-  assert.notEqual(env, oauth);
-});
-
-test("external-mcp AAD: builders bind BOTH primary-key columns, not just the workspace", () => {
-  const a = buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: SERVER_A });
-  const b = buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: SERVER_B });
-  const other = buildExternalMcpOAuthAad({ workspaceId: "workspace-2", serverId: SERVER_A });
-
-  assert.notEqual(a, b, "two servers in one workspace must not share an aad");
-  assert.notEqual(a, other, "the same server id in two workspaces must not share an aad");
+test("vault AAD separates MCP secret kinds and server/workspace identity", () => {
+  const identity = { workspaceId: WORKSPACE, id: "vault-id", ownerKey: SERVER_A, principalId: null, binding: null };
+  const auth = buildVaultAad({ ...identity, kind: "mcp-auth" });
+  assert.notEqual(auth, buildVaultAad({ ...identity, kind: "mcp-env" }));
+  assert.notEqual(auth, buildVaultAad({ ...identity, kind: "mcp-auth", ownerKey: SERVER_B }));
+  assert.notEqual(auth, buildVaultAad({ ...identity, kind: "mcp-auth", workspaceId: "workspace-2" }));
 });
 
 test("external-mcp OAuth blob: opens under its OWN (workspace, server) identity", async () => {
@@ -110,21 +101,10 @@ test("external-mcp OAuth blob: CROSS-WORKSPACE transplant is rejected", async ()
   );
 });
 
-test("external-mcp OAuth blob: a v0 legacy row still opens, so the fix does not brick live data", async () => {
-  // Exactly what a pre-fix row looks like: sealed with no aad at all.
-  const legacy = await sealer.seal({
-    plaintext: JSON.stringify({ clientSecret: "legacy-secret" }),
-    key: await keyring.activeKey(),
-  });
-
-  const opened = await openExternalMcpOAuthPayload(sealer, {
-    workspaceId: WORKSPACE,
-    serverId: SERVER_A,
-    sealedOAuth: legacy,
-    oauthAadVersion: 0,
-  });
-
-  assert.equal(opened.clientSecret, "legacy-secret");
+test("external-mcp OAuth blob: ordinary reads reject unnormalized legacy envelopes", async () => {
+  const legacy = await sealer.seal({ plaintext: JSON.stringify({ clientSecret: "legacy-secret" }), key: await keyring.activeKey() });
+  await assert.rejects(openExternalMcpOAuthPayload(sealer, { workspaceId: WORKSPACE, serverId: SERVER_A,
+    sealedOAuth: legacy, oauthAadVersion: 0 }), /could not be decrypted/);
 });
 
 // F2.6/F6.4: seal through the real store writer, then read back through the federation read path.
@@ -139,7 +119,9 @@ test('external-mcp env ciphertext opens only in its original row and slot', asyn
   const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER_A });
   assert.ok(row?.sealedEnv);
   assert.equal(row.aadVersion, 1);
-  await repo.upsert({ ...row, serverId: SERVER_B });
+  await assert.rejects(repo.upsert({ ...row, serverId: SERVER_B }));
+  // A corrupt persisted roster still degrades one connection rather than aborting federation.
+  repo.listByWorkspaceId = async () => [row, { ...row, serverId: SERVER_B }];
   const result = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
   assert.deepEqual(result.configs.map(c => c.serverId), [SERVER_A]);
   const target = result.configs[0]!.target;
@@ -149,5 +131,9 @@ test('external-mcp env ciphertext opens only in its original row and slot', asyn
   assert.equal(result.failures.length, 1);
   assert.equal(result.failures[0]!.serverId, SERVER_B);
   assert.match(result.failures[0]!.reason, /could not be decrypted/);
-  await assert.rejects(() => sealer.open({ sealed: row.sealedEnv! }, { aad: buildExternalMcpOAuthAad({ workspaceId: WORKSPACE, serverId: SERVER_A }) }));
+  const context = externalMcpVaultRecord({ sealed: row.sealedEnv, identity: row, kind: "mcp-env" });
+  const plaintext = await sealer.open({ sealed: row.sealedEnv }, { aad: buildVaultAad(context) });
+  assert.deepEqual(JSON.parse(plaintext), { API_KEY: 'row-a-secret' });
+  await assert.rejects(() => sealer.open({ sealed: row.sealedEnv! }, { aad: buildVaultAad({ ...context, kind: "mcp-auth" }) }));
+  await assert.rejects(() => openExternalMcpOAuthPayload(sealer, { ...row, sealedOAuth: row.sealedEnv }), /could not be decrypted/);
 });

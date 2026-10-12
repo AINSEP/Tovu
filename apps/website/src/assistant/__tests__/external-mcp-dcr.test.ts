@@ -1,8 +1,8 @@
+import { sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPendingAuthorizationStore } from "../../platform/oauth/index.js";
 import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../platform/oauth/__tests__/helpers.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
@@ -113,7 +113,6 @@ function makeService(store: ReturnType<typeof makeStore>, overrides: { readonly 
     sealer: store.sealer,
     keyring: store.keyring,
     clock: store.clock,
-    pending: createPendingAuthorizationStore({ clock: store.clock }),
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
       fetchFn: ({ url }, init) => (overrides.fetchFn ?? fetch)(url, init) },
@@ -612,7 +611,7 @@ async function connectThroughCallback(service: ReturnType<typeof makeService>, r
   const started = await service.beginConnect({ serverId: SERVER, redirectUri });
   assert.ok(started.kind === "redirect_required");
   const state = new URL(started.authorizationUrl).searchParams.get("state") ?? "";
-  await service.completeAuthorizationCallback({ serverId: SERVER, params: { state, code: "auth-code" } });
+  await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri, params: { state, code: "auth-code" } });
 }
 
 const TOKEN_RESPONSE = { access_token: "access-1", token_type: "Bearer", expires_in: 3600, refresh_token: "refresh-1" };
@@ -817,22 +816,22 @@ test("a secret issued with no echoed method is POSTed when client_secret_post is
 });
 
 
-test("self-registration and disconnect both keep a legacy v0 OAuth payload readable", async () => {
+test("self-registration and disconnect both preserve a normalized vault OAuth payload", async () => {
   const fixture = await startDiscoveryFixture({ registrations: [{ client_id: "legacy-client", client_secret: "legacy-secret" }] });
   const store = makeStore();
-  const downgrade = async () => {
+  const reseal = async () => {
     const row = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
     assert.ok(row);
     const payload = await openExternalMcpOAuthPayload(store.sealer, row);
-    const sealedOAuth = await store.sealer.seal({ plaintext: JSON.stringify(payload), key: await store.keyring.activeKey() });
-    await store.repo.upsert({ ...row, sealedOAuth, oauthAadVersion: 0 });
+    const sealedOAuth = await sealExternalMcpVaultPayload({ deps: store, identity: row, kind: "mcp-auth", payload: JSON.parse(JSON.stringify(payload)) });
+    await store.repo.upsert({ ...row, sealedOAuth, oauthAadVersion: 1 });
     const legacy = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
     assert.ok(legacy);
     assert.deepEqual(await openExternalMcpOAuthPayload(store.sealer, legacy), payload);
   };
   try {
     await save(store, { url: fixture.resourceUrl });
-    await downgrade();
+    await reseal();
     const service = makeService(store);
     assert.equal(await authorizeClientId(service), "legacy-client");
     const registered = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
@@ -840,7 +839,7 @@ test("self-registration and disconnect both keep a legacy v0 OAuth payload reada
     assert.equal(registered.oauthAadVersion, 1);
     assert.equal((await openExternalMcpOAuthPayload(store.sealer, registered)).clientSecret, "legacy-secret");
     assert.equal(registrationCalls(fixture), 1);
-    await downgrade();
+    await reseal();
     await service.disconnect({ serverId: SERVER });
     const disconnected = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
     assert.ok(disconnected);

@@ -13,14 +13,15 @@ import {
   resolveSiteAssistantApiKey,
   setSiteAssistantCredential,
 } from "../site-credential-store.js";
-import { buildSiteAssistantCredentialAad } from "../site-credential-aad.js";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { assistantVaultContext } from "../assistant-vault.js";
 
 /**
  * @file `site-credential-store.ts` — ADR-058's write-only credential contract and the runtime
  * consumer's never-throws read path.
  *
  * The assertions that matter most: `apiKey` is never echoed back by GET or by the view SET/DELETE
- * return, an omitted `apiKey` on SET never touches the sealer, a missing site key fails closed
+ * return, an omitted `apiKey` on SET never reseals the key, a missing site key fails closed
  * with a distinct error rather than a plaintext write, and `resolveSiteAssistantApiKey` truly never
  * throws — every failure mode it can hit resolves to `null` instead.
  */
@@ -209,13 +210,8 @@ test("deleting an already-unset key is a harmless no-op, not an error", async ()
 
 test("resolveSiteAssistantApiKey returns null (not a throw) when the repo read itself fails", async () => {
   const { sealer } = makeDeps();
-  const brokenRepo = {
-    findByWorkspaceId: async () => {
-      throw new Error("connection reset");
-    },
-    upsert: async () => {},
-    clearKey: async () => {},
-  };
+  const brokenRepo = new InMemorySiteAssistantCredentialRepo();
+  brokenRepo.vault.findOne = async () => { throw new Error("connection reset"); };
   let warned: unknown;
   const resolved = await resolveSiteAssistantApiKey({ repo: brokenRepo, sealer }, { workspaceId: WORKSPACE }, (err) => {
     warned = err;
@@ -283,70 +279,23 @@ test("resolveSiteAssistantApiKey returns the key, provider, baseUrl, and model t
 
 // ---------------------------------------------------------------------------
 // Writes bind workspaceId into AAD so ciphertext cannot be transplanted across workspace rows.
-// Legacy aad_version=0 rows must keep opening to preserve existing visitor-assistant credentials.
+// S2 boot tests own legacy-AAD normalization; ordinary reads accept only vault envelopes.
 // ---------------------------------------------------------------------------
 
-test("a freshly saved key is sealed with AAD bound to workspaceId and the row is marked aadVersion 1", async () => {
+test("a freshly saved key is sealed with AAD bound to workspaceId and the row is marked vault aadVersion 2", async () => {
   const { deps, repo, sealer } = makeDeps();
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "aad-bound-key-1234" });
 
   const row = await repo.findByWorkspaceId(WORKSPACE);
-  assert.equal(row?.aadVersion, 1);
+  assert.equal(row?.aadVersion, 2);
 
   // Opening under the WRONG aad (the legacy no-aad shape) must fail closed.
   await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));
-  const opened = await sealer.open({ sealed: row!.sealed! }, { aad: buildSiteAssistantCredentialAad({ workspaceId: WORKSPACE }) });
-  assert.equal(opened, "aad-bound-key-1234");
+  const opened = await sealer.open({ sealed: row!.sealed! }, { aad: buildVaultAad((await repo.vault.findOne!(assistantVaultContext({ kind: "site-assistant", workspaceId: WORKSPACE })))!) });
+  assert.deepEqual(JSON.parse(opened), { apiKey: "aad-bound-key-1234" });
 });
 
-test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact plaintext — existing credentials are never bricked", async () => {
-  const { deps, repo, sealer, keyring } = makeDeps();
-  const legacySealed = await sealer.seal({ plaintext: "legacy-no-aad-5678", key: await keyring.activeKey() });
-  await repo.upsert({
-    workspaceId: WORKSPACE,
-    provider: "google",
-    baseUrl: null,
-    model: null,
-    sealed: legacySealed,
-    masked: "••••5678",
-    aadVersion: 0,
-    createdAt: clock.nowIso(),
-    updatedAt: clock.nowIso(),
-  });
 
-  const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
-  assert.deepEqual(resolved, { apiKey: "legacy-no-aad-5678", provider: "google", baseUrl: null, model: null });
-  assert.deepEqual((await getSiteAssistantCredential(deps, { workspaceId: WORKSPACE })).tokenHint, { length: 18, last4: "5678" });
-});
-
-test("a metadata-only edit over a legacy (aadVersion 0) row leaves the ciphertext AND its aadVersion untouched", async () => {
-  // `setSiteAssistantCredential` with no `apiKey` must carry the existing sealed value forward
-  // byte-for-byte, not merely resolve to the right plaintext — carrying the wrong `aadVersion`
-  // alongside an UNCHANGED ciphertext would make the row unopenable (the ciphertext still has no
-  // aad baked into its auth tag, but the row would now claim it does).
-  const { deps, repo, sealer, keyring } = makeDeps();
-  const legacySealed = await sealer.seal({ plaintext: "legacy-untouched-1111", key: await keyring.activeKey() });
-  await repo.upsert({
-    workspaceId: WORKSPACE,
-    provider: "google",
-    baseUrl: null,
-    model: null,
-    sealed: legacySealed,
-    masked: "••••1111",
-    aadVersion: 0,
-    createdAt: clock.nowIso(),
-    updatedAt: clock.nowIso(),
-  });
-
-  await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, model: "gemini-flash-latest" });
-
-  const row = await repo.findByWorkspaceId(WORKSPACE);
-  assert.ok(row, "metadata edit must preserve the row");
-  assert.deepEqual(row.sealed, legacySealed, "carry forward the exact sealed record");
-  assert.equal(row?.aadVersion, 0, "aadVersion must still say legacy — the ciphertext itself was never re-sealed");
-  const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
-  assert.equal(resolved?.apiKey, "legacy-untouched-1111", "the carried-forward ciphertext must still open correctly");
-});
 
 test("AAD binding: swapping the sealed key onto a DIFFERENT workspace's row fails closed (adversarial cross-workspace transplant)", async () => {
   const { deps, repo } = makeDeps();
@@ -387,4 +336,99 @@ test("BYOK hints use the shared server policy on writes and reads, including sho
   assert.equal(metadata.isSet, true);
   assert.equal(metadata.tokenHint, null);
   assert.equal(metadata.masked, null);
+});
+
+test("provider-only edits preserve vault identity, envelope and hints without deriving or resealing", async () => {
+  const { deps, repo } = makeDeps();
+  const scope = { workspaceId: WORKSPACE };
+  const context = assistantVaultContext({ ...scope, kind: "site-assistant" });
+  await setSiteAssistantCredential(deps, { ...scope, apiKey: "provider-move-key-1234", model: "first-model" });
+  const before = await repo.vault.findOne!(context);
+  let seals = 0;
+  const sealer: SecretSealerPort = { open: deps.sealer.open.bind(deps.sealer), seal: async () => { seals++; throw new Error("must not reseal"); } };
+  const view = await setSiteAssistantCredential({ ...deps, keyring: new BrokenKeyring(), sealer }, { ...scope, provider: "openai", model: "second-model" });
+  const after = await repo.vault.findOne!(context);
+  assert.equal(seals, 0);
+  assert.equal(after?.id, before?.id);
+  assert.equal(after?.createdAt, before?.createdAt);
+  assert.deepEqual(after?.sealed, before?.sealed);
+  assert.equal(after?.tokenLength, before?.tokenLength);
+  assert.equal(after?.last4, before?.last4);
+  assert.equal(after?.revision, before!.revision + 1);
+  assert.equal(view.masked, "••••1234");
+  assert.deepEqual(await resolveSiteAssistantApiKey(deps, scope), { apiKey: "provider-move-key-1234", provider: "openai", baseUrl: null, model: "second-model" });
+});
+
+test("public readiness performs one singleton read and at most one open for each outcome", async t => {
+  const { deps, repo } = makeDeps();
+  const { resolvePublicAssistantAvailability } = await import("../public-assistant-availability.js");
+  const scope = { workspaceId: WORKSPACE };
+  await setSiteAssistantCredential(deps, { ...scope, apiKey: "ready-key-123456", model: "saved-model" });
+  const reads = t.mock.method(repo.vault, "findOne");
+  const opens = t.mock.method(deps.sealer, "open");
+  const byId = t.mock.method(repo.vault, "find");
+  const lists = t.mock.method(repo.vault, "list");
+  assert.equal((await resolvePublicAssistantAvailability({ ...deps, ...scope })).ready, true);
+  assert.equal(reads.mock.callCount(), 1);
+  assert.equal(opens.mock.callCount(), 1);
+  assert.equal(byId.mock.callCount(), 0);
+  assert.equal(lists.mock.callCount(), 0);
+  await deleteSiteAssistantCredential(deps, scope);
+  reads.mock.resetCalls(); opens.mock.resetCalls();
+  assert.equal((await resolvePublicAssistantAvailability({ ...deps, ...scope })).ready, false);
+  assert.equal(reads.mock.callCount(), 1);
+  assert.equal(opens.mock.callCount(), 0);
+});
+
+test("gated rotation publishes the key and settings together and leaves old reads usable until commit", async () => {
+  const { deps } = makeDeps();
+  const scope = { workspaceId: WORKSPACE };
+  await setSiteAssistantCredential(deps, { ...scope, apiKey: "old-key-123456", provider: "google", model: "old-model" });
+  let release!: () => void;
+  let started!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const sealing = new Promise<void>(resolve => { started = resolve; });
+  const sealer: SecretSealerPort = { open: deps.sealer.open.bind(deps.sealer), seal: async input => {
+    started(); await held; return deps.sealer.seal(input);
+  } };
+  const pending = setSiteAssistantCredential({ ...deps, sealer }, { ...scope, apiKey: "new-key-654321", provider: "openai", model: "new-model" });
+  try {
+    await sealing;
+    assert.deepEqual(await resolveSiteAssistantApiKey(deps, scope), { apiKey: "old-key-123456", provider: "google", baseUrl: null, model: "old-model" });
+    assert.equal((await getSiteAssistantCredential(deps, scope)).model, "old-model");
+  } finally { release(); await pending; }
+  assert.deepEqual(await resolveSiteAssistantApiKey(deps, scope), { apiKey: "new-key-654321", provider: "openai", baseUrl: null, model: "new-model" });
+});
+
+test("a read gated at open keeps its old metadata when a concurrent rotation commits", async () => {
+  const { deps } = makeDeps();
+  const scope = { workspaceId: WORKSPACE };
+  await setSiteAssistantCredential(deps, { ...scope, apiKey: "old-snapshot-key", model: "old-model" });
+  let release!: () => void;
+  let started!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const opening = new Promise<void>(resolve => { started = resolve; });
+  const sealer: SecretSealerPort = { seal: deps.sealer.seal.bind(deps.sealer), open: async (input, options) => {
+    started(); await held; return deps.sealer.open(input, options);
+  } };
+  const pending = resolveSiteAssistantApiKey({ ...deps, sealer }, scope);
+  try {
+    await opening;
+    await setSiteAssistantCredential(deps, { ...scope, apiKey: "new-snapshot-key", model: "new-model" });
+  } finally { release(); }
+  assert.equal((await pending)?.apiKey, "old-snapshot-key");
+  assert.equal((await pending)?.model, "old-model");
+  assert.equal((await resolveSiteAssistantApiKey(deps, scope))?.model, "new-model");
+});
+
+test("concurrent first saves with different providers contend on one singleton identity", async () => {
+  const { deps, repo } = makeDeps();
+  const scope = { workspaceId: WORKSPACE };
+  const results = await Promise.allSettled([
+    setSiteAssistantCredential(deps, { ...scope, apiKey: "first-create-key", provider: "google" }),
+    setSiteAssistantCredential(deps, { ...scope, apiKey: "second-create-key", provider: "openai" }),
+  ]);
+  assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
+  assert.equal(results.filter(result => result.status === "rejected").length, 1);
+  assert.equal((await repo.vault.list(assistantVaultContext({ ...scope, kind: "site-assistant" }))).length, 1);
 });

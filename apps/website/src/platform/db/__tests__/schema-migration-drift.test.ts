@@ -118,6 +118,7 @@ function fts5ShadowPrefixes(): string[] {
 
 function isNotDrift(tableName: string): boolean {
   if (tableName === MIGRATOR_BOOKKEEPING_TABLE || tableName === "tovu_migrations") return true;
+  if (tableName.startsWith("_vault_backup_")) return true; // 0012 restore artifacts are not application schema.
   if (tableName.startsWith("sqlite_")) return true; // SQLite's own internal catalog objects
   if (DERIVED_OBJECTS.some((o) => o.name === tableName)) return true;
   if (Object.hasOwn(RAW_SQL_MANAGED_TABLES, tableName)) return true;
@@ -409,4 +410,17 @@ test("seam: an in-agreement pair reports no drift at all", () => {
   ]);
   const report = diffShapes(shape, new Map(shape));
   assert.deepEqual(report, { missingTables: [], extraTables: [], missingColumns: [], extraColumns: [] });
+});
+
+test("0012 head declares the vault and MCP pointers, retires folded stores, and retains device attempts", async () => {
+  const { shape } = await migratedDatabase();
+  assert.ok(shape.has("secrets_vault"));
+  assert.ok(shape.has("oauth_device_authorizations"));
+  for (const retired of ["site_assistant_credentials", "admin_execution_credentials", "media_provider_credentials",
+    "custom_credential_sets", "publish_content_peers", "database_transfer_destinations", "vendor_credential_sets",
+    "source_control_credential_sets", "publish_credential_sets", "oauth_pending_authorizations"]) assert.equal(shape.has(retired), false, retired);
+  const mcp = shape.get("external_mcp_servers")!;
+  assert.ok(mcp.includes("env_secret_id"));
+  assert.ok(mcp.includes("oauth_secret_id"));
+  assert.equal(mcp.some(column => column.includes("sealed_") || column.includes("aad_version")), false);
 });

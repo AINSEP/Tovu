@@ -22,7 +22,7 @@ type Deps = Pick<RouteDeps,
   "assetBlobRepo" | "assetRenditionRepo" | "blobStore" | "forgetRemovedMedia" |
   "idGen" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" | "rolePolicyRepo" | "principalRoleRepo" | "principalPolicyRepo" | "passwordHasher" | "transactions" | "tokens" |
   "commentRepo" | "commentWriteService" | "externalMcpServerRepo" | "builtInExternalMcpServerIds" | "customCredentialSetRepo" |
-  "vendorCredentialSetRepo" | "loadDeployTargets" | "sourceControlCredentialSetRepo"
+  "vendorCredentialSetRepo" | "contentKernel" | "loadDeployTargets" | "sourceControlCredentialSetRepo"
 > & { mediaRepo: MediaRepoPort };
 const PAGE_SIZE = 100;
 
@@ -237,7 +237,7 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
             return record ? { ...record, affectedHosts: hosts } : null;
           }, label: credential => `${credential.label} (${credential.vendorId}); used by publish hosts: ${credential.affectedHosts.join(", ") || "none"}`,
             warning: "Deletes this vendor credential shared by its publish hosts. Another credential may become the default. Deployed sites remain; the token is not revoked at its provider.",
-            remove: async () => { await deletePublishCredential({ repo: deps.vendorCredentialSetRepo }, key); return { removed: true, id }; } });
+            remove: async () => { await deletePublishCredential({ repo: deps.vendorCredentialSetRepo, transaction: deps.contentKernel }, key); return { removed: true, id }; } });
         case "source_control_delete_credential":
           return recordPlan({ toolId, id, load: () => deps.sourceControlCredentialSetRepo.findById(key), label: credential => credential.label,
             warning: "Deletes the saved source-control credential. Another credential may become the default. Repositories remain; the token is not revoked at its provider.",

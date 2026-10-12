@@ -18,6 +18,8 @@ import {
   saveConnectedDestination,
   removeConnectedDestination,
 } from "#src/features/publish-content/peers";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
@@ -44,13 +46,15 @@ const API_KEY = "tovu_live_0123456789abcdef";
 /** Builds a fresh file-backed content.db in a throwaway temp dir from the real migrations, holding
  *  only the workspace row the peers' FK needs. A file (not `:memory:`) so a second connection can
  *  prove the bytes landed on disk. */
-function createFreshContentDbInTempDir(): { readonly dir: string; readonly dbPath: string } {
+async function createFreshContentDbInTempDir(): Promise<{ readonly dir: string; readonly dbPath: string }> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "publish-content-peer-repo-test-"));
   const dbPath = path.join(dir, "content.db");
-  openContentDb(dbPath)
-    .insert(workspaces)
+  const db = openContentDb(dbPath);
+  db.insert(workspaces)
     .values({ id: WORKSPACE_ID, name: WORKSPACE_ID, slug: WORKSPACE_ID, createdAt: "2026-09-18T00:00:00.000Z" })
     .run();
+  await ensureVaultRepoFixture({ kernel: contentKernel(db) });
+  db.$client.close();
   return { dir, dbPath };
 }
 
@@ -66,8 +70,8 @@ function makeDeps(dbPath: string, idPrefix: string) {
   };
 }
 
-test("a peer round-trips through the real publish_content_peers table, sealed at rest", async () => {
-  const { dir, dbPath } = createFreshContentDbInTempDir();
+test("a peer round-trips through the real secrets_vault table, sealed at rest", async () => {
+  const { dir, dbPath } = await createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
     const created = await createPublishContentPeer(deps, {
@@ -104,7 +108,7 @@ test("a peer round-trips through the real publish_content_peers table, sealed at
 });
 
 test("the real (workspace_id, label) UNIQUE index produces the driver error the store translates", async () => {
-  const { dir, dbPath } = createFreshContentDbInTempDir();
+  const { dir, dbPath } = await createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
     const input = {
@@ -125,7 +129,7 @@ test("the real (workspace_id, label) UNIQUE index produces the driver error the 
 });
 
 test("a row whose sealed group is absent reads back as hasCredential:false, not as a torn record", async () => {
-  const { dir, dbPath } = createFreshContentDbInTempDir();
+  const { dir, dbPath } = await createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
     await createPublishContentPeer(deps, {
@@ -148,7 +152,7 @@ test("a row whose sealed group is absent reads back as hasCredential:false, not 
 });
 
 test("update and delete hit the real table by (workspace_id, id)", async () => {
-  const { dir, dbPath } = createFreshContentDbInTempDir();
+  const { dir, dbPath } = await createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
     await createPublishContentPeer(deps, {
@@ -173,7 +177,7 @@ test("update and delete hit the real table by (workspace_id, id)", async () => {
 });
 
 test("credential rotation and moving or removing a connected destination preserve the unrelated outgoing peer", async () => {
-  const { dir, dbPath } = createFreshContentDbInTempDir();
+  const { dir, dbPath } = await createFreshContentDbInTempDir();
   const db = openContentDb(dbPath);
   let nextId = 0;
   const keyring = new InMemoryKeyring();

@@ -1,6 +1,9 @@
+import { contentKernel } from "../../content-kernel.js";
+import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { InMemoryVendorCredentialSetRepo, type VendorCredentialSetRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
+import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
 import { eq } from "drizzle-orm";
 
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
@@ -29,8 +32,8 @@ function makeRecord(overrides: Partial<VendorCredentialSetRecord> = {}): VendorC
     vendorId: "github",
     label: "Main account",
     sealed: { keyId: "v1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
-    tokenTail: "WXYZ",
-    isDefault: false,
+    tokenTail: "",
+    isDefault: true,
     accountLabel: null,
     createdAt: NOW,
     updatedAt: NOW,
@@ -44,9 +47,10 @@ function seedSqliteWorkspaces(db: ReturnType<typeof openContentDb>, ids: string[
   }
 }
 
-function openSeededDb() {
+async function openSeededDb() {
   const db = openContentDb(":memory:");
   seedSqliteWorkspaces(db, [WORKSPACE, OTHER_WORKSPACE]);
+  await ensureVaultRepoFixture({ kernel: contentKernel(db) });
   return db;
 }
 
@@ -87,7 +91,7 @@ function registerRepoContract(
     test("the UNIQUE (workspace_id, vendor_id, label) index rejects a duplicate", async () => {
       const repo = await makeRepo();
       await repo.insert(makeRecord({ id: "cred-1", label: "Same label" }));
-      await assert.rejects(() => repo.insert(makeRecord({ id: "cred-2", label: "Same label" })), /UNIQUE constraint failed|violates unique constraint/);
+      await assert.rejects(() => repo.insert(makeRecord({ id: "cred-2", label: "Same label" })), /UNIQUE constraint failed|violates unique constraint|Secrets vault: conflict/);
     });
 
     test("update changes the row in place — a second insert-shaped id never appears", async () => {
@@ -95,7 +99,7 @@ function registerRepoContract(
       await repo.insert(makeRecord({ label: "Old label" }));
         const rotated = makeRecord({
           label: "New label",
-          tokenTail: "9999",
+          tokenTail: "",
           sealed: { keyId: "rotation-key", ciphertext: "cm90YXRlZC12ZW5kb3I=", nonce: "cm90YXRlZC1ub25jZQ==", alg: "aes-256-gcm" },
           updatedAt: "2026-08-16T01:00:00.000Z",
         });
@@ -103,7 +107,7 @@ function registerRepoContract(
 
       const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
       assert.equal(found?.label, "New label");
-        assert.equal(found?.tokenTail, "9999");
+        assert.equal(found?.tokenTail, "");
         assert.deepEqual(found, rotated);
       assert.equal((await repo.listByWorkspace({ workspaceId: WORKSPACE })).length, 1);
     });
@@ -214,7 +218,7 @@ function registerRepoContract(
       const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
       assert.equal(found?.accountLabel, "leonaburime-ucla");
       assert.equal(found?.isDefault, true, "updateAccountLabel must not disturb isDefault");
-      assert.equal(found?.tokenTail, "WXYZ", "updateAccountLabel must not disturb tokenTail");
+      assert.equal(found?.tokenTail, "", "updateAccountLabel must not disturb tokenTail");
       assert.equal(found?.updatedAt, NOW, "updateAccountLabel must not disturb updatedAt — a verify is not a credential change");
       assert.deepEqual(found?.sealed, makeRecord().sealed, "updateAccountLabel must not disturb the sealed connection");
     });
@@ -223,7 +227,7 @@ function registerRepoContract(
         const repo = await makeRepo();
         const rows = [
           makeRecord({ accountLabel: "first-account", isDefault: true }),
-          makeRecord({ id: "cred-2", label: "Sibling", accountLabel: "second-account" }),
+          makeRecord({ id: "cred-2", label: "Sibling", isDefault: false, accountLabel: "second-account" }),
           makeRecord({ workspaceId: OTHER_WORKSPACE, label: "Foreign", accountLabel: "foreign-account" }),
         ];
         for (const row of rows) await repo.insert(row);
@@ -238,10 +242,11 @@ describe("VendorCredentialSetRepoPort (Jini memory)", () => {
 
 describeEachDialect(
   "VendorCredentialSetRepoPort",
-  { tables: ["vendor_credential_sets", "workspaces"], make: (kernel) => ({ kernel, repo: new SqlVendorCredentialSetRepo(kernel) }) },
+  { tables: ["workspaces"], make: (kernel) => ({ kernel, repo: new SqlVendorCredentialSetRepo(kernel) }) },
   (make) => {
     async function makeRepo() {
       const { kernel, repo } = make();
+      await ensureVaultRepoFixture({ kernel });
       await seedWorkspaces(kernel, [WORKSPACE, OTHER_WORKSPACE]);
       return repo;
     }
@@ -250,36 +255,27 @@ describeEachDialect(
   }
 );
 
-// SQLite-only: raw statements past the adapter, probing the schema's own constraints.
-
-test("the table's NOT NULL token_tail column rejects a row written outside this adapter without one", async () => {
-  const db = openSeededDb();
-  assert.throws(() => {
-    db.$client
-      .prepare(
-        `INSERT INTO vendor_credential_sets
-           (id, workspace_id, vendor_id, label, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg, token_tail, created_at, updated_at)
-         VALUES ('cred-1', ?, 'github', 'x', 'v1', 'c2VjcmV0', 'bm9uY2U=', 'aes-256-gcm', NULL, ?, ?)`
-      )
-      .run(WORKSPACE, NOW, NOW);
-  }, /NOT NULL constraint failed/);
+// SQLite-only: raw statements test the vault's constraints past its adapter.
+test("the vault rejects a half-sealed row written outside the adapter", async () => {
+  const db = await openSeededDb();
+  assert.throws(() => db.$client.prepare(
+    `INSERT INTO secrets_vault (workspace_id,id,kind,owner_key,provider,label,is_default,revision,
+      sealed_key_id,sealed_ciphertext,sealed_nonce,sealed_alg,meta,created_at,updated_at)
+     VALUES (?, 'cred-1', 'vendor', 'tovu', 'github', 'x', 1, 1, 'v1', NULL, NULL, NULL, '{"accountLabel":null}', ?, ?)`
+  ).run(WORKSPACE, NOW, NOW), /CHECK constraint failed/);
 });
-
-test("the table's FK rejects a row for a workspace that does not exist", async () => {
-  const db = openSeededDb();
-  assert.throws(() => {
-    db.$client
-      .prepare(
-        `INSERT INTO vendor_credential_sets
-           (id, workspace_id, vendor_id, label, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg, token_tail, created_at, updated_at)
-         VALUES ('cred-1', 'no-such-workspace', 'github', 'x', 'v1', 'c2VjcmV0', 'bm9uY2U=', 'aes-256-gcm', 'abcd', ?, ?)`
-      )
-      .run(NOW, NOW);
-  }, /FOREIGN KEY constraint failed/);
+test("the vault FK rejects a workspace that does not exist", async () => {
+  const db = await openSeededDb();
+  assert.throws(() => db.$client.prepare(
+    `INSERT INTO secrets_vault (workspace_id,id,kind,owner_key,provider,label,is_default,revision,
+      sealed_key_id,sealed_ciphertext,sealed_nonce,sealed_alg,meta,created_at,updated_at)
+     VALUES ('no-such-workspace', 'cred-1', 'vendor', 'tovu', 'github', 'x', 1, 1,
+      'v1', 'cipher', 'nonce', 'aes-256-gcm', '{"accountLabel":null}', ?, ?)`
+  ).run(NOW, NOW), /FOREIGN KEY constraint failed/);
 });
 
 test("deleting a workspace CASCADEs to its credential sets", async () => {
-  const db = openSeededDb();
+  const db = await openSeededDb();
   const repo = new SqliteVendorCredentialSetRepo(db);
   await repo.insert(makeRecord());
 

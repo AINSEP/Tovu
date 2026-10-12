@@ -113,14 +113,16 @@ test("updateCustomCredential: `username: null` explicitly clears a saved usernam
     connection: { token: "sk_live_original", username: "old-username" },
   });
 
+  const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
   const result = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id, username: null });
   assert.equal("username" in result, false);
   const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
   assert.ok(stored, "clearing the username must preserve the credential row");
   assert.equal(stored.username, undefined);
+  assert.deepEqual(stored.sealed, before!.sealed);
 });
 
-test("updateCustomCredential: `username: null` (no connection) also strips the sealed payload's own embedded username, so the real decrypting read path (resolveCustomCredentialByLabel) does not resurrect it", async () => {
+test("updateCustomCredential: `username: null` (no connection) clears metadata without touching the envelope or resurrecting it", async () => {
   const deps = makeWriteDeps();
   const created = await createCustomCredential(deps, {
     workspaceId: WORKSPACE,
@@ -130,16 +132,17 @@ test("updateCustomCredential: `username: null` (no connection) also strips the s
     connection: { token: "sk_live_original", username: "old-username" },
   });
 
+  const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
   const result = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id, username: null });
   assert.equal("username" in result, false);
   const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
   assert.ok(stored, "clearing the username must preserve the credential row");
   assert.equal(stored.username, undefined);
+  assert.deepEqual(stored.sealed, before!.sealed);
 
   const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "name.com" });
   assert.ok(resolved);
-  // Before the fix, `record.username` is `undefined` so `resolveCustomCredentialByLabel`'s
-  // `record.username ?? decrypted.username` fallback returned the OLD sealed username right back.
+  // No legacy embedded username fallback can undo an explicit metadata clear.
   assert.deepEqual(resolved?.connection, { token: "sk_live_original" });
 });
 
@@ -176,4 +179,20 @@ test("updateCustomCredential: omitting both `username` and `connection` leaves t
   const result = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id, label: "renamed" });
   assert.equal(result.username, "old-username");
   assert.equal((await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }))?.username, "old-username");
+});
+
+test("updateCustomCredential: replacing a connection without username clears the prior username", async () => {
+  const deps = makeWriteDeps();
+  const created = await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "username-reset", category: "general",
+    baseUrl: "https://example.com", connection: { token: "old-token-1234", username: "old-user" } });
+  const replaced = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id,
+    connection: { token: "new-token-5678" } });
+  assert.equal("username" in replaced, false);
+  assert.deepEqual((await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "username-reset" }))?.connection,
+    { token: "new-token-5678" });
+  const overridden = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id,
+    connection: { token: "latest-token-9999", username: "incidental" }, username: null });
+  assert.equal("username" in overridden, false);
+  assert.deepEqual((await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "username-reset" }))?.connection,
+    { token: "latest-token-9999" });
 });

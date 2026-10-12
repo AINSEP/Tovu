@@ -182,3 +182,21 @@ test("scanOpenedKernel: a close rejection does not turn a successfully scanned c
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+test("restore artifacts and metadata-only vault rows do not block minting; a live envelope does", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-vault-key-dependent-"));
+  try {
+    const dbPath = join(dir, "content.db");
+    const db = new Database(dbPath);
+    try {
+      db.exec("CREATE TABLE _vault_backup_credentials (sealed_ciphertext TEXT NOT NULL)");
+      db.exec("INSERT INTO _vault_backup_credentials VALUES ('backup-envelope')");
+      db.exec("CREATE TABLE secrets_vault (id TEXT, sealed_ciphertext TEXT)");
+      db.exec("INSERT INTO secrets_vault VALUES ('settings', NULL)");
+      assert.equal(await findKeyDependentData([dbPath]), false);
+      db.exec("INSERT INTO secrets_vault VALUES ('credential', 'live-envelope')");
+      assert.equal(await findKeyDependentData([dbPath]), true);
+    } finally { db.close(); }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

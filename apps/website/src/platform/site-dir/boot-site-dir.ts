@@ -8,6 +8,7 @@ import { contentKernel } from "../db/content-kernel.js";
 import { closeSqliteConnection } from "../db/kernel/index.js";
 import { prepareContentStore } from "../db/prepare-content-store.js";
 import { type ContentDb, migrateSqliteContentFile, openSqliteContentConnection } from "../db/sqlite/content-db.js";
+import { normalizeSiteVaultAtBoot } from "#src/server/runtime/composition/vault-boot";
 import { runBootDataRepairs } from "#src/server/runtime/composition/boot-data-repairs";
 import { openSiteStore, type SiteStore } from "#src/server/runtime/composition/open-site-store";
 import { writeJsonFileAtomic } from "./atomic-write.js";
@@ -167,6 +168,10 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
     // may bind a listener — this must run AFTER the stamp write above, not before.
     const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: options.workspaceId });
 
+    // Folder-only consumers (export/plugin operations) also need normalized credential payloads.
+    await normalizeSiteVaultAtBoot({ kernel: contentKernel(db), workspaceId: workspace.id, siteDir: target,
+      clock: { nowMs: () => Date.now() } });
+
     // EC-07: an unrecognized templateId is provenance-only — warn, never block serving.
     if (meta.templateId !== "starter") {
       // eslint-disable-next-line no-console
@@ -203,6 +208,8 @@ async function bootStoreSiteDir(
   });
   try {
     const workspace = await resolveWorkspace({ kernel: store.content }, { workspaceId: options.workspaceId });
+    await normalizeSiteVaultAtBoot({ kernel: store.content, workspaceId: workspace.id, siteDir: target,
+      clock: { nowMs: () => Date.now() } });
     if (meta.templateId !== "starter") {
       // eslint-disable-next-line no-console
       console.warn(`bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)`);

@@ -1,6 +1,8 @@
 import { createTovuPluginHost } from "./plugin-host.js";
 import { contributeSiteGuideTools } from "./site-guide-tools.js";
+import { contributeAssistantHistoryTools } from "./assistant-history-tools.js";
 import { buildCredentialSaveRegistrations, credentialSaveDerivedRisk } from "#src/features/custom-credentials/credential-save-tool";
+import { buildCredentialCopyRegistrations, credentialCopyDerivedRisk } from "#src/features/custom-credentials/credential-copy-tool";
 import { saveAgentPluginToken } from "#src/features/agent-plugins/access-token-tool";
 import { contributeAgentPluginsInstallTools } from "#src/features/agent-plugins/install-tool";
 import { createPluginInstallAttachmentReader } from "./plugin-install-attachment-reader.js";
@@ -33,9 +35,11 @@ import { contributeDomainDnsTools } from "#src/features/domain-dns/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import type { ObservabilityPort } from "#src/platform/observability/index";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { renderPublicPage, createRenderBrowserPool, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { contributeWebTools } from "#src/features/web/tool-registrations";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
+import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 import { createPlaywrightPageCapture } from "#src/features/web-screenshot/playwright-page-capture";
 import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
@@ -53,6 +57,7 @@ import { contributeFsFilesTools } from "#src/features/fs-files/tool-registration
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
+import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
 import { contributeSkillsInstallTools } from "#src/features/skills/install-tool";
 import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
@@ -401,6 +406,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributePagesTools() });
   contributions.contributors.register({ contribution: contributePluginsTools({ createPluginHost: createTovuPluginHost }) });
   contributions.contributors.register({ contribution: contributePluginsInstallTools({ readInstallAttachment }) });
+  contributions.contributors.register({ contribution: contributePluginSourceTools() });
   contributions.contributors.register({ contribution: contributeAgentPluginsInstallTools({ readInstallAttachment }) });
   contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
   contributions.contributors.register({ contribution: contributePostTools() });
@@ -431,19 +437,32 @@ export function installFirstPartyToolContributors(
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.
   contributions.contributors.register({ contribution: contributeSiteBackupTools() });
-  contributions.contributors.register({ contribution: contributeSiteEvidenceTools() });
+  contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }) });
   contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient(LIVE_PAGE_EGRESS_POLICY, { observability })) });
   contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });
+  contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
   // `web_fetch_page` (2026-10-08): reads any PUBLIC page for every assistant path (daemon CLIs and
   // BYOK alike), through its own guarded client — every redirect hop is re-checked for private addresses.
-  contributions.contributors.register({ contribution: contributeWebTools({ httpClient: createHttpClient(WEB_FETCH_EGRESS_POLICY, { observability }), htmlToMarkdown }) });
+  const publicBrowserPool = createRenderBrowserPool({
+    launch: async () => (await playwrightModuleLoader.load({ moduleName: "playwright" })).chromium.launch({
+      ...PUBLIC_RENDER_LAUNCH_OPTIONS, chromiumSandbox: false, // Fly composition explicitly permits unsandboxed Chromium.
+    }),
+  }, { maxConcurrent: 2 });
+  const renderedWebClient = createHttpClient({ ...WEB_FETCH_EGRESS_POLICY, maxRedirects: 0 }, { observability });
+  contributions.contributors.register({ contribution: contributeWebTools({
+    httpClient: createHttpClient(WEB_FETCH_EGRESS_POLICY, { observability }), htmlToMarkdown,
+    // Resolve Playwright in the host; Jini is also consumed through published npm packages.
+    renderPage: ({ input }, optional = {}) => renderPublicPage({ input, httpClient: { send: ({ request }) => renderedWebClient.send(request) } }, {
+      ...optional, browserPool: publicBrowserPool,
+    }),
+  }) });
   // `web_screenshot_page`: SEEING a public page (or this site's own render, through the same per-call
   // loopback server `fetch_published_page` uses) for visual parity. Every request the headless page
   // makes is fetched through this guarded client; Chromium launches on the first call, not here.
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
-      capture: createPlaywrightPageCapture({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }),
+      capture: createPlaywrightPageCapture({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
       encodeTiles: encodeScreenshotTiles,
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
@@ -458,6 +477,10 @@ export function installFirstPartyToolContributors(
   ) });
   contributions.contributors.register({ contribution: contributeSourceControlTools() });
   contributions.contributors.register({ contribution: contributeStaticPublishTools() });
+  contributions.contributors.register({ contribution: {
+    domain: "credential-copy", risk: credentialCopyDerivedRisk,
+    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces }),
+  } });
   // One save registration routes metadata to existing domain owners; each keeps its own permission.
   contributions.contributors.register({ contribution: {
     domain: "credential-save", risk: credentialSaveDerivedRisk,

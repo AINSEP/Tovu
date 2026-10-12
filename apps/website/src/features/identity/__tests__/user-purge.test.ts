@@ -6,6 +6,9 @@ import { type ContentKernel, eachDialect } from "#src/platform/db/kernel/__tests
 import { InMemoryUserPurge, UserDeleteUnsupportedError, type PurgeCounts, type UserPurgePort } from "../user-purge-types.js";
 import { SqlUserPurge } from "../user-purge.js";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
+import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
+import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
+import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import type { DomainEvent } from "@jini-ai/cms/core";
 
 /**
@@ -27,10 +30,15 @@ const TABLES = [
   "sessions",
   "api_keys",
   "setting_values_user",
-  "admin_execution_credentials",
+  "secrets_vault",
   "posts",
   "outbox_events",
-] as const satisfies readonly (keyof ContentDatabase)[];
+] as const satisfies readonly (keyof (ContentDatabase & SecretsVaultDatabase))[];
+
+/** Apply the preparation-only step to the disposable test DB without registering it at boot. */
+async function prepareVault(kernel: ContentKernel): Promise<void> {
+  await ensureVaultRepoFixture({ kernel });
+}
 
 /** Seeds one `kind='user'` principal plus one row in every identity table `SqlUserPurge`
  *  purges, plus one `posts` row it authored (the attribution-survives probe). */
@@ -70,11 +78,6 @@ async function seedFullUser(kernel: ContentKernel, principalId: string, workspac
         updated_at: NOW,
       })
       .execute();
-    await db.insertInto("admin_execution_credentials").values({
-      workspace_id: workspaceId, principal_id: principalId, protocol: "openai",
-      sealed_key_id: "key-1", sealed_ciphertext: "ciphertext", sealed_nonce: "nonce", sealed_alg: "aes-256-gcm", masked: "sk-…7777",
-      created_at: NOW, updated_at: NOW,
-    }).execute();
     await db
       .insertInto("posts")
       .values({
@@ -90,6 +93,13 @@ async function seedFullUser(kernel: ContentKernel, principalId: string, workspac
       })
       .execute();
   });
+  const vault = vaultRepo(kernel);
+  await vault.put({ expectedRevision: null, record: {
+    workspaceId, id: `personal-${principalId}`, kind: "personal-execution", ownerKey: "tovu", principalId,
+    binding: null, provider: "openai", label: "personal-execution", isDefault: true, revision: 1,
+    sealed: { keyId: "key-1", ciphertext: "ciphertext", nonce: "nonce", alg: "aes-256-gcm" },
+    last4: null, tokenLength: null, meta: { protocol: "openai" }, createdAt: NOW, updatedAt: NOW,
+  } });
 }
 
 /** The `buildEvent` callback `purgeUser` calls with the counts it actually removed — mirrors
@@ -120,7 +130,7 @@ async function snapshotTables(kernel: ContentKernel, principalId?: string) {
   const snapshot: Record<string, unknown[]> = {};
   for (const table of TABLES) {
     // Widened to a plain record: the filter below probes whichever id column each table has.
-    const rows: Record<string, unknown>[] = await kernel.run((db) => db.selectFrom(table).selectAll().execute());
+    const rows: Record<string, unknown>[] = await kernel.run((db) => db.withTables<{ [K in keyof SecretsVaultDatabase]: SecretsVaultDatabase[K] }>().selectFrom(table).selectAll().execute());
     snapshot[table] = rows
       .filter((row) => principalId === undefined || ("principal_id" in row ? row.principal_id === principalId : "id" in row && row.id === principalId))
       .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
@@ -128,9 +138,10 @@ async function snapshotTables(kernel: ContentKernel, principalId?: string) {
   return snapshot;
 }
 
-for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
+for (const each of eachDialect({ tables: TABLES.filter(table => table !== "secrets_vault"), make: (kernel) => kernel })) {
   test(`[SqlUserPurge ${each.name}] purgeUser deletes every identity row, keeps content attribution, records one audit event, and returns exact counts`, async () => {
     const kernel = each.make();
+    await prepareVault(kernel);
     const principalId = "user-1";
     await seedFullUser(kernel, principalId);
     await seedFullUser(kernel, "neighbor", WS);
@@ -144,9 +155,9 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     assert.deepEqual(counts, { roles: 1, policies: 1, sessions: 2, apiKeys: 1, userSettings: 1 });
 
     assert.equal(await countWhere(kernel, "principals", "id", principalId), 0);
-    for (const table of ["identity_users", "principal_roles", "principal_policies", "sessions", "api_keys", "setting_values_user", "admin_execution_credentials"] as const) {
+    for (const table of ["identity_users", "principal_roles", "principal_policies", "sessions", "api_keys", "setting_values_user", "secrets_vault"] as const) {
       const rows = await kernel.run((db) =>
-        db.selectFrom(table).selectAll().where("principal_id", "=", principalId).execute()
+        db.withTables<{ [K in keyof SecretsVaultDatabase]: SecretsVaultDatabase[K] }>().selectFrom(table).selectAll().where("principal_id", "=", principalId).execute()
       );
       assert.equal(rows.length, 0, `${table} purged`);
     }
@@ -170,6 +181,7 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
 
   test(`[SqlUserPurge ${each.name}] purgeUser rolls back every delete when the outbox insert fails`, async () => {
     const kernel = each.make();
+    await prepareVault(kernel);
     const principalId = "user-2";
     await seedFullUser(kernel, principalId);
 
@@ -191,6 +203,16 @@ for (const each of eachDialect({ tables: TABLES, make: (kernel) => kernel })) {
     assert.equal(await countWhere(kernel, "principals", "id", principalId), 1);
     assert.equal(await countWhere(kernel, "sessions", "principal_id", principalId), 2);
     assert.deepEqual(await snapshotTables(kernel), before, "every seeded row and the colliding outbox event roll back exactly");
+  });
+
+  test(`[SqlUserPurge ${each.name}] the vault principal FK still cascades independently of explicit purge`, async () => {
+    const kernel = each.make();
+    await prepareVault(kernel);
+    await seedFullUser(kernel, "cascade-user");
+    const vault = vaultRepo(kernel);
+    assert.ok(await vault.find({ workspaceId: WS, id: "personal-cascade-user" }));
+    await kernel.run(db => db.deleteFrom("principals").where("id", "=", "cascade-user").execute());
+    assert.equal(await vault.find({ workspaceId: WS, id: "personal-cascade-user" }), null);
   });
 }
 

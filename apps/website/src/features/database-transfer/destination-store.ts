@@ -1,6 +1,9 @@
-import { normalizeCredentialToken, credentialTokenHint, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
-import { buildDatabaseDestinationAad, DATABASE_DESTINATION_AAD_VERSION } from "./destination-aad.js";
+import { normalizeCredentialToken, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
+import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
+import { InMemoryKeyring } from "../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm.js";
 import type { TargetDescription } from "./postgres-target.js";
 
 /**
@@ -10,8 +13,8 @@ import type { TargetDescription } from "./postgres-target.js";
  * {@link TargetDescription}.
  *
  * {@link SealedDatabaseDestinationStore} is the real one: the address is sealed whole (AES-GCM under
- * the site's site key, AAD bound to the workspace — `destination-aad.ts`) in
- * `database_transfer_destinations`, so it survives a restart and is never readable at rest.
+ * the site's site key, context-bound AAD owned by Jini) in
+ * `secrets_vault`, so it survives a restart and is never readable at rest.
  * {@link InMemoryDatabaseDestinationStore} backs compositions without a database (route tests).
  */
 
@@ -43,82 +46,85 @@ export class DestinationUnreadableError extends Error {
   }
 }
 
-export class InMemoryDatabaseDestinationStore implements DatabaseDestinationStorePort {
-  private readonly destinations = new Map<string, SavedDatabaseDestination>();
-  private readonly runs = new Map<string, DatabaseTransferRunSummary>();
-
-  async get(workspaceId: string): Promise<SavedDatabaseDestination | null> {
-    return this.destinations.get(workspaceId) ?? null;
-  }
-
-  async save(workspaceId: string, destination: SavedDatabaseDestination): Promise<void> {
-    if (destination.connectionString === '' && this.destinations.has(workspaceId)) return;
-    const connectionString = normalizeCredentialToken({ value: destination.connectionString, field: "address", hosted: false });
-    this.destinations.set(workspaceId, { ...destination, connectionString, tokenHint: credentialTokenHint({ token: connectionString }) });
-    this.runs.delete(workspaceId);
-  }
-
-  async lastRun(workspaceId: string): Promise<DatabaseTransferRunSummary | null> {
-    return this.runs.get(workspaceId) ?? null;
-  }
-
-  async recordRun(workspaceId: string, summary: DatabaseTransferRunSummary): Promise<void> {
-    this.runs.set(workspaceId, summary);
-  }
-}
-
-/** One stored row: the description in the clear, the address sealed. */
-export interface DatabaseDestinationRecord {
-  readonly workspaceId: string;
-  readonly description: TargetDescription;
-  readonly sealed: SealedSecret;
-  readonly aadVersion: number;
-  readonly savedAt: string;
-  readonly lastRunJson: string | null;
-}
-
-export interface DatabaseDestinationRepoPort {
-  find(workspaceId: string): Promise<DatabaseDestinationRecord | null>;
-  upsert(record: DatabaseDestinationRecord): Promise<void>;
-  setLastRun(workspaceId: string, lastRunJson: string): Promise<void>;
-}
+/** Internal persistence follows the shared vault port; public store methods stay unchanged. */
+export type DatabaseDestinationRepoPort = VaultRepoPort & Required<Pick<VaultRepoPort, "findDefault">>;
+const destinationScope = { kind: "database-destination" as const, ownerKey: "tovu", principalId: null, provider: null, binding: null };
+const destinationKinds = createTovuVaultKinds({ policy: {
+  validateMeta: ({ meta }) => meta, legacyPublishCredential: () => undefined, tokenField: () => undefined,
+} });
 
 export class SealedDatabaseDestinationStore implements DatabaseDestinationStorePort {
-  constructor(private readonly deps: { readonly repo: DatabaseDestinationRepoPort; readonly sealer: SecretSealerPort; readonly keyring: KeyringPort }) {}
+  private readonly vault: SecretsVaultService;
+  constructor(private readonly deps: { readonly repo: DatabaseDestinationRepoPort; readonly sealer: SecretSealerPort; readonly keyring: KeyringPort }, _options = {}) {
+    this.vault = new SecretsVaultService({ ...deps, metaParsers: destinationKinds.metaParsers,
+      now: () => new Date().toISOString(), newId: () => 'vault:["database-destination",null]',
+      authorize: async ({ context }) => {
+        if (context.kind !== destinationScope.kind || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });
+      } });
+  }
 
-  /** @complexity One row read and one AES-GCM open. */
+  /** One indexed singleton read and at most one open; raw crypto errors never leave the store. */
   async get(workspaceId: string): Promise<SavedDatabaseDestination | null> {
-    const record = await this.deps.repo.find(workspaceId);
-    if (record === null) return null;
-    if (record.aadVersion !== DATABASE_DESTINATION_AAD_VERSION) throw new DestinationUnreadableError();
-    let connectionString: string;
     try {
-      connectionString = await this.deps.sealer.open({ sealed: record.sealed }, { aad: buildDatabaseDestinationAad({ workspaceId }) });
+      const opened = await this.vault.findDefault({ ...destinationScope, workspaceId });
+      if (!opened) return null;
+      if (typeof opened.payload?.connectionString !== "string") throw new VaultError({ code: "invalid-record" });
+      const meta = opened.summary.meta;
+      // An address is not a token: even its length or suffix can expose connection details.
+      return { connectionString: opened.payload.connectionString, description: meta.description as unknown as TargetDescription,
+        savedAt: (meta.savedAt ?? opened.summary.createdAt) as string };
     } catch {
-      // The sealer's own error may describe the key; it is replaced, never passed on.
       throw new DestinationUnreadableError();
     }
-    return { connectionString, tokenHint: credentialTokenHint({ token: connectionString }), description: record.description, savedAt: record.savedAt };
   }
 
-  /** @complexity One AES-GCM seal and one upsert. */
+  /** Replaces the singleton through Jini's seal/CAS lifecycle and clears the previous last run. */
   async save(workspaceId: string, destination: SavedDatabaseDestination): Promise<void> {
-    if (destination.connectionString === '' && await this.deps.repo.find(workspaceId)) return;
+    const existing = await this.deps.repo.findDefault({ ...destinationScope, workspaceId });
+    if (destination.connectionString === '' && existing) return;
     const connectionString = normalizeCredentialToken({ value: destination.connectionString, field: "address", hosted: false });
-    const key = await this.deps.keyring.activeKey();
-    const sealed = await this.deps.sealer.seal({ plaintext: connectionString, key, aad: buildDatabaseDestinationAad({ workspaceId }) });
-    await this.deps.repo.upsert({ workspaceId, description: destination.description, sealed, aadVersion: DATABASE_DESTINATION_AAD_VERSION, savedAt: destination.savedAt, lastRunJson: null });
+    await this.vault.put({ ...destinationScope, workspaceId, id: existing?.id,
+      expectedRevision: existing?.revision ?? null, label: existing?.label ?? "Database destination", isDefault: true,
+      meta: { ...existing?.meta, description: { ...destination.description }, savedAt: destination.savedAt, lastRun: null },
+      payload: { connectionString } });
   }
 
+  /** Status is validated metadata, so it remains readable even when the site key is unavailable. */
   async lastRun(workspaceId: string): Promise<DatabaseTransferRunSummary | null> {
-    const json = (await this.deps.repo.find(workspaceId))?.lastRunJson ?? null;
-    return json === null ? null : (JSON.parse(json) as DatabaseTransferRunSummary);
+    const existing = await this.deps.repo.findDefault({ ...destinationScope, workspaceId });
+    if (!existing) return null;
+    const meta = destinationKinds.metaParsers["database-destination"]({ meta: existing.meta });
+    return meta.lastRun as unknown as DatabaseTransferRunSummary | null;
   }
 
+  /** Targeted jsonSet + CAS never rewrites a credential. A replacement or deletion wins over the
+   * old run; competing metadata patches may retry against the same envelope, at most three times.
+   * @complexity At most three indexed reads/validated CAS patches, no decryption.
+   */
   async recordRun(workspaceId: string, summary: DatabaseTransferRunSummary): Promise<void> {
-    await this.deps.repo.setLastRun(workspaceId, JSON.stringify(summary));
+    let original: VaultRecord | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await this.deps.repo.findDefault({ ...destinationScope, workspaceId });
+      if (!existing || (original && (existing.id !== original.id || JSON.stringify(existing.sealed) !== JSON.stringify(original.sealed)))) return;
+      original ??= existing;
+      try {
+        await this.vault.patchMeta({ ...destinationScope, workspaceId, id: existing.id,
+          expectedRevision: existing.revision, patch: { lastRun: { ...summary } } });
+        return;
+      } catch (error) {
+        if (!(error instanceof VaultError) || error.code !== "conflict" || attempt === 2) throw error;
+      }
+    }
   }
 }
 
-/** The process-wide fallback for compositions without a database; the live server passes a sealed store. */
+/** Same store lifecycle, with Jini's cloned/CAS memory repo and an ephemeral site key. */
+export class InMemoryDatabaseDestinationStore extends SealedDatabaseDestinationStore {
+  constructor(_required = {}, _options = {}) {
+    const keyring = new InMemoryKeyring();
+    super({ repo: new InMemoryVaultRepo({}), sealer: new AesGcmSecretSealer(keyring), keyring });
+  }
+}
+
+/** The process-wide fallback for compositions without a database; the live server passes SQL. */
 export const databaseDestinationStore: DatabaseDestinationStorePort = new InMemoryDatabaseDestinationStore();

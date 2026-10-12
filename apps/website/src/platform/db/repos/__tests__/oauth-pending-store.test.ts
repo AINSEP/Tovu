@@ -7,14 +7,12 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { OAuthError } from "#src/platform/oauth/index";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { createSqlDeviceAuthorizationStore, createSqlPendingAuthorizationStore } from "../oauth-pending-store.js";
+import { createSqlDeviceAuthorizationStore } from "../oauth-pending-store.js";
 
 /**
- * @file The OAuth handshake stores' one Kysely body on SQLite and PGlite (storage plan §4): the
- * security properties `repos/oauth-pending-store.ts`'s header promises — single-use `state`,
- * expiry, owner binding that still burns the row, the cap, sealing at rest and AAD binding — proven
- * on both dialects. The SQLite-only cross-handle scenarios (two connections on one file standing in
- * for two processes) stay in `platform/db/__tests__/oauth-pending-store.sqlite.test.ts`.
+ * @file Durable device authorization contracts on SQLite and PGlite: sealed values, expiry,
+ * workspace/server binding and replacement. Redirect state is stateless after step 0012 and
+ * is covered by the external-MCP stateless authorization suites instead of a removed SQL table.
  */
 
 const WORKSPACE = "ws-oauth";
@@ -28,10 +26,6 @@ function createTestClock(startIso = "2026-09-10T12:00:00.000Z"): Clock & { nowIs
       nowMs += ms;
     },
   };
-}
-
-function pendingInput(ownerKey = "ws-1:higgs", codeVerifier = "v".repeat(43)) {
-  return { ownerKey, providerId: "test-provider", codeVerifier, redirectUri: "https://tovu.example.com/cb", scopes: ["images:generate"] };
 }
 
 interface Fixture {
@@ -51,98 +45,10 @@ function makeFixture(base: ContentKernel): Fixture {
   return { kernel, clock: createTestClock(), keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
 
-async function rejectsInvalidState(promise: Promise<unknown>): Promise<void> {
-  await assert.rejects(promise, (error: unknown) => error instanceof OAuthError && error.code === "OAUTH_INVALID_STATE");
-}
-
 describeEachDialect(
-  "OAuth pending/device stores",
-  { tables: ["workspaces", "oauth_pending_authorizations", "oauth_device_authorizations"], make: makeFixture },
+  "OAuth device store",
+  { tables: ["workspaces", "oauth_device_authorizations"], make: makeFixture },
   (makeFx) => {
-    test("a resource binding is refused before minting state because this SQL format cannot retain it", async () => {
-      const store = createSqlPendingAuthorizationStore(makeFx());
-      await assert.rejects(() => store.put(pendingInput(), { resource: "https://resource.example.com" }),
-        { name: "TypeError", message: "OAuth resource binding is not supported by this pending store" });
-      assert.equal(await store.size({}), 0);
-    });
-
-    test("put then take returns the entry with the verifier unsealed; the state is single-use", async () => {
-      const fx = makeFx();
-      const store = createSqlPendingAuthorizationStore(fx);
-      const minted = await store.put(pendingInput());
-      const taken = await store.take({ state: minted.state, ownerKey: "ws-1:higgs" });
-      assert.deepEqual(taken, minted);
-      await rejectsInvalidState(store.take({ state: minted.state, ownerKey: "ws-1:higgs" }));
-    });
-
-    test("concurrent takes of one state: exactly one wins", async () => {
-      const fx = makeFx();
-      const store = createSqlPendingAuthorizationStore(fx);
-      const minted = await store.put(pendingInput());
-      const results = await Promise.allSettled(Array.from({ length: 8 }, () => store.take({ state: minted.state, ownerKey: "ws-1:higgs" })));
-      assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
-    });
-
-    test("an expired state is refused and pruned", async () => {
-      const fx = makeFx();
-      const store = createSqlPendingAuthorizationStore({ ...fx }, { ttlMs: 60_000 });
-      const minted = await store.put(pendingInput());
-      fx.clock.advance(60_000);
-      await rejectsInvalidState(store.take({ state: minted.state, ownerKey: "ws-1:higgs" }));
-      assert.equal(await store.size({}), 0);
-    });
-
-    test("a failed owner check still consumes the row", async () => {
-      const fx = makeFx();
-      const store = createSqlPendingAuthorizationStore(fx);
-      const minted = await store.put(pendingInput());
-      await rejectsInvalidState(store.take({ state: minted.state, ownerKey: "ws-1:attacker" }));
-      await rejectsInvalidState(store.take({ state: minted.state, ownerKey: "ws-1:higgs" }));
-    });
-
-    test("the cap evicts the oldest, never refuses the newest, and holds under concurrent puts", async () => {
-      const fx = makeFx();
-      const store = createSqlPendingAuthorizationStore({ ...fx }, { maxEntries: 3 });
-      const minted = [];
-      for (let index = 0; index < 4; index += 1) {
-        fx.clock.advance(1);
-        minted.push(await store.put(pendingInput(`ws-1:server-${index}`)));
-      }
-      assert.equal(await store.size({}), 3);
-      await rejectsInvalidState(store.take({ state: minted[0]!.state, ownerKey: "ws-1:server-0" }));
-      assert.equal((await store.take({ state: minted[3]!.state, ownerKey: "ws-1:server-3" })).ownerKey, "ws-1:server-3");
-
-      await Promise.all(Array.from({ length: 5 }, (_, index) => store.put(pendingInput(`ws-1:concurrent-${index}`))));
-      assert.equal(await store.size({}), 3);
-    });
-
-    test("the verifier is sealed at rest and AAD-bound to its owner", async () => {
-      const fx = makeFx();
-      const store = createSqlPendingAuthorizationStore(fx);
-      const verifier = "super-secret-verifier-value-that-must-not-leak-1234567890";
-      const victim = await store.put(pendingInput("ws-1:victim", verifier));
-      const attacker = await store.put(pendingInput("ws-1:attacker", "a".repeat(43)));
-
-      const rows = await fx.kernel.run((db) => db.selectFrom("oauth_pending_authorizations").selectAll().execute());
-      const victimRow = rows.find((row) => row.state === victim.state);
-      assert.ok(victimRow && !victimRow.sealed_ciphertext.includes(verifier));
-
-      // Copy the victim's sealed verifier onto the attacker's own row: opening it must fail.
-      await fx.kernel.run((db) =>
-        db
-          .updateTable("oauth_pending_authorizations")
-          .set({ sealed_ciphertext: victimRow.sealed_ciphertext, sealed_nonce: victimRow.sealed_nonce, sealed_key_id: victimRow.sealed_key_id })
-          .where("state", "=", attacker.state)
-          .execute()
-      );
-        await assert.rejects(
-          store.take({ state: attacker.state, ownerKey: "ws-1:attacker" }),
-          (error: unknown) => error instanceof Error && !(error instanceof OAuthError) &&
-            error.message === "Unsupported state or unable to authenticate data",
-        );
-        await rejectsInvalidState(store.take({ state: attacker.state, ownerKey: "ws-1:attacker" }));
-    });
-
       test("device ciphertext is bound independently to workspace and connection", async () => {
         const fx = makeFx();
         const otherWorkspace = "ws-oauth-other";

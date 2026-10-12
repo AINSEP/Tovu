@@ -127,3 +127,28 @@ test("fresh openContentDb creates the publish audit table, both complete indexes
     db.$client.close();
   }
 });
+
+test("fresh vault head enforces metadata, singleton and MCP pointer contracts before first boot", () => {
+  const db = openContentDb(":memory:");
+  try {
+    db.insert(workspaces).values({ id: "ws", name: "Workspace", slug: "ws", createdAt: NOW }).run();
+    const put = db.$client.prepare(`INSERT INTO secrets_vault
+      (workspace_id,id,kind,owner_key,label,is_default,revision,meta,created_at,updated_at)
+      VALUES ('ws',?,'site-assistant','tovu','Assistant',0,1,?,?,?)`);
+    assert.throws(() => put.run("array", "[]", NOW, NOW), /CHECK constraint/);
+    assert.throws(() => put.run("invalid-json", "not-json", NOW, NOW), /CHECK constraint|malformed JSON/);
+    put.run("site", "{}", NOW, NOW);
+    assert.throws(() => put.run("duplicate", "{}", NOW, NOW), /UNIQUE constraint/);
+    const server = db.$client.prepare(`INSERT INTO external_mcp_servers
+      (workspace_id,server_id,transport,enabled,created_at,updated_at,env_secret_id)
+      VALUES ('ws','remote','streamable_http',1,?,?,?)`);
+    assert.throws(() => server.run(NOW, NOW, "site"), /invalid vault MCP pointer/);
+    assert.throws(() => server.run(NOW, NOW, "absent"), /invalid vault MCP pointer/);
+    const indexes = db.$client.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND tbl_name='secrets_vault' AND sql IS NOT NULL").all();
+    assert.equal(indexes.length, 8);
+    const triggers = db.$client.prepare("SELECT name FROM sqlite_schema WHERE type='trigger' AND name LIKE 'secrets_vault_%'").all();
+    assert.equal(triggers.length, 3);
+    const ledger = db.$client.prepare("SELECT id FROM tovu_migrations ORDER BY rowid DESC LIMIT 1").get() as { id: string };
+    assert.equal(ledger.id, "0012_secrets_vault");
+  } finally { db.$client.close(); }
+});

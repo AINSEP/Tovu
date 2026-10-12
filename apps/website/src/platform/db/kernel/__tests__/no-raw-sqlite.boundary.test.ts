@@ -38,6 +38,10 @@ test("a bare `.prepare()` (a lifecycle hook, no SQL) is not a prepared statement
   assert.deepEqual(countRawSqlite("await module.prepare();\nconst s = db.prepare(\n  `SELECT 1`\n);"), { prepare: 1 });
 });
 
+test("an object-literal `.prepare({...})` (the secrets vault port) is not a prepared statement", () => {
+  assert.deepEqual(countRawSqlite("const row = await vault.prepare({ id, label });\nconst s = db.prepare(sqlText);"), { prepare: 1 });
+});
+
 test("better-sqlite3's inTransaction property counts; the kernel port's inTransaction() call does not", () => {
   const source = ["if (client.inTransaction) return;", "const open = db.$client.inTransaction;", "if (kernel.inTransaction()) return work();"].join("\n");
   assert.deepEqual(countRawSqlite(stripComments("probe.ts", source)), { "in-transaction": 2, $client: 1 });

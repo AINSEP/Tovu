@@ -1,3 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { heldUntil } from "../../kernel/__tests__/dialect-matrix.js";
+import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
+import { externalMcpVaultEnvelope, externalMcpVaultRecord } from "#src/assistant/external-mcp-vault";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -17,10 +21,9 @@ import { SqlExternalMcpServerRepo } from "../external-mcp-repo.js";
  *
  * Had ZERO test coverage of any kind before this file — confirmed via the combined-lcov cross-check
  * (toRecord/listByWorkspaceId/findByServerId/upsert/deleteByServerId all read 0 hits, deduped). What
- * only a real DB proves here: the composite `(workspace_id, server_id)` primary key really makes
- * `upsert` update rather than duplicate, `external_mcp_servers_sealed_shape`'s CHECK really agrees
- * with this adapter's all-null-or-all-set `sealedEnv` mapping, and `deleteByServerId`'s
- * `changes > 0` boolean really reflects whether a row existed.
+ * the real DB proves pointer FKs, atomic payload/status writes, bounded roster queries and the
+ * server-table refresh lease. The prepared vault step is applied only to disposable fixtures;
+ * it remains unregistered in the application migration runner.
  */
 
 const WORKSPACE = "workspace-1";
@@ -29,7 +32,7 @@ const NOW = "2026-08-21T00:00:00.000Z";
 const LATER = "2026-08-21T01:00:00.000Z";
 
 function makeRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalMcpServerRecord {
-  return {
+  const record: ExternalMcpServerRecord = {
     workspaceId: WORKSPACE,
     serverId: "my-server",
     label: "My Server",
@@ -56,15 +59,22 @@ function makeRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalM
     oauthTokenEnvName: null,
     oauthRefreshLeaseUntil: null,
     sealedOAuth: null,
-    // `fix(security): bind AAD to external_mcp_servers, the tenth store that sealed with none`
-    // (e3cb674a9, 2026-09-02) added both columns with a `NOT NULL DEFAULT 0` — every row this
-    // fixture inserts is a fresh row, so 0 is the real value a round-trip reads back.
-    aadVersion: 0,
-    oauthAadVersion: 0,
+    aadVersion: 1,
+    oauthAadVersion: 1,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
   };
+  for (const kind of ["mcp-env", "mcp-auth"] as const) {
+    const field = kind === "mcp-env" ? "sealedEnv" : "sealedOAuth";
+    const sealed = record[field];
+    if (!sealed) continue;
+    const id = randomUUID();
+    record[field] = externalMcpVaultEnvelope({ record: { workspaceId: record.workspaceId, id, kind,
+      ownerKey: record.serverId, principalId: null, binding: null, provider: null, label: id,
+      isDefault: true, revision: 1, sealed, meta: {}, last4: null, tokenLength: null, createdAt: NOW, updatedAt: NOW } }, { staged: true });
+  }
+  return record;
 }
 
 /** A fully OAuth-configured row: the second auth mode, the second sealed group, and every plaintext
@@ -91,6 +101,10 @@ function makeOAuthRecord(overrides: Partial<ExternalMcpServerRecord> = {}): Exte
 }
 
 /** The repo on `kernel`, every call held until both workspaces (the rows' FK parent) exist. */
+async function prepareVault(kernel: ContentKernel): Promise<void> {
+  await ensureVaultRepoFixture({ kernel });
+}
+
 function seededRepo(kernel: ContentKernel): SqlExternalMcpServerRepo {
   const seeded = kernel.run((db) =>
     db
@@ -99,7 +113,7 @@ function seededRepo(kernel: ContentKernel): SqlExternalMcpServerRepo {
       .onConflict((oc) => oc.column("id").doNothing())
       .execute()
   );
-  return new SqlExternalMcpServerRepo({ ...kernel, run: async (fn) => (await seeded, kernel.run(fn)) });
+  return new SqlExternalMcpServerRepo(heldUntil(kernel, seeded.then(() => prepareVault(kernel))));
 }
 
 test("independent SQLite connections race for one OAuth lease and persist exactly the winner", async () => {
@@ -110,6 +124,7 @@ test("independent SQLite connections race for one OAuth lease and persist exactl
     const file = path.join(dir, "content.db");
     first = openContentDb(file);
     first.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WORKSPACE, WORKSPACE, WORKSPACE, NOW);
+    await prepareVault(contentKernel(first));
     second = openSqliteContentConnection(file);
     const repos = [new SqlExternalMcpServerRepo(contentKernel(first)), new SqlExternalMcpServerRepo(contentKernel(second))];
     await repos[0].upsert(makeOAuthRecord());
@@ -163,7 +178,7 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
     assert.deepEqual(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "my-server" }), record);
   });
 
-  test("a record with no sealed env round-trips with sealedEnv: null (the CHECK's other valid shape)", async () => {
+  test("a record with no sealed env round-trips with sealedEnv: null (no vault pointer)", async () => {
     const repo = makeRepo();
     const record = makeRecord({ sealedEnv: null, envNames: null });
 
@@ -190,10 +205,10 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
     assert.deepEqual(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "oauth-server" }), record);
   });
 
-  test("the two sealed groups are independent — an OAuth blob with no env block satisfies both CHECKs", async () => {
+  test("the two sealed groups are independent — an OAuth blob with no env block keeps the pointers independent", async () => {
     const repo = makeRepo();
 
-    // Would violate `external_mcp_servers_sealed_shape` if the two groups shared one constraint.
+    // A missing env pointer must not hide the OAuth pointer.
     await repo.upsert(makeOAuthRecord({ sealedEnv: null, envNames: null }));
     await repo.upsert(makeRecord({ serverId: "env-only", sealedOAuth: null }));
 
@@ -201,35 +216,6 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
     assert.equal(rows.length, 2);
     assert.equal(rows.find((row) => row.serverId === "oauth-server")?.sealedEnv, null);
     assert.equal(rows.find((row) => row.serverId === "env-only")?.sealedOAuth, null);
-  });
-
-  test("current env and OAuth lineage survive inserts and updates from legacy rows", async () => {
-    const repo = makeRepo();
-    const currentEnv = makeRecord({ serverId: "current-env", aadVersion: 1 });
-    const currentOAuth = makeOAuthRecord({ serverId: "current-oauth", oauthAadVersion: 1 });
-    for (const record of [currentEnv, currentOAuth]) {
-      await repo.upsert(record);
-      assert.deepEqual(await repo.findByServerId(record), record);
-    }
-    const legacy = makeOAuthRecord({
-      serverId: "legacy-to-current",
-      sealedEnv: makeRecord().sealedEnv,
-      envNames: makeRecord().envNames,
-      aadVersion: 0,
-      oauthAadVersion: 0,
-    });
-    await repo.upsert(legacy);
-    assert.deepEqual(await repo.findByServerId(legacy), legacy);
-    const upgraded = {
-      ...legacy,
-      aadVersion: 1,
-      oauthAadVersion: 1,
-      sealedEnv: { keyId: "env-current", ciphertext: "ZW52LWN1cnJlbnQ=", nonce: "ZW52LW5vbmNl", alg: "aes-256-gcm" },
-      sealedOAuth: { keyId: "oauth-current", ciphertext: "b2F1dGgtY3VycmVudA==", nonce: "b2F1dGgtbm9uY2U=", alg: "aes-256-gcm" },
-      updatedAt: LATER,
-    };
-    await repo.upsert(upgraded);
-    assert.deepEqual(await repo.findByServerId(upgraded), upgraded);
   });
 
   test("OAuth lease claims and releases isolate workspace and server and include the expiry boundary", async () => {
@@ -352,4 +338,54 @@ describeEachDialect("ExternalMcpServerRepoPort", { tables: ["workspaces", "exter
       "the other workspace's row must survive"
     );
   });
+  test("payloads, pointers, status and expiry roll back together when the server write fails", async () => {
+    const repo = makeRepo();
+    const original = makeOAuthRecord();
+    await repo.upsert(original);
+    const before = await repo.vaultRepo.list({ workspaceId: WORKSPACE, kind: "mcp-auth", ownerKey: original.serverId, principalId: null });
+    const failed = makeOAuthRecord({ transport: null as unknown as string, oauthStatus: "needs_reauth", oauthExpiresAt: null });
+    await assert.rejects(repo.upsert(failed)); // NOT NULL fails after the new vault payload was inserted.
+    assert.deepEqual(await repo.findByServerId(original), original);
+    assert.deepEqual(await repo.vaultRepo.list({ workspaceId: WORKSPACE, kind: "mcp-auth", ownerKey: original.serverId, principalId: null }), before);
+  });
+
+  test("a failed second secret write also rolls back the first payload and its default change", async () => {
+    const repo = makeRepo();
+    const original = makeRecord();
+    await repo.upsert(original);
+    const before = await repo.vaultRepo.list({ workspaceId: WORKSPACE, kind: "mcp-env", ownerKey: original.serverId, principalId: null });
+    const wrongOwner = makeOAuthRecord().sealedOAuth;
+    const failed = makeRecord({ oauthStatus: "connected", oauthExpiresAt: LATER });
+    failed.sealedOAuth = wrongOwner;
+    await assert.rejects(repo.upsert(failed));
+    assert.deepEqual(await repo.findByServerId(original), original);
+    assert.deepEqual(await repo.vaultRepo.list({ workspaceId: WORKSPACE, kind: "mcp-env", ownerKey: original.serverId, principalId: null }), before);
+  });
+
+  test("replacement and deletion unlink both vault pointers before removing their payloads", async () => {
+    const repo = makeRepo();
+    const original = makeOAuthRecord({ sealedEnv: makeRecord().sealedEnv });
+    await repo.upsert(original);
+    const keys = ["mcp-env", "mcp-auth"] as const;
+    const old = keys.map(kind => externalMcpVaultRecord({ sealed: (kind === "mcp-env" ? original.sealedEnv : original.sealedOAuth)!, identity: original, kind }).id);
+    const replacement = makeOAuthRecord({ sealedEnv: makeRecord().sealedEnv, updatedAt: LATER });
+    await repo.upsert(replacement);
+    for (const id of old) assert.equal(await repo.vaultRepo.find({ workspaceId: WORKSPACE, id }), null);
+    assert.deepEqual(await repo.findByServerId(original), replacement);
+    await repo.deleteByServerId(original);
+    for (const kind of keys) assert.deepEqual(await repo.vaultRepo.list({ workspaceId: WORKSPACE, kind, ownerKey: original.serverId, principalId: null }), []);
+  });
+
+  test("roster reads hydrate every server's two payloads in one query", async () => {
+    const repo = makeRepo();
+    for (let n = 0; n < 8; n++) await repo.upsert(makeOAuthRecord({ serverId: `batch-${n}`, sealedEnv: makeRecord().sealedEnv }));
+    const kernel = (repo as unknown as { kernel: ContentKernel }).kernel;
+    let queries = 0;
+    const observed = new SqlExternalMcpServerRepo({ ...kernel, query: async statement => { queries++; return kernel.query(statement); } });
+    const rows = await observed.listByWorkspaceId(WORKSPACE);
+    assert.equal(queries, 1);
+    assert.equal(rows.length, 8);
+    assert.ok(rows.every(row => row.sealedEnv && row.sealedOAuth));
+  });
+
 });

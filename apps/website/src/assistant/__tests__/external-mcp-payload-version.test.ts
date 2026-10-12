@@ -7,7 +7,8 @@ process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../features/webhooks/keyring.env.js";
-import { buildExternalMcpOAuthAad } from "../external-mcp-aad.js";
+import { buildVaultAad, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import {
   EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION,
   openExternalMcpOAuthPayload,
@@ -41,11 +42,7 @@ const TOKENS = {
 
 /** Seals a raw object the way a pre-versioning writer did — no `schemaVersion` in the plaintext. */
 async function sealLegacy(payload: unknown) {
-  return sealer.seal({
-    plaintext: JSON.stringify(payload),
-    key: await keyring.activeKey(),
-    aad: buildExternalMcpOAuthAad(IDENTITY),
-  });
+  return sealExternalMcpVaultPayload({ deps, identity: IDENTITY, kind: "mcp-auth", payload: payload as VaultMeta });
 }
 
 test("the sealed plaintext carries a schemaVersion, not just the secret fields", async () => {
@@ -53,7 +50,7 @@ test("the sealed plaintext carries a schemaVersion, not just the secret fields",
   assert.ok(sealedOAuth);
 
   // Inspect the actual wire bytes, not the returned object.
-  const raw = await sealer.open({ sealed: sealedOAuth }, { aad: buildExternalMcpOAuthAad(IDENTITY) });
+  const raw = await sealer.open({ sealed: sealedOAuth }, { aad: buildVaultAad(externalMcpVaultRecord({ sealed: sealedOAuth, identity: IDENTITY, kind: "mcp-auth" })) });
   const parsed = JSON.parse(raw) as Record<string, unknown>;
 
   assert.equal(parsed.schemaVersion, EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION);
@@ -72,7 +69,7 @@ test("a round trip preserves the client secret and every token field", async () 
   assert.deepEqual(opened.tokens, TOKENS);
 });
 
-test("a legacy payload with NO schemaVersion still opens — upgraded on read, never rescued by a migration", async () => {
+test("a legacy payload with NO schemaVersion still opens — the payload schema remains compatible inside the vault", async () => {
   const legacy = await sealLegacy({ clientSecret: "legacy-secret", tokens: TOKENS });
 
   const opened = await openExternalMcpOAuthPayload(sealer, {

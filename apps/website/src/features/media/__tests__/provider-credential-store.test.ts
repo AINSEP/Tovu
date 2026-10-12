@@ -12,7 +12,7 @@ import {
   resolveMediaProviderCredential,
   saveMediaProviderCredentials,
 } from "../provider-credential-store.js";
-import { buildMediaProviderCredentialAad } from "../aad.js";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 
 /**
  * @file `provider-credential-store.ts` — the whole-map-replace credential contract behind the
@@ -83,9 +83,9 @@ test("the stored value round-trips through a fresh read", async () => {
   assert.deepEqual(read, {
     grok: { baseUrl: "https://api.x.ai/v1", apiKeyConfigured: true, apiKeyTail: "wxyz", apiKeyHint: { length: 12, last4: "wxyz" } },
   });
-  // Without server-side unsealing, the legacy stored tail cannot establish a safe hint.
+  // Vault hints remain readable even when no sealer is provided.
   assert.deepEqual(await getMediaProviderCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE }), {
-    grok: { baseUrl: "https://api.x.ai/v1", apiKeyConfigured: true },
+    grok: { baseUrl: "https://api.x.ai/v1", apiKeyConfigured: true, apiKeyTail: "wxyz", apiKeyHint: { length: 12, last4: "wxyz" } },
   });
 });
 
@@ -324,7 +324,7 @@ test("an empty map clears every provider and reads back empty", async () => {
   assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {});
 });
 
-test("every read AND write of the whole-map replace happens strictly inside deps.repo.replaceWorkspace() — nothing runs before it opens", async () => {
+test("preserved-state merging and every write stay inside deps.repo.replaceWorkspace()", async () => {
   const { deps } = makeDeps();
   await saveMediaProviderCredentials(deps, {
     workspaceId: WORKSPACE,
@@ -337,6 +337,7 @@ test("every read AND write of the whole-map replace happens strictly inside deps
   // for the rotation-resurrection defect — the store no longer takes its own `listByWorkspaceId`
   // snapshot beforehand. A pre-read here would be a staleness window no transaction can close.
   const guardedRepo = {
+    vault: deps.repo.vault,
     listByWorkspaceId: (workspaceId: string) => {
       calls.push("listByWorkspaceId");
       return deps.repo.listByWorkspaceId(workspaceId);
@@ -604,13 +605,10 @@ test("resolveMediaProviderCredential never includes the plaintext key anywhere i
 });
 
 // ---------------------------------------------------------------------------
-// AAD (2026-09-02 gap closure) — `media_provider_credentials` used to seal with no additional
-// authenticated data at all, so a ciphertext was transplantable between provider rows. New writes
-// must bind `(workspaceId, providerId)` into the seal; existing (`aad_version = 0`) rows must keep
-// opening exactly as before so no live credential goes dark mid-migration.
+// Vault AAD binds workspace and identity. Legacy opening belongs to boot normalization/recovery.
 // ---------------------------------------------------------------------------
 
-test("a freshly saved key is sealed with AAD bound to (workspaceId, providerId) and the row is marked aadVersion 1", async () => {
+test("a freshly saved key is sealed as JSON under vault AAD and retains its compatibility marker", async () => {
   const { repo, deps } = makeDeps();
   await saveMediaProviderCredentials(deps, {
     workspaceId: WORKSPACE,
@@ -623,44 +621,9 @@ test("a freshly saved key is sealed with AAD bound to (workspaceId, providerId) 
   // Opening under the WRONG aad (the legacy no-aad shape) must fail closed — proof the seal really
   // bound an aad, not merely that the field was set.
   await assert.rejects(() => deps.sealer.open({ sealed: row!.sealed! }));
-  const aad = "media-provider-credential:v1:workspace-1:openai";
-  assert.equal(buildMediaProviderCredentialAad({ workspaceId: WORKSPACE, providerId: "openai" }), aad);
+  const aad = buildVaultAad(row!.vaultRecord!);
   const opened = await deps.sealer.open({ sealed: row!.sealed! }, { aad });
-  assert.equal(opened, "sk-aad-bound-1234");
-});
-
-test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact plaintext — existing credentials are never bricked", async () => {
-  const { repo, deps } = makeDeps();
-  const legacySealed = await deps.sealer.seal({ plaintext: "sk-legacy-no-aad-5678", key: await deps.keyring.activeKey() });
-  await repo.upsert({
-    workspaceId: WORKSPACE,
-    providerId: "openai",
-    baseUrl: null,
-    model: null,
-    sealed: legacySealed,
-    keyTail: "5678",
-    aadVersion: 0,
-    createdAt: clock.nowIso(),
-    updatedAt: clock.nowIso(),
-  });
-
-  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
-  assert.deepEqual(resolved, { apiKey: "sk-legacy-no-aad-5678", baseUrl: null, model: null });
-});
-
-test("a metadata-only save preserves a legacy no-AAD seal and its version", async () => {
-  const { repo, deps } = makeDeps();
-  const sealed = await deps.sealer.seal({ plaintext: "sk-legacy-kept-5678", key: await deps.keyring.activeKey() });
-  await repo.upsert({ workspaceId: WORKSPACE, providerId: "openai", baseUrl: null, model: null,
-    sealed, keyTail: "5678", aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
-  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE,
-    providers: { openai: { baseUrl: "https://proxy.example/v1", model: "new-model" } } });
-  const [row] = await repo.listByWorkspaceId(WORKSPACE);
-  assert.equal(row?.aadVersion, 0);
-  assert.deepEqual(row?.sealed, sealed);
-  assert.deepEqual(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }), {
-    apiKey: "sk-legacy-kept-5678", baseUrl: "https://proxy.example/v1", model: "new-model",
-  });
+  assert.deepEqual(JSON.parse(opened), { apiKey: "sk-aad-bound-1234" });
 });
 
 test("AAD binding: swapping one provider's ciphertext onto another provider's row fails closed (adversarial cross-row transplant)", async () => {
@@ -697,4 +660,64 @@ test("AAD binding: the same provider's ciphertext cannot be transplanted to anot
     () => resolveMediaProviderCredential(deps, { workspaceId: "workspace-2", providerId: "openai" }),
     MediaProviderCredentialSecretStoreUnconfiguredError,
   );
+});
+
+test("provider resolution uses one exact-provider read and one open, even without a default flag", async () => {
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "selected-token-1234" }, grok: { apiKey: "decoy-token-5678" } } });
+  // A migrated singleton can be non-default; direct SQL boot preserves that historical flag.
+  const [selected] = await repo.vault.list({ workspaceId: WORKSPACE, kind: "media-provider", ownerKey: "tovu", principalId: null, provider: "openai" });
+  await repo.vault.put({ record: { ...selected!, isDefault: false, revision: selected!.revision + 1 }, expectedRevision: selected!.revision });
+  let reads = 0;
+  let opens = 0;
+  const list = repo.vault.list.bind(repo.vault);
+  repo.vault.list = async input => {
+    reads++;
+    assert.equal(input.provider, "openai");
+    return list(input);
+  };
+  repo.vault.find = async () => { throw new Error("unexpected second read"); };
+  const open = deps.sealer.open.bind(deps.sealer);
+  const resolved = await resolveMediaProviderCredential({ repo, sealer: {
+    seal: deps.sealer.seal.bind(deps.sealer), open: (input, options) => { opens++; return open(input, options); },
+  } }, { workspaceId: WORKSPACE, providerId: "openai" });
+  assert.equal(resolved?.apiKey, "selected-token-1234");
+  assert.equal(reads, 1);
+  assert.equal(opens, 1);
+});
+
+test("media metadata reads and blank-key saves retain hints without opening or sealing", async () => {
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "safe-token-1234" } } });
+  const [before] = await repo.listByWorkspaceId(WORKSPACE);
+  const unavailable = { ...deps, sealer: {
+    open: async (): Promise<never> => { throw new Error("must not open"); },
+    seal: async (): Promise<never> => { throw new Error("must not seal"); },
+  } };
+  const saved = await saveMediaProviderCredentials(unavailable, { workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "", model: "edited" } } });
+  assert.deepEqual(saved.openai?.apiKeyHint, { length: 15, last4: "1234" });
+  assert.deepEqual((await getMediaProviderCredentials(unavailable, { workspaceId: WORKSPACE })).openai, saved.openai);
+  const [after] = await repo.listByWorkspaceId(WORKSPACE);
+  assert.deepEqual(after?.sealed, before?.sealed);
+  assert.equal(after?.createdAt, before?.createdAt);
+});
+
+test("a keyless singleton resolves with one read and zero opens", async () => {
+  const { repo, deps } = makeDeps();
+  await repo.upsert({ workspaceId: WORKSPACE, providerId: "openai", baseUrl: null, model: "edited",
+    sealed: null, keyTail: null, aadVersion: 0, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
+  let reads = 0;
+  const list = repo.vault.list.bind(repo.vault);
+  repo.vault.list = input => { reads++; return list(input); };
+  deps.sealer.open = async () => { throw new Error("must not open a keyless row"); };
+  assert.equal(await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }), null);
+  assert.equal(reads, 1);
+});
+
+test("short media keys never expose a suffix through saved hints", async () => {
+  const { deps } = makeDeps();
+  const saved = await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "short" } } });
+  assert.deepEqual(saved.openai, { apiKeyConfigured: true, apiKeyHint: { length: 5, last4: null } });
 });

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { externalMcpVaultEnvelope, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -909,27 +911,10 @@ test("readEnabledExternalMcpConfigs reports a stored row with an unsupported tra
   assert.equal(failures.find((failure) => failure.serverId === "missing-command")?.reason, "no command is configured to launch it");
 });
 
-test("a decrypted env block that is valid JSON but not an object (e.g. an array) degrades to an empty env, not a throw", async () => {
-  const { repo, sealer, keyring } = makeDeps();
-  const sealedEnv = await sealer.seal({ plaintext: JSON.stringify(["not", "an", "object"]), key: await keyring.activeKey() });
-  await repo.upsert(storedRow({
-    workspaceId: WORKSPACE,
-    serverId: "weird-payload",
-    label: "weird",
-    transport: "stdio",
-    enabled: true,
-    command: "npx",
-    args: "[]",
-    allowedToolNames: "[]",
-    envNames: JSON.stringify(["x"]),
-    sealedEnv,
-    createdAt: "2026-08-09T00:00:00.000Z",
-    updatedAt: "2026-08-09T00:00:00.000Z",
-  }));
-
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  assert.equal(failures.length, 0);
-  assert.deepEqual(stdioTarget(configs[0]).env, {});
+test("the vault refuses a non-object env payload before it can replace a server", async () => {
+  const { sealer, keyring } = makeDeps();
+  await assert.rejects(sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: { workspaceId: WORKSPACE, serverId: "weird-payload" },
+    kind: "mcp-env", payload: ["not", "an", "object"] as unknown as Record<string, string> }));
 });
 
 test("deleting a server removes it and reports whether anything was removed", async () => {
@@ -1082,7 +1067,7 @@ test("a hosted row with no URL fails with a reason naming the URL, not a missing
 
 test("a hosted row's pasted env block is NOT promoted into request headers", async () => {
   const { repo, sealer, keyring } = makeDeps();
-  const sealed = await sealer.seal({ plaintext: JSON.stringify({ SOME_LOCAL_VAR: "value" }), key: await keyring.activeKey() });
+  const sealed = await sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: { workspaceId: WORKSPACE, serverId: "higgsfield" }, kind: "mcp-env", payload: { SOME_LOCAL_VAR: "value" } });
   await seedHostedRow(repo, { envNames: JSON.stringify(["SOME_LOCAL_VAR"]), sealedEnv: sealed });
 
   const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
@@ -1152,13 +1137,10 @@ async function seedConnectedOAuthRow(
   sealer: AesGcmSecretSealer,
   keyring: InMemoryKeyring,
 ): Promise<void> {
-  const sealedOAuth = await sealer.seal({
-    plaintext: JSON.stringify({
-      clientSecret: "dcr-minted-secret",
-      tokens: { accessToken: "at-1", refreshToken: "rt-1", tokenType: "Bearer", scopes: [], expiresAt: null },
-    }),
-    key: await keyring.activeKey(),
-  });
+  const sealedOAuth = await sealExternalMcpVaultPayload({ deps: { sealer, keyring },
+    identity: { workspaceId: WORKSPACE, serverId: "own-endpoint-server" }, kind: "mcp-auth", payload: {
+      clientSecret: "dcr-minted-secret", tokens: { accessToken: "at-1", refreshToken: "rt-1", tokenType: "Bearer", scopes: [], expiresAt: null },
+    } });
   await repo.upsert({
     workspaceId: WORKSPACE,
     serverId: "own-endpoint-server",
@@ -1235,7 +1217,7 @@ const OPAQUE_SEALED_BLOB = { keyId: "k1", ciphertext: "Yw==", nonce: "bg==", alg
 /** One stored row in a named OAuth lifecycle state. Cast for the same reason
  *  {@link seedConnectedOAuthRow} casts: this fixture names only the columns the assertion turns on. */
 function oauthStateRow(serverId: string, over: Partial<ExternalMcpServerRecord>): Parameters<InMemoryExternalMcpServerRepo["upsert"]>[0] {
-  return {
+  const row = {
     workspaceId: WORKSPACE,
     serverId,
     label: null,
@@ -1262,6 +1244,13 @@ function oauthStateRow(serverId: string, over: Partial<ExternalMcpServerRecord>)
     updatedAt: "2026-09-01T00:00:00.000Z",
     ...over,
   } as Parameters<InMemoryExternalMcpServerRepo["upsert"]>[0];
+  if (row.sealedOAuth) {
+    const id = randomUUID();
+    row.sealedOAuth = externalMcpVaultEnvelope({ record: { workspaceId: WORKSPACE, id, kind: "mcp-auth", ownerKey: serverId,
+      principalId: null, binding: null, provider: null, label: id, isDefault: true, revision: 1, sealed: row.sealedOAuth,
+      meta: {}, last4: null, tokenLength: null, createdAt: row.createdAt, updatedAt: row.updatedAt } }, { staged: true });
+  }
+  return row;
 }
 
 test("INV-003: hasStoredToken tracks the TOKEN across every lifecycle state, not the sealed blob beside it", async () => {

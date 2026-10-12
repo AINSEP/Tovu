@@ -15,7 +15,7 @@ import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { CONTENT_DB_FILENAME } from "#src/platform/site-dir/layout";
 import { FixedSiteKeyKeyring, fingerprintSiteKeyHex } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { buildCustomCredentialAad } from "#src/features/custom-credentials/aad";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { readSealedConnectionString, writeSealedConnectionString } from "../runtime/composition/storage-secret.js";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
@@ -726,11 +726,11 @@ test("production generate creates and stamps the durable key, preserves it, and 
 // content.db, so the routes prove a token by opening them, not by trusting a fingerprint.
 // ---------------------------------------------------------------------------
 
-/** A minimal `custom_credential_sets` table: the columns its sealed-column descriptor needs. */
+/** A minimal vault schema for the isolated site-file route fixture. */
 function createCredentialTable(siteDir: string): void {
   const db = new Database(path.join(siteDir, CONTENT_DB_FILENAME));
   db.exec(
-    "CREATE TABLE IF NOT EXISTS custom_credential_sets (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, label TEXT NOT NULL, category TEXT NOT NULL, sealed_key_id TEXT NOT NULL, sealed_ciphertext TEXT NOT NULL, sealed_nonce TEXT NOT NULL, sealed_alg TEXT NOT NULL)"
+    "CREATE TABLE IF NOT EXISTS secrets_vault (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, kind TEXT NOT NULL, owner_key TEXT NOT NULL, principal_id TEXT, binding TEXT, provider TEXT, label TEXT NOT NULL, is_default INTEGER NOT NULL, revision INTEGER NOT NULL, meta TEXT NOT NULL, last4 TEXT, token_length INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, sealed_key_id TEXT, sealed_ciphertext TEXT, sealed_nonce TEXT, sealed_alg TEXT)"
   );
   db.close();
 }
@@ -739,25 +739,27 @@ async function sealCredentialRow(siteDir: string, id: string, hex: string): Prom
   createCredentialTable(siteDir);
   const keyring = new FixedSiteKeyKeyring(hex);
   const sealed = await new AesGcmSecretSealer(keyring).seal({
-    plaintext: `secret-${id}`,
+    plaintext: JSON.stringify({ token: `secret-${id}` }),
     key: await keyring.activeKey(),
-    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE as never, id: id as never }),
+    aad: buildVaultAad({ workspaceId: WORKSPACE, id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }),
   });
   const db = new Database(path.join(siteDir, CONTENT_DB_FILENAME));
-  db.prepare("INSERT INTO custom_credential_sets VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(id, WORKSPACE, id, "email", sealed.keyId, sealed.ciphertext, sealed.nonce, sealed.alg);
+  db.prepare("INSERT INTO secrets_vault VALUES (?, ?, 'custom', 'tovu', NULL, NULL, NULL, ?, 0, 1, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)").run(
+    id, WORKSPACE, id, JSON.stringify({ category: "general", baseUrl: "https://mail.example.test", username: null, additionalHosts: [] }),
+    "2026-10-11T00:00:00.000Z", "2026-10-11T00:00:00.000Z", sealed.keyId, sealed.ciphertext, sealed.nonce, sealed.alg);
   db.close();
 }
 
 /** The plaintext of a sealed row under `hex`, or `undefined` if it does not open. */
 async function openCredentialRow(siteDir: string, id: string, hex: string): Promise<string | undefined> {
   const db = new Database(path.join(siteDir, CONTENT_DB_FILENAME));
-  const row = db.prepare("SELECT sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg FROM custom_credential_sets WHERE id = ?").get(id) as
+  const row = db.prepare("SELECT sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_alg FROM secrets_vault WHERE id = ?").get(id) as
     | { sealed_key_id: string; sealed_ciphertext: string; sealed_nonce: string; sealed_alg: string }
     | undefined;
   db.close();
   if (row === undefined) return undefined;
   try {
-    return await new AesGcmSecretSealer(new FixedSiteKeyKeyring(hex)).open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg } }, { aad: buildCustomCredentialAad({ workspaceId: WORKSPACE as never, id: id as never }) });
+    return JSON.parse(await new AesGcmSecretSealer(new FixedSiteKeyKeyring(hex)).open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg } }, { aad: buildVaultAad({ workspaceId: WORKSPACE, id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })).token as string;
   } catch {
     return undefined;
   }
@@ -895,7 +897,7 @@ test("start fresh: without the typed confirmation → 400 CONFIRMATION_REQUIRED,
   assert.equal(body.detail, 'Type START FRESH to confirm. Nothing was changed.');
   assert.equal(existsSync(perSiteKeyPath("unconfirmed-site")), false);
   const db = new Database(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME));
-  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM custom_credential_sets").get() as { n: number }).n, 1, "the locked credential is still there");
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM secrets_vault").get() as { n: number }).n, 1, "the locked credential is still there");
   db.close();
 });
 
@@ -912,7 +914,7 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   deps.dbOps.captureRestorePoint = async () => {
     const source = new Database(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME));
     try {
-      assert.deepEqual(source.prepare("SELECT id FROM custom_credential_sets").all(), [{ id: "cred-locked" }], "capture must run before discarding credentials");
+      assert.deepEqual(source.prepare("SELECT id FROM secrets_vault").all(), [{ id: "cred-locked" }], "capture must run before discarding credentials");
       await source.backup(backupPath);
     } finally {
       source.close();
@@ -931,6 +933,7 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   assert.equal(preview.status, 200);
   assert.deepEqual(await preview.json(), {
     removes: 1,
+    metadataOnly: 0,
     affectedWebhooks: [{ label: "Order sync", targetUrl: "https://hooks.example.test/orders" }],
     detail: "1 saved credential can't be unlocked and will be removed. These webhooks get a new signing secret, so update their receivers: Order sync (https://hooks.example.test/orders).",
     runtimeMode: "local",
@@ -953,7 +956,7 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   assert.notEqual(body.fingerprint, fingerprintSiteKeyHex(lostHex));
   assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, body.fingerprint);
   const db = new Database(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME));
-  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM custom_credential_sets").get() as { n: number }).n, 0, "the credential nothing could open is gone");
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM secrets_vault").get() as { n: number }).n, 0, "the credential nothing could open is gone");
   db.close();
   const restorePoints = await deps.restorePointsRepo.list();
   assert.ok(restorePoints.some((row) => row.id === body.restorePointId && row.trigger === "site-key-start-fresh"), "a restore point was saved first");
@@ -961,7 +964,7 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   assert.equal(point?.artifactRef, backupPath);
   const backup = new Database(backupPath, { readonly: true });
   try {
-    assert.deepEqual(backup.prepare("SELECT id FROM custom_credential_sets").all(), [{ id: "cred-locked" }], "the backup contains the credential removed from the live database");
+    assert.deepEqual(backup.prepare("SELECT id FROM secrets_vault").all(), [{ id: "cred-locked" }], "the backup contains the credential removed from the live database");
   } finally {
     backup.close();
   }

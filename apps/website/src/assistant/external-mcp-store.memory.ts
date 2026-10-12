@@ -1,3 +1,5 @@
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { externalMcpVaultEnvelope, externalMcpVaultRecord, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./external-mcp-store.js";
@@ -22,21 +24,91 @@ function keyOf(workspaceId: UUID, serverId: string): string {
 
 export class InMemoryExternalMcpServerRepo implements ExternalMcpServerRepoPort {
   private readonly rows = new Map<string, ExternalMcpServerRecord>();
+  private readonly vaults = new Map<string, InMemoryVaultRepo>();
+  private pending: Promise<unknown> = Promise.resolve();
+
+  private write<T>(body: () => Promise<T>): Promise<T> {
+    const result = this.pending.then(body);
+    this.pending = result.catch(() => {});
+    return result;
+  }
+
+  /** Clone only one server's encrypted state; an aborted write leaves the live adapter intact. */
+  private async stage({ previous }: { previous?: ExternalMcpServerRecord }): Promise<InMemoryVaultRepo> {
+    const repo = new InMemoryVaultRepo({});
+    for (const kind of ["mcp-env", "mcp-auth"] as const) {
+      const sealed = kind === "mcp-env" ? previous?.sealedEnv : previous?.sealedOAuth;
+      if (sealed && previous) {
+        const before = externalMcpVaultRecord({ sealed, identity: previous, kind });
+        await repo.put({ record: { ...before, revision: 1 }, expectedRevision: null });
+      }
+    }
+    return repo;
+  }
+
+  private async hydrate({ record }: { record: ExternalMcpServerRecord }): Promise<ExternalMcpServerRecord> {
+    const repo = this.vaults.get(keyOf(record.workspaceId, record.serverId))!;
+    const saved = { ...record };
+    for (const kind of ["mcp-env", "mcp-auth"] as const) {
+      const field = kind === "mcp-env" ? "sealedEnv" : "sealedOAuth";
+      const sealed = record[field];
+      if (!sealed) continue;
+      const { id } = externalMcpVaultRecord({ sealed, identity: record, kind });
+      saved[field] = externalMcpVaultEnvelope({ record: (await repo.find({ workspaceId: record.workspaceId, id }))! });
+    }
+    return saved;
+  }
 
   async listByWorkspaceId(workspaceId: UUID): Promise<ExternalMcpServerRecord[]> {
-    return [...this.rows.values()].filter((row) => row.workspaceId === workspaceId);
+    return Promise.all([...this.rows.values()].filter(row => row.workspaceId === workspaceId).map(record => this.hydrate({ record })));
   }
 
   async findByServerId(input: { workspaceId: UUID; serverId: string }): Promise<ExternalMcpServerRecord | null> {
-    return this.rows.get(keyOf(input.workspaceId, input.serverId)) ?? null;
+    const record = this.rows.get(keyOf(input.workspaceId, input.serverId));
+    return record ? this.hydrate({ record }) : null;
   }
 
   async upsert(record: ExternalMcpServerRecord): Promise<void> {
-    this.rows.set(keyOf(record.workspaceId, record.serverId), { ...record });
+    await this.write(async () => {
+      const key = keyOf(record.workspaceId, record.serverId);
+      const previous = this.rows.get(key);
+      // Stage a fresh Jini memory repository: failures leave both payloads and the row untouched.
+      // Only this server's two envelopes are copied, so a save is bounded independently of roster size.
+      const repo = await this.stage({ previous });
+      const envId = await persistExternalMcpVaultEnvelope({ repo, sealed: record.sealedEnv, identity: record, kind: "mcp-env" });
+      const oauthId = await persistExternalMcpVaultEnvelope({ repo, sealed: record.sealedOAuth, identity: record, kind: "mcp-auth" });
+      for (const kind of ["mcp-env", "mcp-auth"] as const) {
+        const sealed = kind === "mcp-env" ? previous?.sealedEnv : previous?.sealedOAuth;
+        if (!sealed || !previous) continue;
+        const { id } = externalMcpVaultRecord({ sealed, identity: previous, kind });
+        if (id !== (kind === "mcp-env" ? envId : oauthId)) await deleteExternalMcpVaultEnvelope({ repo, workspaceId: record.workspaceId, id });
+      }
+      // Publish both together only after all staged writes/deletes have succeeded.
+      const saved = { ...record,
+        sealedEnv: envId ? externalMcpVaultEnvelope({ record: (await repo.find({ workspaceId: record.workspaceId, id: envId }))! }) : null,
+        sealedOAuth: oauthId ? externalMcpVaultEnvelope({ record: (await repo.find({ workspaceId: record.workspaceId, id: oauthId }))! }) : null,
+      };
+      this.vaults.set(key, repo);
+      this.rows.set(key, saved);
+    });
   }
 
   async deleteByServerId(input: { workspaceId: UUID; serverId: string }): Promise<boolean> {
-    return this.rows.delete(keyOf(input.workspaceId, input.serverId));
+    return this.write(async () => {
+      const key = keyOf(input.workspaceId, input.serverId);
+      const previous = this.rows.get(key);
+      if (!previous) return false;
+      const repo = await this.stage({ previous });
+      // The staged row is detached; live state is published only after Jini deletes both payloads.
+      for (const kind of ["mcp-env", "mcp-auth"] as const) {
+        const sealed = kind === "mcp-env" ? previous.sealedEnv : previous.sealedOAuth;
+        if (sealed) await deleteExternalMcpVaultEnvelope({ repo, workspaceId: input.workspaceId,
+          id: externalMcpVaultRecord({ sealed, identity: previous, kind }).id });
+      }
+      this.rows.delete(key);
+      this.vaults.delete(key);
+      return true;
+    });
   }
 
   async tryClaimOAuthRefreshLease(input: {
@@ -45,19 +117,23 @@ export class InMemoryExternalMcpServerRepo implements ExternalMcpServerRepoPort 
     nowIso: ISODateTime;
     leaseUntil: ISODateTime;
   }): Promise<boolean> {
-    const row = this.rows.get(keyOf(input.workspaceId, input.serverId));
-    if (!row) return false;
-    const held = row.oauthRefreshLeaseUntil;
-    // A lease at or before `nowIso` is abandoned — a process that crashed mid-refresh must not wedge
-    // the connection until something is restarted.
-    if (held !== null && Date.parse(held) > Date.parse(input.nowIso)) return false;
-    this.rows.set(keyOf(input.workspaceId, input.serverId), { ...row, oauthRefreshLeaseUntil: input.leaseUntil });
-    return true;
+    return this.write(async () => {
+      const row = this.rows.get(keyOf(input.workspaceId, input.serverId));
+      if (!row) return false;
+      const held = row.oauthRefreshLeaseUntil;
+      // A lease at or before `nowIso` is abandoned — a process that crashed mid-refresh must not wedge
+      // the connection until something is restarted.
+      if (held !== null && Date.parse(held) > Date.parse(input.nowIso)) return false;
+      this.rows.set(keyOf(input.workspaceId, input.serverId), { ...row, oauthRefreshLeaseUntil: input.leaseUntil });
+      return true;
+    });
   }
 
   async releaseOAuthRefreshLease(input: { workspaceId: UUID; serverId: string }): Promise<void> {
-    const row = this.rows.get(keyOf(input.workspaceId, input.serverId));
-    if (!row) return;
-    this.rows.set(keyOf(input.workspaceId, input.serverId), { ...row, oauthRefreshLeaseUntil: null });
+    await this.write(async () => {
+      const row = this.rows.get(keyOf(input.workspaceId, input.serverId));
+      if (!row) return;
+      this.rows.set(keyOf(input.workspaceId, input.serverId), { ...row, oauthRefreshLeaseUntil: null });
+    });
   }
 }

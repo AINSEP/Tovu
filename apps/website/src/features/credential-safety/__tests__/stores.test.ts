@@ -10,7 +10,7 @@ import { InMemoryCustomCredentialSetRepo } from '../../custom-credentials/repo.m
 import { createCustomCredential, updateCustomCredential, resolveCustomCredentialByLabel, listCustomCredentials } from '../../custom-credentials/store.js';
 import { InMemorySourceControlCredentialSetRepo } from '../../source-control/repo.memory.js';
 import { createSourceControlCredential, updateSourceControlCredential, resolveDefaultForSourceControl, listSourceControlCredentials } from '../../source-control/store.js';
-import { InMemoryVendorCredentialSetRepo } from '@jini-ai/platform/secrets/credential-sets';
+import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publish-credentials/repo.memory";
 import { createPublishCredential, updatePublishCredential, resolveForPublish, listPublishCredentials } from '../../deployments/publish-credentials/store.js';
 import type { DeployTargetRegistry } from '../../deployments/deploy-targets/types.js';
 import { InMemoryMediaProviderCredentialRepo } from '../../media/provider-credential-store.memory.js';

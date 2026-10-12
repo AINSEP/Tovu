@@ -6,11 +6,12 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { computeCoreTableCopyOrder } from "#src/platform/db/migration/manifest";
+import { collectCoreTables } from "#src/platform/db/migration/manifest";
 import { closeSqliteConnection } from "#src/platform/db/kernel/index";
 import { migrateSqliteContentFile, openSqliteContentConnection } from "#src/platform/db/sqlite/content-db";
 import { connectionFor, dropDatabase, recreateDatabase, sql } from "./pg-test-db.js";
 import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
+import { getTableConfig as getSqliteTableConfig } from "drizzle-orm/sqlite-core";
 
 import * as pgSchema from "#src/platform/db/schema.postgres";
 import { collectTransferTables, countPartialExclusions, countSourceRows, DEFAULT_TRANSFER_SCHEMA, inspectTarget, planSnapshotTables, runCopy, siteSchemaName, type CopyResult } from "../copy-engine.js";
@@ -22,7 +23,7 @@ import { openSqliteSnapshotSource } from "../sqlite-source.js";
  * @file P0's end-to-end proof against a REAL local Postgres (Homebrew 14, `/tmp` socket, role `la` —
  * see `./pg-test-db.ts`): a migrated SQLite site database, snapshotted to bytes,
  * copied into a throwaway database's `tovu` schema, gives the same `count(*)` for every core table in
- * `computeCoreTableCopyOrder()` that is not on the logins/saved-keys exclusion list — and the
+ * `collectCoreTables()` that is not on the logins/saved-keys exclusion list — and the
  * excluded tables are not created at all. With Postgres down these tests FAIL; they never skip.
  */
 
@@ -118,7 +119,10 @@ test.after(() => dropDatabase(FIXTURE_DB));
 
 test("the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys", async () => {
   const tables = collectTransferTables();
-  assert.equal(tables.length, computeCoreTableCopyOrder().length - Object.keys(EXCLUDED_CORE_TABLES).length);
+  const expectedNames = collectCoreTables()
+    .map(({ table }) => getSqliteTableConfig(table).name)
+    .filter((name) => !(name in EXCLUDED_CORE_TABLES));
+  assert.deepEqual(tables.map((table) => table.name).sort(), expectedNames.sort());
   assert.ok(!tables.some((table) => table.name in EXCLUDED_CORE_TABLES));
 
   const before = await inspectTarget(TARGET(), SITE);
@@ -342,7 +346,10 @@ test("T1: the copy carries the schema's indexes, foreign keys, checks, defaults 
   assert.equal(await q(`SELECT column_default FROM information_schema.columns WHERE table_schema = '${schema}' AND table_name = 'setting_values_global' AND column_name = 'state'`), "'set'::text");
   assert.equal(await q(`SELECT is_identity || ' ' || identity_generation FROM information_schema.columns WHERE table_schema = '${schema}' AND table_name = 'agent_tool_attempts' AND column_name = 'id'`), "YES ALWAYS");
   assert.equal(await q(`INSERT INTO "${schema}".agent_tool_attempts (attempt_id, workspace_id, run_id, tool_id, principal_id, phase, at) VALUES ('new', 'ws', 'r', 't', 'p', 'start', 'x') RETURNING id`), "8");
-  await assert.rejects(q(`INSERT INTO "${schema}".commerce_orders (id, workspace_id, status, currency, total_amount_cents, created_at, updated_at) VALUES ('o', 'ws', 'bogus', 'usd', 1, 'x', 'x')`), /violates/);
+  assert.equal([...copied].some(name => name.startsWith("commerce_")), false, "retired core commerce is absent from the snapshot and target");
+  await assert.rejects(q(`INSERT INTO "${schema}".publish_backstop_log
+    (id, workspace_id, direction, actor_id, destination, reason, at, items_json, gap_labels_json, result, details_json, inverses_json)
+    VALUES ('invalid', 'ws', 'sideways', 'owner', 'peer', 'check', 'x', '[]', '[]', 'success', '{}', '[]')`), /violates check constraint/);
 });
 
 test("T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result", async () => {

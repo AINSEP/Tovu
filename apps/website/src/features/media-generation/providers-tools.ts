@@ -98,6 +98,7 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
     save: ({ values, prep, signal }) => {
       const store = deps.mediaProviderCredentialRepo;
       const repo: MediaProviderCredentialRepoPort = {
+        vault: store.vault,
         listByWorkspaceId: workspaceId => store.listByWorkspaceId(workspaceId),
         upsert: record => store.upsert(record),
         deleteByProviderIds: input => store.deleteByProviderIds(input),

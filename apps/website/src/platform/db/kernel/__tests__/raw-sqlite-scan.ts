@@ -24,6 +24,8 @@ const ALLOWED: ReadonlyMap<string, string> = new Map([
     "apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts",
     "checksum-pinned shipped migration step (SQLite NOT NULL drop needs a table rebuild); its bytes can never change",
   ],
+  ["apps/website/src/platform/db/migrations/0012_secrets_vault.ts",
+    "checksum-pinned vault migration: SQLite parent rebuild and pointer triggers; frozen like 0006"],
 ]);
 
 const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
@@ -31,9 +33,10 @@ const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [
     id: "better-sqlite3-import",
     pattern: /(?:from\s*|require\(\s*|import\(\s*)["'](?:better-sqlite3|drizzle-orm\/better-sqlite3(?:\/[\w-]+)?)["']/g,
   },
-  // A statement is always prepared FROM something; a bare `.prepare()` is some other API's hook
-  // (the boot lifecycle's `module.prepare()`), not better-sqlite3.
-  { id: "prepare", pattern: /\.prepare\s*\(\s*[^\s)]/g },
+  // A statement is always prepared FROM SQL text; a bare `.prepare()` is some other API's hook
+  // (the boot lifecycle's `module.prepare()`), and an object-literal argument is a port call (the
+  // secrets vault's `vault.prepare({ ... })`) — neither is better-sqlite3.
+  { id: "prepare", pattern: /\.prepare\s*\(\s*[^\s){]/g },
   // Drizzle's better-sqlite3 terminals run synchronously; pg-core has none of them. (`Map#get`,
   // `Promise.all` always take an argument, so the empty call is specific.)
   { id: "sync-terminal", pattern: /\.(?:all|get|run)\(\)/g },

@@ -166,25 +166,17 @@ test("B1 regression: legacy default path (no overrides) with a pre-existing 2nd 
   }
 });
 
-test("F1833: legacyPublishCredentialsReady settles only after the owner's legacy publish-credential copy has finished", async () => {
+test("F1833: boot tail no longer runs the recurring legacy credential copy", async () => {
   const dbPath = mkTempDbPath();
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
     deps = await createSiteRouteDeps(dbPath);
-    assert.ok(deps.legacyPublishCredentialsReady instanceof Promise, "the real SQLite composition must expose its boot tail");
-    // The copy reads `loadDeployTargets` off routeDeps when it starts, which is after every boot
-    // writer settles — later than this line. A deliberately slow stand-in marks when the copy's
-    // first step has actually finished, not merely begun.
+    assert.ok(deps.legacyPublishCredentialsReady instanceof Promise);
+    let registryReads = 0;
     const original = deps.loadDeployTargets;
-    let copyStepFinished = false;
-    deps.loadDeployTargets = async (workspaceId) => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const registry = await original(workspaceId);
-      copyStepFinished = true;
-      return registry;
-    };
+    deps.loadDeployTargets = async (workspaceId) => { registryReads += 1; return original(workspaceId); };
     await deps.legacyPublishCredentialsReady;
-    assert.equal(copyStepFinished, true, "legacyPublishCredentialsReady resolved while copyLegacyPublishCredentialsAtBoot was still running");
+    assert.equal(registryReads, 0, "the boot tail must not recopy legacy credentials after a deletion");
   } finally {
     await settleBoot(deps);
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });

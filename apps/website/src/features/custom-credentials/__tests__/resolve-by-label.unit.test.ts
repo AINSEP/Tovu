@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { VaultError } from "@jini-ai/platform/secrets/credential-sets";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
@@ -7,6 +8,10 @@ import type { KeyringPort } from "../../webhooks/index.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import {
   createCustomCredential,
+  describeCredentialByLabel,
+  listCustomCredentials,
+  updateCustomCredential,
+  CustomCredentialDuplicateLabelError,
   CustomCredentialSecretStoreUnconfiguredError,
   resolveCustomCredentialByLabel,
   type CustomCredentialWriteDeps,
@@ -56,6 +61,85 @@ test("resolveCustomCredentialByLabel returns null when no row has that label (no
   const deps = makeWriteDeps();
   const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "Tovu Mail — Resend API" });
   assert.equal(resolved, null);
+});
+
+test("label/origin descriptions and lists open no credentials; resolution opens only the selected row", async () => {
+  const deps = makeWriteDeps();
+  await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "selected", category: "ops",
+    baseUrl: "https://api.example.com/v1", additionalHosts: ["https://other.example.com/path"],
+    connection: { token: "selected-token-1234", username: "operator" } });
+  await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "decoy", category: "general",
+    baseUrl: "https://decoy.example.com", connection: { token: "decoy-token-5678" } });
+  let opens = 0;
+  const open = deps.sealer.open.bind(deps.sealer);
+  deps.sealer.open = (input, options) => { opens++; return open(input, options); };
+  const described = await describeCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "selected" });
+  assert.equal(described?.baseUrl, "https://api.example.com/v1");
+  assert.deepEqual(described?.additionalHosts, ["https://other.example.com"]);
+  assert.deepEqual(described?.tokenHint, { length: 19, last4: "1234" });
+  assert.equal((await listCustomCredentials(deps, { workspaceId: WORKSPACE })).length, 2);
+  assert.equal(opens, 0);
+  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "selected" });
+  assert.deepEqual(resolved?.connection, { token: "selected-token-1234", username: "operator" });
+  assert.deepEqual(resolved?.additionalHosts, described?.additionalHosts);
+  assert.equal(opens, 1);
+});
+
+test("custom labels remain workspace-wide unique on create and rename, with the typed duplicate error", async () => {
+  const deps = makeWriteDeps();
+  const input = { workspaceId: WORKSPACE, label: "unique", category: "ops", baseUrl: "https://example.com", connection: { token: "long-token-1234" } };
+  const first = await createCustomCredential(deps, input);
+  await assert.rejects(createCustomCredential(deps, input), CustomCredentialDuplicateLabelError);
+  const second = await createCustomCredential(deps, { ...input, label: "second", category: "hosting" });
+  await assert.rejects(updateCustomCredential(deps, { workspaceId: WORKSPACE, id: second.id, label: "unique" }), CustomCredentialDuplicateLabelError);
+  assert.equal((await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "unique" }))?.id, first.id);
+  assert.equal((await listCustomCredentials(deps, { workspaceId: WORKSPACE })).length, 2);
+});
+
+test("a metadata-only custom edit preserves its hints/envelope with an unavailable key", async () => {
+  const deps = makeWriteDeps();
+  const created = await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "original", category: "ops",
+    baseUrl: "https://example.com", connection: { token: "original-token-1234", username: "operator" } });
+  const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
+  const broken = { ...deps, keyring: new BrokenKeyring(), sealer: new AesGcmSecretSealer(new BrokenKeyring()) };
+  const changed = await updateCustomCredential(broken, { workspaceId: WORKSPACE, id: created.id, label: "renamed", username: null, connection: { token: "" } });
+  assert.deepEqual(changed.tokenHint, created.tokenHint);
+  assert.equal("username" in changed, false);
+  assert.deepEqual((await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id }))?.sealed, before?.sealed);
+  assert.deepEqual((await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "renamed" }))?.connection, { token: "original-token-1234" });
+});
+
+test("short custom tokens never expose a suffix through saved hints", async () => {
+  const deps = makeWriteDeps();
+  const created = await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "short", category: "general",
+    baseUrl: "https://example.com", connection: { token: "short" } });
+  assert.deepEqual(created.tokenHint, { length: 5, last4: null });
+  assert.deepEqual((await describeCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "short" }))?.tokenHint, created.tokenHint);
+});
+
+test("a gated custom rotation fails CAS instead of overwriting a newer token and saved origins", async () => {
+  const deps = makeWriteDeps();
+  const created = await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "raced", category: "general",
+    baseUrl: "https://original.example.com", connection: { token: "original-token-1234" } });
+  let entered!: () => void;
+  let release!: () => void;
+  const sealing = new Promise<void>(resolve => { entered = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const seal = deps.sealer.seal.bind(deps.sealer);
+  const stale = updateCustomCredential({ ...deps, sealer: {
+    open: deps.sealer.open.bind(deps.sealer), seal: async input => { entered(); await gate; return seal(input); },
+  } }, { workspaceId: WORKSPACE, id: created.id, connection: { token: "stale-token-5678" } });
+  const rejected = assert.rejects(stale, VaultError);
+  await sealing;
+  try {
+    await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id,
+      connection: { token: "newer-token-9999" }, baseUrl: "https://newer.example.com", additionalHosts: ["https://other.example.com"] });
+  } finally { release(); }
+  await rejected;
+  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "raced" });
+  assert.deepEqual(resolved?.connection, { token: "newer-token-9999" });
+  assert.equal(resolved?.baseUrl, "https://newer.example.com");
+  assert.deepEqual(resolved?.additionalHosts, ["https://other.example.com"]);
 });
 
 test("resolveCustomCredentialByLabel finds the row by exact label and decrypts its connection", async () => {

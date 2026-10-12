@@ -546,13 +546,12 @@ test("a run cancelled before the form opens returns {saved:false, reason:'abando
   assert.equal(sealer.sealCalls, 0);
 });
 
-test("token rotation preserves a legacy username stored only in the sealed connection", async () => {
+test("token rotation preserves a saved metadata username", async () => {
   const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
   const seeded = await seedNameCom(writeDeps, { token: "old-secret-token", username: "sealed-user@example.com" });
   const row = await repo.findById({ workspaceId: WORKSPACE_ID, id: seeded.id });
   assert.ok(row);
-  const { username: _plaintextUsername, ...legacy } = row;
-  await repo.update(legacy);
+  // The vault stores the saved username in metadata; rotation must keep it without opening.
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const { pending, exchangeId } = await raiseForm(tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID));
   surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { token: "rotated-secret-token" } }, { toolId: TOOL_ID });

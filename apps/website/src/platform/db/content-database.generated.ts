@@ -10,7 +10,6 @@ export type GeneratedBool = ColumnType<SqlBool, boolean | undefined, boolean>;
 export type NullableBool = ColumnType<SqlBool | null, boolean | null | undefined, boolean | null>;
 
 export interface ContentDatabase {
-  admin_execution_credentials: AdminExecutionCredentialsTable;
   agent_tool_attempts: AgentToolAttemptsTable;
   analytics_events: AnalyticsEventsTable;
   api_keys: ApiKeysTable;
@@ -18,16 +17,8 @@ export interface ContentDatabase {
   asset_renditions: AssetRenditionsTable;
   change_set_items: ChangeSetItemsTable;
   change_sets: ChangeSetsTable;
-  commerce_order_items: CommerceOrderItemsTable;
-  commerce_orders: CommerceOrdersTable;
-  commerce_prices: CommercePricesTable;
-  commerce_product_images: CommerceProductImagesTable;
-  commerce_products: CommerceProductsTable;
-  commerce_webhook_events: CommerceWebhookEventsTable;
   content_type_revisions: ContentTypeRevisionsTable;
   content_types: ContentTypesTable;
-  custom_credential_sets: CustomCredentialSetsTable;
-  database_transfer_destinations: DatabaseTransferDestinationsTable;
   database_write_watermark: DatabaseWriteWatermarkTable;
   entries: EntriesTable;
   entry_refs: EntryRefsTable;
@@ -40,7 +31,6 @@ export interface ContentDatabase {
   gated_mutation_tokens: GatedMutationTokensTable;
   identity_users: IdentityUsersTable;
   media: MediaTable;
-  media_provider_credentials: MediaProviderCredentialsTable;
   media_slug_history: MediaSlugHistoryTable;
   member_consents: MemberConsentsTable;
   member_magic_tokens: MemberMagicTokensTable;
@@ -54,7 +44,6 @@ export interface ContentDatabase {
   newsletter_campaign_revisions: NewsletterCampaignRevisionsTable;
   newsletter_campaigns: NewsletterCampaignsTable;
   oauth_device_authorizations: OauthDeviceAuthorizationsTable;
-  oauth_pending_authorizations: OauthPendingAuthorizationsTable;
   origin_settings: OriginSettingsTable;
   outbox_events: OutboxEventsTable;
   plugin_activations: PluginActivationsTable;
@@ -69,9 +58,7 @@ export interface ContentDatabase {
   publish_backstop_log: PublishBackstopLogTable;
   publish_content_baselines: PublishContentBaselinesTable;
   publish_content_bundles: PublishContentBundlesTable;
-  publish_content_peers: PublishContentPeersTable;
   publish_content_runs: PublishContentRunsTable;
-  publish_credential_sets: PublishCredentialSetsTable;
   publish_history: PublishHistoryTable;
   publish_trust_revocations: PublishTrustRevocationsTable;
   redirect_hits: RedirectHitsTable;
@@ -79,43 +66,23 @@ export interface ContentDatabase {
   redirects: RedirectsTable;
   role_policies: RolePoliciesTable;
   roles: RolesTable;
+  secrets_vault: SecretsVaultTable;
   sessions: SessionsTable;
   setting_definitions: SettingDefinitionsTable;
   setting_revisions: SettingRevisionsTable;
   setting_values_global: SettingValuesGlobalTable;
   setting_values_user: SettingValuesUserTable;
   setting_values_workspace: SettingValuesWorkspaceTable;
-  site_assistant_credentials: SiteAssistantCredentialsTable;
   site_title_preexisting_workspaces: SiteTitlePreexistingWorkspacesTable;
-  source_control_credential_sets: SourceControlCredentialSetsTable;
   taxonomies: TaxonomiesTable;
   taxonomy_revisions: TaxonomyRevisionsTable;
   terms: TermsTable;
   transform_registry: TransformRegistryTable;
   trashed_items: TrashedItemsTable;
-  vendor_credential_sets: VendorCredentialSetsTable;
   webhook_deliveries: WebhookDeliveriesTable;
   webhook_subscriptions: WebhookSubscriptionsTable;
   widget_region_bindings: WidgetRegionBindingsTable;
   workspaces: WorkspacesTable;
-}
-
-export interface AdminExecutionCredentialsTable {
-  workspace_id: string;
-  principal_id: string;
-  protocol: Generated<string>;
-  provider_id: string | null;
-  base_url: string | null;
-  model: string | null;
-  max_tokens: number | null;
-  sealed_key_id: string | null;
-  sealed_ciphertext: string | null;
-  sealed_nonce: string | null;
-  sealed_alg: string | null;
-  masked: string | null;
-  aad_version: Generated<number>;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface AgentToolAttemptsTable {
@@ -216,87 +183,6 @@ export interface ChangeSetsTable {
   reverted_at: string | null;
 }
 
-export interface CommerceOrderItemsTable {
-  id: string;
-  workspace_id: string;
-  order_id: string;
-  price_id: string;
-  product_id: string;
-  description: string;
-  unit_amount_cents: number;
-  quantity: Generated<number>;
-  currency: string;
-  created_at: string;
-}
-
-export interface CommerceOrdersTable {
-  id: string;
-  workspace_id: string;
-  member_id: string;
-  status: string;
-  currency: string;
-  total_amount_cents: number;
-  provider: string;
-  provider_customer_ref: string | null;
-  provider_payment_ref: string | null;
-  provider_event_at: string | null;
-  placed_at: string;
-  created_at: string;
-  updated_at: string;
-  version: number;
-}
-
-export interface CommercePricesTable {
-  id: string;
-  workspace_id: string;
-  product_id: string;
-  unit_amount_cents: number;
-  compare_at_amount_cents: number | null;
-  currency: string;
-  billing_interval: string | null;
-  status: string;
-  created_at: string;
-  version: number;
-}
-
-export interface CommerceProductImagesTable {
-  id: string;
-  workspace_id: string;
-  product_id: string;
-  media_id: string;
-  position: Generated<number>;
-  created_at: string;
-}
-
-export interface CommerceProductsTable {
-  id: string;
-  workspace_id: string;
-  name: string;
-  slug: string;
-  kind: string;
-  status: string;
-  description: string | null;
-  grants_member_tier_id: string | null;
-  specs_json: string | null;
-  created_at: string;
-  updated_at: string;
-  version: number;
-}
-
-export interface CommerceWebhookEventsTable {
-  id: string;
-  workspace_id: string;
-  provider: string;
-  event_id: string;
-  event_type: string;
-  event_occurred_at: string;
-  payload_json: string;
-  status: string;
-  received_at: string;
-  processed_at: string | null;
-  last_error: string | null;
-}
-
 export interface ContentTypeRevisionsTable {
   seq: Generated<number>;
   content_type_key: string;
@@ -319,37 +205,6 @@ export interface ContentTypesTable {
   status: string;
   version: number;
   tombstoned_at: string | null;
-}
-
-export interface CustomCredentialSetsTable {
-  id: string;
-  workspace_id: string;
-  label: string;
-  category: string;
-  base_url: string;
-  additional_hosts_json: string | null;
-  username: string | null;
-  sealed_key_id: string;
-  sealed_ciphertext: string;
-  sealed_nonce: string;
-  sealed_alg: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface DatabaseTransferDestinationsTable {
-  workspace_id: string;
-  host: string;
-  port: string;
-  database_name: string;
-  user_name: string;
-  sealed_key_id: string;
-  sealed_ciphertext: string;
-  sealed_nonce: string;
-  sealed_alg: string;
-  aad_version: number;
-  saved_at: string;
-  last_run_json: string | null;
 }
 
 export interface DatabaseWriteWatermarkTable {
@@ -421,10 +276,8 @@ export interface ExternalMcpServersTable {
   write_grants_updated_by_principal_id: string | null;
   write_grants_updated_at: string | null;
   env_names: string | null;
-  sealed_key_id: string | null;
-  sealed_ciphertext: string | null;
-  sealed_nonce: string | null;
-  sealed_alg: string | null;
+  env_secret_id: string | null;
+  oauth_secret_id: string | null;
   oauth_provider_id: string | null;
   oauth_grant: string | null;
   oauth_client_id: string | null;
@@ -434,12 +287,6 @@ export interface ExternalMcpServersTable {
   oauth_expires_at: string | null;
   oauth_token_env_name: string | null;
   oauth_refresh_lease_until: string | null;
-  oauth_sealed_key_id: string | null;
-  oauth_sealed_ciphertext: string | null;
-  oauth_sealed_nonce: string | null;
-  oauth_sealed_alg: string | null;
-  aad_version: Generated<number>;
-  oauth_aad_version: Generated<number>;
   created_at: string;
   updated_at: string;
 }
@@ -515,21 +362,6 @@ export interface MediaTable {
   height: number | null;
   css_class: string | null;
   html_attributes: string | null;
-}
-
-export interface MediaProviderCredentialsTable {
-  workspace_id: string;
-  provider_id: string;
-  base_url: string | null;
-  model: string | null;
-  sealed_key_id: string | null;
-  sealed_ciphertext: string | null;
-  sealed_nonce: string | null;
-  sealed_alg: string | null;
-  key_tail: string | null;
-  aad_version: Generated<number>;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface MediaSlugHistoryTable {
@@ -703,20 +535,6 @@ export interface OauthDeviceAuthorizationsTable {
   created_at: string;
 }
 
-export interface OauthPendingAuthorizationsTable {
-  state: string;
-  owner_key: string;
-  provider_id: string;
-  sealed_key_id: string;
-  sealed_ciphertext: string;
-  sealed_nonce: string;
-  sealed_alg: string;
-  redirect_uri: string;
-  scopes_json: string;
-  created_at: string;
-  expires_at: string;
-}
-
 export interface OriginSettingsTable {
   workspace_id: string;
   scheme: string;
@@ -881,22 +699,6 @@ export interface PublishContentBundlesTable {
   expires_at: string;
 }
 
-export interface PublishContentPeersTable {
-  id: string;
-  workspace_id: string;
-  label: string;
-  base_url: string;
-  remote_workspace_id: string;
-  sealed_key_id: string | null;
-  sealed_ciphertext: string | null;
-  sealed_nonce: string | null;
-  sealed_alg: string | null;
-  masked: string | null;
-  aad_version: Generated<number>;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface PublishContentRunsTable {
   id: string;
   workspace_id: string;
@@ -911,21 +713,6 @@ export interface PublishContentRunsTable {
   finished_at: string | null;
   report_json: string | null;
   items_json: string | null;
-}
-
-export interface PublishCredentialSetsTable {
-  id: string;
-  workspace_id: string;
-  provider_id: string;
-  label: string;
-  sealed_key_id: string;
-  sealed_ciphertext: string;
-  sealed_nonce: string;
-  sealed_alg: string;
-  is_default: GeneratedBool;
-  account_label: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface PublishHistoryTable {
@@ -1004,6 +791,28 @@ export interface RolesTable {
   workspace_id: string;
   name: string;
   is_builtin: number;
+}
+
+export interface SecretsVaultTable {
+  workspace_id: string;
+  id: string;
+  kind: string;
+  owner_key: string;
+  principal_id: string | null;
+  binding: string | null;
+  provider: string | null;
+  label: string;
+  is_default: Bool;
+  revision: number;
+  sealed_key_id: string | null;
+  sealed_ciphertext: string | null;
+  sealed_nonce: string | null;
+  sealed_alg: string | null;
+  last4: string | null;
+  token_length: number | null;
+  meta: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SessionsTable {
@@ -1091,39 +900,9 @@ export interface SettingValuesWorkspaceTable {
   origin_plugin_id: string | null;
 }
 
-export interface SiteAssistantCredentialsTable {
-  workspace_id: string;
-  provider: Generated<string>;
-  base_url: string | null;
-  model: string | null;
-  sealed_key_id: string | null;
-  sealed_ciphertext: string | null;
-  sealed_nonce: string | null;
-  sealed_alg: string | null;
-  masked: string | null;
-  aad_version: Generated<number>;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface SiteTitlePreexistingWorkspacesTable {
   workspace_id: string;
   preserved_at: string | null;
-}
-
-export interface SourceControlCredentialSetsTable {
-  id: string;
-  workspace_id: string;
-  provider_id: string;
-  label: string;
-  sealed_key_id: string;
-  sealed_ciphertext: string;
-  sealed_nonce: string;
-  sealed_alg: string;
-  is_default: GeneratedBool;
-  account_label: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface TaxonomiesTable {
@@ -1182,22 +961,6 @@ export interface TrashedItemsTable {
   prior_marker: string | null;
   purge_lease_owner: string | null;
   purge_lease_expires_at: string | null;
-}
-
-export interface VendorCredentialSetsTable {
-  id: string;
-  workspace_id: string;
-  vendor_id: string;
-  label: string;
-  sealed_key_id: string;
-  sealed_ciphertext: string;
-  sealed_nonce: string;
-  sealed_alg: string;
-  token_tail: string;
-  is_default: GeneratedBool;
-  account_label: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface WebhookDeliveriesTable {

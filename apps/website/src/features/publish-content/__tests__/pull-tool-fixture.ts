@@ -55,7 +55,7 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
   const deps = {
     workspaceId: "local", clock, idGen, authorize, pluginBeforeSaveHook: undefined, outbox: undefined,
     publishContentPeerRepo: peerRepo, workspaceRepo: { findById: async () => ({ name: "Local" }) },
-    siteAssistantSecretSealer: { open: async () => "private-key" }, siteAssistantSecretKeyring: {} as never,
+    siteAssistantSecretSealer: { open: async () => JSON.stringify({ apiKey: "private-key" }) }, siteAssistantSecretKeyring: {} as never,
     findPublishCandidate: async () => null, publishTrustProvisioning: {} as never, publishContentPorts: {},
     publishContentBundleRepo: bundleRepo, publishContentRunRepo: runRepo, publishContentBaselineRepo: baselineRepo,
     publishContentPeerHttpClient: { send: async (request: HttpRequest) => {

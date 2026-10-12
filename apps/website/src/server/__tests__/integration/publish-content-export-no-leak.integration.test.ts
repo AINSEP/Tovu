@@ -25,11 +25,12 @@ import * as schema from "#src/platform/db/schema.sqlite";
  * against a REAL, fully-migrated SQLite db: one canary row, with a unique marker value nothing else
  * in this process could produce, planted directly in EVERY table the task brief names as
  * sensitive — `sessions`, `principals`, `api_keys`, a representative `*credential*` table
- * (`publish_credential_sets`), `change_sets` (+ `change_set_items`), `outbox_events`,
- * `analytics_events`, `commerce_products` (representative `commerce_*`), `members` (representative
- * `member*`), `form_submissions`, and all four `publish_content_*` tables themselves (plan §5 risk
+ * (`secrets_vault`), `change_sets` (+ `change_set_items`), `outbox_events`,
+ * `analytics_events`, `members` (representative
+ * `member*`), `form_submissions`, and the three `publish_content_*` bookkeeping tables themselves (plan §5 risk
  * #13's own staging tables must not leak their own bookkeeping back out through the export they
- * feed). The assertion is exhaustive over that named list, not a spot-check of a couple of table
+ * feed). Core commerce tables were retired by step 0011 and cannot hold canaries.
+ * The assertion is exhaustive over that named list, not a spot-check of a couple of table
  * names picked to be reassuring: every marker below is asserted absent from the raw response body,
  * and the run FAILS LOUDLY (via `assert.ok` per marker, not a single aggregate check) naming exactly
  * which table's marker leaked if the allowlist is ever bypassed.
@@ -53,9 +54,7 @@ function marker(table: string): string {
 }
 
 /** Plants one row in every table the task brief names as sensitive, each carrying that table's own
- *  {@link marker}. `foreign_keys = ON` (`content-db.ts`) is real on this connection, so the three
- *  tables with a declared `workspaces` FK (`commerce_products`, `publish_credential_sets`,
- *  `publish_content_peers`) need a real workspace row first — inserted here for exactly that
+ *  {@link marker}. `foreign_keys = ON` (`content-db.ts`) is real on this connection, so the vault rows with a declared `workspaces` FK need a real workspace row first — inserted here for exactly that
  *  reason, not because the route needs it (a missing workspace row degrades `sourceLabel` to the
  *  raw workspace id, nothing more; see `export.ts`'s own `?? deps.workspaceId` fallback). */
 function plantCanaries(db: ReturnType<typeof openContentDb>): void {
@@ -95,22 +94,14 @@ function plantCanaries(db: ReturnType<typeof openContentDb>): void {
     })
     .run();
 
-  // Representative `*credential*` table — sealed-secret shape shared by every credential table in
-  // this schema (`publishCredentialSets`, `sourceControlCredentialSets`, `vendorCredentialSets`, …).
-  db.insert(schema.publishCredentialSets)
-    .values({
-      id: "canary-publish-credential",
-      workspaceId: WORKSPACE,
-      providerId: "github-pages",
-      label: marker("publish_credential_sets"),
-      sealedKeyId: "canary-key-id",
-      sealedCiphertext: marker("publish_credential_sets-ciphertext"),
-      sealedNonce: "canary-nonce",
-      sealedAlg: "aes-256-gcm",
-      createdAt: NOW,
-      updatedAt: NOW,
-    })
-    .run();
+  // Plant ciphertext directly in the consolidated vault, bypassing the feature repositories.
+  db.insert(schema.secretsVault).values({
+    id: "canary-publish-credential", workspaceId: WORKSPACE, kind: "vendor", ownerKey: "tovu",
+    provider: "github", label: marker("secrets_vault"), isDefault: false, revision: 1,
+    sealedKeyId: "canary-key-id", sealedCiphertext: marker("secrets_vault-ciphertext"),
+    sealedNonce: "canary-nonce", sealedAlg: "aes-256-gcm", meta: JSON.stringify({ accountLabel: null }),
+    createdAt: NOW, updatedAt: NOW,
+  }).run();
 
   db.insert(schema.changeSets)
     .values({
@@ -154,20 +145,6 @@ function plantCanaries(db: ReturnType<typeof openContentDb>): void {
       deviceClass: "desktop",
       visitorHash: "canary-visitor",
       sessionId: "canary-analytics-session",
-    })
-    .run();
-
-  db.insert(schema.commerceProducts)
-    .values({
-      id: "canary-commerce-product",
-      workspaceId: WORKSPACE,
-      name: marker("commerce_products"),
-      slug: "canary-commerce-product",
-      kind: "one_time",
-      status: "active",
-      createdAt: NOW,
-      updatedAt: NOW,
-      version: 1,
     })
     .run();
 
@@ -247,35 +224,28 @@ function plantCanaries(db: ReturnType<typeof openContentDb>): void {
     })
     .run();
 
-  db.insert(schema.publishContentPeers)
-    .values({
-      id: "canary-peer",
-      workspaceId: WORKSPACE,
-      label: marker("publish_content_peers"),
-      baseUrl: "https://peer.example.invalid",
-      remoteWorkspaceId: "remote-workspace",
-      createdAt: NOW,
-      updatedAt: NOW,
-    })
-    .run();
+  db.insert(schema.secretsVault).values({
+    id: "canary-peer", workspaceId: WORKSPACE, kind: "publish-peer", ownerKey: "tovu",
+    label: marker("secrets_vault"), isDefault: false, revision: 1,
+    meta: JSON.stringify({ baseUrl: "https://peer.example.invalid", remoteWorkspaceId: "remote-workspace" }),
+    createdAt: NOW, updatedAt: NOW,
+  }).run();
 }
 
 const SENSITIVE_TABLES = [
   "sessions",
   "principals",
   "api_keys",
-  "publish_credential_sets",
+  "secrets_vault",
   "change_sets",
   "change_set_items",
   "outbox_events",
   "analytics_events",
-  "commerce_products",
   "members",
   "form_submissions",
   "publish_content_baselines",
   "publish_content_runs",
   "publish_content_bundles",
-  "publish_content_peers",
 ] as const;
 
 async function loginAsOwner(baseUrl: string): Promise<string> {

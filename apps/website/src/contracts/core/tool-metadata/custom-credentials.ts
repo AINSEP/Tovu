@@ -3,6 +3,14 @@ import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-
 
 /** custom-credentials registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
+  "credential_copy_from_project": {
+    search: {
+      keywords: "copy import reuse keys credentials tokens local project site source overwrite",
+      queries: ["Copy keys from another local project.", "Reuse another site's saved API keys in this project."],
+    },
+    approval: { class: 'edit', confirmation: 'direct', input: 'human-form' },
+    mcpUi: { redeemable: true, exchangeOnly: true },
+  },
   "credential_save": {
     search: {
       keywords: "credential save connect add create new account api key token set update change rotate replace expired refresh secret human form " +

@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 
 import { openSqliteSnapshotSource } from "../sqlite-source.js";
 import { collectSchemaTables, planSnapshotTables } from "../table-catalog.js";
+import { indexSql } from "../postgres-ddl.js";
 
 test("the host schema retains the submission-IP retention index's partial predicate", () => {
   const submissions = collectSchemaTables().find(table => table.name === "form_submissions");
@@ -11,6 +12,14 @@ test("the host schema retains the submission-IP retention index's partial predic
     name: "idx_form_submissions_ip_retention", columns: ["submitted_at", "id"], unique: false,
     where: "source_ip IS NOT NULL",
   });
+});
+
+test("the full schema retains vault expression indexes with unqualified column references", () => {
+  const vault = collectSchemaTables().find(table => table.name === "secrets_vault");
+  assert.ok(vault);
+  const ddl = indexSql("public", vault);
+  assert.ok(ddl.includes('CREATE UNIQUE INDEX "secrets_vault_default" ON "public"."secrets_vault" ("workspace_id", "kind", "owner_key", (("principal_id" IS NULL)), (coalesce("principal_id",\'\')), (("provider" IS NULL)), (coalesce("provider",\'\'))) WHERE is_default = true;'));
+  assert.doesNotMatch(ddl, /"secrets_vault"\."(?:principal_id|provider)"/);
 });
 
 test("plugin layout uses affinity, literal defaults and INTEGER identity; drops partial and expression indexes", (t) => {

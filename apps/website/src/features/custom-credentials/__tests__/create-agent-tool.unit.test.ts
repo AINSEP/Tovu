@@ -65,6 +65,12 @@ function fakeRouteDeps(options: { allow?: boolean; httpClient?: HttpClientPort }
   const keyring = new InMemoryKeyring();
   const sealer = new TrackingSecretSealer(new AesGcmSecretSealer(keyring));
   const authorizeCalls: Array<Record<string, unknown>> = [];
+  // One id source for both write paths, as in production: two independent counters would both mint
+  // `cred-1`, and the vault refuses a create over an existing id before the label is ever compared.
+  const idGen = (() => {
+    let n = 0;
+    return { newId: () => `cred-${++n}` };
+  })();
 
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
@@ -74,10 +80,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpClient?: HttpClientPort }
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
-    idGen: (() => {
-      let n = 0;
-      return { newId: () => `cred-${++n}` };
-    })(),
+    idGen,
     customCredentialsHttpClient: options.httpClient ?? new ExplodingHttpClient(),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -90,10 +93,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpClient?: HttpClientPort }
     sealer,
     keyring,
     clock: createFakeClock({ startIso: NOW }),
-    idGen: (() => {
-      let n = 0;
-      return { newId: () => `cred-${++n}` };
-    })(),
+    idGen,
   };
 
   return { deps, repo, sealer, writeDeps, authorizeCalls };
@@ -136,9 +136,9 @@ function exchangeIdFromSurface(surface: unknown): string {
   return match[1]!;
 }
 
-async function raiseForm(createTool: ToolRegistration, input: Record<string, unknown> = {}) {
+async function raiseForm(createTool: ToolRegistration, input: Record<string, unknown> = {}, options: Pick<CallOptions, "signal"> = {}) {
   const emitted: unknown[] = [];
-  const pending = call(createTool, { input, emitSurface: async (s) => void emitted.push(s) });
+  const pending = call(createTool, { input, signal: options.signal, emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(emitted.length, 1, "the form must be emitted before the call parks");
   const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
@@ -296,14 +296,16 @@ test("submit: a new credential is created, sealed exactly once, the token decryp
   assert.equal(resolved!.category, "source-control");
 });
 
-test("submit: an optional username is saved alongside the token", async () => {
+test("submit: an optional username is saved alongside the token", { timeout: 5_000 }, async (t) => {
   const { deps, repo, sealer } = fakeRouteDeps();
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
 
-  const { pending, exchangeId } = await raiseForm(createTool);
-  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "name.com", baseUrl: "https://api.name.com", category: "hosting", username: "leonaburime@gmail.com", token: "a-token" } }, { toolId: TOOL_ID });
-  await pending;
+  const { pending, exchangeId } = await raiseForm(createTool, {}, { signal: t.signal });
+  assert.deepEqual(surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { label: "name.com", baseUrl: "https://api.name.com", category: "hosting", username: "leonaburime@gmail.com", token: "a-token" } }, { toolId: TOOL_ID }), { ok: true });
+  const result = await pending as { created: boolean };
+  assert.equal(result.created, true);
+  assert.equal(surfaceExchanges.size(), 0);
 
   const resolved = await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "name.com" });
   assert.ok(resolved);

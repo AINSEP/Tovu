@@ -11,7 +11,7 @@ import test from "node:test";
 import { buildExportBundle } from "#src/features/publish-content/export-bundle";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { pushBundleToPeer, confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport";
-import { saveConnectedDestination, type PublishContentPeerRecord, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
+import { saveConnectedDestination, InMemoryPublishContentPeerRepo, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import { entityKey } from "#src/features/publish-content/planner";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { connectDestination, disconnectDestination, findCandidateDestination } from "#src/features/publish-trust/connect";
@@ -109,24 +109,7 @@ function clientTo(port: () => number): HttpClientPort {
 
 /** The peer table, in memory. The production SQLite adapter satisfies the same port. */
 function memoryPeerRepo(): PublishContentPeerRepoPort {
-  const rows = new Map<string, PublishContentPeerRecord>();
-  return {
-    async insert(record) {
-      rows.set(record.id, record);
-    },
-    async update(record) {
-      rows.set(record.id, record);
-    },
-    async findById({ id }) {
-      return rows.get(id) ?? null;
-    },
-    async listByWorkspace({ workspaceId }) {
-      return [...rows.values()].filter((row) => row.workspaceId === workspaceId);
-    },
-    async delete({ id }) {
-      rows.delete(id);
-    },
-  };
+  return new InMemoryPublishContentPeerRepo();
 }
 
 /** The filesystem, in memory — the same `ProvisioningFileIo` seam the node adapter implements. */

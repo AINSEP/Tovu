@@ -13,8 +13,6 @@ export type {
   SourceControlProviderId,
 } from "./types.js";
 
-export { buildSourceControlCredentialAad } from "./aad.js";
-
 export {
   createSourceControlCredential,
   deleteSourceControlCredential,

@@ -14,7 +14,7 @@ import {
 } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "#src/platform/oauth/index";
+import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 
 import { createApplyConnectDefaults } from "../../apply-connect-defaults.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
@@ -112,7 +112,6 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     sealer,
     keyring,
     clock,
-    pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
       fetchFn: ({ url }, init) => (tokenFetch)(url, init) },
@@ -124,7 +123,7 @@ async function makeHarness(row: { allowedToolNames?: string; provisionedByPlugin
     const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
     assert.equal(started.kind, "redirect_required");
     const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
-    await service.completeAuthorizationCallback({ serverId: SERVER, params: { state: state ?? "", code: "auth-code" } });
+    await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "auth-code" } });
   }
 
   async function readRow() {

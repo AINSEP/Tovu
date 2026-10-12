@@ -5,6 +5,7 @@ import { computeCoreTableCopyOrder, DERIVED_OBJECTS } from "../../platform/db/mi
 import * as pgSchema from "../../platform/db/schema.postgres.js";
 import { EXCLUDED_CORE_TABLES, PARTIALLY_EXCLUDED_TABLES, SECRET_COLUMN_PATTERN, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
 import type { SourceColumn, SourceTableLayout, TransferSource } from "./sqlite-source.js";
+import { quoteIdent } from "./postgres-ddl.js";
 
 /**
  * @file What a copy carries: every table in the site's snapshot is either a {@link TransferTable}
@@ -47,14 +48,17 @@ function coreColumn(column: PgColumn): TransferColumn {
   };
 }
 
+/** Project the trusted Drizzle schema into Jini's DDL contract; plugin SQL never enters here.
+ * @complexity O(index terms + columns + unique constraints); no I/O or source mutation.
+ */
 function coreIndexes(cfg: ReturnType<typeof getTableConfig>): TransferIndex[] {
   const declared = cfg.indexes.map((index) => ({
     name: index.config.name ?? `${cfg.name}_idx`,
-    columns: index.config.columns.map((column) => {
-      const name = is(column, SQL) ? undefined : (column as IndexedColumn).name;
-      if (name === undefined) throw new Error(`schema.postgres.ts: index '${index.config.name}' on '${cfg.name}' uses an expression this copier cannot write`);
-      return name;
-    }),
+    columns: index.config.columns.filter(column => !is(column, SQL)).map(column => (column as IndexedColumn).name!),
+    // Drizzle's index rendering omits table qualifiers. Only the developer-owned schema supplies
+    // expressions; introspected plugin expressions remain excluded by Jini's snapshot planner.
+    ...(index.config.columns.some(column => is(column, SQL)) ? { expressions: index.config.columns.map(column =>
+      is(column, SQL) ? `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})` : quoteIdent((column as IndexedColumn).name!)) } : {}),
     unique: index.config.unique,
     // Only the developer-owned Postgres schema supplies SQL; plugin predicates stay excluded.
     ...(index.config.where === undefined ? {} : { where: dialect.sqlToQuery(index.config.where).sql }),
@@ -100,8 +104,8 @@ export function collectTransferTables(): TransferTable[] {
   return computeCoreTableCopyOrder().flatMap((exportName) => {
     const table = byExportName[exportName];
     if (table === undefined) throw new Error(`schema.postgres.ts has no table exported as '${exportName}'; regenerate it`);
-    const transfer = coreTable(table);
-    return transfer.name in EXCLUDED_CORE_TABLES ? [] : [transfer];
+    if (getTableConfig(table).name in EXCLUDED_CORE_TABLES) return [];
+    return [coreTable(table)];
   });
 }
 
@@ -150,7 +154,7 @@ export function planSnapshotTables(source: TransferSource): SnapshotTablePlan {
       ...Object.fromEntries(CHAT_TABLES.map(name => [name, LEGACY_CONTENT_CHAT_REASON])),
     },
     derivedNames: new Set(DERIVED_OBJECTS.map(object => object.name)), migrationLedgers: MIGRATION_LEDGERS,
-    bookkeepingPrefixes: ["sqlite_", "_plugin_"], secretColumnPattern: SECRET_COLUMN_PATTERN,
+    bookkeepingPrefixes: ["sqlite_", "_plugin_", "_vault_backup_"], secretColumnPattern: SECRET_COLUMN_PATTERN,
   } });
 }
 /** chat.db's raw-SQL schema is introspected separately; never use content's Drizzle catalog here. */

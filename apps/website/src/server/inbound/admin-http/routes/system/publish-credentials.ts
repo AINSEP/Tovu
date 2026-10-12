@@ -92,6 +92,8 @@ export type AdminPublishCredentialsDeps = Pick<
   | "clock"
   | "idGen"
   | "vendorCredentialSetRepo"
+
+  | "contentKernel"
   | "siteAssistantSecretSealer"
   | "siteAssistantSecretKeyring"
   | "publishExecutionMode"
@@ -327,7 +329,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // (not errors) for a missing row, matching this route's own documented 204-always contract.
       // A THROWN error here is a different case (e.g. the repo itself is unreachable) — not the
       // idempotent-missing-row path above, so it still needs a response, not a silent no-op.
-      await deletePublishCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      await deletePublishCredential({ ...readDeps, transaction: deps.contentKernel }, { workspaceId: deps.workspaceId, id: req.params.id });
       res.status(204).end();
     } catch (err) {
       sendStoreError(res, err);

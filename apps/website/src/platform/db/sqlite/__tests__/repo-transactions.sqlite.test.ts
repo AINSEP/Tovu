@@ -11,7 +11,7 @@ import { SqliteTokenStore } from "../gated-mutation-token-repo.sqlite.js";
 import { SqliteMediaProviderCredentialRepo } from "../media-provider-credential-repo.sqlite.js";
 import { SqliteMediaRepo } from "../media-repo.sqlite.js";
 import { SqliteOutboxAdapter } from "../outbox-repo.sqlite.js";
-import { SqlitePublishCredentialSetRepo } from "../publish-credential-repo.sqlite.js";
+import { SqliteVendorCredentialSetRepo } from "../vendor-credential-repo.sqlite.js";
 import { writeDuringOthersRollback } from "./concurrent-rollback.js";
 
 /**
@@ -33,11 +33,12 @@ function openSeededDb() {
 
 test("publish credentials: insert survives another caller's rollback", async () => {
   const db = openSeededDb();
-  const repo = new SqlitePublishCredentialSetRepo(db);
+  const repo = new SqliteVendorCredentialSetRepo(db);
   const record = {
     workspaceId: WORKSPACE,
     id: "cred-1",
-    providerId: "github-pages" as const,
+    vendorId: "github",
+    tokenTail: "",
     label: "Main repo",
     sealed: { keyId: "v1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" as const },
     isDefault: true,

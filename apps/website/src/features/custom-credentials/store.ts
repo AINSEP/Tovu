@@ -1,10 +1,10 @@
-import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, credentialTokenHint, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
-import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
+import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../contracts/core/credential-token.js';
+import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import { buildCustomCredentialAad } from "./aad.js";
+import { createTovuStoreVault } from "../../server/runtime/composition/vault-kinds.js";
+import { customVaultRecord, customVaultScope } from "./vault-repo.js";
 import {
   CUSTOM_CREDENTIAL_CATEGORIES,
   type CustomCredentialCategoryId,
@@ -15,33 +15,9 @@ import {
 } from "./types.js";
 
 /**
- * @file Validate-then-seal-then-write CRUD over `custom_credential_sets`, structurally mirroring
- * `features/source-control/store.ts` — see that file's own header for the design this one copies.
- * Simpler than either sibling: no provider-id dispatch (every row is its own standalone identity —
- * see `types.ts`'s own header), no `isDefault` group invariant, no account-label probe, no
- * decrypting read (nothing in this codebase consumes the plaintext connection yet — adding one with
- * no caller would be dead code, same reasoning `source-control/store.ts`'s header gives for its own
- * "no `resolveForX`" choice; the day something needs to actually USE a saved custom credential, a
- * decrypt path can be added the same way `resolveForPublish`/`resolveDefaultForSourceControl` were).
- *
- * {@link describeCredential}/{@link listCustomCredentials} — read model only, never touch
- * `sealer`/`keyring` at all, so neither can fail on a misconfigured site key.
- *
- * {@link createCustomCredential}/{@link updateCustomCredential}/{@link deleteCustomCredential} —
- * validate-then-write. `connection`, when supplied, is ALWAYS resealed as a fresh ciphertext (never
- * a re-wrap of the old one) under a fresh AAD bound to that row's own `(workspaceId, id)` — see
- * `./aad.ts`'s `buildCustomCredentialAad`.
- *
- * {@link resolveCustomCredentialByLabel} — added 2026-08-31 for the mail HTTP-API/SMTP adapters
- * (`server/runtime/boot/resolve-mailer.ts`), the first real decrypting reader this table has ever
- * had. This file's header USED TO say "nothing in this codebase consumes the plaintext connection
- * yet — adding one with no caller would be dead code"; that day arrived, so the decrypt path was
- * added the same way the header itself predicted (mirroring `vendor-credentials/store.ts`'s own
- * `resolveForVendor`/`decryptRecord`). Looked up by LABEL, not id: this table has no `purpose`/
- * `role` column and `label` is this table's own identity field (see this file's header above), so
- * a caller that needs "the row a well-known integration should use" has no other stable handle to
- * find it by. `resolve-mailer.ts` documents the exact label strings an operator must type into the
- * Access Tokens "Add custom provider" form to activate each mail adapter.
+ * @file Feature validation and CRUD over Jini's vault. Public summaries contain saved origins,
+ * usernames and safe hints only. Tokens live in sealed JSON; boot/recovery owns legacy decoding.
+ * Label selection and origin checks never open unrelated credentials.
  */
 
 const MAX_LABEL_LENGTH = 200;
@@ -63,27 +39,14 @@ export class CustomCredentialSecretStoreUnconfiguredError extends Error {}
 
 export class CustomCredentialNotFoundError extends Error {}
 
-/** `username` is spread in conditionally rather than assigned as a possibly-`undefined` property so
- *  a credential without one has NO `username` key at all — "absent" stays a single representation
- *  all the way out to the admin JSON and `custom_credential_list`, instead of becoming a second,
- *  falsy-but-present value every consumer would have to remember to treat as absent. */
-/** Owner 2026-10-07 amendment to historical never-decrypt comments: optional server-side
- * unsealing derives only the safe length/tail hint. A failed open leaves metadata readable. */
-async function toSummary(record: CustomCredentialSetRecord, sealer?: SecretSealerPort): Promise<CustomCredentialSummary> {
-  let tokenHint: CredentialTokenHint | null = null;
-  if (sealer) { try { tokenHint = credentialTokenHint({ token: (await decryptRecord(sealer, record)).token }); } catch { /* Keep metadata readable after site-key rotation. */ } }
-  return {
-    id: record.id,
-    label: record.label,
-    category: record.category,
-    baseUrl: record.baseUrl,
-    additionalHosts: record.additionalHosts,
-    ...(record.username !== undefined ? { username: record.username } : {}),
-    configured: true,
-    ...(sealer ? { tokenHint } : {}),
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-  };
+/** Safe hints are stored with the envelope; no per-row decrypt is needed for readback. */
+async function toSummary(record: CustomCredentialSetRecord): Promise<CustomCredentialSummary> {
+  const row = record.vaultRecord;
+  return { id: record.id, label: record.label, category: record.category, baseUrl: record.baseUrl,
+    additionalHosts: record.additionalHosts, ...(record.username !== undefined ? { username: record.username } : {}),
+    configured: true, tokenHint: row?.tokenLength === null || row?.tokenLength === undefined ? null :
+      { length: row.tokenLength, last4: row.tokenLength >= 12 ? row.last4 : null },
+    createdAt: record.createdAt, updatedAt: record.updatedAt };
 }
 
 export interface CustomCredentialReadDeps {
@@ -100,7 +63,7 @@ export interface CustomCredentialReadDeps {
  */
 export async function describeCredential(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSummary | null> {
   const record = await deps.repo.findById(input);
-  return record ? toSummary(record, deps.sealer) : null;
+  return record ? toSummary(record) : null;
 }
 
 /**
@@ -120,7 +83,7 @@ export async function describeCredential(deps: CustomCredentialReadDeps, input: 
 export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; label: string }): Promise<CustomCredentialSummary | null> {
   const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const record = records.find((row) => row.label === input.label);
-  return record ? toSummary(record, deps.sealer) : null;
+  return record ? toSummary(record) : null;
 }
 
 /**
@@ -132,7 +95,7 @@ export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, 
  */
 export async function listCustomCredentials(deps: CustomCredentialReadDeps, input: { workspaceId: UUID }): Promise<CustomCredentialSummary[]> {
   const records = await deps.repo.listByWorkspace(input);
-  return Promise.all(records.map(record => toSummary(record, deps.sealer)));
+  return Promise.all(records.map(record => toSummary(record)));
 }
 
 export interface CustomCredentialWriteDeps extends CustomCredentialReadDeps {
@@ -226,13 +189,6 @@ function validateAdditionalHosts(raw: unknown): readonly string[] {
   return [...new Set(raw.map((entry, index) => validateAdditionalHostEntry(entry, index)))];
 }
 
-function requireNonEmptyString(raw: unknown, field: string): string {
-  if (typeof raw !== "string" || raw.trim() === "") {
-    throw new CustomCredentialValidationError(`'${field}' (non-empty string) is required`);
-  }
-  return raw;
-}
-
 function optionalString(raw: unknown, field: string): string | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "string" || raw.trim() === "") {
@@ -297,24 +253,6 @@ function validateConnection(raw: unknown): CustomProviderConnectionInput {
   return { token, ...(username !== undefined ? { username } : {}) };
 }
 
-/** Wraps `sealer.seal()`/`keyring.activeKey()` failure into the fail-closed
- *  {@link CustomCredentialSecretStoreUnconfiguredError} contract — never falls through to a
- *  plaintext write. */
-async function sealConnection(
-  deps: CustomCredentialWriteDeps,
-  input: { workspaceId: UUID; id: UUID; connection: CustomProviderConnectionInput }
-) {
-  try {
-    const activeKey = await deps.keyring.activeKey();
-    const aad = buildCustomCredentialAad({ workspaceId: input.workspaceId, id: input.id });
-    return await deps.sealer.seal({ plaintext: JSON.stringify(input.connection), key: activeKey, aad });
-  } catch (err) {
-    throw new CustomCredentialSecretStoreUnconfiguredError(
-      CREDENTIAL_MESSAGES.storage
-    );
-  }
-}
-
 /** True iff `err` is the label's UNIQUE `(workspace_id, …, label)` index rejecting a duplicate, on
  *  any database (`isUniqueViolation`, storage kernel). */
 export function isUniqueLabelViolation(err: unknown): boolean {
@@ -349,35 +287,17 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
   const additionalHosts = validateAdditionalHosts(input.additionalHosts);
   const connection = validateConnection(input.connection);
   const id = deps.idGen.newId();
-  const now = clockNowIso({ clock: deps.clock });
-
-  const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id, connection });
-  const record: CustomCredentialSetRecord = {
-    workspaceId: input.workspaceId,
-    id,
-    label,
-    category,
-    baseUrl,
-    additionalHosts,
-    // Written to the plaintext column AND left inside the sealed connection object above — see
-    // `db/schema.sqlite.ts`'s `customCredentialSets.username` doc: the column is the read model's source,
-    // the sealed copy keeps every existing decrypting reader working until the migration's Pass 2.
-    ...(connection.username !== undefined ? { username: connection.username } : {}),
-    sealed,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  try {
-    await deps.repo.insert(record);
-  } catch (err) {
-    if (isUniqueLabelViolation(err)) {
-      throw new CustomCredentialDuplicateLabelError(`a custom credential labeled '${label}' already exists in this workspace`);
-    }
+  const prepared = await customVault(deps).prepare({ ...customVaultScope({ workspaceId: input.workspaceId, id }),
+    id, expectedRevision: null, provider: null, label,
+    meta: { category, baseUrl, additionalHosts: [...additionalHosts], username: connection.username ?? null },
+    payload: { token: connection.token }, hintToken: connection.token });
+  const record = customVaultRecord({ row: prepared, expectedRevision: null });
+  try { await deps.repo.insert(record); }
+  catch (err) {
+    if (isUniqueLabelViolation(err)) throw new CustomCredentialDuplicateLabelError(`a custom credential labeled '${label}' already exists in this workspace`);
     throw err;
   }
-  // The normalized token is already in memory; deriving its hint never needs a sealed-store read.
-  return { ...await toSummary(record), tokenHint: credentialTokenHint({ token: connection.token }) };
+  return toSummary(record);
 }
 
 export interface UpdateCustomCredentialInput {
@@ -413,141 +333,39 @@ export interface UpdateCustomCredentialInput {
   username?: unknown;
 }
 
-/**
- * Validate-then-write for an existing credential set.
- *
- * @throws {CustomCredentialNotFoundError} No row exists for `(workspaceId, id)`.
- * @throws {CustomCredentialValidationError} A supplied field fails validation.
- * @throws {CustomCredentialDuplicateLabelError} The (possibly renamed) `label` collides with a
- *   different row.
- * @throws {CustomCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but the
- *   site key is unavailable.
- *
- * ## `username`/`connection` precedence (2026-09-01)
- *
- * These two fields can each independently touch the `username` column, so a call supplying BOTH
- * needs one documented winner: the top-level {@link UpdateCustomCredentialInput.username} field
- * ALWAYS wins for what the column ends up holding. It is the more specific, explicit "set (or clear)
- * the username" signal a caller can send on its own with no token in hand at all; `connection`'s own
- * `username` member only ever arrives bundled with a token replacement, so treating it as the
- * decisive value would make an operator's explicit, standalone edit losable by an unrelated,
- * incidental field on a DIFFERENT input. Note this CAN leave the plaintext column and the sealed
- * copy's own embedded username disagreeing when both fields are supplied together with different
- * values — that is an accepted, pre-existing divergence, not a new inconsistency this introduces:
- * `resolveCustomCredentialByLabel`'s own doc already establishes the column as authoritative over the
- * sealed copy for every reader, precisely so a future gap between the two is never a correctness
- * problem, only ever a fact about which write path touched last.
- *
- * One divergence is NOT left standing, though: a standalone `username: null` clear (no `connection`
- * supplied in the same call) re-seals the existing token WITHOUT a username, rather than leaving the
- * old ciphertext in place. Skipping that reseal would be invisible to every non-decrypting reader
- * (`describeCredential`/`listCustomCredentials` never look at the sealed copy at all) but would
- * silently resurrect the just-cleared value the moment `resolveCustomCredentialByLabel` — the one
- * decrypting reader — hit a row whose column is `undefined` and fell back to the stale embedded
- * username.
- *
- * @complexity O(1) — one read, at most one seal, one update, plus one extra decrypt+seal on a
- *   standalone username clear.
- */
-/** The four "keep existing unless a new value was supplied" scalar fields `updateCustomCredential`
- *  can patch — validates each supplied value, otherwise keeps `existing`'s as-is. Extracted so the
- *  orchestrator's own body reads as pure sequencing. */
-function resolveUpdatedScalarFields(
-  existing: CustomCredentialSetRecord,
-  input: UpdateCustomCredentialInput
-): Pick<CustomCredentialSetRecord, "label" | "category" | "baseUrl" | "additionalHosts"> {
-  return {
-    label: input.label !== undefined ? validateLabel(input.label) : existing.label,
-    category: input.category !== undefined ? validateCategory(input.category) : existing.category,
-    baseUrl: input.baseUrl !== undefined ? validateBaseUrl(input.baseUrl) : existing.baseUrl,
-    additionalHosts: input.additionalHosts !== undefined ? validateAdditionalHosts(input.additionalHosts) : existing.additionalHosts,
-  };
+/** Constrain one feature service; permission checks remain in routes/tools. */
+function customVault(deps: CustomCredentialResolveDeps & Partial<CustomCredentialWriteDeps>, _options = {}) {
+  return createTovuStoreVault({ ...deps, kind: "custom",
+    storageError: () => new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 
-/**
- * Resolves the `sealed`/`username` pair for an update, applying the documented precedence (see
- * {@link updateCustomCredential}'s own doc for the full writeup):
- *
- * `username` tracks the CONNECTION, not the row: replacing the connection replaces the username
- * (including clearing it, when the new connection omits one — the two are one credential, and a
- * rotation that dropped the username while the old one lingered in the column would be a lie).
- * Omitting `connection` entirely leaves both the ciphertext and the username exactly as they were,
- * matching this store's documented "omitting `connection` keeps the secret" contract.
- *
- * The top-level `username` field is then applied AFTER `connection` so it can override whatever the
- * block above just computed. Left as a no-op (not even revalidated) when omitted, so a caller that
- * never mentions `username` keeps exactly what `connection` decided (or `existing.username`, if
- * `connection` was omitted too) — the untouched-unless-asked contract every other optional field on
- * this store already has.
- *
- * An explicit clear (`username: null`) with no `connection` replacement additionally re-seals with
- * the existing token and no username: skipping that would leave `sealed` still carrying the OLD
- * username inside the ciphertext, and `resolveCustomCredentialByLabel` falls back to that embedded
- * value whenever the plaintext column is `undefined` (its own doc explains why: half-migrated rows)
- * — so without this reseal the clear would silently resurrect on the next decrypting read. Not
- * needed for the "set a new value" case: the column always wins over the sealed copy once it holds
- * a real value, so that divergence never surfaces to a reader (see `update-username.unit.test.ts`'s
- * byte-identical assertion for that case, which this function must not disturb).
- *
- * @complexity O(1) — at most one seal, plus one extra decrypt+seal on a standalone username clear.
+/** Partial update: blank/omitted connection preserves the envelope, replacing a connection resets
+ * its username, and a supplied top-level username wins (null clears). Username is metadata only;
+ * removing the old ciphertext fallback makes clear impossible to resurrect, without opening it.
+ * @complexity Constant queries/seals plus metadata size; CAS rejects a concurrent replacement.
  */
-async function resolveSealedAndUsername(
-  deps: CustomCredentialWriteDeps,
-  input: UpdateCustomCredentialInput,
-  existing: CustomCredentialSetRecord
-): Promise<{ sealed: CustomCredentialSetRecord["sealed"]; username: string | undefined; tokenHint?: CredentialTokenHint | null }> {
-  let sealed = existing.sealed;
-  let username = existing.username;
-  let tokenHint: CredentialTokenHint | null | undefined;
-
-  if (input.connection !== undefined && !isEmptyTokenPatch(input.connection)) {
-    const connection = validateConnection(input.connection);
-    sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection });
-    username = connection.username;
-    tokenHint = credentialTokenHint({ token: connection.token });
-  }
-
-  if (input.username !== undefined) {
-    username = validateUsernamePatch(input.username);
-    if (username === undefined && (input.connection === undefined || isEmptyTokenPatch(input.connection))) {
-      const oldConnection = await decryptRecord(deps.sealer, existing);
-      sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection: { token: oldConnection.token } });
-    }
-  }
-
-  return { sealed, username, ...(tokenHint !== undefined ? { tokenHint } : {}) };
-}
-
 export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
-  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!existing) {
-    throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
-  }
-
-  const scalarFields = resolveUpdatedScalarFields(existing, input);
-  const now: ISODateTime = clockNowIso({ clock: deps.clock });
-  const { sealed, username, tokenHint } = await resolveSealedAndUsername(deps, input, existing);
-
-  const record: CustomCredentialSetRecord = {
-    workspaceId: input.workspaceId,
-    id: input.id,
-    ...scalarFields,
-    ...(username !== undefined ? { username } : {}),
-    sealed,
-    createdAt: existing.createdAt,
-    updatedAt: now,
-  };
-
-  try {
-    await deps.repo.update(record);
-  } catch (err) {
-    if (isUniqueLabelViolation(err)) {
-      throw new CustomCredentialDuplicateLabelError(`a custom credential labeled '${scalarFields.label}' already exists in this workspace`);
-    }
+  const existing = await deps.repo.findById(input);
+  if (!existing) throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
+  const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
+  const category = input.category !== undefined ? validateCategory(input.category) : existing.category;
+  const baseUrl = input.baseUrl !== undefined ? validateBaseUrl(input.baseUrl) : existing.baseUrl;
+  const additionalHosts = input.additionalHosts !== undefined ? validateAdditionalHosts(input.additionalHosts) : existing.additionalHosts;
+  const connection = input.connection !== undefined && !isEmptyTokenPatch(input.connection) ? validateConnection(input.connection) : undefined;
+  let username = connection ? connection.username : existing.username;
+  if (input.username !== undefined) username = validateUsernamePatch(input.username);
+  const expectedRevision = existing.vaultRecord!.revision;
+  const prepared = await customVault(deps).prepare({ ...customVaultScope(input), id: input.id,
+    expectedRevision, provider: null, label,
+    meta: { ...existing.vaultRecord!.meta, category, baseUrl, additionalHosts: [...additionalHosts], username: username ?? null },
+    ...(connection ? { payload: { token: connection.token }, hintToken: connection.token } : {}) });
+  const record = customVaultRecord({ row: prepared, expectedRevision });
+  try { await deps.repo.update(record); }
+  catch (err) {
+    if (isUniqueLabelViolation(err)) throw new CustomCredentialDuplicateLabelError(`a custom credential labeled '${label}' already exists in this workspace`);
     throw err;
   }
-  // Metadata writes must not open ciphertext merely to decorate their non-secret readback.
-  return { ...await toSummary(record), ...(tokenHint !== undefined ? { tokenHint } : {}) };
+  return toSummary(record);
 }
 
 /**
@@ -561,56 +379,30 @@ export async function deleteCustomCredential(deps: CustomCredentialReadDeps, inp
   await deps.repo.delete(input);
 }
 
-/** Shared decrypt step for {@link resolveCustomCredentialByLabel} — same hardened-from-the-start
- *  shape `vendor-credentials/store.ts`'s own `decryptRecord` documents (never lets a raw decrypt
- *  failure escape as an unhandled rejection; see that file's header for the 2026-08-16 incident
- *  this pattern exists to avoid repeating). */
-async function decryptRecord(sealer: SecretSealerPort, record: CustomCredentialSetRecord): Promise<CustomProviderConnectionInput> {
-  const aad = buildCustomCredentialAad({ workspaceId: record.workspaceId, id: record.id });
-  try {
-    const plaintext = await sealer.open({ sealed: record.sealed }, { aad });
-    return JSON.parse(plaintext) as CustomProviderConnectionInput;
-  } catch (err) {
-    throw new CustomCredentialSecretStoreUnconfiguredError(
-      CREDENTIAL_MESSAGES.storage
-    );
-  }
-}
-
 export interface CustomCredentialResolveDeps {
   repo: CustomCredentialSetRepoPort;
   sealer: SecretSealerPort;
 }
 
-/**
- * The ONLY decrypting read this table has (see this file's header). Finds the workspace's custom
- * credential set by its exact `label` and decrypts it. Returns `null` if no row has that label —
- * NOT an error, since "not configured" is an expected, ordinary state for an optional integration
- * (a caller like `resolve-mailer.ts` falls back to a safe default in that case, it does not treat
- * this as exceptional).
- *
- * `listByWorkspace` + an in-memory filter, rather than a new `findByLabel` repo method: this
- * table's own `listByWorkspace` doc already establishes "inherently small — bounded by how many an
- * operator bothers to add", so a client-side scan costs nothing measurable and avoids widening
- * `CustomCredentialSetRepoPort`'s surface (and therefore both its adapters) for a single caller.
- *
- * @throws {CustomCredentialSecretStoreUnconfiguredError} A row with this label exists but
- *   `decryptRecord` failed (site key missing/rotated, or a corrupted row).
- * @complexity O(n) in the workspace's own (small) credential-set count, plus one decrypt.
+/** Select by saved label without opening, then open only that row under its expected ownership.
+ * Saved metadata is the authoritative source of allowed origins and username, including clears.
+ * @throws CustomCredentialSecretStoreUnconfiguredError on crypto failure.
+ * @complexity O(n) metadata selection, n workspace rows, plus one selected envelope open.
  */
 export async function resolveCustomCredentialByLabel(
   deps: CustomCredentialResolveDeps,
   input: { workspaceId: UUID; label: string }
 ): Promise<{ id: UUID; category: CustomCredentialCategoryId; baseUrl: string; additionalHosts: readonly string[]; connection: CustomProviderConnectionInput } | null> {
   const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
-  const record = records.find((row) => row.label === input.label);
+  const record = records.find(row => row.label === input.label);
   if (!record) return null;
-  const decrypted = await decryptRecord(deps.sealer, record);
-  // The plaintext column WINS over the sealed copy when both are present — it is the authoritative
-  // home as of 2026-09-01 and the only one a write can update on its own. The sealed copy is the
-  // fallback purely for rows the Pass 1 backfill has not reached yet (or could not decrypt), so this
-  // resolver keeps returning the right username on a half-migrated database, in either direction.
-  const username = record.username ?? decrypted.username;
-  const connection: CustomProviderConnectionInput = { token: decrypted.token, ...(username !== undefined ? { username } : {}) };
-  return { id: record.id, category: record.category, baseUrl: record.baseUrl, additionalHosts: record.additionalHosts, connection };
+  const resolved = await customVault(deps).get({ ...customVaultScope(record), id: record.id });
+  if (!resolved) return null;
+  if (typeof resolved.payload?.token !== "string") throw new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  // Use metadata from the same read as the payload, so a concurrent origin/username update cannot
+  // pair a new token with the old allowlist. Never fall back to an embedded legacy username.
+  const current = resolved.summary.meta;
+  return { id: record.id, category: current.category as CustomCredentialCategoryId, baseUrl: current.baseUrl as string,
+    additionalHosts: current.additionalHosts as string[], connection: { token: resolved.payload.token,
+      ...(typeof current.username === "string" ? { username: current.username } : {}) } };
 }

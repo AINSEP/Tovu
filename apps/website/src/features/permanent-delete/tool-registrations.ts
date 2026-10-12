@@ -23,6 +23,7 @@ import type { StaticPublishToolDeps } from "../deployments/publish-agent-tools.j
 /** Extra host ports read by the injected adapter, beyond the existing domains' deps slices. */
 export interface PermanentDeleteHostDeps {
   forgetRemovedMedia: ForgetRemovedEntity;
+  contentKernel?: import("#src/platform/db/content-kernel").ContentKernel;
   loadDeployTargets: NonNullable<StaticPublishToolDeps["loadDeployTargets"]>;
 }
 

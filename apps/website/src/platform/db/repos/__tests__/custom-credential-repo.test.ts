@@ -1,22 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
-import { isUniqueLabelViolation } from "#src/features/custom-credentials/store";
+import { createCustomCredential, updateCustomCredential, describeCredential, resolveCustomCredentialByLabel, isUniqueLabelViolation } from "#src/features/custom-credentials/store";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/types";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlCustomCredentialSetRepo } from "../custom-credential-repo.js";
 
-/**
- * @file `SqlCustomCredentialSetRepo` against a real, migrated content database on every dialect.
- *
- * Had ZERO test coverage of any kind before this file — confirmed via the combined-lcov cross-check
- * (toRecord/toValues/insert/update/findById/listByWorkspace/delete all read 0 hits, deduped). What
- * only a real DB proves here: the composite `(workspace_id, id)` primary key really scopes
- * find/update/delete, and the `custom_credential_sets_workspace_label_unique` index really rejects a
- * duplicate label within one workspace (this repo's own doc: "Letting it propagate raw is
- * deliberate" — `store.ts`'s `isUniqueLabelViolation` is what catches and translates it, not this
- * layer, so this suite proves the raw constraint fires rather than a translated error).
+/** Existing characterization suite now exercises Jini's vault-backed facade on both dialects.
+ * The step is activated on disposable fixtures only; production migration registration is untouched.
  */
 
 const WORKSPACE = "workspace-1";
@@ -43,16 +38,41 @@ function makeRecord(overrides: Partial<CustomCredentialSetRecord> = {}): CustomC
 
 describeEachDialect(
   "CustomCredentialSetRepoPort",
-  { tables: ["custom_credential_sets", "workspaces"], make: (kernel) => ({ kernel, repo: new SqlCustomCredentialSetRepo(kernel) }) },
+  { tables: ["workspaces"], make: (kernel) => ({ kernel, repo: new SqlCustomCredentialSetRepo(kernel) }) },
   (make) => {
     async function makeRepo() {
       const { kernel, repo } = make();
+      await ensureVaultRepoFixture({ kernel });
       await seedWorkspaces(kernel, [WORKSPACE, OTHER_WORKSPACE]);
       return repo;
     }
 
     test("findById returns null when no row exists", async () => {
       assert.equal(await (await makeRepo()).findById({ workspaceId: WORKSPACE, id: "cred-1" }), null);
+    });
+
+    test("vault persistence retains safe hints, origin restrictions and username clears through the public store", async () => {
+      const repo = await makeRepo();
+      const keyring = new InMemoryKeyring();
+      const sealer = new AesGcmSecretSealer(keyring);
+      const deps = { repo, keyring, sealer, clock: { nowMs: () => Date.parse(NOW) }, idGen: { newId: () => "public-store" } };
+      const created = await createCustomCredential(deps, { workspaceId: WORKSPACE, label: "original", category: "hosting",
+        baseUrl: "https://api.name.com/v1", additionalHosts: ["https://other.example.com/path"],
+        connection: { token: "real-custom-token-1234", username: "operator" } });
+      const before = await repo.findById({ workspaceId: WORKSPACE, id: created.id });
+      const metadataOnly = { ...deps, sealer: {
+        open: async (): Promise<never> => { throw new Error("must not open"); },
+        seal: async (): Promise<never> => { throw new Error("must not seal"); },
+      } };
+      const updated = await updateCustomCredential(metadataOnly, { workspaceId: WORKSPACE, id: created.id,
+        label: "renamed", username: null, connection: { token: "" } });
+      assert.deepEqual(updated.tokenHint, { length: 22, last4: "1234" });
+      assert.deepEqual(await describeCredential(metadataOnly, { workspaceId: WORKSPACE, id: created.id }), updated);
+      assert.deepEqual((await repo.findById({ workspaceId: WORKSPACE, id: created.id }))?.sealed, before?.sealed);
+      const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "renamed" });
+      assert.deepEqual(resolved?.connection, { token: "real-custom-token-1234" });
+      assert.deepEqual(resolved?.additionalHosts, ["https://other.example.com"]);
+      assert.equal(resolved?.baseUrl, "https://api.name.com/v1");
     });
 
     test("insert then findById round-trips a record exactly", async () => {

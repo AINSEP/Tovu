@@ -53,3 +53,9 @@ test("the legacy drizzle chain is frozen", () => {
   assert.equal(sqlFiles.length, FROZEN_CHAIN.length, "no new drizzle migrations: write a TS step in platform/db/migrations");
   assert.ok(sqlFiles.sort().at(-1)?.startsWith(FROZEN_CHAIN.lastTag));
 });
+
+test("0012 activation appends the final checksum after 0011 without replacing history", () => {
+  assert.deepEqual(CONTENT_MIGRATIONS.slice(-2).map(step => step.id), ["0011_drop_empty_core_commerce_tables", "0012_secrets_vault"]);
+  assert.equal(MIGRATION_CHECKSUMS["0012_secrets_vault"], sourceChecksum("0012_secrets_vault"));
+  assert.equal(MIGRATION_CHECKSUMS["0011_drop_empty_core_commerce_tables"], "047fc0b89a63c6a42a82e63d3e6d5f5065be0359a99e8740779ef794a4b0b9ad");
+});

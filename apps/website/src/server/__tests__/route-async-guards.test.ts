@@ -6,6 +6,7 @@ import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import type { RouteDeps } from "../routes/types.js";
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
+import { VendorCredentialSetVaultRepo } from "../../features/vendor-credentials/vault-adapter.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types.js";
 import type { CommentIngressPolicy, CommentWriteService } from "@jini-ai/cms/comments";
 import { registerPaymentsWebhookRoute } from "@jini-ai/commerce/http";
@@ -119,12 +120,14 @@ test("publish-credentials: DELETE responds 500 (not a hang) when the repo throws
  * any error outside its four typed classes — from INSIDE the caller's own `catch (err) {
  * sendStoreError(res, err); }` block, so the re-thrown error escaped that "guarded" handler too.
  * `POST` structurally has a `try`/`catch` (the AST scan's "guarded" bucket) but was just as exposed
- * as `GET`/`DELETE` for this one error shape. Proven here via `insert` (POST's own write call)
+ * as `GET`/`DELETE` for this one error shape. Proven here via vault `put` (POST's own write call)
  * throwing an untyped error.
  */
 test("publish-credentials: POST responds 500 (not a hang) when the store throws an error none of the four typed classes match", async (t) => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };
-  deps.vendorCredentialSetRepo = withThrowingMethods(deps.vendorCredentialSetRepo as VendorCredentialSetRepoPort, ["insert"]);
+  const vault = deps.vendorCredentialSetRepo?.vault;
+  assert.ok(vault, "expected the composed vendor repository's vault");
+  deps.vendorCredentialSetRepo = new VendorCredentialSetVaultRepo({ vault: withThrowingMethods(vault, ["put"]), kind: "vendor", vendor: true });
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

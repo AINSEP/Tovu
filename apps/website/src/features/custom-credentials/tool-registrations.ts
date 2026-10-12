@@ -776,6 +776,7 @@ async function saveCreateCard(
   const store = routeDeps.customCredentialSetRepo;
   // A run can end while sealing awaits the keyring. Guard the existing write port after that await.
   const repo: CustomCredentialSetRepoPort = {
+    vault: store.vault,
     insert: record => { signal.throwIfAborted(); return store.insert(record); },
     update: record => store.update(record),
     findById: input => store.findById(input),
@@ -958,16 +959,15 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
   };
 
   const handlers: Record<string, ToolHandler> = {
-    // Non-decrypting read-back (added 2026-09-01) — see agent-tools.ts's own header for why this
-    // exists and why it deliberately omits `username`. `listCustomCredentials` is `store.ts`'s
-    // existing "never touch sealer/keyring" read model; this handler adds nothing beyond the
-    // permission check and the empty-input contract every NO_INPUT_SCHEMA tool in this codebase uses
-    // (e.g. `deployment_get_static_publish_capabilities`'s own handler).
-    custom_credential_list: async (ctx): Promise<{ credentials: CustomCredentialSummary[] }> => {
+    // Non-decrypting read-back through the existing store, scoped by the read permission and
+    // empty-input contract. Saved origins and usernames reach the model; token hints remain
+    // on human surfaces. One workspace read plus O(n) projection, n saved credentials.
+    custom_credential_list: async (ctx): Promise<{ credentials: Omit<CustomCredentialSummary, "tokenHint">[] }> => {
       requireNoInput({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: READ_PERMISSION }, { entityType: DOMAIN });
       const credentials = await listCustomCredentials({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId });
-      return { credentials };
+      // Hints are human-only, as on the create card; retain the model's existing field contract.
+      return { credentials: credentials.map(({ tokenHint: _humanHint, ...credential }) => credential) };
     },
 
     custom_credential_verify: async (ctx) => {

@@ -11,7 +11,7 @@ import {
   InMemoryExternalMcpServerRepo,
   saveExternalMcpServer,
 } from "#src/assistant/index";
-import { createPendingAuthorizationStore, type OAuthProviderDescriptor } from "#src/platform/oauth/index";
+import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -110,7 +110,6 @@ async function makeConnectHandler(derivedPublicOrigin: string | undefined): Prom
     sealer,
     keyring,
     clock,
-    pending: createPendingAuthorizationStore({ clock }),
     devices: createDeviceAuthorizationStore(),
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }),
       fetchFn: ({ url }, init) => (NETWORK_TRIPWIRE)(url, init) },
