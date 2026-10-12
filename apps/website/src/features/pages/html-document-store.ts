@@ -445,16 +445,17 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * version advances to match — so a second `write()` on this same instance (no intervening `read()`
    * call, exactly how `createHtmlRegionTarget`'s `restore()` writes several regions in one pass) is
    * conditioned on the version this store itself just produced, not a stale one.
+   * Identical normalized HTML leaves the row, ledger and reference index untouched, after checking
+   * the current row still matches the captured version and is live HTML.
    *
    * @throws {Error} If called before any {@link read} — there is no captured version to condition on.
    * @throws {EntityNotLiveError} If the row was trashed since the matching `read()`
-   * (`@jini-ai/cms/core`, S5 web-high fix plan 2026-09-24) — checked only on a zero-row match, so the
-   * common case (still live) costs no extra query.
+   * (`@jini-ai/cms/core`, S5 web-high fix plan 2026-09-24) — disambiguated on the rejection path.
    * @throws {PageConcurrentEditError} If zero rows matched the compare-and-set for any other reason —
    * the row's version moved since the matching `read()` (another writer committed first). The caller
    * must re-`read()` and retry; this method never falls back to an unconditional overwrite.
-   * @complexity O(1) — one indexed, version-conditioned row update, plus one indexed lookup only on
-   * the zero-match path.
+   * @complexity O(n) time for n HTML characters; one indexed lookup, at most one CAS update and
+   * revision append, plus the optional reference scan. No persistence writes for unchanged HTML.
    * @overallScore 100
    */
   async write(authoredHtml: string): Promise<void> {
@@ -468,6 +469,12 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     const updatedAt = clockNowIso({ clock: this.deps.clock });
 
     const runWrite = async () => {
+      const current = await this.deps.kernel.run((db) =>
+        this.thisRow(db).select(["body_html", "body_format", "version", "deleted_at"]).limit(1).executeTakeFirst()
+      );
+      // Check freshness before equality: matching HTML must never hide a stale captured version.
+      if (!current || current.version !== expectedVersion || current.body_format !== "html" || current.deleted_at) return 0;
+      if (current.body_html === html) return null;
       const changes = await this.updateThisRow(
         { body_html: html, version: nextVersion, updated_at: updatedAt },
         { version: expectedVersion, liveHtmlOnly: true }
@@ -481,6 +488,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     };
 
     const changes = this.deps.revisions ? await this.deps.revisions.transaction(runWrite) : await runWrite();
+    if (changes === null) return;
 
     if (changes === 0) {
       // Disambiguate: the row can have moved off this exact predicate either because it was trashed

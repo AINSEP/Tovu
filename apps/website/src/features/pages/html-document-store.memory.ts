@@ -167,11 +167,14 @@ export class InMemoryPagesHtmlDocumentStore {
     if (row && isTrashed(row)) {
       assertEntityLive({ entityType: "page", entityId: this.scope.postId, state: "trashed" });
     }
-    if (!row || row.bodyFormat !== "html") {
+    if (!row || row.bodyFormat !== "html" || row.version !== expectedVersion) {
       throw new PageConcurrentEditError(
         `page '${this.scope.postId}' was edited elsewhere since this turn started — re-read and retry`
       );
     }
+    // Match the real store: freshness is checked before comparing normalized HTML, so even an
+    // identical body cannot make a stale save succeed. No ledger/index writes on this path.
+    if (row.bodyHtml === html) return;
 
     const nextVersion = expectedVersion + 1;
     const updatedAt = clockNowIso({ clock: this.deps.clock });
