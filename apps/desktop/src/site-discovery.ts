@@ -4,6 +4,8 @@ import type { createSitesWorkspace } from './shared-sites.ts';
 
 export interface DesktopDiscoveryInput {
   statePath: string;
+  /** Picker validation supplies proposed roots without saving settings. */
+  scanRoots?: string[];
   workspaceOptions: Pick<NonNullable<Parameters<typeof createSitesWorkspace>[1]>, 'homeDir' | 'cwd' | 'sourceRoots' | 'env' | 'platform'>;
 }
 type DiscoveryWorker = Pick<Worker, 'once' | 'removeAllListeners' | 'terminate' | 'unref'>;

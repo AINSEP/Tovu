@@ -24,6 +24,7 @@ export interface SiteDatabaseSummary {
 }
 
 export interface SiteRecord {
+  moveIntoSites?: boolean;
   id: string;
   slug: string;
   displayName: string;
@@ -159,6 +160,8 @@ export type SiteSettingsPatch = { databases: "inSite" | "appData" };
 export const SITE_IPC_CHANNELS = {
   list: 'runner:sites:list',
   create: 'runner:sites:create',
+  /** Read-only destination preview; Create recomputes it before initialization. */
+  planNewDir: 'runner:sites:plan-new-dir',
   /**
    * A project tab's own answer to "not running yet": ensure the site's `tovu serve` is up
    * (spawning it, or reusing it if another tab already has it open), then return its fresh
@@ -193,7 +196,7 @@ export const SITE_IPC_CHANNELS = {
    * opposite deal — it takes an empty folder and runs `tovu init` into it — so the two cannot be
    * one channel, however similar the dialog looks.
    *
-   * Takes no argument: main owns the folder dialog, the same way `create` does, so the renderer
+   * Takes no argument: main owns the existing-folder dialog, so the renderer
    * never names a filesystem path and main has nothing to validate on arrival.
    *
    * @returns the new `SiteRecord`, so the grid can render the card without a second `list`
@@ -265,6 +268,7 @@ export const SITE_IPC_CHANNELS = {
    * @throws when the dialog is cancelled or the folder is not a complete Tovu site; the message is
    *   operator-facing, so surface it verbatim.
    */
+  moveHome: "runner:sites:move-home",
   locate: 'runner:sites:locate',
   /**
    * The services "+ Create website" can offer an optional access-token field for

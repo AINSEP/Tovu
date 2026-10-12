@@ -23,6 +23,7 @@ import {
 } from "./agent-plugin-tokens.ts";
 import { initSiteDir } from "./site-dir-store.ts";
 import { handleCreate, handleTokenSignInPlugins } from "./project-ipc.ts";
+import { createSitesWorkspace } from "./shared-sites.ts";
 import { sitesFilePath } from "./tracked-sites.ts";
 
 const TOKEN = "sbp_desktop_test_token_never_in_argv";
@@ -70,6 +71,7 @@ function writeSite(dir: string, siteId: string): string {
 function createDeps(overrides: Record<string, unknown> = {}) {
   const dir = tempDir();
   return {
+    sharedSites: createSitesWorkspace({}, { homeDir: dir, env: { TOVU_SITES_HOME: dir }, cwd: dir, sourceRoots: [], platform: "linux" }),
     projectsPath: sitesFilePath(dir),
     repoRoot: "/repo",
     statePath: path.join(dir, "desktop-state.json"),
@@ -78,7 +80,7 @@ function createDeps(overrides: Record<string, unknown> = {}) {
     readSiteName: (siteDir: string) => path.basename(siteDir),
     readPreviewVersion: () => null,
     classifySiteDir: () => "empty",
-    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [path.join(dir, "new-site")] }) },
+    dialog: { showOpenDialog: async () => assert.fail("Create must never open a folder picker") },
     adoptSiteDir: async () => path.join(dir, "new-site"),
     ...overrides,
   } as unknown as Parameters<typeof handleCreate>[1];
@@ -160,7 +162,6 @@ test("handleCreate passes the tokens to adoptSiteDir and returns tovu init's out
   const siteDir = writeSite(path.join(dir, "made"), "site-made");
   let adoptInput: Record<string, unknown> = {};
   const deps = createDeps({
-    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [siteDir] }) },
     adoptSiteDir: async (input: Record<string, unknown> & { onInitOutput?: (output: string) => void }) => {
       adoptInput = input;
       input.onInitOutput?.("agent-plugin-tokens: saved supabase\n");
@@ -179,7 +180,6 @@ test("handleCreate with no token is unchanged: no token options reach adoptSiteD
   const siteDir = writeSite(path.join(dir, "plain"), "site-plain");
   let adoptInput: Record<string, unknown> = {};
   const deps = createDeps({
-    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [siteDir] }) },
     adoptSiteDir: async (input: Record<string, unknown>) => ((adoptInput = input), siteDir),
   });
   const record = await handleCreate({ displayName: "Plain", agentPluginTokens: { supabase: "" } }, deps);

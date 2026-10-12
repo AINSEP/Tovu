@@ -1,3 +1,4 @@
+import "../helpers/isolated-catalog-home.js";
 import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";

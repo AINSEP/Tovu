@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ToolInputError } from "@jini-ai/core";
 
@@ -40,7 +40,12 @@ export function requestThemePreviewRefresh(
     revision,
     ...(path === undefined ? {} : { path: validatePreviewPath({ path }) }),
   };
-  mkdirSync(themesDir, { recursive: true });
+  // Refreshing a moved site's preview must not recreate its site directory. Only create the
+  // final themes folder; native non-recursive mkdir refuses an absent parent, even in a race.
+  try { mkdirSync(themesDir); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST" || !statSync(themesDir).isDirectory()) throw error;
+  }
   const temporary = join(themesDir, `${MARKER}.${randomUUID()}.tmp`);
   writeFileSync(temporary, JSON.stringify(frame), { mode: 0o600 });
   renameSync(temporary, join(themesDir, MARKER));

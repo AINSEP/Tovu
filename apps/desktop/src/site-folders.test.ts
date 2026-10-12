@@ -10,8 +10,8 @@ function fixture(t: test.TestContext) {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-site-folders-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const statePath = path.join(dir, 'profile', 'desktop-state.json');
-  const root = path.join(dir, 'sites');
-  fs.mkdirSync(root);
+  const root = path.join(dir, 'Documents', 'sites');
+  fs.mkdirSync(root, { recursive: true });
   return { dir, root, statePath };
 }
 
@@ -22,7 +22,7 @@ test('creation roots and extra roots persist beside the MRU without changing it'
   fs.writeFileSync(statePath, mru);
   const folders = createSiteFolders({ statePath, defaultRoots: ['/repo/sites'] });
   folders.rememberCreated({ siteDir: path.join(root, 'created') });
-  const extra = path.join(dir, 'extra');
+  const extra = path.join(dir, 'Documents', 'extra');
   fs.mkdirSync(extra);
   folders.add({ root: extra });
   const restarted = createSiteFolders({ statePath, defaultRoots: ['/repo/sites'] });
@@ -49,7 +49,7 @@ test('broad filesystem, home and volume roots are refused by both settings adapt
   const workspace = createSitesWorkspace({}, { homeDir: dir, env: {}, cwd: dir, platform: 'linux', sourceRoots: [] });
   const shared = createSiteFolders({ statePath, defaultRoots: [], workspace });
   for (const adapter of [folders, shared]) {
-    for (const root of ['/', os.homedir(), '~', '/Volumes', '/Volumes/Remote', '\\\\server\\share', 'C:\\']) {
+    for (const root of ['/', adapter === shared ? dir : os.homedir(), '~', '/Volumes', '/Volumes/Remote', '\\\\server\\share', 'C:\\']) {
       assert.throws(() => adapter.add({ root }), {
         message: `Sites folder is too broad: ${root}. Choose a specific folder containing your Tovu websites.`,
       });
@@ -122,7 +122,7 @@ test('desktop imports profile roots once and edits the shared web config without
   const web = createSitesWorkspace({}, options), desktop = createSitesWorkspace({}, options);
   const folders = createSiteFolders({ statePath, defaultRoots: ['/unused'], workspace: desktop });
   assert.deepEqual(web.config({}).siteRoots, [root]);
-  const extra = path.join(dir, 'extra'); fs.mkdirSync(extra); folders.add({ root: extra });
+  const extra = path.join(dir, 'Documents', 'extra'); fs.mkdirSync(extra); folders.add({ root: extra });
   assert.deepEqual(web.config({}).siteRoots, [root, extra]);
   web.updateConfig({ patch: { databases: 'appData', sitesHome: path.join(dir, 'new-home') } });
   assert.equal(folders.read({}).databases, 'appData'); assert.equal(folders.read({}).home, path.join(dir, 'new-home'));
@@ -142,4 +142,45 @@ test("damaged legacy settings cannot stop shared discovery and are quarantined b
   assert.equal(workspace.registry({}).hasMigration({ migration: "desktop-roots-config-v1" }), true);
   const backup = fs.readdirSync(path.dirname(legacy)).find((name) => name.startsWith("desktop-site-folders.json.corrupt-"));
   assert.ok(backup); assert.equal(fs.readFileSync(path.join(path.dirname(legacy), backup), "utf8"), "{broken");
+});
+
+
+test("deskfx S2: default/home roots never become removable extras and last removal restores implicit config", async (t) => {
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const { dir, root, statePath } = fixture(t);
+  const workspace = createSitesWorkspace({}, { homeDir: dir, env: {}, cwd: dir, platform: "linux", sourceRoots: [root] });
+  workspace.updateConfig({ patch: { databases: "appData" } });
+  const before = fs.readFileSync(workspace.config({}).configPath, "utf8");
+  const folders = createSiteFolders({ statePath, defaultRoots: [root], workspace });
+  assert.deepEqual(folders.read({}).extraRoots, []);
+  const extra = path.join(dir, "Documents", "extra"); fs.mkdirSync(extra);
+  folders.add({ root: extra }); folders.add({ root: root });
+  assert.deepEqual(folders.read({}).extraRoots, [extra]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(workspace.config({}).configPath, "utf8")).siteRoots, [extra]);
+  folders.remove({ root: extra });
+  assert.equal(fs.readFileSync(workspace.config({}).configPath, "utf8"), before);
+  assert.ok(folders.read({}).roots.includes(root)); assert.ok(folders.read({}).roots.includes(workspace.home({})));
+  assert.deepEqual(folders.read({}).extraRoots, []);
+});
+
+test("deskfx S3: refuses user collection roots but allows a specific sites home", async (t) => {
+  const { assertSpecificSiteRoot } = await import("./site-scan-policy.ts");
+  const { dir } = fixture(t); const homeDir = path.join(dir, "owner");
+  for (const root of ["/Users", "/home", homeDir, "~", "~/Documents", "~/Downloads", "~/Desktop", ...["Documents", "Downloads", "Desktop", "Pictures", "Music", "Library"].map((name) => path.join(homeDir, name))]) {
+    assert.throws(() => assertSpecificSiteRoot({ root }, { homeDir }), /Sites folder is too broad/);
+  }
+  assert.doesNotThrow(() => assertSpecificSiteRoot({ root: path.join(homeDir, "Documents", "Tovu") }, { homeDir }));
+});
+
+
+test("deskfx S2: removing the only extra restores a previously absent shared config file", async (t) => {
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const { dir, root, statePath } = fixture(t);
+  const workspace = createSitesWorkspace({}, { homeDir: dir, env: {}, cwd: dir, platform: "linux", sourceRoots: [root] });
+  const folders = createSiteFolders({ statePath, defaultRoots: [root], workspace });
+  const file = workspace.config({}).configPath; assert.equal(fs.existsSync(file), false);
+  const extra = path.join(dir, "Documents", "extra"); fs.mkdirSync(extra);
+  folders.add({ root: extra }); assert.equal(fs.existsSync(file), true);
+  folders.remove({ root: extra }); assert.equal(fs.existsSync(file), false);
+  assert.deepEqual(folders.read({}).extraRoots, []); assert.ok(folders.read({}).roots.includes(root));
 });

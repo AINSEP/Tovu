@@ -57,7 +57,7 @@ it("puts Sites settings beside the tab row and renders the dialog as a labelled 
   const user = userEvent.setup();
   const calls: string[] = [];
   const useSettings = (() => ({ open: true, saving: false, error: null, show() {}, close() {}, useAppData: async () => {}, useLocalHome: async () => {},
-    home: "/Users/owner/Documents/Tovu", setHome: (value: string) => calls.push(`home:${value}`), databases: "inSite", setDatabases() {},
+    home: "/Users/owner/Documents/Tovu/sites", setHome: (value: string) => calls.push(`home:${value}`), databases: "inSite", setDatabases() {},
     rootList: ["/extra/one"], addedIndex: null, setRootAt: (index: number, value: string) => calls.push(`root:${index}:${value}`),
     addRoot: () => calls.push("add"), removeRoot: (index: number) => calls.push(`remove:${index}`), save: async () => { calls.push("save"); },
     config: { databases: "inSite", configPath: "/data/config.json", overrides: { sitesHome: false, siteRoots: false } },
@@ -65,7 +65,7 @@ it("puts Sites settings beside the tab row and renders the dialog as a labelled 
   render(<SitesHomeSetting home="/home" tabs={<div role="tablist" aria-label="Sites tabs" />} useSettings={useSettings} />);
   const row = screen.getByRole("tablist", { name: "Sites tabs" }).parentElement!;
   expect(within(row).getByRole("button", { name: "Sites settings" })).toBeTruthy();
-  expect(screen.getByLabelText("New websites folder")).toHaveValue("/Users/owner/Documents/Tovu");
+  expect(screen.getByLabelText("New websites folder")).toHaveValue("/Users/owner/Documents/Tovu/sites");
   const folderInfo = screen.getByRole("button", { name: "About New websites folder" });
   expect(folderInfo).toHaveAccessibleDescription("New sites are created in this folder. Existing site folders stay where they are.");
   await user.click(folderInfo);

@@ -22,7 +22,7 @@ import type { ClockDeps, IdentityDeps, RouteDeps } from "../../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { createBootSessionTokenStore, redeemBootSessionToken } from "#src/features/identity/boot-session-token";
-import { allowsLocalOwnerSignInRequest, resolveLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
+import { allowsLocalOwnerSignInRequest, bootLocalOwnerSignIn, type LocalOwnerSignInPolicy } from "../../runtime/boot/local-owner-signin.js";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { callerMayManageUserTrash } from "#src/features/identity/delete-user-service";
 import { canPublishToLive } from "#src/features/publish-content/live-site-policy";
@@ -255,7 +255,7 @@ function readApiKeyCredential(req: Request): string | null {
 export async function currentCredential(
   deps: SessionAuthDeps,
   req: Request,
-  { localOwnerSignIn = resolveLocalOwnerSignIn({ env: process.env }) }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
+  { localOwnerSignIn = bootLocalOwnerSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
 ): Promise<AuthenticatedCredential | null> {
   const rawToken = readSessionToken({ req, localOwnerSignIn });
   if (rawToken) {
@@ -383,7 +383,7 @@ export function rejectUnlessSessionCredential(
  * Credential-store failures go to Express's error handler through `next(error)`.
  */
 export function requireAdminSession(deps: SessionAuthDeps,
-  { localOwnerSignIn = resolveLocalOwnerSignIn({ env: process.env }) }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
+  { localOwnerSignIn = bootLocalOwnerSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
 ) {
   return async function requireAdminSessionMiddleware(
     req: Request,
@@ -498,7 +498,7 @@ export async function redeemOwnerBootSession(
 
 /** Registers login/logout/me and the loopback boot exchange before the admin session gate. */
 export function registerAuthRoutes(app: Express, deps: RouteDeps,
-  { localOwnerSignIn = resolveLocalOwnerSignIn({ env: process.env }) }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
+  { localOwnerSignIn = bootLocalOwnerSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
 ): void {
   // REQ-14/AC-18: LOGIN_STRICT (10 req/60s per client IP) brute-force guard on
   // AUTH_LOGIN. One limiter instance per `registerAuthRoutes` call, so each
@@ -602,11 +602,13 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
     } catch (error) { next(error); }
   });
 
+  // Desktop must present its private launch capability before browser-style header admission.
   // The browser has no private parent stdout pipe. A launcher-armed, same-origin loopback
   // request uses a request-scoped one-time token; no raw boot token is exposed to JS or logs.
   // Separate stores prevent concurrent tabs, or the desktop's still-armed token, burning each other.
   app.post("/api/admin/v1/auth/local-boot-session", async (req, res, next) => {
-    if (!localOwnerSignIn.enabled) {
+    if (!localOwnerSignIn.enabled || (localOwnerSignIn.acceptsCapability &&
+      !localOwnerSignIn.acceptsCapability({ capability: req.get("x-tovu-desktop-owner-signin") }))) {
       res.status(404).json({ error: "local owner sign-in is disabled", code: "NOT_FOUND" });
       return;
     }

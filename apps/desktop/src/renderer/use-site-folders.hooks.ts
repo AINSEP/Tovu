@@ -1,6 +1,7 @@
 /** Discovery settings state; all filesystem/picker effects stay behind the preload port. */
 import { useCallback, useEffect, useState } from 'react';
 import { useAsyncAction } from '@jini-ai/ui/panel-kit';
+import { humanSiteError } from './site-shell-policy.js';
 import type { SiteFolders } from '../contracts/project.js';
 import { runnerInventoryBridge } from './runner-api.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
@@ -12,6 +13,7 @@ export interface SiteFoldersSettings {
   folders: SiteFolders;
   busy: boolean;
   error: string | null;
+  clearError: () => void;
   addFolder: () => Promise<void>;
   setHome: () => Promise<void>;
   saveSettings: (patch: import("../contracts/project.js").SiteSettingsPatch) => Promise<void>;
@@ -19,7 +21,7 @@ export interface SiteFoldersSettings {
 }
 
 /** Load settings once per mount and apply mutation results immediately. Null picker results leave
- * settings intact; real failures are shown verbatim. Add rescans discovery without starting sites.
+ * settings intact; transport prefixes are removed from real failures. Add rescans discovery without starting sites.
  * @param options.getBridge Injectable preload reader for tests and hosts with older preloads.
  * @returns Settings plus busy/error state and native-picker/removal actions.
  * @complexity O(n) stored roots in state; Add uses picker + scan, other actions one IPC operation.
@@ -31,7 +33,7 @@ export function useSiteFolders(_required = {}, { getBridge = runnerInventoryBrid
   const [folders, setFolders] = useState<SiteFolders>({ roots: [], extraRoots: [] });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const { saving, error: actionError, run } = useAction();
+  const { saving, error: actionError, setError, run } = useAction();
   useEffect(() => {
     let active = true;
     const bridge = getBridge();
@@ -43,7 +45,7 @@ export function useSiteFolders(_required = {}, { getBridge = runnerInventoryBrid
     void bridge.listSiteFolders().then((next) => {
       if (active) setFolders(next);
     }).catch((failure: unknown) => {
-      if (active) setLoadError(failure instanceof Error ? failure.message : String(failure));
+      if (active) setLoadError(humanSiteError({ error: failure, fallback: 'Could not update sites folders. Try again.' }));
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [getBridge]);
@@ -55,7 +57,7 @@ export function useSiteFolders(_required = {}, { getBridge = runnerInventoryBrid
       if (next !== null) setFolders(next);
       setLoadError(null);
     },
-    describeError: (failure) => failure instanceof Error ? failure.message : String(failure),
+    describeError: (failure) => humanSiteError({ error: failure, fallback: 'Could not update sites folders. Try again.' }),
   }), [run]);
 
   const addFolder = useCallback(() => change(async () => {
@@ -63,7 +65,8 @@ export function useSiteFolders(_required = {}, { getBridge = runnerInventoryBrid
     if (!bridge?.addSiteFolder) throw new Error('Sites folders settings are unavailable in this desktop version.');
     const next = await bridge.addSiteFolder();
     if (next !== null) {
-      // The picker saved this root even if discovery fails. Keep it visible for a retry.
+      // Admission validated before saving. A later rescan may still fail if the disk changes;
+      // retain the saved root so the operator can retry or remove it.
       setFolders(next);
       await bridge.rescanSites();
     }
@@ -88,5 +91,5 @@ export function useSiteFolders(_required = {}, { getBridge = runnerInventoryBrid
     return bridge.saveSiteSettings(patch);
   }), [change, getBridge]);
 
-  return { saveSettings, setHome, folders, busy: loading || saving, error: actionError ?? loadError, addFolder, removeFolder };
+  return { clearError: () => { setError(null); setLoadError(null); }, saveSettings, setHome, folders, busy: loading || saving, error: actionError ?? loadError, addFolder, removeFolder };
 }

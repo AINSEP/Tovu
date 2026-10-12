@@ -191,7 +191,7 @@ test("seedDevFallbackSite marks its seeded row adopted — it never created that
 function siteFolder(parent: string, name: string): string {
   const dir = path.join(parent, name);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "config.json"), "{}");
+  fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name }));
   fs.writeFileSync(path.join(dir, ".site-meta.json"), "{}");
   return dir;
 }
@@ -395,7 +395,7 @@ test("discoverSiteDirs skips a scan-root child it cannot even stat, and still re
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-discover-"));
   const good = path.join(root, "a-real-site");
   fs.mkdirSync(good);
-  fs.writeFileSync(path.join(good, "config.json"), "{}");
+  fs.writeFileSync(path.join(good, "config.json"), JSON.stringify({ name: "A real site" }));
   fs.writeFileSync(path.join(good, ".site-meta.json"), "{}");
   const loopA = path.join(root, "loop-a");
   const loopB = path.join(root, "loop-b");

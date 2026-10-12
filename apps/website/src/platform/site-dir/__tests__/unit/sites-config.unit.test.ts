@@ -21,7 +21,7 @@ function fixture() {
 test("content and chat resolve legacy, data.nosync and app-data independently without relocating files", () => {
   const f = fixture();
   try {
-    assert.equal(f.workspace.home({}), path.join(f.root, "Documents", "Tovu"));
+    assert.equal(f.workspace.home({}), path.join(f.root, "Documents", "Tovu", "sites"));
     let paths = resolveSiteDatabasePaths({ dir: f.dir }, { workspace: f.workspace });
     assert.equal(paths.contentDbPath, path.join(f.dir, "data.nosync", "content.db"));
     fs.writeFileSync(path.join(f.dir, "content.db"), "original");
@@ -49,6 +49,31 @@ test("multiple content databases refuse startup rather than choose potentially s
     assert.equal(fs.readFileSync(path.join(f.dir, "content.db"), "utf8"), "legacy");
   } finally { f.cleanup(); }
 });
+test("legacy sidecars and recovery backups never compete with the live data.nosync databases", () => {
+  const f = fixture();
+  try {
+    const data = path.join(f.dir, "data.nosync");
+    fs.mkdirSync(data);
+    for (const filename of ["content.db", "chat.db"]) {
+      fs.writeFileSync(path.join(data, filename), `live ${filename}`);
+      for (const suffix of ["-shm", "-wal", ".home2-backup"]) {
+        fs.writeFileSync(path.join(f.dir, filename + suffix), `recovery ${filename}${suffix}`);
+      }
+      fs.writeFileSync(path.join(data, filename + ".home2-backup"), "older data.nosync backup");
+    }
+    const paths = resolveSiteDatabasePaths({ dir: f.dir }, { workspace: f.workspace });
+    assert.equal(paths.contentDbPath, path.join(data, "content.db"));
+    assert.equal(paths.chatDbPath, path.join(data, "chat.db"));
+    for (const filename of ["content.db", "chat.db"]) {
+      assert.equal(fs.readFileSync(path.join(data, filename), "utf8"), `live ${filename}`);
+      assert.equal(fs.existsSync(path.join(f.dir, filename)), false);
+      for (const suffix of ["-shm", "-wal", ".home2-backup"]) {
+        assert.equal(fs.readFileSync(path.join(f.dir, filename + suffix), "utf8"), `recovery ${filename}${suffix}`);
+      }
+      assert.equal(fs.readFileSync(path.join(data, filename + ".home2-backup"), "utf8"), "older data.nosync backup");
+    }
+  } finally { f.cleanup(); }
+});
 test("extra nested roots are discovered and a root-selected site resolves before registration", () => {
   const f = fixture();
   try {
@@ -65,10 +90,10 @@ test("non-iCloud synced sites home offers appData or local home, default appData
   try {
     const workspace = createSitesWorkspace({}, { ...f.options, env: { OneDrive: path.join(f.root, "Documents") } });
     assert.equal(workspace.config({}).warning?.provider, "OneDrive");
-    assert.equal(workspace.config({}).warning?.localHome, path.join(f.root, "Tovu"));
+    assert.equal(workspace.config({}).warning?.localHome, path.join(f.root, "Tovu", "sites"));
     assert.equal(workspace.config({}).databases, "appData");
     workspace.updateConfig({ patch: { databases: "appData" } }); assert.equal(workspace.config({}).warning?.provider, "OneDrive");
-    workspace.updateConfig({ patch: { databases: "inSite", sitesHome: path.join(f.root, "Tovu") } }); assert.equal(workspace.config({}).warning, null);
+    workspace.updateConfig({ patch: { databases: "inSite", sitesHome: path.join(f.root, "Tovu", "sites") } }); assert.equal(workspace.config({}).warning, null);
   } finally { f.cleanup(); }
 });
 test("init and CLI boot share the new data.nosync and appData layouts", async () => {
@@ -93,6 +118,7 @@ test('web config endpoint checks capability and permission, validates atomically
   try {
     const handlers = new Map<string, import('express').RequestHandler>();
     const app = { get(url: string, handler: import('express').RequestHandler) { handlers.set(`get:${url}`, handler); },
+      post(url: string, handler: import('express').RequestHandler) { handlers.set(`post:${url}`, handler); },
       put(url: string, handler: import('express').RequestHandler) { handlers.set(`put:${url}`, handler); } } as unknown as import('express').Express;
     let enabled = false, allowed = false; const permissions: string[] = [];
     registerSitesHomeRoutes({ app, workspace: f.workspace, deps: { workspaceId: 'workspace', isSiteSwitcherEnabled: () => enabled,

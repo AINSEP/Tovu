@@ -2,15 +2,22 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
-test("cold concurrent source renders compile both theme workers once and start plain JS with the product root", () => {
+test("cold concurrent source renders compile both theme workers once and start plain JS with the product root", (t) => {
+  // The writer investigation must cover module evaluation too: workers inherit cwd, but compilation
+  // and preview rendering must never recreate a cwd-relative sites/tovu-dev/themes tree.
+  const cwd = mkdtempSync(path.join(tmpdir(), "stalecard-worker-cwd-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
   // A fresh parent makes this a cold-start race even when another suite already rendered.
   const script = `
     import assert from "node:assert/strict";
     import { readdirSync } from "node:fs";
     import path from "node:path";
     import { Worker } from "node:worker_threads";
-    import { createNodeWorkerFactory } from "@jini-ai/sandbox/node-worker";
+    import { createNodeWorkerFactory } from ${JSON.stringify(import.meta.resolve("@jini-ai/sandbox/node-worker"))};
     import { renderInWorkerSandbox, resolveDefaultTimeoutMs } from ${JSON.stringify(new URL("../worker-sandbox.ts", import.meta.url).href)};
     import { resolveProductRoot } from ${JSON.stringify(new URL("../../../../../../platform/site-dir/product-root.ts", import.meta.url).href)};
     delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
@@ -53,10 +60,11 @@ test("cold concurrent source renders compile both theme workers once and start p
     assert.deepEqual(readdirSync([...dirs][0]).filter((file) => file.endsWith(".js")).sort(), ["handlebars-worker.js", "liquid-worker.js"]);
     console.log("precompiled workers: cold race, reuse, root and plain JS verified");
   `;
-  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--eval", script], {
-    cwd: process.cwd(), encoding: "utf8", timeout: 60_000,
+  const result = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), "--input-type=module", "--eval", script], {
+    cwd, encoding: "utf8", timeout: 60_000,
   });
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /precompiled workers: cold race, reuse, root and plain JS verified/);
+  assert.equal(existsSync(path.join(cwd, "sites")), false, "rr10a precompile/render leaves cwd site data untouched");
 });

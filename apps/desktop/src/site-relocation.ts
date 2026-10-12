@@ -5,10 +5,10 @@
  * have to fix that by hand, so {@link relocateMovedSites} runs from the list poll whenever something
  * could have moved ({@link createRelocationGate}):
  *
- * 1. A row whose folder EXISTS gets that folder's id recorded on it (`relocationId`), once. That is
+ * 1. A row whose folder is a VALID SITE gets that folder's id recorded on it (`relocationId`), once. That is
  *    what lets it be found again later — a folder that is already gone carries no id to read.
- * 2. A row whose folder is MISSING and carries a `relocationId` is looked for among the old
- *    folder's siblings (and any extra search roots). Exactly one folder with the same id: the row is
+ * 2. A row whose folder is MISSING OR INVALID uses its saved siteId/relocationId (or surviving
+ *    marker) among valid tracked sites, old siblings and any extra search roots. Exactly one folder with the same id: the row is
  *    repointed there, keeping its `createdAt`; if that folder is already tracked, the stale row is
  *    dropped instead of duplicating the card. Zero or several matches: the row is left exactly as it
  *    is, and the card shows it as missing with Locate / Remove (`project-ipc.ts`). Nothing is ever
@@ -23,6 +23,7 @@
  *
  * No `electron` import, so this is testable under plain `node --test`, like `tracked-sites.ts`.
  */
+import { classifySiteDirSafely } from "./site-dir-store.ts";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -44,6 +45,10 @@ interface RelocateOptions {
   /** Directories whose immediate children are also searched, beyond the old folder's siblings —
    *  in production the same `siteScanRoots` the rescan uses. */
   searchRoots?: string[];
+  /** Existing site admission owner; tests may inject a classifier. */
+  classifySiteDir?: typeof classifySiteDirSafely;
+  /** One notice per committed relocation/merge, never per list poll. */
+  report?: (message: string) => void;
 }
 
 /** {@link planRelocations}'s answer: the next rows, what changed, and whether anything did. */
@@ -59,6 +64,8 @@ interface PlanContext {
   claimed: Set<string>;
   dismissed: string[];
   searchRoots: string[];
+  knownDirs: string[];
+  classifySiteDir: typeof classifySiteDirSafely;
 }
 
 /**
@@ -78,16 +85,6 @@ function readRelocationId(siteDir: string): string | null {
   }
 }
 
-/** Whether `dir` is a directory right now, with every way of failing to find out counted as "no".
- *  @complexity O(1). */
-function folderExists(dir: string): boolean {
-  try {
-    return fs.statSync(dir).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
 /** `root`'s immediate children as absolute paths; a root that cannot be read has none.
  *  @complexity O(n) in the child count. */
 function childPathsOf(root: string): string[] {
@@ -103,13 +100,17 @@ function childPathsOf(root: string): string[] {
  * more than one (a copy of a site carries its id too, and guessing between them is not ours to do),
  * or when the operator removed that folder from Projects on purpose.
  *
- * @complexity O(r * c) meta reads — r search roots, c children each.
+ * @complexity O(n + r * c) bounded marker reads and candidate space — n tracked dirs,
+ *   r search roots, c children each. The gate bounds scans to at most once per idle minute.
  */
-function relocationTarget(row: TrackedSiteRow, context: PlanContext): string | null {
-  if (row.relocationId === undefined) return null;
+function relocationTarget({ row, context }: { row: TrackedSiteRow; context: PlanContext }, _options = {}): string | null {
+  // Created rows already saved the site id before relocationId existed. Never infer identity
+  // from the name: different sites can legitimately share it. An invalid folder may retain a marker.
+  const identity = row.siteId ?? row.relocationId ?? readRelocationId(row.siteDir);
+  if (identity === null || identity === undefined) return null;
   const roots = new Set([path.dirname(row.siteDir), ...context.searchRoots]);
-  const candidates = new Set([...roots].flatMap(childPathsOf));
-  const matches = [...candidates].filter((dir) => dir !== row.siteDir && readRelocationId(dir) === row.relocationId);
+  const candidates = new Set([...context.knownDirs, ...[...roots].flatMap(childPathsOf)]);
+  const matches = [...candidates].filter((dir) => dir !== row.siteDir && context.classifySiteDir(dir) === "site" && readRelocationId(dir) === identity);
   if (matches.length !== 1 || context.dismissed.includes(matches[0]!)) return null; // length checked on the same line, so index 0 exists
   return matches[0]!;
 }
@@ -128,16 +129,16 @@ function movedRow(row: TrackedSiteRow, siteDir: string, relocationId: string | n
 /**
  * One row's contribution to the plan: stamped, repointed, merged away, or kept as it is.
  *
- * @complexity O(1) for a present folder; {@link relocationTarget}'s cost for a missing one.
+ * @complexity O(1) bounded marker reads for a valid folder; {@link relocationTarget}'s cost for a missing one.
  */
-function planRow(plan: RelocationPlan, row: TrackedSiteRow, context: PlanContext): void {
-  if (folderExists(row.siteDir)) {
+function planRow({ plan, row, context }: { plan: RelocationPlan; row: TrackedSiteRow; context: PlanContext }, _options = {}): void {
+  if (context.classifySiteDir(row.siteDir) === "site") {
     const id = row.relocationId === undefined ? readRelocationId(row.siteDir) : null;
     plan.changed ||= id !== null;
     plan.rows.push(id === null ? row : { ...row, relocationId: id });
     return;
   }
-  const target = relocationTarget(row, context);
+  const target = relocationTarget({ row, context });
   if (target === null) {
     plan.rows.push(row);
     return;
@@ -149,7 +150,7 @@ function planRow(plan: RelocationPlan, row: TrackedSiteRow, context: PlanContext
   }
   context.claimed.add(target);
   plan.report.moved.push({ from: row.siteDir, to: target });
-  plan.rows.push(movedRow(row, target, row.relocationId));
+  plan.rows.push(movedRow(row, target, readRelocationId(target)));
 }
 
 /**
@@ -158,11 +159,11 @@ function planRow(plan: RelocationPlan, row: TrackedSiteRow, context: PlanContext
  *
  * @complexity O(n) rows, plus {@link relocationTarget}'s cost per missing row.
  */
-function planRelocations(current: ProjectsFile, searchRoots: string[]): RelocationPlan {
+function planRelocations({ current, searchRoots, classifySiteDir }: { current: ProjectsFile; searchRoots: string[]; classifySiteDir: typeof classifySiteDirSafely }, _options = {}): RelocationPlan {
   const plan: RelocationPlan = { rows: [], report: { moved: [], merged: [] }, changed: false };
   if (current.state !== "ok") return plan;
-  const context: PlanContext = { claimed: new Set(current.rows.map((row) => row.siteDir)), dismissed: current.dismissed, searchRoots };
-  for (const row of current.rows) planRow(plan, row, context);
+  const context: PlanContext = { claimed: new Set(current.rows.map((row) => row.siteDir)), dismissed: current.dismissed, searchRoots, knownDirs: current.rows.map((row) => row.siteDir), classifySiteDir };
+  for (const row of current.rows) planRow({ plan, row, context });
   return plan;
 }
 
@@ -176,30 +177,38 @@ function planRelocations(current: ProjectsFile, searchRoots: string[]): Relocati
  * do — must not take a lock every other instance then waits on.
  *
  * @returns what changed; empty lists when nothing did, in which case nothing was written.
- * @complexity O(n) rows, plus O(r * c) meta reads per missing row that carries an id.
+ * @param required.projectsPath Desktop registry; the existing cross-process lock owns updates.
+ * @throws Filesystem persistence/lock errors; no site files are changed.
+ * @complexity O(n * (n + r * c)) worst-case marker reads; O(n + r * c) space, for n rows,
+ *   r roots and c children. Idle scans are gated; directories are never searched recursively.
  */
-function relocateMovedSites(projectsPath: string, options: RelocateOptions = {}): RelocationReport {
+function relocateMovedSites({ projectsPath }: { projectsPath: string }, options: RelocateOptions = {}): RelocationReport {
   const searchRoots = options.searchRoots ?? [];
+  const classifySiteDir = options.classifySiteDir ?? classifySiteDirSafely;
   let report: RelocationReport = { moved: [], merged: [] };
-  if (!planRelocations(readProjectsFile(projectsPath), searchRoots).changed) return report;
+  if (!planRelocations({ current: readProjectsFile(projectsPath), searchRoots, classifySiteDir }).changed) return report;
   updateProjectsFile(projectsPath, (current) => {
-    const plan = planRelocations(current, searchRoots);
+    const plan = planRelocations({ current, searchRoots, classifySiteDir });
     report = plan.report;
     return plan.changed ? { rows: plan.rows, dismissed: current.dismissed } : null;
   });
+  const log = options.report ?? console.info;
+  for (const { from, to } of report.moved) log(`tovu desktop: healed moved site ${from} → ${to}.`);
+  for (const from of report.merged) log(`tovu desktop: removed stale duplicate site card ${from}; its valid twin is already tracked.`);
   return report;
 }
 
-/** {@link createRelocationGate}'s options; both are for tests. */
+/** {@link createRelocationGate}'s cadence, clock and site-admission ports. */
 interface RelocationGateOptions {
   /** The longest a list poll goes without a pass. */
   maxIdleMs?: number;
   now?: () => number;
+  classifySiteDir?: typeof classifySiteDirSafely;
 }
 
 /** Decides, per list poll, whether {@link relocateMovedSites} is worth running. */
 interface RelocationGate {
-  shouldRun(file: Pick<ProjectsFile, "rows" | "dismissed">): boolean;
+  shouldRun(file: Pick<ProjectsFile, "rows" | "dismissed">, options?: Record<string, never>): boolean;
 }
 
 /** One minute: a sibling folder that appears while a row stays missing is picked up within this. */
@@ -208,22 +217,23 @@ const RELOCATION_MAX_IDLE_MS = 60_000;
 /**
  * The list poll runs every 4 s while the window is visible, and a pass for a row whose folder is
  * missing re-reads every sibling folder's meta each time. Nothing can have moved unless the rows,
- * which of their folders exist, or the removals changed, so a pass runs only when that picture
+ * which of their folders are valid sites, or the removals changed, so a pass runs only when that picture
  * differs from the last pass's (a folder renamed away is noticed on the very next poll, as before),
  * and otherwise at most once per {@link RELOCATION_MAX_IDLE_MS} — the case where a missing row's
  * folder turns up somewhere new while the row still points at the old path. The first poll always
  * runs.
  *
- * @complexity O(n) `existsSync` per poll — the same checks the list's own `folderMissing` makes.
+ * @complexity O(n) bounded site classifications per poll — the same checks the list's own `folderMissing` makes.
  */
-function createRelocationGate(options: RelocationGateOptions = {}): RelocationGate {
+function createRelocationGate(_required: Record<string, never>, options: RelocationGateOptions = {}): RelocationGate {
   const maxIdleMs = options.maxIdleMs ?? RELOCATION_MAX_IDLE_MS;
   const now = options.now ?? Date.now;
+  const classifySiteDir = options.classifySiteDir ?? classifySiteDirSafely;
   let lastPicture: string | null = null;
   let lastRunAt = 0;
   return {
-    shouldRun(file) {
-      const picture = [...file.rows.map((row) => `${row.siteDir}\u0000${fs.existsSync(row.siteDir) ? 1 : 0}`), "\u0000dismissed", ...file.dismissed].join("\n");
+    shouldRun(file, _options = {}) {
+      const picture = [...file.rows.map((row) => `${row.siteDir}\u0000${classifySiteDir(row.siteDir)}`), "\u0000dismissed", ...file.dismissed].join("\n");
       const at = now();
       if (picture === lastPicture && at - lastRunAt < maxIdleMs) return false;
       lastPicture = picture;

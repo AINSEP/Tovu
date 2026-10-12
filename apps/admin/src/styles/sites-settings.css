@@ -69,15 +69,23 @@
 }
 .sites-settings-footer > button { flex-shrink: 0; min-height: 37px; }
 
-@media (max-width: 40rem) {
+/* The tabs row follows the PANE (2026-10-11): it wrapped badly on desktop with the nav + dock open
+   too. 38.5rem ≈ the old 40rem viewport minus a phone's page padding. Touch sizes, iOS-zoom font
+   size and the sticky footer stay viewport-only below. */
+@container admin-content (max-width: 38.5rem) {
   .sites-tabs-row { flex-wrap: wrap; border-bottom: none; }
   .sites-tabs-row > .tab-bar { flex-basis: 100%; border-bottom: 1px solid var(--border); }
-  .sites-tabs-row > .sites-settings-button { order: -1; margin: 0 0 0 auto; min-height: 40px; }
+  .sites-tabs-row > .sites-settings-button { order: -1; margin: 0 0 0 auto; }
+}
+@media (max-width: 40rem) {
+  .sites-tabs-row > .sites-settings-button { min-height: 40px; }
   .sites-settings-field input,
   .sites-settings-field select { font-size: 16px; }
+  /* One row, path wrapping beside Save (2026-10-11): stacked, the sticky footer was ~115px tall and
+     sat over the database hint at phone heights, cutting it under its top line. */
   .sites-settings-footer {
     position: sticky; bottom: 0; z-index: 1; background: var(--jini-bg-elevated);
-    padding-bottom: var(--space-3); flex-direction: column; align-items: flex-start;
+    padding-bottom: var(--space-3); gap: var(--space-3);
   }
   .sites-settings-footer > button { min-height: 40px; }
 }

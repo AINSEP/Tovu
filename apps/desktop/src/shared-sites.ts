@@ -4,19 +4,25 @@ import { createHash } from "node:crypto";
 import type { DirectoryRecord } from "@jini-ai/platform/fs";
 import os from "node:os";
 import path from "node:path";
-import { normalizeSiteName } from "./site-config.ts";
+import { readCatalogSite } from "./site-config.ts";
 import { createNodeDirectoryWorkspace } from "@jini-ai/platform/fs";
 
-export function createSitesWorkspace(_required: Record<string, never>, { homeDir = os.homedir(), env = process.env, cwd = process.cwd(), sourceRoots, ...directoryOptions }: {
-  homeDir?: string; env?: NodeJS.ProcessEnv; cwd?: string; sourceRoots?: readonly string[];
+export function createSitesWorkspace(_required: Record<string, never>, { homeDir = os.homedir(), env = process.env, cwd = process.cwd(), sourceRoots, catalogRecovery = false, appDataDir, ...directoryOptions }: {
+  homeDir?: string; env?: NodeJS.ProcessEnv; cwd?: string; sourceRoots?: readonly string[]; catalogRecovery?: boolean;
+  appDataDir?: string;
   platform?: NodeJS.Platform; windowsDocuments?: () => string | undefined; readText?: (file: string) => string | undefined;
 } = {}) {
-  return createNodeDirectoryWorkspace({ homeDir, defaultFolder: "Tovu", envName: "TOVU_SITES_HOME",
+  const workspace = createNodeDirectoryWorkspace({ homeDir, defaultFolder: "Tovu", envName: "TOVU_SITES_HOME",
     settingsFile: path.join(homeDir, ".tovu", "sites-home.json"), registryName: "sites.json", runningName: ".tovu-running.json",
-    userConfig: { appName: "Tovu", rootsEnvName: "TOVU_SITE_ROOTS", legacyDefaultFolder: "Tovu Sites",
+    ...(catalogRecovery ? { registryRecovery: { fixtureIdPattern: /^(?:minted-id|new-site-id)-\d+$/ } } : {}),
+    userConfig: { appName: "Tovu", defaultSubfolder: "sites", rootsEnvName: "TOVU_SITE_ROOTS", legacyDefaultFolder: "Tovu Sites",
       legacySettingsFile: path.join(homeDir, ".tovu", "sites-home.json"),
       sourceRoots: sourceRoots ?? (fs.existsSync(path.join(cwd, "apps", "website", "src")) ? [path.join(cwd, "sites")] : []),
-    } }, { env, cwd, ...directoryOptions });
+    } }, { env, cwd, ...directoryOptions,
+      // The inherited override also reaches CLI/MCP callers without an Electron app instance.
+      appDataDir: appDataDir ?? (env.TOVU_DESKTOP_USER_DATA_DIR?.trim() ? (directoryOptions.platform === "win32" ? path.win32 : path).resolve(cwd, env.TOVU_DESKTOP_USER_DATA_DIR.trim()) : undefined),
+    });
+  return { ...workspace, invalidCatalogNotices: new Set<string>() };
 }
 export type SitesWorkspace = ReturnType<typeof createSitesWorkspace>;
 
@@ -28,6 +34,7 @@ export type SitesWorkspace = ReturnType<typeof createSitesWorkspace>;
 export function shareSiteDirectories(
   { workspace, dirs, createdBy, migration, allowRelocation = false }: { workspace: SitesWorkspace; dirs: readonly string[]; createdBy: string; migration?: string; allowRelocation?: boolean }, { report = console.warn }: { report?: (message: string) => void } = {},
 ): DirectoryRecord[] {
+  const notices = workspace.invalidCatalogNotices;
   try {
     const registry = workspace.registry({});
     if (migration && registry.hasMigration({ migration })) return registry.list({});
@@ -35,13 +42,11 @@ export function shareSiteDirectories(
     let unavailable = false;
     for (const dir of dirs) {
       try {
-        const meta = JSON.parse(fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8")) as { siteId?: unknown } | null;
-        const config = JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")) as { name?: unknown } | null;
-        const name = normalizeSiteName(config?.name);
-        if (name === null) throw new Error("Invalid name");
-        if (meta?.siteId !== undefined && (typeof meta.siteId !== "string" || !meta.siteId.trim())) throw new Error("Invalid identity");
+        // Probe the folder before tolerant config reading erases ENOENT: an unmounted MRU
+        // entry must keep its import pending so the original path is retried after remount.
         const canonical = fs.realpathSync(dir);
-        const id = typeof meta?.siteId === "string" ? meta.siteId : createHash("sha256").update(canonical).digest("hex");
+        const { name, siteId } = readCatalogSite({ siteDir: canonical });
+        const id = siteId !== undefined ? siteId : createHash("sha256").update(canonical).digest("hex");
         const previous = registered.get(id);
         if (previous && previous.path !== canonical) {
           if (fs.existsSync(previous.path)) throw new Error("Copied identity");
@@ -54,10 +59,13 @@ export function shareSiteDirectories(
           registry.relocate({ from: previous.path, to: canonical });
         }
         const entry = { id, name, path: canonical, createdBy, lastOpened: null };
-        registry.merge({ entries: [entry] }); registered.set(id, entry);
+        registry.merge({ entries: [entry] }); registered.set(id, entry); notices.delete(dir);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") unavailable = true;
-        report(`tovu desktop: skipped shared catalog entry ${dir}; its metadata, identity or folder is unavailable/invalid.`);
+        if (!notices.has(dir)) {
+          notices.add(dir);
+          report(`tovu desktop: skipped shared catalog entry ${dir}; its metadata, identity or folder is unavailable/invalid.`);
+        }
       }
     }
     // Missing-volume MRU entries are retried after remount; do not certify an incomplete import.

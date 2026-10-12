@@ -1,5 +1,33 @@
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 /** Settings copy merges into the existing Sites translator; paths and app names remain data. */
 export const SITES_SETTINGS_DICT: Record<string, Record<string, string>> = {
+  "pt-BR": {
+    "Sites settings": "Configurações dos sites",
+    "Store databases in app-data": "Armazenar bancos de dados nos dados do aplicativo",
+    "Use {path}": "Usar {path}",
+    "New websites folder": "Pasta para novos sites",
+    "Extra sites folders": "Pastas adicionais de sites",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Novos sites são criados nesta pasta. As pastas dos sites existentes permanecem onde estão.",
+    "Sites inside these folders are listed here too.": "Os sites dentro destas pastas também aparecem aqui.",
+    "About {name}": "Sobre {name}",
+    "No extra folders.": "Nenhuma pasta adicional.",
+    "Extra folder {number}": "Pasta adicional {number}",
+    "Remove folder {number}": "Remover pasta {number}",
+    "Add folder": "Adicionar pasta",
+    "Opens by default": "Abre por padrão",
+    "Database location": "Local do banco de dados",
+    "Inside each site (data.nosync)": "Dentro de cada site (data.nosync)",
+    "OS app-data": "Dados do aplicativo no sistema operacional",
+    "{name} overrides this setting.": "{name} substitui esta configuração.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Os bancos de dados existentes mantêm seu local. Pare o site antes de mover os bancos de dados.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "As pastas dos sites que usam dados do aplicativo não são autossuficientes. Transfira também seus bancos de dados.",
+    "Saved in {path}": "Salvo em {path}",
+    "Running in {app} (port {port})": "Em execução no {app} (porta {port})",
+    "Running in {app} (starting)": "Em execução no {app} (iniciando)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} sincroniza esta pasta. Novos bancos de dados usam dados do aplicativo por segurança.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} sincroniza esta pasta. Armazene os bancos de dados nos dados do aplicativo para evitar corrupção.",
+  },
   "de": {
     "Sites settings": "Website-Einstellungen",
     "Store databases in app-data": "Datenbanken in App-Daten speichern",
@@ -521,3 +549,5 @@ export const SITES_SETTINGS_DICT: Record<string, Record<string, string>> = {
     "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} bu klasörü eşitler. Bozulmayı önlemek için veritabanlarını uygulama verilerinde saklayın."
   }
 };
+
+export const t = createDictionaryTranslator({ featureDictionary: SITES_SETTINGS_DICT });

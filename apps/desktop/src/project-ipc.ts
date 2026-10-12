@@ -1,5 +1,5 @@
 import { withFileLock as withDirectoryFileLock } from "@jini-ai/platform/fs";
-import { shareSiteDirectories, type SitesWorkspace } from "./shared-sites.ts";
+import { createSitesWorkspace, shareSiteDirectories, type SitesWorkspace } from "./shared-sites.ts";
 /**
  * @file Real handlers for the ten `runner:sites:*` IPC verbs the Projects screen needs — see
  * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
@@ -22,12 +22,16 @@ import { shareSiteDirectories, type SitesWorkspace } from "./shared-sites.ts";
  * no real Electron, no real `tovu serve` child, no real filesystem beyond what a test points it at.
  */
 import fs from "node:fs";
+import { classifySiteDirSafely } from "./site-dir-store.ts";
 import path from "node:path";
+import os from "node:os";
 import fsp from "node:fs/promises";
+import { moveSiteHome } from "./move-site-home.ts";
 import { removeSiteTree } from "./remove-site-tree.ts";
 import { uniqueSiteName, duplicateSiteNameError } from "./site-name-policy.ts";
 import { siteNameError } from "./contracts/site-name.ts";
 import type { SiteFoldersPort } from "./site-folders.ts";
+import type { SiteRecord } from "./contracts/project.ts";
 
 import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
@@ -38,6 +42,7 @@ import { assertTokensCanReachFolder, cleanCreateTokens, initTokenOptions, listTo
 const SITE_IPC_CHANNELS = Object.freeze({
   list: "runner:sites:list",
   create: "runner:sites:create",
+  planNewDir: "runner:sites:plan-new-dir",
   delete: "runner:sites:delete",
   openExternal: "runner:sites:open-external",
   start: "runner:sites:start",
@@ -51,6 +56,7 @@ const SITE_IPC_CHANNELS = Object.freeze({
   addSite: "runner:sites:add-site",
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
+  moveHome: "runner:sites:move-home",
   locate: "runner:sites:locate",
   tokenSignInPlugins: "runner:sites:token-sign-in-plugins",
 });
@@ -156,7 +162,7 @@ interface OpenDialogResult {
   filePaths: string[];
 }
 
-/** `deps.dialog` — injected so `handleCreate`/`handleAddSite` are testable without a real native
+/** `deps.dialog` — injected so existing-folder/settings handlers are testable without a real native
  *  dialog. */
 interface DialogLike {
   showOpenDialog(options: OpenDialogOptions): Promise<OpenDialogResult>;
@@ -278,7 +284,8 @@ function siteLifecycle(running: boolean, transition: "starting" | "stopping" | n
  *
  * @complexity O(1).
  */
-function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
+function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir">>) {
+  const validSite = (deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) === "site";
   const openEntry = deps.openSites.get(row.siteDir);
   const sharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
   const running = openEntry !== undefined || (sharedRunning?.port ?? 0) > 0;
@@ -289,11 +296,13 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
   // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
   // is not exercising them) it reads `null` and nothing here changes.
   const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? (sharedRunning && !sharedRunning.port ? "starting" : null));
+  const home = deps.sharedSites?.home({}), parent = path.dirname(row.siteDir);
   return {
+    moveIntoSites: !!home && deps.sharedSites!.legacyHomes({}).includes(parent) && parent === path.dirname(home) && parent !== home && row.siteDir !== home,
     id: row.siteDir,
     slug: path.basename(row.siteDir),
-    // The config is unavailable after a Finder deletion; retain the last known display name.
-    displayName: row.displayNameAlias ?? (!fs.existsSync(row.siteDir) && typeof row.displayName === "string" ? row.displayName : deps.readSiteName(row.siteDir)),
+    // The config may be gone even when a themes-only folder remains; keep the last known name.
+    displayName: row.displayNameAlias ?? (validSite ? deps.readSiteName(row.siteDir) : row.displayName ?? path.basename(row.siteDir)),
     installDir: row.siteDir,
     port: openEntry?.server.port ?? sharedRunning?.port ?? 0,
     runningApp: sharedRunning?.app,
@@ -305,7 +314,7 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
     partition: sitePartition(row.siteDir),
     templateId: "tovu",
     templateVersion: null,
-    database: { kind: "sqlite" },
+    database: { kind: "sqlite" as const },
     desiredState: lifecycle.desiredState,
     status: lifecycle.status,
     // Not always `null` any more: a site that DIED is `stopped` exactly like one that was never
@@ -327,9 +336,9 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
     // which is every site's ordinary state until it has been opened once.
     previewVersion: deps.readPreviewVersion(row.siteDir),
     // Asked of the disk on every poll, never stored: a folder renamed or deleted behind the app's
-    // back is exactly the case a stored flag would get wrong. `true` only for a row
-    // `site-relocation.ts` could not heal — the card then offers Locate / Remove.
-    folderMissing: !fs.existsSync(row.siteDir),
+    // back is exactly the case a stored flag would get wrong. Admission also rejects a leftover
+    // themes-only/corrupt directory — the same Locate / Remove recovery applies to it.
+    folderMissing: !validSite,
   };
 }
 
@@ -346,7 +355,7 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
  */
 function handleList(
   deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> &
-    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders">> & { relocationGate?: RelocationGate },
+    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir">> & { relocationGate?: RelocationGate },
 ) {
   if (deps.sharedSites) {
     try {
@@ -359,7 +368,7 @@ function handleList(
   const file = readProjectsFile(deps.projectsPath);
   if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return recordsWithRememberedNames({ rows: file.rows, deps });
   try {
-    relocateMovedSites(deps.projectsPath, { searchRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots ?? [] });
+    relocateMovedSites({ projectsPath: deps.projectsPath }, { searchRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots ?? [], classifySiteDir: deps.classifySiteDir });
   } catch (error) {
     console.warn(`tovu desktop: could not save moved site folders — ${(error as Error).message}`);
   }
@@ -448,11 +457,28 @@ function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
   }));
 }
 
+/** Plan a new Tovu site without creating folders or reserving the destination.
+ * The workspace owns home resolution and volume admission for both Create and its preview.
+ * @throws {Error} if the name is not a string or the home volume is unavailable.
+ * @complexity O(n + k) for n name characters and k conflicting folders; O(n) space.
+ */
+export function planNewSiteDir({ name }: { name: string }, {
+  workspace = createSitesWorkspace({}),
+}: { workspace?: Pick<SitesWorkspace, "home" | "homeAvailable"> } = {}): string {
+  if (typeof name !== "string") throw new Error("Website name must be a string.");
+  const home = workspace.home({});
+  if (!workspace.homeAvailable({})) throw new Error(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
+  const folder = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "website";
+  let target = path.join(home, folder), suffix = 2;
+  while (fs.existsSync(target)) target = path.join(home, `${folder}-${suffix++}`);
+  return target;
+}
+
 /**
  * "+ Create website" has no folder in its input — `CreateSiteInput` is a display name plus a
  * database choice, ported from Tovu-Runner's own provisioner-backed form. This shell has no such
- * provisioner, so creating a project here means the operator picks WHERE it lives, the same way
- * "Open Site…" already does; `input.displayName` becomes `tovu init`'s `--name`.
+ * provisioner, so each new project gets a free directory under the configured sites home;
+ * `input.displayName` becomes `tovu init`'s `--name`.
  *
  * **The database choice is REFUSED rather than ignored (D-02).** Knowing the field was dead and
  * narrowing it silently was the defect: `buildSiteRecord` hard-codes `{kind: "sqlite"}`, so an
@@ -462,57 +488,38 @@ function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
  * boundary; the renderer's own fix (disabling the options it cannot deliver) is the first line,
  * and this is the one that holds whoever calls the channel next.
  *
- * Refused BEFORE the folder dialog, deliberately: nobody should pick a folder for a site that was
+ * Refused BEFORE planning the destination, deliberately: nobody should prepare a site that was
  * never going to be made. An absent `database` is the same as `sqlite` — every existing caller
  * omits it, and omitting it is not a claim about a provider.
  *
- * @returns null when the folder picker is cancelled.
- * @throws {Error} when a non-SQLite database is asked for, the name is invalid, or
- *   when the chosen folder is occupied/incomplete (`adoptSiteDir`'s own errors — an
- *   operator-facing message either way).
- * @complexity O(1) beyond `adoptSiteDir`'s own cost.
+ * @returns the new site record.
+ * @throws {Error} for invalid input, an unavailable sites home, or a creation race.
+ * @complexity O(k) destination probes for k conflicting folders, plus initialization.
  */
 async function handleCreate(
   input: CreateSiteInput,
-  deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites">
+  deps: Pick<ProjectIpcDeps, "classifySiteDir" | "adoptSiteDir" | "repoRoot" | "statePath" | "cliMode" | "projectsPath" | "openSites" | "readSiteName" | "readPreviewVersion" | "transitions" | "siteFolders" | "sharedSites">
 ) {
   const agentPluginTokens = validateCreateInput({ input });
 
-  const home = deps.sharedSites?.home({});
-  let picked: OpenDialogResult;
-  if (home) {
-    if (!fs.existsSync(path.dirname(home))) throw new Error(`Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`);
-    fs.mkdirSync(home, { recursive: true });
-    const folder = input.displayName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "website";
-    let target = path.join(home, folder), suffix = 2;
-    while (fs.existsSync(target)) target = path.join(home, `${folder}-${suffix++}`);
-    picked = { canceled: false, filePaths: [target] };
-  } else {
-    picked = await deps.dialog.showOpenDialog({
-      title: "Choose a folder for your new site",
-      message: `Pick an empty folder for "${input.displayName}".`,
-      buttonLabel: "Create here", properties: ["openDirectory", "createDirectory"],
-    });
-  }
-  if (picked.canceled || picked.filePaths.length === 0) {
-    // Cancelling is a completed choice, not an IPC failure to log or display.
-    return null;
-  }
+  const target = planNewSiteDir({ name: input.displayName }, { workspace: deps.sharedSites });
+  fs.mkdirSync(path.dirname(target), { recursive: true });
   // BEFORE `adoptSiteDir`, because afterwards the answer is gone: it returns the same path whether
   // it ran `tovu init` into an empty folder or simply recognized a site that was already there. Only
   // the first of those is a directory this app made, and only that one may ever be erased again —
-  // see `project-delete-guard.ts`. `adoptSiteDir` refuses "occupied"/"incomplete" outright, so the
-  // only two classifications that reach `trackSite` are the two this maps.
-  const wasEmpty = deps.classifySiteDir(picked.filePaths[0]!) === "empty"; // just checked `filePaths.length === 0` above, so index 0 exists
+  // see `project-delete-guard.ts`. Create must refuse a folder another app took before either
+  // classification, rather than recording its existing site as one this app made.
+  const wasEmpty = deps.classifySiteDir(target) === "empty";
   assertTokensCanReachFolder(agentPluginTokens, wasEmpty);
   if (!wasEmpty && input.adminPassword !== undefined) throw new Error("An admin password can only be set while creating a new site. Change an existing site's password under Users.");
-  const names = otherSiteNames({ deps, siteDir: picked.filePaths[0]! });
-  const displayName = uniqueSiteName({ name: wasEmpty ? input.displayName : deps.readSiteName(picked.filePaths[0]!), names });
+  if (!wasEmpty) throw new Error("The new website folder was created by another app. Try creating this website again.");
+  const names = otherSiteNames({ deps, siteDir: target });
+  const displayName = uniqueSiteName({ name: input.displayName, names });
   const init = { output: "" };
   const adopt = async () => {
-    if (home && deps.classifySiteDir(picked.filePaths[0]!) !== "empty") throw new Error("The new website folder was created by another app. Try creating this website again.");
+    if (deps.classifySiteDir(target) !== "empty") throw new Error("The new website folder was created by another app. Try creating this website again.");
     return deps.adoptSiteDir({
-    dir: picked.filePaths[0]!, // same non-empty check as above
+    dir: target,
     repoRoot: deps.repoRoot,
     statePath: deps.statePath,
     name: displayName,
@@ -521,29 +528,28 @@ async function handleCreate(
     ...initTokenOptions(agentPluginTokens, init),
     });
   };
-  const siteDir = home ? await withDirectoryFileLock({ lockPath: `${picked.filePaths[0]!}.creation.lock`, run: adopt }, { staleMs: Infinity }) : await adopt();
-  const origin = wasEmpty ? SITE_ORIGIN.created : SITE_ORIGIN.adopted;
+  const siteDir = await withDirectoryFileLock({ lockPath: `${target}.creation.lock`, run: adopt }, { staleMs: Infinity });
   // Read AFTER `adoptSiteDir`, because before it there is no site there to have an identity: this is
   // the id `tovu init` just stamped into `.site-meta.json`. Recording it here is the only moment
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
   // at a path, and a path is not an identity. See `project-delete-guard.ts`'s test 3.
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
   const siteId = readSiteIdentity(siteDir);
-  trackSite(deps.projectsPath, siteDir, origin, { siteId });
+  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" });
-  // Create lets the operator pick any folder. Remember its parent beyond MRU eviction/card
+  // Remember the created site's parent beyond MRU eviction/card
   // removal, so a site created beside it by the CLI or web admin can appear on the next scan.
-  if (wasEmpty) {
-    try { deps.siteFolders?.rememberCreated({ siteDir }); }
-    catch { console.warn("tovu desktop: could not remember the created website folder; the website was created successfully."); }
-  }
+  try { deps.siteFolders?.rememberCreated({ siteDir }); }
+  catch { console.warn("tovu desktop: could not remember the created website folder; the website was created successfully."); }
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName });
   const displayNameAlias = displayName !== deps.readSiteName(siteDir) ? displayName : undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
-  return withCreatedTokens(buildSiteRecord({ siteDir, createdAt: new Date().toISOString(), origin, siteId, displayNameAlias }, deps), init.output);
+  const tracked = readTrackedSites(deps.projectsPath).find((row) => row.siteDir === siteDir);
+  if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Add Tovu Website to add the folder again.");
+  return withCreatedTokens(buildSiteRecord({ ...tracked, displayNameAlias }, deps), init.output);
 }
 
-/** Validate creation before the folder picker; return the existing cleaned token contract.
+/** Validate creation before planning the destination; return the existing cleaned token contract.
  * @throws {Error} for unsupported providers, names, tokens or passwords.
  * @complexity O(n) in token count, delegated to cleanCreateTokens.
  */
@@ -588,11 +594,10 @@ async function handleTokenSignInPlugins(deps: Pick<ProjectIpcDeps, "repoRoot" | 
  * creates a site there, which for this verb is the operator's mistake being silently acted on
  * rather than reported.
  *
- * It also explains a confusion this closes rather than adds to: `handleCreate` ALREADY silently
- * adopts a folder that turns out to be a site (see its `wasEmpty` line), so "Create website" has
- * been doing two jobs with one label. This gives the second job its own button and its own refusals.
+ * It also closes the old confusion where "Create website" adopted a picked existing site.
+ * Create now chooses a free directory under sites home; Add owns the existing-folder choice.
  *
- * Main owns the dialog, same as `handleCreate`, so the renderer never names a path.
+ * Main owns the existing-folder dialog, so the renderer never names a path.
  *
  * The row is recorded `adopted` by `addSitePointer` itself, never `created`, so
  * `project-delete-guard.ts` can never let a later delete erase a folder this app did not make.
@@ -607,7 +612,7 @@ async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePoint
     title: "Choose your Tovu website's folder",
     message: "Pick a folder that already contains a Tovu website. Nothing in it will be changed.",
     buttonLabel: "Add website",
-    // No `createDirectory`, unlike `handleCreate`: a folder the operator makes in this dialog is
+    // No `createDirectory`: a folder the operator makes in this dialog is
     // empty by definition, and an empty folder is precisely what this verb refuses. Offering the
     // button would invite the one mistake the refusal then has to explain.
     properties: ["openDirectory"],
@@ -992,12 +997,13 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  * @complexity O(1) beyond `openSiteServer`'s own cost, plus however long an already-queued
  *   operation on the same site takes to settle.
  */
-async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
+async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir">>) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
+    if ((deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) !== "site") throw new Error("Folder moved or not a site. Locate the website folder or remove this card.");
     await markTransition(deps.transitions, id, "starting", () => explainMissingSiteDir(id, deps.openSiteServer(id, deps.ctx)));
     return buildSiteRecord(row, deps);
   });
@@ -1141,7 +1147,7 @@ async function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentS
     scanRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots,
     knownDirs: deps.recentSiteDirs(),
     classifySiteDir: deps.classifySiteDir,
-  });
+  }, { homeDir: deps.sharedSites?.homeDir, sitesHome: deps.sharedSites?.home({}) });
   adoptDiscoveredSites(deps.projectsPath, found);
   return handleList(deps);
 }
@@ -1149,16 +1155,46 @@ async function rescanSites(deps: Pick<ProjectIpcDeps, "siteScanRoots" | "recentS
 /** Main owns the picker; adding a root only changes future discovery, never site files/processes.
  * @returns Fresh settings, or null on cancellation.
  * @throws Native picker or persistence errors, preserving their actual message.
- * @complexity O(n) roots for the settings update.
+ * @complexity O(n log n) bounded discovery in the worker, then O(r) settings for r roots.
  */
-async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialog" | "siteFolders"> }, _options = {}) {
+async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialog" | "siteFolders" | "discoverSites" | "classifySiteDir" | "recentSiteDirs" | "sharedSites"> }, _options = {}) {
   if (!deps.siteFolders) throw new Error("Sites folders settings are unavailable in this desktop version.");
   const picked = await deps.dialog.showOpenDialog({
     title: "Add sites folder", message: "Choose a folder containing Tovu website folders. Use Rescan to discover them.",
     buttonLabel: "Add folder", properties: ["openDirectory"],
   });
   if (picked.canceled || picked.filePaths.length === 0) return null;
-  return deps.siteFolders.add({ root: picked.filePaths[0]! });
+  const root = fs.realpathSync(picked.filePaths[0]!);
+  const scanRoots = [...new Set([...deps.siteFolders.read({}).roots, root])];
+  // Use the discovery owner before committing settings, including aggregate entry/root limits.
+  // A failed scan leaves both shared config and legacy profile settings byte-for-byte unchanged.
+  if (deps.discoverSites) await deps.discoverSites({ scanRoots });
+  else discoverSiteDirs({ scanRoots, knownDirs: deps.recentSiteDirs(), classifySiteDir: deps.classifySiteDir }, { homeDir: deps.sharedSites?.homeDir, sitesHome: deps.sharedSites?.home({}) });
+  return deps.siteFolders.add({ root });
+}
+
+/** Explicit old-level move action. Local serialization and shared leases reject live owners;
+ * the CLI repeats admission using SQLite locks before the verified copy and catalog transaction.
+ * @returns The card at its destination; rejects absent/unconfirmed/live sites before invocation.
+ * @complexity O(n) tracked rows plus the selected site's CLI relocation cost.
+ */
+export async function handleMoveHome({ input, deps }: {
+  input: { id?: string; confirmed?: boolean };
+  deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "sharedSites" | "openSites" | "transitions" | "moveSiteHome" | "repoRoot" | "cliMode" | "readSiteName" | "readPreviewVersion">;
+}, _options = {}): Promise<SiteRecord> {
+  if (input?.confirmed !== true || typeof input.id !== "string") throw new Error("Confirm the site move first.");
+  const id = input.id;
+  return await deps.serializer.run(id, async () => {
+    const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
+    if (!row || !deps.sharedSites?.legacyHomes({}).includes(path.dirname(id))) throw new Error("This site is not at the old sites-home level.");
+    if (path.dirname(id) === deps.sharedSites.home({})) throw new Error("This site is already directly inside the selected sites home. Select its nested sites/ home before moving it.");
+    if (path.dirname(id) !== path.dirname(deps.sharedSites.home({}))) throw new Error("Only sites beside the selected sites/ home can be moved into it.");
+    if (deps.openSites.get(id)?.server || deps.transitions?.get(id) || deps.sharedSites.running({ path: id }).peek({})) throw new Error("Stop this site before moving it.");
+    const to = await (deps.moveSiteHome ?? moveSiteHome)({ dir: id, repoRoot: deps.repoRoot, cliMode: deps.cliMode, projectsPath: deps.projectsPath });
+    const moved = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === to);
+    if (!moved) throw new Error("The move completed without updating its desktop card.");
+    return buildSiteRecord(moved, deps);
+  });
 }
 
 /**
@@ -1208,8 +1244,11 @@ async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialo
  * @complexity O(1) — a fixed set of channel registrations.
  */
 function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
-  const relocationGate = createRelocationGate();
+  const relocationGate = createRelocationGate({}, { classifySiteDir: deps.classifySiteDir });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList({ ...deps, relocationGate }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.planNewDir, (_event, input) => ({
+    path: planNewSiteDir({ name: input?.name }, { workspace: deps.sharedSites }), homeDir: os.homedir(),
+  }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.create, (_event, input) => handleCreate(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => handleDelete(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
@@ -1242,6 +1281,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.moveHome, (_event, input) => handleMoveHome({ input, deps }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
 }
@@ -1273,6 +1313,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
   /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */
+  moveSiteHome?: typeof moveSiteHome;
   listTokenSignInPlugins?: (input: { repoRoot: string; cliMode?: "source" | "compiled" }) => Promise<TokenSignInPlugin[]>;
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its
   // `SiteClassification`. The throwing `classifySiteDir` and the tests' fakes return a subset.
@@ -1295,7 +1336,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   /** Profile-bound, read fresh at boot and Rescan; optional for older hosts and handler fakes. */
   siteFolders?: SiteFoldersPort;
   /** Production discovery runs filesystem probes off-thread; results grant no deletion authority. */
-  discoverSites?: (required: {}, options?: {}) => Promise<string[]>;
+  discoverSites?: (required: { scanRoots?: string[] }, options?: {}) => Promise<string[]>;
   recentSiteDirs: () => string[];
   sharedSites?: SitesWorkspace;
   ctx: TCtx;

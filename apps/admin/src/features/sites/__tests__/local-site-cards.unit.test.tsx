@@ -29,11 +29,12 @@ function openMenu(site: string): string[] {
   return within(screen.getByRole("menu", { name: `More actions for ${site}` })).getAllByRole("menuitem").map((item) => item.textContent ?? "");
 }
 
-it("serving card: status pill, Default meta, Open in a new tab, and no lifecycle, Delete or menu", () => {
+it("serving card: status pill, default star, Open in a new tab, and no lifecycle, Delete or menu", () => {
   renderCards(localSnapshot(), recordingController([]));
   const owner = within(screen.getByTitle("/sites/owner"));
   expect(owner.getByText("Serving now").className).toContain("status-ok");
-  expect(owner.getByText("Default").className).toBe("site-card-meta");
+  expect(owner.getByRole("img", { name: "Opens by default" })).toHaveAttribute("title", "Opens by default");
+  expect(owner.queryByText("Default")).toBeNull();
   const open = owner.getByRole("link", { name: "Open owner in a new tab" });
   expect(open).toHaveAttribute("href", "/admin/"); expect(open).toHaveAttribute("target", "_blank");
   expect(owner.queryByRole("button", { name: "Start owner" })).toBeNull();
@@ -126,4 +127,16 @@ it("Trash says it is empty instead of rendering an empty grid", () => {
   render(<SiteTrashTab snapshot={snapshot} controller={recordingController([])} t={(key) => key} />);
   expect(screen.getByText("Site Trash is empty.")).toBeInTheDocument();
   expect(screen.queryByRole("group", { name: "Site Trash" })).toBeNull();
+});
+
+it("old-level stopped cards offer Move into sites/ through the existing action controller", () => {
+  const snapshot = localSnapshot(), actions: unknown[] = [];
+  snapshot.sites = snapshot.sites.map((site) => ({ ...site, moveIntoSites: true }));
+  renderCards(snapshot, recordingController(actions));
+  expect(within(screen.getByTitle("/sites/owner")).queryByRole("button", { name: "More actions for owner" })).toBeNull();
+  expect(openMenu("alpha")).not.toContain("Move into sites/");
+  fireEvent.keyDown(screen.getByRole("menu", { name: "More actions for alpha" }), { key: "Escape" });
+  expect(openMenu("beta")).toContain("Move into sites/");
+  fireEvent.click(screen.getByRole("menuitem", { name: "Move into sites/" }));
+  expect(actions).toEqual([["beta", "move"]]);
 });

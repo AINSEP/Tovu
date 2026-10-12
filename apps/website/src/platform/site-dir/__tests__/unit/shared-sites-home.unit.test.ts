@@ -1,3 +1,4 @@
+import { isolatedCatalogHome } from "../helpers/isolated-catalog-home.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -24,7 +25,7 @@ test("Web creation uses the home, shared external registrations appear, and lega
     const created = await createSite({ name: "alpha" }, { ...options, initSite: async ({ dir, name }) => {
       writeSite(dir, "11111111-1111-4111-8111-111111111111", name); return { dir, siteId: "11111111-1111-4111-8111-111111111111" };
     } });
-    assert.equal(created.dir, path.join(root, "Documents", "Tovu", "alpha"));
+    assert.equal(created.dir, path.join(root, "Documents", "Tovu", "sites", "alpha"));
     assert.equal(fs.existsSync(path.join(cwd, "sites")), false);
     assert.equal(workspace.registry({}).list({})[0]?.createdBy, "Web");
     assert.equal(resolveSiteRoot(options), path.join(cwd, "sites", "tovu-dev"));
@@ -72,7 +73,7 @@ test("home settings enforce workspace/capability/permission boundaries before fi
     const workspace = createSitesWorkspace({}, { homeDir: root, env: {} });
     let enabled = false, allowed = false, checks = 0;
     let handler: import("express").RequestHandler | undefined;
-    const app = { get() {}, put(_url: string, callback: import("express").RequestHandler) { handler = callback; } } as unknown as import("express").Express;
+    const app = { post() {}, get() {}, put(_url: string, callback: import("express").RequestHandler) { handler = callback; } } as unknown as import("express").Express;
     registerSitesHomeRoutes({ app, workspace, deps: { workspaceId: "workspace", isSiteSwitcherEnabled: () => enabled,
       authorize: async ({ permission }) => { checks++; assert.equal(permission, "system.write"); return { allowed, reason: "policy" }; },
     } });
@@ -99,7 +100,7 @@ test("Web boot pins its site while later MRU and home changes affect only future
   try {
     const cwd = path.join(root, "repo"), env: NodeJS.ProcessEnv = { TOVU_SITE: "alpha" }, options = { cwd, homeDir: root, env };
     fs.mkdirSync(cwd);
-    const alpha = path.join(root, "Documents", "Tovu", "alpha"), beta = path.join(root, "Documents", "Tovu", "beta");
+    const alpha = path.join(root, "Documents", "Tovu", "sites", "alpha"), beta = path.join(root, "Documents", "Tovu", "sites", "beta");
     writeSite(alpha, "alpha-id"); writeSite(beta, "beta-id");
     assert.equal(pinDefaultSiteRoot({}, options), alpha);
     createSitesWorkspace({}, options).registry({}).merge({ entries: [{ id: "alpha-id", name: "Alpha", path: alpha, createdBy: "Web", lastOpened: null }] });
@@ -133,5 +134,62 @@ test("Web creation refuses an unavailable home volume before initialization", as
       message: `Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.`,
     });
     assert.equal(inits, 0); assert.equal(fs.existsSync(path.dirname(home)), false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+
+test("deskfx2 MUST-2: ambient catalog resolution stays inside the test home", () => {
+  const workspace = createSitesWorkspace({});
+  assert.equal(os.homedir(), isolatedCatalogHome);
+  for (const file of [workspace.config({}).appData, workspace.config({}).configPath, workspace.home({})]) {
+    const relative = path.relative(isolatedCatalogHome, file);
+    assert.ok(relative !== ".." && !relative.startsWith(".." + path.sep) && !path.isAbsolute(relative));
+  }
+  const site = path.join(isolatedCatalogHome, "fixture-site");
+  workspace.registry({}).merge({ entries: [{ id: "isolated-fixture", name: "Fixture", path: site, createdBy: "test", lastOpened: null }] });
+  assert.equal(workspace.registry({}).list({}).some((entry) => entry.path === site), true);
+});
+
+test("nested and former-level sites remain discoverable, while non-site siblings are ignored", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sitesnest-discovery-")));
+  try {
+    const options = { homeDir: root, cwd: root, env: {}, platform: "linux" as const };
+    const old = path.join(root, "Documents", "Tovu", "old-site"), nested = path.join(root, "Documents", "Tovu", "sites", "new-site");
+    writeSite(old, "old-id"); writeSite(nested, "new-id");
+    fs.mkdirSync(path.join(root, "Documents", "Tovu", "plugins"));
+    fs.mkdirSync(path.join(root, "Documents", "Tovu", "sites", "partial"));
+    const sites = listSites(options);
+    assert.deepEqual(sites.map((site) => site.dir).sort(), [old, nested].sort());
+    assert.equal(sites.find((site) => site.dir === old)?.moveIntoSites, true);
+    assert.equal(sites.find((site) => site.dir === nested)?.moveIntoSites, false);
+    assert.equal(createSitesWorkspace({}, options).home({}), path.dirname(nested));
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+
+for (const layout of ["documents", "local"]) test(`Web hides nesting action when environment selects the ${layout} old home`, () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sitesnest2-web-override-")));
+  try {
+    const home = layout === "local" ? path.join(root, "Tovu") : path.join(root, "Documents", "Tovu");
+    const dir = path.join(home, "alpha"); writeSite(dir, "alpha-id");
+    const sites = listSites({ homeDir: root, cwd: root, env: { TOVU_SITES_HOME: home } });
+    assert.equal(sites.find((site) => site.dir === dir)?.moveIntoSites, false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("stalecard: the named default follows its moved site through the configured home, not an unrelated MRU", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "stalecard-default-")));
+  try {
+    const cwd = path.join(root, "repo"), home = path.join(root, "configured-sites");
+    fs.mkdirSync(cwd);
+    const moved = path.join(home, "tovu-dev"); writeSite(moved, "moved-id");
+    const other = path.join(home, "another-site"); writeSite(other, "other-id");
+    const options = { cwd, homeDir: root, env: { TOVU_SITES_HOME: home } as NodeJS.ProcessEnv };
+    const workspace = createSitesWorkspace({}, options);
+    workspace.registry({}).merge({ entries: [{ id: "other-id", name: "Other", path: other, createdBy: "test", lastOpened: new Date().toISOString() }] });
+    assert.equal(resolveSiteRoot(options), moved);
+    assert.equal(pinDefaultSiteRoot({}, options), moved);
+    assert.equal(options.env.TOVU_SITE_DIR, moved);
+    assert.equal(fs.existsSync(path.join(cwd, "sites")), false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

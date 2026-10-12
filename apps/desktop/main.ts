@@ -131,7 +131,7 @@ import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
-import { redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
+import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
 import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
 import { writeSiteName } from "./src/site-config.ts";
 import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "./src/site-preview-store.ts";
@@ -277,7 +277,10 @@ const DESKTOP_ROOTS = resolveDesktopRoots({
  * header for how that was found (six stale `tovu-desktop-e2e-*` MRU entries in the real
  * `desktop-state.json`). Unset in every real launch.
  */
-app.setPath("userData", process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim() || DESKTOP_ROOTS.userDataDir);
+app.setPath("userData", process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim() ? path.resolve(process.env.TOVU_DESKTOP_USER_DATA_DIR.trim()) : DESKTOP_ROOTS.userDataDir);
+// Share the resolved profile with CLI children too; a relative override otherwise changes meaning
+// when a child runs from another cwd. Normal launches retain the shared Web/CLI app-data owner.
+if (process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim()) process.env.TOVU_DESKTOP_USER_DATA_DIR = app.getPath("userData");
 
 /**
  * The bundled node/npm/npx shims' env contract (`TOVU_NODE_TOOLCHAIN_DIR`, `TOVU_BUNDLED_NPM_ROOT`),
@@ -339,8 +342,11 @@ const DEV_FALLBACK_SITE_DIR = DESKTOP_ROOTS.devFallbackSiteDir;
  */
 const SITE_SCAN_ROOTS = DESKTOP_ROOTS.siteScanRoots;
 // Resolve from the payload, not the launcher's cwd; only source checkouts scan repo sites by default.
-const sharedSites = createSitesWorkspace({}, { cwd: PAYLOAD_ROOT, sourceRoots: app.isPackaged ? [] : [path.join(REPO_ROOT, "sites")] });
+const sharedSites = createSitesWorkspace({}, { cwd: PAYLOAD_ROOT, sourceRoots: app.isPackaged ? [] : [path.join(REPO_ROOT, "sites")], catalogRecovery: true,
+  appDataDir: process.env.TOVU_DESKTOP_USER_DATA_DIR?.trim() ? app.getPath("userData") : undefined,
+});
 let siteDiscoveryAbort: AbortController | undefined;
+let siteValidationAbort: AbortController | undefined;
 
 /**
  * `true` when this launch should open the sites home Projects screen (boot mode 0) rather than a site
@@ -795,6 +801,10 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
     workspaceId: server.workspaceId,
     pid: server.pid,
     updatedAt: Date.now(),
+  });
+
+  if (server.ownerSignInCapability) armDesktopOwnerSignIn({
+    session: session.fromPartition(partition), adminUrl: server.adminUrl, capability: server.ownerSignInCapability,
   });
 
   // Awaited before returning, so the cookie is already in the jar when the caller's window/guest
@@ -1777,11 +1787,14 @@ app
         readRegistry,
         isLiveServeRow,
         siteScanRoots: SITE_SCAN_ROOTS,
-        discoverSites: async (_required: {}, _options = {}) => {
-          siteDiscoveryAbort?.abort();
+        discoverSites: async ({ scanRoots }: { scanRoots?: string[] }, _options = {}) => {
+          // Picker validation must not cancel a live rescan, or be cancelled by one.
+          if (scanRoots) siteValidationAbort?.abort();
+          else siteDiscoveryAbort?.abort();
           const current = new AbortController();
-          siteDiscoveryAbort = current;
-          return discoverDesktopSites({ statePath: sitesCtx.statePath,
+          if (scanRoots) siteValidationAbort = current;
+          else siteDiscoveryAbort = current;
+          return discoverDesktopSites({ statePath: sitesCtx.statePath, scanRoots,
             workspaceOptions: { cwd: PAYLOAD_ROOT, sourceRoots: app.isPackaged ? [] : [path.join(REPO_ROOT, "sites")] },
           }, { signal: current.signal });
         },
@@ -1862,6 +1875,7 @@ app
  */
 app.on("before-quit", (event) => {
   siteDiscoveryAbort?.abort();
+  siteValidationAbort?.abort();
   // `pendingTeardowns` as well as `openSites` (D-09). A window's `closed` handler removes its entry
   // from `openSites` synchronously and only THEN starts stopping the child, so closing the last
   // window left this reading "nothing open" while a `tovu serve` was still alive — and it is spawned

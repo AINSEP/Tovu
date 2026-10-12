@@ -110,6 +110,13 @@ export function SiteGrid({
   // `runPowerToggle`.
   const power = usePower(onSiteUpdated, { onStarted: onOpen });
   const locate = useLocate(onSiteUpdated);
+  // A name is a label, never site identity. Keep unrelated cards and expose their parent paths.
+  const seenNames = new Set<string>();
+  const duplicateNames = new Set<string>();
+  for (const project of projects) {
+    if (seenNames.has(project.displayName)) duplicateNames.add(project.displayName);
+    seenNames.add(project.displayName);
+  }
 
   return (
     <div className="grid">
@@ -117,6 +124,7 @@ export function SiteGrid({
         <SiteCard
           key={project.id}
           project={project}
+          showParent={duplicateNames.has(project.displayName)}
           overlay={cardOverlay(project.id, pendingId, rename.renamingId)}
           deleting={deletingId === project.id}
           deleteError={deleteError}
@@ -136,6 +144,7 @@ export function SiteGrid({
 
 function SiteCard({
   project,
+  showParent,
   overlay,
   deleting,
   deleteError,
@@ -149,6 +158,7 @@ function SiteCard({
   onConfirmDelete,
 }: {
   project: SiteRecord;
+  showParent: boolean;
   overlay: CardOverlayMode;
   deleting: boolean;
   deleteError: string | null;
@@ -179,6 +189,7 @@ function SiteCard({
   const status = power.statusOf(project);
   const powerError = power.errorOf(project.id);
   const connection = sitePortPresentation({ port: project.port, status });
+  const parentFolder = project.installDir.replace(/[\\/]+[^\\/]+[\\/]*$/, "") || "/";
 
   return (
     <article className={`card is-${status} ${cardOpenClass({ openable })}`} {...openProps}>
@@ -199,7 +210,10 @@ function SiteCard({
             Grid auto-placement fills it in DOM order, so the order below IS the layout — and it is
             also the reading and Tab order, which is why the ⋮ comes second rather than last. */}
         <div className="card__head">
-          <h3 className="card__name" title={project.displayName}>{project.displayName}</h3>
+          <div className="card__namewrap">
+            <h3 className="card__name" title={project.displayName}>{project.displayName}</h3>
+            {showParent && <p className="card__parent" title={project.installDir}>{parentFolder}</p>}
+          </div>
           {/* The inline panel owns the card; its actions must not share space with the menu trigger. */}
           {overlay === null && <SiteCardMenu
             project={project}
@@ -223,7 +237,7 @@ function SiteCard({
               status line when the status moved into the narrow right column: unbounded text there
               would squeeze the name's column to nothing. */}
           {project.statusDetail && (
-            <p className="card__detail" title={project.statusDetail}>
+            <p className={`card__detail${project.runningApp ? " card__detail--running" : ""}`} title={project.statusDetail}>
               {project.statusDetail}
             </p>
           )}
@@ -267,7 +281,7 @@ function MissingFolderNotice({ project, locate }: { project: SiteRecord; locate:
   const error = locate.errorOf(project.id);
   return (
     <>
-      {project.folderMissing && <p className="card__missing">Folder moved or deleted</p>}
+      {project.folderMissing && <p className="card__missing">Folder moved or not a site</p>}
       {error && <p className="card__actionerror">{error}</p>}
     </>
   );
@@ -385,6 +399,10 @@ function CardActions({
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
+      {project.moveIntoSites && !project.folderMissing && status === 'stopped' && locate.moveIntoSites && (
+        <button type="button" className="button button--quiet" disabled={locate.locatingId !== null}
+          onClick={() => void locate.moveIntoSites?.(project.id)}>Move into sites/</button>
+      )}
       {/* A missing folder gets Locate / Remove INSTEAD of Start: `tovu serve` on a folder that is
           not there can only fail. Remove goes through the same confirm overlay as the ⋮ entry. */}
       {project.folderMissing ? (

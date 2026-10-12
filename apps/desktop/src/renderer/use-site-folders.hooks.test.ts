@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createElement } from 'react';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
+import { humanSiteError } from './site-shell-policy.js';
 import type { SiteFolders } from '../contracts/project.js';
 
 const hookSource = fs.readFileSync(new URL('./use-site-folders.hooks.ts', import.meta.url), 'utf8');
@@ -24,7 +25,7 @@ function settingsHook(harness: ReturnType<typeof hookHarness>) {
       finally { setSaving(false); }
     } };
   };
-  const hook = sourceFunction(hookSource, 'useSiteFolders', harness.bindings);
+  const hook = sourceFunction(hookSource, 'useSiteFolders', { ...harness.bindings, humanSiteError });
   return (required: {}, options: Record<string, unknown>) => hook(required, { ...options, useAction });
 }
 
@@ -177,7 +178,7 @@ test('storage drafts omit env overrides and both startup-warning remedies use th
   const harness = hookHarness(), calls: unknown[] = [];
   const state = { folders: { home: '/env-home', roots: ['/env-home'], extraRoots: ['/env-root'], databases: 'inSite', overrides: { sitesHome: true, siteRoots: true },
     warning: { provider: 'OneDrive', message: 'Exact warning', localHome: '/user/Tovu' } },
-    busy: false, error: null, setHome: async () => { calls.push("native-picker"); }, saveSettings: async (patch: unknown) => { calls.push(patch); },
+    busy: false, error: null, clearError() {}, setHome: async () => { calls.push("native-picker"); }, saveSettings: async (patch: unknown) => { calls.push(patch); },
   };
   const useFolders = () => state;
   const hook = sourceFunction(source, 'useSiteStorageSettings', harness.bindings);
@@ -208,4 +209,58 @@ test('closing the settings dropdown leaves the sites dialog and its placement dr
   const next = elements(component(props));
   assert.equal(next.some((node) => node.props.role === 'menu'), false);
   assert.equal(next.find((node) => node.props.role === 'dialog')?.props['data-placement'], 'appData');
+});
+
+
+test("deskfx S5: IPC wrappers are stripped, close clears the action, and errors stay inside the dialog", async () => {
+  const harness = hookHarness();
+  const getBridge = () => ({ listSiteFolders: async () => ({ roots: [], extraRoots: [] }),
+    addSiteFolder: async () => { throw new Error("Error invoking remote method 'runner:sites:folders:add': Error: Choose a smaller folder."); },
+  });
+  const foldersHook = settingsHook(harness);
+  const storageSource = fs.readFileSync(new URL('./use-site-storage-settings.hooks.ts', import.meta.url), 'utf8');
+  const storageHook = sourceFunction(storageSource, 'useSiteStorageSettings', harness.bindings);
+  const render = () => harness.render(() => storageHook({}, { useFolders: () => foldersHook({}, { getBridge }) }));
+  render(); await nextTurn(); render().show(); await render().addFolder();
+  assert.equal(render().error, "Choose a smaller folder.");
+  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+  assert.equal(elements(component({ settings: render() })).filter((node) => node.props.role === 'alert').length, 1);
+  // Closing is a real hook action, not an unmount that would accidentally hide stale state.
+  render().close(); assert.equal(render().open, false); assert.equal(render().error, null);
+  assert.equal(elements(component({ settings: { ...render(), error: 'late stale transport error' } })).filter((node) => node.props.role === 'alert').length, 0);
+  render().show(); assert.equal(render().error, null);
+  harness.cleanup();
+});
+
+test("deskfx S2: the home row has no Remove even with an old persisted extra-root entry", () => {
+  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+  const nodes = elements(component({ settings: { open: true, folders: { home: '/home/Tovu', roots: ['/home/Tovu', '/extra'], extraRoots: ['/home/Tovu', '/extra'] },
+    databases: 'inSite', show() {}, close() {}, busy: false, error: null } }));
+  const removes = nodes.filter((node) => node.type === 'button' && node.props.children === 'Remove');
+  assert.deepEqual(removes.map((node) => node.props['aria-label']), ['Remove sites folder /extra']);
+});
+
+
+test("deskfx2 SHOULD-2: both warning remedies show their failures outside the closed dialog", async () => {
+  for (const action of ['useAppData', 'useLocalHome'] as const) {
+    const harness = hookHarness();
+    const warning = { provider: 'OneDrive', message: 'Sync warning', localHome: '/local' };
+    const getBridge = () => ({ listSiteFolders: async () => ({ home: '/sync', roots: ['/sync'], extraRoots: [], warning }),
+      saveSiteSettings: async () => { throw new Error('Settings write failed.'); },
+      setSitesHome: async () => { throw new Error('Folder change failed.'); },
+    });
+    const foldersHook = settingsHook(harness);
+    const storageSource = fs.readFileSync(new URL('./use-site-storage-settings.hooks.ts', import.meta.url), 'utf8');
+    const storageHook = sourceFunction(storageSource, 'useSiteStorageSettings', harness.bindings);
+    const render = () => harness.render(() => storageHook({}, { useFolders: () => foldersHook({}, { getBridge }) }));
+    render(); await nextTurn(); await render()[action]();
+    assert.equal(render().open, false);
+    const message = action === 'useAppData' ? 'Settings write failed.' : 'Folder change failed.';
+    assert.equal(render().warningError, message);
+    const component = sourceFunction(componentSource, 'SitesFoldersDialog', { SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+    const nodes = elements(component({ settings: render() }));
+    assert.equal(nodes.some((node) => node.type === 'p' && node.props.children === message), true);
+    render().show(); assert.equal(render().warningError, null); assert.equal(render().error, null);
+    harness.cleanup();
+  }
 });

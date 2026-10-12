@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { allowsLocalOwnerSignInRequest, resolveLocalOwnerSignIn, warnOnLocalOwnerSignIn } from "../local-owner-signin.js";
+import { allowsLocalOwnerSignInRequest, consumeLocalOwnerSignIn, resolveLocalOwnerSignIn, warnOnLocalOwnerSignIn } from "../local-owner-signin.js";
 
 /** devsignin: production/LAN/deployed configurations never enable browser owner bootstrap. */
 const dev = { NODE_ENV: "development", TOVU_DEV_OWNER_SIGNIN: "1", TOVU_HOST: "127.0.0.1", TOVU_DEV_SUPERVISOR_PID: "42" };
@@ -73,4 +73,52 @@ test("fxdev: proxy markers refuse even with loopback Host, matching Origin and f
       assert.equal(allowsLocalOwnerSignInRequest({ ...request, headers: { [name]: value } }), false, name);
     }
   }
+});
+
+
+test("deskfx S1: a desktop capability admits a loopback launch without a development flag", () => {
+  const env = { TOVU_DESKTOP_OWNER_SIGNIN: "a".repeat(64), TOVU_DESKTOP_OWNER_PID: String(process.ppid), TOVU_HOST: "127.0.0.1" };
+  assert.equal(resolveLocalOwnerSignIn({ env }, noContainer).enabled, true);
+  assert.equal(resolveLocalOwnerSignIn({ env: { ...env, NODE_ENV: "production" } }, noContainer).enabled, true);
+  for (const override of [
+    { TOVU_DESKTOP_OWNER_SIGNIN: "1" }, { TOVU_DESKTOP_OWNER_PID: undefined }, { TOVU_DESKTOP_OWNER_PID: "bad" },
+    { TOVU_HOST: "0.0.0.0" }, { TOVU_PUBLIC_URL: "https://remote.example" },
+    { TOVU_RUNTIME_MODE: "production" }, { FLY_APP_NAME: "live" }, { KUBERNETES_SERVICE_HOST: "live" },
+  ]) assert.equal(resolveLocalOwnerSignIn({ env: { ...env, ...override } }, noContainer).enabled, false, JSON.stringify(override));
+  assert.equal(resolveLocalOwnerSignIn({ env }, { pathExists: () => true }).enabled, false);
+  assert.equal(resolveLocalOwnerSignIn({ env: { NODE_ENV: "development", TOVU_HOST: "127.0.0.1", TOVU_DEV_SUPERVISOR_PID: "42" } }, noContainer).enabled, false);
+});
+
+
+test("deskfx2 MUST-1: desktop capability is captured, scrubbed and requires the actual parent", () => {
+  const secret = "a".repeat(64);
+  const env = { NODE_ENV: "production", TOVU_DESKTOP_OWNER_SIGNIN: secret, TOVU_DESKTOP_OWNER_PID: "42", TOVU_HOST: "127.0.0.1" };
+  const policy = consumeLocalOwnerSignIn({ env }, { ...noContainer, parentPid: 42 });
+  assert.equal(policy.enabled, true);
+  assert.equal("TOVU_DESKTOP_OWNER_SIGNIN" in env, false);
+  assert.equal("TOVU_DESKTOP_OWNER_PID" in env, false);
+  for (const capability of [undefined, "", "b".repeat(64), "a".repeat(63), "a".repeat(65)]) {
+    assert.equal(policy.acceptsCapability?.({ capability }), false);
+  }
+  assert.equal(policy.acceptsCapability?.({ capability: secret }), true);
+  assert.equal(consumeLocalOwnerSignIn({ env }, { ...noContainer, parentPid: 42 }).enabled, false);
+  const wrongParent = consumeLocalOwnerSignIn({ env: { ...env, TOVU_DESKTOP_OWNER_SIGNIN: secret, TOVU_DESKTOP_OWNER_PID: "41" } }, { ...noContainer, parentPid: 42 });
+  assert.equal(wrongParent.enabled, false);
+  assert.match(wrongParent.warning ?? "", /TOVU_DESKTOP_OWNER_SIGNIN is disabled/);
+  assert.equal(JSON.stringify(wrongParent).includes(secret), false);
+});
+
+test("deskfx2 MUST-1: a server child inherits no desktop capability", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const moduleUrl = new URL("../local-owner-signin.ts", import.meta.url).href;
+  const source = `import { bootLocalOwnerSignIn } from ${JSON.stringify(moduleUrl)};
+    import { spawnSync } from "node:child_process";
+    const child = spawnSync(process.execPath, ["-e", 'process.stdout.write(JSON.stringify({secret:process.env.TOVU_DESKTOP_OWNER_SIGNIN,pid:process.env.TOVU_DESKTOP_OWNER_PID}))'], {encoding:"utf8"});
+    process.stdout.write(JSON.stringify({captured:typeof bootLocalOwnerSignIn.enabled === "boolean", child:JSON.parse(child.stdout), status:child.status}));`;
+  const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", source], {
+    encoding: "utf8", env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "production", TOVU_HOST: "127.0.0.1",
+      TOVU_DESKTOP_OWNER_SIGNIN: "a".repeat(64), TOVU_DESKTOP_OWNER_PID: String(process.pid) },
+  });
+  assert.equal(child.status, 0, child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout), { captured: true, child: {}, status: 0 });
 });

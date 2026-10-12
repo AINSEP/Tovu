@@ -30,8 +30,13 @@ test("main.ts hands the resolver Electron's appData root", () => {
 });
 
 test("main.ts sets userData from the resolver, with the E2E override still winning", () => {
-  assert.match(source, /^app\.setPath\("userData", process\.env\.TOVU_DESKTOP_USER_DATA_DIR\?\.trim\(\) \|\| DESKTOP_ROOTS\.userDataDir\);$/m);
+  assert.match(source, /^app\.setPath\("userData", process\.env\.TOVU_DESKTOP_USER_DATA_DIR\?\.trim\(\) \? path\.resolve\(process\.env\.TOVU_DESKTOP_USER_DATA_DIR\.trim\(\)\) : DESKTOP_ROOTS\.userDataDir\);$/m);
   assert.equal(source.match(SET_USER_DATA)?.length, 1, "exactly one module-scope userData setPath, so nothing later overrides it");
+});
+
+test("the shared workspace and CLI children receive Electron's resolved scratch profile", () => {
+  assert.match(source, /process\.env\.TOVU_DESKTOP_USER_DATA_DIR = app\.getPath\("userData"\)/);
+  assert.match(source, /const sharedSites = createSitesWorkspace\(\{\}, \{[\s\S]*?appDataDir: process\.env\.TOVU_DESKTOP_USER_DATA_DIR\?\.trim\(\) \? app\.getPath\("userData"\) : undefined/);
 });
 
 test("userData is set before anything reads it, and before whenReady", () => {

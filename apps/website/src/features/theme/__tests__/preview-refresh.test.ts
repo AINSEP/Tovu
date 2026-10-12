@@ -226,3 +226,20 @@ test("a resumed desktop feed delivers the revision saved during its disconnected
   tick(); tick();
   assert.deepEqual(emitted, [frame]);
 });
+
+
+test("deskfx M1: a refresh may create themes inside an existing site but never recreate a moved site", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "preview-no-resurrection-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const themesDir = path.join(root, "themes");
+  requestThemePreviewRefresh({ themesDir }, { revision: "first" });
+  assert.equal(readThemePreviewRefresh({ themesDir })?.revision, "first");
+  requestThemePreviewRefresh({ themesDir }, { revision: "second" });
+  assert.equal(readThemePreviewRefresh({ themesDir })?.revision, "second");
+  const moved = path.join(root, "moved-site");
+  assert.throws(() => requestThemePreviewRefresh({ themesDir: path.join(moved, "themes") }), { code: "ENOENT" });
+  assert.equal(fs.existsSync(moved), false);
+  const file = path.join(root, "file"); fs.writeFileSync(file, "keep");
+  assert.throws(() => requestThemePreviewRefresh({ themesDir: file }), { code: "EEXIST" });
+  assert.equal(fs.readFileSync(file, "utf8"), "keep");
+});

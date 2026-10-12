@@ -18,8 +18,8 @@ function site(env: Record<string, string | undefined> = dev, { deps = createRout
   app.get("/api/admin/protected", (_req, res) => res.json({ ok: true }));
   return { app, deps };
 }
-const bootstrap = (base: string, cookie?: string) => fetch(`${base}/api/admin/v1/auth/local-boot-session`, {
-  method: "POST", headers: { origin: base, "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors", ...(cookie ? { cookie } : {}) },
+const bootstrap = (base: string, cookie?: string, capability?: string) => fetch(`${base}/api/admin/v1/auth/local-boot-session`, {
+  method: "POST", headers: { origin: base, "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors", ...(cookie ? { cookie } : {}), ...(capability ? { "x-tovu-desktop-owner-signin": capability } : {}) },
 });
 
 test("devsignin: switching A → B → A creates ordinary site sessions and tolerates the other site's cookie", async (t) => {
@@ -300,4 +300,37 @@ test("devsignin: failed identity readiness forwards an error instead of hanging 
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: "identity storage unavailable" });
   assert.equal(res.headers.has("set-cookie"), false);
+});
+
+
+test("deskfx S1: desktop logout then reopening signs the owner in again without restart", async (t) => {
+  const env = { TOVU_DESKTOP_OWNER_SIGNIN: "a".repeat(64), TOVU_DESKTOP_OWNER_PID: String(process.ppid), TOVU_HOST: "127.0.0.1" };
+  const { app, deps } = site(env); const base = await startTestServer(app, t);
+  const first = await bootstrap(base, undefined, env.TOVU_DESKTOP_OWNER_SIGNIN); assert.equal(first.status, 200);
+  const oldCookie = first.headers.get("set-cookie")!.split(";")[0];
+  assert.equal((await fetch(`${base}/api/admin/v1/auth/logout`, { method: "POST", headers: { cookie: oldCookie } })).status, 200);
+  assert.equal((await fetch(`${base}/api/admin/protected`, { headers: { cookie: oldCookie } })).status, 401);
+  const reopened = await bootstrap(base, undefined, env.TOVU_DESKTOP_OWNER_SIGNIN); assert.equal(reopened.status, 200);
+  assert.equal((await reopened.json()).user.id, await deps.ownerPrincipalId);
+  const newCookie = reopened.headers.get("set-cookie")!.split(";")[0]; assert.notEqual(newCookie, oldCookie);
+  assert.equal((await fetch(`${base}/api/admin/protected`, { headers: { cookie: newCookie } })).status, 200);
+  const proxied = await fetch(`${base}/api/admin/v1/auth/local-boot-session`, { method: "POST", headers: { origin: base, "sec-fetch-site": "same-origin", "sec-fetch-mode": "cors", forwarded: "for=127.0.0.1", "x-tovu-desktop-owner-signin": env.TOVU_DESKTOP_OWNER_SIGNIN } });
+  assert.equal(proxied.status, 403); assert.equal(proxied.headers.has("set-cookie"), false);
+});
+
+
+test("deskfx2 MUST-1: forged perfect headers need the desktop capability", async (t) => {
+  const secret = "a".repeat(64);
+  const env = { NODE_ENV: "production", TOVU_DESKTOP_OWNER_SIGNIN: secret, TOVU_DESKTOP_OWNER_PID: String(process.ppid), TOVU_HOST: "127.0.0.1" };
+  const { app, deps } = site(env); const base = await startTestServer(app, t);
+  for (const capability of [undefined, "b".repeat(64), "a".repeat(63), "a".repeat(65)]) {
+    const result = await bootstrap(base, undefined, capability);
+    assert.equal(result.status, 404); assert.equal(result.headers.has("set-cookie"), false);
+  }
+  const result = await bootstrap(base, undefined, secret);
+  assert.equal(result.status, 200); assert.equal((await result.json()).user.id, await deps.ownerPrincipalId);
+  assert.equal((await bootstrap(base)).status, 404, "a successful request never disables capability enforcement");
+  const wrongParent = site({ ...env, TOVU_DESKTOP_OWNER_PID: "0" });
+  const wrongBase = await startTestServer(wrongParent.app, t);
+  assert.equal((await bootstrap(wrongBase, undefined, secret)).status, 404);
 });

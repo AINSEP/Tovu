@@ -51,6 +51,8 @@ export interface RunnerInventoryBridge {
    *  operator-facing reason that names the fix. Surface that message verbatim; see
    *  `use-add-site.hooks.ts`. */
   addSite: () => Promise<(SiteRecord & { alreadyTracked?: boolean }) | null>;
+  /** Read-only new-site destination, with the user home for display shortening. */
+  planNewDir?: (input: { name: string }) => Promise<{ path: string; homeDir: string }>;
   createSite: (input: CreateSiteInput) => Promise<CreatedSiteRecord | null>;
   /** The services the create form can offer a token field for. Never rejects; `[]` on failure.
    *  Optional so an older preload without it simply offers none. */
@@ -65,6 +67,7 @@ export interface RunnerInventoryBridge {
   /** A missing card's Locate: main opens a folder picker and resolves the record at the picked
    *  folder — a new id, since a record's id is its folder. Rejects with an operator-facing reason;
    *  surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
+  moveSiteHome?: (input: { id: string; confirmed: boolean }) => Promise<SiteRecord>;
   locateSite: (id: string) => Promise<SiteRecord>;
   startSite: (id: string) => Promise<SiteRecord>;
   stopSite: (id: string) => Promise<SiteRecord>;

@@ -154,12 +154,35 @@ test('the ⋮ trigger carries an accessible name, since it has no visible text',
 
 test('the power button calls power.toggle and renders the label powerControl decided', () => {
   const actions = actionsBody();
-  assert.match(actions, /const control = powerControl\(status\);/);
+  assert.match(actions, /const control = powerControl\(status, \{ external: Boolean\(project\.externalUrl\) \}\);/);
   assert.match(actions, /className="button button--create card__power"[\s\S]*?onClick=\{\(\) => void power\.toggle\(project\)\}/);
   assert.match(actions, /disabled=\{control\.action === null\}/, 'a busy control must be inert, not merely dimmed');
   assert.match(actions, /\{control\.label\}/, 'the label must come from the control, never from what was clicked');
   // `: control && (` since a missing-folder card renders Locate / Remove in this slot instead.
   assert.match(actions, /: control && \(/, 'a status with no honest button renders none');
+  // Execute the real component too: the external-owner option must hide Stop, while local
+  // controls retain their labels, transition disablement and selected-project click wiring.
+  const CardActions = sourceFunction(grid, 'CardActions', { powerControl });
+  const project = { id: '/sites/power', displayName: 'Power site', folderMissing: false };
+  const toggled: unknown[] = [];
+  const powerPort = { toggle: (selected: unknown) => { toggled.push(selected); } };
+  for (const [status, label, disabled] of [
+    ['stopped', 'Start', false], ['running', 'Stop', false],
+    ['starting', 'Starting…', true], ['stopping', 'Stopping…', true],
+  ] as const) {
+    const buttons = elements(CardActions({ project, status, power: powerPort, locate: {} }))
+      .filter((element) => element.type === 'button');
+    assert.equal(buttons.length, 1);
+    assert.equal(buttons[0].props.children, label);
+    assert.equal(buttons[0].props.disabled, disabled);
+    if (!disabled) buttons[0].props.onClick();
+  }
+  assert.deepEqual(toggled, [project, project]);
+  for (const status of ['running', 'stopping']) {
+    const external = { ...project, externalUrl: 'https://localhost:4200/admin/' };
+    assert.equal(elements(CardActions({ project: external, status, power: powerPort, locate: {} }))
+      .filter((element) => element.type === 'button').length, 0, 'external servers cannot offer a power action');
+  }
 });
 
 test('Start opens the site through the SAME onOpen a card click uses — no second open path', () => {
@@ -311,12 +334,12 @@ test("main's refreshed record reaches the grid, rather than waiting on the 4s po
 // ---- A card whose folder is gone (`SiteRecord.folderMissing`) ----
 
 test('a missing-folder card says so in its body', () => {
-  assert.match(cardBody(), /\{project\.folderMissing && <p className="card__missing">Folder moved or deleted<\/p>\}/);
+  assert.match(cardBody(), /\{project\.folderMissing && <p className="card__missing">Folder moved or not a site<\/p>\}/);
   const own = cardBody().slice(0, cardBody().indexOf('\nfunction MissingFolderNotice('));
   assert.match(own, /<MissingFolderNotice\s+project=\{project\}\s+locate=\{locate\}\s*\/>/, 'SiteCard itself must invoke the notice');
   const notice = sourceFunction(grid, 'MissingFolderNotice');
   const locate = { errorOf: () => null };
-  assert.ok(elements(notice({ project: { folderMissing: true }, locate })).some((element) => element.props.children === 'Folder moved or deleted'));
+  assert.ok(elements(notice({ project: { folderMissing: true }, locate })).some((element) => element.props.children === 'Folder moved or not a site'));
   assert.equal(elements(notice({ project: { folderMissing: false }, locate })).filter((element) => element.type === 'p').length, 0);
 });
 

@@ -12,11 +12,12 @@ import os from "node:os";
 import path from "node:path";
 
 import { SITE_IPC_CHANNELS as CONTRACT_SITE_IPC_CHANNELS } from "./contracts/project.ts";
-import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
+import { SITE_IPC_CHANNELS, buildSiteRecord, handleList, handleAddSite, handleCreate, planNewSiteDir, handleDelete, handleOpenExternal, handleStart, handleStop, handleRename, handleGetPreview, handleLocate, rescanSites, registerSiteIpcHandlers } from "./project-ipc.ts";
 import { createSiteTransitions } from "./site-transitions.ts";
 import type { ProjectIpcDeps } from "./project-ipc.ts";
 import { SITE_ORIGIN, sitesFilePath, trackSite, readTrackedSites, writeTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDir, classifySiteDirSafely } from "./site-dir-store.ts";
+import { createSitesWorkspace } from "./shared-sites.ts";
 import { createSiteFolders } from "./site-folders.ts";
 import { writeSiteName } from "./site-config.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
@@ -102,7 +103,7 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
     readPreviewVersion: () => null,
     readPreviewDataUrl: () => null,
     deletePreview: () => {},
-    classifySiteDir: () => "empty",
+    classifySiteDir: (siteDir) => siteDir.startsWith("/sites/") ? "site" : classifySiteDirSafely(siteDir),
     recordSiteClosed: () => {},
     // The REAL registry reader and identity proof, pointed at a per-test temp path that does not
     // exist yet — so every test that is not about a sibling app instance sees an empty registry and
@@ -336,7 +337,7 @@ test("handleAddSite's dialog does NOT offer to create a folder", async () => {
 
   await handleAddSite(deps);
 
-  // `handleCreate` passes `createDirectory` on purpose; this must not. A folder the operator makes
+  // Create computes its directory automatically; Add must not offer creation. A folder the operator makes
   // in the dialog is empty by definition, and an empty folder is exactly what this verb refuses —
   // offering the button would invite the one mistake the refusal then has to explain.
   assert.deepEqual(shown[0]!.properties, ["openDirectory"]); // this test's own call above pushed exactly one entry
@@ -368,6 +369,12 @@ test("handleAddSite keeps an already-tracked project's original createdAt", asyn
   assert.equal(readTrackedSites(deps.projectsPath).length, 1);
 });
 
+/** Creation fixtures use an isolated sites home; existing-folder tests retain their picker. */
+function createDeps<O extends Partial<ProjectIpcDeps>>(overrides: O, { home = tempDir(), homeDir = home }: { home?: string; homeDir?: string } = {}) {
+  const sharedSites = createSitesWorkspace({}, { homeDir, env: { TOVU_SITES_HOME: home }, cwd: home, sourceRoots: [], platform: "linux" });
+  return baseDeps({ sharedSites, dialog: { showOpenDialog: async () => assert.fail("Create must never open a folder picker") }, ...overrides });
+}
+
 test("handleCreate refuses a hosted-database choice instead of quietly making a SQLite site", async () => {
   // D-02. The renderer's CreateSiteInput carries a `database` choice, ported from Tovu-Runner's
   // provisioner-backed form; this shell has no provisioner and `buildSiteRecord` hard-codes
@@ -376,7 +383,7 @@ test("handleCreate refuses a hosted-database choice instead of quietly making a 
   // what stops main silently narrowing a contract it does not honour — and it refuses BEFORE the
   // folder dialog, so nobody picks a folder for a site that was never going to be made.
   let pickerOpened = false;
-  const deps = baseDeps({ dialog: { showOpenDialog: async () => { pickerOpened = true; return { canceled: true, filePaths: [] }; } } });
+  const deps = createDeps({ dialog: { showOpenDialog: async () => { pickerOpened = true; return { canceled: true, filePaths: [] }; } } });
 
   for (const kind of ["supabase", "custom"]) {
     await assert.rejects(
@@ -391,8 +398,8 @@ test("handleCreate refuses a hosted-database choice instead of quietly making a 
 test("handleCreate accepts an explicit sqlite choice, and an input with no database at all", async () => {
   for (const database of [{ kind: "sqlite" }, undefined]) {
     const siteDir = writeSite(path.join(tempDir(), "ok"), "site-a");
-    const deps = baseDeps({
-      dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [siteDir] }) },
+    const deps = createDeps({
+      dialog: { showOpenDialog: async () => assert.fail("Create must never open a folder picker") },
       classifySiteDir: () => "empty",
       adoptSiteDir: async () => siteDir,
     });
@@ -402,21 +409,47 @@ test("handleCreate accepts an explicit sqlite choice, and an input with no datab
   }
 });
 
-test("handleCreate returns null when the folder picker is cancelled", async () => {
-  const deps = baseDeps({ dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) } });
-  assert.equal(await handleCreate({ displayName: "New Site" }, deps as typeof deps & Pick<ProjectIpcDeps, "adoptSiteDir">), null); // never reached — refused before adoptSiteDir
+test("handleCreate never opens a picker and plans conflict suffixes without writing", async () => {
+  const deps = createDeps({ adoptSiteDir: async ({ dir, name }) => writeSite(dir, "new-id", { "config.json": JSON.stringify({ name }) }) });
+  const home = deps.sharedSites.home({});
+  assert.equal(planNewSiteDir({ name: "" }, { workspace: deps.sharedSites }), path.join(home, "website"));
+  const base = path.join(home, "corner-bakery");
+  fs.mkdirSync(base); fs.mkdirSync(base + "-2");
+  const before = fs.readdirSync(home);
+  assert.equal(planNewSiteDir({ name: " Corner Bakery! " }, { workspace: deps.sharedSites }), base + "-3");
+  assert.deepEqual(fs.readdirSync(home), before, "planning is read-only");
+  const record = await handleCreate({ displayName: " Corner Bakery! " }, deps);
+  assert.equal(record.installDir, base + "-3");
+  assert.equal(record.deleteErasesFiles, true);
 });
 
-test("handleCreate adopts the picked folder, tracks it, and returns its record", async () => {
-  const picked = "/sites/new-one";
+test("handleCreate without sharedSites reuses the workspace resolver and never opens a picker", async (t) => {
+  const home = tempDir();
+  const previous = process.env.TOVU_SITES_HOME;
+  process.env.TOVU_SITES_HOME = home;
+  t.after(() => { if (previous === undefined) delete process.env.TOVU_SITES_HOME; else process.env.TOVU_SITES_HOME = previous; });
+  const expected = path.join(createSitesWorkspace({}).home({}), "corner-bakery");
+  const deps = { ...createDeps({ adoptSiteDir: async ({ dir, name }) => writeSite(dir, "fallback-id", { "config.json": JSON.stringify({ name }) }) }), sharedSites: undefined };
+  const record = await handleCreate({ displayName: "Corner Bakery" }, deps);
+  assert.equal(record.installDir, expected);
+});
+
+test("handleCreate refuses an unavailable home with the plain Sites settings error", async () => {
+  const home = path.join(fs.realpathSync(tempDir()), "unmounted", "sites");
+  const deps = createDeps({ adoptSiteDir: async () => assert.fail("unavailable home must not initialize") }, { home });
+  await assert.rejects(handleCreate({ displayName: "Bakery" }, deps), { message: `Sites home volume is unavailable: ${home}. Mount it or choose a local folder in Sites settings.` });
+  assert.equal(fs.existsSync(path.dirname(home)), false);
+});
+
+test("handleCreate initializes the planned folder, tracks it, and returns its record", async () => {
+  const picked = path.join(fs.realpathSync(tempDir()), "new-site");
   let adoptCalledWith: Parameters<ProjectIpcDeps["adoptSiteDir"]>[0] | null = null;
-  const deps = baseDeps({
-    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) },
+  const deps = createDeps({
     adoptSiteDir: async (input) => {
       adoptCalledWith = input;
-      return picked;
+      return writeSite(picked, "created-record-id", { "config.json": JSON.stringify({ name: input.name }) });
     },
-  });
+  }, { home: path.dirname(picked) });
 
   const record = await handleCreate({ displayName: "New Site" }, deps);
   assert.ok(record);
@@ -424,17 +457,22 @@ test("handleCreate adopts the picked folder, tracks it, and returns its record",
   assert.equal(adoptCalledWith!.dir, picked); // handleCreate above always calls adoptSiteDir before returning
   assert.equal(adoptCalledWith!.name, "New Site"); // handleCreate above always calls adoptSiteDir before returning
   assert.equal(record.id, picked);
+  assert.equal(record.displayName, "New Site");
+  assert.equal(record.folderMissing, false);
+  assert.equal(readTrackedSites(deps.projectsPath)[0]?.origin, SITE_ORIGIN.created);
   assert.deepEqual(readTrackedSites(deps.projectsPath).map((r) => r.siteDir), [picked]);
 });
 
 test("handleCreate passes a custom admin password only to init and never persists or returns it", async () => {
-  const picked = "/sites/password-create";
+  const picked = path.join(fs.realpathSync(tempDir()), "custom-site");
   const password = "ipc-custom-password-fixture";
   let givenPassword: string | undefined;
-  const deps = baseDeps({
-    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) },
-    adoptSiteDir: async (input) => { givenPassword = input.adminPassword; return picked; },
-  });
+  const deps = createDeps({
+    adoptSiteDir: async (input) => {
+      givenPassword = input.adminPassword;
+      return writeSite(picked, "password-create-id", { "config.json": JSON.stringify({ name: input.name }) });
+    },
+  }, { home: path.dirname(picked) });
   const record = await handleCreate({ displayName: "Custom Site", adminPassword: password }, deps);
   assert.equal(givenPassword, password);
   assert.ok(!JSON.stringify(record).includes(password));
@@ -442,7 +480,7 @@ test("handleCreate passes a custom admin password only to init and never persist
 });
 
 test("handleCreate rejects malformed or empty admin password before choosing a folder", async () => {
-  const deps = baseDeps({
+  const deps = createDeps({
     dialog: { showOpenDialog: async () => assert.fail("invalid input must not open the folder dialog") },
     adoptSiteDir: async () => assert.fail("invalid input must not initialize a site"),
   });
@@ -452,7 +490,7 @@ test("handleCreate rejects malformed or empty admin password before choosing a f
 });
 
 test("handleCreate refuses a custom password for a folder that already has a site", async () => {
-  const deps = baseDeps({
+  const deps = createDeps({
     classifySiteDir: () => "site",
     dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: ["/sites/existing"] }) },
     adoptSiteDir: async () => assert.fail("an existing site's credentials must not change"),
@@ -602,28 +640,26 @@ test("handleStart serializes on the site dir, calls openSiteServer with ctx, and
   assert.equal(record.port, 4321);
 });
 
-test("handleStart reports a tracked folder that no longer exists as not found, not as a config.json error", async () => {
+test("handleStart refuses a missing folder before attempting to spawn", async () => {
   // 2026-09-28: `sites/tovu-com` was renamed on disk while the desktop still tracked it, and Start
   // surfaced `tovu serve`'s own `SITE_DIR_INVALID: config.json is missing at …` — true, but it sent
   // the operator hunting for a config file in a folder that was simply gone.
   const siteDir = path.join(tempDir(), "renamed-away");
-  const reason = `tovu serve failed: SITE_DIR_INVALID: config.json is missing at ${siteDir}`;
-  const deps = baseDeps({ openSiteServer: async () => { throw new Error(reason); } });
+  const deps = baseDeps({ classifySiteDir: classifySiteDirSafely, openSiteServer: async () => assert.fail("must refuse before spawn") });
   trackSite(deps.projectsPath, siteDir);
 
   await assert.rejects(
     () => handleStart(siteDir, deps),
-    new Error(`Site folder not found: ${siteDir}. It was moved, renamed or deleted — remove this site from the list, then use Add Site on its new location.`),
+    new Error("Folder moved or not a site. Locate the website folder or remove this card."),
   );
 });
 
-test("handleStart passes SITE_DIR_INVALID through unchanged when the folder is still there", async () => {
+test("handleStart refuses an existing non-site folder before spawning", async () => {
   const siteDir = tempDir();
-  const reason = `tovu serve failed: SITE_DIR_INVALID: config.json is missing at ${siteDir}`;
-  const deps = baseDeps({ openSiteServer: async () => { throw new Error(reason); } });
+  const deps = baseDeps({ openSiteServer: async () => assert.fail("must refuse before spawn") });
   trackSite(deps.projectsPath, siteDir);
 
-  await assert.rejects(() => handleStart(siteDir, deps), new Error(reason));
+  await assert.rejects(() => handleStart(siteDir, deps), /Folder moved or not a site/);
 });
 
 // --- stop (2026-09-18) ---------------------------------------------------------------------
@@ -947,7 +983,7 @@ test("handleDelete does NOT erase a created project's path once a DIFFERENT site
 test("handleCreate stamps the new site's own identity on its created row", async () => {
   const siteDir = path.join(tempDir(), "brand-new");
   writeSite(siteDir, "site-a");
-  const deps = baseDeps();
+  const deps = createDeps({});
 
   const record = await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
   assert.ok(record);
@@ -956,31 +992,24 @@ test("handleCreate stamps the new site's own identity on its created row", async
   assert.equal(record.deleteErasesFiles, true, "the site it just made is still the site at that path");
 });
 
-test("handleCreate records no identity for a folder it merely adopted", async () => {
+test("handleAddSite records no deletion identity for a folder it merely adopted", async () => {
   // An `adopted` row can never erase anything, so an identity stamp on it would be a fact nothing
   // reads — and one a future rule might mistake for permission.
-  const siteDir = path.join(tempDir(), "already-a-site");
-  writeSite(siteDir, "site-a");
-  const deps = baseDeps({
-    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [siteDir] }) },
-    classifySiteDir: () => "site",
-    adoptSiteDir: async () => siteDir,
-  });
-
-  await handleCreate({ displayName: "Adopted" }, deps);
-
+  const siteDir = writeSite(path.join(tempDir(), "already-a-site"), "site-a");
+  const { deps } = addSiteDeps(siteDir);
+  await handleAddSite(deps);
   const [row] = readTrackedSites(deps.projectsPath);
-  assert.equal(row!.origin, SITE_ORIGIN.adopted); // handleCreate above just tracked exactly one row
-  assert.equal(row!.siteId, undefined); // handleCreate above just tracked exactly one row
+  assert.equal(row!.origin, SITE_ORIGIN.adopted);
+  assert.equal(row!.siteId, undefined);
 });
 
-/** Drive `handleCreate` through the folder picker onto a site that already exists at `siteDir`,
- *  classified `empty` so the row records `created` — what a real `tovu init` run produces. */
+/** Drive Create with an initializer fake; only Add owns an existing-folder picker. */
 function handleCreateInto(deps: Parameters<typeof handleCreate>[1], siteDir: string, _siteId: string) {
-  deps.dialog = { showOpenDialog: async () => ({ canceled: false, filePaths: [siteDir] }) };
-  deps.classifySiteDir = () => "empty";
-  deps.adoptSiteDir = async () => siteDir;
-  return handleCreate({ displayName: path.basename(siteDir) }, deps);
+  const creation = createDeps({ ...deps, sharedSites: createSitesWorkspace({}, { homeDir: path.dirname(siteDir), env: { TOVU_SITES_HOME: path.dirname(siteDir) }, platform: "linux" }) });
+  creation.dialog = { showOpenDialog: async () => assert.fail("Create must never open a folder picker") };
+  creation.classifySiteDir = () => "empty";
+  creation.adoptSiteDir = async () => siteDir;
+  return handleCreate({ displayName: path.basename(siteDir) }, creation);
 }
 
 test("handleDelete does NOT erase the directory of a project the app only adopted", async () => {
@@ -1012,25 +1041,16 @@ test("handleDelete refuses to erase anything under the repo root, even a row cla
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "a repo-root directory must survive delete regardless of what the row claims");
 });
 
-test("handleCreate records 'created' when it initialized an empty folder, 'adopted' when the folder was already a site", async () => {
-  for (const [kind, expected] of [["empty", SITE_ORIGIN.created], ["site", SITE_ORIGIN.adopted]] as const) {
-    // A real site on disk either way — `adoptSiteDir` has run by the time the row is written, so
-    // what the classifier said about the folder BEFOREHAND is the only thing separating these two.
-    const picked = writeSite(path.join(tempDir(), `${kind}-one`), `site-${kind}`);
-    const deps = baseDeps({
-      dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) },
-      // Classified BEFORE `adoptSiteDir` runs, because afterwards both cases look identical: it
-      // returns the same path whether it ran `tovu init` or recognized an existing site.
-      classifySiteDir: () => kind,
-      adoptSiteDir: async () => picked,
-    });
-
-    const record = await handleCreate({ displayName: "New Site" }, deps);
-    assert.ok(record);
-
-    assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, expected, `a "${kind}" folder must be tracked as ${expected}`);
-    assert.equal(record.deleteErasesFiles, expected === SITE_ORIGIN.created);
-  }
+test("handleCreate records created for initialization and refuses a raced existing site", async () => {
+  // Classify BEFORE initialization: afterward an initialized and a pre-existing site look alike.
+  // That distinction protects existing folders from ever receiving created deletion authority.
+  const deps = createDeps({ adoptSiteDir: async ({ dir }) => writeSite(dir, "site-created") });
+  const record = await handleCreate({ displayName: "New Site" }, deps);
+  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, SITE_ORIGIN.created);
+  assert.equal(record.deleteErasesFiles, true);
+  const raced = createDeps({ classifySiteDir: () => "site", adoptSiteDir: async () => assert.fail("Create must not adopt a raced folder") });
+  await assert.rejects(handleCreate({ displayName: "Raced" }, raced), { message: "The new website folder was created by another app. Try creating this website again." });
+  assert.deepEqual(readTrackedSites(raced.projectsPath), []);
 });
 
 test("buildSiteRecord tells the renderer whether delete will erase files, from the guard main obeys", () => {
@@ -1080,7 +1100,7 @@ test("handleDelete still stops and closes a running project it may not erase", a
 function siteFolder(parent: string, name: string): string {
   const dir = path.join(parent, name);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "config.json"), "{}");
+  fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name }));
   fs.writeFileSync(path.join(dir, ".site-meta.json"), "{}");
   return dir;
 }
@@ -1121,14 +1141,15 @@ test("rescanSites reads persisted extra folders fresh and leaves all discoveries
   assert.equal((await rescanSites(wired)).length, 2, 'removing a root never removes existing cards');
 });
 
-test("handleCreate remembers the chosen parent so a site later created beside it is discovered", async () => {
-  const parent = fs.realpathSync(tempDir());
+test("handleCreate remembers its home so a site later created beside it is discovered", async () => {
+  const homeDir = fs.realpathSync(tempDir());
+  const parent = path.join(homeDir, "Documents", "Tovu", "sites");
+  fs.mkdirSync(parent, { recursive: true });
   const picked = path.join(parent, "created");
-  const deps = baseDeps({
-    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) },
+  const deps = createDeps({
     adoptSiteDir: async () => writeSite(picked, "created-id"),
     siteScanRoots: [] as string[], recentSiteDirs: () => [],
-  });
+  }, { home: parent, homeDir });
   const folders = createSiteFolders({ statePath: deps.statePath, defaultRoots: [] });
   await handleCreate({ displayName: "Created" }, { ...deps, siteFolders: folders });
   const sibling = siteFolder(parent, "plannie");
@@ -1652,7 +1673,7 @@ test('D-18: the last read name survives a missing folder, including after Rename
   const deps = baseDeps({
     readSiteName: (dir) => JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).name as string,
     writeSiteName,
-    classifySiteDir: () => "site",
+    classifySiteDir: classifySiteDirSafely,
   });
   trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: 'named-site' });
   assert.equal(first(handleList(deps)).displayName, 'slug');
@@ -1666,13 +1687,11 @@ test('D-18: the last read name survives a missing folder, including after Rename
 test('D-10: Create passes the first free name to the injected initializer', async () => {
   const names = new Map<string, string>();
   const root = tempDir();
-  const target = path.join(root, 'new');
-  fs.mkdirSync(target);
   let initializedName = '';
-  const deps = baseDeps({
+  const deps = createDeps({
     readSiteName: (dir: string) => names.get(dir) ?? path.basename(dir),
-    dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [target] }) },
     adoptSiteDir: async ({ dir, name }: { dir: string; name?: string }) => {
+      fs.mkdirSync(dir, { recursive: true });
       initializedName = name!;
       names.set(dir, name!);
       return dir;
@@ -1683,6 +1702,7 @@ test('D-10: Create passes the first free name to the injected initializer', asyn
     names.set(dir, name!);
     trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
   }
+  const target = planNewSiteDir({ name: 'bakery' }, { workspace: deps.sharedSites });
   const result = await handleCreate({ displayName: 'bakery' }, deps);
   assert.equal(initializedName, 'bakery 3');
   assert.equal(result?.displayName, 'bakery 3');
@@ -1725,4 +1745,94 @@ test('D-10: Rename refuses duplicate before calling its write port and allows it
   assert.equal(writes, 0);
   assert.equal(handleRename({ id: own, name: ' BAKERY ' }, deps).displayName, 'BAKERY');
   assert.equal(writes, 1);
+});
+
+test("sitesnest: desktop refuses live moves before CLI invocation and returns the new card after a stopped move", async (t) => {
+  const { handleMoveHome } = await import("./project-ipc.ts");
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const root = fs.realpathSync(tempDir()); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = writeSite(path.join(root, "Documents", "Tovu", "alpha"), "alpha-id");
+  const sharedSites = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux" });
+  const projectsPath = path.join(root, "profile", "desktop-projects.json");
+  trackSite(projectsPath, dir, SITE_ORIGIN.adopted);
+  let calls = 0;
+  const to = path.join(sharedSites.home({}), "alpha");
+  const deps = baseDeps({ sharedSites, projectsPath, moveSiteHome: async (input) => {
+    calls++; assert.equal(input.dir, dir); assert.equal(input.projectsPath, projectsPath);
+    fs.mkdirSync(path.dirname(to), { recursive: true }); fs.renameSync(dir, to);
+    writeTrackedSites(projectsPath, readTrackedSites(projectsPath).map((row) => ({ ...row, siteDir: to })));
+    return to;
+  } });
+  await assert.rejects(handleMoveHome({ input: { id: dir }, deps }), /Confirm/);
+  const live = sharedSites.claim({ path: dir, app: "Web", port: 3000 });
+  await assert.rejects(handleMoveHome({ input: { id: dir, confirmed: true }, deps }), /Stop this site/);
+  assert.equal(calls, 0); sharedSites.running({ path: dir }).release({ token: live.record.token });
+  const moved = await handleMoveHome({ input: { id: dir, confirmed: true }, deps });
+  assert.equal(calls, 1); assert.equal(moved.id, to); assert.equal(moved.moveIntoSites, false);
+  assert.equal(moved.folderMissing, false);
+});
+
+
+test("default rescan and Add folder use the workspace's injected home for broad-root admission", async (t) => {
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const home = fs.realpathSync(tempDir()); t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const sharedSites = createSitesWorkspace({}, { homeDir: home, env: {}, cwd: home, sourceRoots: [], platform: "linux" });
+  const old = writeSite(path.join(home, "Documents", "Tovu", "alpha"), "alpha-id");
+  const nested = writeSite(path.join(sharedSites.home({}), "beta"), "beta-id");
+  writeSite(path.join(home, "Tovu", "stay-local"), "local-id");
+  const projectsPath = path.join(home, "profile", "desktop-projects.json"), statePath = path.join(home, "profile", "desktop-state.json");
+  const siteFolders = createSiteFolders({ statePath, defaultRoots: [], workspace: sharedSites });
+  let picked = path.join(home, "Documents", "Websites"); fs.mkdirSync(picked);
+  const deps = baseDeps({ sharedSites, projectsPath, statePath, siteFolders, classifySiteDir: classifySiteDirSafely,
+    recentSiteDirs: () => [], siteScanRoots: [], dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }) } });
+  assert.deepEqual((await rescanSites(deps)).map((record) => record.id).sort(), [old, nested].sort());
+  const registered = new Map<string, Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]>();
+  registerSiteIpcHandlers({ ...deps, ipcMain: { handle: (channel, handler) => { registered.set(channel, handler); } } } as ProjectIpcDeps);
+  await registered.get(SITE_IPC_CHANNELS.addFolder)!({});
+  assert.deepEqual(siteFolders.read({}).extraRoots, [picked]);
+  picked = path.join(home, "Tovu");
+  await assert.rejects(Promise.resolve(registered.get(SITE_IPC_CHANNELS.addFolder)!({})), /too broad/);
+  assert.deepEqual(siteFolders.read({}).extraRoots, [path.join(home, "Documents", "Websites")]);
+});
+
+test("move-home IPC refuses an old-home override and an unrelated local home before invoking CLI", async (t) => {
+  const { handleMoveHome } = await import("./project-ipc.ts");
+  const { createSitesWorkspace } = await import("./shared-sites.ts");
+  const home = fs.realpathSync(tempDir()); t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const local = writeSite(path.join(home, "Tovu", "alpha"), "alpha-id");
+  for (const env of [{ TOVU_SITES_HOME: path.dirname(local) }, {}]) {
+    const sharedSites = createSitesWorkspace({}, { homeDir: home, env, platform: "linux" });
+    const projectsPath = path.join(home, "profile", "desktop-projects.json"); trackSite(projectsPath, local, SITE_ORIGIN.adopted);
+    let calls = 0;
+    const deps = baseDeps({ sharedSites, projectsPath, moveSiteHome: async () => { calls++; return local; } });
+    await assert.rejects(handleMoveHome({ input: { id: local, confirmed: true }, deps }), env.TOVU_SITES_HOME ? /already directly inside/ : /Only sites beside/);
+    assert.equal(calls, 0);
+  }
+});
+
+test("stalecard: list heals a themes-only duplicate using its valid tracked twin outside scan roots", () => {
+  const deps = baseDeps();
+  const root = tempDir(), stale = path.join(root, "repo", "sites", "tovu-dev");
+  fs.mkdirSync(path.join(stale, "themes"), { recursive: true });
+  const moved = writeSite(path.join(root, "Documents", "Tovu", "tovu-dev"), "site-id");
+  writeTrackedSites(deps.projectsPath, [
+    { siteDir: stale, createdAt: "2026-01-01", relocationId: "site-id", displayName: "tovu-dev" },
+    { siteDir: moved, createdAt: "2026-01-01" },
+  ]);
+  assert.deepEqual(handleList(deps).map((row) => [row.id, row.folderMissing]), [[moved, false]]);
+  assert.deepEqual(handleList(deps).map((row) => row.id), [moved]);
+  assert.deepEqual(fs.readdirSync(stale), ["themes"]);
+});
+
+test("stalecard: same-name different-id cards survive list and retain their distinct paths", () => {
+  const deps = baseDeps();
+  const root = tempDir(), stale = path.join(root, "repo", "sites", "tovu-dev");
+  const valid = writeSite(path.join(root, "Documents", "Tovu", "tovu-dev"), "other-id");
+  writeTrackedSites(deps.projectsPath, [
+    { siteDir: stale, createdAt: "2026-01-01", relocationId: "old-id", displayName: "tovu-dev" },
+    { siteDir: valid, createdAt: "2026-01-01" },
+  ]);
+  assert.deepEqual(handleList(deps).map((row) => [row.installDir, row.displayName, row.folderMissing]), [
+    [stale, "tovu-dev", true], [valid, "tovu-dev", false],
+  ]);
 });

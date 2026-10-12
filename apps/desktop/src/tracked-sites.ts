@@ -519,8 +519,8 @@ interface DiscoverSiteDirsInput {
  * Production calls this synchronous classifier in a cancellable worker, never on main.
  */
 function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }: DiscoverSiteDirsInput, {
-  maxCandidates = 1000, maxRoots = 32,
-}: { maxCandidates?: number; maxRoots?: number } = {}): string[] {
+  maxCandidates = 1000, maxRoots = 32, homeDir, sitesHome,
+}: { maxCandidates?: number; maxRoots?: number; homeDir?: string; sitesHome?: string } = {}): string[] {
   if (!Number.isSafeInteger(maxCandidates) || maxCandidates < 1 || !Number.isSafeInteger(maxRoots) || maxRoots < 1) {
     throw new Error("Sites discovery limits must be positive integers.");
   }
@@ -529,7 +529,7 @@ function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }: DiscoverSit
   for (const root of scanRoots) {
     let directory: fs.Dir;
     // Old saved settings may contain broad roots. Refuse before any privacy/volume probe.
-    assertSpecificSiteRoot({ root });
+    assertSpecificSiteRoot({ root }, { homeDir, sitesHome });
     try {
       directory = fs.opendirSync(root);
     } catch {

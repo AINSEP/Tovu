@@ -115,7 +115,7 @@ function sharedSiteFolders({ workspace, filePath, createdSiteDirs }: {
 }): SiteFoldersPort {
   const read = (): SiteFolders => {
     const config = workspace.config({});
-    return { roots: workspace.roots({}), extraRoots: config.siteRoots, home: config.sitesHome,
+    return { roots: workspace.roots({}), extraRoots: config.extraRoots.filter((root) => root !== config.sitesHome && !config.defaultRoots.includes(root)), home: config.sitesHome,
       databases: config.databases, warning: config.warning, configPath: config.configPath, overrides: config.overrides };
   };
   const registry = workspace.registry({});
@@ -139,8 +139,9 @@ function sharedSiteFolders({ workspace, filePath, createdSiteDirs }: {
   } catch { console.warn("tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot."); }
   return { read,
     add({ root }, _options = {}) {
-      assertSpecificSiteRoot({ root });
-      assertSpecificSiteRoot({ root: fs.realpathSync(root) });
+      const policy = { homeDir: workspace.homeDir, sitesHome: workspace.home({}) };
+      assertSpecificSiteRoot({ root }, policy);
+      assertSpecificSiteRoot({ root: fs.realpathSync(root) }, policy);
       if (!fs.statSync(root).isDirectory()) throw new Error(`Sites folder is not a directory: ${root}`);
       workspace.updateRoots({ add: [root] });
       return read();

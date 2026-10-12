@@ -77,7 +77,7 @@ function fakeDeps(options: FakeDepsOptions = {}): FakeDeps {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "tovu-duplicate-tools-")));
   fixtureRoots.push(root);
   // The source may be a legacy checkout site; new copies use an isolated shared home/catalog.
-  const sitesWorkspace = createSitesWorkspace({}, { homeDir: root, cwd: "/tmp/fake-cwd",
+  const sitesWorkspace = createSitesWorkspace({}, { homeDir: root, cwd: "/tmp/fake-cwd", platform: "linux", sourceRoots: [], catalogRecovery: false,
     env: { TOVU_SITES_HOME: path.join(root, "shared-home") },
   });
   const duplicateSiteCalls: Array<{ sourceDir: string; targetDir: string; name?: string }> = [];

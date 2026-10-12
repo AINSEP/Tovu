@@ -9,8 +9,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { classifySiteDirSafely } from "./site-dir-store.ts";
 import { createRelocationGate, readRelocationId, relocateMovedSites, repointTrackedSite } from "./site-relocation.ts";
-import { sitesFilePath, readTrackedSites, readDismissedSites, writeTrackedSites } from "./tracked-sites.ts";
+import { sitesFilePath, readTrackedSites, readDismissedSites, writeTrackedSites, trackSite } from "./tracked-sites.ts";
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-site-relocation-"));
@@ -20,6 +21,7 @@ function tempDir(): string {
 function makeSite(dir: string, meta: Record<string, unknown>): string {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify(meta));
+  fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "Example" }));
   return dir;
 }
 
@@ -49,7 +51,7 @@ test("relocateMovedSites records the folder's id on a row whose folder exists, g
   const site = makeSite(path.join(root, "tovu-com"), { siteKeyId: "key-1" });
   const file = projectsFile([{ siteDir: site, createdAt: CREATED, origin: "adopted" }]);
 
-  const report = relocateMovedSites(file);
+  const report = relocateMovedSites({ projectsPath: file });
 
   assert.deepEqual(report, { moved: [], merged: [] });
   assert.deepEqual(readTrackedSites(file), [{ siteDir: site, createdAt: CREATED, origin: "adopted", relocationId: "key-1" }]);
@@ -63,7 +65,7 @@ test("relocateMovedSites repoints a renamed folder to the one sibling carrying t
   const newDir = makeSite(path.join(root, "tovu-dev"), { siteKeyId: "key-1" });
   makeSite(path.join(root, "other"), { siteKeyId: "key-2" });
 
-  const report = relocateMovedSites(file);
+  const report = relocateMovedSites({ projectsPath: file });
 
   assert.deepEqual(report, { moved: [{ from: oldDir, to: newDir }], merged: [] });
   // Same card: its original `createdAt` survives, so the grid order does not jump.
@@ -79,7 +81,7 @@ test("relocateMovedSites merges into the new location when it is already tracked
     { siteDir: newDir, createdAt: "2026-02-02T00:00:00.000Z", origin: "adopted" },
   ]);
 
-  const report = relocateMovedSites(file);
+  const report = relocateMovedSites({ projectsPath: file });
 
   assert.deepEqual(report, { moved: [], merged: [oldDir] });
   assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), [newDir]);
@@ -94,7 +96,7 @@ test("relocateMovedSites also finds a moved site under the extra search roots", 
   const newDir = makeSite(path.join(scanRoot, "shop"), { siteId: "site-9" });
   const file = projectsFile([{ siteDir: oldDir, createdAt: CREATED, origin: "adopted", relocationId: "site-9" }]);
 
-  assert.deepEqual(relocateMovedSites(file, { searchRoots: [scanRoot] }).moved, [{ from: oldDir, to: newDir }]);
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }, { searchRoots: [scanRoot] }).moved, [{ from: oldDir, to: newDir }]);
 });
 
 test("relocateMovedSites leaves a missing folder alone when no sibling, or more than one, matches", () => {
@@ -109,7 +111,7 @@ test("relocateMovedSites leaves a missing folder alone when no sibling, or more 
   ];
   const file = projectsFile(rows);
 
-  assert.deepEqual(relocateMovedSites(file), { moved: [], merged: [] });
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }), { moved: [], merged: [] });
   // Never silently dropped: both rows are still there for the card to show as missing.
   assert.deepEqual(readTrackedSites(file), rows);
 });
@@ -120,7 +122,7 @@ test("relocateMovedSites leaves a missing row with no recorded id alone (nothing
   const rows = [{ siteDir: path.join(root, "tovu-com"), createdAt: CREATED, origin: "adopted" }];
   const file = projectsFile(rows);
 
-  assert.deepEqual(relocateMovedSites(file), { moved: [], merged: [] });
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }), { moved: [], merged: [] });
   assert.deepEqual(readTrackedSites(file), rows);
 });
 
@@ -131,7 +133,7 @@ test("relocateMovedSites never repoints onto a folder the operator removed on pu
   const rows = [{ siteDir: oldDir, createdAt: CREATED, origin: "adopted", relocationId: "key-1" }];
   const file = projectsFile(rows, [newDir]);
 
-  assert.deepEqual(relocateMovedSites(file).moved, []);
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }).moved, []);
   assert.deepEqual(readTrackedSites(file), rows);
 });
 
@@ -141,7 +143,7 @@ test("relocateMovedSites downgrades a moved `created` row to `adopted` and drops
   const newDir = makeSite(path.join(root, "moved-by-hand"), { siteId: "site-1" });
   const file = projectsFile([{ siteDir: oldDir, createdAt: CREATED, origin: "created", siteId: "site-1", relocationId: "site-1" }]);
 
-  relocateMovedSites(file);
+  relocateMovedSites({ projectsPath: file });
 
   // The app created the folder at the OLD path; the operator moved it. Delete must not erase it now.
   assert.deepEqual(readTrackedSites(file), [{ siteDir: newDir, createdAt: CREATED, origin: "adopted", relocationId: "site-1" }]);
@@ -154,14 +156,14 @@ test("relocateMovedSites does not write the file when nothing changed", () => {
   const before = fs.statSync(file).mtimeMs;
   fs.utimesSync(file, new Date(0), new Date(0));
 
-  relocateMovedSites(file);
+  relocateMovedSites({ projectsPath: file });
 
   assert.equal(fs.statSync(file).mtimeMs, 0, `unchanged file was rewritten (was ${before})`);
 });
 
 test("relocateMovedSites is a no-op on a missing projects file", () => {
   const file = sitesFilePath(tempDir());
-  assert.deepEqual(relocateMovedSites(file), { moved: [], merged: [] });
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }), { moved: [], merged: [] });
   assert.equal(fs.existsSync(file), false);
 });
 
@@ -205,7 +207,7 @@ test("relocateMovedSites leaves a damaged projects file alone — a list poll mu
   const damaged = `{"projects":[{"siteDir":${JSON.stringify(path.join(root, "tovu-com"))},"createdAt":"x","relocationId":"key-1"}],"dism`;
   fs.writeFileSync(file, damaged);
 
-  assert.deepEqual(relocateMovedSites(file), { moved: [], merged: [] });
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }), { moved: [], merged: [] });
   assert.equal(fs.readFileSync(file, "utf8"), damaged);
 });
 
@@ -215,7 +217,7 @@ test("createRelocationGate runs on the first poll, then only when the rows, thei
   const here = makeSite(path.join(root, "here"), { siteId: "id-here" });
   const gone = path.join(root, "gone");
   let clock = 0;
-  const gate = createRelocationGate({ maxIdleMs: 60_000, now: () => clock });
+  const gate = createRelocationGate({}, { maxIdleMs: 60_000, now: () => clock });
   const file = { rows: [{ siteDir: here }, { siteDir: gone }], dismissed: [] as string[] } as never;
 
   assert.equal(gate.shouldRun(file), true, "the first poll always runs");
@@ -236,7 +238,7 @@ test("createRelocationGate runs on the first poll, then only when the rows, thei
 
 test("createRelocationGate still runs at the slow cadence while nothing changes, so a folder that turns up elsewhere is found", () => {
   let clock = 0;
-  const gate = createRelocationGate({ maxIdleMs: 60_000, now: () => clock });
+  const gate = createRelocationGate({}, { maxIdleMs: 60_000, now: () => clock });
   const file = { rows: [{ siteDir: path.join(tempDir(), "missing") }], dismissed: [] } as never;
 
   assert.equal(gate.shouldRun(file), true);
@@ -246,4 +248,84 @@ test("createRelocationGate still runs at the slow cadence while nothing changes,
   assert.equal(gate.shouldRun(file), true, "one full idle interval later");
   clock += 1;
   assert.equal(gate.shouldRun(file), false, "and the interval restarts from that pass");
+});
+
+test("stalecard: a themes-only stale card merges into a valid tracked twin outside scan roots, once", (t) => {
+  const root = tempDir();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const stale = path.join(root, "repo", "sites", "tovu-dev");
+  fs.mkdirSync(path.join(stale, "themes"), { recursive: true });
+  const valid = makeSite(path.join(root, "Documents", "Tovu", "tovu-dev"), { siteId: "same-site" });
+  const file = projectsFile([
+    { siteDir: stale, createdAt: CREATED, origin: "created", siteId: "same-site", displayName: "tovu-dev" },
+    { siteDir: valid, createdAt: CREATED, origin: "adopted" },
+  ]);
+  const logs: string[] = [];
+  const options = { report: (message: string) => logs.push(message) };
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }, options), { moved: [], merged: [stale] });
+  assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), [valid]);
+  assert.deepEqual(readDismissedSites(file), []);
+  assert.deepEqual(fs.readdirSync(stale), ["themes"], "healing touches registry only");
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }, options), { moved: [], merged: [] });
+  assert.equal(logs.length, 1);
+  assert.ok(logs[0]!.includes(stale));
+});
+
+test("stalecard: invalid cards without a valid twin and same-name different identities stay", () => {
+  const root = tempDir();
+  const stale = path.join(root, "repo", "tovu-dev");
+  fs.mkdirSync(path.join(stale, "themes"), { recursive: true });
+  const valid = makeSite(path.join(root, "elsewhere", "tovu-dev"), { siteId: "different" });
+  const missing = path.join(root, "missing");
+  const file = projectsFile([
+    { siteDir: stale, createdAt: CREATED, origin: "adopted", relocationId: "original" },
+    { siteDir: missing, createdAt: CREATED, origin: "adopted", relocationId: "no-twin" },
+    { siteDir: valid, createdAt: CREATED, origin: "adopted" },
+  ]);
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }), { moved: [], merged: [] });
+  assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), [stale, missing, valid]);
+});
+
+test("stalecard: marker-only twins are invalid and two valid copies remain ambiguous", () => {
+  const root = tempDir();
+  const stale = path.join(root, "old");
+  const candidate = makeSite(path.join(root, "new"), { siteId: "same" });
+  fs.unlinkSync(path.join(candidate, "config.json"));
+  const file = projectsFile([{ siteDir: stale, createdAt: CREATED, relocationId: "same" }]);
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }), { moved: [], merged: [] });
+  fs.writeFileSync(path.join(candidate, "config.json"), JSON.stringify({ name: "Example" }));
+  makeSite(path.join(root, "copy"), { siteId: "same" });
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }), { moved: [], merged: [] });
+  assert.equal(readTrackedSites(file)[0]?.siteDir, stale);
+});
+
+test("stalecard: gate notices invalidated markers even if the folder still exists", () => {
+  const root = tempDir();
+  const dir = makeSite(path.join(root, "site"), { siteId: "same" });
+  const file = { rows: [{ siteDir: dir, createdAt: CREATED, origin: "adopted" as const }], dismissed: [] };
+  const gate = createRelocationGate({}, { now: () => 0 });
+  assert.equal(gate.shouldRun(file), true);
+  assert.equal(gate.shouldRun(file), false);
+  fs.unlinkSync(path.join(dir, "config.json"));
+  assert.equal(gate.shouldRun(file), true);
+});
+
+test("stalecard: recomputing inside the registry lock preserves a twin adopted after the initial read", () => {
+  const root = tempDir();
+  const stale = path.join(root, "old");
+  const target = makeSite(path.join(root, "moved"), { siteId: "same" });
+  const unrelated = makeSite(path.join(root, "other"), { siteId: "other" });
+  const file = projectsFile([{ siteDir: stale, createdAt: CREATED, relocationId: "same" }]);
+  let changed = false;
+  const classifySiteDir = (dir: string) => {
+    if (!changed) {
+      changed = true;
+      // A second caller's adoption lands between the unlocked read and the locked re-read.
+      trackSite(file, target, "adopted");
+      trackSite(file, unrelated, "adopted");
+    }
+    return classifySiteDirSafely(dir);
+  };
+  assert.deepEqual(relocateMovedSites({ projectsPath: file }, { classifySiteDir }), { moved: [], merged: [stale] });
+  assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), [target, unrelated]);
 });

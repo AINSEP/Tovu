@@ -186,8 +186,11 @@ button { font: inherit; color: inherit; }
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 1.75rem;
-  max-width: fit-content;
+  /* Keep the pill's intrinsic desktop width, but let spacing and the brand yield before icons.
+     Fixed gaps plus the version label previously made this 403px wide in a 375px window. */
+  gap: clamp(0.5rem, 3vw, 1.75rem);
+  width: max-content;
+  max-width: calc(100% - 1rem);
   margin: 0.875rem auto 0;
   padding: 0.4375rem 0.5rem 0.4375rem 1.125rem;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
@@ -202,12 +205,14 @@ button { font: inherit; color: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .topnav__brand-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   white-space: nowrap;
 }
 
@@ -264,6 +269,7 @@ button { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  flex: none;
 }
 
 /* Icon-only: the label lives in `title`/`aria-label` (a native tooltip on hover) rather than
@@ -864,7 +870,7 @@ webview { display: flex; }
 
 /* ---------- main ---------- */
 
-.main { grid-row: 3; grid-column: 1; display: flex; flex-direction: column; overflow: auto; }
+.main { grid-row: 3; grid-column: 1; display: flex; flex-direction: column; min-width: 0; overflow: auto; }
 
 /*
  * `flex-wrap: wrap` rather than a width breakpoint, and that is the point rather than a shortcut.
@@ -903,6 +909,8 @@ webview { display: flex; }
    actions. Identical to the old rule for a single child -- still flush right. */
 .main__tools {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   /* Second stage of the header's degradation — see `.main__head`. Once the group has its own
      line and that line is still too narrow, the buttons wrap among themselves rather than
      overflowing the pane. */
@@ -923,11 +931,12 @@ webview { display: flex; }
 /* ---------- sites settings dialog ---------- */
 
 /* One section, so Jini's nav column and its collapse toggle are dropped: a lone "Sites" item wasted
-   a third of the dialog, and collapsing it auto-placed the panel into the zeroed track (~45px wide).
-   The dialog also sizes to its content instead of Jini's fixed 1040x720 frame. */
-/* Jini's tokens flip on `data-color-scheme`, but this app themes `data-theme`, so the dialog stayed
-   light in dark mode. Map the chrome onto the app's own tokens (the derived ones: they resolve at
-   :root, so overriding only `--jini-surface` here would change nothing). */
+   a third of the dialog. Jini now pins panels to column 2 to fix collapsed multi-tab dialogs;
+   this single-column host places its content in column 1. The dialog sizes to its content instead
+   of Jini's fixed 1040x720 frame. */
+/* This mapping fixed the dialog before Jini supported `data-theme`; it still gives the chrome
+   the app's own palette. Map derived tokens too: they resolve at their theme boundary, so
+   overriding only `--jini-surface` here would change nothing. */
 .sites-settings-dialog.jini-tabbed-dialog {
   --jini-bg-elevated: var(--surface);
   --jini-bg-panel: var(--surface);
@@ -944,7 +953,7 @@ webview { display: flex; }
 .sites-settings-dialog .jini-tabbed-dialog-body { grid-template-columns: minmax(0, 1fr); }
 .sites-settings-dialog .jini-tabbed-dialog-sidebar,
 .sites-settings-dialog .jini-tabbed-dialog-sidebar-toggle { display: none; }
-.sites-settings-dialog .jini-tabbed-dialog-content { padding-bottom: 0; }
+.sites-settings-dialog .jini-tabbed-dialog-content { grid-column: 1; padding-bottom: 0; }
 
 .sites-settings {
   container-type: inline-size;
@@ -994,8 +1003,9 @@ webview { display: flex; }
 
 .sites-settings__note { color: var(--muted); font-size: 0.75rem; line-height: 1.45; }
 
-/* ⓘ: the explanation lives in the tooltip and in aria-label, not in loose paragraphs. */
-.sites-settings__tip {
+/* ⓘ: the explanation lives in the tooltip and in aria-label, not in loose paragraphs.
+   `.info-tip` is the same control outside the sites settings (the create-website form). */
+.sites-settings__tip, .info-tip {
   position: relative;
   flex: none;
   width: 18px;
@@ -1007,7 +1017,7 @@ webview { display: flex; }
   color: var(--faint);
   cursor: help;
 }
-.sites-settings__tip::before {
+.sites-settings__tip::before, .info-tip::before {
   content: '';
   position: absolute;
   inset: 2px;
@@ -1015,8 +1025,8 @@ webview { display: flex; }
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M12 11v5.5M12 7.6v.1'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M12 11v5.5M12 7.6v.1'/%3E%3C/svg%3E") center / contain no-repeat;
 }
-.sites-settings__tip:hover, .sites-settings__tip:focus-visible { color: var(--fg); }
-.sites-settings__tip:focus-visible { outline: 2px solid var(--primary-ring); outline-offset: 1px; }
+.sites-settings__tip:hover, .sites-settings__tip:focus-visible, .info-tip:hover, .info-tip:focus-visible { color: var(--fg); }
+.sites-settings__tip:focus-visible, .info-tip:focus-visible { outline: 2px solid var(--primary-ring); outline-offset: 1px; }
 
 /* Jini's TooltipLayer (mounted once in main.tsx) portals `.jini-tooltip[data-tooltip]` text to <body>
    and clamps it to the viewport, so tips inside the dialog's scrolling panel and the folder list are
@@ -1231,13 +1241,14 @@ webview { display: flex; }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(214px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(214px, 100%), 1fr));
   gap: 1rem;
   padding: 0 1.75rem 2rem;
   align-content: start;
 }
 
 .card {
+  min-width: 0;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1326,6 +1337,15 @@ webview { display: flex; }
   max-width: 100%;
 }
 
+/* Duplicate labels need visible locations; the full path remains available on hover. */
+.card__namewrap { min-width: 0; }
+.card__parent {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
+
 .card__meta {
   margin: 0;
   justify-self: end;
@@ -1355,6 +1375,7 @@ webview { display: flex; }
   text-align: right;
   color: var(--faint);
 }
+.card__detail--running { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
 .card.is-failed .state { color: var(--warning); }
 
 .card__draft {
@@ -1672,6 +1693,10 @@ webview { display: flex; }
   letter-spacing: -0.035em;
 }
 .onboarding__intro > p:last-child { max-width: 40rem; margin: 0.5rem 0 0; color: var(--muted); }
+/* A heading with its ⓘ beside it: the section explanations are tooltips, not loose sentences
+   (owner 2026-10-11). */
+.onboarding__heading { display: flex; align-items: center; gap: 0.375rem; }
+.onboarding__heading h2, .onboarding__heading h3 { margin: 0; }
 
 .back-link {
   margin: 0 0 1.25rem;
@@ -1926,6 +1951,9 @@ webview { display: flex; }
   --jini-chat-border-soft: var(--border);
   --jini-chat-accent: var(--primary);
   --jini-chat-accent-soft: var(--primary-dim);
+  /* Fixed sent-message contrast in both themes, shared by ordinary and mid-run user bubbles. */
+  --jini-chat-user-bubble: #1a1b1c;
+  --jini-chat-user-bubble-ink: #fff;
   display: flex;
   min-height: 0;
   height: 100%;
@@ -1958,11 +1986,9 @@ webview { display: flex; }
    { background: var(--jini-chat-subtle) }`, 3 classes — would paint a white bubble on the white
    pane: invisible. Give the bubble a background of its own, one class deeper than the injected
    rule so it wins outright instead of tying (see the note above `.jini-chat-pane`). Tovu admin hit
-   this identical collision from this identical mapping and fixes it the identical way. */
-.runner-chat-pane .jini-message-list > .jini-message-user .jini-message-content {
-  background: var(--surface-2);
-  color: var(--fg);
-}
+   this identical collision from this identical mapping and fixes it the identical way.
+   Retired 2026-10-09: direct children omit mid-run bubbles nested inside assistant turns.
+   The pane's user-bubble variables above now theme Jini's shared rule at every depth. */
 .runner-chat-pane .jini-chat-pane__controls { flex: none; padding: 0.625rem 0.875rem 0.875rem; border-top: 1px solid var(--border); }
 .runner-chat-pane .jini-chat-pane__drop-target { display: block; }
 
@@ -2132,7 +2158,8 @@ webview { display: flex; }
 .card__confirmtitle, .card__confirmbody, .card__confirmerror { overflow-wrap: anywhere; }
 .projects-feedback { margin: 0.5rem 1.25rem 1rem; padding: 0.75rem 1rem; border: 1px solid var(--warning); border-radius: var(--r-md); color: var(--warning); background: var(--surface); overflow-wrap: anywhere; }
 .onboarding__form, .onboarding-card, .onboarding-section, .create-field { min-width: 0; }
-.create-field input { min-width: 0; max-width: 100%; }
+/* Inputs sized to what they hold, not the card (owner 2026-10-11 design checklist: ~28–36rem). */
+.create-field input { min-width: 0; max-width: min(32rem, 100%); }
 .create-field__hint { overflow-wrap: anywhere; }
 .create-field > .onboarding__error { color: var(--warning); font-size: 0.75rem; overflow-wrap: anywhere; }
 .creation-notice { align-items: flex-start; }

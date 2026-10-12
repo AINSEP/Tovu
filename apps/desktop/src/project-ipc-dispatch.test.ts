@@ -1,3 +1,4 @@
+import { isolatedCatalogHome } from "../../website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts";
 /** Drive the registered callbacks with renderer payloads, observing disk and host effects. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -28,6 +29,7 @@ function fixture({ t }: { t: TestContext }) {
   const deletedPreviews: string[] = [];
   const previews = new Map<string, string>();
   const closed: Array<{ siteDir: string; pid?: number }> = [];
+  const openSites = new Map<string, Parameters<ProjectIpcDeps["openSites"]["set"]>[1]>();
   let stops = 0;
   function site({ name, siteId = name }: { name: string; siteId?: string }): string {
     const dir = path.join(root, "websites", name);
@@ -44,7 +46,7 @@ function fixture({ t }: { t: TestContext }) {
       return folder === undefined ? { canceled: true, filePaths: [] } : { canceled: false, filePaths: [folder] };
     } },
     shell: { openExternal: async (url) => { opened.push(url); } },
-    openSites: new Map(),
+    openSites,
     serializer: createKeyedSerializer(),
     projectsPath: sitesFilePath(path.join(root, "state")),
     registryPath: path.join(root, "processes"),
@@ -79,7 +81,7 @@ function fixture({ t }: { t: TestContext }) {
   };
   registerSiteIpcHandlers(deps);
   return {
-    root, deps, site, pickedFolders, opened, dialogs, adoptions, previews, deletedPreviews, closed,
+    root, deps, openSites, site, pickedFolders, opened, dialogs, adoptions, previews, deletedPreviews, closed,
     stops: () => stops,
     invoke({ channel, payload }: { channel: string; payload?: unknown }) {
       const handler = handlers.get(channel);
@@ -108,9 +110,8 @@ test("registered list joins current server state and returns fresh names on cons
 });
 
 test("registered create forwards the display name to init and records the newly created identity", async (t) => {
-  const f = fixture({ t });
-  const dir = path.join(f.root, "new-site");
-  f.pickedFolders.push(dir);
+  const f = sharedFixture({ t });
+  const dir = path.join(f.workspace.home({}), "my-new-website");
   const created = await f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "My new website", database: { kind: "sqlite" } } });
   assert.equal(created.id, dir);
   assert.equal(created.displayName, "My new website");
@@ -133,9 +134,8 @@ test("registered create refuses hosted databases before opening a folder picker"
 });
 
 test("created website and its name survive a discovery-settings write failure", async (t) => {
-  const f = fixture({ t });
-  const dir = path.join(f.root, "created-despite-settings-error");
-  f.pickedFolders.push(dir);
+  const f = sharedFixture({ t });
+  const dir = path.join(f.workspace.home({}), "still-created");
   let attempts = 0;
   f.deps.siteFolders = {
     read: () => ({ roots: [], extraRoots: [] }), add: () => ({ roots: [], extraRoots: [] }),
@@ -153,14 +153,29 @@ test("registered asynchronous discovery uses the injected worker port and respec
   const id = f.site({ name: "worker-found" });
   let finish!: (found: string[]) => void;
   f.deps.discoverSites = () => new Promise((resolve) => { finish = resolve; });
-  f.deps.classifySiteDir = () => assert.fail("the main thread must not classify worker candidates");
+  const cardAdmissions: string[] = [];
+  f.deps.classifySiteDir = (dir) => { cardAdmissions.push(dir); return classifySiteDirSafely(dir); };
   f.deps.recentSiteDirs = () => assert.fail("the worker reads recent folders off-thread");
   const pending = f.invoke({ channel: SITE_IPC_CHANNELS.rescan });
   assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+  assert.deepEqual(cardAdmissions, [], "candidate discovery belongs to the worker");
   finish([id]);
   const records = await pending;
   assert.equal(records[0]?.id, id); assert.equal(records[0]?.status, "stopped");
+  // Admission, relocation and card rendering may each validate; one read is not the contract.
+  assert.deepEqual([...new Set(cardAdmissions)], [id], "returned cards still validate their site markers");
+  assert.equal(records.length, 1);
+  assert.equal(records[0]?.folderMissing, false);
   assert.equal(records[0]?.deleteErasesFiles, false);
+  fs.rmSync(path.join(id, "config.json"));
+  const damaged = f.invoke({ channel: SITE_IPC_CHANNELS.list });
+  assert.equal(damaged.length, 1);
+  assert.equal(damaged[0]?.id, id);
+  assert.equal(damaged[0]?.folderMissing, true, "a worker result cannot keep a damaged folder startable");
+  assert.equal(damaged[0]?.displayName, "worker-found", "recovery keeps the last valid name");
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.start, payload: id }), /Folder moved or not a site/);
+  assert.equal(f.openSites.size, 0);
+  fs.writeFileSync(path.join(id, "config.json"), JSON.stringify({ name: "worker-found" }));
   await f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id });
   f.deps.discoverSites = async () => [id];
   assert.deepEqual(await f.invoke({ channel: SITE_IPC_CHANNELS.rescan }), []);
@@ -298,6 +313,7 @@ test("settings save accepts only placement; native setHome owns paths and cancel
 });
 test("shared-home Create holds its creation lock, reports the destination, and refuses an unmounted volume", async (t) => {
   const f = sharedFixture({ t }); const adopt = f.deps.adoptSiteDir;
+  f.deps.dialog = { showOpenDialog: async () => assert.fail("Create must never open a folder picker") };
   f.deps.adoptSiteDir = async (input) => { assert.equal(fs.existsSync(input.dir + ".creation.lock"), true); return adopt(input); };
   const result = await f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Home site", database: { kind: "sqlite" } } });
   assert.equal(result.installDir, path.join(f.workspace.home({}), "home-site"));
@@ -354,4 +370,92 @@ test("registered Start attaches through the host port and retains the external o
   await f.deps.openSites.get(id)?.server.stop?.();
   assert.equal(f.workspace.running({ path: id }).read({})?.token, claim.record.token);
   f.workspace.running({ path: id }).release({ token: claim.record.token });
+});
+
+
+test("deskfx M1: a themes-only stale folder offers recovery and cannot spawn", async (t) => {
+  const f = fixture({ t });
+  const stale = path.join(f.root, "stale"); fs.mkdirSync(path.join(stale, "themes"), { recursive: true });
+  trackSite(f.deps.projectsPath, stale);
+  f.deps.openSiteServer = async () => assert.fail("not a site must never start");
+  const card = f.invoke({ channel: SITE_IPC_CHANNELS.list })[0];
+  assert.equal(card.folderMissing, true);
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.start, payload: stale }), /Folder moved or not a site/);
+  assert.equal(f.openSites.size, 0);
+  assert.deepEqual(fs.readdirSync(stale), ["themes"]);
+});
+
+test("deskfx S3: picker admission scans proposed aggregate roots before saving, and overflow saves nothing", async (t) => {
+  const f = fixture({ t });
+  const added = path.join(f.root, "extra"); fs.mkdirSync(added);
+  const folders = createSiteFolders({ statePath: f.deps.statePath, defaultRoots: f.deps.siteScanRoots });
+  f.deps.siteFolders = folders;
+  const before = folders.read({}); let scans = 0;
+  f.deps.discoverSites = async ({ scanRoots }) => {
+    scans++; assert.deepEqual(scanRoots, [...before.roots, added]);
+    assert.deepEqual(folders.read({}), before, "root must not be saved while validation is running");
+    throw new Error("Sites discovery is limited to 1000 entries. Choose a smaller folder.");
+  };
+  f.pickedFolders.push(added);
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.addFolder }), /1000 entries/);
+  assert.equal(scans, 1); assert.deepEqual(folders.read({}), before);
+  assert.equal(fs.existsSync(path.join(path.dirname(f.deps.statePath), "desktop-site-folders.json")), false);
+  f.deps.discoverSites = async ({ scanRoots }) => { assert.ok(scanRoots?.includes(added)); return []; };
+  f.pickedFolders.push(added);
+  const saved = await f.invoke({ channel: SITE_IPC_CHANNELS.addFolder });
+  assert.deepEqual(saved.extraRoots, [added]);
+});
+
+test("deskfx NIT: consecutive polls preserve createdAt and report each invalid catalog row once", (t) => {
+  const f = fixture({ t }); const dir = f.site({ name: "stable" });
+  trackSite(f.deps.projectsPath, dir);
+  const first = f.invoke({ channel: SITE_IPC_CHANNELS.list })[0];
+  assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list })[0].createdAt, first.createdAt);
+  const workspace = createSitesWorkspace({}, { homeDir: f.root, env: {}, cwd: f.root, platform: "linux" });
+  const stale = path.join(f.root, "stale"); const notices: string[] = [];
+  for (let poll = 0; poll < 3; poll++) shareSiteDirectories({ workspace, dirs: [stale], createdBy: "Desktop" }, { report: (line) => notices.push(line) });
+  assert.equal(notices.length, 1); assert.match(notices[0]!, /skipped shared catalog entry/);
+});
+
+test("deskfx2 MUST-2: desktop default catalog is isolated without a production test guard", () => {
+  const workspace = createSitesWorkspace({});
+  assert.equal(os.homedir(), isolatedCatalogHome);
+  for (const file of [workspace.config({}).appData, workspace.config({}).configPath, workspace.home({})]) {
+    const relative = path.relative(isolatedCatalogHome, file);
+    assert.ok(relative !== ".." && !relative.startsWith(".." + path.sep) && !path.isAbsolute(relative));
+  }
+  const site = path.join(isolatedCatalogHome, "fixture-site");
+  workspace.registry({}).merge({ entries: [{ id: "isolated-fixture", name: "Fixture", path: site, createdBy: "test", lastOpened: null }] });
+  assert.equal(workspace.registry({}).list({}).some((entry) => entry.path === site), true);
+});
+
+
+test("deskfx2 NIT: create reports a missing tracked row clearly and preserves the created site", async (t) => {
+  const f = sharedFixture({ t }), dir = path.join(f.workspace.home({}), "created-site");
+  f.deps.readSiteName = () => {
+    fs.rmSync(f.deps.projectsPath, { force: true });
+    return "Created site";
+  };
+  await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Created site" } }), {
+    message: "The website was created, but its desktop catalog entry is missing. Use Add Tovu Website to add the folder again.",
+  });
+  assert.equal(fs.existsSync(path.join(dir, "config.json")), true);
+});
+
+
+test("registered destination preview and Create share suffix selection; preview never writes", async (t) => {
+  const f = sharedFixture({ t });
+  f.deps.dialog = { showOpenDialog: async () => assert.fail("Create must never open a folder picker") };
+  const home = f.workspace.home({});
+  const before = fs.existsSync(home);
+  assert.deepEqual(f.invoke({ channel: SITE_IPC_CHANNELS.planNewDir, payload: { name: "Corner Bakery" } }), { path: path.join(home, "corner-bakery"), homeDir: os.homedir() });
+  assert.equal(fs.existsSync(home), before);
+  fs.mkdirSync(path.join(home, "corner-bakery"), { recursive: true });
+  fs.mkdirSync(path.join(home, "corner-bakery-2"));
+  const planned = f.invoke({ channel: SITE_IPC_CHANNELS.planNewDir, payload: { name: "Corner Bakery" } });
+  assert.equal(planned.path, path.join(home, "corner-bakery-3"));
+  const created = await f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Corner Bakery" } });
+  assert.equal(created.installDir, planned.path);
+  assert.equal(f.adoptions.length, 1);
+  assert.throws(() => f.invoke({ channel: SITE_IPC_CHANNELS.planNewDir, payload: { name: 42 } }), { message: "Website name must be a string." });
 });

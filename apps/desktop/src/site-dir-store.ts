@@ -21,6 +21,7 @@ import { shareSiteDirectories, rememberSharedSiteOpen, type SitesWorkspace } fro
  * `userData` path and the native folder dialog.
  */
 import fs from "node:fs";
+import { readCatalogSite } from "./site-config.ts";
 import path from "node:path";
 import { spawn as nodeSpawn } from "node:child_process";
 import type { SpawnOptions } from "node:child_process";
@@ -213,12 +214,15 @@ function missingSiteMarkers(dir: string): string[] {
  *   empty, `tovu init` can create a site here), or `"occupied"` (someone's real folder full of
  *   unrelated files — refuse, since `initSite` would throw `INIT_DIR_NOT_EMPTY` and serving would
  *   throw `SITE_DIR_INVALID`).
- * @complexity O(1) filesystem probes and one entry read for non-site, non-incomplete dirs.
+ * @complexity O(1) probes plus bounded marker reads (64 KiB each); one entry read for other dirs.
  */
 function classifySiteDir(dir: string): SiteClassification {
   if (!fs.existsSync(dir)) return "empty";
   const missing = missingSiteMarkers(dir);
-  if (missing.length === 0) return "site";
+  if (missing.length === 0) {
+    try { readCatalogSite({ siteDir: dir }); return "site"; }
+    catch { return "incomplete"; }
+  }
   if (missing.length === 1) return "incomplete";
   const directory = fs.opendirSync(dir);
   try { return directory.readSync() === null ? "empty" : "occupied"; }

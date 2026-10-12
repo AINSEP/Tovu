@@ -60,8 +60,8 @@ export interface ResolveSiteRootOptional {
  * @param optional.cwd - Base for the non-`TOVU_SITE_DIR` form. Defaults to `process.cwd()`.
  * @param optional.env - Environment to read the two overrides from. Defaults to `process.env`.
  * @returns Absolute path to the site folder. The folder is not required to exist — creating it is
- *   the caller's business (`openContentDb` does not create its parent, so boot fails with
- *   `SQLITE_CANTOPEN` if nothing has).
+ *   the caller's business. The dev launcher validates the selection before spawning its API;
+ *   theme seeding separately refuses an absent site root.
  * @complexity O(n) registered sites and home directory entries.
  */
 export function resolveSiteRoot(optional: ResolveSiteRootOptional = {}): string {
@@ -72,11 +72,11 @@ export function resolveSiteRoot(optional: ResolveSiteRootOptional = {}): string 
   // surfacing as a wrong path, not silently swallowed into the default site.
   if (env.TOVU_SITE_DIR !== undefined) return path.resolve(env.TOVU_SITE_DIR);
 
-  // npm run dev owns this explicit default; a Documents MRU must never redirect its data.
-  if (env.TOVU_SITE === undefined) return path.resolve(cwd, "sites", DEFAULT_SITE_NAME);
+  // npm run dev owns this named default; an unrelated Documents MRU must never redirect its data.
+  // Resolve the same name through the shared home/catalog after a move instead of bypassing it.
 
   const workspace = createSitesWorkspace({}, optional);
-  return selectWorkspaceDirectory({ home: workspace.home({}), roots: workspace.roots({}), entries: workspace.registry({}).list({}), selected: env.TOVU_SITE,
+  return selectWorkspaceDirectory({ home: workspace.home({}), roots: workspace.roots({}), entries: workspace.registry({}).list({}), selected: env.TOVU_SITE ?? DEFAULT_SITE_NAME,
     fallback: path.resolve(cwd, "sites", DEFAULT_SITE_NAME),
     listDirectories: ({ root }) => {
       try { return fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => path.join(root, entry.name)); }

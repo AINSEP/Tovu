@@ -158,12 +158,13 @@ test("is idempotent: a second call after a successful seed is a no-op", () => {
   assert.equal(readFileSync(join(siteThemesDir, "static", "tovu-starter", "css", "theme.css"), "utf8"), "body{color:EDITED}");
 });
 
-test("creates missing parent directories of the site themes dir", () => {
+test("refuses missing site parents and never recreates a moved site", () => {
   const stockDir = makeStockTree();
   const siteThemesDir = join(makeEmptySiteRoot(), "nested", "deeper", "themes");
 
-  assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
-  assert.ok(existsSync(join(siteThemesDir, "static", "tovu-starter", "css", "theme.css")));
+  assert.throws(() => seedSiteThemes({ stockDir, siteThemesDir }), /Site folder is unavailable/);
+  assert.equal(existsSync(siteThemesDir), false);
+  assert.equal(existsSync(join(siteThemesDir, "..")), false);
 });
 
 test("leaves no staging directory behind after a successful seed", () => {
@@ -224,4 +225,24 @@ test("a leftover staging directory from an interrupted boot does not block the n
   assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
   assert.ok(existsSync(join(siteThemesDir, "static", "tovu-starter", "css", "theme.css")));
   assert.equal(existsSync(join(siteRoot, ".themes-seed-staging")), false);
+});
+
+
+test("deskfx2 NIT: nested themes override inside an existing site is created atomically", () => {
+  const stockDir = makeStockTree(), siteRoot = makeEmptySiteRoot();
+  const siteThemesDir = join(siteRoot, "custom", "nested", "themes");
+  assert.equal(seedSiteThemes({ stockDir, siteThemesDir, siteRoot }).status, "seeded");
+  assert.equal(existsSync(join(siteThemesDir, "static", "tovu-starter", "theme.json")), true);
+  assert.equal(seedSiteThemes({ stockDir, siteThemesDir, siteRoot }).status, "already-present");
+});
+
+test("deskfx2 NIT: explicit site root must exist before creating override parents", () => {
+  const stockDir = makeStockTree(), parent = makeEmptySiteRoot(), siteRoot = join(parent, "moved-site");
+  const siteThemesDir = join(siteRoot, "custom", "themes");
+  assert.throws(() => seedSiteThemes({ stockDir, siteThemesDir, siteRoot }), /Site folder is unavailable/);
+  assert.equal(existsSync(siteRoot), false);
+  const existingSite = join(parent, "existing-site"); mkdirSync(existingSite);
+  const outside = join(parent, "outside-missing", "themes");
+  assert.throws(() => seedSiteThemes({ stockDir, siteThemesDir: outside, siteRoot: existingSite }), /Themes parent folder is unavailable/);
+  assert.equal(existsSync(join(parent, "outside-missing")), false);
 });

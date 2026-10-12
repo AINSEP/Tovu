@@ -136,3 +136,22 @@ export function writeSiteName(siteDir: string, rawName: unknown): string {
 
   return name;
 }
+
+/** Catalog admission shared by discovery, card validity and legacy catalog import.
+ * @param required.siteDir The candidate site folder; neither cwd nor catalog metadata can substitute.
+ * @returns Validated display name and optional legacy marker identity.
+ * @throws When either marker is unreadable/invalid; no folder or file is created.
+ * @complexity O(n) marker bytes, each bounded to 64 KiB.
+ */
+export function readCatalogSite({ siteDir }: { siteDir: string }, _options = {}): { name: string; siteId?: string } {
+  const name = normalizeSiteName(readSiteConfig(siteDir)?.name);
+  const marker = path.join(siteDir, ".site-meta.json");
+  if (name === null || fs.statSync(marker).size > MAX_CONFIG_BYTES) throw new Error("Invalid site markers");
+  const meta = JSON.parse(fs.readFileSync(marker, "utf8")) as { siteId?: unknown } | null;
+  // Legacy null markers have no identity; the catalog uses its existing canonical-path hash.
+  if (meta === null) return { name };
+  if (typeof meta !== "object" || Array.isArray(meta)) throw new Error("Invalid site marker");
+  if (meta.siteId === undefined) return { name };
+  if (typeof meta.siteId !== "string" || !meta.siteId.trim()) throw new Error("Invalid site identity");
+  return { name, siteId: meta.siteId };
+}

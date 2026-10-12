@@ -332,12 +332,11 @@ function SiteCardActions({ site, snapshot, handle, switchingEnabled, activatingN
           {t(lifecycle.labelKey)}
         </button>
       )}
-      <span className="site-card-menu">
-        {items.length === 0
-          ? <button type="button" className="btn-ghost row-menu-trigger" aria-label={menuLabel}
-              title={view.disabledMenuTitleKey ? t(view.disabledMenuTitleKey) : undefined} disabled><span aria-hidden="true">⋮</span></button>
-          : <RowMenu items={items} triggerLabel={menuLabel} agentHandle={`${handle}-menu`} />}
-      </span>
+      {items.length === 0 ? null : (
+        <span className="site-card-menu">
+          <RowMenu items={items} triggerLabel={menuLabel} agentHandle={`${handle}-menu`} />
+        </span>
+      )}
     </div>
   );
 }

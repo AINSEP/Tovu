@@ -61,7 +61,7 @@ test('worker result, explicit failure, crash and premature exit all settle and c
 test('the real worker reads shared extra roots and the legacy MRU fresh without writing them', async (t) => {
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tovu-discovery-worker-')));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  const root = path.join(home, 'extra'); fs.mkdirSync(root);
+  const root = path.join(home, 'groups', 'extra'); fs.mkdirSync(root, { recursive: true });
   const site = (name: string, parent: string) => {
     const dir = path.join(parent, name); fs.mkdirSync(dir);
     fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ name }));
@@ -78,4 +78,22 @@ test('the real worker reads shared extra roots and the legacy MRU fresh without 
   const beta = site('beta', root);
   assert.deepEqual(await discoverDesktopSites({ statePath, workspaceOptions }), [alpha, beta, outside].sort());
   assert.equal(fs.readFileSync(configPath, 'utf8'), before); assert.equal(fs.readFileSync(statePath, 'utf8'), stateBefore);
+});
+
+
+test("the real worker discovers both default levels with its own injected policy home", async (t) => {
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sitesnest2-worker-")));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const workspaceOptions = { homeDir: home, env: {}, cwd: home, sourceRoots: [], platform: "linux" as const };
+  const workspace = createSitesWorkspace({}, workspaceOptions), old = path.join(home, "Documents", "Tovu");
+  const alpha = path.join(old, "alpha"), beta = path.join(workspace.home({}), "beta");
+  for (const dir of [alpha, beta, path.join(home, "Tovu", "stay-local")]) {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: path.basename(dir) }));
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: path.basename(dir) }));
+  }
+  assert.deepEqual(await discoverDesktopSites({ statePath: path.join(home, "absent-state.json"), workspaceOptions }), [alpha, beta]);
+  await assert.rejects(discoverDesktopSites({ statePath: path.join(home, "absent-state.json"), workspaceOptions,
+    scanRoots: [path.join(home, "Tovu")],
+  }), /too broad/);
 });

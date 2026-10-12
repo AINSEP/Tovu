@@ -483,7 +483,9 @@ test("startTovuServer passes the site dir and port through as `serve <dir> --por
     },
   });
   child.stdout.write(REAL_BOOT_LINE);
-  await started;
+  const handle = await started;
+  assert.equal(handle.ownerSignInCapability, recorded!.options.env?.TOVU_DESKTOP_OWNER_SIGNIN);
+  assert.match(handle.ownerSignInCapability!, /^[a-f0-9]{64}$/);
 
   assert.equal(recorded!.command, process.execPath);
   assert.deepEqual(recorded!.args, [
@@ -909,4 +911,16 @@ test("startTovuServer's onExit replays an exit that already happened before the 
   handle.onExit((exit) => seen.push(exit));
 
   assert.deepEqual(seen, [{ code: null, signal: "SIGKILL" }]);
+});
+
+
+test("deskfx S1: every desktop launch mints a private owner capability without changing NODE_ENV", () => {
+  const baseEnv = { TOVU_DESKTOP_OWNER_SIGNIN: "inherited", TOVU_DESKTOP_OWNER_PID: "old", TOVU_DEV_OWNER_SIGNIN: "0", NODE_ENV: "test" };
+  const a = buildServeEnv({ repoRoot: "/repo", siteDir: "/sites/a", baseEnv });
+  const b = buildServeEnv({ repoRoot: "/repo", siteDir: "/sites/b", baseEnv });
+  assert.match(a.TOVU_DESKTOP_OWNER_SIGNIN!, /^[a-f0-9]{64}$/);
+  assert.notEqual(a.TOVU_DESKTOP_OWNER_SIGNIN, b.TOVU_DESKTOP_OWNER_SIGNIN);
+  assert.equal(a.TOVU_DESKTOP_OWNER_PID, String(process.pid));
+  assert.equal(a.NODE_ENV, "test"); assert.equal(a.TOVU_DEV_OWNER_SIGNIN, "0");
+  assert.equal(a.TOVU_HOST, "127.0.0.1"); assert.equal(baseEnv.TOVU_DESKTOP_OWNER_SIGNIN, "inherited");
 });

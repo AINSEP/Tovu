@@ -1,3 +1,4 @@
+import { isolatedCatalogHome } from "../../website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -5,6 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { createSitesWorkspace, shareSiteDirectories, attachRunningSite, rememberSharedSiteOpen } from "./shared-sites.ts";
 import { handleCreate, handleList } from "./project-ipc.ts";
+import { discoverSiteDirs } from "./tracked-sites.ts";
+import { assertSpecificSiteRoot } from "./site-scan-policy.ts";
 import { existingRecentSiteDirs } from "./site-dir-store.ts";
 function writeSite(dir: string, siteId: string, name = "Example") {
   fs.mkdirSync(dir, { recursive: true });
@@ -116,4 +119,74 @@ test("successful open remains owned when catalog discovery or last-opened bookke
   }) } as unknown as Parameters<typeof rememberSharedSiteOpen>[0]["workspace"];
   assert.doesNotThrow(() => rememberSharedSiteOpen({ workspace, dir: "/opened-site" }));
   assert.equal(opened, 1);
+});
+
+
+test("deskfx2 SHOULD-1: default workspace recovery stays off even with HOME under tmp", () => {
+  const workspace = createSitesWorkspace({}, { cwd: isolatedCatalogHome, sourceRoots: [] });
+  const missing = path.join(os.tmpdir(), "deskfx2-unavailable-external-site");
+  const entry = { id: "new-site-id-12345", name: "Unavailable", path: missing, createdBy: "test", lastOpened: null };
+  workspace.registry({}).merge({ entries: [entry] });
+  assert.equal(workspace.registry({}).list({}).some((row) => row.id === entry.id), true);
+  assert.equal(os.homedir(), isolatedCatalogHome);
+});
+
+test("deskfx2 NIT: null legacy metadata remains an admitted shared catalog site", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-null-marker-")));
+  try {
+    const dir = path.join(root, "legacy"); writeSite(dir, "ignored");
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), "null");
+    const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, cwd: root });
+    const notices: string[] = [];
+    const rows = shareSiteDirectories({ workspace, dirs: [dir], createdBy: "Desktop" }, { report: (message) => notices.push(message) });
+    assert.equal(rows.length, 1); assert.equal(rows[0]?.path, dir); assert.equal(rows[0]?.name, "Example");
+    assert.deepEqual(notices, []);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test("desktop shares the nested default and still scans former-level roots", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "desktop-sitesnest-")));
+  try {
+    const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux", sourceRoots: [] });
+    const old = path.join(root, "Documents", "Tovu"), nested = path.join(old, "sites");
+    assert.equal(workspace.home({}), nested);
+    assert.deepEqual(workspace.roots({}), [nested]);
+    assert.equal(workspace.legacyHomes({}).includes(path.join(root, "Tovu")), false);
+    writeSite(path.join(old, "alpha"), "alpha-id");
+    assert.deepEqual(workspace.roots({}), [nested, old]);
+    shareSiteDirectories({ workspace, dirs: [path.join(old, "alpha")], createdBy: "test" });
+    const records = handleList({ sharedSites: workspace, projectsPath: path.join(root, "profile", "desktop-projects.json"),
+      openSites: new Map(), repoRoot: root, readSiteName: () => "Alpha", readPreviewVersion: () => null });
+    assert.equal(records.find((record) => record.installDir === path.join(old, "alpha"))?.moveIntoSites, true);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+
+test("default discovery uses its injected home for policy and never admits the unrelated local old home", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sitesnest2-scan-")));
+  try {
+    const workspace = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux" });
+    const parent = path.join(root, "Documents", "Tovu"), local = path.join(root, "Tovu");
+    writeSite(path.join(parent, "alpha"), "alpha-id"); writeSite(path.join(workspace.home({}), "beta"), "beta-id");
+    writeSite(path.join(local, "keep-local"), "local-id");
+    assert.throws(() => assertSpecificSiteRoot({ root: local }, { homeDir: root }), /too broad/);
+    const classifySiteDir = (dir: string) => fs.existsSync(path.join(dir, "config.json")) ? "site" as const : "empty" as const;
+    assert.deepEqual(discoverSiteDirs({ scanRoots: workspace.roots({}), knownDirs: [], classifySiteDir }, { homeDir: root, sitesHome: workspace.home({}) }), [path.join(parent, "alpha"), path.join(workspace.home({}), "beta")]);
+    assert.throws(() => discoverSiteDirs({ scanRoots: [local], knownDirs: [], classifySiteDir }, { homeDir: root, sitesHome: workspace.home({}) }), /too broad/);
+    const fallback = createSitesWorkspace({}, { homeDir: root, env: { TOVU_SITES_HOME: path.join(local, "sites") }, platform: "linux" });
+    assert.deepEqual(discoverSiteDirs({ scanRoots: fallback.roots({}), knownDirs: [], classifySiteDir }, { homeDir: root, sitesHome: fallback.home({}) }), [path.join(local, "keep-local")]);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+for (const oldOverride of ["documents", "local"]) test(`desktop hides nesting action when env selects the ${oldOverride} old home`, () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sitesnest2-override-")));
+  try {
+    const home = oldOverride === "local" ? path.join(root, "Tovu") : path.join(root, "Documents", "Tovu");
+    const dir = path.join(home, "alpha"); writeSite(dir, "alpha-id");
+    const workspace = createSitesWorkspace({}, { homeDir: root, env: { TOVU_SITES_HOME: home }, platform: "linux" });
+    shareSiteDirectories({ workspace, dirs: [dir], createdBy: "test" });
+    const records = handleList({ sharedSites: workspace, projectsPath: path.join(root, "profile", "desktop-projects.json"),
+      openSites: new Map(), repoRoot: root, readSiteName: () => "Alpha", readPreviewVersion: () => null });
+    assert.equal(records.find((record) => record.installDir === dir)?.moveIntoSites, false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

@@ -6,6 +6,7 @@ import { namePasteHandler } from '../contracts/site-name.js';
  * and markup on top of that hook's return value.
  */
 import { useCreateWebsiteForm } from './App.hooks.js';
+import { useNewSiteDir } from './use-new-site-dir.hooks.js';
 import { useCreateSitePluginTokens, type CreateSitePluginTokens } from './use-create-site-plugin-tokens.hooks.js';
 import { createWebsiteOnboardingPolicy } from './create-website-onboarding-policy.js';
 import type { CreateSiteInput, DatabaseProviderKind } from '../contracts/project.js';
@@ -13,6 +14,12 @@ import type { RefObject } from 'react';
 
 // Owner 2026-10-06: hidden — only the hidden Instance copy section reads this stale release.
 // const TOVU_VERSION = '0.1.0';
+
+/** The ⓘ beside a heading: the explanation is a tooltip (Jini's TooltipLayer, mounted in main.tsx)
+ *  and the button's accessible name, not a loose sentence under the heading (owner 2026-10-11). */
+function InfoTip({ text }: { text: string }) {
+  return <button type="button" className="info-tip jini-tooltip" aria-label={text} data-tooltip={text} />;
+}
 
 function DatabaseOption({
   value,
@@ -210,12 +217,15 @@ export function CreateWebsiteOnboarding({
   onBack,
   onCreate,
   useForm = useCreateWebsiteForm,
+  useDestination = useNewSiteDir,
   usePluginTokens = useCreateSitePluginTokens,
   supabaseDatabaseAvailable,
 }: {
   onBack: () => void;
   onCreate: (input: CreateSiteInput) => Promise<void>;
   useForm?: typeof useCreateWebsiteForm;
+  /** Destination hook injection follows the form hook seam. */
+  useDestination?: typeof useNewSiteDir;
   /** Same injection pattern as `useForm`: the hook itself, defaulted to the real one. */
   usePluginTokens?: typeof useCreateSitePluginTokens;
   /** Capability injection for renderer tests; production uses the policy module's flag. */
@@ -246,6 +256,7 @@ export function CreateWebsiteOnboarding({
     formError,
     handleSubmit,
   } = useForm(pluginTokens.withTokens(onCreate));
+  const destinationHint = useDestination({ name });
   const { showErrorFooter } = createWebsiteOnboardingPolicy({ formError });
 
   return (
@@ -253,17 +264,19 @@ export function CreateWebsiteOnboarding({
       <div className="onboarding__intro">
         <button type="button" className="back-link" onClick={onBack}>← All websites</button>
         <p className="onboarding__eyebrow">New Tovu instance</p>
-        <h2 id="create-website-title">Set up your website</h2>
-        <p>Each website gets an isolated directory, database, port, and Tovu release.</p>
+        <div className="onboarding__heading">
+          <h2 id="create-website-title">Set up your website</h2>
+          <InfoTip text="Each website gets an isolated directory, database, port, and Tovu release." />
+        </div>
       </div>
 
       <form className="onboarding__form" onSubmit={handleSubmit}>
         <section className="onboarding-card">
           <div className="onboarding-section">
             <div className="onboarding-card__head">
-              <div>
+              <div className="onboarding__heading">
                 <h3>Website details</h3>
-                <p>Name the isolated workspace for this Tovu instance.</p>
+                <InfoTip text="Name the isolated workspace for this Tovu instance." />
               </div>
             </div>
 
@@ -279,16 +292,16 @@ export function CreateWebsiteOnboarding({
                 placeholder="e.g. Corner Bakery"
               />
               <span className="create-field__hint">
-                Your website will use the folder you choose next.
+                {destinationHint}
               </span>
               {nameError && <span className="onboarding__error" role="alert">{nameError}</span>}
             </label>
           </div>
 
           <div className="onboarding-section">
-            <div>
+            <div className="onboarding-card__head onboarding__heading">
               <h3>Database</h3>
-              <p>SQLite is the zero-configuration default. Bring a hosted vendor when you need one.</p>
+              <InfoTip text="SQLite is the zero-configuration default. Bring a hosted vendor when you need one." />
             </div>
 
             <DatabasePicker

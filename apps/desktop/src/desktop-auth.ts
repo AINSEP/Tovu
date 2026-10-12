@@ -159,6 +159,28 @@ function sitePartition(siteDir: string): string {
   return `persist:tovu-site-${digest}`;
 }
 
+/** Arm CMS owner re-entry only in the site's Electron session, for its exact bootstrap URL.
+ * No renderer receives the secret; other ports/origins cannot receive it through this listener.
+ * @throws For a non-loopback server or an invalid private launch capability.
+ * @complexity O(1) per intercepted request.
+ */
+export function armDesktopOwnerSignIn({ session, adminUrl, capability }: {
+  session: { webRequest: { onBeforeSendHeaders(
+    filter: { urls: string[] },
+    listener: (details: { url: string; requestHeaders: Record<string, string> }, callback: (response: { requestHeaders: Record<string, string> }) => void) => void,
+  ): void } };
+  adminUrl: string; capability: string;
+}, _options = {}): void {
+  const origin = assertLoopbackAdminUrl(adminUrl);
+  if (!/^[a-f0-9]{64}$/.test(capability) || origin.username || origin.password) throw new Error("Invalid desktop owner sign-in capability or origin.");
+  const url = new URL("/api/admin/v1/auth/local-boot-session", origin.origin).href;
+  session.webRequest.onBeforeSendHeaders({ urls: [url] }, (details, callback) => {
+    callback({ requestHeaders: details.url === url
+      ? { ...details.requestHeaders, "X-Tovu-Desktop-Owner-SignIn": capability }
+      : details.requestHeaders });
+  });
+}
+
 /**
  * Redeem a boot token over loopback so the resulting session cookie lands in `deps.session`'s own
  * cookie jar.

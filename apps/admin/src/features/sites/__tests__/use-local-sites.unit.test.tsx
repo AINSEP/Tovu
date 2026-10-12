@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
+import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
 import { useLocalSites } from "../hooks/use-local-sites.hooks";
 import { resolveLocalSiteCard, resolveTrashDeleteDisabled } from "../Sites.hooks";
 import type { AdminSitesSnapshot } from "@/lib/api";
@@ -106,4 +107,27 @@ it("card facts protect serving/starting/crashed-with-live-pid and open only read
   view = resolveLocalSiteCard({ site: { ...site, dir: "/sites/owner" }, snapshot, busyName: null });
   expect(view.serving).toBe(true); expect(view.deleteDisabled).toBe(true);
   expect(resolveTrashDeleteDisabled({ id: "x", checked: { x: true }, busyName: "y" })).toBe(true);
+});
+
+it("moving uses confirmation, cancellation and the existing busy/error lifecycle", async () => {
+  const snapshot = fixture(), writes: unknown[] = [], questions: string[] = [];
+  let consent = false;
+  const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return {}; } });
+  const { result, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }, { confirm: (message) => { questions.push(message); return consent; } }), { wrapper });
+  await act(async () => { await result.current.run("alpha", "move"); });
+  expect(writes).toEqual([]); expect(questions[0]).toContain("Move this stopped site into sites/");
+  consent = true;
+  await act(async () => { await result.current.run("alpha", "move"); });
+  expect(writes).toEqual([{ name: "alpha", action: "move", confirmed: true, checked: false }]);
+  expect(result.current.busyName).toBeNull(); expect(result.current.error).toBeNull(); unmount();
+});
+
+
+it("the shared confirmation modal presents and settles the site move", async () => {
+  const { result, unmount } = renderHook(() => useSiteConfirm({ t }));
+  let answer!: Promise<boolean>;
+  act(() => { answer = result.current.confirm("Move this stopped site into sites/?", { action: "move" }); });
+  expect(result.current.open).toBe(true); expect(result.current.title).toBe("Move into sites/?");
+  expect(result.current.confirmLabel).toBe("Move into sites/"); expect(result.current.tone).toBe("warning");
+  act(() => result.current.onConfirm()); expect(await answer).toBe(true); expect(result.current.open).toBe(false); unmount();
 });

@@ -23,7 +23,7 @@
  * `duplicate-site.ts` joined 2026-09-05 for the identical reason: its caller is the new `sites`
  * assistant-tool domain (`features/sites/tool-registrations.ts`), also outside `site-dir`.
  */
-export { DEFAULT_SITE_NAME, resolveSiteRoot, type ResolveSiteRootOptional } from "./site-root.js";
+export { DEFAULT_SITE_NAME, resolveSiteRoot, pinDefaultSiteRoot, SITE_SELECTION_PINNED_ENV, type ResolveSiteRootOptional } from "./site-root.js";
 /**
  * `product-root.ts` joined 2026-09-10: `features/fs-files/layout.ts` is the first `features/**`
  * caller of `resolveProductRoot` (every prior caller — `init-site.ts`, `read-template.ts`,

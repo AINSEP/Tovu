@@ -1,3 +1,4 @@
+import "../helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -52,7 +53,7 @@ test("site-registry creation shares init's explicit/default owner contract", asy
   try {
     for (const adminPassword of [undefined, "chosen-registry-password"]) {
       const name = adminPassword === undefined ? "default-site" : "custom-site";
-      const site = await createSite({ name, adminPassword }, { cwd });
+      const site = await createSite({ name, adminPassword }, { cwd, homeDir: cwd, env: { TOVU_SITES_HOME: path.join(cwd, "sites") } });
       await assertSiteOwnerLogin({ dir: site.dir, password: adminPassword ?? "tovu-dev" });
     }
   } finally {

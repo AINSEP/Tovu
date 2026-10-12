@@ -114,7 +114,7 @@ test("the deps carry a scan root and the recently-opened list for the scan to re
   assert.notEqual(depsStart, -1, "expected a projectDeps object in the sites-home branch");
   const depsBlock = source.slice(depsStart, source.indexOf("\n      };", depsStart));
   assert.match(depsBlock, /siteScanRoots: SITE_SCAN_ROOTS/);
-  assert.match(depsBlock, /recentSiteDirs: \(\) => existingRecentSiteDirs\(sitesCtx\.statePath\)/);
+  assert.match(depsBlock, /recentSiteDirs: \(\) => existingRecentSiteDirs\(sitesCtx\.statePath, \{ workspace: sharedSites \}\)/);
 });
 
 test("the scan root is the sites directory the dev fallback already lives in", () => {
@@ -211,3 +211,39 @@ test("the sites home window declares width AND height minimums", () => {
   assert.ok(Number(/minHeight: (\d+)/.exec(own)![1]) >= 400, "minHeight must leave room for a card row"); // `!`: asserted to match above.
 });
 
+
+
+test("deskfx2 NIT: concurrent validation and rescans never cancel each other", async () => {
+  let initializer: ts.Expression | undefined;
+  function visit(node: ts.Node): void {
+    if (ts.isPropertyAssignment(node) && node.name.getText(parsedMain) === "discoverSites") initializer = node.initializer;
+    ts.forEachChild(node, visit);
+  }
+  visit(parsedMain); assert.ok(initializer);
+  const executable = ts.transpileModule(`const discover = ${initializer.getText(parsedMain)};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const calls: { signal: AbortSignal; finish: () => void }[] = [];
+  const discover = new Function('discoverDesktopSites', 'PAYLOAD_ROOT', 'REPO_ROOT', 'app', 'path', 'sitesCtx',
+    `let siteDiscoveryAbort; let siteValidationAbort; ${executable}; return discover;`)(
+    (_input: unknown, { signal }: { signal: AbortSignal }) => new Promise<string[]>((resolve) => calls.push({ signal, finish: () => resolve([]) })),
+    '/payload', '/repo', { isPackaged: true }, path, { statePath: '/state' },
+  ) as (input: { scanRoots?: string[] }) => Promise<string[]>;
+  const scan = discover({}), validation = discover({ scanRoots: ['/picked'] });
+  assert.equal(calls[0]!.signal.aborted, false); assert.equal(calls[1]!.signal.aborted, false);
+  const replacementScan = discover({});
+  assert.equal(calls[0]!.signal.aborted, true); assert.equal(calls[1]!.signal.aborted, false);
+  const replacementValidation = discover({ scanRoots: ['/other'] });
+  assert.equal(calls[1]!.signal.aborted, true); assert.equal(calls[2]!.signal.aborted, false);
+  for (const call of calls) call.finish();
+  await Promise.all([scan, validation, replacementScan, replacementValidation]);
+});
+
+test("deskfx2 SHOULD-1: desktop main explicitly enables catalog recovery", () => {
+  assert.match(source, /const sharedSites = createSitesWorkspace\([^;]+catalogRecovery: true/);
+});
+
+
+test("deskfx2 MUST-1: main arms the site session before probing or loading admin", () => {
+  const body = mainFunction("startSiteBackend").getText(parsedMain);
+  assert.match(body, /armDesktopOwnerSignIn\(\{\s*session: session\.fromPartition\(partition\), adminUrl: server\.adminUrl, capability: server\.ownerSignInCapability/);
+  assert.ok(body.indexOf('armDesktopOwnerSignIn({') < body.indexOf('await ensureSiteSession({'));
+});

@@ -2,7 +2,7 @@
  * @file Coverage for `CreateWebsiteOnboarding.tsx`, imported for real (not re-transpiled from
  * source text the way `webview-failure-wiring.test.ts` checks the database cards).
  *
- * The component takes its two hooks as injectable props (see its own doc comment), so each test
+ * The component takes its hooks as injectable props (see its own doc comment), so each test
  * puts the layout straight into one state with a plain stub and walks the returned element tree.
  * Handlers are invoked on the real elements and asserted by what reached the stub. One test renders
  * with the REAL default hooks through `react-dom/server`, which proves the defaults are wired.
@@ -32,8 +32,9 @@ function recorder(calls: Calls, name: string) {
   return (...args: unknown[]) => { (calls[name] ??= []).push(args); };
 }
 
-function setup({ form = {}, plugins = [], supabaseDatabaseAvailable }: {
+function setup({ form = {}, plugins = [], supabaseDatabaseAvailable, destinationHint = 'Checking website destination…' }: {
   form?: Partial<CreateWebsiteFormState>;
+  destinationHint?: string;
   plugins?: CreateSitePluginTokens['plugins'];
   supabaseDatabaseAvailable?: boolean;
 } = {}) {
@@ -72,7 +73,7 @@ function setup({ form = {}, plugins = [], supabaseDatabaseAvailable }: {
   };
   const useForm = ((received: unknown) => { formReceived = received; return state; }) as typeof useCreateWebsiteForm;
   const onBack = recorder(calls, 'onBack') as () => void;
-  const tree = elements(CreateWebsiteOnboarding({ onBack, onCreate, useForm, usePluginTokens, supabaseDatabaseAvailable }));
+  const tree = elements(CreateWebsiteOnboarding({ onBack, onCreate, useForm, usePluginTokens, supabaseDatabaseAvailable, useDestination: ({ name }) => { recorder(calls, 'planName')(name); return destinationHint; } }));
   return { tree, calls, state, refCallbacks, wrappedCreate, tokensEnabled, formReceived: () => formReceived };
 }
 
@@ -87,6 +88,7 @@ const byType = (tree: any[], type: string) => tree.filter((element) => element.t
 const input = (tree: any[], predicate: (props: any) => boolean) => byType(tree, 'input').find((element) => predicate(element.props));
 const submit = (tree: any[]) => byType(tree, 'button').find((element) => element.props.type === 'submit');
 const change = (value: string) => ({ target: { value } });
+const isInfoTip = (element: any) => String(element.props.className ?? '').split(' ').includes('info-tip');
 
 test('starts on the SQLite default with no slug, a disabled submit and no vendor fields', () => {
   const { tree } = setup();
@@ -95,7 +97,7 @@ test('starts on the SQLite default with no slug, a disabled submit and no vendor
     ['sqlite', true, false], ['supabase', false, true], ['custom', false, true],
   ]);
   const hint = tree.find((element) => element.props?.className === 'create-field__hint');
-  assert.equal(hint.props.children, 'Your website will use the folder you choose next.');
+  assert.equal(hint.props.children, 'Checking website destination…');
   assert.deepEqual(byType(tree, 'dd'), [], 'the hidden instance summary renders no values');
   assert.equal(submit(tree).props.disabled, true);
   assert.equal(submit(tree).props.children, 'Create local instance');
@@ -106,13 +108,13 @@ test('starts on the SQLite default with no slug, a disabled submit and no vendor
   assert.equal(tree.find((element) => element.props?.className === 'database-option is-selected ').type, 'label');
 });
 
-test('explains the chosen folder truthfully and enables submit once the form says it can create', () => {
-  const { tree } = setup({ form: { name: 'Corner Bakery', slug: 'corner-bakery', canCreate: true } });
+test('shows the planned sites-home destination and enables submit once the form says it can create', () => {
+  const { tree } = setup({ form: { name: 'Corner Bakery', slug: 'corner-bakery', canCreate: true }, destinationHint: 'Creates ~/Documents/Tovu/sites/corner-bakery-2' });
   const name = input(tree, (props) => props.placeholder === 'e.g. Corner Bakery');
   assert.equal(name.props.value, 'Corner Bakery');
   assert.equal(name.props.maxLength, 200);
   const hint = tree.find((element) => element.props?.className === 'create-field__hint');
-  assert.equal(hint.props.children, 'Your website will use the folder you choose next.');
+  assert.equal(hint.props.children, 'Creates ~/Documents/Tovu/sites/corner-bakery-2');
   assert.deepEqual(byType(tree, 'dd'), [], 'the workspace preview lives only under the name field');
   assert.equal(submit(tree).props.disabled, false);
 });
@@ -139,9 +141,10 @@ test('routes every form control to its own setter, and both back controls to onB
   assert.equal(formReceived(), wrappedCreate, 'the form submits through the token wrapper');
   input(tree, (props) => props.placeholder === 'e.g. Corner Bakery').props.onChange(change('Bakery'));
   input(tree, (props) => props.value === 'sqlite').props.onChange();
-  for (const button of byType(tree, 'button').filter((element) => element.props.type === 'button')) button.props.onClick();
+  for (const button of byType(tree, 'button').filter((element) => element.props.type === 'button' && !isInfoTip(element))) button.props.onClick();
   const form = byType(tree, 'form')[0];
   assert.equal(form.props.onSubmit, state.handleSubmit);
+  assert.deepEqual(calls.planName, [['']]);
   assert.deepEqual(calls.setName, [['Bakery']]);
   assert.deepEqual(calls.setDatabase, [['sqlite']]);
   assert.equal(calls.onBack?.length, 2);
@@ -237,7 +240,7 @@ test('renders with the real default hooks: SQLite selected, submit disabled, no 
   assert.match(html, /<input type="radio" name="database" checked="" value="sqlite"\/>/);
   assert.match(html, /<button type="submit" class="button button--primary" disabled="">Create local instance<\/button>/);
   assert.doesNotMatch(html, /Connect services/);
-  assert.match(html, /Your website will use the folder you choose next\./);
+  assert.match(html, /Checking website destination…/);
 });
 
 test('the two database options this app cannot provision carry a "Soon" tag; SQLite does not', () => {
@@ -275,7 +278,7 @@ test('no footer or readiness text renders without an error, and both action butt
     const { tree } = setup({ form: { formError } });
     assert.deepEqual(byType(tree, 'footer'), []);
     assert.equal(byType(tree, 'p').some((element) => text(element.props.children) === 'UI onboarding is ready. Provisioning the copy and securely saving vendor credentials needs the Tovu supervisor connection.'), false);
-    assert.deepEqual(byType(tree, 'button').map((element) => element.props.children), ['← All websites', 'Cancel', 'Create local instance']);
+    assert.deepEqual(byType(tree, 'button').filter((element) => !isInfoTip(element)).map((element) => element.props.children), ['← All websites', 'Cancel', 'Create local instance']);
   }
 });
 
@@ -296,4 +299,18 @@ test('D-02: an oversized draft shows the exact inline validation inside the name
   assert.equal(name.props['aria-invalid'], true);
   assert.equal(tree.find((element) => element.props.role === 'alert')?.props.children, message);
   assert.equal(submit(tree).props.disabled, true);
+});
+
+test('section explanations are ⓘ tooltips beside their headings, not loose sentences (owner 2026-10-11)', () => {
+  const { tree } = setup();
+  const explanations = [
+    'Each website gets an isolated directory, database, port, and Tovu release.',
+    'Name the isolated workspace for this Tovu instance.',
+    'SQLite is the zero-configuration default. Bring a hosted vendor when you need one.',
+  ];
+  const tips = byType(tree, 'button').filter(isInfoTip);
+  assert.deepEqual(tips.map((tip) => [tip.props.type, tip.props['aria-label'], tip.props['data-tooltip']]), explanations.map((line) => ['button', line, line]));
+  assert.ok(tips.every((tip) => String(tip.props.className).split(' ').includes('jini-tooltip')), 'the TooltipLayer shows the text');
+  const paragraphs = byType(tree, 'p').map((element) => text(element.props.children));
+  for (const line of explanations) assert.equal(paragraphs.includes(line), false, line);
 });

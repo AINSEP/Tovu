@@ -44,6 +44,19 @@ export function createProgram(): Command {
   program.exitOverride();
   program.configureOutput({ writeErr: () => {} });
 
+  program.command("sites").description("manage shared local sites")
+    .command("move-home").argument("<dir>", "stopped site at the former default level")
+    .option("--projects-path <file>", "also update this desktop profile's catalog")
+    .action(async (dir: string, options: { projectsPath?: string }) => {
+      const { moveLegacySite } = await import("../platform/site-dir/move-sites-home.js");
+      const { createSitesWorkspace } = await import("../platform/site-dir/sites-home.js");
+      const workspace = createSitesWorkspace({});
+      const to = await moveLegacySite({ dir }, { workspace,
+        projectsPaths: [...workspace.projectsPaths, ...(options.projectsPath ? [options.projectsPath] : [])],
+      });
+      console.log(JSON.stringify({ to }));
+    });
+
   const pluginProgram = program.command("plugin").description("install and inspect local site plugins");
   pluginProgram.command("install").argument("<dir>", "plugin package folder")
     .option("--site <dir>", "site directory (default: TOVU_SITE_DIR / active site)")

@@ -1,3 +1,4 @@
+import "../helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -15,6 +16,7 @@ import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
 import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { duplicateSite } from "../../duplicate-site.js";
 import { initSite } from "../../init-site.js";
+import { resolveSiteDatabasePaths } from "../../site-databases.js";
 import { isPortableSiteEntry } from "../../layout.js";
 import { createGitIgnoreFixture } from "./git-ignore.fixture.js";
 
@@ -59,8 +61,10 @@ test("ops/ (where the copy lives) is not a portable site entry", () => {
 test("duplicateSite never carries the source's pre-migrations copy", async (t) => {
   const { parent, dir } = await siteWithMigrationCopy(t, "source-site");
   const target = path.join(parent, "copy-site");
-  await duplicateSite({ sourceDir: dir, targetDir: target, name: "Copy Site" });
-  assert.equal(fs.existsSync(path.join(target, "content.db")), true, "sanity: the duplicate has its own database");
+  const duplicate = await duplicateSite({ sourceDir: dir, targetDir: target, name: "Copy Site" });
+  const database = resolveSiteDatabasePaths({ dir: target, siteId: duplicate.siteId }).contentDbPath;
+  assert.equal(fs.existsSync(database), true, "sanity: the duplicate has its own database");
+  assert.notEqual(database, resolveSiteDatabasePaths({ dir }).contentDbPath);
   assert.deepEqual(copyTraces(target), []);
 });
 

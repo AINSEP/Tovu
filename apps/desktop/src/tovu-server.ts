@@ -182,7 +182,7 @@ function resolveDevCliEntry(repoRoot: string): string {
 }
 
 /** `buildCliSpawnPlan`'s two supported invocation modes. See that function's own doc. */
-type CliMode = "source" | "compiled";
+export type CliMode = "source" | "compiled";
 
 /** Input to {@link buildCliSpawnPlan}. */
 interface CliSpawnPlanInput {
@@ -440,6 +440,10 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
   // string, not an import of `bind-host.ts`'s `DEFAULT_LOCAL_BIND_HOST`: this directory stays
   // self-contained from `apps/website`, same reasoning as `desktop-auth.ts:62-65`.
   env.TOVU_HOST = "127.0.0.1";
+  // The local desktop is the trusted launcher. A fresh private capability arms owner re-entry
+  // for this server lifetime, independently of development mode and the one-use boot token.
+  env.TOVU_DESKTOP_OWNER_SIGNIN = randomBytes(32).toString("hex");
+  env.TOVU_DESKTOP_OWNER_PID = String(process.pid);
 
   // Seeds the desktop shell's OWN owner account so `desktop-auth.ts` can log in and the operator
   // never meets a login form for a server this app started. Omitted entirely when the caller passes
@@ -789,6 +793,8 @@ interface TovuServerHandle {
   workspaceId: string;
   schemaVersion: number;
   bootToken: string | null;
+  /** Main-process-only launch proof; never serialize into SiteRecord or renderer IPC. */
+  ownerSignInCapability?: string;
   stop(): Promise<void>;
   onExit: ExitSignal["onExit"];
 }
@@ -846,11 +852,12 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     ],
   });
 
+  const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv });
   const child = spawnFn(
     plan.command,
     plan.args,
     {
-      env: buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv }),
+      env: serveEnv,
       stdio: ["ignore", "pipe", "pipe"],
       // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
       // `tovu serve` spawns rather than just the immediate child. Same reason
@@ -910,6 +917,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
             // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
             // passed, which is every caller but the desktop shell.
             bootToken: parseBootToken(output),
+            ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
             stop: () => stopChild(child, stopGraceMs, input.platform, input.killTree),
             onExit: exitSignal.onExit,
           }),

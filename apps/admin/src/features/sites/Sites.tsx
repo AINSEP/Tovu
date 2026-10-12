@@ -7,6 +7,8 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { AllSitesTab } from "./AllSitesTab";
+import { SitesHomeSetting } from "./SitesHomeSetting";
+import type { ReactNode } from "react";
 import { CreateSiteOnboarding } from "./CreateSiteOnboarding";
 import { resolveSitesTabId, resolveSitesTabs, type SitesTabId } from "./Sites.hooks";
 import type { ActivationOutlook } from "./rules";
@@ -303,6 +305,14 @@ function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSi
   );
 }
 
+/** The tab row, with "Sites settings" at its right end when this server manages a local sites
+ *  folder (2026-10-09: it used to be a full-width primary bar inside the All sites tab). The
+ *  settings component wraps the row so its sync warning can sit directly below it. */
+function sitesTabsRow(tabBar: ReactNode, snapshot: AdminSitesSnapshot, t: Translate) {
+  if (!snapshot.sitesHome) return tabBar;
+  return <SitesHomeSetting home={snapshot.sitesHome} tabs={tabBar} t={t} />;
+}
+
 /** `replace: true` so moving between the two tabs does not grow the back stack one entry per click
  *  — the same call `Themes.tsx`/`Deployment.tsx` make for their own `?tab=`. A module-level
  *  function, not an inline arrow: `TabBar`'s `onChange` takes it directly, and
@@ -350,13 +360,17 @@ export function Sites(props: SitesProps = {}) {
 
       <SitesProcessNotices snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
 
-      <TabBar
-        tabs={resolveSitesTabs({ t, listedCount: sites.length }, { localManagementEnabled: snapshot.localManagementEnabled, trashCount: snapshot.trash?.length })}
-        activeId={tab}
-        onChange={goToSitesTab}
-        ariaLabel={t("Sites")}
-        containerHandle="sites-tabs"
-      />
+      {sitesTabsRow(
+        <TabBar
+          tabs={resolveSitesTabs({ t, listedCount: sites.length }, { localManagementEnabled: snapshot.localManagementEnabled, trashCount: snapshot.trash?.length })}
+          activeId={tab}
+          onChange={goToSitesTab}
+          ariaLabel={t("Sites")}
+          containerHandle="sites-tabs"
+        />,
+        snapshot,
+        t,
+      )}
 
       {sitesTabPanel(tab, controller, snapshot)}
       <LocalSiteConfirmDialog dialog={controller.siteConfirm} />

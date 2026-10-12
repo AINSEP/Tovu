@@ -14,7 +14,7 @@ export interface LocalSitesRouteDeps extends Pick<RouteDeps, "workspaceId" | "au
   siteTrash?: { trash: typeof trashSite; restore: typeof restoreSite; remove: typeof permanentlyDeleteTrashedSite };
 }
 const STATUS: Record<string, number> = { VALIDATION_ERROR: 400, SITE_CONFIRM_REQUIRED: 400,
-  SITE_NOT_FOUND: 404, SITE_SERVING: 409, SITE_RUNNING: 409, SITE_LIMIT: 409,
+  SITE_NOT_FOUND: 404, SITE_SERVING: 409, SITE_RUNNING: 409, SITE_RUNNING_ELSEWHERE: 409, SITE_LIMIT: 409,
   SITE_ALREADY_EXISTS: 409, SITE_PATH_UNSAFE: 409, SITE_STOP_FAILED: 409 };
 const PREFIX = "/api/admin/v1/workspaces/:workspaceId/system/sites";
 

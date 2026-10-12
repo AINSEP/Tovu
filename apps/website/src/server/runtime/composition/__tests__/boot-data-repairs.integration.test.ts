@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -13,6 +14,7 @@ import { openSiteContentDb } from "../open-site-content-db.js";
 import { openSiteStore } from "../open-site-store.js";
 import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { initSite } from "#src/platform/site-dir/init-site";
+import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 
 /**
  * @file `runBootDataRepairs`: its per-repair failure policy (with fakes), and that BOTH store
@@ -98,16 +100,23 @@ test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair 
   const dir = path.join(parent, "site");
   try {
     await initSite({ dir, name: "Repair Site" });
-    const seeded = await openSiteContentDb(path.join(dir, "content.db"));
+    const database = resolveSiteDatabasePaths({ dir }).contentDbPath;
+    const seeded = await openSiteContentDb(database);
     await contentKernel(seeded).run((db) =>
       db.deleteFrom("setting_values_global").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).execute()
     );
     assert.equal(await markerPresent(contentKernel(seeded)), false);
     closeSqliteConnection(seeded);
 
+    // Real migrated sites retain these recovery artifacts; only an exact .db file is authoritative.
+    const leftovers = ["content.db-shm", "content.db-wal", "content.db.home2-backup"];
+    for (const name of leftovers) fs.writeFileSync(path.join(dir, name), "legacy recovery artifact");
+
     const boot = await bootSiteDir({ dir });
     try {
       assert.equal(boot.db !== undefined && (await markerPresent(contentKernel(boot.db))), true);
+      assert.equal(resolveSiteDatabasePaths({ dir }).contentDbPath, database);
+      for (const name of leftovers) assert.equal(fs.readFileSync(path.join(dir, name), "utf8"), "legacy recovery artifact");
     } finally {
       await closeSiteDirBoot(boot);
     }

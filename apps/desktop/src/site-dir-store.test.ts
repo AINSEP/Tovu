@@ -695,3 +695,19 @@ test("a crash between the recent-sites temp write and the rename leaves the prev
   assert.equal(fs.readFileSync(statePath, "utf8"), before);
   assert.deepEqual(readDesktopState(statePath), { recentSiteDirs: ["/sites/a"] });
 });
+
+
+test("deskfx M1: corrupt markers are refused while legacy null metadata remains admitted", () => {
+  const dir = fakeSiteDir();
+  try {
+    fs.writeFileSync(path.join(dir, "config.json"), "{broken");
+    assert.equal(classifySiteDirSafely(dir), "incomplete");
+    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "Valid" }));
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), "null");
+    assert.equal(classifySiteDirSafely(dir), "site");
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), "[]");
+    assert.equal(classifySiteDirSafely(dir), "incomplete");
+    fs.rmSync(path.join(dir, ".site-meta.json")); fs.mkdirSync(path.join(dir, ".site-meta.json"));
+    assert.equal(classifySiteDirSafely(dir), "incomplete");
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

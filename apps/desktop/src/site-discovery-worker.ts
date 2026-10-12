@@ -7,13 +7,13 @@ import type { DesktopDiscoveryInput } from './site-discovery.ts';
 
 const input = workerData as DesktopDiscoveryInput;
 try {
-  const workspace = createSitesWorkspace({}, input.workspaceOptions);
+  const workspace = createSitesWorkspace({}, { ...input.workspaceOptions, catalogRecovery: false });
   // Read settings in this worker too: canonicalizing removable roots can itself block.
   const found = discoverSiteDirs({
-    scanRoots: workspace.roots({}),
+    scanRoots: input.scanRoots ?? workspace.roots({}),
     knownDirs: [...readDesktopState(input.statePath).recentSiteDirs, ...workspace.registry({}).list({}).map((row) => row.path)],
     classifySiteDir: classifySiteDirSafely,
-  });
+  }, { homeDir: workspace.homeDir, sitesHome: workspace.home({}) });
   parentPort?.postMessage({ found });
 } catch (failure) {
   parentPort?.postMessage({ error: failure instanceof Error ? failure.message : String(failure) });

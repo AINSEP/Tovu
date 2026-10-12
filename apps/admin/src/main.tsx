@@ -19,6 +19,7 @@ import "./styles/site-key.css";
 import "./styles/settings.css";
 import "./styles/external-mcp-tool-picker.css";
 import "./styles/seo.css";
+import "./styles/sites-settings.css";
 import "./features/publish-content/publish-content.css";
 
 // `@jini-ai/ui`'s `RemixIcon` component loads its default webfont/CSS itself, but it does so via

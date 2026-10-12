@@ -92,6 +92,7 @@ contextBridge.exposeInMainWorld(
      *  otherwise returns the record and alreadyTracked flag. Rejects unusable folders with an
      *  actionable message. See `SITE_IPC_CHANNELS.addSite`. */
     addSite: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.addSite),
+    planNewDir: (input: { name: string }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.planNewDir, input),
     createSite: (input: CreateSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.create, input),
     /** The services "+ Create website" can offer a token field for. See `SITE_IPC_CHANNELS.tokenSignInPlugins`. */
     listTokenSignInPlugins: () => ipcRenderer.invoke(SITE_IPC_CHANNELS.tokenSignInPlugins),
@@ -105,6 +106,7 @@ contextBridge.exposeInMainWorld(
     getSitePreview: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.preview, id),
     /** A missing card's Locate — main opens the folder picker and points the card at the pick.
      *  Rejects with an operator-facing reason; surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
+    moveSiteHome: (input: { id: string; confirmed: boolean }) => ipcRenderer.invoke(SITE_IPC_CHANNELS.moveHome, input),
     locateSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.locate, id),
     startSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.start, id),
     stopSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.stop, id),

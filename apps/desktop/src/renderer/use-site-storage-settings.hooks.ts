@@ -16,7 +16,7 @@ export function useSiteStorageSettings(_required = {}, { useFolders = useSiteFol
     setDatabases(settings.folders.databases ?? 'inSite');
   }, [settings.folders]);
   const save = useCallback(() => settings.saveSettings({ databases }), [settings, databases]);
-  return { ...settings, chooseHome: settings.setHome, open, show: () => setOpen(true), close: () => setOpen(false), home, setHome,
+  return { ...settings, warningError: !open && settings.folders.warning ? settings.error : null, chooseHome: settings.setHome, open, show: () => { settings.clearError(); setOpen(true); }, close: () => { settings.clearError(); setOpen(false); }, home, setHome,
     roots, setRoots, databases, setDatabases, save,
     useAppData: () => settings.saveSettings({ databases: 'appData' }),
     useLocalHome: settings.setHome,

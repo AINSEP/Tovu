@@ -13,6 +13,7 @@ import test from "node:test";
 import ts from "typescript";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { SiteRecord } from "../contracts/project.js";
 import { cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable } from "./SiteGrid.hooks.js";
 import { powerControl } from "./use-site-power.hooks.js";
 import { STATUS_LABEL } from "./site-status.js";
@@ -146,7 +147,15 @@ test("a running record with a local stopping status omits Open in browser throug
     CardConfirmOverlay: () => React.createElement("div", { role: "group" }, "Delete panel"),
   };
   const SiteCard = new Function(...Object.keys(deps), `${executable}; return SiteCard;`)(...Object.values(deps));
-  const project = { id: "site-1", displayName: "Test site", port: 4200, status: "running", database: { kind: "sqlite" }, deleteErasesFiles: false };
+  // Use the real IPC shape so new card presentation cannot crash on a missing fixture field.
+  const project: SiteRecord = {
+    id: "site-1", slug: "site-1", displayName: "Test site", installDir: "/sites/site-1",
+    partition: "persist:test-site-1", templateId: "tovu", templateVersion: null,
+    port: 4200, status: "running", desiredState: "running", runningApp: "Web",
+    statusDetail: "Running in Web (port 52612)", database: { kind: "sqlite" },
+    deleteErasesFiles: false, previewVersion: null, folderMissing: false,
+    createdAt: "2026-10-09T00:00:00.000Z", updatedAt: "2026-10-09T00:00:00.000Z",
+  };
   for (const status of ["running", "stopping"]) {
     const html = renderToStaticMarkup(React.createElement(SiteCard, {
       project, overlay: null, deleting: false, deleteError: null, rename: { startRename: () => {} },
@@ -156,6 +165,11 @@ test("a running record with a local stopping status omits Open in browser throug
     }));
     assert.equal(html.includes("Open in browser"), status === "running", `rendered ${status} must decide the menu`);
     assert.ok(html.includes(`card is-${status}`));
+    assert.ok(html.includes('class="card__detail card__detail--running"'));
+    assert.ok(html.includes('Running in Web (port 52612)'));
+    const styles = fs.readFileSync(path.join(here, 'app.css'), 'utf8');
+    const runningStyle = /\.card__detail--running\s*\{([^}]+)\}/.exec(styles)?.[1] ?? '';
+    assert.match(runningStyle, /white-space:\s*normal/); assert.match(runningStyle, /overflow:\s*visible/);
     assert.ok(html.includes('<h3 class="card__name" title="Test site">Test site</h3>'), "D-28: card names expose their full text");
   }
   for (const overlay of ["rename", "confirm"]) {

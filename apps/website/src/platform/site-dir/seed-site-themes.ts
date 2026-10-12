@@ -1,5 +1,5 @@
-import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { cpSync, existsSync, mkdirSync, statSync, renameSync, rmSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { seedStarterTitle } from "./seed-starter-title.js";
 
 /**
@@ -58,6 +58,8 @@ export interface SeedSiteThemesRequired {
   readonly stockDir: string;
   /** Where this site's own themes live (`siteThemesDir()`). Created only when seeding happens. */
   readonly siteThemesDir: string;
+  /** Served site identity/root, required to create missing parents of a nested themes override. */
+  readonly siteRoot?: string;
 }
 
 /**
@@ -129,10 +131,22 @@ export function seedSiteThemes(required: SeedSiteThemesRequired, optional: { sit
   if (existsSync(siteThemesDir)) return { status: "already-present", siteThemesDir };
   if (!existsSync(stockDir)) return { status: "no-stock-source", siteThemesDir };
 
-  const siteRoot = dirname(siteThemesDir);
-  const stagingDir = join(siteRoot, STAGING_DIR_NAME);
+  const themesParent = dirname(siteThemesDir);
+  const siteRoot = required.siteRoot ?? themesParent;
+  const stagingDir = join(themesParent, STAGING_DIR_NAME);
 
-  mkdirSync(siteRoot, { recursive: true });
+  // A moved site must not be resurrected from a cwd-derived fallback. Init owns creation of
+  // the site directory; seeding only adds themes to the directory its caller already created.
+  if (!existsSync(siteRoot) || !statSync(siteRoot).isDirectory()) throw new Error(`Site folder is unavailable: ${siteRoot}. Locate the site before seeding themes.`);
+  if (!existsSync(themesParent)) {
+    const withinSite = relative(siteRoot, themesParent);
+    if (withinSite === ".." || withinSite.startsWith(".." + sep) || isAbsolute(withinSite)) {
+      throw new Error(`Themes parent folder is unavailable: ${themesParent}. Choose a themes folder inside the existing site.`);
+    }
+    // Overrides may nest themes inside a live site. Create those parents only AFTER proving the
+    // actual served site exists; a missing site root must never be recreated by theme seeding.
+    mkdirSync(themesParent, { recursive: true });
+  }
   // Clears an orphan left by a previous interrupted boot. Unconditional rather than guarded by
   // `existsSync` — `force: true` already makes the absent case a no-op, and one syscall is cheaper
   // than two.

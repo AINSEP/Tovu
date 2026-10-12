@@ -9,9 +9,10 @@ import Database from "better-sqlite3";
 import { createSitesWorkspace } from "../../../apps/website/src/platform/site-dir/sites-home.js";
 import { resolveSiteDatabasePaths } from "../../../apps/website/src/platform/site-dir/site-databases.js";
 import { moveSitesHome, planSitesMove, inspectStoppedDatabase, parseSitesMoveArgs } from "../sites-move-home.js";
-import { directoryFingerprint } from "@jini-ai/platform/fs";
+import { moveLegacySite } from "../../../apps/website/src/platform/site-dir/move-sites-home.js";
+import { createNodeDurableJsonPorts, directoryFingerprint, moveDirectoryVerified } from "@jini-ai/platform/fs";
 function fixture() {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-move-home2-"))), repoRoot = path.join(root, "repo"), dir = path.join(repoRoot, "sites", "alpha");
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-move-home2-"))), repoRoot = path.join(root, "repo"), dir = path.join(root, "Documents", "Tovu", "alpha");
   const workspace = createSitesWorkspace({}, { homeDir: root, cwd: repoRoot, env: {}, platform: "linux" });
   fs.mkdirSync(path.join(root, "Documents"));
   fs.mkdirSync(dir, { recursive: true });
@@ -29,31 +30,31 @@ test("dry run never opens a DB, cleans a stale lease, creates config/catalog or 
     fs.writeFileSync(path.join(f.dir, ".tovu-running.json"), JSON.stringify({ pid: 2147483647, port: 3000, app: "Web", started: "2026-10-09", token: "stale", scheme: "http" }));
     const before = directoryFingerprint({ dir: f.dir });
     const plans = await moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, verifyDatabase: () => { throw new Error("Must not open a DB during dry run"); }, stop: async () => { throw new Error("Must not stop"); } });
-    assert.equal(plans[0]?.to, path.join(f.root, "Documents", "Tovu", "alpha")); assert.equal(plans[0]?.databases.length, 2);
+    assert.equal(plans[0]?.to, path.join(f.root, "Documents", "Tovu", "sites", "alpha")); assert.equal(plans[0]?.databases.length, 2);
     assert.equal(directoryFingerprint({ dir: f.dir }), before); assert.equal(fs.existsSync(f.workspace.config({}).appData), false);
     assert.equal(fs.existsSync(f.workspace.home({})), false);
   } finally { f.cleanup(); }
 });
-test("planning skips dot-folder caches and stray folders without changing the checkout", () => {
+test("planning skips dot-folder caches and stray folders without changing the former home", () => {
   const f = fixture();
   try {
-    const cache = path.join(f.repoRoot, "sites", ".tovu"), stray = path.join(f.repoRoot, "sites", "stray"), hidden = path.join(f.repoRoot, "sites", ".hidden");
+    const cache = path.join(path.dirname(f.dir), ".tovu"), stray = path.join(path.dirname(f.dir), "stray"), hidden = path.join(path.dirname(f.dir), ".hidden");
     fs.mkdirSync(cache); fs.mkdirSync(stray); fs.mkdirSync(hidden);
     fs.writeFileSync(path.join(hidden, "config.json"), "cache bytes, not site config");
     fs.writeFileSync(path.join(cache, "preview.png"), "cached preview");
-    const before = directoryFingerprint({ dir: f.repoRoot });
+    const before = directoryFingerprint({ dir: path.dirname(f.dir) });
     const skipped: string[] = [];
     const plans = planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace, onSkipped: ({ dir }) => { skipped.push(dir); } });
     assert.deepEqual(plans.map((plan) => plan.from), [f.dir]);
     assert.deepEqual(skipped.sort(), [cache, stray, hidden].sort());
-    assert.equal(directoryFingerprint({ dir: f.repoRoot }), before);
+    assert.equal(directoryFingerprint({ dir: path.dirname(f.dir) }), before);
     assert.equal(fs.existsSync(f.workspace.home({})), false);
   } finally { f.cleanup(); }
 });
 test("--site limits planning and dry runs, and repeated names never duplicate a move", async () => {
   const f = fixture();
   try {
-    const beta = path.join(f.repoRoot, "sites", "beta");
+    const beta = path.join(path.dirname(f.dir), "beta");
     fs.cpSync(f.dir, beta, { recursive: true });
     const meta = JSON.parse(fs.readFileSync(path.join(beta, ".site-meta.json"), "utf8"));
     fs.writeFileSync(path.join(beta, ".site-meta.json"), JSON.stringify({ ...meta, siteId: "beta-id" }));
@@ -89,7 +90,7 @@ test("--help prints usage and flags without planning against an invalid sites ho
   assert.match(output, /Default: all sites, dry run only/);
   assert.doesNotMatch(output, /Would move:|Moved:/);
 });
-for (const databases of ["inSite", "appData"] as const) test(`apply verifies both DBs, keeps backups and updates the registry with ${databases}`, async () => {
+for (const databases of ["inSite", "appData"] as const) test(`apply verifies both DBs, backs up only database-placement moves and updates the registry with ${databases}`, async () => {
   const f = fixture();
   try {
     f.workspace.updateConfig({ patch: { databases } });
@@ -98,7 +99,15 @@ for (const databases of ["inSite", "appData"] as const) test(`apply verifies bot
     const target = path.join(f.workspace.home({}), "alpha"), paths = resolveSiteDatabasePaths({ dir: target }, { workspace: f.workspace });
     for (const file of [paths.contentDbPath, paths.chatDbPath]) {
       assert.equal(inspectStoppedDatabase({ path: file }), before.get(path.basename(file)));
-      assert.equal(fs.existsSync(file + ".home2-backup"), true); assert.equal(fs.existsSync(path.join(target, path.basename(file))), false);
+      if (databases === "appData") {
+        const backups = fs.readdirSync(target).filter((name) => name.startsWith(path.basename(file) + ".relocation-") && name.endsWith("-backup"));
+        assert.equal(backups.length, 1);
+        assert.equal(inspectStoppedDatabase({ path: path.join(target, backups[0]!) }), before.get(path.basename(file)));
+        assert.equal(fs.existsSync(path.join(target, path.basename(file))), false);
+      } else {
+        assert.equal(file, path.join(target, path.basename(file)));
+        assert.equal(fs.readdirSync(target).some((name) => name.endsWith("-backup")), false);
+      }
     }
     assert.equal(fs.existsSync(f.dir), false); assert.equal(f.workspace.registry({}).list({})[0]?.path, target);
     assert.equal(f.workspace.running({ path: target }).peek({}), null); assert.equal(f.workspace.running({ path: f.dir }).peek({}), null);
@@ -183,5 +192,239 @@ test("apply refuses an unavailable home before a lock can create its volume dire
     });
     assert.equal(fs.existsSync(path.dirname(home)), false); assert.equal(fs.existsSync(f.dir), true);
     assert.equal(fs.existsSync(home + ".move.lock"), false);
+  } finally { f.cleanup(); }
+});
+
+
+test("deskfx S6: readonly WAL inspection leaves no sidecars and preserves existing journals", () => {
+  const f = fixture();
+  try {
+    const file = path.join(f.dir, "content.db");
+    const db = new Database(file); db.pragma("journal_mode = WAL"); db.close();
+    assert.equal(fs.existsSync(file + "-wal"), false); assert.equal(fs.existsSync(file + "-shm"), false);
+    const before = fs.readFileSync(file); const counts = inspectStoppedDatabase({ path: file });
+    assert.equal(JSON.parse(counts).find((table: { name: string; rowCount: number }) => table.name === 'quoted"name')?.rowCount, 2); assert.deepEqual(fs.readFileSync(file), before);
+    assert.equal(fs.existsSync(file + "-wal"), false); assert.equal(fs.existsSync(file + "-shm"), false);
+    const live = new Database(file); live.pragma("journal_mode = WAL"); live.exec('INSERT INTO "quoted""name" VALUES (3)');
+    try {
+      assert.equal(fs.existsSync(file + "-wal"), true);
+      inspectStoppedDatabase({ path: file });
+      assert.equal(fs.existsSync(file + "-wal"), true); assert.equal(fs.existsSync(file + "-shm"), true);
+    } finally { live.close(); }
+  } finally { f.cleanup(); }
+});
+
+test("deskfx S6: moving a stopped WAL-mode site needs no DB copies or backups", async () => {
+  const f = fixture();
+  try {
+    for (const name of ["content.db", "chat.db"]) { const db = new Database(path.join(f.dir, name)); db.pragma("journal_mode = WAL"); db.close(); }
+    await moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true });
+    const dir = path.join(f.workspace.home({}), "alpha");
+    const files = fs.readdirSync(dir, { recursive: true }).map(String);
+    for (const name of ["content.db", "chat.db"]) {
+      assert.equal(files.filter((entry) => entry.includes(name) && entry.endsWith("-backup")).length, 0);
+      assert.equal(files.some((entry) => entry.endsWith(name + "-wal") || entry.endsWith(name + "-shm")), false);
+      assert.equal(JSON.parse(inspectStoppedDatabase({ path: path.join(dir, name) })).find((table: { name: string; rowCount: number }) => table.name === 'quoted"name')?.rowCount, 2);
+    }
+  } finally { f.cleanup(); }
+});
+
+/** Move a fixture to the owner's former default level without touching any real home. */
+function oldLevel(f: ReturnType<typeof fixture>): string {
+  const dir = path.join(f.root, "Documents", "Tovu", "alpha");
+  fs.mkdirSync(path.dirname(dir), { recursive: true });
+  if (f.dir !== dir) fs.renameSync(f.dir, dir);
+  return dir;
+}
+test("old-level detection ignores siblings and moves only valid marker-bearing sites", () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), parent = path.dirname(dir);
+    fs.mkdirSync(path.join(parent, "plugins")); fs.mkdirSync(path.join(parent, "templates"));
+    fs.mkdirSync(path.join(parent, "partial")); fs.writeFileSync(path.join(parent, "partial", "config.json"), "{}");
+    const before = directoryFingerprint({ dir: parent });
+    const plans = planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace });
+    assert.deepEqual(plans.map((plan) => [plan.from, plan.to]), [[dir, path.join(parent, "sites", "alpha")]]);
+    assert.equal(directoryFingerprint({ dir: parent }), before);
+  } finally { f.cleanup(); }
+});
+test("old-level apply updates shared catalog, every desktop profile and saved site roots; re-run is empty", async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), home = path.dirname(dir), to = path.join(home, "sites", "alpha");
+    f.workspace.updateConfig({ patch: { sitesHome: home, siteRoots: [dir, path.join(dir, "uploads"), path.join(f.root, "unrelated")] } });
+    f.workspace.registry({}).merge({ entries: [{ id: "alpha-id", name: "Alpha", path: dir, createdBy: "Desktop", lastOpened: "2026-10-09T00:00:00Z" }] });
+    const projectsPaths = [...f.workspace.projectsPaths, path.join(f.root, "custom-profile", "desktop-projects.json")];
+    const original = { siteDir: dir, createdAt: "2026-10-01", origin: "created", siteId: "alpha-id", displayNameAlias: "My Alpha" };
+    for (const file of projectsPaths) {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify({ projects: [original], dismissed: [dir, "/other"], extension: "keep" }));
+    }
+    const plans = await moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true, projectsPaths });
+    assert.deepEqual(plans.map((plan) => plan.from), [dir]); assert.equal(fs.existsSync(dir), false);
+    assert.deepEqual(f.workspace.registry({}).list({}), [{ id: "alpha-id", name: "Alpha", path: to, createdBy: "Desktop", lastOpened: "2026-10-09T00:00:00Z" }]);
+    assert.deepEqual(f.workspace.config({}).siteRoots, [to, path.join(to, "uploads"), path.join(f.root, "unrelated")]);
+    assert.equal(JSON.parse(fs.readFileSync(f.workspace.config({}).configPath, "utf8")).sitesHome, path.join(home, "sites"));
+    for (const file of projectsPaths) assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")), { projects: [{ ...original, siteDir: to }], dismissed: [to, "/other"], extension: "keep" });
+    const files = fs.readdirSync(to, { recursive: true }).map(String);
+    for (const name of ["content.db", "chat.db"]) assert.equal(files.filter((file) => file.includes(name) && file.endsWith("-backup")).length, 0);
+    const before = directoryFingerprint({ dir: f.root });
+    assert.deepEqual(await moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true, projectsPaths }), []);
+    assert.equal(directoryFingerprint({ dir: f.root }), before);
+  } finally { f.cleanup(); }
+});
+test("a mixed batch skips and reports a running old-level site while moving its stopped sibling", async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), beta = path.join(path.dirname(dir), "beta");
+    fs.cpSync(dir, beta, { recursive: true });
+    const meta = JSON.parse(fs.readFileSync(path.join(beta, ".site-meta.json"), "utf8"));
+    fs.writeFileSync(path.join(beta, ".site-meta.json"), JSON.stringify({ ...meta, siteId: "beta-id" }));
+    const lease = f.workspace.claim({ path: dir, app: "Desktop", port: 3456 });
+    const before = directoryFingerprint({ dir }); const skipped: string[] = [];
+    const plans = await moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true, onRunning: ({ dir }) => skipped.push(dir) });
+    assert.deepEqual(plans.map((plan) => plan.from), [beta]); assert.deepEqual(skipped, [dir]);
+    assert.equal(directoryFingerprint({ dir }), before); assert.equal(f.workspace.running({ path: dir }).peek({})?.token, lease.record.token);
+    assert.equal(fs.existsSync(path.join(f.workspace.home({}), "beta")), true);
+    f.workspace.running({ path: dir }).release({ token: lease.record.token });
+  } finally { f.cleanup(); }
+});
+test("a failed registry replacement restores all paths and the verified move, then retry succeeds", async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), to = path.join(f.workspace.home({}), "alpha"), projects = path.join(f.root, "profile", "desktop-projects.json");
+    f.workspace.updateConfig({ patch: { siteRoots: [dir] } });
+    f.workspace.registry({}).merge({ entries: [{ id: "alpha-id", name: "Alpha", path: dir, createdBy: "Desktop", lastOpened: null }] });
+    fs.mkdirSync(path.dirname(projects)); fs.writeFileSync(projects, JSON.stringify({ projects: [{ siteDir: dir, createdAt: "date", origin: "adopted" }] }));
+    const before = directoryFingerprint({ dir });
+    const ports = createNodeDurableJsonPorts({}); let failed = false;
+    const catalog = path.join(f.workspace.config({}).appData, "sites.json");
+    ports.filesystem = { ...ports.filesystem, renameSync: (from, target) => {
+      if (String(target) === catalog && !failed) { failed = true; throw new Error("catalog disk full"); }
+      fs.renameSync(from, target);
+    } };
+    const workspace = createSitesWorkspace({}, { homeDir: f.root, cwd: f.repoRoot, env: {}, platform: "linux", ports });
+    await assert.rejects(moveSitesHome({ repoRoot: f.repoRoot }, { workspace, apply: true, projectsPaths: [projects] }), /catalog disk full/);
+    assert.equal(directoryFingerprint({ dir }), before); assert.equal(fs.existsSync(to), false);
+    assert.equal(f.workspace.registry({}).list({})[0]?.path, dir); assert.deepEqual(f.workspace.config({}).siteRoots, [dir]);
+    assert.equal(JSON.parse(fs.readFileSync(projects, "utf8")).projects[0].siteDir, dir);
+    await moveSitesHome({ repoRoot: f.repoRoot }, { workspace, apply: true, projectsPaths: [projects] });
+    assert.equal(JSON.parse(fs.readFileSync(projects, "utf8")).projects[0].siteDir, to);
+  } finally { f.cleanup(); }
+});
+test("invalid desktop catalogs abort the move and keep their original bytes", async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), file = path.join(f.root, "desktop-projects.json"), before = directoryFingerprint({ dir });
+    fs.writeFileSync(file, JSON.stringify({ projects: "unknown records" }));
+    await assert.rejects(moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true, projectsPaths: [file] }), /Desktop projects catalog is invalid/);
+    assert.equal(directoryFingerprint({ dir }), before); assert.equal(fs.readFileSync(file, "utf8"), JSON.stringify({ projects: "unknown records" }));
+    assert.deepEqual(f.workspace.registry({}).list({}), []);
+  } finally { f.cleanup(); }
+});
+
+
+test("partial cross-volume copy failure keeps old-level paths and bytes intact", async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), to = path.join(f.workspace.home({}), "alpha");
+    f.workspace.updateConfig({ patch: { siteRoots: [dir] } });
+    f.workspace.registry({}).merge({ entries: [{ id: "alpha-id", name: "Alpha", path: dir, createdBy: "test", lastOpened: null }] });
+    const before = directoryFingerprint({ dir });
+    const filesystem: typeof fs = { ...fs, renameSync: (from, target) => {
+      if (String(from) === dir && String(target) === to) throw Object.assign(new Error("cross-volume"), { code: "EXDEV" });
+      fs.renameSync(from, target);
+    }, cpSync: (_source, target) => { fs.writeFileSync(path.join(String(target), "partial"), "bytes"); throw new Error("copy failed"); } };
+    await assert.rejects(moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true,
+      relocateDirectory: (required, options) => moveDirectoryVerified(required, { ...options, filesystem }),
+    }), /copy failed/);
+    assert.equal(directoryFingerprint({ dir }), before); assert.equal(fs.existsSync(to), false);
+    assert.equal(f.workspace.registry({}).list({})[0]?.path, dir); assert.deepEqual(f.workspace.config({}).siteRoots, [dir]);
+  } finally { f.cleanup(); }
+});
+
+
+test("the desktop CLI command invokes verified migration and returns its destination contract", () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), to = path.join(f.workspace.home({}), "alpha"), projects = path.join(f.root, "profile", "desktop-projects.json");
+    fs.mkdirSync(path.dirname(projects)); fs.writeFileSync(projects, JSON.stringify({ projects: [{ siteDir: dir, createdAt: "date", origin: "adopted" }] }));
+    const cli = fileURLToPath(new URL("../../../apps/website/src/cli/main.ts", import.meta.url));
+    const output = execFileSync(process.execPath, ["--import", "tsx", cli, "sites", "move-home", dir, "--projects-path", projects], {
+      cwd: path.resolve(path.dirname(cli), "../../../.."), timeout: 120000, encoding: "utf8",
+      env: { ...process.env, HOME: f.root, USERPROFILE: f.root, XDG_DATA_HOME: path.join(f.root, ".local", "share"),
+        XDG_CONFIG_HOME: path.join(f.root, ".config"), APPDATA: path.join(f.root, "AppData", "Roaming"),
+        TOVU_SITE_DIR: dir, TOVU_SITES_HOME: f.workspace.home({}), TOVU_ADMIN_PASSWORD: undefined },
+    });
+    assert.deepEqual(JSON.parse(output.trim().split(/\r?\n/).at(-1)!), { to });
+    assert.equal(fs.existsSync(dir), false); assert.equal(JSON.parse(fs.readFileSync(projects, "utf8")).projects[0].siteDir, to);
+  } finally { f.cleanup(); }
+});
+
+
+test("nesting never plans a local old-home site into the Documents home", async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), local = path.join(f.root, "Tovu", "local-site");
+    fs.mkdirSync(path.dirname(local)); fs.cpSync(dir, local, { recursive: true });
+    const before = directoryFingerprint({ dir: local });
+    assert.deepEqual(planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace }).map((plan) => plan.from), [dir]);
+    assert.throws(() => planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace, sourceRoots: [path.dirname(local)] }), /Only sites beside/);
+    assert.throws(() => planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace, sourceRoots: [path.join(f.repoRoot, "sites")] }), /Only sites beside/);
+    await assert.rejects(moveLegacySite({ dir: local }, { workspace: f.workspace, repoRoot: f.repoRoot }), /Only sites beside/);
+    assert.equal(directoryFingerprint({ dir: local }), before);
+  } finally { f.cleanup(); }
+});
+
+for (const oldHome of ["documents", "local"]) test(`an explicit ${oldHome} old-home override refuses nesting with an accurate remedy`, async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f);
+    const home = oldHome === "local" ? path.join(f.root, "Tovu") : path.dirname(dir);
+    const source = path.join(home, "alpha");
+    if (source !== dir) { fs.mkdirSync(home); fs.renameSync(dir, source); }
+    const workspace = createSitesWorkspace({}, { homeDir: f.root, cwd: f.repoRoot, platform: "linux", env: { TOVU_SITES_HOME: home } });
+    const before = directoryFingerprint({ dir: source });
+    await assert.rejects(moveLegacySite({ dir: source }, { workspace, repoRoot: f.repoRoot }), /already directly inside the selected sites home/);
+    assert.equal(directoryFingerprint({ dir: source }), before);
+  } finally { f.cleanup(); }
+});
+
+for (const layout of ["root", "data.nosync"] as const) test(`same-disk nesting of ${layout} DBs preserves earlier backups without making DB copies`, async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f), to = path.join(f.workspace.home({}), "alpha");
+    fs.mkdirSync(path.join(dir, "data.nosync"));
+    const backupBytes = new Map<string, string>();
+    for (const name of ["content.db", "chat.db"]) {
+      if (layout === "data.nosync") fs.renameSync(path.join(dir, name), path.join(dir, "data.nosync", name));
+      for (const relative of [name + ".home2-backup", path.join("data.nosync", name + ".home2-backup")]) {
+        const bytes = `earlier recovery ${relative}`; backupBytes.set(relative, bytes);
+        fs.writeFileSync(path.join(dir, relative), bytes);
+      }
+    }
+    const before = directoryFingerprint({ dir }); let copies = 0;
+    const filesystem: typeof fs = { ...fs, copyFileSync: (...args) => { copies++; fs.copyFileSync(...args); } };
+    await moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true,
+      relocateDirectory: (required, options) => moveDirectoryVerified(required, { ...options, filesystem }),
+    });
+    assert.equal(copies, 0); assert.equal(directoryFingerprint({ dir: to }), before);
+    for (const [relative, bytes] of backupBytes) assert.equal(fs.readFileSync(path.join(to, relative), "utf8"), bytes);
+    assert.equal(fs.readdirSync(to, { recursive: true }).map(String).filter((file) => file.endsWith("-backup")).length, 4);
+    const paths = resolveSiteDatabasePaths({ dir: to }, { workspace: f.workspace });
+    const selected = layout === "root" ? to : path.join(to, layout);
+    assert.equal(paths.contentDbPath, path.join(selected, "content.db"));
+    assert.equal(paths.chatDbPath, path.join(selected, "chat.db"));
+    assert.deepEqual(await moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, apply: true }), []);
+  } finally { f.cleanup(); }
+});
+
+
+test("a selected old-level folder without site markers reports selection failure rather than a stop remedy", async () => {
+  const f = fixture();
+  try {
+    const dir = oldLevel(f); fs.rmSync(path.join(dir, ".site-meta.json"));
+    await assert.rejects(moveLegacySite({ dir }, { workspace: f.workspace, repoRoot: f.repoRoot }), /No site matched this move/);
+    assert.equal(fs.existsSync(dir), true);
   } finally { f.cleanup(); }
 });

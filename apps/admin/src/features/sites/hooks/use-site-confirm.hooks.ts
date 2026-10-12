@@ -8,6 +8,7 @@ export type ConfirmableSiteAction = keyof typeof LOCAL_SITE_CONFIRM_KEYS;
 
 /** Title, confirm label and tone per confirmable action; the body is the controller's own message. */
 const SITE_CONFIRM_PRESENTATION: Record<ConfirmableSiteAction, { titleKey: string; confirmKey: string; tone: ConfirmTone }> = {
+  move: { titleKey: "Move into sites/?", confirmKey: "Move into sites/", tone: "warning" },
   trash: { titleKey: "Move site to Trash?", confirmKey: "Move to Trash", tone: "danger" },
   delete: { titleKey: "Delete site permanently?", confirmKey: "Delete permanently", tone: "danger" },
   switch: { titleKey: "Switch to this site now?", confirmKey: "Switch now", tone: "warning" },
