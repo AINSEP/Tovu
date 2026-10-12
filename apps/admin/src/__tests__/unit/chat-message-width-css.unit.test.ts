@@ -12,7 +12,9 @@ import { describe, expect, it } from "vitest";
  *
  * Same declaration-as-text approach as `chat-pane-overflow-css.unit.test.ts` (read its header):
  * jsdom does no layout, so this pins the declarations; the real-browser width check lives in the
- * journey pin `development/e2e/journeys/admin-chat-width.pins.journey.ts`.
+ * journey pin `development/e2e/journeys/admin-chat-width.pins.journey.ts`. Note Jini's injected
+ * chat-pane styles (88% user bubble, 22px list padding) load after this sheet; the journey pin
+ * measures the real cascade.
  */
 const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/assistant.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 
