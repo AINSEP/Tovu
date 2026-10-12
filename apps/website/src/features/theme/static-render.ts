@@ -1,4 +1,6 @@
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, PARTIAL_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
+import { injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
+import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation";
 import { postAuthorForDisplay } from "../post/author.js";
 import { renderHtmlMenu } from "#src/features/navigation/html-render";
 import { escapeHtml } from "#src/platform/html/escape";
@@ -258,6 +260,8 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
  * `.main-nav a`, and the same shape in the other six), so unconditionally introducing a `<ul>` wrapper
  * would collapse each of those navs to a single flex child. Flat stays the default and stays
  * byte-identical; a theme opts a specific marker into the tree when its CSS is ready for one.
+ * `{"variant":"dropdown"}` is that tree plus Jini's disclosure toggles and keyboard script
+ * (`@jini-ai/cms/navigation`); see {@link renderMenuItem}.
  *
  * Emitted hooks, all of which `renderMenuLinks` drops on the floor: `is-current` (this item is the
  * page), `is-active` (this item or a descendant is — what expands the right section), `has-children`,
@@ -321,21 +325,42 @@ function menuItemBody(item: StaticMenuItem, linkable: boolean): string {
   return `<a href="${escapeHtml(safeHref(item.href as string))}"${menuItemLinkAttrs(item)}>${inner}</a>`;
 }
 
-/** One `<li>`, or `""` when the item is neither linkable nor a branch worth keeping for its children. */
-function renderMenuItem(item: StaticMenuItem, depth: number): string {
+/** Set for `{"variant":"dropdown"}` menus: hands out the child-`<ul>` ids the toggles point at. */
+type MenuDropdown = { nextId(): string };
+
+/**
+ * One `<li>`, or `""` when the item is neither linkable nor a branch worth keeping for its children.
+ * With `dropdown`, a branch gets a Jini toggle as a direct child of its `<li>` whose `aria-controls`
+ * is the child `<ul>`'s id: after the `<a>` (split button), or in place of the label when the parent
+ * has no real link (unresolved, or exactly `"#"`). Leaves render exactly as the tree variant.
+ */
+function renderMenuItem(item: StaticMenuItem, depth: number, dropdown?: MenuDropdown): string {
   const linkable = item.available && item.href !== null;
-  const children = item.children.length > 0 ? renderMenuTree(item.children, depth + 1) : "";
-  if (!linkable && children === "") return "";
-  return `<li class="${escapeHtml(menuItemClasses(item, depth))}">${menuItemBody(item, linkable)}${children}</li>`;
+  const lis = item.children.length > 0 ? renderMenuItems(item.children, depth + 1, dropdown) : "";
+  if (!linkable && lis === "") return "";
+  const classes = escapeHtml(menuItemClasses(item, depth));
+  if (dropdown === undefined || lis === "") {
+    const children = lis === "" ? "" : `<ul class="menu-list depth-${depth + 1}">${lis}</ul>`;
+    return `<li class="${classes}">${menuItemBody(item, linkable)}${children}</li>`;
+  }
+  const controlsId = dropdown.nextId();
+  const body = linkable && item.href !== "#"
+    ? menuItemBody(item, true) + renderMenuToggle({ controlsId, label: item.label })
+    : renderMenuToggle({ controlsId, label: item.label }, { asLabel: true });
+  return `<li class="${classes}">${body}<ul class="menu-list depth-${depth + 1}" id="${escapeHtml(controlsId)}">${lis}</ul></li>`;
 }
 
-function renderMenuTree(items: readonly StaticMenuItem[], depth = 0): string {
-  const rendered = items
-    .map((item) => renderMenuItem(item, depth))
+function renderMenuItems(items: readonly StaticMenuItem[], depth: number, dropdown?: MenuDropdown): string {
+  return items
+    .map((item) => renderMenuItem(item, depth, dropdown))
     .filter((li) => li !== "")
     .join("");
+}
 
-  return rendered === "" ? "" : `<ul class="menu-list depth-${depth}">${rendered}</ul>`;
+function renderMenuTree(items: readonly StaticMenuItem[], dropdown?: MenuDropdown): string {
+  const rendered = renderMenuItems(items, 0, dropdown);
+  if (rendered === "") return "";
+  return `<ul class="menu-list depth-0"${dropdown === undefined ? "" : " data-jini-dropdown"}>${rendered}</ul>`;
 }
 
 /**
@@ -355,6 +380,9 @@ function injectMenuEmbeds(
   html: string,
   menus: Readonly<Record<string, StaticMenuContent>>
 ): string {
+  // One counter per page, so two dropdown markers never mint the same submenu id.
+  let submenuCount = 0;
+  const dropdown: MenuDropdown = { nextId: () => `jini-submenu-${++submenuCount}` };
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== MENU_MARKER_TYPE || marker.id === undefined) return undefined;
     const items = menus[marker.id];
@@ -365,7 +393,10 @@ function injectMenuEmbeds(
       // Match forms: a bare marker disappears; explicitly authored wrapper attributes survive.
       return plain === "" ? undefined : withElementKeptIfAttributed({ marker: marker, inner: plain });
     }
-    const inner = marker.config.variant === "tree" ? renderMenuTree(items) : renderMenuLinks(items);
+    const variant = marker.config.variant;
+    const inner = variant === "tree" ? renderMenuTree(items)
+      : variant === "dropdown" ? renderMenuTree(items, dropdown)
+      : renderMenuLinks(items);
     return inner === "" ? undefined : withInnerContent({ marker: marker, inner: inner });
   } });
 }
@@ -413,13 +444,10 @@ export function scanMenuEmbedIds(theme: DiscoveredTheme): readonly string[] {
  * for `{"type":"menu"}`.
  */
 
-/** Default and ceiling for a `{"type":"post-previews"}` marker's own `limit` config key — mirrors
- *  `Jini/packages/cms/src/widgets/resolvers/recent-entries.ts`'s registered-clamp discipline (REQ-25): a marker's `limit`
- *  is always clamped into `[1, MAX_POST_PREVIEWS_LIMIT]` before it ever reaches the bounded repo
- *  query that feeds this marker, so neither an absent config nor an adversarially large one can turn
- *  a post listing into an unbounded scan. */
-export const DEFAULT_POST_PREVIEWS_LIMIT = 6;
-export const MAX_POST_PREVIEWS_LIMIT = 24;
+/** A `{"type":"post-previews"}` marker with no `limit` keeps its legacy 6 (no silent change); a
+ *  configured one is clamped by the shared listing rule (`parseListingBatchSize`, ceiling 24, the
+ *  same REQ-25 bound `recent-entries.ts` applies), so no config can turn the listing into a scan. */
+const LEGACY_POST_PREVIEWS_LIMIT = 6;
 
 /**
  * Minimal render-time shape for one post shown by a `{"type":"post-previews"}` marker — the
@@ -437,25 +465,28 @@ export interface StaticPostPreview {
   /** Pre-formatted for display (e.g. "Sep 3, 2026") — no date-formatting/locale logic belongs in
    *  this pure render layer, mirroring every other pre-resolved field on this shape. */
   readonly dateLabel: string;
+  /** Library cover from the shared public policy; an absent image emits no tag. */
+  readonly featuredImage?: StaticFeaturedImage | null;
 }
 
-/** Clamp a marker's own `config.limit` into `[1, MAX_POST_PREVIEWS_LIMIT]`, defaulting to
- *  {@link DEFAULT_POST_PREVIEWS_LIMIT} when the key is absent or not a positive finite number —
- *  the one clamp both {@link scanPostPreviewsLimit} (what to fetch) and
- *  {@link injectPostPreviewsEmbeds} (what to show) apply, so the two can never disagree. */
-function clampPostPreviewsLimit(configuredLimit: unknown): number {
-  if (typeof configuredLimit !== "number" || !Number.isFinite(configuredLimit) || configuredLimit <= 0) {
-    return DEFAULT_POST_PREVIEWS_LIMIT;
-  }
-  return Math.max(1, Math.min(Math.floor(configuredLimit), MAX_POST_PREVIEWS_LIMIT));
+/** One marker's batch size — what {@link scanPostPreviewsLimit} fetches, what
+ *  {@link injectPostPreviewsEmbeds} shows, and a see-more listing's batch size, so they never disagree. */
+export function postPreviewsBatchSize(marker: Pick<EmbedMarker, "config">): number {
+  return parseListingBatchSize({ config: marker.config }, { fallback: LEGACY_POST_PREVIEWS_LIMIT });
 }
 
-/** One preview's markup — title links to the post, with its display date underneath. Intentionally
- *  minimal (no excerpt/tag/cover-image data is threaded through this pass): {@link StaticPostPreview}
- *  carries only what every `PostRecord` reliably has. */
+/** One see-more listing's rendered batch (`data-jini-see-more`, keyed by `data-jini-listing`): the
+ *  items at the requested cursor, plus the next batch URL when more exist. */
+export interface StaticListingBatch<T> {
+  readonly items: readonly T[];
+  readonly nextHref?: string;
+}
+
+/** One preview's markup — optional cover, title link and display date, already resolved by the route. */
 function renderPostPreviewCard(preview: StaticPostPreview): string {
   return (
     `<article class="post-card">` +
+    (preview.featuredImage ? renderCoverImageTag({ image: preview.featuredImage }, { loading: "lazy" }) : "") +
     `<h3><a href="${escapeHtml(preview.href)}">${escapeHtml(preview.title)}</a></h3>` +
     `<div class="post-meta"><time datetime="${escapeHtml(preview.dateIso)}">${escapeHtml(preview.dateLabel)}</time></div>` +
     `</article>`
@@ -477,10 +508,21 @@ function renderPostPreviewCard(preview: StaticPostPreview): string {
  * @complexity O(n) over `html`'s length for the marker scan/splice, plus O(m) over the small, fixed
  * number of post-previews markers a real page carries.
  */
-function injectPostPreviewsEmbeds(html: string, previews: readonly StaticPostPreview[]): string {
+function injectPostPreviewsEmbeds(
+  html: string,
+  previews: readonly StaticPostPreview[],
+  batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>
+): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== POST_PREVIEWS_MARKER_TYPE) return undefined;
-    const slice = previews.slice(0, clampPostPreviewsLimit(marker.config.limit));
+    const key = listingKeyOfAttributes({ attrs: marker.attrs });
+    const batch = key === undefined ? undefined : batches.get(key);
+    if (key !== undefined && batch !== undefined) {
+      if (batch.items.length === 0) return undefined;
+      const inner = wrapListingItems({ key, items: batch.items.map(renderPostPreviewCard).join("") });
+      return withInnerContent({ marker, inner }) + (batch.nextHref === undefined ? "" : renderListingMore({ key, href: batch.nextHref }));
+    }
+    const slice = previews.slice(0, postPreviewsBatchSize(marker));
     return slice.length === 0 ? undefined : withInnerContent({ marker: marker, inner: slice.map(renderPostPreviewCard).join("") });
   } });
 }
@@ -506,7 +548,7 @@ function injectPostPreviewsEmbeds(html: string, previews: readonly StaticPostPre
 export function scanPostPreviewsLimit(html: string): number | undefined {
   const markers = markersOfType({ html: html, type: POST_PREVIEWS_MARKER_TYPE });
   if (markers.length === 0) return undefined;
-  return markers.reduce((widest, marker) => Math.max(widest, clampPostPreviewsLimit(marker.config.limit)), 0);
+  return markers.reduce((widest, marker) => Math.max(widest, postPreviewsBatchSize(marker)), 0);
 }
 
 /**
@@ -547,7 +589,10 @@ export interface StaticCollectionList {
  */
 export function collectionMarkerKey(marker: EmbedMarker): string {
   const { template } = splitCollectionMarkerInner(marker.inner);
-  return template === undefined ? JSON.stringify(marker.config) : JSON.stringify([marker.config, template]);
+  const key = template === undefined ? JSON.stringify(marker.config) : JSON.stringify([marker.config, template]);
+  // A see-more listing renders its own key's batch, so it never shares an entry with another marker.
+  const listingKey = listingKeyOfAttributes({ attrs: marker.attrs });
+  return listingKey === undefined ? key : `listing:${listingKey}:${key}`;
 }
 
 /**
@@ -590,7 +635,14 @@ function injectCollectionEmbeds(html: string, lists: ReadonlyMap<string, string 
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== COLLECTION_MARKER_TYPE) return undefined;
     const rendered = lists.get(collectionMarkerKey(marker));
-    return rendered === undefined ? undefined : withInnerContentFinal({ marker: marker, inner: rendered });
+    if (rendered === undefined) return undefined;
+    const listingKey = listingKeyOfAttributes({ attrs: marker.attrs });
+    const html = withInnerContentFinal({ marker: marker, inner: rendered });
+    // A built-in layout's own wrapper is the see-more container, so the marker element gives up the
+    // key; in template mode the items sit directly in the marker element, which keeps it.
+    return listingKey === undefined || splitCollectionMarkerInner(marker.inner).template !== undefined
+      ? html
+      : html.replace(` data-jini-listing="${listingKey}"`, "");
   } });
 }
 
@@ -606,13 +658,18 @@ export interface StaticFeaturedImage {
   readonly height: number | null;
 }
 
-/** The `<img>` for a featured image. `width`/`height` reserve the box before the bytes arrive (no
+/** The `<img>` for a public cover. `width`/`height` reserve the box before the bytes arrive (no
  *  layout shift; the theme's CSS scales it with `height: auto`). Eager with high fetch priority, not
- *  lazy: it sits at the top of the post, so it is usually the page's largest paint. */
-function renderFeaturedImageTag(image: StaticFeaturedImage): string {
+ *  lazy: it sits at the top of the post, so it is usually the page's largest paint. Cards opt into
+ *  lazy loading; URL/alt escaping and optional dimensions stay identical across both surfaces.
+ * @example renderCoverImageTag({ image }, { loading: "lazy" })
+ * @complexity O(url + alt) for escaping; no I/O.
+ */
+export function renderCoverImageTag({ image }: { image: StaticFeaturedImage }, optional: { loading?: "lazy" } = {}): string {
   const width = image.width === null ? "" : ` width="${image.width}"`;
   const height = image.height === null ? "" : ` height="${image.height}"`;
-  return `<img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.alt)}"${width}${height} decoding="async" fetchpriority="high">`;
+  const priority = optional.loading === "lazy" ? ' loading="lazy"' : ' fetchpriority="high"';
+  return `<img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.alt)}"${width}${height} decoding="async"${priority}>`;
 }
 
 /**
@@ -628,20 +685,60 @@ function renderFeaturedImageTag(image: StaticFeaturedImage): string {
 export function injectFeaturedImage(html: string, image: StaticFeaturedImage | null | undefined): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== FEATURED_IMAGE_MARKER_TYPE) return undefined;
-    return image ? withInnerContentFinal({ marker: marker, inner: renderFeaturedImageTag(image) }) : "";
+    return image ? withInnerContentFinal({ marker: marker, inner: renderCoverImageTag({ image }) }) : "";
   } });
 }
 
-/** Fill a static post byline using the same marker substitution as the other post metadata. */
+/**
+ * Fill author markers and the `{{author}}` shortcut with one escaped, visibility-gated credit.
+ * A marker inside a content placeholder declares a byline for that content's header; fill it here
+ * too for static previews, where the content itself has not yet been resolved.
+ * @returns HTML with hidden marker elements removed and hidden tokens replaced with empty text.
+ * @complexity O(n) time and output space in template length; no I/O or input mutation.
+ */
 export function injectPostAuthor(
   required: { html: string; post?: { author?: string | null; showAuthor?: boolean } },
   _optional: Record<string, never> = {},
 ): string {
   const author = required.post ? postAuthorForDisplay({ post: required.post }) : null;
-  return substituteMarkers({ html: required.html, resolve: (marker) => {
+  const credit = author ? `By ${escapeHtml(author)}` : "";
+  const resolveAuthor = (marker: EmbedMarker): string | undefined => {
     if (marker.type !== "post-author") return undefined;
-    return author ? withInnerContentFinal({ marker, inner: `By ${escapeHtml(author)}` }) : "";
+    return credit ? withInnerContentFinal({ marker, inner: (marker.attrs.includes('data-post-author-separator=') ? " · " : "") + credit }) : "";
+  };
+  // Substitute tokens before markers so token-like text in a saved author stays literal data.
+  const html = required.html.replaceAll("{{author}}", () => credit);
+  return substituteMarkers({ html, resolve: (marker) => {
+    if (marker.type !== "content") return resolveAuthor(marker);
+    const inner = substituteMarkers({ html: marker.inner, resolve: resolveAuthor });
+    return inner === marker.inner ? undefined : withInnerContent({ marker, inner });
   } });
+}
+
+/**
+ * Select the current content header's byline. A nested author marker explicitly places it below
+ * the title/date; a byline elsewhere in the expanded template owns its own placement, so the core
+ * header contributes none. Otherwise every theme gets the same `post-author` span as fallback: a span,
+ * not a paragraph, because the core header sets it inside the date's `.post-meta` line, where a theme's
+ * `p` margins or font size would pull it out of that line's typography (2026-10-10).
+ * A nested marker goes into that same line, so it is re-tagged as a `span` too, keeping its authored
+ * attributes and inner content: themes author it as `<p class="post-author">`, and as a `<p>` it took
+ * the theme's 18px body text beside the 13px muted date, off the date's baseline (2026-10-10).
+ * Return marker markup for the final {@link injectPostAuthor} pass, which owns escaping and
+ * hidden-credit removal. Deferring that pass also keeps token-like text in a saved author literal.
+ * @complexity O(n) time and output space in template length; pure, with no I/O.
+ */
+export function postAuthorForContentHeader(
+  required: { html: string; post: { id: string; slug: string } },
+  _optional: Record<string, never> = {},
+): string {
+  const content = markersOfType({ html: required.html, type: "content" }).find(marker =>
+    marker.id !== undefined ? marker.id === required.post.id : marker.config.slug === required.post.slug);
+  const nestedAuthor = content && markersOfType({ html: content.inner, type: "post-author" })[0];
+  if (nestedAuthor) return `<span${nestedAuthor.attrs}>${nestedAuthor.inner}</span>`;
+  const tokenInHeader = content?.inner.includes("{{author}}") === true;
+  if (!tokenInHeader && (required.html.includes("{{author}}") || markersOfType({ html: required.html, type: "post-author" }).length > 0)) return "";
+  return `<span class="post-author" data-embed-config='{"type":"post-author"}'></span>`;
 }
 
 /** `nav.html` → `nav`; the partial-id key `loadStaticTierAssets` stores root partials under. */
@@ -724,7 +821,7 @@ function resolveSlots(
  *
  * @complexity Same as {@link resolveSlots}: O(n) over `html`'s length.
  */
-export function expandPartials(html: string, theme: DiscoveredTheme): string {
+export function expandPartials(html: string, theme: Pick<DiscoveredTheme, "partials"> & { manifest: Pick<DiscoveredTheme["manifest"], "slots"> }): string {
   return resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
 }
 
@@ -785,6 +882,8 @@ export function renderStaticPage(
     htmlOverride?: string;
     menus?: Readonly<Record<string, StaticMenuContent>>;
     postPreviews?: readonly StaticPostPreview[];
+    /** See-more post-previews listings by listing key; a keyed marker absent here renders from `postPreviews`. */
+    postPreviewBatches?: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>;
     collectionLists?: ReadonlyMap<string, string | undefined>;
     /** The current post's featured image ({@link injectFeaturedImage}); omitted ⇒ no image. */
     featuredImage?: StaticFeaturedImage | null;
@@ -793,7 +892,7 @@ export function renderStaticPage(
   },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { theme, pageId, htmlOverride, menus, postPreviews, collectionLists, featuredImage, postAuthor } = required;
+  const { theme, pageId, htmlOverride, menus, postPreviews, postPreviewBatches, collectionLists, featuredImage, postAuthor } = required;
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
@@ -822,13 +921,13 @@ export function renderStaticPage(
   html = injectColorMode(html, theme.manifest.defaultMode);
   html = expandPartials(html, theme);
   html = injectMenuEmbeds(html, menus ?? {});
-  html = injectPostPreviewsEmbeds(html, postPreviews ?? []);
+  html = injectPostPreviewsEmbeds(html, postPreviews ?? [], postPreviewBatches ?? new Map());
   html = injectCollectionEmbeds(html, collectionLists ?? new Map());
   html = injectFeaturedImage(html, featuredImage);
   html = injectPostAuthor({ html, post: postAuthor });
   html = withEntryListStyleOnce(html);
   html = rewritePageLinks(html);
-  return html;
+  return injectMenuDropdownScript({ html: injectListingScript({ html }) });
 }
 
 /**
@@ -877,11 +976,21 @@ export function renderStaticPartial(
   const { theme, partialId } = required;
   const partial = theme.partials[partialId];
   if (partial === undefined) return null;
+  return renderStaticFragment({ theme, html: partial, label: partialId });
+}
+
+/** Unsaved fragments use the same document, token injection and asset rewriting as partials.
+ * @complexity The existing static-page render cost over the fragment's HTML.
+ */
+export function renderStaticFragment(
+  { theme, html, label }: { theme: DiscoveredTheme; html: string; label: string },
+  _optional: Record<string, never> = {},
+): string {
   return renderStaticPage({
     theme,
-    pageId: partialId,
-    htmlOverride: wrapPartialInHostDocument(partial, theme.manifest.apiVersion),
-  });
+    pageId: label,
+    htmlOverride: wrapPartialInHostDocument(html, theme.manifest.apiVersion),
+  })!; // htmlOverride is always supplied, so renderStaticPage's missing-source branch cannot run.
 }
 
 /**

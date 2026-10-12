@@ -45,9 +45,10 @@ const EMBED_TYPE_NOTES: Readonly<Record<string, string>> = {
   form: "a live form from the site's forms system, listed by forms_list_definitions — the right way to collect input",
   taxonomy: "a taxonomy's term list; `id` is the taxonomy id or its unique name",
   media: "an uploaded image or video",
+  gallery: "ordered images rendered as accessible figures; configure images and layout as documented below",
   post: "a published post's full content",
   content: "a published entry's body",
-  menu: "a menu's links; add `\"variant\":\"tree\"` for a nested tree instead of flat links",
+  menu: "a menu's links; add `\"variant\":\"tree\"` for a nested tree instead of flat links, or `\"variant\":\"dropdown\"` for that tree with accessible dropdown toggles",
   partial: "a theme partial by name — theme structure, rarely needed inside page content",
   "post-previews": "recent post cards; optional `limit`, default 6",
 };
@@ -154,7 +155,14 @@ export const PAGE_HTML_CONTRACT =
   "`{{date}}`, `{{fields.<name>}}` placeholders — omit it for the default card/list rendering. The " +
   "wrapper tag's own `class`/`style`/`id` survive and are how you style it. Other known types: " +
   otherEmbedTypesText() +
-  ".";
+  ". Prefer media slug content: `<div data-embed-config='{\"type\":\"media\",\"content\":{\"mode\":\"media\",\"items\":[{\"slug\":\"photo-slug\",\"alt\":\"Description\"}],\"layout\":\"grid\"}}'></div>`. " +
+  "A saved Media widget uses {type:widget,slug:<widget-slug>,content:{items:[{slug:<media-slug>}]}} for placement overrides. Raw HTML mode is {mode:html,html:<HTML>} with {{media:slug}} URL tokens or data-media-slug on img/video/audio; unknown slugs remove the element and produce diagnostics. All raw HTML uses the page-body sanitizer; safe data-kui attributes work in JSON htmlAttributes or plain marker attributes. " +
+  ". Legacy Gallery compatibility: for multiple images use `<div data-embed-config='{\"type\":\"gallery\",\"images\":[{\"mediaId\":\"asset-1\",\"alt\":\"Description\",\"caption\":\"Optional caption\"}],\"layout\":\"grid\",\"columns\":3}'></div>`; replace asset-1 with the real uploaded media id. " +
+  "Use 1-50 images, each with exactly one `mediaId` or HTTP(S) `src`; prefer uploaded media for this site. " +
+  "Supply `alt` for every image (empty string only for decorative images). `layout` is `grid|carousel|masonry`, " +
+  "`columns` is an integer 2-6, and `aspectRatio` may be a positive ratio such as `16/9`. Grid/masonry need no JS; " +
+  "carousel uses native CSS scroll-snap. `lightbox` is an optional boolean enhancement hint; it requires theme script support. " +
+  "Style the `jini-gallery` and `jini-gallery-item` classes with theme CSS; do not add data-kui animations.";
 
 /**
  * The optimistic-concurrency basis, stated once for both writers.

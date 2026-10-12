@@ -447,3 +447,75 @@ test("partial preview wraps and renders the requested partial and returns null f
   assert.deepEqual(header.childNodes.map((node) => "value" in node ? node.value : ""), ["Preview content"]);
   assert.equal(renderStaticPartial({ theme, partialId: "missing" }), null);
 });
+
+/** Same marker, opted into the dropdown variant (tree markup plus Jini's toggles and script). */
+function dropdownTheme(markers = 1): DiscoveredTheme {
+  const nav = `<nav data-embed-config='{"type":"menu","id":"${HEADER_ID}","variant":"dropdown"}'></nav>`;
+  return makeTheme(`<html><body>${nav.repeat(markers)}</body></html>`);
+}
+
+function attr(el: DefaultTreeAdapterTypes.Element | undefined, name: string): string | undefined {
+  return el?.attrs.find((a) => a.name === name)?.value;
+}
+
+function childElements(el: DefaultTreeAdapterTypes.Element, tag: string): DefaultTreeAdapterTypes.Element[] {
+  return el.childNodes.filter((n): n is DefaultTreeAdapterTypes.Element => "tagName" in n && n.tagName === tag);
+}
+
+const DROPDOWN_MENU = items(
+  { label: "Blog", href: "/blog", children: items({ label: "News", href: "/news" }) },
+  { label: "Plan & Tell", href: "#", children: items({ label: "Podcast", href: "/podcast" }) },
+  { label: "Contact", href: "/contact" },
+);
+
+test("the dropdown variant: root carries data-jini-dropdown; a linked parent gets a split toggle whose aria-controls is its child <ul>'s id", () => {
+  const html = renderStaticPage({ theme: dropdownTheme(), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } });
+  assert.ok(html);
+  const root = findElement(findElement(parse(html), "nav")!, "ul")!;
+  assert.equal(attr(root, "data-jini-dropdown"), "");
+  assert.equal(attr(root, "class"), "menu-list depth-0");
+  const [blog, plan, contact] = childElements(root, "li");
+  assert.equal(attr(childElements(blog, "a")[0], "href"), "/blog");
+  const toggle = childElements(blog, "button")[0];
+  assert.equal(attr(toggle, "class"), "jini-menu-toggle");
+  assert.equal(attr(toggle, "aria-expanded"), "false");
+  assert.equal(attr(toggle, "aria-label"), "Blog submenu");
+  assert.equal(attr(toggle, "aria-haspopup"), undefined);
+  assert.equal(attr(toggle, "aria-controls"), attr(childElements(blog, "ul")[0], "id"));
+  // A "#" parent: the toggle IS the label (keeps menu-item-label for the themes' drawer script).
+  assert.equal(childElements(plan, "a").length, 0);
+  const label = childElements(plan, "button")[0];
+  assert.equal(attr(label, "class"), "menu-item-label jini-menu-toggle");
+  assert.equal(attr(label, "aria-controls"), attr(childElements(plan, "ul")[0], "id"));
+  assert.ok(html.includes(">Plan &amp; Tell</button>"));
+  // Leaves render exactly as the tree variant.
+  assert.equal(childElements(contact, "button").length, 0);
+  assert.ok(html.includes('<li class="menu-item depth-0"><a href="/contact">Contact</a></li>'));
+});
+
+test("the dropdown variant: an unresolved parent renders as a label toggle", () => {
+  const html = renderStaticPage({
+    theme: dropdownTheme(),
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label: "Gone", href: null, children: items({ label: "Kid", href: "/kid" }) }) },
+  });
+  assert.match(html ?? "", /<button type="button" class="menu-item-label jini-menu-toggle" aria-expanded="false" aria-controls="jini-submenu-\d+">Gone<\/button>/);
+});
+
+test("two dropdown markers on one page get unique submenu ids", () => {
+  const html = renderStaticPage({ theme: dropdownTheme(2), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
+  const ids = [...html.matchAll(/ id="(jini-submenu-\d+)"/g)].map((m) => m[1]);
+  assert.equal(ids.length, 4);
+  assert.equal(new Set(ids).size, 4);
+});
+
+test("the dropdown script is injected once with the dropdown variant and never with tree or flat", () => {
+  const dropdown = renderStaticPage({ theme: dropdownTheme(2), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
+  assert.equal(dropdown.split("<script data-jini-menu-dropdown-script>").length, 2);
+  assert.ok(dropdown.indexOf("data-jini-menu-dropdown-script") < dropdown.indexOf("</body>"));
+  for (const theme of [treeTheme(), flatTheme()]) {
+    const html = renderStaticPage({ theme, pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
+    assert.ok(!html.includes("data-jini-menu-dropdown-script"));
+    assert.ok(!html.includes("jini-menu-toggle"));
+  }
+});
