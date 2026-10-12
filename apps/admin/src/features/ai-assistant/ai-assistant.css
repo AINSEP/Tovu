@@ -126,6 +126,10 @@
 @media (max-width: 640px) {
   /* Keep this three-tab page on one row, including hosts using the general wrap preference. */
   .visitor-step { padding-left: 2rem; }
+  /* The 40px floor grows the head's ⓘ and select past the 1.5rem disc, which centred the title
+     ~8px under the disc's number (Chrome check, 2026-10-11). Negative block margins equal to that
+     slack keep the 40px hit area but take it out of the row, so the head stays disc-high. */
+  .visitor-step-head > :is(.info-tip, select) { margin-block: calc((1.5rem - 40px) / 2); }
   .visitor-assistant .jini-input,
   .visitor-assistant .jini-select-trigger { min-height: 40px; font-size: 16px; }
   .visitor-assistant .jini-select.jini-input { min-height: 0; }
