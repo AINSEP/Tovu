@@ -1,3 +1,4 @@
+import { anonymousMemberAccess } from "./member-access.fixture.js";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -18,6 +19,7 @@ interface FakeRow {
   title: string;
   slug: string;
   bodyJson: unknown;
+  memberAccessJson?: string | null;
   status: "draft" | "published";
   kind: "post" | "page";
   updatedAt: string;
@@ -57,7 +59,7 @@ const ROWS: FakeRow[] = [
 function makeDeps(
   overrides: Partial<SiteAssistantToolDeps> & Pick<SiteAssistantToolDeps, "postRepo">,
 ): SiteAssistantToolDeps {
-  return { workspaceId: "ws", listPublishedPosts, ...overrides };
+  return { workspaceId: "ws", listPublishedPosts, memberAccess: anonymousMemberAccess(), ...overrides };
 }
 
 /** `PostRepoPort.list()`'s real contract: every row in the workspace, unfiltered by status or
@@ -311,3 +313,29 @@ describe("site assistant tools", () => {
     });
   });
 });
+
+// visitorsafe, 2026-10-10: all reads/actions consume the same anonymous members policy.
+for (const memberAccessJson of [
+  '{"visibility":"members"}', '{"visibility":"paid"}', '{"visibility":"tiers","tierIds":["gold"]}',
+  '{"visibility":"private"}', '{broken', 'null', '[]', '42', '{}',
+  false as unknown as string, 0 as unknown as string,
+]) {
+  it("visitorsafe: every tool withholds gated or malformed access " + memberAccessJson, async () => {
+    const tools = createSiteAssistantTools(makeDeps({ maxResults: 1, postRepo: fakePort([
+      row({ slug: "secret", title: "Members Secret", status: "published", kind: "page", memberAccessJson,
+        bodyJson: { text: "Secret body never enters the provider context" } }),
+      row({ slug: "open", title: "Public control", status: "published", kind: "post", memberAccessJson: '{"visibility":"public"}' }),
+    ]).port as never }));
+    assert.deepEqual((await tools.search_published_entries({})).map(entry => entry.slug), ["open"], "gate before search cap");
+    assert.deepEqual(await tools.search_published_entries({ query: "Members Secret" }), []);
+    assert.ok("error" in await tools.get_published_entry({ slug: "secret" }));
+    assert.deepEqual(await tools.list_categories(), ["post"], "no kind from gated-only content");
+    for (const action of ["navigate_to_entry", "scroll_to_entry", "highlight_entry"] as const) {
+      const hidden = await tools[action]({ slug: "secret" });
+      assert.equal(hidden.directive, undefined);
+      assert.ok("error" in (hidden.result as object));
+      assert.ok((await tools[action]({ slug: "open" })).directive, "public control still resolves");
+    }
+    assert.ok("text" in await tools.get_published_entry({ slug: "open" }));
+  });
+}

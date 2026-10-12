@@ -7,7 +7,8 @@ import express from "express";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { createSiteAssistantModule } from "../runtime/composition/modules/site-assistant.js";
-import { setPublicAssistantSettings } from "../../assistant/index.js";
+import { setPublicAssistantSettings, setSiteAssistantCredential } from "../../assistant/index.js";
+import { set as setLegacySetting } from "@jini-ai/core/settings";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
@@ -25,6 +26,8 @@ import type { RouteDeps } from "../routes/types.js";
  * exist), never a 403/503 that would confirm the feature exists but is turned off.
  */
 
+// These route tests inject legacy ON states through the platform writer. New enables are
+// guarded at the host writer and are exercised by visitor-assistant-readiness.integration.test.ts.
 const alwaysAllow = async () => ({ allowed: true, reason: "test" });
 
 /**
@@ -90,6 +93,9 @@ async function bootGeminiStub(
   respond: (callCount: number, requestBody: Record<string, unknown>) => StubProviderReply,
 ): Promise<string> {
   const providerUrl = await startStubProviderServer(t, respond);
+  await setSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+  { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: providerUrl });
   const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl };
 
   const app = express();
@@ -137,7 +143,7 @@ test("POST /api/site-assistant/chat passes the gate once the workspace turns the
     {
       settingsRepo: deps.settingsRepo,
       getEffective: deps.getEffective,
-      set: deps.set,
+      set: setLegacySetting,
       clock: deps.clock,
       ids: deps.idGen,
       authorize: alwaysAllow,
@@ -169,7 +175,7 @@ test("POST /api/site-assistant/chat: the 11th request from one IP within the win
     {
       settingsRepo: deps.settingsRepo,
       getEffective: deps.getEffective,
-      set: deps.set,
+      set: setLegacySetting,
       clock: deps.clock,
       ids: deps.idGen,
       authorize: alwaysAllow,
@@ -215,7 +221,7 @@ test("POST /api/site-assistant/chat accepts a well-formed history alongside mess
     {
       settingsRepo: deps.settingsRepo,
       getEffective: deps.getEffective,
-      set: deps.set,
+      set: setLegacySetting,
       clock: deps.clock,
       ids: deps.idGen,
       authorize: alwaysAllow,
@@ -244,7 +250,7 @@ test("POST /api/site-assistant/chat degrades a hostile/malformed history to no c
     {
       settingsRepo: deps.settingsRepo,
       getEffective: deps.getEffective,
-      set: deps.set,
+      set: setLegacySetting,
       clock: deps.clock,
       ids: deps.idGen,
       authorize: alwaysAllow,
@@ -279,7 +285,7 @@ test("POST /api/site-assistant/chat sends only bounded, sanitized history to the
   await deps.siteTitleReady;
   await setPublicAssistantSettings(
     {
-      settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: deps.set,
+      settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
       clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo,
     },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
@@ -325,7 +331,11 @@ test("POST /api/site-assistant/chat answers a body over the public 128 KB limit 
   const history = Array.from({ length: 5000 }, (_, i) => ({ role: "user", content: `flood ${i}` }));
   const res = await postChatWithBody(baseUrl, { message: "hello", history });
   assert.equal(res.status, 413);
-  assert.deepEqual(await res.json(), { error: "Request body is too large.", code: "PAYLOAD_TOO_LARGE" });
+  const error = await res.json();
+  assert.equal(error.code, "PAYLOAD_TOO_LARGE");
+  assert.ok(error.errorId);
+  assert.match(error.error, /chat history are too long/);
+  assert.ok(error.error.includes(error.errorId));
 });
 
 /**
@@ -354,7 +364,7 @@ test("POST /api/site-assistant/chat writes a well-formed client_directive SSE fr
     {
       settingsRepo: deps.settingsRepo,
       getEffective: deps.getEffective,
-      set: deps.set,
+      set: setLegacySetting,
       clock: deps.clock,
       ids: deps.idGen,
       authorize: alwaysAllow,
@@ -424,7 +434,7 @@ test("POST /api/site-assistant/chat uses only the live message for navigation co
     {
       settingsRepo: deps.settingsRepo,
       getEffective: deps.getEffective,
-      set: deps.set,
+      set: setLegacySetting,
       clock: deps.clock,
       ids: deps.idGen,
       authorize: alwaysAllow,
@@ -518,7 +528,7 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
     {
       settingsRepo: deps.settingsRepo,
       getEffective: deps.getEffective,
-      set: deps.set,
+      set: setLegacySetting,
       clock: deps.clock,
       ids: deps.idGen,
       authorize: alwaysAllow,
@@ -620,7 +630,7 @@ test("site assistant cancels a pending upstream stream when the visitor disconne
   const deps = createRouteDeps();
   await deps.siteTitleReady;
   await setPublicAssistantSettings({
-    settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: deps.set,
+    settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
     clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo,
   }, { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
   let accepted!: () => void;
@@ -644,6 +654,9 @@ test("site assistant cancels a pending upstream stream when the visitor disconne
   await once(provider, "listening");
   const address = provider.address();
   assert.ok(address && typeof address !== "string");
+  await setSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+  { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: `http://127.0.0.1:${address.port}` });
   const app = express();
   app.use(express.json());
   createSiteAssistantModule(deps, { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` }).registerRoutes?.(app);

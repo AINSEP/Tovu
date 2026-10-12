@@ -72,6 +72,8 @@ export {
   PublicAssistantSettingsValidationError,
 } from "./public-assistant-settings.js";
 export type { PublicAssistantSettings, PublicAssistantSettingKey } from "./public-assistant-settings.js";
+export { resolvePublicAssistantAvailability } from "./public-assistant-availability.js";
+export { resolveByokProtocol } from "./byok-provider-turn.js";
 
 export {
   getSiteAssistantCredential,
@@ -129,6 +131,12 @@ export { createStoredExecutionCredentialPort } from "./byok-credential.js";
 export type { ExecutionCredentialPort, ResolvedByokCredential, RequestSuppliedByokConfig } from "./byok-credential.js";
 
 export { runByokProviderTurn } from "./byok-provider-turn.js";
+export {
+  createSiteAssistantErrorReporter,
+  type SiteAssistantErrorReporter,
+  type SiteAssistantErrorLogEntry,
+  type SiteAssistantPublicError,
+} from "./site/public-errors.js";
 export type {
   ByokChatMessage,
   ByokProtocol,

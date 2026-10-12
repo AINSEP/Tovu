@@ -307,7 +307,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "upstream hiccup");
+      assert.equal(errors[0]?.message, "Couldn't get an answer: upstream hiccup. Try again.");
       assert.deepEqual(events, [{ kind: "text", text: "still going" }], "processing must continue past the error frame");
       assert.equal(doneCount(), 1, "onDone fires exactly once, from the end frame, not the error");
     });
@@ -320,7 +320,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "site assistant error");
+      assert.equal(errors[0]?.message, "Couldn't get an answer: site assistant error. Try again.");
     });
 
     it("ends the run when the stream closes with no explicit end frame", async () => {
@@ -344,7 +344,7 @@ describe("createSiteAssistantTransport", () => {
       const { runId } = await transport.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
       assert.equal(errors.length, 1);
-      assert.ok(errors[0] instanceof SyntaxError);
+      assert.match(errors[0]?.message ?? "", /^Couldn't get an answer: .+\. Try again\.$/);
       assert.deepEqual(events, []);
       assert.equal(doneCount(), 1);
       assert.deepEqual(doneEvents(), []);
@@ -384,7 +384,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "rate limited");
+      assert.equal(errors[0]?.message, "Couldn't get an answer: rate limited. Try again.");
       assert.equal(doneCount(), 1, "a non-ok response still finishes the run");
     });
 
@@ -396,7 +396,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "site assistant request failed (502)");
+      assert.equal(errors[0]?.message, "Couldn't get an answer: site assistant request failed (502). Try again.");
     });
 
     it("throws 'no stream body' when the response has no body at all", async () => {
@@ -407,7 +407,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "site assistant response had no stream body");
+      assert.equal(errors[0]?.message, "Couldn't get an answer: site assistant response had no stream body. Try again.");
       assert.equal(doneCount(), 1);
     });
 
@@ -452,7 +452,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "connection reset");
+      assert.equal(errors[0]?.message, "Couldn't get an answer: connection reset. Try again.");
       assert.equal(doneCount(), 1);
     });
 
@@ -465,7 +465,7 @@ describe("createSiteAssistantTransport", () => {
 
       assert.equal(errors.length, 1);
       assert.ok(errors[0] instanceof Error);
-      assert.equal(errors[0]?.message, "boom-non-error");
+      assert.equal(errors[0]?.message, "Couldn't get an answer: boom-non-error. Try again.");
     });
 
     it("bounds the history sent to the server: excludes the latest turn, drops empty-content turns, keeps only the most recent 12 prior turns, and truncates any turn over 2000 chars", async () => {
@@ -510,6 +510,106 @@ describe("createSiteAssistantTransport", () => {
         kept.every((m) => m.content.trim().length > 0),
         "no whitespace-only entry should survive",
       );
+    });
+  });
+
+  // Visitor-visible failures: both widget builds paint `onError`'s message where the reply would
+  // be, so every way a turn can go wrong must reach it exactly once and still finish the run.
+  describe("startRun failure reporting (DI fetch)", () => {
+    const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+    it("reports an end-only stream (no text, no page action) as one no-reply error and still finishes", async () => {
+      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([sseFrame("end", { reason: "stop" })])) as typeof fetch });
+      const { handlers, errors, doneCount, donePromise } = makeHandlers();
+      await injected.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      assert.deepEqual(errors.map((e) => e.message), ["Couldn't get an answer: the assistant sent no reply. Try again."]);
+      assert.equal(doneCount(), 1);
+    });
+
+    it("treats whitespace-only text that closes without an end frame as no reply", async () => {
+      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([sseFrame("text", { delta: "  \n" })])) as typeof fetch });
+      const { handlers, errors, doneCount, donePromise } = makeHandlers();
+      await injected.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      assert.deepEqual(errors.map((e) => e.message), ["Couldn't get an answer: the assistant sent no reply. Try again."]);
+      assert.equal(doneCount(), 1);
+    });
+
+    it("accepts a page action with no text as a real reply (no error)", async () => {
+      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([
+        sseFrame("client_directive", { type: "navigate", target: { path: "/about", title: "About" }, auto: true }),
+        sseFrame("end", { reason: "stop" }),
+      ])) as typeof fetch });
+      const { handlers, errors, doneCount, donePromise } = makeHandlers();
+      await injected.startRun(baseInput([userMessage("take me to about")]), handlers);
+      await donePromise;
+      assert.deepEqual(errors, []);
+      assert.equal(doneCount(), 1);
+    });
+
+    it("does not add a no-reply error on top of a server error frame", async () => {
+      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([
+        sseFrame("error", { message: "Visitor AI needs a saved key and model." }),
+        sseFrame("end", { reason: "error" }),
+      ])) as typeof fetch });
+      const { handlers, errors, doneCount, donePromise } = makeHandlers();
+      await injected.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      assert.deepEqual(errors.map((e) => e.message), ["Couldn't get an answer: Visitor AI needs a saved key and model. Try again."]);
+      assert.equal(doneCount(), 1);
+    });
+
+    it("stays silent for an error frame that arrives after the run already ended", async () => {
+      const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([
+        sseFrame("text", { delta: "answer" }),
+        sseFrame("end", { reason: "stop" }),
+        sseFrame("error", { message: "late" }),
+      ])) as typeof fetch });
+      const { handlers, errors, doneCount, donePromise } = makeHandlers();
+      await injected.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      await flushStream();
+      assert.deepEqual(errors, []);
+      assert.equal(doneCount(), 1);
+    });
+
+    it("words a fetch network failure as an unreachable site", async () => {
+      const injected = createSiteAssistantTransport({}, { fetch: (async () => { throw new TypeError("Failed to fetch"); }) as typeof fetch });
+      const { handlers, errors, doneCount, donePromise } = makeHandlers();
+      await injected.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      assert.deepEqual(errors.map((e) => e.message), ["Couldn't get an answer: couldn't reach the site. Try again."]);
+      assert.equal(doneCount(), 1);
+    });
+
+    it("times out a request that never answers: aborts fetch, reports once, finishes", async () => {
+      const pending = abortableFetchStub();
+      const injected = createSiteAssistantTransport({}, { fetch: pending.fetch, idleTimeoutMs: 20 });
+      const { handlers, errors, doneCount, donePromise } = makeHandlers();
+      await injected.startRun(baseInput([userMessage("hi")]), handlers);
+      await donePromise;
+      assert.equal(pending.signal().aborted, true, "the idle timer must abort the hung request");
+      assert.deepEqual(errors.map((e) => e.message), ["Couldn't get an answer: the site took too long to respond. Try again."]);
+      assert.equal(doneCount(), 1);
+    });
+
+    it("restarts the idle timer on every received chunk, so a slow but live reply is not cut off", async () => {
+      const stream = controlledStreamResponse();
+      const injected = createSiteAssistantTransport({}, { fetch: (async () => stream.response) as typeof fetch, idleTimeoutMs: 300 });
+      const { handlers, events, errors, doneCount, donePromise } = makeHandlers();
+      await injected.startRun(baseInput([userMessage("hi")]), handlers);
+      for (const part of ["one ", "two ", "three"]) {
+        await sleep(150);
+        stream.send(sseFrame("text", { delta: part }));
+      }
+      await sleep(150);
+      stream.send(sseFrame("end", { reason: "stop" }));
+      stream.close();
+      await donePromise;
+      assert.deepEqual(errors, [], "600ms total but never 300ms of silence: no timeout");
+      assert.equal(events.length, 3);
+      assert.equal(doneCount(), 1);
     });
   });
 

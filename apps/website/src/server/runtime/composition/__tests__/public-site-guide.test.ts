@@ -1,3 +1,4 @@
+import { anonymousMemberAccess } from "#src/assistant/site/__tests__/member-access.fixture";
 /** guide anonymous contract: only published capabilities, no private fact ports or permissions. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -19,7 +20,7 @@ test("anonymous guide exposes public content only, using the real Jini filtering
   assert.ok(!JSON.stringify(explained).includes("/admin/"));
 });
 test("visitor registry grants only the explicitly injected guide and still denies unknown names/callers", async () => {
-  const deps = { workspaceId: "public-site", postRepo: new InMemoryPostRepo(), listPublishedPosts };
+  const deps = { workspaceId: "public-site", postRepo: new InMemoryPostRepo(), listPublishedPosts, memberAccess: anonymousMemberAccess() };
   const without = createSiteCapabilityRegistry(deps);
   assert.ok(!without.schemas.some(schema => schema.name === "site_guide"));
   let calls = 0;
@@ -36,4 +37,11 @@ test("visitor preamble points directly to the public guide without admin-only di
   assert.ok(!VISITOR_SYSTEM_PREAMBLE.includes("execute_readonly_delegated_tool"));
   assert.ok(!VISITOR_SYSTEM_PREAMBLE.includes("search_tools"));
   assert.ok(!VISITOR_SYSTEM_PREAMBLE.includes("planning or building"));
+});
+
+test("visitorsafe: public guide prose and pointers contain no raw tool identifiers", async () => {
+  for (const operation of ["overview", "explain"] as const) {
+    const result = await runPublicSiteGuide({ input: operation === "overview" ? { operation } : { operation, topic: "content" } });
+    assert.doesNotMatch(JSON.stringify(result), /search_published_entries|get_published_entry/);
+  }
 });

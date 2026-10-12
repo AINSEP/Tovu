@@ -12,9 +12,10 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import type { PostRepoPort, PostRecord } from "#src/features/post/index";
 import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
-import { setPublicAssistantSettings } from "#src/assistant/index";
+import { setPublicAssistantSettings, setSiteAssistantCredential } from "#src/assistant/index";
 import { startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
 import { createCommerceSiteTestApp } from "#src/server/inbound/public-http/routes/site/__tests__/commerce-site-app";
+import { useSiteChatBuild } from "#src/server/inbound/public-http/http/site/__tests__/site-chat.fixture";
 import { exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
 import type { ExportReport } from "../site-exporter.js";
 
@@ -122,6 +123,9 @@ const alwaysAllowAssistantSettingsWrite = async () => ({ allowed: true, reason: 
  *  boot-time settings registrations are still in flight until then). */
 async function enablePublicAssistant(deps: ReturnType<typeof createRouteDeps>): Promise<void> {
   await deps.siteTitleReady;
+  await setSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+  { workspaceId: deps.workspaceId, apiKey: "visitorai-test-key", model: "saved-model" });
   await setPublicAssistantSettings(
     {
       settingsRepo: deps.settingsRepo,
@@ -158,6 +162,7 @@ function withOneSampleProduct(deps: ReturnType<typeof createRouteDeps>): void {
  * `resolveSiteAssistantEnabledForRequest`) and is not a regression of the ADR-054 switch itself.
  */
 test("exportSite: the site-assistant widget is OFF in a static export even when the workspace setting is enabled", async (t) => {
+  useSiteChatBuild({ test: t, ready: true });
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
@@ -168,7 +173,9 @@ test("exportSite: the site-assistant widget is OFF in a static export even when 
   const app = deps.createSiteApp();
   const baseUrl = await startTestServer(app, t);
   const liveHome = await (await fetch(`${baseUrl}/`)).text();
-  assert.match(liveHome, /\/site-chat\/site-assistant\.js/, "the live server must still ship the widget when the setting is on");
+  assert.match(liveHome, /data-jini-chat-loader data-widget="react"/, "the live server must ship the selected widget's launcher when the setting is on");
+  assert.match(liveHome, /src="\/site-chat\/site-assistant-loader\.js"/, "the live server must ship the lazy loader");
+  assert.doesNotMatch(liveHome, /(?:src|href)="\/site-chat\/site-assistant(?:-vanilla)?\.(?:js|css)"/, "widget assets load on demand");
 
   const report = await exportSite({ routeDeps: deps, outputDir });
   assert.equal(report.routes.failed.length, 0, "every route must still export successfully with the setting on");
@@ -198,6 +205,7 @@ test("exportSite: the site-assistant widget is OFF in a static export even when 
  * that cache for minutes. Covers each of the four handlers that resolve the switch.
  */
 test("live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control", async (t) => {
+  useSiteChatBuild({ test: t, ready: true });
   const deps = createRouteDeps();
   await enablePublicAssistant(deps);
   withOneSampleProduct(deps);
@@ -208,7 +216,10 @@ test("live site: a request carrying the static-export marker gets no widget AND 
 
   for (const route of ["/", slugRoute, "/products", "/products/widget-mug"]) {
     const live = await fetch(`${baseUrl}${route}`);
-    assert.match(await live.text(), /\/site-chat\/site-assistant\.css[\s\S]*\/site-chat\/site-assistant\.js/, `${route}: live must ship both widget assets`);
+    const liveHtml = await live.text();
+    assert.match(liveHtml, /data-jini-chat-loader data-widget="react"/, `${route}: live must ship the selected widget's launcher`);
+    assert.match(liveHtml, /src="\/site-chat\/site-assistant-loader\.js"/, `${route}: live must ship the lazy loader`);
+    assert.doesNotMatch(liveHtml, /(?:src|href)="\/site-chat\/site-assistant(?:-vanilla)?\.(?:js|css)"/, `${route}: widget assets load on demand`);
     assert.match(live.headers.get("cache-control") ?? "", /^public/, `${route}: an ordinary live response stays publicly cacheable`);
 
     const marked = await fetch(`${baseUrl}${route}`, { headers: { "x-tovu-static-export": "1" } });

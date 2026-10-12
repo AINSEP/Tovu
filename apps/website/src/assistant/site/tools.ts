@@ -33,6 +33,8 @@
  * end up MORE permissive than the site it speaks for the first time someone adds a visibility
  * condition — scheduled publishing, per-post visibility, membership gating — to `listPublishedPosts`
  * alone: the site would start honoring it and a locally-reimplemented filter here would not, silently.
+ * Membership is enforced separately by the members owner through readAnonymousPublishedPosts;
+ * listPublishedPosts alone establishes live publish state, not anonymous authorization.
  * The injection exists ONLY to break a module cycle (`assistant/site/*` value-importing
  * `features/post` while `features/post/tool-registrations.ts` registers into `assistant` — see
  * `SiteAssistantToolDeps.listPublishedPosts`'s doc); it does not weaken this guarantee, because the
@@ -44,6 +46,7 @@
  */
 
 import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
+import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps, type ListPublishedPosts } from "./public-content.js";
 import { resolvePublicTarget, type ClientDirective } from "./client-directives.js";
 
 /**
@@ -56,9 +59,7 @@ import { resolvePublicTarget, type ClientDirective } from "./client-directives.j
  * `assistant`). See `SiteAssistantToolDeps.listPublishedPosts`'s doc for how the real function still
  * reaches this file despite the type living here instead of being imported.
  */
-type ListPublishedPosts = (
-  required: { deps: { repo: PostRepoPort }; input: { workspaceId: string } },
-) => Promise<{ posts: PostRecord[] }>;
+// The structural port now lives with the shared anonymous read chokepoint in public-content.ts.
 
 /** What a tool hands back to the model. Deliberately not `PostRecord` — that carries `workspaceId`,
  *  `version`, `ext`, and internal ids the model has no use for and that should not enter a prompt.
@@ -83,6 +84,7 @@ export interface PublicEntryDetail extends PublicEntrySummary {
 export interface SiteAssistantToolDeps {
   readonly postRepo: PostRepoPort;
   readonly workspaceId: string;
+  readonly memberAccess: AnonymousPublishedPostDeps["memberAccess"];
   /**
    * The real `features/post`'s own `listPublishedPosts` — injected rather than statically imported
    * (see this file's header for the security reasoning behind calling that exact function, and the
@@ -160,7 +162,7 @@ function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEX
   return out;
 }
 
-export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
+export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options = {}) {
   const limit = deps.maxResults ?? DEFAULT_MAX_RESULTS;
 
   /**
@@ -173,16 +175,15 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
    * `status === "published" && !isTrashed(row)` (a positive match on the one allowed status, never
    * `!== "draft"`, which would admit every status added to the union tomorrow; `isTrashed` is
    * independent of `status`, since trashing only stamps `deletedAt`) — that predicate is therefore
-   * the entire enforcement standing between anonymous traffic and hidden content, not a second pass
+   * the publish-state enforcement standing between anonymous traffic and hidden content, not a second pass
    * on top of a query-level one. It just now lives in `features/post/post.ts`, reused rather than
    * copied — see this file's header for why that reuse is load-bearing, not tidiness.
    *
    * Proven by test: a fake `PostRepoPort` that returns drafts and trashed rows alongside published
-   * ones is still withheld here.
+   * ones is still withheld here. The shared read also applies the members owner’s anonymous decision.
    */
   async function readPublished(): Promise<PostRecord[]> {
-    const { posts } = await deps.listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } });
-    return posts;
+    return readAnonymousPublishedPosts({ deps });
   }
 
   return {
@@ -245,7 +246,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
      * auto-executes or renders a proposal.
      */
     async navigate_to_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId, listPublishedPosts: deps.listPublishedPosts }, input?.slug);
+      const target = await resolvePublicTarget({ deps, slug: input?.slug });
       if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
 
       const auto = deps.autoNavigateAllowed === true;
@@ -261,7 +262,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
      * to weigh, so there is nothing D-1's gate needs to decide here).
      */
     async scroll_to_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId, listPublishedPosts: deps.listPublishedPosts }, input?.slug);
+      const target = await resolvePublicTarget({ deps, slug: input?.slug });
       if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
 
       return {
@@ -276,7 +277,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
      * uses — see `apps/site-chat/src/highlight.ts`.
      */
     async highlight_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId, listPublishedPosts: deps.listPublishedPosts }, input?.slug);
+      const target = await resolvePublicTarget({ deps, slug: input?.slug });
       if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
 
       return {

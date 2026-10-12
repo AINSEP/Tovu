@@ -59,7 +59,8 @@ function makeDeps() {
       principals: createSettingsPrincipalLookup({ repo: principals }),
       ensureSettingDefinitions,
       getEffective,
-      set,
+      // These tests own ledger semantics; readiness itself is covered by visitorai API tests.
+      set: (required: Parameters<typeof set>[0]) => set(required, { canEnablePublicAssistant: async () => true }),
     },
   };
 }

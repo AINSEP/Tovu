@@ -2,13 +2,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { setPublicAssistantSettings } from "#src/assistant/index";
+import { setPublicAssistantSettings, setSiteAssistantCredential } from "#src/assistant/index";
 import { resolveSiteAssistantWidgetForRequest } from "../pages.js";
 
 test("wcmp: page selection reads the site choice, retains off, and leaves static exports widget-free", async () => {
   const deps = createRouteDeps();
   await deps.identityReady;
-  await deps.assistantSettingsReady;
+  await deps.siteTitleReady;
+  await setSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+  { workspaceId: deps.workspaceId, apiKey: "visitorai-test-key", model: "saved-model" });
   const writer = {
     settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: deps.set, clock: deps.clock,
     ids: deps.idGen, authorize: async () => ({ allowed: true, reason: "test_grant" }), principals: deps.principalRepo,

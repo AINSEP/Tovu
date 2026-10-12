@@ -1,18 +1,5 @@
-import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
+import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps } from "./public-content.js";
 import { postPublicPath } from "#src/platform/routing/adapter";
-
-/**
- * Structural signature matching `features/post/post.ts`'s real `listPublishedPosts` function.
- * Redeclared locally rather than shared from `tools.ts` — this repo redeclares small structural
- * types per-file rather than sharing them across the module-cycle boundary (same precedent as
- * `dual-read.ts`'s own two types). Importing the FUNCTION as a value here is exactly the edge that
- * would close the `[assistant, features/post]` module cycle `check:architecture` flags; see
- * `resolvePublicTarget`'s `deps.listPublishedPosts` param doc for how the real function still reaches
- * this file despite the type living here instead of being imported.
- */
-type ListPublishedPosts = (
-  required: { deps: { repo: PostRepoPort }; input: { workspaceId: string } },
-) => Promise<{ posts: PostRecord[] }>;
 
 /**
  * @file SPEC-046 REQ-4/REQ-6/REQ-8 — the client-directive channel's shared shape and its one
@@ -34,7 +21,7 @@ type ListPublishedPosts = (
  * `PostRecord.deletedAt` is independent of `status`: a trashed post still reads `status:
  * "published"`, so a status-only check would leak it. A slug absent from that list — off-site by
  * construction (this only ever searches THIS workspace's posts), an admin path (never a post slug),
- * unpublished, or trashed-but-`published` — resolves to `null`, and every capability's `execute()` in
+ * member-gated, unpublished, or trashed-but-`published` — resolves to `null`, and every capability's `execute()` in
  * `capability-registry.ts` refuses on `null` before anything reaches the client. There is no second
  * path-construction call site to keep in sync with this one.
  *
@@ -45,7 +32,8 @@ type ListPublishedPosts = (
  * the worst case of a successful injection is an already-public page of THIS site — never an off-site
  * URL, an admin route, or hidden content, because none of those can ever come back from
  * `resolvePublicTarget`. That is the invariant REQ-8 requires; it holds structurally, not by prompt
- * instruction.
+ * instruction. Membership is checked by the same readAnonymousPublishedPosts helper as every
+ * read tool, using the injected members owner with an anonymous context.
  */
 
 /** What a page-action tool resolves a model-supplied slug into. `path` is always `/${slug}` — the
@@ -71,24 +59,14 @@ export interface ResolvedPublicTarget {
  * @overallScore 100
  */
 export async function resolvePublicTarget(
-  deps: {
-    readonly postRepo: PostRepoPort;
-    readonly workspaceId: string;
-    /** Injected rather than statically imported — see the `ListPublishedPosts` type doc above.
-     *  Callers must pass the real `features/post`'s own `listPublishedPosts` (wired at the one
-     *  production composition root, `server/modules/site-assistant.ts`) so this resolves through the
-     *  exact same predicate `tools.ts`'s `readPublished()` and `routes/site/pages.ts` use — see this
-     *  file's header for why that equality is what makes REQ-8's injection-containment invariant
-     *  hold. */
-    readonly listPublishedPosts: ListPublishedPosts;
-  },
-  slug: unknown,
+  { deps, slug }: { deps: AnonymousPublishedPostDeps; slug: unknown },
+  _options = {},
 ): Promise<ResolvedPublicTarget | null> {
   if (typeof slug !== "string" || slug.trim().length === 0) return null;
   const trimmed = slug.trim();
 
-  const { posts } = await deps.listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } });
-  const found = posts.find((p: PostRecord) => p.slug === trimmed);
+  const posts = await readAnonymousPublishedPosts({ deps });
+  const found = posts.find(p => p.slug === trimmed);
   if (!found) return null;
 
   return { slug: found.slug, title: found.title, path: postPublicPath({ slug: found.slug }) };

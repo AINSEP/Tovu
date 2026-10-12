@@ -7,7 +7,7 @@ export const publicCapabilityCard: CapabilityCard = {
   explanation: "The visitor assistant can search and read published entries and propose navigation, scrolling and highlighting. Drafts, private configuration and administrator tools are unavailable to this caller. Ask the site operator to plan or build features requiring those permissions.",
   permissions: [], workflows: [],
   pointers: [
-    { label: "Search published entries", tool: "search_published_entries", permissions: [] },
-    { label: "Read a published entry", tool: "get_published_entry", permissions: [] },
+    { label: "Search published entries", permissions: [] },
+    { label: "Read a published entry", permissions: [] },
   ],
 };

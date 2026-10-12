@@ -42,6 +42,8 @@ export { settingsDerivedRisk } from "@jini-ai/core/settings";
 
 /** Native grants are bound to the invoking plugin's admitted identity/version/digest, never model input. */
 export type SettingsToolDeps = CoreSettingsToolDeps & {
+  /** The composed host writer applies title bounds and visitor-credential policy alike. */
+  set?: typeof set;
   nativeApprovalMemory?: RememberedApprovalPort;
   approvalIdentityForRun?: (required: { ctx: ToolExecutionContext }) => Promise<{ key: string; label: string; version?: string }>;
 };
@@ -59,7 +61,7 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
     ...routeDeps,
     // This opt-in belongs to the owner UI, never the assistant changing its own tool grant.
     extraDeniedSettings: [...(routeDeps.extraDeniedSettings ?? []), { namespace: ASSISTANT_SUBAGENTS_NAMESPACE, reason: ASSISTANT_SUBAGENTS_WRITE_REASON }, { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, reason: ASSISTANT_PERMANENT_DELETES_WRITE_REASON }],
-    setValue: set,
+    setValue: routeDeps.set ?? set,
     confirmationSettings: TOVU_CONFIRMATION_SETTINGS,
     // `options` carries the transport's emitSurface; without it the card has no way to reach a human.
     // Declared optional so this still type-checks against a @jini-ai/cms whose confirmWrite takes one argument.

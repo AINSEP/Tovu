@@ -1,22 +1,25 @@
-import type { ToolDescriptor } from "@jini-ai/core";
+import { redactSecrets, type ToolDescriptor } from "@jini-ai/core";
+import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/index";
 import { runPublicSiteGuide } from "../public-site-guide.js";
 import { SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
-import type { Express, Request, Response } from "express";
+import type { ErrorRequestHandler, Express, Request, Response } from "express";
 
 import {
   createSiteCapabilityRegistry,
+  createSiteAssistantErrorReporter,
+  type SiteAssistantErrorReporter,
+  type SiteAssistantErrorLogEntry,
   detectsExplicitNavigationIntent,
-  getSiteAssistantCredential,
   resolveBoundedHistory,
   resolveSiteAssistantMode,
   isPublicAssistantEnabled,
-  resolveSiteAssistantApiKey,
   runByokProviderTurn,
+  resolvePublicAssistantAvailability,
+  resolveByokProtocol,
   type ByokProtocol,
   type ByokToolCall,
   type ByokToolResult,
   type ResolvedSiteAssistantCredential,
-  type SiteAssistantCredentialView,
   type SiteAssistantHistoryTurn,
   type SiteAssistantModeResolution,
 } from "#src/assistant/index";
@@ -87,16 +90,18 @@ import type { ServerModuleHandle } from "./types.js";
  *    `TOVU_SITE_ASSISTANT_MODEL` too — are Google env fallbacks by name and by issuer, so all three
  *    are offered ONLY when the resolved provider is `google` (see {@link siteAssistantEnvFallbacks}).
  *    A workspace configured for Anthropic with no Anthropic key gets a 503 naming the provider and
- *    the missing key, never a working-looking answer paid for by the wrong credential, and never an
+ *    the missing key in the operator log, never a working-looking answer paid for by the wrong credential, and never an
  *    endpoint or model borrowed from a Google deployment's env configuration either. Same for an
  *    unsupported `provider` string, and for a non-Google provider with no model configured: refuse
- *    before the stream opens, and say which one it is.
+ *    before the stream opens, and log which one it is. Public errors carry only safe text and an id.
  */
 
 const CHAT_PATH = "/api/site-assistant/chat";
 /** Bounds a single visitor message. Long enough for a real question, short enough that the prompt
  *  cost of one request cannot be driven up arbitrarily by an anonymous caller. */
 const MAX_MESSAGE_CHARS = 2000;
+/** Per provider request, including continuations; aggregate site spend remains a separate budget. */
+export const VISITOR_MAX_OUTPUT_TOKENS = 1024;
 const DEFAULT_MODEL = "gemini-flash-latest";
 
 /**
@@ -249,7 +254,7 @@ type MessageGuardResult =
  * window. Each one can end the request on its own before anything downstream (mode, credentials)
  * is even looked at.
  */
-async function guardMessageAndRateLimit(req: Request, res: Response, deps: RouteDeps): Promise<MessageGuardResult> {
+async function guardMessageAndRateLimit(req: Request, res: Response, deps: RouteDeps, reportError: SiteAssistantErrorReporter): Promise<MessageGuardResult> {
   // `public-assistant-settings.ts`'s file header spells out the contract this line exists to
   // satisfy: "publicEnabled: false means the public page ships NO assistant bundle and exposes NO
   // assistant endpoint... registers the visitor-facing assistant route(s) conditionally, or has
@@ -261,18 +266,18 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
     { workspaceId: deps.workspaceId }
   );
   if (!enabled) {
-    res.status(404).end();
+    respondPublicError({ res, status: 404, reportError, code: "ASSISTANT_DISABLED", diagnostic: "site assistant is disabled" });
     return { ok: false };
   }
 
   const body = (req.body ?? {}) as { message?: unknown; history?: unknown };
   const message = typeof body.message === "string" ? body.message.trim() : "";
   if (message.length === 0) {
-    res.status(400).json({ error: "message must be a non-empty string", code: "VALIDATION" });
+    respondPublicError({ res, status: 400, reportError, code: "VALIDATION", diagnostic: "message must be a non-empty string" });
     return { ok: false };
   }
   if (message.length > MAX_MESSAGE_CHARS) {
-    res.status(413).json({ error: `message exceeds ${MAX_MESSAGE_CHARS} characters`, code: "TOO_LARGE" });
+    respondPublicError({ res, status: 413, reportError, code: "TOO_LARGE", diagnostic: `message exceeds ${MAX_MESSAGE_CHARS} characters` });
     return { ok: false };
   }
   // SPEC-046 REQ-3: `body.history` is client-supplied and untrusted — it can be forged, so it
@@ -290,9 +295,8 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
   const rateLimitResult = await deps.siteAssistantRateLimiter.check({ key: resolveClientIp(req) });
   if (!rateLimitResult.allowed) {
     res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
-    res.status(429).json({
-      error: "too many messages from this address — please wait before trying again",
-      code: "RATE_LIMIT_EXCEEDED",
+    respondPublicError({ res, status: 429, reportError, code: "RATE_LIMIT_EXCEEDED",
+      diagnostic: "too many messages from this address — please wait before trying again",
       details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
     });
     return { ok: false };
@@ -301,17 +305,14 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
   return { ok: true, message, priorTurns };
 }
 
-/** The four protocols `byok-provider-turn.ts` can dispatch. `site_assistant_credentials.provider`
- *  is a plain text column and `put-site-credential.ts` accepts any string, so anything outside this
- *  set is a real operator mistake that has to be named rather than rounded to Google. */
-const SUPPORTED_PROVIDERS: ReadonlySet<string> = new Set<ByokProtocol>(["anthropic", "openai", "azure", "google"]);
-
 /** The stored `provider` string, narrowed to a protocol this route can actually dispatch, or `null`
  *  when it names something else. Case- and whitespace-insensitive because the column is free-form.
- *  @complexity O(1). */
+ *  `site_assistant_credentials.provider` is a plain text column and `put-site-credential.ts`
+ *  accepts any string, so anything outside the four protocols `byok-provider-turn.ts` dispatches
+ *  is a real operator mistake that has to be named rather than rounded to Google.
+ *  @complexity O(n) in provider length. */
 function toByokProtocol(provider: string): ByokProtocol | null {
-  const normalized = provider.trim().toLowerCase();
-  return SUPPORTED_PROVIDERS.has(normalized) ? (normalized as ByokProtocol) : null;
+  return resolveByokProtocol({ provider });
 }
 
 /**
@@ -347,10 +348,21 @@ function describeMissingKey(protocol: ByokProtocol, storedKeyPresent: boolean): 
 /** `res.status(503).json(...)`, in the one shape the site-chat widget's transport already reads off
  *  a failed `fetch()` (`site-assistant-transport.ts` reads `body.error`). Always returns `null` so
  *  each caller below is a single `return respondUnavailable(...)`. */
-function respondUnavailable(res: Response, code: string, error: string): null {
-  console.warn(`[site-assistant] ${code}: ${error}`);
-  res.status(503).json({ error, code });
+function respondUnavailable(res: Response, reportError: SiteAssistantErrorReporter, code: string, error: unknown): null {
+  respondPublicError({ res, status: 503, reportError, code, diagnostic: error });
   return null;
+}
+
+/** Keep JSON errors in the widget's existing body.error contract, with a stable code and lookup id. */
+function respondPublicError(
+  { res, status, reportError, code, diagnostic, details }: {
+    res: Response; status: number; reportError: SiteAssistantErrorReporter; code: string;
+    diagnostic: unknown; details?: { retryAfterSeconds: number };
+  },
+  _options = {},
+): void {
+  const { message, ...metadata } = reportError({ code, diagnostic });
+  res.status(status).json({ error: message, ...metadata, ...(details ? { details } : {}) });
 }
 
 /**
@@ -371,19 +383,20 @@ async function resolveProviderConfigOrRespond(
   deps: RouteDeps,
   env: NodeJS.ProcessEnv,
   resolution: SiteAssistantModeResolution,
+  reportError: SiteAssistantErrorReporter,
 ): Promise<SiteAssistantProviderConfig | null> {
   if (resolution.mode === "cli") {
     // Demo only. Reaching the daemon means matching its run-start contract, which this route
     // does not yet do — declared unavailable rather than half-wired, so a demo operator gets a
     // clear answer instead of a confusing failure deeper in the stack.
-    res.status(501).json({
-      error: "cli demo mode is enabled but its daemon bridge is not implemented yet",
-      code: "NOT_IMPLEMENTED",
+    respondPublicError({ res, status: 501, reportError, code: "NOT_IMPLEMENTED",
+      diagnostic: "cli demo mode is enabled but its daemon bridge is not implemented yet",
     });
     return null;
   }
 
-  // ADR-058: the SITE credential store (admin's "Visitor's AI Assistant" tab) is tried FIRST,
+  // Historical ADR-058 behavior, superseded by the owner's visitorai requirement below:
+  // the SITE credential store (admin's "Visitor's AI Assistant" tab) was tried FIRST,
   // `env.GEMINI_API_KEY` second — additive over the pre-existing env-only path, never a
   // replacement (existing deployments and the E2E suite that only set the env var are
   // unaffected). `resolveSiteAssistantApiKey` never throws: a missing row, a missing master
@@ -393,30 +406,30 @@ async function resolveProviderConfigOrRespond(
   // This is a DIFFERENT key from the admin's own Execution-mode BYOK key
   // (`apps/admin/src/lib/execution-settings.ts`, browser-local, powers the admin's own assistant
   // dock only) — see ADR-058's "Distinction from BYOK".
-  const stored = await resolveSiteAssistantApiKey(
-    { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-    { workspaceId: deps.workspaceId },
-    (error) => console.warn("[site-assistant] stored credential could not be opened", error)
-  );
+  // visitorai (owner, 2026-10-10): a stale enabled flag cannot revive a removed saved key/model
+  // through the historical environment fallbacks described above.
+  let credentialFailure: unknown;
+  const availability = await resolvePublicAssistantAvailability({
+    repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, workspaceId: deps.workspaceId,
+  }, { onCredentialFailure: error => { credentialFailure = error; } });
+  if (!availability.ready) return respondUnavailable(res, reportError, availability.code, credentialFailure ?? availability.error);
+  const stored = availability.credential;
+  // Historical fallback rationale, superseded by visitorai's saved-credential requirement:
   // Read only when the key did NOT resolve. The row is then the sole surviving record of which
   // provider the operator chose, and that choice decides whether `GEMINI_API_KEY` is even an
   // eligible fallback — without it this route cannot tell "no credential at all" (Google's env key
   // is the documented answer) from "an Anthropic workspace whose key is missing or unreadable"
   // (where spending a Google key is the bug). Never decrypts, never throws (ADR-058 §4).
-  const configuredRow = stored ? null : await readConfiguredCredential(deps);
-  return resolveProviderFromCredential(res, env, toCredentialChoice(stored, configuredRow));
-}
-
-/** The non-decrypting read behind `resolveProviderConfigOrRespond`'s fallback branch. Split out
- *  purely to keep that function's complexity under the shop ceiling. */
-async function readConfiguredCredential(deps: RouteDeps): Promise<SiteAssistantCredentialView> {
-  return getSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo }, { workspaceId: deps.workspaceId });
+  return resolveProviderFromCredential(res, env, toCredentialChoice({ stored }), reportError);
 }
 
 /** The workspace's credential as the decision below needs to see it, folded from whichever of the
- *  two reads produced it. `apiKey` is `null` whenever the key did not open, and `keyStored` says
+ *  two historical reads produced it. `apiKey` was `null` whenever the key did not open, and `keyStored` said
  *  whether one nonetheless EXISTS — the pair {@link describeMissingKey} needs to tell "never saved"
- *  from "saved but unreadable". */
+ *  from "saved but unreadable".
+ *  The non-decrypting fallback read was split out purely to keep the configuration function's
+ *  complexity under the shop ceiling. The saved-only gate now refuses that branch, so no second
+ *  repository read remains on a visitor turn. */
 interface SiteAssistantCredentialChoice {
   readonly provider: string;
   readonly baseUrl: string | null;
@@ -425,25 +438,13 @@ interface SiteAssistantCredentialChoice {
   readonly keyStored: boolean;
 }
 
-/** Folds the two credential reads into one {@link SiteAssistantCredentialChoice}. Exactly one is
- *  non-null: `stored` when the key opened, `configured` when it did not.
+/** Folds the saved credential into one {@link SiteAssistantCredentialChoice}. Historically exactly
+ *  one of two reads was non-null: `stored` when the key opened, `configured` when it did not.
  *  `getSiteAssistantCredential` already answers `"google"` for a workspace with no row at all,
- *  which is the correct default for the env-key path this route has always had.
+ *  which was the default for the env-key path. visitorai now requires the stored key and model.
  *  @complexity O(1). */
-function toCredentialChoice(
-  stored: ResolvedSiteAssistantCredential | null,
-  configured: SiteAssistantCredentialView | null,
-): SiteAssistantCredentialChoice {
-  if (stored) {
-    return { provider: stored.provider, baseUrl: stored.baseUrl, model: stored.model, apiKey: stored.apiKey, keyStored: true };
-  }
-  return {
-    provider: configured?.provider ?? "google",
-    baseUrl: configured?.baseUrl ?? null,
-    model: configured?.model ?? null,
-    apiKey: null,
-    keyStored: configured?.isSet === true,
-  };
+function toCredentialChoice({ stored }: { stored: ResolvedSiteAssistantCredential }, _optional = {}): SiteAssistantCredentialChoice {
+  return { provider: stored.provider, baseUrl: stored.baseUrl, model: stored.model, apiKey: stored.apiKey, keyStored: true };
 }
 
 /** Every value this route may take from the process environment for a provider turn. All three
@@ -489,11 +490,12 @@ function resolveProviderFromCredential(
   res: Response,
   env: NodeJS.ProcessEnv,
   choice: SiteAssistantCredentialChoice,
+  reportError: SiteAssistantErrorReporter,
 ): SiteAssistantProviderConfig | null {
   const protocol = toByokProtocol(choice.provider);
   if (!protocol) {
     return respondUnavailable(
-      res,
+      res, reportError,
       "PROVIDER_UNSUPPORTED",
       `site assistant is configured for an unsupported provider "${choice.provider}" — supported providers are anthropic, openai, azure, google.`,
     );
@@ -503,13 +505,13 @@ function resolveProviderFromCredential(
 
   const apiKey = choice.apiKey ?? envFallbacks.apiKey;
   if (!apiKey) {
-    return respondUnavailable(res, "NOT_CONFIGURED", describeMissingKey(protocol, choice.keyStored));
+    return respondUnavailable(res, reportError, "NOT_CONFIGURED", describeMissingKey(protocol, choice.keyStored));
   }
 
   const model = resolveModel(protocol, choice.model, envFallbacks.model);
   if (!model) {
     return respondUnavailable(
-      res,
+      res, reportError,
       "MODEL_NOT_CONFIGURED",
       `site assistant is configured for the "${protocol}" provider but no model is set — choose one on the Visitor's AI Assistant admin tab (only Google has a safe default).`,
     );
@@ -539,18 +541,23 @@ async function runSiteAssistantPreflight(
   deps: RouteDeps,
   env: NodeJS.ProcessEnv,
   resolution: SiteAssistantModeResolution,
+  reportError: SiteAssistantErrorReporter,
 ): Promise<SiteAssistantPreflight> {
-  const guard = await guardMessageAndRateLimit(req, res, deps);
+  const guard = await guardMessageAndRateLimit(req, res, deps, reportError);
   if (!guard.ok) return { ok: false };
 
-  const provider = await resolveProviderConfigOrRespond(res, deps, env, resolution);
+  const provider = await resolveProviderConfigOrRespond(res, deps, env, resolution, reportError);
   if (!provider) return { ok: false };
 
   return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider };
 }
 
-export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
+export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void }, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
   const resolution = resolveSiteAssistantMode(env);
+  const reporter = createSiteAssistantErrorReporter({
+    ids: deps.idGen, redact: redactSecrets,
+    log: deps.siteAssistantErrorLog ?? (entry => console.error("[site-assistant]", entry)),
+  });
 
   return {
     name: "site-assistant",
@@ -570,24 +577,44 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
     },
 
     registerRoutes: (app: Express) => {
+      // The app's public JSON parser runs before this module. Handle its errors here, before the
+      // generic size/error middleware, so oversized/malformed visitor requests also get safe ids.
+      const handleBodyError: ErrorRequestHandler = (error, _req, res, next) => {
+        if (res.headersSent) { next(error); return; }
+        const type = (error as { type?: unknown } | null)?.type;
+        const oversized = type === "entity.too.large";
+        const invalid = type === "entity.parse.failed";
+        respondPublicError({
+          res, status: oversized ? 413 : invalid ? 400 : 500, reportError: reporter,
+          code: oversized ? "PAYLOAD_TOO_LARGE" : invalid ? "VALIDATION" : "unavailable", diagnostic: error,
+        });
+      };
+      app.use(CHAT_PATH, handleBodyError);
       app.post(CHAT_PATH, (req: Request, res: Response) => {
-        void handleChat(req, res).catch((error: unknown) => {
+        const secrets: string[] = env.GEMINI_API_KEY ? [env.GEMINI_API_KEY] : [];
+        const reportError: SiteAssistantErrorReporter = required => reporter(required, { exactSecrets: secrets });
+        void handleChat(req, res, reportError, secrets).catch((error: unknown) => {
           // The stream may already be open, in which case status codes are no longer available —
           // report on the stream if we can, and never leave a visitor's connection hanging.
-          console.error("[site-assistant] unhandled error", error);
+          const publicError = reportError({ code: "unavailable", diagnostic: error });
           if (res.headersSent) {
-            sse(res, "error", { message: "assistant failed" });
+            sse(res, "error", publicError);
             res.end();
           } else {
-            res.status(500).json({ error: "assistant failed", code: "INTERNAL" });
+            const { message, ...metadata } = publicError;
+            res.status(500).json({ error: message, ...metadata });
           }
         });
       });
 
-      async function handleChat(req: Request, res: Response): Promise<void> {
-        const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution);
+      async function handleChat(req: Request, res: Response, reportError: SiteAssistantErrorReporter, secrets: string[]): Promise<void> {
+        const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution, reportError);
         if (!preflight.ok) return;
         const { message, priorTurns, provider } = preflight;
+        secrets.push(provider.apiKey);
+        const memberResolver = new DefaultMemberAccessResolver({
+          sessions: deps.memberSessionRepo, subscriptions: deps.memberSubscriptionRepo, tiers: deps.memberTierRepo,
+        });
 
         // SPEC-046 D-1: computed ONCE here, from the visitor's own live `message` — before any tool
         // call runs — so `navigate_to_entry`'s auto/propose split (`tools.ts`'s
@@ -600,6 +627,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           workspaceId: deps.workspaceId,
           autoNavigateAllowed,
           listPublishedPosts,
+          memberAccess: { resolvePostMemberAccess, decide: memberResolver.decide.bind(memberResolver) },
         }, { siteGuide: { inputSchema: SITE_GUIDE_SCHEMA, run: runPublicSiteGuide } });
 
         /**
@@ -630,8 +658,8 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
             case "error":
               // A tool failure is reported back to the model as a tool error so it can respond to the
               // visitor, rather than thrown, which would kill the whole stream over one bad lookup.
-              console.error(`[site-assistant] tool ${call.name} failed`, outcome.error);
-              return { content: `tool ${call.name} failed`, isError: true };
+              const publicError = reportError({ code: "unavailable", diagnostic: outcome.error });
+              return { content: publicError.message, isError: true };
           }
         };
 
@@ -658,6 +686,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           apiKey: provider.apiKey,
           ...(provider.baseUrl ? { baseUrl: provider.baseUrl } : {}),
           model: provider.model,
+          maxTokens: VISITOR_MAX_OUTPUT_TOKENS,
           system: SYSTEM_PREAMBLE,
           // SPEC-046 REQ-3: bounded prior turns (if any) precede the live message as real multi-turn
           // entries, each keeping its own `role` — not a flattened transcript string the way a
@@ -684,7 +713,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.
             if (event.type === "text_delta") sse(res, "text", { delta: event.delta });
-            else if (event.type === "error") sse(res, "error", { message: event.message });
+            else if (event.type === "error") sse(res, "error", reportError({ code: "provider_error", diagnostic: event.message }));
             else if (event.type === "end") sse(res, "end", { reason: event.reason });
           },
         });

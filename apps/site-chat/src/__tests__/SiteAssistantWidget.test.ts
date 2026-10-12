@@ -68,10 +68,12 @@ for (const restored of [false, true]) test(`public widget dialog: ${restored ? '
     press(first, 'Tab', true);
     assert.equal(dom.window.document.activeElement, last);
     const messagesBeforeReset = loadSiteAssistantState().messages;
+    const discardAction = restored ? 'Discard chat' : 'Discard draft';
     for (const cancel of [() => press(button('Cancel'), 'Escape'), () => act(() => button('Cancel').click())]) {
       act(() => button('New thread').click());
       assert.equal(dom.window.document.activeElement, button('Cancel'), 'confirmation focuses the safe action');
-      assert.equal(button('Discard chat?').closest('[role="dialog"]'), panel, 'confirmation stays inline');
+      assert.equal(button(discardAction).closest('[role="dialog"]'), panel, 'confirmation stays inline');
+      assert.equal(findButton(restored ? 'Discard draft' : 'Discard chat'), undefined, 'confirmation names what will be discarded');
       assert.equal(container.querySelectorAll('[role="dialog"]').length, 1);
       assert.equal(findButton('New thread'), undefined, 'confirmation replaces the reset action');
       assert.deepEqual(loadSiteAssistantState().messages, messagesBeforeReset, 'requesting reset must not discard messages');
@@ -79,12 +81,12 @@ for (const restored of [false, true]) test(`public widget dialog: ${restored ? '
       assert.equal(panel.hidden, false, 'cancelling discard keeps the chat open');
       assert.equal(dom.window.document.activeElement, button('New thread'));
       assert.equal(findButton('Cancel'), undefined);
-      assert.equal(findButton('Discard chat?'), undefined);
+      assert.equal(findButton(discardAction), undefined);
       assert.deepEqual(loadSiteAssistantState().messages, messagesBeforeReset);
       if (!restored) assert.equal(textarea.value, 'Show me the latest posts', 'Cancel and Escape preserve the draft');
     }
     act(() => button('New thread').click());
-    act(() => button('Discard chat?').click());
+    act(() => button(discardAction).click());
     const freshComposer = container.querySelector('textarea')!;
     assert.equal(freshComposer.value, '');
     assert.equal(dom.window.document.activeElement, freshComposer, 'focus stays inside after reset');
@@ -95,7 +97,8 @@ for (const restored of [false, true]) test(`public widget dialog: ${restored ? '
     assert.equal(button('Send').disabled, true, 'fresh chat has no draft to send');
     act(() => button('New thread').click());
     assert.equal(findButton('Cancel'), undefined, 'empty chat resets without confirmation');
-    assert.equal(findButton('Discard chat?'), undefined);
+    assert.equal(findButton('Discard chat'), undefined);
+    assert.equal(findButton('Discard draft'), undefined);
     assert.equal(dom.window.document.activeElement, container.querySelector('textarea'));
     press(dom.window.document.activeElement!, 'Escape');
     assert.equal(panel.hidden, true);

@@ -1,3 +1,4 @@
+import { anonymousMemberAccess } from "./member-access.fixture.js";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -51,7 +52,7 @@ function fakePort(rows: FakeRow[]) {
  * the REAL `features/post` export directly rather than a fake, same reasoning as `tools.test.ts`.
  */
 function makeDeps(overrides: Partial<SiteAssistantToolDeps> & Pick<SiteAssistantToolDeps, "postRepo">): SiteAssistantToolDeps {
-  return { workspaceId: "ws", listPublishedPosts, ...overrides };
+  return { workspaceId: "ws", listPublishedPosts, memberAccess: anonymousMemberAccess(), ...overrides };
 }
 
 function registryOver(rows: FakeRow[]) {

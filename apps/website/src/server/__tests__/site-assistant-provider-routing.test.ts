@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { set as setLegacySetting } from "@jini-ai/core/settings";
 import test from "node:test";
 
 import express from "express";
@@ -112,7 +113,8 @@ async function enablePublicAssistant(deps: RouteDeps): Promise<void> {
     {
       settingsRepo: deps.settingsRepo,
       getEffective: deps.getEffective,
-      set: deps.set,
+      // Reproduce legacy persisted ON states; admin enable validation has its own API suite.
+      set: setLegacySetting,
       clock: deps.clock,
       ids: deps.idGen,
       authorize: alwaysAllow,
@@ -135,7 +137,7 @@ async function storeSiteCredential(
       keyring: deps.siteAssistantSecretKeyring,
       clock: deps.clock,
     },
-    { workspaceId: deps.workspaceId, ...input },
+    { workspaceId: deps.workspaceId, ...(!input.provider || input.provider === "google" ? { model: "gemini-flash-latest" } : {}), ...input },
   );
 }
 
@@ -286,13 +288,11 @@ test("site assistant: a workspace configured for anthropic with no anthropic key
 
   assert.equal(stub.requests.length, 0, "no provider call may be made at all — least of all to Google with a Google key");
   assert.equal(raw.status, 503, `expected a 503 refusal, got ${raw.status} with body ${raw.text}`);
-  const body = JSON.parse(raw.text) as { error?: string; code?: string };
+  const body = JSON.parse(raw.text) as { error?: string; code?: string; errorId?: string };
   assert.equal(body.code, "NOT_CONFIGURED");
-  assert.match(
-    body.error ?? "",
-    /anthropic/i,
-    `the refusal must name the provider the workspace is actually configured for; got ${JSON.stringify(body.error)}`,
-  );
+  assert.match(body.error ?? "", /^The assistant couldn't answer right now/);
+  assert.ok(body.errorId);
+  assert.doesNotMatch(body.error ?? "", /provider|model|key/i);
 });
 
 /**
@@ -310,16 +310,17 @@ test("site assistant: a non-google provider with no model configured refuses wit
 
   assert.equal(stub.requests.length, 0, "no provider call may be made without a model to call");
   assert.equal(raw.status, 503, `expected a 503 refusal, got ${raw.status} with body ${raw.text}`);
-  const body = JSON.parse(raw.text) as { error?: string; code?: string };
+  const body = JSON.parse(raw.text) as { error?: string; code?: string; errorId?: string };
   assert.equal(body.code, "MODEL_NOT_CONFIGURED");
-  assert.match(body.error ?? "", /model/i);
+  assert.match(body.error ?? "", /^The assistant couldn't answer right now/);
+  assert.ok(body.errorId);
 });
 
 /**
  * `site_assistant_credentials.provider` is a plain text column and `put-site-credential.ts` accepts
- * any string. An unrecognized value must be named, not quietly rounded to Google.
+ * any string. An unrecognized value must be named in operator logs, not quietly rounded to Google.
  */
-test("site assistant: an unsupported stored provider refuses by name instead of falling through to Google", async (t) => {
+test("site assistant: an unsupported stored provider refuses safely instead of falling through to Google", async (t) => {
   const deps = createRouteDeps();
   await enablePublicAssistant(deps);
   const stub = await bootProviderStub(t, deps, () => googleReply("this must never be produced"));
@@ -329,9 +330,11 @@ test("site assistant: an unsupported stored provider refuses by name instead of 
 
   assert.equal(stub.requests.length, 0, "an unsupported provider must not reach any provider at all");
   assert.equal(raw.status, 503, `expected a 503 refusal, got ${raw.status} with body ${raw.text}`);
-  const body = JSON.parse(raw.text) as { error?: string; code?: string };
+  const body = JSON.parse(raw.text) as { error?: string; code?: string; errorId?: string };
   assert.equal(body.code, "PROVIDER_UNSUPPORTED");
-  assert.match(body.error ?? "", /cohere/);
+  assert.match(body.error ?? "", /^The assistant couldn't answer right now/);
+  assert.ok(body.errorId);
+  assert.doesNotMatch(body.error ?? "", /cohere|command-r|provider/);
 });
 
 /**
@@ -353,11 +356,10 @@ test("site assistant: a stored AZURE key with no stored endpoint is never sent t
 
   assert.equal(stub.requests.length, 0, "the stored azure key must not reach the env endpoint");
   assert.equal(raw.status, 200, `expected a 200 stream carrying the turn error, got ${raw.status} with body ${raw.text}`);
-  assert.match(
-    raw.text,
-    /the azure protocol requires a base URL/i,
-    `expected the azure adapter's own missing-base-URL error, got ${raw.text}`,
-  );
+  assert.match(raw.text, /event: error/);
+  assert.match(raw.text, /"code":"provider_error"/);
+  assert.match(raw.text, /"errorId":"[^"]+"/);
+  assert.doesNotMatch(raw.text, /azure|base URL|tovu-deployment/i);
 });
 
 /**
@@ -378,7 +380,7 @@ test("site assistant: a stored ANTHROPIC key with no stored model or endpoint do
 
   assert.equal(stub.requests.length, 0, "no provider call may be made without a stored model");
   assert.equal(raw.status, 503, `expected a 503 refusal, got ${raw.status} with body ${raw.text}`);
-  const body = JSON.parse(raw.text) as { error?: string; code?: string };
+  const body = JSON.parse(raw.text) as { error?: string; code?: string; errorId?: string };
   assert.equal(body.code, "MODEL_NOT_CONFIGURED");
 });
 
@@ -423,9 +425,9 @@ test("site assistant: a keyless stored GOOGLE row's stored baseUrl never receive
   const raw = await drainedBody(await postChat(siteUrl));
 
   assert.equal(adminStoredEndpoint.requests.length, 0, "the admin-stored endpoint must never receive the env key");
-  assert.equal(envEndpoint.requests.length, 1, "the env key must be dialed against the env endpoint instead");
-  assert.equal(raw.status, 200, `expected a 200 stream, got ${raw.status} with body ${raw.text}`);
-  assert.equal(sseTextOf(raw.text), "Hello from the env endpoint.");
+  assert.equal(envEndpoint.requests.length, 0, "a missing saved key must not consume the env key");
+  assert.equal(raw.status, 503);
+  assert.equal(JSON.parse(raw.text).code, "NOT_CONFIGURED");
 });
 
 test("site assistant: a stored GOOGLE key saved then DELETED leaves the stored baseUrl behind, which must not receive the env GEMINI_API_KEY either", async (t) => {
@@ -445,9 +447,9 @@ test("site assistant: a stored GOOGLE key saved then DELETED leaves the stored b
   const raw = await drainedBody(await postChat(siteUrl));
 
   assert.equal(adminStoredEndpoint.requests.length, 0, "the leftover stored baseUrl must never receive the env key");
-  assert.equal(envEndpoint.requests.length, 1, "the env key must be dialed against the env endpoint instead");
-  assert.equal(raw.status, 200, `expected a 200 stream, got ${raw.status} with body ${raw.text}`);
-  assert.equal(sseTextOf(raw.text), "Hello from the env endpoint.");
+  assert.equal(envEndpoint.requests.length, 0, "a missing saved key must not consume the env key");
+  assert.equal(raw.status, 503);
+  assert.equal(JSON.parse(raw.text).code, "NOT_CONFIGURED");
 });
 
 test("site assistant CONTROL: a stored key WITH a stored baseUrl still dials the stored endpoint, even with an env key and a different env baseUrl also present", async (t) => {
@@ -472,7 +474,7 @@ test("site assistant CONTROL: a stored key WITH a stored baseUrl still dials the
   assert.equal(sseTextOf(raw.text), "Hello from the stored endpoint.");
 });
 
-test("site assistant CONTROL: an env key with an env baseUrl and no stored row at all dials the env endpoint", async (t) => {
+test("site assistant: env key and endpoint cannot revive a site with no saved credentials", async (t) => {
   const deps = createRouteDeps();
   await enablePublicAssistant(deps);
   const envEndpoint = await recordingStub(t, googleReply("Hello from the env endpoint, no stored row."));
@@ -485,7 +487,7 @@ test("site assistant CONTROL: an env key with an env baseUrl and no stored row a
 
   const raw = await drainedBody(await postChat(siteUrl));
 
-  assert.equal(envEndpoint.requests.length, 1, "with no stored row, the env key must dial the env endpoint");
-  assert.equal(raw.status, 200, `expected a 200 stream, got ${raw.status} with body ${raw.text}`);
-  assert.equal(sseTextOf(raw.text), "Hello from the env endpoint, no stored row.");
+  assert.equal(envEndpoint.requests.length, 0, "with no saved key/model, the visitor route must refuse even with env defaults");
+  assert.equal(raw.status, 503);
+  assert.equal(JSON.parse(raw.text).code, "NOT_CONFIGURED");
 });

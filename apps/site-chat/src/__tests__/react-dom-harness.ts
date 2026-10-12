@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
 
 const DOM_GLOBAL_KEYS = [
-  'window', 'document', 'navigator', 'HTMLElement', 'Element', 'Node', 'Event',
+  'window', 'document', 'navigator', 'HTMLElement', 'HTMLAnchorElement', 'Element', 'Node', 'Event',
   // The session-store adapter reads the browser global; each test needs its own transcript.
   'sessionStorage',
   'KeyboardEvent', 'MouseEvent', 'CustomEvent', 'getComputedStyle',

@@ -15,6 +15,7 @@ import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { createSystemClock } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../../contracts/headless/assistant-subagents-policy.js";
+import { set } from "../site-title-write.js";
 
 
 function fixture(namespace: string, key: string, schema: SettingDefinitionRecord["schema"] = { type: "string" }) {
@@ -27,10 +28,12 @@ function fixture(namespace: string, key: string, schema: SettingDefinitionRecord
   };
   const settingsRepo = new InMemorySettingsRepo({ definitions: [definition] });
   let allowed = true;
+  let visitorReady = false;
   const deps = {
     workspaceId: "ws-1", settingsRepo, settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve(),
     clock: { nowMs: () => Date.parse(definition.createdAt) }, idGen: { newId: () => "unused" },
     principalRepo: { findById: async () => null }, authorize: async () => ({ allowed, reason: allowed ? "matched" : "insufficient_permission" }),
+    set: (required: Parameters<typeof set>[0]) => set(required, { canEnablePublicAssistant: async () => visitorReady }),
   } as unknown as SettingsToolDeps;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => "exchange-1" }, defaultChannel: "mcp-ui" });
   const registrations = contributeSettingsTools().build(deps as never, { surfaceExchanges });
@@ -40,7 +43,7 @@ function fixture(namespace: string, key: string, schema: SettingDefinitionRecord
     const { emitSurface, ...contextExtras } = extras;
     return registration.handler({ executionId: "exec-1", principal: { id: "caller" }, run: { id: "run-1" }, signal: new AbortController().signal, input, ...contextExtras }, { emitSurface });
   };
-  return { settingsRepo, registrations, surfaceExchanges, call, deps, deny: () => { allowed = false; } };
+  return { settingsRepo, registrations, surfaceExchanges, call, deps, deny: () => { allowed = false; }, visitorReady: () => { visitorReady = true; } };
 }
 
 for (const toolId of ["settings_set_value", "settings_clear_value"]) {
@@ -119,11 +122,14 @@ for (const [namespace, key] of [["core.execution", "byok.protocol"], ["core.exec
   });
 }
 
-test("visitor-facing assistant availability is an ordinary site setting and runs without a card", async () => {
+test("visitor-facing assistant requires saved credential readiness before its ordinary site-setting write", async () => {
   // public-assistant-settings.ts explicitly separates this switch from the admin assistant's
   // own permissions/runtime. Q5 requires cards only for the latter and privacy/instructions.
   const f = fixture("site.assistant", "public_enabled", { type: "boolean" });
   const input = { namespace: "site.assistant", key: "public_enabled" };
+  await assert.rejects(() => f.call("settings_set_value", { ...input, value: true }), /usable provider key and a model/);
+  assert.deepEqual(await f.settingsRepo.listRevisions({ settingId: "setting-1" }), []);
+  f.visitorReady();
   assert.deepEqual(await f.call("settings_set_value", { ...input, value: true }), { key: "site.assistant.public_enabled", scope: "workspace", previous: null, value: true, revisionSeq: 1 });
   assert.deepEqual(await f.call("settings_clear_value", input), { key: "site.assistant.public_enabled", scope: "workspace", previous: true, effective: false });
   assert.equal(f.surfaceExchanges.size(), 0);

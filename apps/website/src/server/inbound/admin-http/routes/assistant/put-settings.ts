@@ -5,6 +5,7 @@ import {
 } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps.js";
+import { ValueValidationFailedError } from "#src/features/settings/index";
 
 /**
  * PUT (partial) the workspace's `site.assistant.*` settings — the route the admin's AI Assistant
@@ -52,7 +53,7 @@ export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegis
       );
       res.json({ data: settings });
     } catch (err) {
-      if (err instanceof PublicAssistantSettingsValidationError) {
+      if (err instanceof PublicAssistantSettingsValidationError || err instanceof ValueValidationFailedError) {
         res.status(400).json({ error: err.message, code: "ASSISTANT_SETTINGS_VALIDATION_ERROR" });
         return;
       }

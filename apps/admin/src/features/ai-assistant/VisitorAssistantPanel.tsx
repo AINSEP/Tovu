@@ -86,9 +86,11 @@ export function VisitorAssistantPanel({
               onChange={(event) => panel.chooseWidget(event.target.value)}
               {...agentHandle({ handle: "ai-assistant-visitor-widget" }, { role: "field", label: "Visitor chat widget" })}>
               {/* Labels name the build and its gzipped size; the stored values stay "react"/"vanilla".
-                  "beta" was dropped: nothing in code marks the vanilla build as beta any more. */}
-              <option value="react">React (~200 KB)</option>
-              <option value="vanilla">{t("Pure JS")} (~30 KB)</option>
+                  "beta" was dropped: nothing in code marks the vanilla build as beta any more.
+                  Sizes measured 2026-10-09 with gzip -9 on apps/site-chat/dist: site-assistant.js
+                  209,573 B, site-assistant-vanilla.js 36,031 B. Re-measure when either build moves. */}
+              <option value="react">React (~210 KB)</option>
+              <option value="vanilla">{t("Pure JS")} (~35 KB)</option>
             </select>
           </div>
         </li>

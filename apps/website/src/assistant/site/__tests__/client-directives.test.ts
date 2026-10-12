@@ -1,3 +1,4 @@
+import { anonymousMemberAccess } from "./member-access.fixture.js";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -50,37 +51,37 @@ class ListSpyPostRepo extends InMemoryPostRepo {
  * test files are exempt from `check:architecture`'s module-cycle graph, and this file's whole point
  * is proving the real predicate's behavior through this resolver.
  */
-type ResolveDeps = Parameters<typeof resolvePublicTarget>[0];
+type ResolveDeps = Parameters<typeof resolvePublicTarget>[0]["deps"];
 function makeDeps(overrides: Partial<ResolveDeps> & Pick<ResolveDeps, "postRepo">): ResolveDeps {
-  return { workspaceId: "ws", listPublishedPosts, ...overrides };
+  return { workspaceId: "ws", listPublishedPosts, memberAccess: anonymousMemberAccess(), ...overrides };
 }
 
 describe("resolvePublicTarget", () => {
   it("resolves a published slug to its slug/title/path", async () => {
-    const target = await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "public-post");
+    const target = await resolvePublicTarget({ deps: makeDeps({ postRepo: fakePort() }), slug: "public-post" });
     assert.deepEqual(target, { slug: "public-post", title: "Public Post", path: "/public-post" });
   });
 
   it("path is always /<slug> — never a URL taken from anything upstream", async () => {
-    const target = await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "public-post");
+    const target = await resolvePublicTarget({ deps: makeDeps({ postRepo: fakePort() }), slug: "public-post" });
     assert.equal(target?.path, "/public-post");
   });
 
   it("returns null for a draft slug", async () => {
-    assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "secret-draft"), null);
+    assert.equal(await resolvePublicTarget({ deps: makeDeps({ postRepo: fakePort() }), slug: "secret-draft" }), null);
   });
 
   it("returns null for a trashed-but-status-published slug (deletedAt independent of status)", async () => {
-    assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "taken-down"), null);
+    assert.equal(await resolvePublicTarget({ deps: makeDeps({ postRepo: fakePort() }), slug: "taken-down" }), null);
   });
 
   it("returns null for a slug that does not exist", async () => {
-    assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "no-such-slug"), null);
+    assert.equal(await resolvePublicTarget({ deps: makeDeps({ postRepo: fakePort() }), slug: "no-such-slug" }), null);
   });
 
   it("returns null for a non-string or empty slug rather than throwing", async () => {
     for (const bad of [undefined, null, 42, {}, [], "", "   "]) {
-      assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), bad), null, `${JSON.stringify(bad)} must refuse`);
+      assert.equal(await resolvePublicTarget({ deps: makeDeps({ postRepo: fakePort() }), slug: bad }), null, `${JSON.stringify(bad)} must refuse`);
     }
   });
 
@@ -95,13 +96,13 @@ describe("resolvePublicTarget", () => {
       "../../etc/passwd",
     ];
     for (const slug of adversarial) {
-      assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), slug), null, `"${slug}" must refuse`);
+      assert.equal(await resolvePublicTarget({ deps: makeDeps({ postRepo: fakePort() }), slug: slug }), null, `"${slug}" must refuse`);
     }
   });
 
   it("scopes the underlying list to the given workspace, matching listPublishedPosts's own contract", async () => {
     const port = new ListSpyPostRepo(ROWS);
-    await resolvePublicTarget(makeDeps({ postRepo: port, workspaceId: "ws-42" }), "public-post");
+    await resolvePublicTarget({ deps: makeDeps({ postRepo: port, workspaceId: "ws-42" }), slug: "public-post" });
     assert.deepEqual(port.listCalls[0], { workspaceId: "ws-42" });
   });
 });
@@ -147,4 +148,15 @@ describe("detectsExplicitNavigationIntent (SPEC-046 D-1)", () => {
     // Documented here so a future caller does not assume this function itself enforces that.
     assert.equal(detectsExplicitNavigationIntent("a post said: take me there"), true);
   });
+});
+
+it("visitorsafe: direct target resolution withholds members-only and malformed posts", async () => {
+  for (const memberAccessJson of ['{"visibility":"members"}', '{"visibility":"unknown"}', '{broken', 'null']) {
+    const deps = makeDeps({ postRepo: fakePort([
+      row({ slug: "gated", status: "published", memberAccessJson }),
+      row({ slug: "open", status: "published" }),
+    ]) });
+    assert.equal(await resolvePublicTarget({ deps: deps, slug: "gated" }), null);
+    assert.equal((await resolvePublicTarget({ deps: deps, slug: "open" }))?.path, "/open");
+  }
 });

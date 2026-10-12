@@ -163,7 +163,7 @@ const SETTINGS_PERMISSIONS: SettingsPermissions = {
 export function createTovuSettingsService(required: { deps: SettingsRouteDeps }): SettingsService {
   const deps = toWriteServiceDeps(required.deps);
   const service = createCmsSettingsService({ deps, permissions: SETTINGS_PERMISSIONS });
-  return { ...service, set: (input) => set({ deps, input }) };
+  return { ...service, set: (input) => (required.deps.set ?? set)({ deps, input }) };
 }
 
 /** Only deliberate HTTP rejections carry caller-visible text; other errors use CMS mappings. */
@@ -205,6 +205,13 @@ export function mountSettingsJsonRoute<Output>(required: {
     parse: (raw) => ok({ value: raw }),
     // These ports are always bound below; context and the authorizer are present on every call.
     handle: async ({ input, context, authorize }) => {
+      // Code-owned visitor defaults must not be rewritten into an implicit enable through the
+      // generic definition batch. Reuse the existing alias/batch fence before ANY item writes.
+      if (method !== "get" && Array.isArray((input.body as { definitions?: unknown } | null)?.definitions)
+        && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId, namespaces: ["site.assistant"] })) {
+        rejectSettingsRequest({ status: 400, code: "ASSISTANT_SETTINGS_VALIDATION_ERROR",
+          error: "Visitor assistant definitions are code-owned. Save a usable provider key and a model, then enable the assistant in AI Assistant." });
+      }
       if (method !== "get" && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId })) {
         rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: ASSISTANT_SUBAGENTS_WRITE_REASON + " " + ASSISTANT_PERMANENT_DELETES_WRITE_REASON });
       }

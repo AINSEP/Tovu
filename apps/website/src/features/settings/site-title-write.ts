@@ -1,5 +1,5 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { set as setSettingValue, ValueValidationFailedError, type SetValueRequired } from "@jini-ai/core/settings";
+import { resolveDefinitionRaw, set as setSettingValue, ValueValidationFailedError, type SetValueRequired } from "@jini-ai/core/settings";
 
 import { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_MAX_LENGTH, SITE_TITLE_NAMESPACE } from "./site-title.js";
 
@@ -37,10 +37,25 @@ export function enforceSiteTitleWriteBounds(input: SetValueRequired["input"]): S
 
 /**
  * The package's `set` with {@link enforceSiteTitleWriteBounds} applied first, so a rejected title
- * never reaches the ledger. Same signature, so it binds wherever the package's `set` did.
+ * never reaches the ledger. Visitor enable writes additionally require the host's saved-credential
+ * policy. Canonical definition resolution prevents an alias from bypassing that policy.
  *
  * @complexity O(n) in the value's length, plus the package `set`'s own cost.
  */
-export async function set(required: SetValueRequired): Promise<{ value: JsonValue; revisionSeq: number }> {
+export async function set(required: SetValueRequired, optional: {
+  /** Host policy: a public visitor surface requires its own saved, decryptable key and model. */
+  canEnablePublicAssistant?: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<boolean>;
+} = {}): Promise<{ value: JsonValue; revisionSeq: number }> {
+  const definition = required.input.value === true ? await resolveDefinitionRaw({ repo: required.deps.repo }, {
+    namespace: required.input.namespace, key: required.input.key,
+    workspaceId: required.input.scope === "global" ? null : required.input.workspaceId ?? null,
+  }) : null;
+  if (definition?.namespace === "site.assistant" && definition.key === "public_enabled") {
+    const workspaceId = required.input.workspaceId;
+    // Missing policy fails closed, including direct callers outside the composed HTTP server.
+    if (!workspaceId || !await optional.canEnablePublicAssistant?.({ workspaceId })) {
+      throw new ValueValidationFailedError("Save a usable provider key and a model in AI Assistant before enabling the public assistant.");
+    }
+  }
   return setSettingValue({ ...required, input: enforceSiteTitleWriteBounds(required.input) });
 }

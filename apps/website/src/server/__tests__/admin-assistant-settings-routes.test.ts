@@ -8,6 +8,7 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createAssistantSettingsModule } from "../runtime/composition/modules/assistant-settings.js";
 import type { RouteDeps } from "../routes/types.js";
+import { setSiteAssistantCredential } from "#src/assistant/index";
 
 /**
  * @file Route-level tests for the admin AI Assistant settings surface — the GET/PUT pair backing the
@@ -24,7 +25,7 @@ const WORKSPACE_ID = "workspace-local";
 const SETTINGS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/assistant/settings`;
 
 test("wcmp: widget choice persists through the existing settings API without enabling visitors", async t => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const selected = await put(baseUrl, cookie, { widget: "vanilla" });
   assert.equal(selected.status, 200);
@@ -36,8 +37,12 @@ test("wcmp: widget choice persists through the existing settings API without ena
   assert.deepEqual(await (await get(baseUrl, cookie)).json(), { data: { publicEnabled: false, widget: "vanilla" }, adminAssistantEnabled: true });
 });
 
-function buildTestApp(): { app: express.Express; deps: RouteDeps } {
+async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }> {
   const deps: RouteDeps = createRouteDeps();
+  await deps.siteTitleReady;
+  await setSiteAssistantCredential({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+  { workspaceId: deps.workspaceId, apiKey: "visitorai-test-key", model: "saved-model" });
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
@@ -105,7 +110,7 @@ function put(baseUrl: string, cookie: string, body: unknown): Promise<Response> 
 }
 
 test("GET returns the public assistant switch, OFF on a freshly booted site", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await get(baseUrl, cookie);
@@ -114,7 +119,7 @@ test("GET returns the public assistant switch, OFF on a freshly booted site", as
 });
 
 test("GET's adminAssistantEnabled reflects TOVU_ADMIN_ASSISTANT, independent of the public switch", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   // Mirrors `commit-site.unit.test.ts`'s override technique — mutating the object `createRouteDeps()`
@@ -132,7 +137,7 @@ test("GET's adminAssistantEnabled reflects TOVU_ADMIN_ASSISTANT, independent of 
 });
 
 test("PUT turns the switch on, and a follow-up GET reads it back — the write is durable, not echoed", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const write = await put(baseUrl, cookie, { publicEnabled: true });
@@ -144,7 +149,7 @@ test("PUT turns the switch on, and a follow-up GET reads it back — the write i
 });
 
 test("PUT turns the switch back off — the incident path an operator actually needs", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   await put(baseUrl, cookie, { publicEnabled: true });
@@ -155,7 +160,7 @@ test("PUT turns the switch back off — the incident path an operator actually n
 });
 
 test("PUT with an empty body leaves the setting alone rather than resetting it", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   await put(baseUrl, cookie, { publicEnabled: true });
@@ -165,7 +170,7 @@ test("PUT with an empty body leaves the setting alone rather than resetting it",
 });
 
 test("PUT rejects a non-boolean publicEnabled with 400 and a typed code", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await put(baseUrl, cookie, { publicEnabled: "yes" });
@@ -182,7 +187,7 @@ test("PUT rejects a non-boolean publicEnabled with 400 and a typed code", async 
 });
 
 test("both routes require a session — an unauthenticated caller never reaches them", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const baseUrl = await startTestServer(app, t);
 
   assert.equal((await get(baseUrl, "")).status, 401);
@@ -190,7 +195,7 @@ test("both routes require a session — an unauthenticated caller never reaches 
 });
 
 test("both routes require admin.assistant.manage — a signed-in principal without it gets 403", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const baseUrl = await startTestServer(app, t);
   // `content.write` is a real, unrelated grant: this proves the gate checks the specific permission
   // rather than merely "is authenticated with something".
@@ -205,7 +210,7 @@ test("both routes require admin.assistant.manage — a signed-in principal witho
 });
 
 test("a principal holding only admin.assistant.manage can both read and flip the switch", async (t) => {
-  const { app, deps } = buildTestApp();
+  const { app, deps } = await buildTestApp();
   const baseUrl = await startTestServer(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["admin.assistant.manage"]);
 
@@ -220,7 +225,7 @@ test("a principal holding only admin.assistant.manage can both read and flip the
 });
 
 test("a workspace id that is not this site's is 404, on both verbs", async (t) => {
-  const { app } = buildTestApp();
+  const { app } = await buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const otherPath = "/api/admin/v1/workspaces/some-other-workspace/assistant/settings";
 

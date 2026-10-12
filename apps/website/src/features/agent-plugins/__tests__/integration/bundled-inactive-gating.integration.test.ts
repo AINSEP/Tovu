@@ -1,3 +1,4 @@
+import { anonymousMemberAccess } from "#src/assistant/site/__tests__/member-access.fixture";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -215,7 +216,7 @@ test("every core, public and bundled guide tool pointer resolves to a currently 
     const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(path.join(BUNDLED_SOURCE_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8") });
     if (!parsed.ok) throw new Error(parsed.reason);
     const cards = [...TOVU_CAPABILITY_CARDS, ...parsed.descriptors];
-    const visitor = createSiteCapabilityRegistry({ workspaceId: WORKSPACE_ID, postRepo: new InMemoryPostRepo(), listPublishedPosts });
+    const visitor = createSiteCapabilityRegistry({ workspaceId: WORKSPACE_ID, postRepo: new InMemoryPostRepo(), listPublishedPosts, memberAccess: anonymousMemberAccess() });
     const publicIds = new Set(visitor.schemas.map(tool => tool.name));
     let checked = 0;
     for (const [topics, registeredIds] of [[cards, ids], [[publicCapabilityCard], publicIds]] as const) {

@@ -29,7 +29,14 @@ import { latestUserPromptFromHistory } from "@jini-ai/chat/core";
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
+import { NO_REPLY_REASON, visitorFacingError } from "./site-assistant-errors";
+
 const CHAT_URL = "/api/site-assistant/chat";
+/** Silence (no bytes at all) this long ends the turn with a visible error instead of an endless
+ *  "Replying…". The server sends no keep-alive frames, and a reply can pause while it searches
+ *  content, so this is generous; any received chunk restarts it. */
+const IDLE_TIMEOUT_MS = 90_000;
+const TIMEOUT_REASON = "the site took too long to respond";
 /** Oldest-dropped-first turn cap and per-turn character cap for the `history` sent alongside a
  *  message — matches `assistant/site/history.ts`'s server-side defaults in VALUE only (the server is
  *  the actual enforcement point; see this file's header). */
@@ -121,7 +128,8 @@ function drainCompleteFrames(buffer: string, onFrame: (event: string, data: unkn
 
 /**
  * Parses one `fetch` response body as the `event:`/`data:` SSE framing `sse()` writes
- * (`src/server/modules/site-assistant.ts`), invoking `onFrame` once per complete frame.
+ * (`src/server/modules/site-assistant.ts`), invoking `onFrame` once per complete frame and `onChunk`
+ * once per received chunk (any bytes, complete frame or not — the idle timer's "still alive" signal).
  *
  * Hand-rolled rather than a library SSE client because `fetch` is required here (a POST body), and
  * the browser's native `EventSource` only ever issues GET — the same constraint the admin transport
@@ -133,6 +141,7 @@ function drainCompleteFrames(buffer: string, onFrame: (event: string, data: unkn
 async function pumpServerSentEvents(
   response: Response,
   onFrame: (event: string, data: unknown) => void,
+  onChunk: () => void,
 ): Promise<void> {
   const body = response.body;
   if (!body) throw new Error("site assistant response had no stream body");
@@ -144,6 +153,7 @@ async function pumpServerSentEvents(
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
+    onChunk();
     buffer += decoder.decode(value, { stream: true });
     buffer = drainCompleteFrames(buffer, onFrame);
   }
@@ -153,7 +163,22 @@ async function pumpServerSentEvents(
  *  transport itself is stateless per call, but a cancellation has to reach a specific earlier call. */
 const activeRuns = new Map<string, AbortController>();
 
-export function createSiteAssistantTransport(): ChatTransport {
+export interface SiteAssistantTransportOptions {
+  /** Defaults to the global `fetch`, resolved per call. */
+  readonly fetch?: typeof fetch;
+  /** Defaults to {@link IDLE_TIMEOUT_MS}. */
+  readonly idleTimeoutMs?: number;
+}
+
+/**
+ * Every failure a visitor can hit — non-ok HTTP (incl. the server's JSON `{ error }`), an SSE
+ * `error` frame, a network/stream failure, a stream that settles with no reply, or
+ * {@link IDLE_TIMEOUT_MS} of silence — reaches `onError` exactly once, worded by
+ * `visitorFacingError`, and the run always finishes so the composer re-enables for another try.
+ */
+export function createSiteAssistantTransport(_required: Record<string, never> = {}, options: SiteAssistantTransportOptions = {}): ChatTransport {
+  const fetchChat: typeof fetch = options.fetch ?? ((...args) => globalThis.fetch(...args));
+  const idleTimeoutMs = options.idleTimeoutMs ?? IDLE_TIMEOUT_MS;
   return {
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
       const message = latestUserPromptFromHistory({ history: input.history as ChatMessage[] });
@@ -169,16 +194,35 @@ export function createSiteAssistantTransport(): ChatTransport {
 
       const collected: AgentEvent[] = [];
       let settled = false;
-      const finish = () => {
+      let failed = false;
+      let replied = false;
+      let timedOut = false;
+      let idleTimer: ReturnType<typeof setTimeout> | undefined;
+      const armIdleTimer = () => {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => { timedOut = true; controller.abort(); }, idleTimeoutMs);
+      };
+      // Settled runs stay silent: an error after `end` (a late frame, a reset socket) must not
+      // paint a failure under a reply the visitor already has.
+      const fail = (error: unknown) => {
         if (settled) return;
+        failed = true;
+        handlers.onError(visitorFacingError({ error }));
+      };
+      // `expectReply: false` only for an abort: a visitor's own Stop is not a missing reply.
+      const finish = ({ expectReply = true }: { expectReply?: boolean } = {}) => {
+        if (settled) return;
+        if (expectReply && !failed && !replied) fail(NO_REPLY_REASON);
         settled = true;
+        clearTimeout(idleTimer);
         activeRuns.delete(runId);
         handlers.onDone(collected);
       };
 
       (async () => {
         try {
-          const response = await fetch(CHAT_URL, {
+          armIdleTimer();
+          const response = await fetchChat(CHAT_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             // No credentials, no key: ADR-054 Decision 3 — the visitor never supplies or sees a
@@ -189,7 +233,7 @@ export function createSiteAssistantTransport(): ChatTransport {
 
           if (!response.ok) {
             const body = (await response.json().catch(() => null)) as { error?: string } | null;
-            handlers.onError(new Error(body?.error || `site assistant request failed (${response.status})`));
+            fail(new Error(body?.error || `site assistant request failed (${response.status})`));
             finish();
             return;
           }
@@ -197,31 +241,36 @@ export function createSiteAssistantTransport(): ChatTransport {
           await pumpServerSentEvents(response, (event, data) => {
             if (event === "text") {
               const ev: AgentEvent = { kind: "text", text: (data as ChatFrameText).delta };
+              if (ev.text.trim()) replied = true;
               collected.push(ev);
               handlers.onEvent(ev);
             } else if (event === "error") {
-              handlers.onError(new Error((data as ChatFrameError).message || "site assistant error"));
+              fail(new Error((data as ChatFrameError).message || "site assistant error"));
             } else if (event === "end") {
               void (data as ChatFrameEnd); // reason is server telemetry only; nothing here branches on it.
               finish();
             } else if (event === "client_directive") {
               const ev: AgentEvent = { kind: "ext", name: CLIENT_DIRECTIVE_EXT_NAME, data };
+              // A page action alone (e.g. "take me there") is a real answer, not an empty reply.
+              replied = true;
               collected.push(ev);
               handlers.onEvent(ev);
             }
-          });
+          }, armIdleTimer);
           // Stream ended without an explicit "end" frame (e.g. the connection just closed) —
           // finish anyway so the pane never shows a run stuck "in progress" forever.
           finish();
         } catch (error) {
           // An abort we caused ourselves (stopRun, or the pane unmounting) is not a failure to
           // report — it is the requested outcome, and `res.on("close")` server-side already turned
-          // it into a clean upstream cancellation rather than a wasted completed generation.
+          // it into a clean upstream cancellation rather than a wasted completed generation. The
+          // idle timer's abort is the exception: the visitor asked nothing to stop, so say why.
           if (error instanceof DOMException && error.name === "AbortError") {
-            finish();
+            if (timedOut) fail(TIMEOUT_REASON);
+            finish({ expectReply: false });
             return;
           }
-          handlers.onError(error instanceof Error ? error : new Error(String(error)));
+          fail(error);
           finish();
         }
       })();

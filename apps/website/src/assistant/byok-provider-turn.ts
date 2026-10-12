@@ -14,6 +14,15 @@ import { providerTurnAdapters, runProviderToolTurn } from "@jini-ai/agent-runtim
  *  four values by TypeScript regardless of which file declares the union. */
 export type ByokProtocol = "anthropic" | "openai" | "azure" | "google";
 
+/** The stored `provider` string, narrowed to a protocol this adapter can actually dispatch, or
+ * null when it names something else. Case- and whitespace-insensitive because the column is
+ * free-form. The adapters themselves own the supported protocols; no second allowlist lives here.
+ * @complexity O(n) in provider length. */
+export function resolveByokProtocol({ provider }: { provider: string }, _optional = {}): ByokProtocol | null {
+  const normalized = provider.trim().toLowerCase();
+  return Object.hasOwn(providerTurnAdapters, normalized) ? normalized as ByokProtocol : null;
+}
+
 /** Text history plus pixels prepared for the current message at the shared attachment seam. */
 export interface ByokChatMessage {
   readonly role: "user" | "assistant";
