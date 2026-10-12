@@ -56,6 +56,8 @@ export interface EnableConfirmationSubject {
   /** The human-readable name, when the family's read model has one distinct from the id. */
   readonly label?: string;
   readonly version?: string;
+  /** Site plugins: capability entries beyond the owner's last approval (all of them the first time). */
+  readonly adds?: readonly string[];
 }
 
 /** Per-family wording. Kept as data rather than branches inside the builder so the two families'
@@ -71,7 +73,7 @@ const FAMILY_COPY: Record<PluginFamily, { readonly noun: string; readonly warnin
   "site-runtime": {
     noun: "site plugin",
     warning:
-      "Enabling this runs the plugin's own code in this site. If it declares a data module, enabling applies schema " +
+      "It gets full server access. Enabling this runs the plugin's own code in this site. If it declares a data module, enabling applies schema " +
       "changes to the live database (ADR-023 — snapshot-protected and transactional, but not a metadata-only flip).",
   },
 };
@@ -90,7 +92,8 @@ export function describeEnableApproval({ subject }: { subject: EnableConfirmatio
     title: `Enable ${subject.label ?? subject.pluginId}?`,
     description: `This turns on the ${copy.noun} "${subject.pluginId}" for this workspace.`,
     details: [{ label: "Plugin", value: subject.pluginId }, { label: "Kind", value: copy.noun },
-      ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }])],
+      ...(subject.version === undefined ? [] : [{ label: "Version", value: subject.version }]),
+      ...(subject.adds?.length ? [{ label: "Adds", value: subject.adds.join(", ") }] : [])],
     warning: copy.warning + " This escalation approval is saved for this plugin identity, version and digest. It also covers the six assistant execution settings; every action still checks its current permissions.", confirmLabel: "Enable",
     // Cancelling posts back and resolves the parked call immediately, rather than stranding it.
     cancelLabel: "Cancel",

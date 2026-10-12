@@ -8,7 +8,7 @@ import path from 'node:path';
 import express, { type RequestHandler } from 'express';
 import { createToolRegistry } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
-import { createPluginSourcePolicy, InMemoryPluginActivationRepo, setPluginEnabled, type ExtensionClaim } from '@jini-ai/plugins/host';
+import { createPluginSourcePolicy, InMemoryPluginActivationRepo, pluginCapabilitySet, setPluginEnabled, type ExtensionClaim } from '@jini-ai/plugins/host';
 import { composePluginRuntime } from '../../../../server/runtime/composition/plugin-runtime.js';
 import { registerPluginContributionRoutes } from '../../../../server/inbound/public-http/routes/plugin-contributions.js';
 import { parsePublicJsonBody } from '../../../../server/inbound/shared/json-body-parsers.js';
@@ -54,7 +54,13 @@ async function harness(t: TestContext, options: { coreClaims?: readonly Extensio
   const routeErrors: Array<{ pluginId: string; error: unknown }> = [];
   registerPluginContributionRoutes({ app, deps, auth: { member: guard('member'), admin: guard('admin') } }, { onError: failure => { routeErrors.push(failure); } });
   const baseUrl = await startTestServer(app, t);
-  const setEnabled = async (id = pluginId, enabled = true) => setPluginEnabled({ deps: { clock, repo: activationRepo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled }, input: { workspaceId, pluginId: id, enabled } });
+  // Models the owner's approval (admin toggle or confirmed card), which re-seals are compared against.
+  const setEnabled = async (id = pluginId, enabled = true) => {
+    const manifest = (await runtime.discoverPlugins()).find(record => record.id === id)?.manifest;
+    if (enabled && manifest) await source.recordApproval({ id, capabilities: pluginCapabilitySet({ manifest }) });
+    return setPluginEnabledNow(id, enabled);
+  };
+  const setPluginEnabledNow = async (id: string, enabled: boolean) => setPluginEnabled({ deps: { clock, repo: activationRepo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled }, input: { workspaceId, pluginId: id, enabled } });
   const author = async (id = pluginId, code = entry('first'), routeClaims = ['POST /public','POST /member','POST /admin']) => {
     await source.create({id,name:'Sample',description:'Site local sample'});
     const manifest = JSON.parse((await source.read({id,path:'tovu.plugin.json'})).content);

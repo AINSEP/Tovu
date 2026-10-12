@@ -4,7 +4,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import test, { type TestContext } from 'node:test';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
-import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createPluginSourcePolicy, InMemoryPluginActivationRepo, setPluginEnabled } from '@jini-ai/plugins/host';
 import { composePluginRuntime } from '#src/server/runtime/composition/plugin-runtime';
@@ -42,6 +42,18 @@ async function harness(t: TestContext) {
     const tool = registrations.find(tool => tool.descriptor.id === toolId); assert.ok(tool);
     return tool.handler(context(input), { emitSurface: async () => assert.fail(`${toolId} must run directly for a sealed site package`) });
   };
+  /** Answers every enable card the way the browser callback does; returns the result and card texts. */
+  const approve = async (toolId: string, input: unknown) => {
+    const tool = registrations.find(tool => tool.descriptor.id === toolId); assert.ok(tool);
+    const cards: string[] = [];
+    const result = await tool.handler(context(input), { emitSurface: async surface => {
+      const html = (surface as unknown as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+      cards.push(html);
+      const exchangeId = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`))?.[1]; assert.ok(exchangeId);
+      setImmediate(() => { assert.equal(surfaceExchanges.deliver({ exchangeId, params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: 'confirm' }, principalId: 'owner' }, { toolId }).ok, true); });
+    } });
+    return { result, cards };
+  };
   async function createFilter() {
     await call('plugin_source_create', { id, name: 'Site rules', description: 'Test site content rules' });
     const manifest = JSON.parse((await source.read({ id, path: 'tovu.plugin.json' })).content);
@@ -49,16 +61,16 @@ async function harness(t: TestContext) {
     await call('plugin_source_write', { id, path: 'server/index.mjs', content: entry });
     await call('plugin_source_write', { id, path: 'server/helper.mjs', content: 'export const value = 1;\n' });
   }
-  return { root, installDir, runtime, activationRepo, source, deps, registrations, call, createFilter };
+  return { root, installDir, runtime, activationRepo, source, deps, registrations, call, approve, createFilter };
 }
 
-test('chat can scaffold, write, seal and enable without a switch or confirmation; updates replace helper module snapshots', async t => {
+test('chat can scaffold, write, seal and enable after one owner confirmation; updates replace helper module snapshots', async t => {
   const h = await harness(t); await h.createFilter();
   const first = await h.call('plugin_source_seal', { id }) as { installed: boolean; reloaded: boolean };
   assert.equal(first.installed, true); assert.equal(first.reloaded, false);
   assert.deepEqual(await h.activationRepo.listAll(), []);
-  const enabled = await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true }) as { changed: boolean };
-  assert.equal(enabled.changed, true);
+  const { result: enabled, cards } = await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true }) as { result: { changed: boolean }; cards: string[] };
+  assert.equal(enabled.changed, true); assert.equal(cards.length, 1);
   assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 1 } });
   const oldHelper = path.join(h.installDir, id, '0.1.0/server/helper.mjs');
   await h.call('plugin_source_edit', { id, path: 'server/helper.mjs', oldString: 'value = 1', newString: 'value = 2' });
@@ -75,7 +87,7 @@ test('chat can scaffold, write, seal and enable without a switch or confirmation
 
 test('new versions update active pointers across workspaces and the existing poll reloads another process once', async t => {
   const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
-  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
   const remoteWorkspace = 'other-workspace';
   const remote = composePluginRuntime({ workspaceId: remoteWorkspace, clock, activationRepo: h.activationRepo, sources: [], installDir: h.installDir, pluginSourcePolicy: h.runtime.pluginSourcePolicy });
   await setPluginEnabled({ deps: { clock, repo: h.activationRepo, discovery: await remote.discoverPlugins(), onEnabled: remote.onPluginEnabled, onDisabled: remote.onPluginDisabled }, input: { workspaceId: remoteWorkspace, pluginId: id, enabled: true } });
@@ -94,7 +106,7 @@ test('new versions update active pointers across workspaces and the existing pol
 
 test('removing a filter from a sealed manifest clears the old running hook', async t => {
   const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
-  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
   const manifest = JSON.parse((await h.source.read({ id, path: 'tovu.plugin.json' })).content);
   await h.source.write({ id, path: 'tovu.plugin.json', content: JSON.stringify({ ...manifest, capabilities: [], hooks: [], fields: [] }) });
   await h.source.write({ id, path: 'server/index.mjs', content: 'export default { definition: { setup() {} } };' });
@@ -105,7 +117,7 @@ test('removing a filter from a sealed manifest clears the old running hook', asy
 
 test('a newly installed package does not replace the active pointer at boot until controlled reload', async t => {
   const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
-  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
   await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 4;\n' }); await h.source.seal({ id });
   // Model a process crash after immutable publication but before active-pointer advancement.
   const row = await h.activationRepo.getActivation({ workspaceId, pluginId: id }); assert.ok(row);
@@ -120,7 +132,7 @@ test('a newly installed package does not replace the active pointer at boot unti
 
 test('reload failures return installed:true with a reason and pin the restored working version', async t => {
   const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
-  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
   await h.source.write({ id, path: 'server/index.mjs', content: 'export default {};' });
   const result = await h.source.seal({ id });
   assert.equal(result.installed, true); assert.equal(result.reloaded, false); assert.match(result.reloadError ?? '', /PLUGIN_EXPORT_INVALID/);
@@ -135,7 +147,7 @@ test('reload failures return installed:true with a reason and pin the restored w
 
 test('reload quarantines only when the restored version also cannot load', async t => {
   const h = await harness(t); await h.createFilter(); await h.source.seal({ id });
-  await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
   await writeFile(path.join(h.installDir, id, '0.1.0/server/helper.mjs'), 'tampered bytes');
   await h.source.write({ id, path: 'server/index.mjs', content: 'export default {};' });
   const result = await h.source.seal({ id });
@@ -150,6 +162,36 @@ test('the scaffold documents real route/tool/widget registrations and required m
   const h = await harness(t); await h.source.create({ id, name: 'Examples', description: '' });
   const scaffold = (await h.source.read({ id, path: 'server/index.mjs' })).content;
   for (const required of ['sdk.routes.add', 'sdk.tools.add', 'sdk.widgets.add', 'http.route.register', 'tools.register', 'render.contribute', 'contributes', '/api/p/<plugin-id>/hello']) assert.ok(scaffold.includes(required), required);
+});
+
+test('consent gap (2026-10-12): an assistant-sealed plugin cannot enable without an owner confirmation naming what it adds', async t => {
+  const h = await harness(t); await h.createFilter(); await h.call('plugin_source_seal', { id });
+  const { result, cards } = await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true }) as { result: { changed: boolean }; cards: string[] };
+  assert.equal(cards.length, 1, 'a site-sealed tier-3 plugin must not enable silently');
+  assert.match(cards[0]!, /full server access/i);
+  assert.match(cards[0]!, /content\.entry\.beforeSave/);
+  assert.equal(result.changed, true);
+});
+
+test('an unchanged re-seal does not re-prompt; a widened re-seal waits for a new confirmation listing only the additions', async t => {
+  const h = await harness(t); await h.createFilter(); await h.call('plugin_source_seal', { id });
+  await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 5;\n' });
+  assert.equal((await h.source.seal({ id })).reloaded, true);
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 5 } });
+  // Re-enabling the same capabilities runs directly: `call` fails on any card.
+  assert.equal((await h.call('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true }) as { changed: boolean }).changed, true);
+  const manifest = JSON.parse((await h.source.read({ id, path: 'tovu.plugin.json' })).content);
+  await h.source.write({ id, path: 'tovu.plugin.json', content: JSON.stringify({ ...manifest, fields: [...manifest.fields, { path: `ext.${id}.extra`, type: 'integer', queryable: false }] }) });
+  await h.source.write({ id, path: 'server/helper.mjs', content: 'export const value = 6;\n' });
+  const widened = await h.source.seal({ id });
+  assert.equal(widened.reloaded, false); assert.match(widened.reloadError ?? '', /approval/i);
+  assert.equal((await h.activationRepo.getActivation({ workspaceId, pluginId: id }))?.version, '0.1.1', 'the approved version keeps running');
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 5 } });
+  const { cards } = await h.approve('plugins_set_enabled', { family: 'site-runtime', pluginId: id, enabled: true });
+  assert.equal(cards.length, 1); assert.match(cards[0]!, new RegExp(`ext\\.${id}\\.extra`)); assert.doesNotMatch(cards[0]!, /content\.entry\.beforeSave/);
+  assert.equal((await h.activationRepo.getActivation({ workspaceId, pluginId: id }))?.version, '0.1.2');
+  assert.deepEqual(await h.runtime.beforeSaveHook(draft), { [id]: { value: 6 } });
 });
 
 test('copied site packages lack site-owned provenance and keep their enable confirmation', async t => {

@@ -3,7 +3,7 @@ import { createPluginModuleImporter, type PluginBeforeSavePreview, pluginHostBin
 import { lstat } from "node:fs/promises";
 import path from "node:path";
 import { assertPluginInstallIdle, createPluginSourceService, installSitePlugin, previewSitePluginInstall, pruneSitePluginVersions, type PluginInstallerPort, type PluginSourcePort } from "@jini-ai/plugins/host/node";
-import { createPluginContributionCapture, createPluginContributionRegistry, type PluginContributionRegistry, type PluginSdk, setPluginEnabled, type PluginSourcePolicyPort } from '@jini-ai/plugins/host';
+import { addedPluginCapabilities, createPluginContributionCapture, createPluginContributionRegistry, pluginCapabilitySet, type PluginContributionRegistry, type PluginSdk, setPluginEnabled, type PluginSourcePolicyPort } from '@jini-ai/plugins/host';
 import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
@@ -532,6 +532,12 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     reload: async ({ id }) => {
       const enabled = (await activationRepo.listAll()).filter(row => row.pluginId === id && row.enabled);
       const discovery = await discoverPlugins();
+      // Consent gap (2026-10-12): a re-seal that widens what a running plugin can reach waits for
+      // the owner. Thrown here, the source service reports it as reloadError and keeps every
+      // retained version; the approved version keeps running until plugins_set_enabled is confirmed.
+      const next = discovery.find(record => record.id === id)?.manifest;
+      const added = enabled.length > 0 && next ? addedPluginCapabilities({ approved: await pluginSource?.readApproval({ id }, {}), next: pluginCapabilitySet({ manifest: next }) }) : [];
+      if (added.length > 0) throw new Error(`PLUGIN_APPROVAL_REQUIRED: this version adds ${added.join(', ')}. The approved version keeps running; ask the owner to approve it by enabling it again with plugins_set_enabled.`);
       // Load here before publishing active pointers to other processes. Their existing poll sees
       // a version change and re-enters the same validated loader, replacing module snapshots.
       enabled.sort((a, b) => Number(b.workspaceId === required.workspaceId) - Number(a.workspaceId === required.workspaceId));

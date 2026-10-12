@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
 import { DuplicateCommandError, executeCommand, ForbiddenError } from "@jini-ai/cms/core";
-import { PluginIncompatibleError, PluginInvalidError, PluginNotFoundError, setPluginEnabled, type PluginActivationRecord } from "@jini-ai/plugins/host";
+import { pluginCapabilitySet, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError, setPluginEnabled, type PluginActivationRecord } from "@jini-ai/plugins/host";
 import { PluginLoadError } from "@jini-ai/plugins/host/node";
 import { PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
@@ -121,6 +121,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
     try {
       const principal = getAuthedPrincipal(res);
       const discovery = await deps.discoverPlugins();
+      const site = discovery.find((r) => r.id === pluginId && r.source === "site");
 
       const { result, changeSetId } = await executeCommand({
         deps: {
@@ -150,8 +151,12 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
             // single-field activation shape).
             return { enabled: priorActivation?.enabled ?? false };
           },
-          execute: () =>
-            setPluginEnabled({
+          execute: async () => {
+            // The owner's own click is the approval later assistant re-seals are compared against,
+            // so a code-only re-seal does not ask again. Inside `execute`, i.e. only after the
+            // permission gate; recorded first, so a failed record leaves the plugin off.
+            if (enabled && site?.manifest && deps.pluginSource) await deps.pluginSource.recordApproval({ id: pluginId, capabilities: pluginCapabilitySet({ manifest: site.manifest }) }, {});
+            return setPluginEnabled({
               deps: {
                 clock: deps.clock,
                 repo: deps.pluginActivationRepo,
@@ -160,7 +165,8 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
                 onDisabled: deps.onPluginDisabled,
               },
               input: { workspaceId: deps.workspaceId, pluginId, enabled },
-            }),
+            });
+          },
           rollback: () => rollbackPluginActivation(deps, { workspaceId: deps.workspaceId, pluginId, priorActivation }),
         },
       });

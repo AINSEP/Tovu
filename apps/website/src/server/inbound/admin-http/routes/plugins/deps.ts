@@ -27,6 +27,8 @@ import type { RemovePluginFn } from "@jini-ai/plugins/host";
  */
 export interface PluginsRouteDeps {
   pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
+  /** Records the owner's enable as the site plugin's approved capability set (consent gap, 2026-10-12). */
+  pluginSource?: Pick<import('@jini-ai/plugins/host/node').PluginSourcePort, "recordApproval">;
   pluginInstaller?: import("@jini-ai/plugins/host/node").PluginInstallerPort;
   workspaceId: UUID;
   authorize: AuthorizeFn;

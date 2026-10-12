@@ -281,3 +281,20 @@ test("set-enabled: a record-persistence failure AFTER re-enabling a previously-d
   assert.deepEqual((pluginDeps as unknown as { onEnabledCalls: string[] }).onEnabledCalls, ["word-count"]);
   assert.deepEqual((pluginDeps as unknown as { onDisabledCalls: string[] }).onDisabledCalls, ["word-count"]);
 });
+
+test("set-enabled: the owner's enable records a site plugin's capability set as its approval; a denied caller records nothing", async (t) => {
+  const site: PluginDiscoveryRecord = { id: "site-rules", name: "Site rules", version: "0.1.0", source: "site", tier: "tier-3", status: "valid", errors: [],
+    manifest: { id: "site-rules", name: "Site rules", version: "0.1.0", sdkRange: "^1.0.0", engine: 1, tier: "tier-3", capabilities: ["hooks.attach"], hooks: ["content.entry.beforeSave"], fields: [], integrity: {} } };
+  const recorded: unknown[] = [];
+  const pluginSource = { recordApproval: async (input: unknown) => { recorded.push(input); } };
+  const denied = buildTestApp({ discoverPlugins: async () => [site], pluginSource, authorize: async () => ({ allowed: false, reason: "insufficient role" }) });
+  const deniedServer = await bootAuthenticated(denied.app, t);
+  const refused = await fetch(`${deniedServer.baseUrl}${BASE}/plugins/site-rules`, { method: "PATCH", headers: { "content-type": "application/json", cookie: deniedServer.cookie }, body: JSON.stringify({ enabled: true }) });
+  assert.equal(refused.status, 403);
+  assert.deepEqual(recorded, [], "only an authorized enable is an approval");
+  const { app } = buildTestApp({ discoverPlugins: async () => [site], pluginSource });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const res = await fetch(`${baseUrl}${BASE}/plugins/site-rules`, { method: "PATCH", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ enabled: true }) });
+  assert.equal(res.status, 200);
+  assert.deepEqual(recorded, [{ id: "site-rules", capabilities: ["capability:hooks.attach", "hook:content.entry.beforeSave", "tier:tier-3"] }]);
+});

@@ -37,6 +37,8 @@ function fixture(options: { allowed?: boolean; source?: boolean; error?: Error }
     seal: async (input, opts) => { record('seal', input, opts); return { installed: true, plugin: preview, reloaded: false }; },
     rollback: async (input, opts) => { record('rollback', input, opts); return { installed: true, plugin: preview, reloaded: true, rollbackFrom: '0.0.9' }; },
     isSealedHere: async () => true,
+    readApproval: async () => undefined,
+    recordApproval: async () => {},
   };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const registrations = buildPluginSourceRegistrations({ deps: { workspaceId: 'site', authorize: async () => ({ allowed: options.allowed !== false, reason: 'matched' }), ...(options.source === false ? {} : { pluginSource: source }) }, surfaces: { surfaceExchanges } });

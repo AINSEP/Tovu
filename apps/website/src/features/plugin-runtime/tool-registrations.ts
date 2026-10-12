@@ -75,7 +75,7 @@ import { federatedToolApprovalFingerprint } from "@jini-ai/mcp/federation";
 import type { ExternalMcpStoreDeps, ToolContributor } from "#src/assistant/index";
 // Keep the domain projection local: importing it from server/admin would invert the composition boundary.
 import { toAdminPluginResponse } from "./admin-response.js";
-import { setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import { addedPluginCapabilities, pluginCapabilitySet, setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import { pluginAgentToolCatalog } from "./agent-tools.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { PluginConflictError, type PluginConflict } from "@jini-ai/plugins/host";
@@ -696,20 +696,28 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps, surfaces: 
       let refusal: unknown;
       if (request.enabled && request.family === "agent-plugin") refusal = await unwritableAgentPluginActivationsResult(routeDeps, request);
       const identity = request.enabled && refusal === undefined ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
-      const sitePackage = identity?.discovery?.find(record => record.id === request.pluginId)?.source === 'site';
+      const record = identity?.discovery?.find(record => record.id === request.pluginId);
+      const sitePackage = record?.source === 'site';
       const sealedHere = request.enabled && request.family === 'site-runtime' && sitePackage && identity?.version !== undefined && routeDeps.pluginSource
         ? await routeDeps.pluginSource.isSealedHere({ id: request.pluginId, version: identity.version }, {}) : false;
-      const confirm = routeDeps.pluginSourcePolicy?.confirmEnable({ sealedHere }, {}) ?? true;
-      return { request, identity, refusal, confirm };
-    }, describe: ({ prepared: { request, identity } }) => describeEnableApproval({
-      subject: { family: request.family, pluginId: request.pluginId, version: identity?.version, label: identity?.label },
-    }), run: async ({ ctx, prepared: { request, identity, refusal } }) => {
+      // Consent gap (2026-10-12): "sealed here" may mean sealed by the assistant itself, so it skips
+      // the card only when this version adds nothing beyond what the owner last approved.
+      const capabilities = request.enabled && request.family === 'site-runtime' && sitePackage && record?.manifest ? pluginCapabilitySet({ manifest: record.manifest }) : undefined;
+      const added = capabilities === undefined ? [] : addedPluginCapabilities({ approved: await routeDeps.pluginSource?.readApproval({ id: request.pluginId }, {}), next: capabilities });
+      const confirm = (sealedHere && capabilities === undefined) || (routeDeps.pluginSourcePolicy?.confirmEnable({ sealedHere, added }, {}) ?? true);
+      return { request, identity, refusal, confirm, capabilities, added };
+    }, describe: ({ prepared: { request, identity, added } }) => describeEnableApproval({
+      subject: { family: request.family, pluginId: request.pluginId, version: identity?.version, label: identity?.label, adds: added },
+    }), run: async ({ ctx, prepared: { request, identity, refusal, confirm, capabilities } }) => {
       if (refusal !== undefined) return refusal;
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: request.family === "agent-plugin" ? "agent-plugin" : "plugin", entityId: request.pluginId });
       const currentIdentity = request.enabled ? await pluginApprovalIdentity({ deps: routeDeps, request }) : undefined;
       if (request.enabled && currentIdentity?.key !== identity?.key) throw new ToolInputError({ message: "PLUGINS_STALE_APPROVAL: The plugin version or digest changed. Review and approve it again. Nothing was changed." });
       // A cancelled run must neither keep a card open until the deadline nor grant capability.
       if (ctx.signal.aborted) return { changed: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
+      // The owner approved exactly these capabilities (the identity key pins the manifest). Recorded
+      // before the write so a failed record leaves the plugin off rather than enabled unrecorded.
+      if (confirm && capabilities !== undefined && routeDeps.pluginSource) await routeDeps.pluginSource.recordApproval({ id: request.pluginId, capabilities }, {});
       return request.family === "agent-plugin"
         ? applyAgentPluginDecision(routeDeps, ctx.principal.id, request)
         : applySiteRuntimeDecision(routeDeps, ctx.principal.id, request, { discovery: currentIdentity?.discovery });
