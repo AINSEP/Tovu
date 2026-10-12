@@ -172,6 +172,29 @@ describe("Analyze now", () => {
     expect(result.current.view.lead).toBe("From the last save.");
     expect(result.current.view.report?.stats[0]?.value).toBe("84");
   });
+
+  it("sends one preview for a double click, before the button's disabled state renders", async () => {
+    const gate = deferred<void>();
+    const port = createFakeContentAnalysisPort({ previewGate: gate.promise });
+    const { result } = mount(port);
+    await waitFor(() => expect(result.current.hidden).toBe(false));
+    const { analyze } = result.current;
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = analyze();
+      second = analyze();
+    });
+    await act(async () => {
+      gate.resolve();
+      await Promise.all([first, second]);
+    });
+    expect(port.previewCalls).toHaveLength(1);
+    await act(async () => {
+      await result.current.analyze();
+    });
+    expect(port.previewCalls, "a finished run frees the button for the next one").toHaveLength(2);
+  });
 });
 
 describe("useWiredContentAnalysis (real routes, stubbed fetch)", () => {

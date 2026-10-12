@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -72,8 +72,13 @@ export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAn
     run: ({ input: body }: { input: PluginPreviewRequest }) => port.previewPlugin({ pluginId: CONTENT_ANALYZER_PLUGIN_ID }, body),
   });
   const [fresh, setFresh] = useState<FreshAnalysis | null>(null);
+  // `disabled={analyzing}` only lands on the next render; a double click's second click arrives
+  // before it, so the in-flight run is tracked synchronously too.
+  const inFlight = useRef(false);
 
   async function analyze() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     // Tagged with the version the draft was sent against, so a save landing mid-flight wins.
     const basis = { postId: post.id, version: post.version };
     try {
@@ -81,6 +86,8 @@ export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAn
       setFresh({ ...basis, state: previewAnalysis(response.fields) });
     } catch {
       // Reported through `previewMutation.error` below; the shown analysis stays as it was.
+    } finally {
+      inFlight.current = false;
     }
   }
 

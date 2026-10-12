@@ -4,6 +4,7 @@ import { claimSiteRunning } from "./platform/site-dir/site-running.js";
 import { shutdownLocalSiteHosts } from "./server/runtime/lifecycle/local-site-host.js";
 import { createServer as createHttpServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
+import { resolve as resolvePath } from "node:path";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
@@ -364,8 +365,10 @@ async function main(): Promise<void> {
 
   // The store the composition opens: a PGlite owner's socket goes to the agent daemon below.
   let siteStore: SiteStore | undefined;
+  // The in-memory root scans no plugin folder unless one is named: an explicit TOVU_PLUGINS_DIR
+  // (journeys, local opt-in installs) gets the same installer the SQLite root always has.
   const deps = useMemory
-    ? createRouteDeps()
+    ? createRouteDeps(process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {})
     : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
   if (!useMemory) await completeDevSiteMetaOrWarn(siteDir());
   // Boot passes the composition starts and never awaits, which read the store: the legacy

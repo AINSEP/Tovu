@@ -177,6 +177,14 @@ test.describe.serial("AW-7 Tier 1: Testimonials + FAQ, code-free", () => {
 });
 
 test.describe.serial("AW-7 Tier 2: Content Analyzer", () => {
+  // A failure mid-test must not leave the analyzer on for `posts.journey.ts`, which expects it off.
+  test.afterAll(async ({ request }) => {
+    if ((await pluginState(request, "content-analyzer"))?.enabled) {
+      const off = await request.patch(`${WS_API}/plugins/content-analyzer`, { data: { enabled: false } });
+      expect(off.status(), await off.text()).toBeLessThan(300);
+    }
+  });
+
   test("enable, Analyze now on an unsaved draft; disabled under an open card, Analyze now is refused; reopened, the card is gone", { tag: ["@unrun"] }, async ({ page, request, context }) => {
     await page.goto("/admin/plugins?tab=downloaded");
     await page.getByRole("button", { name: "Enable Content Analyzer" }).click();

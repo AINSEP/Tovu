@@ -12,6 +12,8 @@ export const PLUGIN_API = `/api/admin/v1/workspaces/${WORKSPACE}`;
 export const HELLO_NAME = "QA Fake Hello Plugin With A Long Name For Narrow Lists";
 const SOURCE = path.resolve(import.meta.dirname, "../fixtures/plugins");
 export type PluginFamily = "site" | "agent";
+/** Agent rows carry the publisher-qualified `id` (`unknown/qa-fake-agent-…`, since `96cdc6638`) and
+ * the local `pluginId`; site rows carry only the local `id`. Match fixtures on `pluginId ?? id`. */
 export interface PluginRow { id?: string; pluginId?: string; name?: string; version: string; enabled: boolean }
 
 /** Reuse the real ZIP writer already used by the install-route tests; no archive dependency added. */
@@ -63,7 +65,7 @@ export async function createPluginInstallFixtures(
     for (const family of ["site", "agent"] as const) {
       try {
         const rows = await pluginRows({ request, family });
-        if (rows.some((row) => (row.id ?? row.pluginId) === ids[family])) {
+        if (rows.some((row) => (row.pluginId ?? row.id) === ids[family])) {
           if (family === "site") {
             const response = await request.delete(`${PLUGIN_API}/plugins/${ids.site}`, { headers: await pinSessionHeaders({ request }) });
             expect(response.ok(), await response.text()).toBe(true);
@@ -76,7 +78,7 @@ export async function createPluginInstallFixtures(
             await uninstallAgentPlugin({ layout, workspaceId: WORKSPACE, pluginId: ids.agent });
           }
         }
-        expect((await pluginRows({ request, family })).some((row) => (row.id ?? row.pluginId) === ids[family]), `cleanup left ${ids[family]} installed`).toBe(false);
+        expect((await pluginRows({ request, family })).some((row) => (row.pluginId ?? row.id) === ids[family]), `cleanup left ${ids[family]} installed`).toBe(false);
       } catch (error) { errors.push(error); }
     }
     await rm(temp, { recursive: true, force: true });

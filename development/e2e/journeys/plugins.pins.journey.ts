@@ -77,7 +77,7 @@ async function reviewAndInstall({ page }: { page: Page }) {
 async function expectInstalledOff({ page, packages, family, version = "1.0.0" }: {
   page: Page; packages: PluginInstallFixtures; family: PluginFamily; version?: string;
 }) {
-  await expect.poll(async () => (await pluginRows({ request: page.request, family })).find((row) => (row.id ?? row.pluginId) === packages.ids[family]))
+  await expect.poll(async () => (await pluginRows({ request: page.request, family })).find((row) => (row.pluginId ?? row.id) === packages.ids[family]))
     .toMatchObject({ enabled: false, version });
 }
 
@@ -207,7 +207,7 @@ test.describe("isolated plugin installs", () => {
       const confirm = chat.ui.root.getByRole("button", { name: /^Install(?: plugin| \(stays off\))?$/i });
       await expect.poll(async () => {
         if (await confirm.count() === 1 && await confirm.isEnabled()) await confirm.click();
-        return (await pluginRows({ request: page.request, family })).some((row) => (row.id ?? row.pluginId) === packages.ids[family]);
+        return (await pluginRows({ request: page.request, family })).some((row) => (row.pluginId ?? row.id) === packages.ids[family]);
       }, { timeout: 180_000 }).toBe(true);
       await chat.waitForAnswer({ outcome: "succeeded" });
       const events = await page.evaluate(() => {
@@ -272,7 +272,7 @@ test.describe("isolated plugin installs", () => {
     }
     await packages.cleanup();
     for (const family of ["site", "agent"] as const) {
-      const leftovers = (await pluginRows({ request, family })).filter((row) => /^qa-fake-(hello|agent)-/.test(row.id ?? row.pluginId ?? ""));
+      const leftovers = (await pluginRows({ request, family })).filter((row) => /^qa-fake-(hello|agent)-/.test(row.pluginId ?? row.id ?? ""));
       expect(leftovers, `${family} fixture cleanup left installed packages`).toEqual([]);
     }
   });
