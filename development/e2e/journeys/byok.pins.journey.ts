@@ -468,7 +468,7 @@ function keyField(page: Page) {
 /** `exact` on both: each card now carries TWO save buttons ("Save key" under the key field, "Save
  *  settings" at the foot of the card), and a loose match would resolve either one — or, if the tabs
  *  ever rendered together, the other panel's. */
-function saveButton(page: Page, label: "Save key" | "Save settings") {
+function saveButton(page: Page, label: "Save key" | "Save settings" | "Save model settings") {
   return page.getByRole("button", { name: label, exact: true });
 }
 
@@ -688,9 +688,12 @@ test.describe("blank-key save guard", () => {
           return body.namespace === "core.execution" && body.key === "byok.model" && body.valueJson === "guard-model-updated";
         }) : null;
         await setByokModel(page, "guard-model-updated");
-        await expect(saveButton(page, "Save settings")).toBeEnabled();
+        // The visitor panel's button reads "Save model settings" since its redesign (7b82f7b02); the
+        // admin panel keeps "Save settings". Same control, same credential-row write.
+        const saveSettingsLabel = panel === "ADMIN" ? "Save settings" : "Save model settings";
+        await expect(saveButton(page, saveSettingsLabel)).toBeEnabled();
         const settingsWrite = page.waitForResponse((r) => r.url().endsWith(credentialPath) && r.request().method() === "PUT");
-        await saveButton(page, "Save settings").click();
+        await saveButton(page, saveSettingsLabel).click();
         const response = await settingsWrite;
         expect(response.ok()).toBe(true);
         expect(response.request().postDataJSON()).not.toHaveProperty("apiKey");
