@@ -8,8 +8,9 @@ import { closeDesktop, removeScratchTree, expectPreloadBridge, IS_PACKAGED_DESKT
  * D1 (SCOPE.md §3.3): launch lands on the sites home (Websites), every nav-visible section is
  * present, and nothing on the home screen blanks the window.
  *
- * Only Websites (`projects`) is live today: `App.tsx`'s `TopNav` renders every other section and the
- * Settings gear as `aria-disabled` buttons on purpose (owner decision, unbuilt sections signposted).
+ * Only Websites (`projects`) is live today: `App.tsx`'s `TopNav` renders every other section as an
+ * `aria-disabled` button on purpose (owner decision, unbuilt sections signposted). The Settings gear
+ * is live since 1cffdf3cf (its menu holds Sites settings and appearance).
  * So "each section opens" is asserted as "each section is present, inert, and clicking it keeps the
  * Websites screen drawn", which is the shipped contract. Section labels come from
  * `contracts/sections.ts`, so a newly visible section becomes part of this check automatically.
@@ -43,7 +44,8 @@ test("launch lands on Websites with every section present and the tracked site's
     for (const label of ["Rescan", "Add Tovu Website", "Create website"]) {
       await expect(win.getByRole("button", { name: new RegExp(label) })).toBeVisible();
     }
-    await expect(win).toHaveScreenshot("sites-home.png", { mask: [win.locator(".card")] });
+    // The version under "Tovu" (bbc903a0d) changes every release; masked like the cards.
+    await expect(win).toHaveScreenshot("sites-home.png", { mask: [win.locator(".card"), win.locator(".topnav__version")] });
   } finally {
     await closeDesktop(launch);
   }
@@ -63,10 +65,13 @@ test("clicking every inert section and the Settings gear keeps the Websites scre
       await expect(win.locator("h1.main__title"), `after clicking ${section.label}`).toHaveText("Websites");
       await expect(siteCard(win, SITE)).toBeVisible();
     }
+    // Settings is live since 1cffdf3cf: the gear opens its menu (Sites settings first) and closes it.
     const gear = nav.getByRole("button", { name: "Settings", exact: true });
-    await expect(gear).toHaveAttribute("aria-disabled", "true");
-    await gear.click({ force: true });
+    await gear.click();
+    await expect(win.getByRole("menuitem", { name: "Sites settings" })).toBeVisible();
+    await gear.click();
     await expect(win.getByRole("menu")).toHaveCount(0);
+    await expect(win.locator("h1.main__title")).toHaveText("Websites");
   } finally {
     await closeDesktop(launch);
   }

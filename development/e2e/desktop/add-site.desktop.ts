@@ -12,6 +12,7 @@ import {
   listSites,
   makeSite,
   openSiteTab,
+  siteContentDb,
   scratchDir,
   siteCard,
   startSite,
@@ -21,13 +22,14 @@ import { sitesFilePath } from "../../../apps/desktop/src/tracked-sites.ts";
 
 /**
  * D2 (SCOPE.md §3.3): getting a site onto the sites home. Two entry points, both behind the native
- * folder picker, which `stubFolderPicker` replaces; every step after it is the shipping path:
+ * folder picker for Add, which `stubFolderPicker` replaces; every step after it is the shipping path:
  *  - "Add Tovu Website" (`project-ipc.ts` `handleAddSite` -> `add-site-pointer.ts`): points at a
  *    folder that ALREADY holds a site and never creates one. An empty folder is refused with
  *    `SITE_DIR_EMPTY`'s sentence.
  *  - "Create website" onboarding (`CreateWebsiteOnboarding.tsx` -> `handleCreate`): `tovu init`
- *    into the chosen empty folder, tracked as `created`, so its card offers "Delete…" (which erases
- *    files). Cancellation preserves files; confirming Delete removes the whole tree.
+ *    into a free folder under the sites home (~/Documents/Tovu/sites; no picker since 59a036e49),
+ *    tracked as `created`, so its card offers "Delete…" (which erases files). Cancellation
+ *    preserves files; confirming Delete removes the whole tree.
  */
 const EXISTING = "journey-add-existing";
 let root: string;
@@ -73,8 +75,8 @@ test("Add Tovu Website on an empty folder is refused with a sentence that names 
     const before = (await listSites(win)).length;
     await stubFolderPicker(app, empty);
     await win.getByRole("button", { name: "Add Tovu Website" }).click();
-    await expect(win.getByText(/there is no Tovu site here to add/)).toBeVisible();
-    await expect(win.getByText(/use "Create website"/)).toBeVisible();
+    // One sentence naming the fix (desktop-i18n, 5a9fdc111).
+    await expect(win.getByText("No Tovu website was found in this folder. Choose an existing website or use Create website.")).toBeVisible();
     expect((await listSites(win)).length).toBe(before);
     expect(fs.existsSync(path.join(empty, "config.json")), "adding must never initialise a folder").toBe(false);
   } finally {
@@ -99,8 +101,7 @@ test("cancelling the folder picker adds nothing and shows no error", { tag: ["@u
 
 test("Create website makes a real site whose Delete confirms and removes all files", { tag: ["@unrun"] }, async () => {
   const launch = await launchDesktop();
-  const { app, win } = launch;
-  const target = emptyFolder("create");
+  const { win } = launch;
   const name = `Journey Bakery ${Date.now().toString(36)}`;
   try {
     await win.getByRole("button", { name: "Create website" }).click();
@@ -108,12 +109,14 @@ test("Create website makes a real site whose Delete confirms and removes all fil
     const create = win.getByRole("button", { name: "Create local instance" });
     await expect(create, "an unnamed site cannot be created").toBeDisabled();
     await win.getByRole("textbox", { name: /^Website name/ }).fill(name);
-    await stubFolderPicker(app, target);
     await create.click();
 
     await expect(win.locator(".creation-notice")).toContainText(name, { timeout: 150_000 });
+    // No picker since 59a036e49: the site lands in a free folder under the sites home.
+    const target = (await listSites(win)).find((s) => s.displayName === name)?.installDir ?? "";
+    expect(target).toMatch(/\/Documents\/Tovu\/sites\/journey-bakery-[a-z0-9]+$/);
     expect(fs.existsSync(path.join(target, "config.json"))).toBe(true);
-    expect(fs.existsSync(path.join(target, "content.db"))).toBe(true);
+    expect(fs.existsSync(siteContentDb(target))).toBe(true);
     const card = siteCard(win, name);
     await expect(card).toBeVisible();
     expect((await listSites(win)).find((s) => s.displayName === name)?.deleteErasesFiles).toBe(true);
@@ -126,7 +129,7 @@ test("Create website makes a real site whose Delete confirms and removes all fil
     await confirm.getByRole("button", { name: "Cancel" }).click();
     await expect(confirm).toHaveCount(0);
     await expect(card).toBeVisible();
-    expect(fs.existsSync(path.join(target, "content.db")), "Cancel must leave every file in place").toBe(true);
+    expect(fs.existsSync(siteContentDb(target)), "Cancel must leave every file in place").toBe(true);
     // D-01: the app-created agent-plugin store contains read-only packages; deletion must erase it.
     await card.getByRole("button", { name: `More actions for ${name}` }).click();
     await win.getByRole("menuitem", { name: "Delete…" }).click();
@@ -141,13 +144,11 @@ test("Create website makes a real site whose Delete confirms and removes all fil
 
 test("double-clicking Create local instance creates one site", { tag: ["@unrun"] }, async () => {
   const launch = await launchDesktop();
-  const { app, win } = launch;
-  const target = emptyFolder("create-double");
+  const { win } = launch;
   const name = `Journey Double ${Date.now().toString(36)}`;
   try {
     await win.getByRole("button", { name: "Create website" }).click();
     await win.getByRole("textbox", { name: /^Website name/ }).fill(name);
-    await stubFolderPicker(app, target);
     await win.getByRole("button", { name: "Create local instance" }).dblclick();
     await expect(win.locator(".creation-notice")).toContainText(name, { timeout: 150_000 });
     expect((await listSites(win)).filter((s) => s.displayName === name)).toHaveLength(1);
@@ -158,7 +159,8 @@ test("double-clicking Create local instance creates one site", { tag: ["@unrun"]
 });
 
 
-test("D-02 and D-03: invalid names never open the picker, and Create cancellation keeps the form quietly", { tag: ["@unrun"] }, async () => {
+// D-03 (Create's picker cancellation keeps the form) left with the picker in 59a036e49.
+test("D-02: invalid names never open the picker", { tag: ["@unrun"] }, async () => {
   const launch = await launchDesktop();
   const { app, win } = launch;
   try {
@@ -180,14 +182,5 @@ test("D-02 and D-03: invalid names never open the picker, and Create cancellatio
     await expect(win.getByRole("alert")).toHaveText("A name must be 1 to 200 characters, not counting spaces at either end.");
     await expect(submit).toBeDisabled();
     expect(await app.evaluate(() => (globalThis as typeof globalThis & { shellPickerCalls: () => number }).shellPickerCalls())).toBe(0);
-    await input.fill("Cancelled Website");
-    const before = (await listSites(win)).length;
-    await submit.click();
-    await expect(submit).toBeEnabled();
-    await expect(input).toHaveValue("Cancelled Website");
-    await expect(win.getByRole("alert")).toHaveCount(0);
-    await expect(win.locator("h1.main__title")).toHaveText("Create a website");
-    expect((await listSites(win)).length).toBe(before);
-    expect(await app.evaluate(() => (globalThis as typeof globalThis & { shellPickerCalls: () => number }).shellPickerCalls())).toBe(1);
   } finally { await closeDesktop(launch); }
 });

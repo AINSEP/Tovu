@@ -3,7 +3,7 @@ import { expect, test, type ElectronApplication } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 
-import { closeDesktop, removeScratchTree, emptyFolder, launchDesktop, listSites, makeSite, portAnswers, scratchDir, siteCard, startSite, stubFolderPicker } from "./_fixtures.js";
+import { closeDesktop, removeScratchTree, emptyFolder, launchDesktop, listSites, makeSite, portAnswers, scratchDir, siteCard, siteContentDb, startSite, stubFolderPicker } from "./_fixtures.js";
 
 /**
  * D5 (SCOPE.md §3.3): a card's lifecycle on the sites home. Every site here is a scratch fixture
@@ -17,7 +17,7 @@ import { closeDesktop, removeScratchTree, emptyFolder, launchDesktop, listSites,
  *   the card; Remove drops it, leaves the folder, and the tombstone keeps it gone after a relaunch.
  *   This is the only confirm this file presses, and only on a scratch adopted site.
  * - Locate: a folder moved BEFORE the first launch has no `relocationId` yet, so `site-relocation.ts`
- *   cannot heal it and the card shows `Folder moved or deleted` with Locate instead of Start.
+ *   cannot heal it and the card shows `Folder moved or not a site` with Locate instead of Start.
  */
 const POWER = "journey-power";
 const RENAME = "journey-rename";
@@ -169,7 +169,7 @@ test("Remove from Projects: Cancel keeps the card; Remove drops it, keeps the fo
     await expect(card).toHaveCount(0);
     expect((await listSites(win)).some((s) => s.displayName === REMOVE)).toBe(false);
     expect(fs.existsSync(path.join(dirs[REMOVE]!, "config.json")), "Remove must leave the folder on disk").toBe(true);
-    expect(fs.existsSync(path.join(dirs[REMOVE]!, "content.db"))).toBe(true);
+    expect(fs.existsSync(siteContentDb(dirs[REMOVE]!))).toBe(true);
   } finally {
     await closeDesktop(first);
   }
@@ -191,7 +191,7 @@ test("a folder moved before launch shows as missing; a wrong folder is refused; 
   const { app, win } = launch;
   try {
     const card = siteCard(win, LOCATE);
-    await expect(card.locator(".card__missing")).toHaveText("Folder moved or deleted");
+    await expect(card.locator(".card__missing")).toHaveText("Folder moved or not a site"); // label since 59a036e49
     await expect(card.getByRole("button", { name: `Start ${LOCATE}`, exact: true }), "a missing folder offers Locate, not Start").toHaveCount(0);
     const locate = card.getByRole("button", { name: `Locate the folder for ${LOCATE}` });
 

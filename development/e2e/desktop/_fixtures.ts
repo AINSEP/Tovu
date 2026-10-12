@@ -105,6 +105,16 @@ export function removeScratchTree({ root }: { root: string }, _optional = {}): v
   fs.rmSync(root, { recursive: true, force: true });
 }
 
+/**
+ * A scratch HOME shaped like a real macOS home: "Create website" puts sites under
+ * ~/Documents/Tovu/sites (59a036e49) and reports the sites home unavailable without ~/Documents.
+ */
+function scratchHome(): string {
+  const home = scratchDir("home");
+  fs.mkdirSync(path.join(home, "Documents"));
+  return home;
+}
+
 /** An empty folder, for the "create" and "refuse" paths. */
 export function emptyFolder(label: string): string {
   const dir = path.join(scratchDir(label), "folder");
@@ -136,8 +146,13 @@ export async function makeSite(root: string, name: string): Promise<string> {
     await initSiteDir({ repoRoot: REPO_ROOT, dir, name, cliMode: "source", baseEnv: { ...scrubbedEnv(), TOVU_SITE_DIR: dir } });
   }
   expect(fs.existsSync(path.join(dir, "config.json")), `${name}: config.json`).toBe(true);
-  expect(fs.existsSync(path.join(dir, "content.db")), `${name}: content.db`).toBe(true);
+  expect(fs.existsSync(siteContentDb(dir)), `${name}: content.db`).toBe(true);
   return dir;
+}
+
+/** A site's content database. In-folder sites keep it under `data.nosync/` since 59a036e49. */
+export function siteContentDb(dir: string): string {
+  return path.join(dir, "data.nosync", "content.db");
 }
 
 function scrubbedEnv(): Record<string, string> {
@@ -177,7 +192,7 @@ export async function launchDesktop(options: LaunchOptions = {}): Promise<Deskto
     ...(PACKAGED_APP ? { args: [] } : { args: ["."], cwd: DESKTOP_DIR }),
     env: {
       ...scrubbedEnv(),
-      HOME: scratchDir("home"),
+      HOME: scratchHome(),
       TOVU_DESKTOP_USER_DATA_DIR: userDataDir,
       TOVU_DESKTOP_UI: "runner",
       TOVU_DESKTOP_SITE_DIR: "",

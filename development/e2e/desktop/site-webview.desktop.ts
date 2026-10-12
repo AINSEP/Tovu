@@ -81,8 +81,9 @@ test("the guest admin is signed in, a draft written in the guest persists, and s
     await guestEval(app, `location.assign("/admin/posts")`);
     await expect.poll(() => clickGuestButton(app, /^New Post$/), { timeout: 30_000 }).toBe(true);
     await expect.poll(() => guestUrl(app), { timeout: 30_000 }).toMatch(/\/admin\/posts\/[^/]+$/);
-    const postUrl = (await guestUrl(app))!;
-    const postId = postUrl.split("/").pop()!;
+    // The URL carries the slug, and the first save renames it from the title (0e8ca8ac7, e5ec2a662),
+    // so read back by the row's id.
+    const postId = (await guestFetch(app, `${POSTS_API}/${(await guestUrl(app))!.split("/").pop()}`)).body.post.id as string;
 
     await expect.poll(() => focusGuestField(app, "Post title")).toBe(true);
     // New Post deliberately seeds "Untitled"; replace it through Chromium's real input path.
@@ -94,6 +95,8 @@ test("the guest admin is signed in, a draft written in the guest persists, and s
       .poll(async () => (await guestFetch(app, `${POSTS_API}/${postId}`)).body?.post?.title, { timeout: 30_000 })
       .toBe(title);
     expect((await guestFetch(app, `${POSTS_API}/${postId}`)).body.post.status).toBe("draft");
+    await expect.poll(() => guestUrl(app), { timeout: 15_000 }).toMatch(/\/admin\/posts\/desktop-draft-[a-z0-9]+$/);
+    const postUrl = (await guestUrl(app))!;
 
     // Hidden, not unmounted: the guest keeps its own route across a tab switch.
     await win.getByRole("tab", { name: "All" }).click();
