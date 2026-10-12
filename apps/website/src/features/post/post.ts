@@ -1,3 +1,7 @@
+import { deriveAvailableName } from "@jini-ai/core/naming";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { isAutomaticPostSlug, derivePostSlugBase, MAX_SLUG_LENGTH, DERIVED_SLUG_SUFFIX_ROOM } from "./slug.js";
+import { isDeepStrictEqual } from "node:util";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/cms/core";
@@ -64,7 +68,8 @@ export interface PostRecord {
   /**
    * SPEC-005 (ADR-005-ARCH REQ-06/BR-06) — the plugin extension-field bag, namespaced per plugin
    * (`{ [pluginId]: { …declaredFields } }`). Written ONLY by the `content.entry.beforeSave`
-   * hook-merge step immediately before the single `deps.repo.save()` call below (CIC U-004), and
+   * hook-merge step immediately before the single `deps.repo.save()` call below (CIC U-004), plus
+   * the typed post-presentation preference merged by this same update owner, and
    * restored verbatim (never recomputed) by the gateway revert path (BR-08, CIC U-005).
    *
    * Absent — not `{}` — when no plugin has ever written to this entry, so an entry with no
@@ -272,7 +277,7 @@ export interface PostRepoPort {
   list(required: { workspaceId: UUID }): Promise<PostRecord[]>;
   /**
    * Bounded, query-pushed-down listing of published, non-trashed `kind: "post"` rows, newest
-   * `updatedAt` first, capped at `limit` — the post-previews marker's own query
+   * display date first (`comparePostsByDisplayDate`, `id` tie-break), skipping `offset` rows, capped at `limit` — the post-previews marker's own query
    * (`features/theme/static-render.ts`'s `injectPostPreviewsEmbeds`, wired through
    * `listPublishedPostPreviews` below). Mirrors the query-shape discipline
    * `Jini/packages/cms/src/widgets/resolvers/recent-entries.ts` already established for `entries` (REQ-25: "one bounded
@@ -290,7 +295,7 @@ export interface PostRepoPort {
    * Scheduled rows (`publishAt` after `nowIso`, default now) are excluded in the same query, for
    * the same "never fewer than `limit` real posts" reason.
    */
-  listPublishedPreviews(required: { workspaceId: UUID; limit: number; nowIso?: string }): Promise<PostRecord[]>;
+  listPublishedPreviews(required: { workspaceId: UUID; limit: number; nowIso?: string; offset?: number }): Promise<PostRecord[]>;
   /**
    * Unconditional upsert of one whole row — last write wins, by design.
    *
@@ -533,7 +538,11 @@ export interface UpdatePostInput {
   workspaceId: UUID;
   id: UUID;
   title: string;
-  slug: string;
+  slug?: string;
+  /** Derive on Save only while the stored post still has an automatic, unpublished slug. */
+  slugFromTitle?: boolean;
+  /** Omit to preserve the saved presentation choice; missing stored value means hide. */
+  hideCoverImageInBody?: boolean;
   bodyJson: JsonObject;
   status: PostStatus;
   /**
@@ -1026,14 +1035,14 @@ export const MAX_TITLE_LENGTH = 200;
 
 /** api.spec.md §4 / behavior.spec.md §4: caller-supplied `slug` maxLength. Exported for the same
  * reason as {@link MAX_TITLE_LENGTH}. */
-export const MAX_SLUG_LENGTH = 120;
+export { MAX_SLUG_LENGTH } from "./slug.js";
 
 /**
  * Room a derived slug keeps under {@link MAX_SLUG_LENGTH} for `createPost`'s collision suffix
- * (`-2` … `-999`, BR-02's bound): a derived slug must itself pass the rule every `updatePost`
+ * (numbered suffixes, BR-02's bound): a derived slug must itself pass the rule every `updatePost`
  * applies, or the post it names can never be saved again.
  */
-const DERIVED_SLUG_SUFFIX_ROOM = "-999".length;
+// The shared slug rules export DERIVED_SLUG_SUFFIX_ROOM for this policy and the editor.
 
 /**
  * The base `createPost` derives from a title when the caller sent no slug: {@link toSlug}, cut to
@@ -1043,8 +1052,7 @@ const DERIVED_SLUG_SUFFIX_ROOM = "-999".length;
  * @complexity O(n) in the title's length.
  */
 function deriveSlugBase(title: string): string {
-  const cut = toSlug(title).slice(0, MAX_SLUG_LENGTH - DERIVED_SLUG_SUFFIX_ROOM).replace(/-+$/, "");
-  return cut || "untitled";
+  return derivePostSlugBase({ title });
 }
 
 /** Shared slug-format rule, exported so `agent-tools.ts` can publish the identical pattern rather
@@ -1068,14 +1076,6 @@ export const ROOT_SLUG = "/";
 
 /** Published schema pattern only; the kind gate stays in validateUpdatePostInput/resolveExplicitSlug. */
 export const SLUG_OR_ROOT_PATTERN = /^(?:\/|[a-z0-9-]+)$/;
-
-/**
- * behavior.spec.md BR-02/BR-03 — slugs a request may never claim outright (`createPost`'s
- * explicit-slug path rejects these with `VALIDATION_ERROR`; a *derived* slug landing on one of
- * these is a separate, not-yet-implemented BR-02 suffixing rule — see this file's `slugify`
- * call site for the disclosed gap).
- */
-const RESERVED_SLUGS: ReadonlySet<string> = new Set(["admin", "api"]);
 
 /** Shared slug-format rule (`updatePost` and `createPost`'s explicit-slug path both apply it — same rule, one source of truth). */
 function isValidSlugFormat(slug: string): boolean {
@@ -1156,14 +1156,14 @@ export function presentScheduleFields(fields: { publishAt?: string | null; featu
 }
 
 /**
- * behavior.spec.md BR-02/BR-03 reserved-word rule — see `RESERVED_SLUGS`'s doc for scope. One
+ * behavior.spec.md BR-02/BR-03 reserved-word rule — the platform owns the reserved segments. One
  * check, one message, for both `createPost`'s explicit slug and `updatePost`'s rename: the update
  * path used to check format only, so create refused `admin` and a rename onto it succeeded.
  *
  * @throws PostValidationError `slug '<slug>' is reserved`.
  */
 function assertSlugNotReserved(slug: string): void {
-  if (RESERVED_SLUGS.has(slug)) {
+  if (RESERVED_SEGMENTS.has(slug.toLowerCase())) {
     throw new PostValidationError(`slug '${slug}' is reserved`);
   }
 }
@@ -1188,9 +1188,8 @@ function assertValidExplicitSlug(slug: string, kind: PostKind): void {
   if (slug.length > MAX_SLUG_LENGTH) {
     throw new PostValidationError(`slug must be ${MAX_SLUG_LENGTH} characters or fewer`);
   }
-  // SPEC-002 REQ-04/AC-04 — a PROVIDED slug equal to a reserved word is a hard failure (BR-03
-  // step 3); a DERIVED slug landing on a reserved word is a different, not-yet-implemented rule
-  // (BR-02 suffixing) — see `RESERVED_SLUGS`'s doc.
+  // SPEC-002 REQ-04/AC-04: explicit reserved slugs are refused (BR-03); title-derived slugs
+  // skip reserved candidates in availablePostSlug, using the ordinary collision suffix (BR-02).
   assertSlugNotReserved(slug);
 }
 
@@ -1368,8 +1367,8 @@ function resolveCreateFields(input: CreatePostInput): ResolvedCreateFields {
  *
  * All validation runs before any repository access (fail fast, write nothing on a bad request).
  *
- * @complexity O(n) where n is the derived-slug suffix search depth (bounded at 999 by BR-02,
- * unenforced here — see this file's disclosed gap on suffix-exhaustion handling); O(1) on the
+ * @complexity O(n) where n is the derived-slug suffix search depth (bounded at 999 by the
+ * shared naming helper); O(1) on the
  * explicit-slug path (one uniqueness lookup).
  * @overallScore 100
  */
@@ -1399,16 +1398,7 @@ export async function createPost(
     trashedHolder = await trashedSlugHolderOrConflict(deps.repo, { workspaceId: input.workspaceId, slug: explicitSlug });
     slug = explicitSlug;
   } else {
-    const base = deriveSlugBase(title);
-    slug = base;
-    let suffix = 1;
-    let holder = await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug });
-    while (holder && !isTrashed(holder)) {
-      suffix += 1;
-      slug = `${base}-${suffix}`;
-      holder = await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug });
-    }
-    trashedHolder = holder;
+    ({ slug, trashedHolder } = await availablePostSlug({ repo: deps.repo, workspaceId: input.workspaceId, title, kind: input.kind ?? "post" }));
   }
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
@@ -1491,7 +1481,9 @@ function validateUpdatePostInput(
   existing: PostRecord
 ): { title: string; slug: string } {
   const title = input.title.trim();
-  const slug = input.slug.trim().toLowerCase();
+  if (input.slugFromTitle !== undefined && typeof input.slugFromTitle !== "boolean") throw new PostValidationError("slugFromTitle must be a boolean");
+  if (input.hideCoverImageInBody !== undefined && typeof input.hideCoverImageInBody !== "boolean") throw new PostValidationError("hideCoverImageInBody must be a boolean");
+  const slug = input.slugFromTitle === true ? existing.slug : (input.slug ?? "").trim().toLowerCase();
 
   if (!title) throw new PostValidationError("title is required");
   // An UNCHANGED title or slug is not re-validated: a row stored before these bounds existed (or a
@@ -1752,10 +1744,63 @@ async function captureSlugChange(
   });
 }
 
+/**
+ * The content this save path owns, with absent optional values represented as their stored
+ * defaults. Null template/override choices remain distinct from explicit empty/false choices.
+ * Revision `content_hash` cannot serve this comparison: it hashes the entire snapshot, including
+ * the version and timestamp that every candidate save advances.
+ * @complexity O(1) time/space — nested JSON is referenced, not copied; the caller compares it.
+ */
+function savedPostContent(post: PostRecord) {
+  return {
+    title: post.title,
+    slug: post.slug,
+    status: post.status,
+    bodyFormat: post.bodyFormat,
+    bodyJson: post.bodyFormat === "html" ? null : post.bodyJson,
+    bodyHtml: post.bodyFormat === "html" ? post.bodyHtml : null,
+    templateChoice: post.templateChoice ?? null,
+    author: post.author ?? null,
+    showAuthor: post.showAuthor ?? false,
+    publishAt: post.publishAt ?? null,
+    featuredMediaId: post.featuredMediaId ?? null,
+    overridesThemePage: post.overridesThemePage ?? null,
+    ext: post.ext ?? {},
+  };
+}
+
+/** Publication history belongs to the revision ledger; returning to draft never frees a URL. */
+export async function hasPostBeenPublished({ post }: { post: PostRecord }, { repo }: { repo: PostRepoPort }): Promise<boolean> {
+  return post.status === "published" || (await repo.listRevisions({ workspaceId: post.workspaceId, postId: post.id })).some(revision => revision.stateJson.status === "published");
+}
+
+/** Reuse the platform collision search with post numbering from 1 and page numbering from 2. */
+async function availablePostSlug(required: { repo: PostRepoPort; workspaceId: UUID; title: string; kind: PostKind; selfId?: UUID }, _optional: Record<string, never> = {}) {
+  let trashedHolder: PostRecord | null = null;
+  const slug = await deriveAvailableName({
+    base: deriveSlugBase(required.title),
+    isTaken: async ({ candidate }) => {
+      if (RESERVED_SEGMENTS.has(candidate.toLowerCase())) return true;
+      const holder = await required.repo.findBySlug({ workspaceId: required.workspaceId, slug: candidate });
+      trashedHolder = holder && isTrashed(holder) ? holder : null;
+      return !!holder && holder.id !== required.selfId && !isTrashed(holder);
+    },
+    withSuffix: ({ base, suffix }) => `${base}-${required.kind === "post" ? suffix - 1 : suffix}`,
+    exhaustionMessage: ({ base }) => `slug '${base}' already exists`,
+  }, { maxAttempts: 999, onExhausted: ({ base }) => { throw new PostConflictError(`slug '${base}' already exists`); } });
+  return { slug, trashedHolder };
+}
+
+/**
+ * Validates and saves a post/page, appending a revision only when normalized, hook-merged content
+ * changes. An unchanged save returns the current record and null revision ids; it still rejects
+ * a stale expectedVersion, including one that became stale during the before-save hook.
+ * @complexity O(n) comparison time/space for n body/ext JSON values, with bounded repo operations.
+ */
 export async function updatePost(
   required: UpdatePostRequired,
   _optional: UpdatePostOptional = {}
-): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
+): Promise<{ post: PostRecord; revisionId: string | null; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   // A trashed row is not-found for editing purposes — indistinguishable from a missing id, the same
@@ -1764,13 +1809,18 @@ export async function updatePost(
   if (!existing || isTrashed(existing)) throw new PostNotFoundError(`post '${input.id}' was not found`);
   assertExpectedVersion(existing, input.expectedVersion);
 
-  const { title, slug } = validateUpdatePostInput(input, existing);
+  const fields = validateUpdatePostInput(input, existing);
+  const title = fields.title;
+  let slug = fields.slug;
   // Validated here, before any further repo access, so a bad date writes nothing; normalized again
   // (idempotently) where the record is built.
   normalizePublishAt(input.publishAt);
   normalizeFeaturedMediaId(input.featuredMediaId);
   normalizePostAuthor({ author: input.author });
   normalizeShowPostAuthor({ showAuthor: input.showAuthor });
+  if (input.slugFromTitle === true && title !== existing.title && existing.kind === "post" && isAutomaticPostSlug(existing) && !(await hasPostBeenPublished({ post: existing }, { repo: deps.repo }))) {
+    slug = (await availablePostSlug({ repo: deps.repo, workspaceId: input.workspaceId, title, kind: "post", selfId: existing.id })).slug;
+  }
   const trashedHolder = await trashedSlugHolderOrConflict(deps.repo, { workspaceId: input.workspaceId, slug }, { selfId: input.id });
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
@@ -1788,7 +1838,10 @@ export async function updatePost(
     bodyJson: existing.bodyFormat === "html" ? existing.bodyJson : input.bodyJson,
     ext: (existing.ext ?? {}) as Readonly<Record<string, Readonly<Record<string, unknown>>>>,
   });
-  const ext = mergeExt(existing.ext, extPatch);
+  let ext = mergeExt(existing.ext, extPatch);
+  if (input.hideCoverImageInBody !== undefined) {
+    ext = { ...ext, "post-presentation": { ...(ext?.["post-presentation"] as JsonObject ?? {}), hideCoverImageInBody: input.hideCoverImageInBody } };
+  }
 
   const post = buildUpdatedPost(existing, input, { title, slug }, ext, clockNowIso({ clock: deps.clock }));
 
@@ -1797,11 +1850,21 @@ export async function updatePost(
   // written) still propagates out of this `transaction()` call correctly — its `catch` rolls back
   // (a no-op when nothing landed) and rethrows unchanged, so `PostVersionConflictError`/
   // `PostNotFoundError` reach the caller exactly as they did before this change.
-  const { id: revisionId, previousId: previousRevisionId } = await deps.repo.transaction(async () => {
+  const result = await deps.repo.transaction(async () => {
+    if (isDeepStrictEqual(savedPostContent(existing), savedPostContent(post))) {
+      // The hook/slug check can await another writer. A no-op has no CAS UPDATE to reject a stale
+      // basis, so observe the live row again inside the same transaction before returning it.
+      const current = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
+      if (!current || isTrashed(current)) throw new PostNotFoundError(`post '${input.id}' was not found`);
+      assertExpectedVersion(current, input.expectedVersion);
+      if (isDeepStrictEqual(savedPostContent(current), savedPostContent(post))) {
+        return { post: current, revisionId: null, previousRevisionId: null };
+      }
+    }
     if (trashedHolder) await releaseTrashedSlug(deps.repo, trashedHolder);
     await persistUpdatedPost(deps.repo, post, input.expectedVersion);
     await captureSlugChange(deps.slugChangeCapture, existing, post, input.actorId ?? SYSTEM_ACTOR_ID);
-    return deps.repo.appendRevision({
+    const { id: revisionId, previousId: previousRevisionId } = await deps.repo.appendRevision({
       postId: post.id,
       workspaceId: post.workspaceId,
       seq: post.version,
@@ -1812,10 +1875,11 @@ export async function updatePost(
       delegatedById: input.delegatedById ?? null,
       recordedAt: post.updatedAt,
     });
+    return { post, revisionId, previousRevisionId };
   });
-  await emitStatusTransitionEvent(deps.outbox, existing.status, post.status, post);
+  if (result.revisionId !== null) await emitStatusTransitionEvent(deps.outbox, existing.status, post.status, post);
 
-  return { post, revisionId, previousRevisionId };
+  return result;
 }
 
 /** A trashed row is "not public" whatever its stored `status` still says — the same framing
@@ -2071,7 +2135,7 @@ export async function listPublishedPosts(
 
 export interface ListPublishedPostPreviewsRequired {
   deps: { repo: PostRepoPort };
-  input: { workspaceId: UUID; limit: number };
+  input: { workspaceId: UUID; limit: number; offset?: number };
 }
 
 /**
@@ -2079,7 +2143,7 @@ export interface ListPublishedPostPreviewsRequired {
  * `injectPostPreviewsEmbeds`, via `server/inbound/public-http/routes/site/pages.ts`'s
  * `resolvePostPreviewsForRender`). Thin wrapper over {@link PostRepoPort.listPublishedPreviews} —
  * see that method's own doc for why the bound and the `kind: "post"` filter both live in the query,
- * not here. The caller still owns member-visibility filtering (`filterVisiblePosts`, ADR-030 §4);
+ * not here. The caller still owns member-visibility filtering (`readListingBatch`'s `isVisible`, ADR-030 §4);
  * this function only returns what is PUBLISHED, not what the current visitor may see.
  */
 export async function listPublishedPostPreviews(
@@ -2089,6 +2153,7 @@ export async function listPublishedPostPreviews(
   const posts = await required.deps.repo.listPublishedPreviews({
     workspaceId: required.input.workspaceId,
     limit: required.input.limit,
+    offset: required.input.offset ?? 0,
     nowIso: _optional.nowIso ?? currentIso(),
   });
   return { posts };

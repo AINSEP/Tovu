@@ -1,3 +1,4 @@
+import { wrapListingItems } from "@jini-ai/cms/listing";
 import { escapeHtml } from "#src/platform/html/escape";
 import { safeHref } from "./static-render.js";
 
@@ -58,6 +59,9 @@ export interface EntryListRenderOptions {
    *  rather than implied by `accordion`, because an accordion of anything else marked up as an FAQ
    *  would be false structured data. */
   readonly structuredData?: EntryListStructuredData;
+  /** A see-more listing's key: the items sit between its sentinels, and the list wrapper (the marker
+   *  element itself in template mode) is the `data-jini-listing` container batches append to. */
+  readonly listingKey?: number;
 }
 
 /** Every built-in collection-list presentation. */
@@ -318,24 +322,27 @@ export function renderEntryListStructuredData(items: readonly EntryListItem[], o
 
 /** {@link renderEntryList}'s markup half, one branch per presentation. @complexity O(n · f). */
 function renderEntryListBody(items: readonly EntryListItem[], options: EntryListRenderOptions): string {
+  const key = options.listingKey;
+  const wrap = (html: string) => (key === undefined ? html : wrapListingItems({ key, items: html }));
   if (options.template !== undefined) {
-    return items.map((item) => renderTemplateItem(options.template as string, item)).join("");
+    return wrap(items.map((item) => renderTemplateItem(options.template as string, item)).join(""));
   }
   const typeClass = escapeHtml(options.typeKey);
+  const marker = key === undefined ? "data-tovu-entry-list" : `data-tovu-entry-list data-jini-listing="${key}"`;
   if (options.layout === "list") {
-    return `<ul class="entry-list entry-list--${typeClass} entry-list--list" data-tovu-entry-list>${items.map(renderListItem).join("")}</ul>`;
+    return `<ul class="entry-list entry-list--${typeClass} entry-list--list" ${marker}>${wrap(items.map(renderListItem).join(""))}</ul>`;
   }
   if (options.layout === "accordion") {
-    return `<div class="entry-list entry-list--${typeClass} entry-list--accordion" data-tovu-entry-list>${items.map(renderAccordionItem).join("")}</div>`;
+    return `<div class="entry-list entry-list--${typeClass} entry-list--accordion" ${marker}>${wrap(items.map(renderAccordionItem).join(""))}</div>`;
   }
   if (options.layout === "carousel") {
     // `tabindex="0"`: an overflowing scroll container must be focusable or keyboard users cannot
     // scroll it (WCAG 2.1.1).
-    return `<div class="entry-list entry-list--${typeClass} entry-list--carousel" data-tovu-entry-list tabindex="0">${items.map(renderCard).join("")}</div>`;
+    return `<div class="entry-list entry-list--${typeClass} entry-list--carousel" ${marker} tabindex="0">${wrap(items.map(renderCard).join(""))}</div>`;
   }
   return (
-    `<div class="entry-list entry-list--${typeClass}" data-tovu-entry-list style="--entry-list-columns:${options.columns}">` +
-    `${items.map(renderCard).join("")}</div>`
+    `<div class="entry-list entry-list--${typeClass}" ${marker} style="--entry-list-columns:${options.columns}">` +
+    `${wrap(items.map(renderCard).join(""))}</div>`
   );
 }
 

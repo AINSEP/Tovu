@@ -42,6 +42,18 @@ export function postDisplayDateIso(record: { readonly publishAt?: string | null;
   return record.publishAt ?? record.updatedAt;
 }
 
+/** Newest display date first ({@link postDisplayDateIso}), then `id` ascending — the in-JS twin of
+ *  the post repo's `ORDER BY coalesce(publish_at, updated_at) DESC, id ASC`. @complexity O(1). */
+export function comparePostsByDisplayDate(
+  a: { readonly id: string; readonly publishAt?: string | null; readonly updatedAt: string },
+  b: { readonly id: string; readonly publishAt?: string | null; readonly updatedAt: string }
+): number {
+  const left = postDisplayDateIso(a);
+  const right = postDisplayDateIso(b);
+  if (left !== right) return left < right ? 1 : -1;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
 /** Published, not trashed, and past its go-live time — the whole public-visibility rule for a post
  *  or page row. @complexity O(1). */
 export function isLiveAt(record: SchedulableRecord & { readonly deletedAt?: string | null }, nowIso: string): boolean {

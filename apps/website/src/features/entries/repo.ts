@@ -248,7 +248,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
       const dir = query.sort.dir;
       const key = this.sortKey(query.sort.by);
       if (key) select = select.orderBy(key, (ob) => (dir === "asc" ? ob.asc().nullsFirst() : ob.desc().nullsLast()));
-      return select.orderBy("id", "asc").limit(query.limit).execute();
+      return select.orderBy("id", "asc").limit(query.limit).offset(query.offset ?? 0).execute();
     });
     return rows.map(toRecord);
   }

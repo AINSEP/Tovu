@@ -1,13 +1,15 @@
+import { renderMediaRawHtml, sanitizePageHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSelection } from "./site-chat-markup.js";
 import { resolveAppDistDir } from "#src/platform/site-dir/index";
-import { renderHtmlForm } from "@jini-ai/cms/forms";
+import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/post";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/theme";
-import { renderStaticPage } from "#src/features/theme/static-render";
+import { renderStaticPage, renderCoverImageTag } from "#src/features/theme/static-render";
+import { projectPostBody, resolveCoverImage } from "#src/features/post/cover-image";
 import { themeTokenAliasDeclarations } from "#src/features/theme/token-aliases";
 import {
   renderEntryList,
@@ -24,15 +26,15 @@ import { isPageEmbedType } from "@jini-ai/cms/widgets";
 import { renderHtmlTaxonomy } from "#src/features/taxonomy/html-render";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "@jini-ai/cms/widgets/html";
+import { renderGallery, substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef, type GalleryImageRenderer } from "@jini-ai/cms/widgets/html";
 import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
 import { parseEmbedHtmlAttributes } from "@jini-ai/cms/widgets/markers";
-import { ATTRIBUTE_NAME_PATTERN } from "@jini-ai/cms/forms";
+import { LISTING_BATCH_DEFAULT, listingBatchPath, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { mediaPublicPath, mediaUrlKey } from "#src/features/media/public-path";
 import { safeAspectRatio, safeTextAlign } from "#src/platform/html/style-values";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
-import { FORM_BASELINE_STYLE, FORM_CLASS, renderFormSuccessSlot, renderFormErrorSlot } from "./form-render.js";
+import { FORM_BASELINE_STYLE, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, renderFormSuccessSlot, renderFormErrorSlot } from "./form-render.js";
 import {
   decodeFormSubmissionResultFromQuery,
   encodeFormSubmissionResultQuery,
@@ -47,6 +49,7 @@ import {
 } from "./form-render.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { postAuthorForDisplay } from "#src/features/post/author";
+import { postAuthorForContentHeader } from "#src/features/theme/index";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { toSlug } from "#src/platform/html/slug";
 
@@ -143,6 +146,8 @@ export interface SiteRenderContext {
   route: "home" | "post" | "products" | "product";
   /** Published posts (home index; also the entry-list source). */
   posts: PostRecord[];
+  /** Home only: the entry list shows `posts` 12 at a time from `after`, with a See more link. */
+  listing?: { pagePath: string; after: number };
   /** The single post being viewed (post route). */
   post?: PostRecord;
   /** Products from the sample store plugin (products route). Empty when the store isn't wired
@@ -349,10 +354,9 @@ function safeHref(value: JsonValue | undefined): string {
  *   surface, so it can genuinely end up in `attrs.src`. Emitting it publicly gives every reader a
  *   broken image and discloses internal routing. A ref-based node is the supported way to publish
  *   managed media — that path is untouched above.
- * - **Root-relative and protocol-relative paths.** Unlike a link, a root-relative *image* is either
- *   a managed asset (which must go through the ref path so its transform version is resolved) or a
- *   mistake; `//host/x` additionally inherits the page scheme, which is not a decision an author
- *   should make implicitly here.
+ * - **Protocol-relative paths.** `//host/x` inherits the page scheme, which is not a decision an
+ *   author should make implicitly here. Relative paths are allowed (imgbyurl, 2026-10-11), with
+ *   the same parsed-path admin-preview rejection; nodes carrying media refs still use that path.
  *
  * Note there is deliberately no server-side fetch anywhere in this path: the emitted URL is loaded
  * by the READER's browser, so this introduces no SSRF surface. Ingesting the URL server-side to
@@ -406,13 +410,15 @@ const ADMIN_MEDIA_ORIGINAL_PATH = /\/workspaces\/[^/]+\/media\/[^/]+\/original\b
 function safeImageSrc(value: JsonValue | undefined): string | null {
   if (typeof value !== "string") return null;
   const src = value.trim();
-  if (!/^https?:\/\/[^\s/$.?#][^\s]*$/i.test(src)) return null;
+  const absolute = /^https?:\/\/[^\s/$.?#][^\s]*$/i.test(src);
+  if (!absolute && (!src || /[\s\\]|^[a-z][a-z\d+.-]*:|^\/\//i.test(src))) return null;
   let parsed: URL;
   try {
-    parsed = new URL(src);
+    parsed = new URL(src, SAFE_HREF_RESOLUTION_BASE);
   } catch {
     return null;
   }
+  if (!absolute && parsed.origin !== SAFE_HREF_RESOLUTION_ORIGIN) return null;
   if (ADMIN_MEDIA_ORIGINAL_PATH.test(parsed.pathname)) return null;
   if (parsed.username || parsed.password) return null;
   return src;
@@ -848,6 +854,8 @@ function renderImageTag(props: {
   readonly cssClass: string | null;
   readonly htmlAttributes: string | null;
   readonly markerAttributes?: readonly MarkerAttribute[];
+  /** Gallery responsive candidate uses the real resolved rendition, without inventing transforms. */
+  readonly responsive?: boolean;
 }): string {
   const src = mediaPublicPath(props.urlKey, { kind: "transform", name: props.transformName, version: props.version, ext: "jpg" });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
@@ -870,7 +878,10 @@ function renderImageTag(props: {
     ? attributeValueHtml(markerLoading.value ?? "lazy", "marker")
     : attributeValueHtml(allExtra.loading ?? "lazy", "asset");
   const extraAttrs = mergeMediaExtraAttributes(omitKey(allExtra, "loading"), markerAttributes, MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES);
-  return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr}${extraAttrs} loading="${loadingValue}">`;
+  // The current media contract exposes one public rendition, not a width ladder. A real 1x
+  // candidate avoids advertising nonexistent widths/transform routes; theme CSS sizes it fluidly.
+  const srcset = props.responsive === true ? ` srcset="${escapeHtml(src)} 1x"` : "";
+  return `<img src="${escapeHtml(src)}"${srcset} alt="${altAttr}"${widthAttr}${heightAttr}${classAttr}${extraAttrs} loading="${loadingValue}">`;
 }
 
 /**
@@ -896,7 +907,10 @@ function renderImageTag(props: {
  *  attribute still shows controls, since it is a boolean-by-presence attribute). */
 const MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["class", "alt", "width", "height", "controls"]);
 
+// Mediawidget audio extends this existing player owner, retaining shared class/attribute
+// precedence, controls and the canonical original-byte URL instead of copying a video lifecycle.
 function renderVideoTag(props: {
+  readonly kind?: "video" | "audio";
   /** Same `mediaUrlKey`-built `/m/...` key {@link renderImageTag}'s own `urlKey` documents —
    *  readable-slugs S3. */
   readonly urlKey: string;
@@ -912,11 +926,12 @@ function renderVideoTag(props: {
    *  Defaults to `true` (the pre-existing, only-ever behavior before this prop existed). */
   readonly controls?: boolean;
 }): string {
+  const tag = props.kind ?? "video";
   const src = mediaPublicPath(props.urlKey, { kind: "original" });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const controlsAttr = (props.controls ?? true) ? " controls" : "";
-  const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
-  const heightAttr = mediaDimensionAttr("height", props.height, markerAttributes);
+  const widthAttr = tag === "video" ? mediaDimensionAttr("width", props.width, markerAttributes) : "";
+  const heightAttr = tag === "video" ? mediaDimensionAttr("height", props.height, markerAttributes) : "";
   const allExtra = resolveEmbedHtmlAttributes(props.htmlAttributes);
   // `class` is now an allowlisted name (S1, 2026-09-23 widget-attrs plan) — folded in here, same as
   // `renderImageTag`'s own identical fold, rather than left to `mergeMediaExtraAttributes`'s generic
@@ -940,8 +955,8 @@ function renderVideoTag(props: {
     ? (markerAlt.value ?? "")
     : props.alt
       ? escapeHtml(props.alt)
-      : "Your browser does not support the video tag.";
-  return `<video src="${escapeHtml(src)}"${controlsAttr}${widthAttr}${heightAttr}${classAttr}${extraAttrs}>${fallback}</video>`;
+      : `Your browser does not support the ${tag} tag.`;
+  return `<${tag} src="${escapeHtml(src)}"${controlsAttr}${widthAttr}${heightAttr}${classAttr}${extraAttrs}>${fallback}</${tag}>`;
 }
 
 /**
@@ -1323,9 +1338,9 @@ function mediaNodeStyleOverride(nodeValue: string | null, assetValue: string | n
 /**
  * Attempts the REF-node image path — `attrs.assetId`/`attrs.transformName` resolved against
  * `mediaTransformVersions`/`mediaAssetMetadata` (ADR-027 §4's frozen URL contract). Returns `null`
- * when the ref shape isn't present/plausible, or the transform name isn't yet resolvable, in which
- * case {@link renderDocImage} falls through to the LEGACY `src` path exactly as before this helper
- * was split out — see that function's own doc for the full two-shape contract this implements one
+ * when the ref shape isn't present/plausible, or the transform name isn't yet resolvable.
+ * {@link renderDocImage} then uses LEGACY `src` only when no assetId is present — see that
+ * function's own doc for the full two-shape contract this implements one
  * half of, and for why an unresolved ref degrades to a placeholder rather than a malformed URL.
  *
  * `nodeStyleOverride` (2026-09-11): optional per-node `cssClass`/`htmlAttributes`, layered over the
@@ -1362,18 +1377,18 @@ function tryRenderRefImage(
  * TipTap image node reaches this renderer in one of two shapes. LEGACY nodes carry only
  * `attrs.src`/`attrs.title` — some combination of an inlined `data:` blob, an arbitrary
  * external URL, or the *authenticated* admin media-preview URL, none of which are safe or
- * correct to embed unescaped on public, unauthenticated HTML. Those keep degrading to the
- * same aspect-ratio placeholder (`mediaPlaceholder`) exactly as before this task —
- * `src`/`title` are still never read here at all, which is precisely the property that made
- * the original D7 fix safe and must not regress: a real running server was verified live (see
+ * correct to embed unescaped on public, unauthenticated HTML. Unsafe sources keep degrading to the
+ * same aspect-ratio placeholder (`mediaPlaceholder`); safe sources and their optional title and
+ * dimensions are escaped before rendering. The original D7 safety rationale still applies:
+ * a real running server was verified live (see
  * `media/bootstrap.ts`'s file header) to have posts whose only image `src` values are exactly
  * these unsafe kinds, so silently starting to trust `src` would be a public security
  * regression, not a fix.
  *
  * REF nodes (new, ADR-027 §4's own stated `bodyJson` contract: "stores refs
  * `{assetId, transformName}`, never URLs") carry `attrs.assetId`/`attrs.transformName`
- * instead, resolved by {@link tryRenderRefImage} — only THIS shape ever produces a real
- * `<img src>`. width/height/class (this task): looked up from `mediaAssetMetadata` by
+ * instead, resolved by {@link tryRenderRefImage}; src-only nodes use {@link safeImageSrc}.
+ * REF width/height/class: looked up from `mediaAssetMetadata` by
  * `assetId` ALONE (never gated on whether the src itself resolved to a placeholder-vs-real
  * image — an unresolved ref already returns `null` from {@link tryRenderRefImage}, so this
  * lookup only ever runs once a real `<img src>` is about to be emitted). Each attribute is
@@ -1387,6 +1402,8 @@ function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, dep
   const alt = typeof attrs.alt === "string" ? attrs.alt : "";
   const refImage = tryRenderRefImage(attrs, alt, deps);
   if (refImage) return refImage;
+  // A managed ref must not publish its editor preview when its transform cannot resolve.
+  if (attrs.assetId) return mediaPlaceholder({ label: alt || "Image" });
   // LEGACY `src`-only node (the toolbar's "Img by URL", and anything authored before refs
   // existed). Historically this fell straight through to the placeholder — `src` was never read
   // at all. The owner reversed that on 2026-08-12: refusing every `src` is a blunt instrument,
@@ -1395,7 +1412,14 @@ function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, dep
   // discipline for an image URL: an allowlist, not a ban. Anything it rejects still degrades to
   // the identical placeholder below, so invariant I2 (never silently empty) is unchanged.
   const legacySrc = safeImageSrc(attrs.src);
-  if (legacySrc) return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}" loading="lazy" />`;
+  if (legacySrc) {
+    const extras: Record<string, string> = {};
+    for (const name of ["title", "width", "height"]) {
+      const value = attrs[name];
+      if (typeof value === "string" || typeof value === "number") extras[name] = String(value);
+    }
+    return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}"${formatHtmlAttributes(extras)} loading="lazy" />`;
+  }
   return mediaPlaceholder({ label: alt || "Image" });
 }
 
@@ -1412,27 +1436,19 @@ function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, dep
  * keep rendering.
  *
  * Dispatches on `deps.mediaAssetMetadata.get(assetId)?.contentType` (see that field's own doc for
- * exactly where it comes from and its one disclosed gap): a `video/*` type renders a real `<video>`
- * via {@link renderVideoTag}. Anything else — a real image type, an unrecognized type, an asset
+ * exactly where it comes from and its one disclosed gap): video/audio types render native players
+ * via the shared {@link renderVideoTag}. Anything else — a real image type, an unrecognized type, an asset
  * absent from `mediaAssetMetadata` entirely (`meta` is `undefined`, which reads as "not video" the
- * same as a `null`/non-video `contentType` would), or (today) an audio type with no player to
- * dispatch to — falls through to {@link tryRenderRefImage}, the EXACT resolution `image` itself
+ * same as a `null`/non-video `contentType` would) — falls through to {@link tryRenderRefImage}, the EXACT resolution `image` itself
  * uses, so a real image asset referenced through this node renders byte-identical to referencing it
  * through `image`. {@link tryRenderRefImage} already returns `null` for anything it can't resolve
  * (unregistered transform, implausible id shape, …), so an unresolvable `media` node degrades to the
  * same placeholder `image` degrades to — never a crash, never silence.
  *
- * AUDIO (deliberately not wired): no `renderAudioTag` exists and there is no `audio/*` branch here
- * — the server upload MIME allowlist (`@jini-ai/cms/media`'s `media-service.ts`,
- * `DEFAULT_ALLOWED_MIME_TYPES`) has no audio type at all today, so no real audio asset can exist to
- * dispatch to; adding a fake branch for a type nothing can ever upload would be exactly the
- * pretend-support this task was told not to build. Adding real audio support later needs, in order:
- * an allowlisted upload MIME type, a `renderAudioTag` sibling to {@link renderImageTag}/
- * {@link renderVideoTag} (an `<audio controls src=…>` tag is the obvious shape — `<audio>` has no
- * width/height/alt of its own the way `<img>`/`<video>` do), and one more
- * `startsWith("audio/")` branch below — no new node type and no schema change beyond this one
- * `media` entry, which is the entire point of dispatching on content type instead of adding a third
- * node.
+ * AUDIO (owner-approved mediawidget, 2026-10-10/11): the formerly absent upload/sniffing
+ * prerequisites are now owned by the shared media service. Audio extends the existing player
+ * renderer and original-byte route, with no new node type or schema. The same per-node style
+ * precedence and safe attribute merge therefore apply to video and audio.
  *
  * PER-NODE STYLE OVERRIDES (2026-09-11): `attrs.cssClass`/`attrs.htmlAttributes` — same two field
  * names and same raw-text storage format as `MediaRecord`'s asset-level fields, added to the node
@@ -1466,6 +1482,12 @@ function renderDocMedia(node: JsonObject, _content: JsonValue[] | undefined, dep
       cssClass: mediaNodeStyleOverride(nodeCssClass, meta.cssClass),
       htmlAttributes: mediaNodeStyleOverride(nodeHtmlAttributes, meta.htmlAttributes),
     });
+  }
+
+  if (meta?.contentType?.startsWith("audio/")) {
+    return renderVideoTag({ kind: "audio", urlKey: mediaUrlKey({ id: assetId, slug: meta.slug }), alt,
+      width: null, height: null, cssClass: mediaNodeStyleOverride(nodeCssClass, meta.cssClass),
+      htmlAttributes: mediaNodeStyleOverride(nodeHtmlAttributes, meta.htmlAttributes) });
   }
 
   const refImage = tryRenderRefImage(attrs, alt, deps, { cssClass: nodeCssClass, htmlAttributes: nodeHtmlAttributes });
@@ -1699,14 +1721,24 @@ function siteHeader(ctx: SiteRenderContext, props: JsonObject): string {
 
 function entryList(ctx: SiteRenderContext, props: JsonObject): string {
   const layout = typeof props.layout === "string" ? props.layout : "index";
-  const items = ctx.posts
+  // Home pages its already-visible posts as see-more listing 1; numbering continues from `after`.
+  const after = ctx.listing?.after ?? 0;
+  const shown = ctx.listing === undefined ? ctx.posts : ctx.posts.slice(after, after + LISTING_BATCH_DEFAULT);
+  const items = shown
     .map((post, i) => {
-      const folio = String(i + 1).padStart(2, "0");
-      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(post)))}</p></a></li>`;
+      const folio = String(after + i + 1).padStart(2, "0");
+      const cover = featuredImageView(ctx, post);
+      const image = cover ? renderCoverImageTag({ image: cover }, { loading: "lazy" }) : "";
+      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}">${image}<span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(post)))}</p></a></li>`;
     })
     .join("");
   const body = items || `<li class="entry entry--empty"><p>No published posts yet.</p></li>`;
-  return `<section class="entry-list entry-list--${escapeHtml(layout)}"><div class="wrap"><ol class="entries">${body}</ol></div></section>`;
+  if (ctx.listing === undefined || items === "") {
+    return `<section class="entry-list entry-list--${escapeHtml(layout)}"><div class="wrap"><ol class="entries">${body}</ol></div></section>`;
+  }
+  const next = after + shown.length;
+  const more = next < ctx.posts.length ? renderListingMore({ key: 1, href: listingBatchPath({ pagePath: ctx.listing.pagePath, key: 1, after: next }) }) : "";
+  return `<section class="entry-list entry-list--${escapeHtml(layout)}"><div class="wrap"><ol class="entries" data-jini-listing="1">${wrapListingItems({ key: 1, items })}</ol>${more}</div></section>`;
 }
 
 /**
@@ -1790,7 +1822,11 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  * `isPageEmbedType`'s own doc for why ownership is asked of the resolver registry and not inferred
  * from whether resolution produced anything.
  *
- * @complexity O(n) over `html`'s length (one substitution pass); O(1) additional work per marker (an
+ * `options.postAuthor` is supplied by static post routes. Only that entity's content header gets
+ * its byline, selected through the theme's author injector; an authored marker/token elsewhere
+ * suppresses the automatic credit. The third options object preserves the existing two-argument API.
+ *
+ * @complexity O(n) time/output space over `html`'s length (author scan plus substitution); O(1) additional work per marker (an
  * ownership check plus two map lookups plus `renderWidgetIr`'s own O(1) dispatch).
  * @overallScore 100
  *
@@ -1800,7 +1836,13 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  * the html/resolved pair comes from (a theme's `pages/*.html` plus a real-id substitution, not
  * `post.bodyHtml`).
  */
-export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
+export function renderHtmlPageBody(
+  html: string,
+  resolved: ResolveHtmlPageEmbedsResult | undefined,
+  options: { postAuthor?: Pick<PostRecord, "id" | "slug" | "author" | "showAuthor">; postPresentation?: PostRecord } = {},
+): string {
+  const postAuthor = options.postAuthor;
+  const byline = postAuthor ? postAuthorForContentHeader({ html, post: postAuthor }) : "";
   return substituteHtmlEmbeds({ html: html, resolve: (ref, occurrence) => {
     if (!isPageEmbedType({ type: ref.type })) return undefined;
     // D4 guard (2026-09-23): a "content"/"post" marker naming neither an id nor a slug has no
@@ -1811,14 +1853,28 @@ export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbeds
     // degrading to the REQ-28 placeholder, which is the right answer only when an id/slug WAS
     // named but failed to resolve.
     if ((ref.type === "content" || ref.type === "post") && ref.id === null && ref.slug === null) return undefined;
-    const lookupKey = ref.id ?? ref.slug;
+    const lookupKey = (ref as PageHtmlEmbedRef & { placementKey?: string }).placementKey ?? ref.id ?? ref.slug;
     const resolvedIr = lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined;
     // Deleted/missing widget ids must not leave raw markers or placeholder markup on the public site.
     if (ref.type === "widget" && resolvedIr === undefined) return "";
     const ir = resolvedIr ?? HTML_EMBED_PLACEHOLDER_IR;
     const formIr = ir.componentId === "contact-form" && ref.mode === "html"
       ? { ...ir, props: { ...ir.props, mode: "html" } } : ir;
-    return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(formIr, ref), ref, occurrence));
+    // Attach only to the current entity, never to another post explicitly embedded in its template.
+    const isCurrentPost = postAuthor && (ref.id !== null ? ref.id === postAuthor.id : ref.slug === postAuthor.slug);
+    const authorIr = ref.type === "content" && formIr.componentId === "post-content" && isCurrentPost
+      ? { ...formIr, props: { ...formIr.props, postAuthorByline: byline } } : formIr;
+    const currentPost = options.postPresentation;
+    let presented = authorIr;
+    if (currentPost && (ref.type === "content" || ref.type === "post") && authorIr.componentId === "post-content" &&
+        (ref.id !== null ? ref.id === currentPost.id : ref.slug === currentPost.slug)) {
+      const metadata = readMediaAssetMetadata(authorIr.props.mediaAssetMetadata);
+      presented = { ...authorIr, props: { ...authorIr.props, bodyJson: projectPostBody({ post: { ...currentPost, bodyJson: authorIr.props.bodyJson } }, {
+        mediaLookup: ({ ref: mediaRef }) => metadata.get(mediaRef) ?? null,
+        hasPublicTransform: readMediaTransformVersions(authorIr.props.mediaTransformVersions).has("public"),
+      }) as JsonValue } };
+    }
+    return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(presented, ref), ref, occurrence));
   } });
 }
 
@@ -1943,16 +1999,21 @@ function renderPostBody(ctx: SiteRenderContext): string {
   if (!post) return "";
   const body =
     post.bodyFormat === "html"
-      ? renderHtmlPageBody(post.bodyHtml ?? "", ctx.pageHtmlEmbeds)
-      : renderDocNode(post.bodyJson, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
+      ? renderHtmlPageBody(sanitizePageHtml({ html: post.bodyHtml ?? "" }), ctx.pageHtmlEmbeds)
+      : renderDocNode(projectPostBody({ post }, { mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null,
+          hasPublicTransform: ctx.mediaTransformVersions.has("public") }) as JsonValue, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
   return body + renderAssignedTermsBlock(ctx.assignedTerms);
 }
 
 function entryContent(ctx: SiteRenderContext): string {
   if (!ctx.post) return "";
   const author = postAuthorForDisplay({ post: ctx.post });
-  const byline = author ? `<p class="post-author">By ${escapeHtml(author)}</p>` : "";
-  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(ctx.post)))}</p>${byline}<div class="prose">${renderPostBody(ctx)}</div></article></div>`;
+  // The byline is the date line's next item, a `span` inside `.entry-meta` (2026-10-11): as its own
+  // `<p>` after that line it took the theme's body-text size instead of the date's small muted type.
+  // `.entry-meta` is a plain text line (no flex gap), so the items need a written separator.
+  const date = shortDate(postDisplayDateIso(ctx.post));
+  const byline = author ? `${date ? " · " : ""}<span class="post-author">By ${escapeHtml(author)}</span>` : "";
+  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(date)}${byline}</p><div class="prose">${renderPostBody(ctx)}</div></article></div>`;
 }
 
 /**
@@ -2345,82 +2406,8 @@ function renderWidgetMenu(props: JsonObject): string {
   return `<nav class="widget widget-menu">${heading}<ul>${renderWidgetMenuItems(arr(props.items))}</ul></nav>`;
 }
 
-/**
- * Renders one field descriptor's `class`/extra-attribute string, both attached to the SAME
- * rendered input element the field's own `id`/`name`/`required`/`type` already get. Re-checks
- * `ATTRIBUTE_NAME_PATTERN` here rather than trusting that every stored field passed through
- * `forms.ts`'s `validateFieldDescriptors` (this is the public render path, REQ-37/ADR-047) —
- * defense in depth, since an attribute NAME is not something `escapeHtml` can make safe the way it
- * can a value (`onclick` is structurally dangerous regardless of how its own text is escaped).
- * `className` carries no such risk once escaped, so it is not re-validated, only escaped.
- */
-function renderExtraFieldAttrs(o: JsonObject): string {
-  const className = o.className;
-  const classAttr = typeof className === "string" && className.trim() !== "" ? ` class="${escapeHtml(className)}"` : "";
-  const attributes = obj(o.attributes);
-  let attrsHtml = "";
-  if (attributes) {
-    for (const [name, value] of Object.entries(attributes)) {
-      if (typeof value !== "string" || !ATTRIBUTE_NAME_PATTERN.test(name)) continue;
-      attrsHtml += ` ${name}="${escapeHtml(value)}"`;
-    }
-  }
-  return `${classAttr}${attrsHtml}`;
-}
-
-/** One `<textarea>`/checkbox/text-or-email `<input>` for a contact-form field descriptor — pulled out
- *  of {@link renderContactFormField}'s old three-way nested ternary so each shape is a flat, separately
- *  readable branch rather than one expression whose nesting depth drove the field-renderer's cognitive
- *  complexity. `requiredAttr` is computed once and reused across all three shapes, same value the old
- *  nested ternary recomputed per-branch. `describedByAttr` wires the field to its own (initially empty
- *  and hidden) error slot for assistive tech — see {@link renderContactFormField}'s own doc for why
- *  that slot exists even though nothing fills it in on the very first render. */
-function renderContactFormInput(kind: string, id: string, required: boolean, extraAttrs: string, describedByAttr: string, maxLength: unknown): string {
-  const requiredAttr = required ? " required" : "";
-  if (kind === "checkbox") return `<input type="checkbox" name="${id}" id="widget-contact-${id}"${requiredAttr}${describedByAttr}${extraAttrs}/>`;
-  const constraintAttrs = `${requiredAttr}${contactFormMaxLengthAttr(maxLength)}`;
-  if (kind === "textarea") return `<textarea name="${id}" id="widget-contact-${id}"${constraintAttrs}${describedByAttr}${extraAttrs}></textarea>`;
-  const inputType = kind === "email" ? "email" : "text";
-  return `<input type="${inputType}" name="${id}" id="widget-contact-${id}"${constraintAttrs}${describedByAttr}${extraAttrs}/>`;
-}
-
-/** The field's own `maxLength` as a `maxlength` attribute, so the browser stops input at the same
- *  limit `forms.ts`'s `validateSubmissionPayload` enforces (`too_long`) instead of letting a visitor
- *  type past it and lose the submission to a server rejection. Only a positive integer renders —
- *  the value comes from stored JSON, so anything else is dropped rather than interpolated.
- *  @complexity O(1). */
-function contactFormMaxLengthAttr(maxLength: unknown): string {
-  return typeof maxLength === "number" && Number.isInteger(maxLength) && maxLength > 0 ? ` maxlength="${maxLength}"` : "";
-}
-
-/** One contact-form field descriptor -> its `<div class="widget-form-field">` markup — extracted from
- *  {@link renderWidgetContactForm}'s old inline `.map()` callback so the field's own render logic is a
- *  named, independently measured function rather than an anonymous closure.
- *
- *  Carries its own `<div class="widget-form-field-error" data-field="ID" hidden></div>` slot, hidden
- *  and empty on every ordinary render — `renderWidgetContactForm` has no request in scope (this is a
- *  pure prop-to-HTML function, no I/O), so it cannot know at render time whether THIS submission
- *  failed validation on THIS field. The slot exists purely as a stable, pre-built anchor
- *  {@link injectFormSubmissionResultIntoHtml} fills in and un-hides after the fact, on the
- *  Post/Redirect/Get reload that follows a failed submission (see that function's own doc for the
- *  full mechanism). */
-function renderContactFormField(f: JsonValue): string {
-  const o = obj(f);
-  if (!o) return "";
-  const id = escapeHtml(str(o.id));
-  const label = escapeHtml(str(o.label));
-  const required = o.required === true;
-  const kind = str(o.type, "text");
-  const extraAttrs = renderExtraFieldAttrs(o);
-  const errorId = `widget-contact-${id}-error`;
-  const inputEl = renderContactFormInput(kind, id, required, `${extraAttrs} toolparamtitle="${label}" toolparamdescription="${label}"`, ` aria-describedby="${errorId}"`, o.maxLength);
-  const errorSlot = `<div class="widget-form-field-error" data-field="${id}" id="${errorId}" hidden></div>`;
-  // The checkbox modifier lets the baseline put the box before its label on one line (owner report
-  // 2026-10-05: stacked and stretched like a text input, its glyph drew centred under the label).
-  const fieldClass = kind === "checkbox" ? "widget-form-field widget-form-field-checkbox" : "widget-form-field";
-  return `<div class="${fieldClass}"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}${errorSlot}</div>`;
-}
-
+/** Field rendering, attribute allowlisting and help/error association belong to Jini's registry
+ * renderer. The host supplies its existing CSS classes and id prefix for theme compatibility. */
 const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been sent.";
 
 /** Renders a `contact-form` widget: Forms' own declared field vocabulary (REQ-37 — never a
@@ -2447,6 +2434,8 @@ function renderWidgetContactForm(props: JsonObject): string {
   if (!slug) return renderWidgetPlaceholder();
   // HTML mode is Builder's look plus author refinements, not "unstyled": the same baseline and
   // `tovu-form` hook let the active theme's form rules apply, and author CSS still wins over both.
+  // The slider value readout ships only with forms that have a range field.
+  const rangeReadout = arr(props.fields).some(field => typeof field === "object" && field !== null && !Array.isArray(field) && field.type === "range") ? FORM_RANGE_READOUT_SCRIPT : "";
   if (props.mode === "html") return FORM_BASELINE_STYLE + renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
@@ -2455,9 +2444,11 @@ function renderWidgetContactForm(props: JsonObject): string {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
-  });
+  }) + rangeReadout;
   const escapedSlug = escapeHtml(slug);
-  const fields = arr(props.fields).map(renderContactFormField).join("");
+  const fieldDescriptors = arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
+  const fieldOptions = { submitLabel: "Send", idPrefix: "widget-contact", fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
+  const fields = renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions);
   const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
   const successSlot = renderFormSuccessSlot({ slug: escapedSlug, message: successMessage, extraClasses: "widget-contact-form-success", extraAttrs: legacyAttrs });
@@ -2465,11 +2456,12 @@ function renderWidgetContactForm(props: JsonObject): string {
   return (
     FORM_BASELINE_STYLE +
     successSlot +
-    `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml(slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123))}" tooldescription="${escapedSlug}" method="post" action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
+    `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml(slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123))}" tooldescription="${escapedSlug}" method="post"${fieldDescriptors.some(field => field && String(field.type) === "file") ? ' enctype="multipart/form-data"' : ""} action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
     errorSlot +
     fields +
     `<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>` +
-    `<button type="submit">Send</button></form>`
+    `</form>` +
+    rangeReadout
   );
 }
 
@@ -2485,7 +2477,7 @@ function renderWidgetPlaceholder(): string {
  * already did the I/O (asset lookup, content-type lookup, and — for a non-video asset — transform
  * version lookup) and only ever puts a `"media-image"` IR into its result map once every value
  * below is a validated primitive, so this function's own `isPlausibleMediaRefId`/`typeof` checks
- * are defense-in-depth (mirrors `renderExtraFieldAttrs`'s own re-check-even-though-upstream-
+ * are defense-in-depth (mirrors Jini form renderer's re-check-even-though-upstream-
  * validated precedent), not the primary guard. A malformed `props` shape — which should never
  * happen from this codebase's own resolver, only from some future/foreign IR producer — degrades to
  * the ordinary widget placeholder rather than emitting a malformed or unsafe `<img>`/`<video>` tag.
@@ -2553,6 +2545,9 @@ function renderWidgetMediaImage(props: JsonObject): string {
   // `mediaUrlKey` fallback-to-id rule every other emitter here uses.
   const urlKey = mediaUrlKey({ id: assetId, slug: typeof props.slug === "string" ? props.slug : null });
 
+  if (typeof props.contentType === "string" && props.contentType.startsWith("audio/")) {
+    return renderVideoTag({ kind: "audio", urlKey, alt, width: null, height: null, cssClass, htmlAttributes, markerAttributes, controls });
+  }
   if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
     return renderVideoTag({ urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
   }
@@ -2562,7 +2557,30 @@ function renderWidgetMediaImage(props: JsonObject): string {
   if (typeof transformName !== "string" || typeof version !== "number" || !isPlausibleMediaRefId(transformName)) {
     return renderWidgetPlaceholder();
   }
-  return renderImageTag({ urlKey, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes });
+  return renderImageTag({ urlKey, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes, responsive: props.galleryResponsive === true });
+}
+
+/** Gallery image adapter: managed media uses the canonical renderer; URL images retain the
+ * document image renderer's scheme, credential and private-admin-route guards. No I/O.
+ */
+const renderGalleryImage: GalleryImageRenderer = ({ image, media }, _optional = {}) => {
+  const slug = (image as typeof image & { slug?: string }).slug;
+  if (slug !== undefined || image.mediaId !== undefined) {
+    if (!media) return renderWidgetPlaceholder();
+    return renderWidgetMediaImage({ ...media, alt: image.alt, galleryResponsive: true });
+  }
+  return renderDocNode({ type: "image", attrs: { src: image.src ?? "", alt: image.alt } });
+};
+
+/** Gallery compatibility and generic media share one renderer. HTML uses the page-body policy. */
+function renderMediaWidget({ ir }: { ir: WidgetRenderIR }, _optional: Record<string, never> = {}): string {
+  const renderOptions = {
+    config: ir.props.config, media: ir.props.media, renderImage: renderGalleryImage,
+    renderRawHtml: ({ html, media }: { html: string; media: Record<string, JsonObject> }) => renderMediaRawHtml({
+      html, media, renderMedia: ({ props }) => renderWidgetMediaImage(props),
+    }),
+  };
+  return renderGallery(renderOptions);
 }
 
 /**
@@ -2702,23 +2720,30 @@ function readInlineWidgets(value: JsonValue | undefined): ReadonlyMap<string, Wi
  * `readMediaAssetMetadata` above reconstruct the `Map`s this function needs from that JSON).
  */
 /**
- * The `.post-detail-header` block (`<h1>` + optional date byline), or `""` when the caller opted
+ * The `.post-detail-header` block (`<h1>` + optional date and author byline), or `""` when the caller opted
  * out via `header: false` (2026-09-04 — a "content" marker's own `header:false`, threaded here from
  * `resolver-service.ts`'s `resolveContentTypeEmbeds`). Split out of {@link renderWidgetPostContent}
  * so the opt-out's own branch lives at nesting depth 0 in a small function, rather than stacking a
  * third ternary into a function that already carries two (the title-node back-compat fork, the
  * date-label presence check) — see this repo's complexity ceiling.
  *
+ * The byline sits inside the date's `.post-meta` line, as its next item (2026-10-10). After it, as
+ * a sibling, it took the theme's body-text size and font under a small monospace date on every theme
+ * without its own byline rules; inside, it inherits whatever the theme gives that line (themes lay
+ * `.post-meta` out as a row of meta items: `display: flex; gap`).
+ *
  * @complexity O(1) — string concatenation only, no loop or recursion.
  */
-function renderPostDetailHeader(showHeader: boolean, titleHtml: string, dateLabel: string, dateIso: string): string {
+function renderPostDetailHeader(
+  required: { showHeader: boolean; titleHtml: string; dateLabel: string; dateIso: string },
+  optional: { bylineHtml?: string } = {},
+): string {
+  const { showHeader, titleHtml, dateLabel, dateIso } = required;
   if (!showHeader) return "";
-  return (
-    `<div class="post-detail-header">` +
-    titleHtml +
-    (dateLabel ? `<div class="post-meta"><time datetime="${escapeHtml(dateIso)}">${escapeHtml(dateLabel)}</time></div>` : "") +
-    `</div>`
-  );
+  const time = dateLabel ? `<time datetime="${escapeHtml(dateIso)}">${escapeHtml(dateLabel)}</time>` : "";
+  const byline = (optional.bylineHtml ?? "").replace("<span", time ? '<span data-post-author-separator=""' : "<span");
+  const meta = time + byline;
+  return `<div class="post-detail-header">` + titleHtml + (meta ? `<div class="post-meta">${meta}</div>` : "") + `</div>`;
 }
 
 function renderWidgetPostContent(props: JsonObject): string {
@@ -2750,7 +2775,7 @@ function renderWidgetPostContent(props: JsonObject): string {
   const mediaAssetMetadata = readMediaAssetMetadata(props.mediaAssetMetadata as JsonValue | undefined);
   const inlineWidgets = readInlineWidgets(props.inlineWidgets as JsonValue | undefined);
   return (
-    renderPostDetailHeader(showHeader, titleHtml, dateLabel, dateIso) +
+    renderPostDetailHeader({ showHeader, titleHtml, dateLabel, dateIso }, { bylineHtml: str(props.postAuthorByline) }) +
     `<div class="post-detail-body">${renderDocNode(bodyJson, inlineWidgets, mediaTransformVersions, mediaAssetMetadata)}</div>`
   );
 }
@@ -2775,6 +2800,8 @@ const WIDGET_IR_RENDERERS: Record<string, (ir: WidgetRenderIR) => string> = {
   }),
   "contact-form": (ir) => renderWidgetContactForm(ir.props),
   "media-image": (ir) => renderWidgetMediaImage(ir.props),
+  "gallery": (ir) => renderMediaWidget({ ir }),
+  "media": (ir) => renderMediaWidget({ ir }),
   "post-content": (ir) => renderWidgetPostContent(ir.props),
 };
 
@@ -2907,11 +2934,11 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
  * Featured image (2026-10-05) as template data: the core "public" transform URL — the same `/m/`
  * URL a body image of the same asset gets — or `null` when the post has none, the asset did not
  * resolve (trashed, deleted, not in `mediaAssetMetadata`), or the transform is not registered yet.
- * Alt text is the post title: `MediaAssetRenderMeta` carries no alt, and the image illustrates it.
+ * An unset featured slot uses the shared first-body-image policy; body alt falls back to the title.
  * Exported for the static tier (`pages.ts`'s `resolveFeaturedImageForRender`), which feeds the
  * same view to a `{"type":"featured-image"}` marker so the two tiers cannot disagree.
  *
- * @complexity O(1) — two map lookups.
+ * @complexity O(n) body traversal for an unset featured slot; O(1) for a featured image.
  */
 /** `CORE_PUBLIC_TRANSFORM_NAME` (`features/media/bootstrap.ts`), restated rather than imported: that
  *  module pulls in the whole media feature barrel, which this I/O-free render module never needed. */
@@ -2921,14 +2948,15 @@ export function featuredImageView(
   ctx: Pick<SiteRenderContext, "mediaAssetMetadata" | "mediaTransformVersions">,
   post: PostRecord
 ): { url: string; alt: string; width: number | null; height: number | null } | null {
-  if (!post.featuredMediaId) return null;
-  const meta = ctx.mediaAssetMetadata.get(post.featuredMediaId);
+  const cover = resolveCoverImage({ post }, { mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null });
+  if (!cover?.mediaId) return null;
+  const meta = ctx.mediaAssetMetadata.get(cover.mediaId);
   const version = ctx.mediaTransformVersions.get(FEATURED_IMAGE_TRANSFORM);
   if (!meta || version === undefined) return null;
-  const urlKey = mediaUrlKey({ id: post.featuredMediaId, slug: meta.slug });
+  const urlKey = mediaUrlKey({ id: cover.mediaId, slug: meta.slug });
   return {
     url: mediaPublicPath(urlKey, { kind: "transform", name: FEATURED_IMAGE_TRANSFORM, version, ext: "jpg" }),
-    alt: post.title,
+    alt: cover.alt,
     width: meta.width,
     height: meta.height,
   };
@@ -3257,7 +3285,7 @@ function removeThemeOwnTitleElement(html: string): string {
  * `page-head-contributor.ts`'s priority-100 title element), this shell's own
  * hardcoded `<title>` is suppressed rather than emitting two competing tags.
  */
-function pageShell(required: {
+export function pageShell(required: {
   title: string;
   /** `null` when the operator turned the theme off — see {@link RenderSiteRequired.theme}. */
   theme: DiscoveredTheme | null;
@@ -3269,7 +3297,7 @@ function pageShell(required: {
    *  carries — so any pre-existing or test caller that does not pass this omits the assistant
    *  rather than silently gaining it. */
   siteAssistantEnabled?: SiteChatSelection;
-}): string {
+}, _optional: Record<string, never> = {}): string {
   const { theme, extraHead } = required;
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
@@ -3329,6 +3357,8 @@ export interface RenderSiteRequired {
   route: "home" | "post" | "products" | "product";
   siteTitle: string;
   posts: PostRecord[];
+  /** See {@link SiteRenderContext.listing}. */
+  listing?: { pagePath: string; after: number };
   post?: PostRecord;
   /** Sample store-plugin products (products/product routes). Omitted entirely (every pre-existing
    * caller of `renderSite`) behaves as "no products" — not a breaking change, same convention as
@@ -3424,6 +3454,7 @@ function buildSiteRenderContext(required: RenderSiteRequired): SiteRenderContext
     siteTitle: required.siteTitle,
     route: required.route,
     posts: required.posts,
+    ...(required.listing !== undefined ? { listing: required.listing } : {}),
     post: required.post,
     products: required.products ?? [],
     product: required.product,

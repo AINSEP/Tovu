@@ -8,7 +8,7 @@ import {
   type PostRevisionInput,
   type PostRevisionRecord,
 } from "./post.js";
-import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
+import { comparePostsByDisplayDate, currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
 
 /**
  * SPEC-005 (T021): `ext` needs no special handling here. Unlike `repo.sqlite.ts` — which has to
@@ -55,11 +55,12 @@ export class InMemoryPostRepo implements PostRepoPort {
   }
 
   /** See `PostRepoPort.listPublishedPreviews`'s own doc for the exact contract (bounded,
-   *  `kind: "post"`-filtered, newest `updatedAt` first). Filter-sort-slice here is this in-memory
+   *  `kind: "post"`-filtered, newest display date first). Filter-sort-slice here is this in-memory
    *  adapter's own stand-in for a real bounded query — `repo.sqlite.ts`'s adapter is the one that
    *  must push the equivalent `WHERE`/`ORDER BY`/`LIMIT` down to SQLite itself. */
-  async listPublishedPreviews(required: { workspaceId: string; limit: number; nowIso?: string }): Promise<PostRecord[]> {
+  async listPublishedPreviews(required: { workspaceId: string; limit: number; nowIso?: string; offset?: number }): Promise<PostRecord[]> {
     const nowIso = required.nowIso ?? currentIso();
+    const offset = required.offset ?? 0;
     return this.rows
       .filter(
         (row) =>
@@ -67,8 +68,8 @@ export class InMemoryPostRepo implements PostRepoPort {
           row.kind === "post" &&
           isLiveAt(row, nowIso)
       )
-      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
-      .slice(0, required.limit);
+      .sort(comparePostsByDisplayDate)
+      .slice(offset, offset + required.limit);
   }
 
   async save(record: PostRecord): Promise<void> {

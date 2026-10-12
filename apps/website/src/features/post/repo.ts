@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { sql } from "kysely";
+
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type {
   PostAutosaveSnapshot,
@@ -79,7 +81,7 @@ export class SqlPostRepo implements PostRepoPort {
   /** See `PostRepoPort.listPublishedPreviews`'s own doc for the exact contract. Every filter
    *  (workspace, `status`, `kind`, non-trashed) and the `LIMIT` are pushed into the ONE query — no
    *  in-JS filter or slice after the fact, the discipline that method's doc requires. */
-  async listPublishedPreviews(required: { workspaceId: string; limit: number; nowIso?: string }): Promise<PostRecord[]> {
+  async listPublishedPreviews(required: { workspaceId: string; limit: number; nowIso?: string; offset?: number }): Promise<PostRecord[]> {
     const nowIso = required.nowIso ?? currentIso();
     const rows = await this.kernel.run((db) =>
       db
@@ -91,8 +93,12 @@ export class SqlPostRepo implements PostRepoPort {
         .where("deleted_at", "is", null)
         // Scheduled publishing: same rule as `isLiveAt` — ISO UTC strings compare in time order.
         .where((eb) => eb.or([eb("publish_at", "is", null), eb("publish_at", "<=", nowIso)]))
-        .orderBy("updated_at", "desc")
+        // Display-date order (`postDisplayDateIso`): go-live time when set, else `updated_at`; `id`
+        // breaks ties so OFFSET batches never repeat or skip a row.
+        .orderBy(sql`coalesce(publish_at, updated_at)`, "desc")
+        .orderBy("id", "asc")
         .limit(required.limit)
+        .offset(required.offset ?? 0)
         .execute()
     );
     return rows.map(toRecord);

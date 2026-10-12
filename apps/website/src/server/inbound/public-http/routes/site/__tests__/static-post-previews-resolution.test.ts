@@ -233,7 +233,7 @@ test("GET /blog: the marker's own limit bounds how many posts render", async (t)
 
   const res = await fetch(`${baseUrl}/blog`);
   const html = await res.text();
-  // Newest updatedAt first (post-3, post-2); the oldest (post-1) must be excluded by the limit.
+  // Newest display date first (post-3, post-2); the oldest (post-1) must be excluded by the limit.
   assert.match(html, /Limit Test Post 3/);
   assert.match(html, /Limit Test Post 2/);
   assert.doesNotMatch(html, /Limit Test Post 1/, "a marker with limit=2 must show only its two most recent posts");
@@ -255,7 +255,8 @@ test("GET /blog: malformed, oversized and distinct marker limits stay bounded in
     const slugs = [...section[1].matchAll(/href="\/(bounded-\d+)"/g)].map((match) => match[1]);
     assert.deepEqual(slugs, Array.from({ length: count }, (_, i) => `bounded-${29 - i}`));
   }
-  assertPreviewRequests(repo, [{ workspaceId: WORKSPACE_ID, limit: 24 }]);
+  // One shared batch at the widest limit; `readListingBatch` reads one extra row to learn "has more".
+  assertPreviewRequests(repo, [{ workspaceId: WORKSPACE_ID, limit: 25 }]);
 });
 
 test("GET /blog: zero visible previews preserve the authored fallback", async (t) => {
@@ -269,7 +270,7 @@ test("GET /blog: zero visible previews preserve the authored fallback", async (t
   const html = await res.text();
   assert.match(html, /<div class="grid"[^>]*>fallback card<\/div>/);
   assert.doesNotMatch(html, /class="post-card"|A real published post/);
-  assertPreviewRequests(repo, [{ workspaceId: WORKSPACE_ID, limit: 6 }]);
+  assertPreviewRequests(repo, [{ workspaceId: WORKSPACE_ID, limit: 7 }]);
 });
 
 test("GET /about: a page WITHOUT the post-previews marker triggers NO bounded query and renders unaffected", async (t) => {
@@ -311,4 +312,38 @@ test("GET /blog: a preview card dates a post by its publishAt (go-live time), no
   const html = await (await fetch(`${baseUrl}/blog`)).text();
   assert.match(html, /<time datetime="2026-07-04T12:00:00\.000Z">Jul 4, 2026<\/time>/);
   assert.doesNotMatch(html, /Sep 1, 2026/);
+});
+
+test("GET /blog: a see-more listing pages 12 at a time through /blog/_more/<key>/<after>, skipping gated posts", async (t) => {
+  const posts = Array.from({ length: 30 }, (_, i) => publishedPost({ id: `more-${i}`, slug: `more-${i}`, title: `More ${i}`, publishAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString() }));
+  // Newest of all, but members-only: skipped, and the cursor moves past it.
+  posts.push(publishedPost({ id: "gated", slug: "gated", title: "Gated", publishAt: "2026-03-01T00:00:00.000Z", memberAccessJson: JSON.stringify({ visibility: "members" }) }));
+  const theme = themeWithPostPreviewsMarker();
+  theme.pages.blog = `<html><body><div class="grid" data-jini-see-more data-embed-config='{"type":"post-previews","limit":12}'>fallback card</div></body></html>`;
+  const { server, baseUrl } = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo(posts) });
+  t.after(() => closeServer(server));
+  const slugsIn = (html: string) => [...html.matchAll(/href="\/(more-\d+|gated)"/g)].map((m) => m[1]);
+  const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => `more-${from + i}`);
+
+  const page = await (await fetch(`${baseUrl}/blog`)).text();
+  assert.deepEqual(slugsIn(page), range(0, 12));
+  assert.match(page, /<div class="grid" data-jini-listing="1"[^>]*><!--jini-listing:1-->/);
+  assert.match(page, /<a class="jini-see-more" data-jini-more="1" href="\/blog\/_more\/1\/13" rel="nofollow" hidden>See more<\/a>/);
+  assert.equal(page.split("data-jini-see-more-script").length, 2, "one inline script per page");
+
+  const second = await fetch(`${baseUrl}/blog/_more/1/13`);
+  assert.equal(second.status, 200);
+  const secondHtml = await second.text();
+  assert.match(secondHtml, /<meta name="robots" content="noindex">/);
+  assert.deepEqual(slugsIn(secondHtml), range(12, 24));
+  assert.match(secondHtml, /data-jini-more="1" href="\/blog\/_more\/1\/25"/);
+  assert.doesNotMatch(secondHtml, /<main|data-jini-see-more-script/, "a batch is the items only, not the page");
+
+  const last = await (await fetch(`${baseUrl}/blog/_more/1/25`)).text();
+  assert.deepEqual(slugsIn(last), range(24, 30));
+  assert.doesNotMatch(last, /data-jini-more/, "the last batch carries no next link");
+
+  for (const path of ["/blog/_more/9/12", "/about/_more/1/12", "/blog/_more/1/x", "/blog/page/2", "/nope/_more/1/12"]) {
+    assert.equal((await fetch(`${baseUrl}${path}`)).status, 404, path);
+  }
 });

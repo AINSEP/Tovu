@@ -59,6 +59,8 @@ export interface CollectionListQuery {
   readonly where: readonly CollectionWhereClause[];
   readonly sort: { readonly by: CollectionSortBy; readonly dir: "asc" | "desc" };
   readonly limit: number;
+  /** Rows to skip first (a see-more batch's source cursor); absent ⇒ 0. */
+  readonly offset?: number;
 }
 
 /** Every collection-list presentation `theme/entry-list-render.ts` renders. `accordion` (an FAQ

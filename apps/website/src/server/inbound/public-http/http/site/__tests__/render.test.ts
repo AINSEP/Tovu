@@ -445,6 +445,21 @@ test("renderSite renders the live themes/dispatch home page: header/footer compo
   assert.doesNotMatch(html, /\{\{|\{%/);
 });
 
+test("renderSite home entry list: 12 at a time from listing.after, numbering continues, See more until the last batch", async () => {
+  const posts = Array.from({ length: 14 }, (_, i) => fakePost({ id: `p${i}`, slug: `p${i}`, title: `Post ${i}` }));
+  const first = await renderSite({ theme: null, route: "home", siteTitle: "Home", posts, listing: { pagePath: "/", after: 0 } });
+  assert.equal(first.match(/class="entry"/g)?.length, 12);
+  assert.match(first, /<ol class="entries" data-jini-listing="1"><!--jini-listing:1-->/);
+  assert.match(first, /<a class="jini-see-more" data-jini-more="1" href="\/_more\/1\/12" rel="nofollow" hidden>/);
+  const last = await renderSite({ theme: null, route: "home", siteTitle: "Home", posts, listing: { pagePath: "/", after: 12 } });
+  assert.deepEqual([...last.matchAll(/№ (\d+)/g)].map((m) => m[1]), ["13", "14"]);
+  assert.doesNotMatch(last, /data-jini-more/);
+  // Without `listing` (every non-home caller) the list is unpaged, exactly as before.
+  const plain = await renderSite({ theme: null, route: "home", siteTitle: "Home", posts });
+  assert.equal(plain.match(/class="entry"/g)?.length, 14);
+  assert.doesNotMatch(plain, /data-jini-listing/);
+});
+
 test("renderSite renders the live themes/dispatch entry (post) page: content injected raw, title escaped in the shell", async () => {
   const theme = loadTheme({ themeDir: path.join(path.resolve(import.meta.dirname, "../../../../../../../../../"), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
@@ -993,7 +1008,7 @@ test("renderDocNode: an image node with no/non-string alt falls back to a generi
   const noAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: {} }] });
   assert.match(noAlt, /media-ph__label">Image</);
 
-  const nonStringAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: { src: "x", alt: 42 } as never }] });
+  const nonStringAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: 42 } as never }] });
   assert.match(nonStringAlt, /media-ph__label">Image</);
 });
 
@@ -1575,9 +1590,10 @@ test("contact-form widget: a field's maxLength reaches the rendered input as max
       },
     }),
   });
-  assert.match(html, /<textarea name="message" id="widget-contact-message" required maxlength="500"/);
-  assert.match(html, /<input type="email" name="email" id="widget-contact-email" required maxlength="120"/);
-  assert.doesNotMatch(html, /name="agree"[^>]*maxlength/);
+  // Attribute order and HTML void-tag spelling belong to the shared renderer, not this contract.
+  assert.match(html, /<textarea\b(?=[^>]* name="message")(?=[^>]* id="widget-contact-message")(?=[^>]* required\b)(?=[^>]* maxlength="500")[^>]*>/);
+  assert.match(html, /<input\b(?=[^>]* type="email")(?=[^>]* name="email")(?=[^>]* id="widget-contact-email")(?=[^>]* required\b)(?=[^>]* maxlength="120")[^>]*>/);
+  assert.doesNotMatch(html, /<input\b(?=[^>]* name="agree")(?=[^>]* maxlength=)[^>]*>/);
 });
 
 test("contact-form widget: a Tailwind-style className survives intact on the rendered input", async () => {
@@ -2177,12 +2193,12 @@ test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-popula
   });
   // The two fields that were VALID (no error) must come back with what the visitor typed — this is
   // the actual bug: before the fix, a 303 PRG reload wiped these even though only "message" failed.
-  assert.match(updated, /<input type="text" name="name" id="widget-contact-name"[^>]*aria-describedby="widget-contact-name-error"[^>]* value="Ada &lt;Lovelace&gt;"\/>/);
-  assert.match(updated, /<input type="email" name="email" id="widget-contact-email"[^>]*aria-describedby="widget-contact-email-error"[^>]* value="ada@example\.com"\/>/);
+  assert.match(updated, /<input\b(?=[^>]* type="text")(?=[^>]* name="name")(?=[^>]* id="widget-contact-name")(?=[^>]* aria-describedby="widget-contact-name-error")(?=[^>]* value="Ada &lt;Lovelace&gt;")[^>]*>/);
+  assert.match(updated, /<input\b(?=[^>]* type="email")(?=[^>]* name="email")(?=[^>]* id="widget-contact-email")(?=[^>]* aria-describedby="widget-contact-email-error")(?=[^>]* value="ada@example\.com")[^>]*>/);
   // The invalid field has no flash entry (only name/email were supplied above) — its own error slot
   // still gets its message, and its <textarea> is untouched (not forced empty, not crashed on).
   assert.match(updated, /<div class="widget-form-field-error" data-field="message"[^>]*>Please enter Message\.<\/div>/);
-  assert.match(updated, /<textarea name="message" id="widget-contact-message"[^>]*><\/textarea>/);
+  assert.match(updated, /<textarea\b(?=[^>]* name="message")(?=[^>]* id="widget-contact-message")[^>]*><\/textarea>/);
 });
 
 test("injectFormSubmissionResultIntoHtml: a flash value naming a field this page's form does not have is a silent no-op for that entry (stale/forged flash)", () => {
@@ -3268,7 +3284,9 @@ test("renderSite: an unowned unsupported embed type remains authored for later r
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
   const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"unsupported-future-type","id":"asset-1"}'></div>` });
   const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post, pageHtmlEmbeds: htmlEmbeds() });
-  assert.ok(html.includes(`<div data-embed-config='{"type":"unsupported-future-type","id":"asset-1"}'></div>`));
+  // The page sanitizer serializes attributes with double quotes and escapes their JSON quotes.
+  // The unowned config must survive unchanged in meaning for a later rendering stage.
+  assert.ok(html.includes('<div data-embed-config="{&quot;type&quot;:&quot;unsupported-future-type&quot;,&quot;id&quot;:&quot;asset-1&quot;}"></div>'));
   assert.doesNotMatch(html, /widget-placeholder/);
 });
 

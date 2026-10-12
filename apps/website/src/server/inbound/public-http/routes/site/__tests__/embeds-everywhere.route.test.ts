@@ -680,3 +680,24 @@ test("themed 404: still returns 404, its menu marker still renders (regression),
   // marker specifically rather than a blanket "no data-embed-config anywhere" claim.
   assert.doesNotMatch(html, /data-embed-config='\{"type":"widget"/, "the widget marker's own data-embed-config must be gone on a hit");
 });
+
+test("GET /pricing: a see-more collection marker pages its entries through /pricing/_more/1/<after>", async (t) => {
+  const pricingMarker = `<section class="gadgets" data-jini-see-more data-embed-config='{"type":"collection","typeKey":"${GADGET_TYPE_KEY}","limit":2}'>No gadgets</section>`;
+  const { server, baseUrl } = await startServer({
+    themes: [themeForCollectionMarkers(pricingMarker)],
+    contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]),
+    entryRepo: await seededEntryRepo(threePublishedGadgetsPlusOneDraft()),
+  });
+  t.after(() => closeServer(server));
+
+  const page = await (await fetch(`${baseUrl}/pricing`)).text();
+  // The list wrapper, not the marker element, is the container a batch appends to.
+  assert.match(page, /<section class="gadgets">/);
+  assert.match(page, /data-tovu-entry-list data-jini-listing="1"[^>]*><!--jini-listing:1-->/);
+  assert.ok(page.includes("Widget Gamma") && page.includes("Widget Beta") && !page.includes("Widget Alpha"));
+  assert.match(page, /data-jini-more="1" href="\/pricing\/_more\/1\/2"/);
+
+  const batch = await (await fetch(`${baseUrl}/pricing/_more/1/2`)).text();
+  assert.ok(batch.includes("Widget Alpha") && !batch.includes("Widget Beta"));
+  assert.doesNotMatch(batch, /data-jini-more/);
+});

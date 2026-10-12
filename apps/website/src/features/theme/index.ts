@@ -23,6 +23,8 @@ export {
   type DiscoveredTheme,
 } from "./theme.js";
 
+export { applicableThemeTemplates, type ThemeTemplateFor, type ThemeTemplateKind } from "./template-applicability.js";
+
 // 2026-10-08 — the one "make a new theme" service: the admin Themes screen's Duplicate route and the
 // `theme_duplicate` agent tool both call `duplicateDiscoveredTheme`, so neither can drift.
 export {
@@ -89,6 +91,7 @@ export {
   expandPartials,
   injectCurrentEntityContentId,
   injectPageTitle,
+  postAuthorForContentHeader,
   resolveTemplate,
   isEligibleForTemplateBranch,
   isBarePageChoice,
@@ -97,12 +100,12 @@ export {
   type TemplateBranchChoice,
   scanMenuEmbedIds,
   scanPostPreviewsLimit,
-  DEFAULT_POST_PREVIEWS_LIMIT,
-  MAX_POST_PREVIEWS_LIMIT,
+  postPreviewsBatchSize,
   type StaticMenuItem,
   type StaticHtmlMenu,
   type StaticMenuContent,
   type StaticPostPreview,
+  type StaticListingBatch,
   type PostTemplateResolution,
   // C5 (collections plan, 2026-09-23): the route layer (`pages.ts`'s
   // `resolveCollectionListsForRender`) needs the same per-marker identity key and inner-content

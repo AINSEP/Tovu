@@ -1,3 +1,5 @@
+import { sanitizePageHtml } from "#src/features/widgets/media-html";
+import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
 import type { SiteChatSelection } from "../../http/site/site-chat-markup.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { readRequestCookie } from "#src/server/http/request-cookie";
@@ -6,6 +8,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import type { PostRecord } from "#src/features/post/index";
+import { collectCoverMediaRefs } from "#src/features/post/cover-image";
 import {
   getPublishedPostBySlug,
   findPublishedPostById,
@@ -15,7 +18,7 @@ import {
   PostNotFoundError,
   ROOT_SLUG,
 } from "#src/features/post/index";
-import { isPublicAssistantEnabled, getPublicAssistantSettings } from "#src/assistant/index";
+import { getPublicAssistantSettings, resolvePublicAssistantAvailability } from "#src/assistant/index";
 import {
   DefaultMemberAccessResolver,
   resolvePostMemberAccess,
@@ -33,7 +36,7 @@ import {
   resolveTemplate,
   resolveTemplateBranchChoice,
   scanMenuEmbedIds,
-  scanPostPreviewsLimit,
+  postPreviewsBatchSize,
   NO_THEME_ID,
   resolveActiveTheme,
   tokenStylesheetSentinel,
@@ -46,12 +49,26 @@ import {
   type StaticMenuItem,
   type StaticMenuContent,
   type StaticPostPreview,
+  type StaticListingBatch,
   type StaticFeaturedImage,
   type EntryListItem,
   type EntryListFieldValue,
 } from "#src/features/theme/index";
-import { markersOfType, substituteMarkers, withInnerContentFinal, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
-import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
+import { markersOfType, substituteMarkers, withInnerContentFinal, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
+import {
+  assignListingKeys,
+  extractListingBatch,
+  injectListingScript,
+  listingBatchPath,
+  listingKeyOfAttributes,
+  parseListingBatchPath,
+  readListingBatch,
+  renderListingBatchDocument,
+  renderListingMore,
+  type ListingBatchRequest,
+  type ListingSource,
+} from "@jini-ai/cms/listing";
+import { comparePostsByDisplayDate, postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref } from "#src/features/entries/public-list";
@@ -62,7 +79,7 @@ import { type RouteTarget } from '@jini-ai/cms/routing';
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { resolveMenuDoc } from "#src/features/navigation/index";
 import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
-import { getLatestTransformDefinition } from "#src/features/media/index";
+import { findMediaByIdOrSlug, getLatestTransformDefinition } from "#src/features/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
 import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
 import { resolveSiteTitle } from "#src/features/settings/site-title";
@@ -248,12 +265,15 @@ export const CACHE_CONTROL_PRIVATE_STATIC_EXPORT = "private, no-store";
  * even read, so the live site (which never sends this header) is completely unaffected and keeps
  * showing the widget exactly as the workspace setting says.
  */
-export function resolveSiteAssistantEnabledForRequest(req: Pick<Request, "header">, deps: RouteDeps): Promise<boolean> {
-  if (isStaticExportRequest(req)) return Promise.resolve(false);
-  return isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId });
+export function resolveSiteAssistantEnabledForRequest(required: {
+  request: Pick<Request, "header">; deps: RouteDeps;
+}, _optional = {}): Promise<boolean> {
+  return resolveSiteAssistantWidgetForRequest(required).then(widget => widget !== false);
 }
 
-/** Resolves the site's widget choice once for all render branches; exports still ship no widget. */
+/** Resolves the site's widget choice once for all render branches. Saved key/model readiness is
+ * checked per request so stale flags and later credential removal cannot emit a broken bubble;
+ * exports still ship no widget. */
 export async function resolveSiteAssistantWidgetForRequest({ request, deps }: {
   request: Pick<Request, "header">; deps: RouteDeps;
 }, _options = {}): Promise<SiteChatSelection> {
@@ -262,7 +282,11 @@ export async function resolveSiteAssistantWidgetForRequest({ request, deps }: {
   const settings = await getPublicAssistantSettings(
     { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }
   );
-  return settings.publicEnabled ? settings.widget : false;
+  if (!settings.publicEnabled) return false;
+  const availability = await resolvePublicAssistantAvailability({
+    repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, workspaceId: deps.workspaceId,
+  });
+  return availability.ready ? settings.widget : false;
 }
 
 /**
@@ -420,7 +444,7 @@ export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDe
       taxonomyRepo: deps.taxonomyRepo,
       termRepo: deps.termRepo,
     },
-    input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
+    input: { workspaceId: deps.workspaceId, html: sanitizePageHtml({ html: post.bodyHtml ?? "" }) },
   });
 }
 
@@ -783,7 +807,7 @@ export async function finishStaticTierDocument(
     /** The rendered post's featured image for a `{"type":"featured-image"}` marker (2026-10-05);
      *  omitted on every surface that is not a post, which removes the marker. */
     readonly featuredImage?: StaticFeaturedImage | null;
-    readonly postAuthor?: Pick<PostRecord, "author" | "showAuthor">;
+    readonly postAuthor?: Pick<PostRecord, "id" | "slug" | "author" | "showAuthor">;
     /** Threaded straight through to `resolveHtmlPageEmbeds`'s identically-shaped deps field — see
      *  {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}'s own doc for the full rationale. */
     readonly pendingContentOverride?: {
@@ -811,7 +835,9 @@ export async function finishStaticTierDocument(
     },
     input: { workspaceId: deps.workspaceId, html: expanded },
   });
-  const assembled = renderHtmlPageBody(expanded, resolved);
+  // See-more listings get their keys here, on the one assembled document every resolver below and
+  // the batch extractor (`finalizePublicPageHtml`) number the same way.
+  const assembled = assignListingKeys({ html: renderHtmlPageBody(expanded, resolved, { postAuthor }) });
 
   const knownMenuIds = new Set(Object.keys(staticMenus ?? {}));
   const missingMenuIds = Array.from(
@@ -827,15 +853,27 @@ export async function finishStaticTierDocument(
       : { ...staticMenus, ...(await resolveStaticMenusForRender(deps, theme, currentPath, missingMenuIds)) };
 
   const postPreviews = postPreviewsAccess
-    ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, assembled)
+    ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, assembled, currentPath)
     : undefined;
 
   // C5 (collections plan, 2026-09-23) — the SAME assembled html post-previews just scanned, so a
   // `{"type":"collection"}` marker authored in a Page/Post body or a partial resolves here too, not
   // only one hand-authored directly into a theme file.
-  const collectionLists = await resolveCollectionListsForRender(deps, assembled);
+  const collectionLists = await resolveCollectionListsForRender(deps, assembled, currentPath);
 
-  return renderStaticPage({ theme, pageId, htmlOverride: assembled, menus, postPreviews, collectionLists, featuredImage, postAuthor }) ?? "";
+  return (
+    renderStaticPage({
+      theme,
+      pageId,
+      htmlOverride: assembled,
+      menus,
+      postPreviews: postPreviews?.previews,
+      postPreviewBatches: postPreviews?.batches,
+      collectionLists,
+      featuredImage,
+      postAuthor,
+    }) ?? ""
+  );
 }
 
 /**
@@ -921,8 +959,9 @@ function collectionMarkerTypeKey(config: Readonly<Record<string, unknown>>): str
 }
 
 async function resolveOneCollectionMarker(
-  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo">,
-  marker: EmbedMarker
+  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch">,
+  marker: EmbedMarker,
+  pagePath: string
 ): Promise<string | undefined> {
   const typeKey = collectionMarkerTypeKey(marker.config);
   if (typeKey === undefined) {
@@ -942,11 +981,23 @@ async function resolveOneCollectionMarker(
     return undefined;
   }
 
-  const rows = await deps.entryRepo.listPublishedForDisplay({ workspaceId: deps.workspaceId, query: parsed.query });
-  const items = rows.map((row) => toCollectionEntryListItem(row, parsed.display.fields));
+  // A see-more marker reads its batch (from `after` when this request asks for its key) plus one row
+  // to learn whether a next batch exists; entries carry no member access, so every row is visible.
+  const listingKey = listingKeyOfAttributes({ attrs: marker.attrs });
+  const batch =
+    listingKey === undefined
+      ? { items: await deps.entryRepo.listPublishedForDisplay({ workspaceId: deps.workspaceId, query: parsed.query }), hasMore: false, next: 0 }
+      : await readListingBatch({
+          source: ({ offset, limit }) => deps.entryRepo.listPublishedForDisplay({ workspaceId: deps.workspaceId, query: { ...parsed.query, offset, limit } }),
+          after: deps.listingBatch?.key === listingKey ? deps.listingBatch.after : 0,
+          size: parsed.query.limit,
+        });
+  const items = batch.items.map((row) => toCollectionEntryListItem(row, parsed.display.fields));
   const { template } = splitCollectionMarkerInner(marker.inner);
   const { columns, layout, structuredData } = parsed.display;
-  return renderEntryList(items, { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }) });
+  const list = renderEntryList(items, { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) });
+  if (list === undefined || listingKey === undefined || !batch.hasMore) return list;
+  return list + renderListingMore({ key: listingKey, href: listingBatchPath({ pagePath, key: listingKey, after: batch.next }) });
 }
 
 /**
@@ -974,8 +1025,9 @@ async function resolveOneCollectionMarker(
  * concurrently via `Promise.all` — never one query per marker OCCURRENCE, only per distinct config.
  */
 async function resolveCollectionListsForRender(
-  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo">,
-  html: string
+  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch">,
+  html: string,
+  pagePath: string
 ): Promise<ReadonlyMap<string, string | undefined>> {
   const markers = markersOfType({ html: html, type: COLLECTION_MARKER_TYPE });
   if (markers.length === 0) return new Map();
@@ -994,7 +1046,7 @@ async function resolveCollectionListsForRender(
   }
 
   const resolvedEntries = await Promise.all(
-    withinCap.map(async ([key, marker]): Promise<readonly [string, string | undefined]> => [key, await resolveOneCollectionMarker(deps, marker)])
+    withinCap.map(async ([key, marker]): Promise<readonly [string, string | undefined]> => [key, await resolveOneCollectionMarker(deps, marker, pagePath)])
   );
 
   return new Map(resolvedEntries);
@@ -1110,7 +1162,10 @@ export type TemplateRenderDeps = Pick<
   // C5 (collections plan, 2026-09-23) — `resolveCollectionListsForRender`'s content-type lookup for
   // a `{"type":"collection"}` marker's `typeKey`, threaded through `finishStaticTierDocument`.
   | "contentTypeRepo"
-> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">>;
+> & Partial<Pick<RouteDeps, "taxonomyRepo" | "termRepo">> & {
+  /** A see-more batch request (`<page>/_more/<key>/<after>`): that one listing renders from `after`. */
+  readonly listingBatch?: ListingBatchRequest;
+};
 
 /**
  * The narrow dependency slice the four `resolve*ForRender` helpers below need — same "`Pick` of
@@ -1187,14 +1242,14 @@ async function fetchHtmlFormatBody(
   pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string }
 ): Promise<string | undefined> {
   if (pendingHtmlOverride && (ref.by === "id" ? ref.id === pendingHtmlOverride.id : ref.slug === pendingHtmlOverride.slug)) {
-    return pendingHtmlOverride.bodyHtml;
+    return sanitizePageHtml({ html: pendingHtmlOverride.bodyHtml });
   }
   const entity =
     ref.by === "id"
       ? await findPublishedPostById({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, id: ref.id } })
       : await findPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug: ref.slug } });
   if (!entity || entity.bodyFormat !== "html") return undefined;
-  return entity.bodyHtml ?? "";
+  return sanitizePageHtml({ html: entity.bodyHtml ?? "" });
 }
 
 /**
@@ -1325,6 +1380,27 @@ export async function resolveAssignedTermsForRender(
 }
 
 /**
+ * Insert `block` right after the current entry's own `{"type":"content"}` element (its first one,
+ * matched by id, or by slug for a slug-only marker: the same match `postAuthorForContentHeader`
+ * uses). Runs before that marker resolves, so `block` ends up beside the entry's content inside
+ * whatever wraps it (the theme's `<article>`), never after the footer. A template with no such
+ * element shows none of the entry's body, so it shows no `block` either.
+ * @complexity O(n) in `html` length for one marker scan and one splice; pure, no I/O.
+ */
+export function placeAfterCurrentContent(
+  required: { html: string; post: { id: string; slug: string }; block: string },
+  _optional: Record<string, never> = {},
+): string {
+  const { html, post, block } = required;
+  if (block === "") return html;
+  const content = markersOfType({ html, type: "content" }).find(marker =>
+    marker.id !== undefined ? marker.id === post.id : marker.config.slug === post.slug);
+  if (!content) return html;
+  const end = content.index + content.whole.length;
+  return html.slice(0, end) + block + html.slice(end);
+}
+
+/**
  * Template-picker feature (2026-08-10, unified 2026-08-11) — renders `post` (a Post OR a Page, either
  * `"doc"`- or `"html"`-format) through its chosen static-theme template (`theme.json`'s `templates`
  * array), or the explicit diagnostic page above when unresolvable. Only called when the active theme
@@ -1434,11 +1510,22 @@ export async function renderViaTemplate(
   }
   const { pageId, html: rawTemplate } = resolution;
 
-  const withTitle = injectPageTitle(rawTemplate, post.title);
+  // Expand before content resolution so a partial's own byline suppresses the core header too.
+  const withTitle = injectPageTitle(expandPartials(rawTemplate, theme), post.title);
   const withCurrentId = injectCurrentEntityContentId(withTitle, post.id);
+  // Taxonomy render-surface gap fix (2026-09-02): assigned terms are metadata ABOUT the entry, not
+  // part of its authored body, so they go in the conventional "filed under" position: right after
+  // the entry's own content element, inside the template's `<article>`. Placed BEFORE the content
+  // resolves, while the marker can still be found. They used to be appended to the fully resolved
+  // template, which put them after `</html>`, under the footer (owner report, plannie, 2026-10-11).
+  const withTerms = placeAfterCurrentContent({
+    html: withCurrentId,
+    post,
+    block: renderAssignedTermsBlock(await resolveAssignedTermsForRender(deps, post)),
+  });
   const withNestedContent = await resolveHtmlFormatContentMarkers(
     deps,
-    withCurrentId,
+    withTerms,
     0,
     { remaining: MAX_CONTENT_EMBED_FETCHES },
     pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined
@@ -1458,13 +1545,7 @@ export async function renderViaTemplate(
     },
     input: { workspaceId: deps.workspaceId, html: withNestedContent },
   });
-  const bodyResolvedHtml = renderHtmlPageBody(withNestedContent, resolved);
-  // Taxonomy render-surface gap fix (2026-09-02) — appended AFTER the content marker's own
-  // resolution, not spliced into it: assigned terms are metadata ABOUT the entry, not part of its
-  // authored body, the same "filed under" footer position a CMS conventionally uses. Lands inside
-  // the template's own `<article>`/content wrapper (whatever marker `bodyResolvedHtml` replaced),
-  // never outside it, since it's concatenated onto that exact string before the template splice.
-  const bodyWithTerms = bodyResolvedHtml + renderAssignedTermsBlock(await resolveAssignedTermsForRender(deps, post));
+  const bodyWithTerms = renderHtmlPageBody(withNestedContent, resolved, { postAuthor: post, postPresentation: post });
   // D2's single static-tier pipeline (E3, 2026-09-23) — `finishStaticTierDocument` runs the SAME
   // expand-partials / resolve-embeds / resolve-post-previews / render sequence every other
   // static-tier surface now runs. Called on `bodyWithTerms`, not the raw, unassembled template: the
@@ -1484,7 +1565,7 @@ export async function renderViaTemplate(
     // `post.featuredImage` — resolved through the SAME metadata/transform lookups and the SAME
     // `featuredImageView`, so both tiers show the identical URL and alt. Before this, the static
     // path never looked the featured asset up at all and it only ever reached `og:image`.
-    featuredImage: await resolveFeaturedImageForRender(deps, post),
+    featuredImage: await resolveFeaturedImageForRender(deps, pendingBodyJson !== undefined ? { ...post, bodyJson: pendingBodyJson } : post),
     postAuthor: post,
   });
   return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
@@ -1576,7 +1657,9 @@ type PendingMediaAssetMeta = Omit<MediaAssetRenderMeta, "contentType"> & { reado
  * — width/height/class are genuinely PER-ASSET values, not a property of `(workspaceId,
  * transformName)` alone — so this scans `post.bodyJson` for every distinct `assetId` a ref-based
  * `image`/`media` node references (mirroring `resolveHtmlPageEmbeds`'s own per-id scan for a Page's
- * `body_html`), then batch-fetches each one. `MediaRepoPort` (`@jini-ai/cms/media`) has no
+ * `body_html`), then batch-fetches each one. Public cover fallback also adds refs from listed
+ * posts' bodies and HTML images/embeds when their featured slot is empty. Those refs may be slugs,
+ * so the existing id-first/slug-history media lookup resolves each key. `MediaRepoPort` (`@jini-ai/cms/media`) has no
  * `findByIds`/batch-by-id primitive — only `findById` — the same frozen-contract situation
  * `resolvePageWidgets`'s own file header discloses for `EntryRepoPort`; one `findById` per
  * distinct `assetId`, run concurrently, is the available primitive at today's real scale (a post
@@ -1588,7 +1671,7 @@ type PendingMediaAssetMeta = Omit<MediaAssetRenderMeta, "contentType"> & { reado
  * `assetId` absent from the returned map as "no override"/"not resolvable" (omit the attribute, or
  * degrade to the placeholder), never a crash.
  *
- * @complexity O(a) over the distinct `assetId`s referenced, each behind one `findById` call (run
+ * @complexity O(n + a) over scanned body nodes/bytes and distinct refs, each behind bounded media reads (run
  * concurrently via `Promise.all`, not serially), PLUS one further batched
  * `MediaContentTypeStorePort.getMany` call across every resolved asset's sha256 at once — a single
  * extra round-trip regardless of `a`, not one per asset (mirrors `resolver-service.ts`'s
@@ -1599,21 +1682,21 @@ export async function resolveMediaAssetMetadataForRender(
   deps: Pick<RenderContextResolutionDeps, "workspaceId" | "mediaRepo" | "mediaContentTypeStore">,
   post: PostRecord | undefined,
   /** Featured image (2026-10-05): listed posts whose featured image a theme's post cards may show
-   *  (`buildTemplateRenderData`'s `posts[].featuredImage`). Only their featured ids are resolved —
-   *  never their bodies. */
+   *  (`buildTemplateRenderData`'s `posts[].featuredImage`). The shared policy also collects body
+   *  image refs when their featured slot is empty. */
   optional: { listed?: readonly PostRecord[] } = {}
 ): Promise<ReadonlyMap<string, MediaAssetRenderMeta>> {
   const assetIds = new Set<string>();
   if (post) collectMediaRefAssetIds(post.bodyJson, assetIds);
   for (const entry of [...(post ? [post] : []), ...(optional.listed ?? [])]) {
-    if (entry.featuredMediaId) assetIds.add(entry.featuredMediaId);
+    for (const ref of collectCoverMediaRefs({ post: entry })) assetIds.add(ref);
   }
   if (assetIds.size === 0) return new Map();
 
   const entries = await Promise.all(
     Array.from(assetIds).map(async (assetId): Promise<readonly [string, PendingMediaAssetMeta] | undefined> => {
-      const record = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: assetId });
-      if (!record) return undefined;
+      const record = await findMediaByIdOrSlug({ deps, input: { workspaceId: deps.workspaceId, idOrSlug: assetId } });
+      if (!record || record.status === "trashed") return undefined;
       return [
         assetId,
         {
@@ -1652,18 +1735,18 @@ export async function resolveMediaAssetMetadataForRender(
 
 /**
  * The featured image a static-tier post template's `{"type":"featured-image"}` marker shows
- * (2026-10-05), or `null` when the post has none or it does not resolve. Resolves ONLY the featured
- * id (`listed: [post]`, no body scan) and hands the result to `render.ts`'s own `featuredImageView`,
+ * (2026-10-05), or `null` when the post has none or it does not resolve. Collects the shared cover
+ * refs (`listed: [post]`) and hands the result to `render.ts`'s own `featuredImageView`,
  * the function the Liquid/Handlebars tiers' `post.featuredImage` comes from — one view, both tiers.
- * A post with no featured id costs no lookups at all.
+ * A post with no featured id or body media refs costs no asset lookups.
  *
- * @complexity O(1) — at most one `findById`, one content-type lookup and one transform lookup.
+ * @complexity O(n + a) body traversal plus distinct media refs, one MIME batch and transform read.
  */
 async function resolveFeaturedImageForRender(
   deps: Pick<RenderContextResolutionDeps, "workspaceId" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo">,
   post: PostRecord
 ): Promise<StaticFeaturedImage | null> {
-  if (!post.featuredMediaId) return null;
+  if (collectCoverMediaRefs({ post }).length === 0) return null;
   const [mediaAssetMetadata, mediaTransformVersions] = await Promise.all([
     resolveMediaAssetMetadataForRender(deps, undefined, { listed: [post] }),
     resolveMediaTransformVersionsForRender(deps),
@@ -2188,11 +2271,13 @@ function formatPostPreviewDate(iso: string): string {
 /**
  * Post-previews marker resolution (2026-09-03) — resolves the bounded, ADR-030 §4
  * visibility-filtered {@link StaticPostPreview}s a `{"type":"post-previews"}` marker in `pageHtml`
- * needs, or `undefined` when `pageHtml` carries no such marker at all
- * ({@link scanPostPreviewsLimit}'s own "pay for the query only when present" gate — REQ 2 of the
- * post-previews marker's own spec).
+ * needs, or `undefined` when `pageHtml` carries no such marker at all (the "pay for the query only
+ * when present" gate — REQ 2 of the post-previews marker's own spec). A `data-jini-see-more` marker
+ * also gets its next batch URL (`<pagePath>/_more/<key>/<after>`) while more posts remain.
  *
- * Applies the SAME `filterVisiblePosts` gate the home/related-posts listing already applies to
+ * Applies the SAME member-access rule (`decidePostMemberAccess`, as `isVisible` of
+ * `readListingBatch`, so hidden rows are skipped before a batch is filled) the
+ * `filterVisiblePosts` gate on the home/related-posts listing already applies to
  * `posts` — see that function's own doc for why gating only SOME listings is protection that looks
  * real and isn't (ADR-030 §4); this listing gets no exception. `kind: "post"` and
  * `status: "published"` are already enforced by the bounded repo query itself
@@ -2200,28 +2285,50 @@ function formatPostPreviewDate(iso: string): string {
  * whichever one claims the reserved `/` root slug — can never appear in this listing by
  * construction; not re-checked here.
  *
- * @complexity One bounded `listPublishedPreviews` query (capped at the widest marker-declared limit
- * on this page) plus `filterVisiblePosts`'s own O(n) pass over that already-small result — never an
- * unbounded scan.
+ * @complexity At most 4 bounded `listPublishedPreviews` reads per batch (one batch for the plain
+ * markers at their widest limit, one per see-more marker), each `size + 1` rows. Cover
+ * selection scans those visible bodies and resolves distinct media refs with one MIME batch;
+ * it never adds an unbounded post query or resolves hidden posts' cover metadata.
  */
 async function resolvePostPreviewsForRender(
-  deps: Pick<RouteDeps, "workspaceId" | "postRepo">,
+  deps: Pick<RouteDeps, "workspaceId" | "postRepo" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo"> & Pick<TemplateRenderDeps, "listingBatch">,
   memberAccessResolver: MemberAccessResolver,
   memberContext: MemberContext,
-  pageHtml: string
-): Promise<readonly StaticPostPreview[] | undefined> {
-  const limit = scanPostPreviewsLimit(pageHtml);
-  if (limit === undefined) return undefined;
+  pageHtml: string,
+  pagePath: string
+): Promise<{ previews: readonly StaticPostPreview[]; batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>> } | undefined> {
+  const markers = markersOfType({ html: pageHtml, type: POST_PREVIEWS_MARKER_TYPE });
+  if (markers.length === 0) return undefined;
 
-  const { posts } = await listPublishedPostPreviews({
-    deps: { repo: deps.postRepo },
-    input: { workspaceId: deps.workspaceId, limit },
-  });
-  const visible = filterVisiblePosts(memberAccessResolver, posts, memberContext);
-  return visible.map((post) => {
+  const source: ListingSource<PostRecord> = async ({ offset, limit }) =>
+    (await listPublishedPostPreviews({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, limit, offset } })).posts;
+  const isVisible = (post: PostRecord): boolean => decidePostMemberAccess(memberAccessResolver, post, memberContext).allowed;
+
+  // Plain markers share one batch at the widest limit (each slices its own); a see-more marker
+  // (`data-jini-listing`) reads its own batch, from `after` when this request asks for that key.
+  const plainLimit = markers.reduce((widest, marker) => (listingKeyOfAttributes({ attrs: marker.attrs }) === undefined ? Math.max(widest, postPreviewsBatchSize(marker)) : widest), 0);
+  const plain = plainLimit > 0 ? (await readListingBatch({ source, after: 0, size: plainLimit }, { isVisible })).items : [];
+  const keyed = new Map<number, { posts: readonly PostRecord[]; nextHref?: string }>();
+  for (const marker of markers) {
+    const key = listingKeyOfAttributes({ attrs: marker.attrs });
+    if (key === undefined || keyed.has(key)) continue;
+    const after = deps.listingBatch?.key === key ? deps.listingBatch.after : 0;
+    const batch = await readListingBatch({ source, after, size: postPreviewsBatchSize(marker) }, { isVisible });
+    keyed.set(key, { posts: batch.items, ...(batch.hasMore ? { nextHref: listingBatchPath({ pagePath, key, after: batch.next }) } : {}) });
+  }
+
+  const listed = [...plain, ...[...keyed.values()].flatMap((batch) => batch.posts)];
+  const [mediaAssetMetadata, mediaTransformVersions] = await Promise.all([
+    resolveMediaAssetMetadataForRender(deps, undefined, { listed }),
+    resolveMediaTransformVersionsForRender(deps),
+  ]);
+  const toPreview = (post: PostRecord): StaticPostPreview => {
     const dateIso = postDisplayDateIso(post);
-    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate(dateIso) };
-  });
+    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate(dateIso), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
+  };
+  const batches = new Map<number, StaticListingBatch<StaticPostPreview>>();
+  for (const [key, batch] of keyed) batches.set(key, { items: batch.posts.map(toPreview), ...(batch.nextHref !== undefined ? { nextHref: batch.nextHref } : {}) });
+  return { previews: plain.map(toPreview), batches };
 }
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
@@ -2316,7 +2423,16 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
  *
  * @complexity O(html length) — one pass for each of the three transforms it composes.
  */
-function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined): string {
+async function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined, deps: RouteDeps): Promise<string> {
+  // A see-more batch URL answers with just that listing's next items, not the page around them.
+  const listingBatch = listingBatchRequests.get(req);
+  if (listingBatch !== undefined) {
+    const batch = extractListingBatch({ html, key: listingBatch.key });
+    if (batch === undefined) throw new ListingBatchNotFoundError();
+    return renderListingBatchDocument({ key: listingBatch.key, ...batch });
+  }
+  html = injectListingScript({ html });
+  if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
   const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);
   return isStaticExportRequest(req) ? finished : injectFormAttemptTokens(finished, { newToken: randomUUID });
 }
@@ -2355,13 +2471,44 @@ async function resolveHomePageContent(
   return decidePostMemberAccess(memberAccessResolver, found.post, memberContext).allowed ? found.post : undefined;
 }
 
+/** See-more batch requests by request, set by the `/_more/` rewrite in {@link registerSiteRoutes}. */
+const listingBatchRequests = new WeakMap<Request, ListingBatchRequest>();
+
+/** The page behind a batch URL has no see-more listing with that key: answered as a 404. */
+class ListingBatchNotFoundError extends Error {}
+
+/** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
+function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch"> {
+  const listingBatch = listingBatchRequests.get(req);
+  return listingBatch === undefined ? deps : { ...deps, listingBatch };
+}
+
+/** A batch request whose page has no such listing: restore the batch URL and fall through to the 404. */
+function listingBatchNotFound(req: Request, next: NextFunction): void {
+  req.url = req.originalUrl;
+  next();
+}
+
 /**
  * Public site: server-rendered home and post pages through the active
  * declarative theme. Registered LAST — GET /:slug is a catch-all for
  * single-segment paths.
  */
-export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
-  app.get("/", async (req, res) => {
+export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
+  // See-more batch URLs (`<page>/_more/<key>/<after>`): rewrite to the page itself so the `/` and
+  // `/:slug` handlers below render it through every one of their branches unchanged (Express 4
+  // re-matches the rewritten `req.url`); `finalizePublicPageHtml` then cuts out the one batch.
+  app.get(/\/_more\/[^/]+\/[^/]+\/?$/, (req, _res, next) => {
+    const listingBatch = parseListingBatchPath({ path: req.path });
+    if (listingBatch === undefined) return next();
+    listingBatchRequests.set(req, listingBatch);
+    const queryStart = req.url.indexOf("?");
+    req.url = listingBatch.pagePath + (queryStart === -1 ? "" : req.url.slice(queryStart));
+    next();
+  });
+
+  app.get("/", async (req, res, next) => {
+    const deps = withListingBatch(appDeps, req);
     try {
       if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
 
@@ -2381,7 +2528,8 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // ADR-030 §4 — the home listing is gated too, not just each post's own page. See
       // `filterVisiblePosts`'s own doc for why filtering only `/:slug` would be protection that
       // looks real and isn't.
-      const visiblePosts = filterVisiblePosts(memberAccessResolver, posts, memberContext);
+      // Newest display date first, the order every post listing uses (it was insertion order).
+      const visiblePosts = filterVisiblePosts(memberAccessResolver, posts, memberContext).sort(comparePostsByDisplayDate);
 
       const resolved = resolveActiveTheme(deps, activeThemeId);
       if (resolved === null) {
@@ -2408,7 +2556,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         });
         const html = templateHtml ?? (await renderGenericPostPage(deps, theme, homePage, visiblePosts, siteAssistantEnabled));
         const perVisitor = resolvePerVisitorResponse(req, res);
-        res.set("Cache-Control", perVisitor.cacheControl).type("html").send(finalizePublicPageHtml(req, html, perVisitor.result));
+        res.set("Cache-Control", perVisitor.cacheControl).type("html").send(await finalizePublicPageHtml(req, html, perVisitor.result, deps));
         return;
       }
 
@@ -2442,7 +2590,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         res
           .set("Cache-Control", homePerVisitor.cacheControl)
           .type("html")
-          .send(finalizePublicPageHtml(req, homeHtml, homePerVisitor.result));
+          .send(await finalizePublicPageHtml(req, homeHtml, homePerVisitor.result, deps));
         return;
       }
 
@@ -2451,6 +2599,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         route: "home",
         siteTitle,
         posts: visiblePosts,
+        listing: { pagePath: "/", after: deps.listingBatch?.key === 1 ? deps.listingBatch.after : 0 },
         widgets,
         mediaTransformVersions,
         // Featured image (2026-10-05): resolves only the listed posts' featured ids for post cards.
@@ -2466,14 +2615,16 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // response's `Cache-Control` — including the member-session arm, which matters here because
       // `visiblePosts` above made this body cookie-dependent. See `resolvePerVisitorResponse`'s doc.
       const perVisitor = resolvePerVisitorResponse(req, res);
-      res.set("Cache-Control", perVisitor.cacheControl).type("html").send(finalizePublicPageHtml(req, html, perVisitor.result));
+      res.set("Cache-Control", perVisitor.cacheControl).type("html").send(await finalizePublicPageHtml(req, html, perVisitor.result, deps));
     } catch (err) {
+      if (err instanceof ListingBatchNotFoundError) return listingBatchNotFound(req, next);
       reportSiteRenderFault("GET / failed", err);
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
   });
 
   app.get("/:slug", async (req, res, next) => {
+    const deps = withListingBatch(appDeps, req);
     const slug = resolveRequestedSlug(req, next);
     if (slug === undefined) return;
 
@@ -2527,7 +2678,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         res
           .set("Cache-Control", perVisitor.cacheControl)
           .type("html")
-          .send(finalizePublicPageHtml(req, marketingResolution.html, perVisitor.result));
+          .send(await finalizePublicPageHtml(req, marketingResolution.html, perVisitor.result, deps));
         return;
       }
 
@@ -2558,7 +2709,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         res
           .set("Cache-Control", perVisitor.cacheControl)
           .type("html")
-          .send(finalizePublicPageHtml(req, templateHtml, perVisitor.result));
+          .send(await finalizePublicPageHtml(req, templateHtml, perVisitor.result, deps));
         return;
       }
 
@@ -2566,8 +2717,9 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       res
         .set("Cache-Control", perVisitor.cacheControl)
         .type("html")
-        .send(finalizePublicPageHtml(req, genericPostHtml, perVisitor.result));
+        .send(await finalizePublicPageHtml(req, genericPostHtml, perVisitor.result, deps));
     } catch (err) {
+      if (err instanceof ListingBatchNotFoundError) return listingBatchNotFound(req, next);
       // A `PostNotFoundError` is ordinary control flow on this route (no post at this slug), not a
       // fault — reporting it would bury every real fault under one line per 404 a crawler produces.
       if (err instanceof PostNotFoundError) {

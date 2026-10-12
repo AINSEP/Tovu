@@ -81,6 +81,20 @@ for (const adapter of ADAPTERS) {
     assert.deepEqual(rows.map((r) => r.id), ["post-4", "post-3"]);
   });
 
+  test(`${adapter.name}: listPublishedPreviews orders by display date (publishAt ?? updatedAt), id breaks ties, offset skips`, async () => {
+    const repo = adapter.make();
+    // An old go-live date wins over a newer edit: re-saving an old post must not float it to the top.
+    await repo.save(post({ id: "edited-old", slug: "edited-old", publishAt: "2025-01-01T00:00:00.000Z", updatedAt: "2026-09-09T00:00:00.000Z" }));
+    await repo.save(post({ id: "no-publish-at", slug: "no-publish-at", updatedAt: "2026-03-01T00:00:00.000Z" }));
+    await repo.save(post({ id: "tie-b", slug: "tie-b", publishAt: "2026-02-01T00:00:00.000Z" }));
+    await repo.save(post({ id: "tie-a", slug: "tie-a", publishAt: "2026-02-01T00:00:00.000Z" }));
+
+    const all = await repo.listPublishedPreviews({ workspaceId: WORKSPACE_ID, limit: 10 });
+    assert.deepEqual(all.map((r) => r.id), ["no-publish-at", "tie-a", "tie-b", "edited-old"]);
+    const page = await repo.listPublishedPreviews({ workspaceId: WORKSPACE_ID, limit: 2, offset: 1 });
+    assert.deepEqual(page.map((r) => r.id), ["tie-a", "tie-b"]);
+  });
+
   test(`${adapter.name}: listPublishedPreviews is workspace-scoped`, async () => {
     const repo = adapter.make();
     await repo.save(post({ id: "this-workspace", slug: "this-workspace" }));

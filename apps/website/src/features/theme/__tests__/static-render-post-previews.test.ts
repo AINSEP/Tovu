@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderStaticPage, scanPostPreviewsLimit, DEFAULT_POST_PREVIEWS_LIMIT, MAX_POST_PREVIEWS_LIMIT } from "../static-render.js";
+import { LISTING_BATCH_MAX as MAX_POST_PREVIEWS_LIMIT } from "@jini-ai/cms/listing";
+import { renderStaticPage, scanPostPreviewsLimit } from "../static-render.js";
 import type { StaticPostPreview } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
+
+/** A marker with no `limit` keeps the legacy 6 (`static-render.ts`'s `LEGACY_POST_PREVIEWS_LIMIT`). */
+const DEFAULT_POST_PREVIEWS_LIMIT = 6;
 
 /**
  * @file Certifies the post-previews marker (2026-09-03) — `scanPostPreviewsLimit` (the route layer's
