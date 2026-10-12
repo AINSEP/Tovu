@@ -353,6 +353,31 @@ A theme can declare region keys it supports for widget placement (ADR-047 §2a):
 
 **No live theme declares this field or uses this node type.** Verified: zero `"regions"` occurrences and zero `{"type": "region"...}` / `{% render_block region: ... %}` occurrences anywhere under `content/themes/`. The mechanism is fully implemented and tested (`theme.test.ts:186-226`) but has no real-world user yet.
 
+### Post author bylines and `{{author}}` (2026-10-10)
+
+The core header of a static post's `{"type":"content"}` marker shows the title, date, and
+`<p class="post-author">By Annie Lee</p>` when **Show post author** is on and the saved author
+is non-empty. No template edit is required. The author is trimmed and HTML-escaped; hidden
+credits are omitted from the HTML.
+
+For an explicit placement, use `<p class="post-author" data-embed-config='{"type":"post-author"}'></p>`
+or the `{{author}}` shortcut anywhere in the template body, including partials. The token outputs
+only the escaped `By <name>` text, or nothing when hidden/empty. Both use the same credit rule.
+An explicit byline suppresses the automatic core byline, preserving the template's placement.
+
+To explicitly place the byline **under the title/date and before the post body**, put its marker
+inside the current content placeholder (as the Tovu Starter templates do):
+
+```html
+<div data-embed-config='{"type":"content"}'>
+  <p class="post-author" data-embed-config='{"type":"post-author"}'></p>
+</div>
+```
+
+The core content renderer carries that authored marker into the header, preserving its tag and
+attributes. When hidden or empty, the entire marker element is removed. `"header":false` still
+omits the whole content header.
+
 ### 6.6 Page authoring regions (`data-agent-element` / `data-agent-role`) — a different concept entirely
 
 Do not confuse §6.5's widget-placement regions with this. `data-agent-element="page-hero"` / `data-agent-role="region"` (`src/features/pages/skeleton.ts:26-61`) is the addressable-editing vocabulary for AI-generated Page content — it marks the parts of a Page's own body HTML that an agent tool is allowed to rewrite, reusing `@jini-ai/agentic`'s existing handle convention (`region` is already a defined role there). `PAGE_SKELETON_REGIONS = ["page-hero", "page-body", "page-cta"]` is the starter set a new Page is seeded with. This has nothing to do with theme-declared widget regions, nothing to do with `theme.json`, and nothing to do with slots or embeds — it's purely about what an AI editing tool may touch inside one Page's own content, which the active theme's chrome (nav/header/footer) wraps around unchanged (`skeleton.ts:4-9`: "the active theme's template owns the page chrome for every entry, bespoke or not").
