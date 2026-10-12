@@ -169,14 +169,17 @@ export const registerAdminSettingsEventsRoute = (
      * Resume point. `Last-Event-ID` is set by the browser automatically on `EventSource`'s own
      * reconnect, so a dropped connection replays the writes missed in the gap instead of silently
      * skipping them. A fresh subscriber starts at the current head — it has just loaded its values,
-     * so replaying history would only make it re-read what it already has.
+     * so replaying history would only make it re-read what it already has. Explicit tab handoff
+     * or visibility reconnect uses afterRevision because a new EventSource cannot set headers.
+     * Native Last-Event-ID takes precedence after that new source automatically reconnects.
      *
      * It is nonetheless client-supplied input naming a position in a ledger shared by every
      * workspace, so it is clamped INTO the ledger. An id past the head would otherwise park the
      * cursor in the future, and `seq > cursor` would then match nothing for as long as the tab
      * stayed open — a feed that is silently and permanently dead while still looking connected.
      */
-    const resumeFrom = Number(req.headers["last-event-id"]);
+    const resumeFrom = Number(req.headers["last-event-id"] ??
+      (typeof req.query.afterRevision === "string" ? req.query.afterRevision : undefined));
     const head = await deps.settingsRepo.maxRevisionSeq();
     let cursor = Number.isFinite(resumeFrom) && resumeFrom >= 0 ? Math.min(resumeFrom, head) : head;
 

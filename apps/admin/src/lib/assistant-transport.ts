@@ -7,6 +7,7 @@ import { withAcceptanceCancellation } from "./acceptance-cancellation";
 import { browserDurableSubscriptionPorts, durableRunBindings, followDurableRun } from "./durable-run-subscription";
 import { agUiRunClient } from "./assistant-transport-ag-ui";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
+import { adminStreamActivity, trackTransportActivity, type StreamActivity } from "./stream-activity";
 export { parseUsageEvent, terminalFailureError, terminalOutcomeNotice, terminalReasonNotice, translateRunAgentPayload } from "@tovu/assistant-run-events";
 export { parseFrame } from "./sse-frames";
 
@@ -106,14 +107,19 @@ export interface CreateTovuAssistantTransportOptions {
   persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
 }
 
-export function createTovuAssistantTransport(options: CreateTovuAssistantTransportOptions = {}) {
- return client.createAssistantTransport({ options: {
+/** Track all execution modes through one host activity owner; dispatch behavior stays in Jini.
+ * The first options object is retained for existing dock callers; the second injects adapter ports.
+ */
+export function createTovuAssistantTransport(options: CreateTovuAssistantTransportOptions = {}, {
+ createTransport = client.createAssistantTransport, activity = adminStreamActivity,
+}: { createTransport?: typeof client.createAssistantTransport; activity?: StreamActivity } = {}) {
+ return trackTransportActivity({ activity, transport: createTransport({ options: {
   getExecutionConfig: options.getExecutionConfig ? () => options.getExecutionConfig!() : undefined,
   getAgUiEnabled: options.getAgUiEnabled ? () => options.getAgUiEnabled!() : undefined,
   getResumeCapableAgentIds: options.getResumeCapableAgentIds ? () => options.getResumeCapableAgentIds!() : undefined,
   ensureConversationId: options.ensureConversationId ? () => options.ensureConversationId!() : undefined,
   persistUserTurn: options.persistUserTurn ? ({ conversationId, message }) => options.persistUserTurn!(conversationId, message) : undefined,
- } }, {});
+ } }, {}) }, {});
 }
 export function historyForTranscript(history: readonly ChatMessage[]) { return client.historyForTranscript({ history }, {}); }
 export function undeliveredUserPrompt(history: readonly ChatMessage[]) { return client.undeliveredUserPrompt({ history }, {}); }
