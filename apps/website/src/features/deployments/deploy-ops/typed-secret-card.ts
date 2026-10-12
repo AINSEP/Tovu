@@ -1,5 +1,5 @@
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../../contracts/headless/secret-form-cards.js";
-import { loadDeployOpsRegistry, requirePlatform } from "./registry.js";
+import { requirePlatform } from "./registry.js";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 import { credentialText } from "#src/contracts/core/credential-copy";
@@ -21,7 +21,7 @@ export async function collectTypedDeploySecret(
     prepare: async () => {
       if (ctx.signal.aborted) return { locale };
       // Resolve the host credential before collecting another secret, so recovery opens that card first.
-      const registry = await (deps.loadDeployOps ?? loadDeployOpsRegistry)({ workspaceId: deps.workspaceId });
+      const registry = await deps.loadDeployOps({ workspaceId: deps.workspaceId });
       const platform = requirePlatform(registry, input.platform);
       if (!platform.module.setSecret) throw new ToolInputError({ message: "This platform has no secrets adapter." });
       await boundContext(deps, platform, input.credentialLabel, ctx.signal);

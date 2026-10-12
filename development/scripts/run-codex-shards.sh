@@ -25,6 +25,8 @@ OUT_DIR=${3:?output dir}
 MAX_JOBS=${CODEX_SHARD_CONCURRENCY:-5}
 EFFORT=${CODEX_EFFORT:-medium}
 REPO=${CODEX_REPO:-/Users/la/Programming/Tovu}
+# CODEX_ADD_DIRS: space-separated extra writable roots (e.g. the Jini repo for a job that edits both).
+ADD_DIR_ARGS=(); for d in ${CODEX_ADD_DIRS:-}; do ADD_DIR_ARGS+=(--add-dir "$d"); done
 PERSONAS=${CODEX_PERSONAS-}   # empty = Codex picks; or force names, e.g. "programmer refactor"; "none" = skip
 persona_preamble() {
   [ "$PERSONAS" = none ] && return 0
@@ -91,7 +93,7 @@ run_shard() {
   local jsonl="$OUT_DIR/$shard.jsonl" err="$OUT_DIR/$shard.err"
   { printf '%s\n\n' '<<PEER_DISPATCH>>'; persona_preamble; cat "$prompt"; } \
     | codex exec --ignore-rules --ignore-user-config --ephemeral --json -s "$SANDBOX" -m gpt-6.1-sol \
-        -c model_reasoning_effort="$EFFORT" -C "$REPO" - > "$jsonl" 2> "$err"
+        -c model_reasoning_effort="$EFFORT" ${ADD_DIR_ARGS[@]+"${ADD_DIR_ARGS[@]}"} -C "$REPO" - > "$jsonl" 2> "$err"
   local rc=$?
   echo "[$shard] exit=$rc $(parse_run "$jsonl" "$OUT_DIR/$shard.md" "$OUT_DIR/$shard.failed")"
 }
