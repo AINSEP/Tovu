@@ -730,7 +730,8 @@ test.describe("SPEC-046 REQ-1 — the transcript survives a page load", () => {
     // discard button is targeted by its own accessible name instead.
     await page.locator(".tovu-site-assistant .jini-chat-pane__new-thread").click();
     await page
-      .locator(".tovu-site-assistant .tovu-site-assistant__reset-confirm")
+      // 956bbe98b moved the header onto Jini's `EmbedChatHeader`, which owns the confirm container.
+      .locator(".tovu-site-assistant .jini-chat-embed__reset-confirm")
       // 956bbe98b: "Discard chat?" is now the question; the action button is "Discard chat".
       .getByRole("button", { name: "Discard chat", exact: true })
       .click();
@@ -1027,11 +1028,27 @@ test.describe('front: vanilla mobile accessibility', () => {
     const input = panel.getByRole('textbox');
     expect(await input.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
     const ratios = await panel.evaluate(element => {
+      // Chrome serializes the theme's oklch() tokens as oklch(), not rgb(), so both forms are read:
+      // oklch goes through OKLab to linear sRGB (Ottosson's matrices), rgb through the sRGB curve.
       const luminance = (css: string) => {
-        const channels = css.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => {
-          const channel = value / 255; return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
-        });
-        return .2126 * channels[0]! + .7152 * channels[1]! + .0722 * channels[2]!;
+        const values = css.match(/[\d.]+%?/g)!.map(value => value.endsWith('%') ? parseFloat(value) / 100 : Number(value));
+        let linear: number[];
+        if (css.startsWith('oklch(')) {
+          const [L, C, H] = values as [number, number, number];
+          const a = C * Math.cos(H * Math.PI / 180), b = C * Math.sin(H * Math.PI / 180);
+          const l = (L + .3963377774 * a + .2158037573 * b) ** 3;
+          const m = (L - .1055613458 * a - .0638541728 * b) ** 3;
+          const s = (L - .0894841775 * a - 1.291485548 * b) ** 3;
+          linear = [4.0767416621 * l - 3.3077115913 * m + .2309699292 * s,
+            -1.2684380046 * l + 2.6097574011 * m - .3413193965 * s,
+            -.0041960863 * l - .7034186147 * m + 1.707614701 * s].map(channel => Math.min(1, Math.max(0, channel)));
+        } else {
+          if (!css.startsWith('rgb')) throw new Error(`unparsed color ${css}`);
+          linear = values.slice(0, 3).map(value => {
+            const channel = value / 255; return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+          });
+        }
+        return .2126 * linear[0]! + .7152 * linear[1]! + .0722 * linear[2]!;
       };
       const background = luminance(getComputedStyle(element).backgroundColor);
       return Array.from(element.querySelectorAll('textarea, button:not(:disabled)')).filter(control => !control.closest('[hidden]')).map(control => {
