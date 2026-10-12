@@ -193,6 +193,69 @@ describe("usePostEditor — slug redirect on load", () => {
   });
 });
 
+// G5 (2026-10-12): since `0e8ca8ac7` an untitled post's slug follows its title until first publish, so
+// the first save moves the post to a new slug while the address bar kept the old one — a reload or a
+// new tab then showed "post 'untitled-6' was not found". The save now replace-navigates to the saved
+// slug, and the editor stays mounted on its own record (no refetch, `post-editor-route-key.ts`).
+describe("usePostEditor — the URL follows a slug the save changed", () => {
+  const UNTITLED: AdminPost = { ...POST, title: "Untitled", slug: "untitled-6", bodyJson: { type: "doc", content: [] } };
+
+  it("replace-navigates to the title-derived slug after the first save of an untitled post", async () => {
+    const port = createFakePostEditorPort({ post: UNTITLED });
+    const navigate = fakeNavigate();
+    const { result } = renderHook(() => usePostEditor("untitled-6", { port, navigate, t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+
+    act(() => result.current.setTitle("Conflict base"));
+    await act(async () => { await result.current.save(); });
+
+    expect(port.post.slug).toBe("conflict-base");
+    expect(navigate).toHaveBeenCalledWith("/posts/conflict-base", { replace: true });
+  });
+
+  it("replace-navigates after a manual slug rename too, and does not refetch when the route catches up", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const getPost = vi.spyOn(port, "getPost");
+    const navigate = fakeNavigate();
+    const { result, rerender } = renderHook(({ postId }) => usePostEditor(postId, { port, navigate, t: fakeT }), {
+      initialProps: { postId: "hello-world" },
+    });
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+
+    act(() => result.current.setSlug("renamed"));
+    await act(async () => { await result.current.save(); });
+    expect(navigate).toHaveBeenCalledWith("/posts/renamed", { replace: true });
+
+    const loads = getPost.mock.calls.length;
+    rerender({ postId: "renamed" });
+    expect(getPost).toHaveBeenCalledTimes(loads);
+    expect(result.current.post?.slug).toBe("renamed");
+    expect(result.current.message).not.toBeNull();
+  });
+
+  it("does not navigate when the slug did not change, or when the URL names the post by id", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const navigate = fakeNavigate();
+    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate, t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    await act(async () => { await result.current.save(); });
+    expect(navigate).not.toHaveBeenCalled();
+
+    const byId = createFakePostEditorPort({ post: POST });
+    const byIdNavigate = fakeNavigate();
+    const byIdHook = renderHook(() => usePostEditor("p1", { port: byId, navigate: byIdNavigate, t: fakeT }));
+    await waitFor(() => expect(byIdHook.result.current.editor).not.toBeNull());
+    await waitFor(() => expect(byIdHook.result.current.post).not.toBeNull());
+    act(() => byIdHook.result.current.setSlug("renamed"));
+    await act(async () => { await byIdHook.result.current.save(); });
+    expect(byId.post.slug).toBe("renamed");
+    expect(byIdNavigate).not.toHaveBeenCalled();
+  });
+});
+
 describe("usePostEditor — templatePreviewUrl / previewFormTarget (2026-08-14, moved out of PostEditor.tsx/PostPreview)", () => {
   it("is empty before the post loads, then reflects the INJECTED port's templatePreviewUrl once loaded", async () => {
     const port = createFakePostEditorPort({ post: POST });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -26,6 +26,7 @@ import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
 import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
+import { rememberPostEditorRouteRename } from "../post-editor-route-key";
 import { editorTemplateOptions } from "@/lib/editor-template-options.rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
@@ -679,6 +680,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // id or slug); after that the real id is the only handle that survives a slug rename. Before this,
   // the second save after a rename — and every overwrite, autosave, and delete — 404'd on the old slug.
   const entryId = post?.id ?? postId;
+  // The slug this editor's own save just moved the URL to — the load effect skips that `postId` change:
+  // it is the record already on screen, not a new one to fetch (see `runSave`).
+  const savedRouteSlug = useRef<string | null>(null);
 
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
@@ -840,6 +844,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   });
 
   useEffect(() => {
+    if (postId === savedRouteSlug.current) return;
     setPost(null);
     setError(null);
     // Loaded together (not two independent effects) so the template default below never races: the
@@ -1079,6 +1084,14 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       setShowAuthor(current => current === showAuthor ? saved.showAuthor ?? false : current);
       setMessage(formatSaveSuccessMessage(statusOverride, saved, t, expectedVersion));
       setOriginal({ title, slug: saved.slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author: saved.author ?? "", showAuthor: saved.showAuthor ?? false, hideCoverImageInBody: saved.ext?.["post-presentation"]?.hideCoverImageInBody !== false });
+      // The save can move the slug (it follows the title until first publish, `0e8ca8ac7`, or the
+      // operator renamed it) — the old slug in the address bar then 404s on reload or in a new tab.
+      // An id URL still resolves, so only a stale slug URL is replaced.
+      if (postId !== saved.slug && postId !== saved.id) {
+        savedRouteSlug.current = saved.slug;
+        rememberPostEditorRouteRename({ from: postId, to: saved.slug });
+        navigate(`/posts/${saved.slug}`, { replace: true });
+      }
       // The real content just landed — any parked standing draft is now obsolete. Not awaited: this
       // is best-effort background bookkeeping (errors are already caught inside the hook), not part
       // of what "Save succeeded" means to the operator.

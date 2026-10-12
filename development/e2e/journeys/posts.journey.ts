@@ -17,11 +17,15 @@ import { API, JOURNEY_ADMIN_PASSWORD, JOURNEY_ADMIN_USER, PUBLIC_URL, WS_API, ex
 const POSTS_COLLECTION = new RegExp(`${WS_API}/posts$`);
 const POST_ITEM = new RegExp(`${WS_API}/posts/[^/?]+$`);
 
+/** The id is the row's UUID from the create response, not the URL segment: since `0e8ca8ac7` the slug
+ *  follows the title until first publish, so the first save moves the editor to a new slug URL. */
 async function newPost(page: Page): Promise<{ id: string }> {
   await page.goto("/admin/posts");
+  const created = page.waitForResponse((r) => r.request().method() === "POST" && POSTS_COLLECTION.test(new URL(r.url()).pathname));
   await page.getByRole("button", { name: "New Post" }).click();
+  const { post } = (await (await created).json()) as { post: { id: string } };
   await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
-  return { id: page.url().split("/").pop()! };
+  return { id: post.id };
 }
 
 async function typeBody(page: Page, text: string): Promise<void> {

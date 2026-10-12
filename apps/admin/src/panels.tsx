@@ -6,6 +6,7 @@ import { Themes, ThemeExplore } from "./features/themes";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
 import { PostEditor, Posts } from "./features/posts";
+import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
 import { PageEditor, Pages } from "./features/pages";
 import { Members } from "./features/members";
 import { Comments } from "./features/comments";
@@ -201,7 +202,9 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
           // and writes to the wrong record. Remounting per id closes the whole class at the routing
           // layer instead of one hand-rolled staleness ref per hook. `Seo.tsx:245` already does this
           // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
-          return <PostEditor key={ctx.params.postId} postId={ctx.params.postId} />;
+          // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
+          // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
+          return <PostEditor key={postEditorRouteKey(ctx.params.postId)} postId={ctx.params.postId} />;
         default:
           return <Posts />;
       }
