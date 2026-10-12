@@ -204,7 +204,7 @@ for (const token of ['', 42]) test(`t10 source malformed submitted token ${JSON.
 });
 
 test('t10 source raw save errors containing the secret never reach model or surface', async () => {
-  const f = fixture(); f.repo.insert = async () => { throw new Error(`db echoed ${SECRET}`); };
+  const f = fixture(); f.repo.vault.put = async () => { throw new Error(`db echoed ${SECRET}`); };
   const { pending, emitted } = await form(f); submit(f, { label: 'New connection', token: SECRET });
   const result = await pending;
   assert.deepEqual(result, { saved: false, credentialId: null, provider: 'github', label: 'My backup connection', cancelled: false, message: PROPOSE_CREDENTIAL_SAVE_FAILED });

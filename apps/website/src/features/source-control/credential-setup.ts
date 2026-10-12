@@ -89,7 +89,19 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
       for (const field of prep.descriptor!.credential!.fields) connection[field.name] = values[field.name];
       const store = deps.sourceControlCredentialSetRepo;
       // The async seal can outlive the run; the existing store must not insert after abandonment.
+      // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
+      const vault = store.vault;
       const repo: SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'] = {
+        ...(vault ? { vault: {
+          find: (input, options) => vault.find(input, options),
+          list: (input, options) => vault.list(input, options),
+          put: (input, options) => { signal.throwIfAborted(); return vault.put(input, options); },
+          patchMeta: (input, options) => vault.patchMeta(input, options),
+          delete: (input, options) => vault.delete(input, options),
+          ...(vault.findDefault ? { findDefault: (input: Parameters<NonNullable<typeof vault.findDefault>>[0], options?: Parameters<NonNullable<typeof vault.findDefault>>[1]) => vault.findDefault!(input, options) } : {}),
+          ...(vault.findOne ? { findOne: (input: Parameters<NonNullable<typeof vault.findOne>>[0], options?: Parameters<NonNullable<typeof vault.findOne>>[1]) => vault.findOne!(input, options) } : {}),
+          ...(vault.applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return vault.applyBatch!(input, options); } } : {}),
+        } satisfies NonNullable<typeof vault> } : {}),
         insert: record => { signal.throwIfAborted(); return store.insert(record); },
         update: record => store.update(record),
         findById: input => store.findById(input),
