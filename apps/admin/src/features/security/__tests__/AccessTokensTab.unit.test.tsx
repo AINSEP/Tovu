@@ -83,23 +83,19 @@ describe("AccessTokensTab search box", () => {
 });
 
 describe("AccessTokensTab project copy entry", () => {
-  it("has exactly one entry above the aggregate list and opens the shared dialog", async () => {
-    const user = userEvent.setup();
+  // Entry hidden per owner 2026-10-11; `CopyKeysDialog`/`useCopyKeys` stay wired behind
+  // `SHOW_COPY_KEYS_ENTRY` in `AccessTokensTab.tsx`.
+  it("renders no copy-keys entry and never lists copy sources", () => {
     const listCredentialCopySources = vi.fn().mockResolvedValue({ sources: [] });
     const copyCredentials = vi.fn();
-    const { container } = render(<AccessTokensTab
+    render(<AccessTokensTab
       useAccessTokensHook={() => makeAccessTokens()}
       useOtherCredentialsHook={() => makeOtherCredentials()}
       useCopyKeysHook={input => useCopyKeys(input, { port: { listCredentialCopySources, copyCredentials } })}
     />);
-    const entries = screen.getAllByRole("button", { name: "Copy keys from another project…" });
-    expect(entries).toHaveLength(1);
-    expect(entries[0]!.compareDocumentPosition(container.querySelector(".access-tokens-tier")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Copy keys from another project…" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Copy keys from another project…" })).toBeNull();
     expect(listCredentialCopySources).not.toHaveBeenCalled();
-    await user.click(entries[0]!);
-    expect(screen.getByRole("dialog", { name: "Copy keys from another project…" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Source project")).toBeInTheDocument();
-    expect(listCredentialCopySources).toHaveBeenCalledExactlyOnceWith({});
   });
 });
 

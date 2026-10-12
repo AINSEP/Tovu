@@ -97,6 +97,9 @@ function resolveOtherCredentialsHook(override: typeof useWiredOtherCredentials |
   return override ?? useWiredOtherCredentials;
 }
 
+/** Whether the "Copy keys from another project…" entry renders above the list (see its render site). */
+const SHOW_COPY_KEYS_ENTRY = false;
+
 export function AccessTokensTab(props: AccessTokensTabProps) {
   useAdminLocale();
   const useAccessTokensHook = resolveAccessTokensHook(props.useAccessTokensHook);
@@ -117,8 +120,15 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
         label: "Every access token and other saved credential this install holds, across all eight stores, searchable and filterable by category",
       })}
     >
-      <button type="button" className="btn-secondary" onClick={copyDialog.show}>{controller.t("Copy keys from another project…")}</button>
-      <CopyKeysDialog dialog={copyDialog} t={controller.t} />
+      {/* Hidden per owner 2026-10-11 ("get rid of this button for now"). The dialog, hook and route
+          stay wired, and the chat's copy-keys card is unaffected — flip `SHOW_COPY_KEYS_ENTRY` to
+          restore the entry. */}
+      {SHOW_COPY_KEYS_ENTRY ? (
+        <>
+          <button type="button" className="btn-secondary" onClick={copyDialog.show}>{controller.t("Copy keys from another project…")}</button>
+          <CopyKeysDialog dialog={copyDialog} t={controller.t} />
+        </>
+      ) : null}
       <AccessTokensBody controller={controller} otherController={otherController} />
     </div>
   );
