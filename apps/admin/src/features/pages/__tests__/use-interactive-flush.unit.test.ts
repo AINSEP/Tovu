@@ -134,3 +134,23 @@ describe("useInteractiveEditorFlush — canvas output keeps embed markers readab
     expect(setHtml).toHaveBeenCalledWith(`<p>x</p>${READABLE}`);
   });
 });
+
+describe("scriptblocks source integrity flush", () => {
+  it("propagates a source error without writing a shell or treating it as an RTE timeout", async () => {
+    const { EditorSourceError } = await import("@jini-ai/ui/html-editor");
+    const setHtml = vi.fn();
+    const error = new EditorSourceError();
+    const { result } = renderHook(() => useInteractiveEditorFlush(setHtml));
+    result.current.interactiveEditorRef.current = { flush: async () => { throw error; } };
+    await expect(result.current.flushInteractiveEdits()).rejects.toBe(error);
+    expect(setHtml).not.toHaveBeenCalled();
+  });
+  it("keeps the approved frontend embed quote normalization inside retained blocks", async () => {
+    const setHtml = vi.fn();
+    const { result } = renderHook(() => useInteractiveEditorFlush(setHtml));
+    const input = '<section data-kui><div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact&quot;}"></div></section>';
+    result.current.interactiveEditorRef.current = { flush: async () => input };
+    await expect(result.current.flushInteractiveEdits()).resolves.toBe(`<section data-kui><div data-embed-config='{"type":"widget","slug":"contact"}'></div></section>`);
+    expect(setHtml).toHaveBeenCalledWith(`<section data-kui><div data-embed-config='{"type":"widget","slug":"contact"}'></div></section>`);
+  });
+});

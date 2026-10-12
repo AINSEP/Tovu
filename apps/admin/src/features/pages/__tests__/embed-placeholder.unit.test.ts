@@ -28,19 +28,19 @@ describe("createEmbedPlaceholderDescriber", () => {
     expect(describe_(el)).toBeUndefined();
   });
 
-  it("returns undefined when data-embed-config is not valid JSON", () => {
+  it("keeps a safe generic card when data-embed-config is not valid JSON", () => {
     const el = markerElement("{not json");
-    expect(describe_(el)).toBeUndefined();
+    expect(describe_(el)).toEqual({ kindLabel: "Content", identityLabel: "no id set" });
   });
 
-  it("returns undefined when data-embed-config parses but is not an object", () => {
+  it("keeps a safe generic card when data-embed-config parses but is not an object", () => {
     const el = markerElement('"just a string"');
-    expect(describe_(el)).toBeUndefined();
+    expect(describe_(el)).toEqual({ kindLabel: "Content", identityLabel: "no id set" });
   });
 
-  it("returns undefined when the config object has no type", () => {
+  it("keeps a safe generic card when the config object has no type", () => {
     const el = markerElement({ id: "abc" });
-    expect(describe_(el)).toBeUndefined();
+    expect(describe_(el)).toEqual({ kindLabel: "Content", identityLabel: "no id set" });
   });
 
   it("the owner's exact marker: a widget by slug gives Widget / slug contact-form", () => {

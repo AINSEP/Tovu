@@ -103,9 +103,9 @@ function targetIdentityLabel(type: string, config: Readonly<Record<string, unkno
  * by `PageEditor`'s hook (`use-page-editor.hooks.ts`, Slice A3) with `useMemo`, since the editor reads
  * this callback only at mount.
  *
- * A marker whose `data-embed-config` fails to parse, isn't an object, or has no `type` returns
- * `undefined` — the same degrade-quietly contract `scanEmbedMarkers` (the server-side scanner this
- * mirrors via `parseEmbedMarkerConfig`) uses for a rejected marker at render time. This runs on every
+ * A legacy or malformed marker gets a safe generic label while keeping its existing protection.
+ * `scanEmbedMarkers` can still reject it at render time; this is an editor description, not a
+ * second marker interpretation. This runs on every
  * keystroke-adjacent canvas re-render, not at a write chokepoint, so it never warns or logs.
  *
  * `name`, when the marker's own config carries one, wins over every target key — an author's explicit
@@ -118,9 +118,12 @@ function targetIdentityLabel(type: string, config: Readonly<Record<string, unkno
 export function createEmbedPlaceholderDescriber(t: Translate): (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined {
   return (el: Element): CanvasEmbedPlaceholderDescriptor | undefined => {
     const raw = el.getAttribute("data-embed-config");
-    if (!raw) return undefined;
+    const fallback = (): CanvasEmbedPlaceholderDescriptor | undefined => isProtectedEmbedElement(el)
+      ? { kindLabel: t("Content"), identityLabel: el.getAttribute("id") ? `#${el.getAttribute("id")}` : t("no id set") }
+      : undefined;
+    if (!raw) return fallback();
     const result = parseEmbedMarkerConfig({ raw });
-    if ("problem" in result) return undefined;
+    if ("problem" in result) return fallback();
 
     const { config } = result;
     const type = (config.type as string).toLowerCase();

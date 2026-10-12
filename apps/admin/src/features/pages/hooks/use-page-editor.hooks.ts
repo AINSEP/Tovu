@@ -1,7 +1,7 @@
 import { useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
-import type { CanvasEmbedPlaceholderDescriptor, InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
+import type { CanvasEmbedPlaceholderDescriptor, InteractiveHtmlEditorHandle, RequestEditHtml } from "@jini-ai/ui/html-editor";
 
 import type { AdminPost, ThemeTier } from "@/lib/api";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/DevicePreview/DevicePreview.hooks";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
+import { editorTemplateOptions } from "@/lib/editor-template-options.rules";
 import { unchangedSaveHandlers } from "@/lib/unchanged-save-warning";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
@@ -26,6 +27,7 @@ import { t as defaultT } from "../page-editor-i18n";
 import { createEmbedPlaceholderDescriber } from "../lib/embed-placeholder";
 import { prettifyHtml } from "../lib/prettify-html";
 import { useInteractiveEditorFlush } from "./use-interactive-flush.hooks";
+import { useEditorHtmlJump } from "./use-editor-html-jump.hooks";
 import {
   buildPageAutosaveDraft,
   buildPageSavePlan,
@@ -178,6 +180,8 @@ export interface PageEditorController {
    * `@tovu/embed-marker` target rule, instead of the id-only label Jini's own adapter produced.
    */
   embedPlaceholderDescriber: (el: Element) => CanvasEmbedPlaceholderDescriptor | undefined;
+  onRequestEditHtml: RequestEditHtml;
+  onInteractiveSourceError: (error: Error) => void;
   /**
    * Interactive flush (2026-09-23 plan) — `PageEditorPane` attaches this to
    * `<InteractiveHtmlEditor ref={...}>`. GrapesJS only syncs an open RTE session's text into its
@@ -755,7 +759,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       .then(([{ post }, { activeThemeTemplates, activeThemeId: themeId, activeThemeApiVersion: themeApiVersion, activeThemeTier: themeTier }]) => {
         if (cancelled) return;
         hydratedRoute.current = routeSlug;
-        setAvailableTemplates(activeThemeTemplates);
+        setAvailableTemplates(editorTemplateOptions({ templates: activeThemeTemplates, savedTemplate: post.templateChoice }));
         setActiveThemeId(themeId);
         setActiveThemeApiVersion(themeApiVersion);
         setActiveThemeTier(themeTier);
@@ -793,9 +797,6 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // full "why a ref, why here" reasoning. A `useRef`, not `useState`: a scroll position changing must
   // never itself trigger a re-render, only be there the next time the tab mounts.
   const htmlScrollTopRef = useRef(0);
-  const htmlTextareaRef = useCallback((node: HTMLTextAreaElement | null) => {
-    if (node) node.scrollTop = htmlScrollTopRef.current;
-  }, []);
   const onHtmlScroll = useCallback((scrollTop: number) => {
     htmlScrollTopRef.current = scrollTop;
   }, []);
@@ -805,6 +806,23 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // losing GrapesJS's canvas state on every own Save (a `page.version` key would do that too, since
   // an own save bumps it exactly the same way). See `PageEditorController.contentRevision`.
   const [contentRevision, setContentRevision] = useState(0);
+  const onInteractiveSourceError = useCallback((_error?: Error) => {
+    setError(boundT("Can't edit this source visually. Use HTML."));
+  }, [boundT]);
+  const flushInteractiveSafely = useCallback(async () => {
+    try { return { ok: true as const, html: await flushInteractiveEdits() }; }
+    catch { onInteractiveSourceError(); return { ok: false as const }; }
+  }, [flushInteractiveEdits, onInteractiveSourceError]);
+  // Save with no visible change still checks an open Interactive text session first — see
+  // `unchangedSaveHandlers`' `flushPendingEdits`.
+  const flushPendingEdits = useCallback(async () => {
+    const flushed = await flushInteractiveSafely();
+    if (!flushed.ok) return "failed" as const;
+    return flushed.html !== undefined && flushed.html !== savedHtml ? "changed" as const : "unchanged" as const;
+  }, [flushInteractiveSafely, savedHtml]);
+  const { requestEditHtml: onRequestEditHtml, htmlTextareaRef, consumeJumpFormatting } = useEditorHtmlJump({
+    html, contentRevision, flush: flushInteractiveEdits, setView, setDraftHtml, scrollTop: htmlScrollTopRef,
+  }, { onError: onInteractiveSourceError });
 
   /**
    * The shared refresh hook's `applyLatest` — replaces the working copy AND the saved baseline with
@@ -835,10 +853,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const prevViewRef = useRef(view);
   useEffect(() => {
     if (view === "html" && prevViewRef.current !== "html") {
-      setDraftHtml(prettifyHtml(html));
+      if (!consumeJumpFormatting()) setDraftHtml(prettifyHtml(html));
     }
     prevViewRef.current = view;
-  }, [view, html]);
+  }, [view, html, consumeJumpFormatting]);
 
   // Leaving the Preview tab collapses (2026-09-16) — the expanded surface only ever shows the
   // preview, so any other view being selected means the operator is done with it. Returning to
@@ -973,10 +991,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // tab so its pending edit is part of this save, not lost. See `runSave`'s `htmlOverride` doc for
       // why the result is threaded through explicitly rather than left to `runSave`'s own `html`
       // closure.
-      const flushed = await flushInteractiveEdits();
-      await runSave(nextStatus, page, flushed);
+      const flushed = await flushInteractiveSafely();
+      if (!flushed.ok) return;
+      await runSave(nextStatus, page, flushed.html);
     },
-    [page, runSave, flushInteractiveEdits]
+    [page, runSave, flushInteractiveSafely]
   );
 
   /**
@@ -999,9 +1018,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     }
     setPage(fresh);
     // Interactive flush (2026-09-23 plan) — same reasoning as `save`'s own call.
-    const flushed = await flushInteractiveEdits();
-    await runSave(attemptedStatus, fresh, flushed);
-  }, [page, port, runSave, saveConflict, t, locale, flushInteractiveEdits]);
+    const flushed = await flushInteractiveSafely();
+    if (!flushed.ok) return;
+    await runSave(attemptedStatus, fresh, flushed.html);
+  }, [page, port, runSave, saveConflict, t, locale, flushInteractiveSafely]);
 
   /** Hides the conflict banner without saving — see
    *  {@link PageEditorController.dismissSaveConflict}. */
@@ -1097,10 +1117,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         return;
       }
       event.preventDefault();
-      const flushed = await flushInteractiveEdits();
-      if (confirmLeave({}, { unsavedBeyondTracked: flushed !== undefined && flushed !== savedHtml })) navigate("/pages");
+      const flushed = await flushInteractiveSafely();
+      if (!flushed.ok) return;
+      if (confirmLeave({}, { unsavedBeyondTracked: flushed.html !== undefined && flushed.html !== savedHtml })) navigate("/pages");
     },
-    [confirmLeave, flushInteractiveEdits, savedHtml, navigate]
+    [confirmLeave, flushInteractiveSafely, savedHtml, navigate]
   );
 
   // Standing-draft autosave scheduling — fires a debounced write whenever the working copy actually
@@ -1181,9 +1202,12 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         setView(next);
         return;
       }
-      void flushInteractiveEdits().then(() => setView(next));
+      void flushInteractiveSafely().then(result => {
+        // HTML remains available on an integrity failure, showing the last intact working copy.
+        if (result.ok || next === "html") setView(next);
+      });
     },
-    [flushInteractiveEdits]
+    [flushInteractiveSafely]
   );
   const setTemplateChoiceAfterFlush = useCallback(
     (next: string | null) => {
@@ -1191,9 +1215,9 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         setTemplateChoice(next);
         return;
       }
-      void flushInteractiveEdits().then(() => setTemplateChoice(next));
+      void flushInteractiveSafely().then(result => { if (result.ok) setTemplateChoice(next); });
     },
-    [flushInteractiveEdits]
+    [flushInteractiveSafely]
   );
 
   // See `templatePreviewUrl`'s own doc on `PageEditorController` for why this is a plain per-render
@@ -1265,6 +1289,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     saving,
     t: boundT,
     embedPlaceholderDescriber,
+    onRequestEditHtml,
+    onInteractiveSourceError,
     interactiveEditorRef,
     setHtmlFromCanvas,
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
@@ -1289,7 +1315,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     confirmingDelete,
     setConfirmingDelete,
     confirmingUnchangedSave,
-    ...unchangedSaveHandlers({ dirty, save: () => save(), setConfirmingUnchangedSave }),
+    ...unchangedSaveHandlers({ dirty, save: () => save(), setConfirmingUnchangedSave }, { flushPendingEdits }),
     deleting,
     confirmLeave,
     onBackLinkClick,

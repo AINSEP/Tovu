@@ -130,6 +130,8 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     dismissExternalChange: vi.fn(),
     contentRevision: 0,
     embedPlaceholderDescriber: () => undefined,
+    onRequestEditHtml: async () => {},
+    onInteractiveSourceError: () => {},
     interactiveEditorRef: { current: null },
     setHtmlFromCanvas: vi.fn(),
     ...overrides,

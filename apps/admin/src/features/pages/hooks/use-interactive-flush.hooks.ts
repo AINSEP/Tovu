@@ -1,6 +1,6 @@
 import { useCallback, useRef, type RefObject } from "react";
 
-import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
+import { isEditorSourceError, type InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 
 /**
@@ -67,7 +67,9 @@ export function useInteractiveEditorFlush(
    * `interactiveEditorRef.current` is `null` (not on the Interactive tab, or not yet mounted), the
    * editor's own `flush()` found nothing changed since mount, or `flush()` rejected or did not settle
    * within {@link INTERACTIVE_FLUSH_TIMEOUT_MS} (both warned about, never propagated, so a
-   * save/tab-switch/template-change can never be blocked by it). A flush that settles after the
+   * save/tab-switch/template-change can never be blocked by an ordinary RTE failure). A source
+   * integrity error is propagated: the host retains its last intact body and cannot save a shell.
+   * A flush that settles after the
    * timeout is ignored: its caller has already moved on, and a late `setHtml` could overwrite what
    * the operator typed since (for example in the HTML tab).
    * Every caller must still fall back to whatever `html` currently holds on `undefined` — see
@@ -80,6 +82,7 @@ export function useInteractiveEditorFlush(
     if (!handle) return undefined;
     const outcome = await settleFlush(Promise.resolve().then(() => handle.flush()), INTERACTIVE_FLUSH_TIMEOUT_MS);
     if (outcome.kind === "failed") {
+      if (isEditorSourceError({ error: outcome.error }, {})) throw outcome.error;
       console.warn("[useInteractiveEditorFlush] flush failed; saving the working copy without the open edit", outcome.error);
       return undefined;
     }

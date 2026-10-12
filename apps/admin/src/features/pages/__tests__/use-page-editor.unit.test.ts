@@ -427,12 +427,14 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     expect(result.current.dirty).toBe(false);
 
     act(() => result.current.onSave());
-    expect(result.current.confirmingUnchangedSave).toBe(true);
+    // Save waits for pending Interactive edits to flush before deciding whether to warn.
+    await waitFor(() => expect(result.current.confirmingUnchangedSave).toBe(true));
     act(() => result.current.onUnchangedSaveCancel());
     expect(result.current.confirmingUnchangedSave).toBe(false);
     expect(deps.port.updatePostCalls).toEqual([]);
 
     act(() => result.current.onSave());
+    await waitFor(() => expect(result.current.confirmingUnchangedSave).toBe(true));
     await act(async () => { result.current.onUnchangedSaveConfirm(); });
     await waitFor(() => expect(result.current.saving).toBe(false));
     expect(result.current.confirmingUnchangedSave).toBe(false);
@@ -2353,5 +2355,24 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+
+describe("templateFor — saved page template remains selectable", () => {
+  it.each([{ templates: ["page.html"] }, { templates: [] }])("keeps a filtered-out saved choice visible with $templates", async ({ templates }) => {
+    const port = createFakePageEditorPort({
+      page: { ...HTML_PAGE, templateChoice: "post.html" },
+      activeThemeTemplates: templates,
+    });
+    const { result } = renderHook(() => usePageEditor("landing", {
+      port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(),
+      t: (_locale: string, key: string) => key, locale: "en",
+    }));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    expect(result.current.availableTemplates).toEqual([...templates, "post.html"]);
+    expect(result.current.templateChoice).toBe("post.html");
+    expect(result.current.dirty).toBe(false);
+    expect(port.updatePostCalls).toEqual([]);
   });
 });

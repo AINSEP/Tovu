@@ -120,3 +120,17 @@ describe("PAGE_EXTERNAL_CHANGE_MESSAGE", () => {
     }
   });
 });
+
+describe("scriptblocks translated host copy", () => {
+  it("covers every admin locale with exact keys and keeps the English fallback", async () => {
+    const { SCRIPT_BLOCK_DICT } = await import("../page-editor-i18n");
+    expect(Object.keys(SCRIPT_BLOCK_DICT).sort()).toEqual(Object.keys(PAGE_EDITOR_DICT).sort());
+    const keys = ["Animation · Kuinetic", "Canvas", "Autoplay video", "Scripted section", "Locked · Edit in HTML · Preview plays it", "Edit HTML", "Can't edit this source visually. Use HTML."];
+    for (const [locale, dictionary] of Object.entries(SCRIPT_BLOCK_DICT)) {
+      expect(Object.keys(dictionary).sort()).toEqual([...keys].sort());
+      for (const key of keys) expect(t(locale, key)).toBe(dictionary[key]);
+    }
+    for (const key of keys) expect(t("en", key)).toBe(key);
+    expect(t("es", "Edit HTML")).toBe("Editar HTML");
+  });
+});
