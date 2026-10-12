@@ -64,11 +64,20 @@ test("two connections migrating at once apply a step exactly once", async () => 
 
 test("the content history through the current head applies on real Postgres", async () => {
   const report = await migrateContentDatabase(baseline);
-  assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map(step => step.id));
+  // Pinned literally: deriving both sides from CONTENT_MIGRATIONS would let a dropped step pass.
+  const head = [
+    "0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables",
+    "0003_coercion_json_as_json", "0004_drop_unused_deployment_tables", "0005_media_createdby",
+    "0006_submission_ip_retention", "0007_publish_backstop", "0008_posts_publish_at_featured_media",
+    "0009_posts_author", "0010_members_credentials_revoked_at", "0011_drop_empty_core_commerce_tables", "0012_secrets_vault",
+  ];
+  assert.deepEqual(report.applied, head);
+  assert.deepEqual(CONTENT_MIGRATIONS.map(step => step.id), head);
   const [{ n }] = await baseline.query<{ n: number }>(
     sql`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' AND left(table_name, 14) <> '_vault_backup_'`
   );
   assert.equal(n, collectCoreTables().length + 2, "declared content tables plus post_search_document and tovu_migrations");
+  assert.equal(n, 75, "75 tables at 0012_secrets_vault: an accidental drop or addition must change this pin");
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
   assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");
