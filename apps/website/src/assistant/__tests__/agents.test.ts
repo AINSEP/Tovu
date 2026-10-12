@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 
-import { listAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
+import { listAssistantAgents, listDetectedAssistantAgents, rescanAssistantAgents, setAgentModelProberForTesting } from "../agents.js";
 import { createLiveModelDiscovery } from "../live-model-cache.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import type { SecretSealerPort } from "../../features/webhooks/index.js";
@@ -45,7 +45,7 @@ after(() => {
  */
 
 test("listAssistantAgents projects fallback models and reasoning options for claude", async () => {
-  const agents = await listAssistantAgents();
+  const agents = await listAssistantAgents({}, { waitForProbe: true });
   const claude = agents.find((agent) => agent.id === "claude");
   assert.ok(claude, "expected a 'claude' entry in the agent list");
   assert.ok(claude.models && claude.models.length > 0, "expected claude.models to be non-empty");
@@ -149,15 +149,15 @@ test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgent
     ? { models, source: "live" }
     : { models: def.fallbackModels, source: "fallback" });
   try {
-    const before = listAssistantAgents();
+    const before = listAssistantAgents({}, { waitForProbe: true });
     assert.deepEqual((await before).find((agent) => agent.id === "claude")?.models, models);
     models = [{ id: "after-rescan", label: "After rescan" }];
-    const rescanned = rescanAssistantAgents();
+    const rescanned = rescanAssistantAgents({}, { waitForProbe: true });
     assert.notStrictEqual(rescanned, before, "expected rescan to start a NEW probe rather than reuse the cached one");
     const after = listAssistantAgents();
-    assert.strictEqual(after, rescanned, "expected the cache to now hold the rescanned probe, not the stale pre-rescan one");
+    assert.deepEqual((await after).find((agent) => agent.id === "claude")?.models, [{ id: "before-rescan", label: "Before rescan" }], "ordinary reads retain previous data during Rescan");
     assert.deepEqual((await rescanned).find((agent) => agent.id === "claude")?.models, models);
-    assert.deepEqual((await after).find((agent) => agent.id === "claude")?.models, models);
+    assert.deepEqual((await listAssistantAgents()).find((agent) => agent.id === "claude")?.models, models);
   } finally {
     setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
   }
@@ -179,7 +179,7 @@ test("rescanAssistantAgents surfaces the live model list the prober returns for 
       : { models: def.fallbackModels, source: "fallback" };
   });
   try {
-    const agents = await rescanAssistantAgents();
+    const agents = await rescanAssistantAgents({}, { waitForProbe: true });
     const claude = agents.find((agent) => agent.id === "claude");
     assert.ok(claude, "expected a 'claude' entry in the agent list");
     assert.equal(claude.available, true, "the fixture must make Claude available");
@@ -219,7 +219,7 @@ test("assistant inventory preserves dynamic catalog and resolved default for the
     ? { models, source: "live", catalog, defaultModelResolution }
     : { models: def.fallbackModels, source: "fallback" });
   try {
-    const claude = (await rescanAssistantAgents()).find(agent => agent.id === "claude");
+    const claude = (await rescanAssistantAgents({}, { waitForProbe: true })).find(agent => agent.id === "claude");
     assert.ok(claude);
     assert.deepEqual(claude.models, models);
     assert.deepEqual(claude.modelCatalog, catalog);
@@ -238,9 +238,9 @@ test("assistant rescan forces model discovery and preserves an unresolved defaul
     return { models: def.fallbackModels, source: "fallback", defaultModelResolution };
   });
   try {
-    const first = (await listAssistantAgents()).find(agent => agent.id === "claude");
+    const first = (await listAssistantAgents({}, { waitForProbe: true })).find(agent => agent.id === "claude");
     assert.deepEqual(first?.defaultModelResolution, defaultModelResolution);
-    const rescanned = (await rescanAssistantAgents()).find(agent => agent.id === "claude");
+    const rescanned = (await rescanAssistantAgents({}, { waitForProbe: true })).find(agent => agent.id === "claude");
     assert.deepEqual(rescanned?.defaultModelResolution, defaultModelResolution);
     assert.deepEqual(forces, [false, true]);
   } finally {
@@ -263,8 +263,8 @@ function liveDiscoveryFixture() {
     async save({ workspaceId = "workspace", principalId = "principal", apiKey = "key-a", protocol = "anthropic", baseUrl = "https://provider.example" } = {}) {
       await repo.upsert({
         workspaceId, principalId, protocol, baseUrl, providerId: "provider", model: null, maxTokens: null,
-        sealed: { keyId: "test", ciphertext: apiKey, nonce: "test", alg: "AES-256-GCM" },
-        masked: "test", aadVersion: 0, createdAt: "2026-10-02T00:00:00.000Z", updatedAt: "2026-10-02T00:00:00.000Z",
+        sealed: { keyId: "test", ciphertext: JSON.stringify({ apiKey }), nonce: "test", alg: "AES-256-GCM" },
+        masked: "test", aadVersion: 2, createdAt: "2026-10-02T00:00:00.000Z", updatedAt: "2026-10-02T00:00:00.000Z",
       });
     },
   };
@@ -341,7 +341,7 @@ test("live discovery instances own their state and delimiter-containing tenant I
 });
 
 // PARITY: requests share the in-flight discovery even when it outlasts the TTL.
-test("live discovery coalesces concurrent calls while the provider is still responding", async () => {
+test("live discovery coalesces concurrent calls while the provider is still responding", { timeout: 2_000 }, async () => {
   const fixture = liveDiscoveryFixture();
   await fixture.save();
   let now = 0;
@@ -356,11 +356,12 @@ test("live discovery coalesces concurrent calls while the provider is still resp
   } });
   const key = { workspaceId: "workspace", principalId: "principal" };
   const first = discovery.getLiveClaudeModels(key);
-  await waiting;
+  await Promise.race([waiting, first.then(() => assert.fail("discovery settled before reaching the fake provider"))]);
   now = 10 * 60_000;
   const second = discovery.getLiveClaudeModels(key);
-  // Let the second credential resolution reach the cache before settling the provider response.
-  await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+  // Drain the asynchronous vault read before settling the provider; two microtasks no longer
+  // cover authorization, repository lookup and JSON opening.
+  await new Promise<void>((resolve) => setImmediate(resolve));
   complete([{ id: "live", label: "Live" }]);
   assert.deepEqual(await first, [{ id: "live", label: "Live" }]);
   assert.deepEqual(await second, await first);
@@ -381,4 +382,36 @@ test("live discovery retries a cached failure when the stored baseUrl changes", 
   await fixture.save({ baseUrl: "https://fixed.example" });
   assert.deepEqual(await discovery.getLiveClaudeModels(key), [{ id: "recovered", label: "Recovered" }]);
   assert.deepEqual(endpoints, ["https://broken.example", "https://fixed.example"]);
+});
+
+test("Settings and chat share one background inventory while both requests return cached data", { timeout: 2_000 }, async () => {
+  let calls = 0;
+  let finish!: () => void;
+  let started!: () => void;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const blocked = new Promise<void>(resolve => { finish = resolve; });
+  const fallback = AGENT_DEFS.find(def => def.id === "claude")?.fallbackModels.filter(model => model.id !== "default");
+  assert.ok(fallback);
+  setAgentModelProberForTesting(async ({ def }) => {
+    if (def.id === "claude") { calls++; started(); await blocked; }
+    return { models: [{ id: "exact-model-v2", label: "exact-model-v2" }], source: "live" };
+  });
+  try {
+    const settings = await listDetectedAssistantAgents();
+    const chat = await listAssistantAgents();
+    assert.equal(chat.find(agent => agent.id === "claude")?.discoveryPending, true);
+    assert.deepEqual(settings.find(agent => agent.id === "claude")?.models, fallback);
+    await ready;
+    assert.deepEqual((await listAssistantAgents()).find(agent => agent.id === "claude")?.models, fallback);
+    assert.equal(calls, 1);
+    finish();
+    const refreshed = await listAssistantAgents({}, { waitForProbe: true });
+    assert.deepEqual(refreshed.find(agent => agent.id === "claude")?.models, [{ id: "exact-model-v2", label: "exact-model-v2" }]);
+    assert.equal(refreshed.find(agent => agent.id === "claude")?.discoveryPending, false);
+    assert.equal(calls, 1);
+  } finally {
+    finish();
+    await listAssistantAgents({}, { waitForProbe: true });
+    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+  }
 });

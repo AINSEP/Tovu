@@ -43,13 +43,18 @@ test("detect-agents handler returns the complete projected catalog", async () =>
   failure = undefined;
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-test" };
-  await handler(true)({ params: { workspaceId: "workspace-test" } }, res);
+  const run = handler(true);
+  await run({ params: { workspaceId: "workspace-test" } }, res);
+  assert.equal(calls, 0, "the HTTP response precedes background discovery");
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await run({ params: { workspaceId: "workspace-test" } }, res);
   assert.equal(calls, 1);
   assert.equal(capture.statusCode, 200);
   assert.deepEqual(capture.jsonBody, { data: [{
-    id: "codex", label: "Codex", installed: true, version: "1.2.3", path: "/usr/local/bin/codex", modelsSource: "live",
+    id: "codex", label: "Codex", installed: true, discoveryPending: false, version: "1.2.3", path: "/usr/local/bin/codex", modelsSource: "live",
     models: [{ id: "model-pro", label: "Model Pro" }], authStatus: "ok", authMessage: "Signed in", reasoningOptions: [{ id: "high", label: "High" }],
-  }, { id: "claude", label: "Claude Code", installed: false, modelsSource: "fallback", authStatus: "missing", authMessage: "Run claude login" }] });
+  }, { id: "claude", label: "Claude Code", installed: false, discoveryPending: false, modelsSource: "fallback", authStatus: "missing", authMessage: "Run claude login" }] });
 });
 
 test("detect-agents handler denies missing permission before probing local agents", async () => {
@@ -66,17 +71,51 @@ test("detect-agents handler denies missing permission before probing local agent
   });
 });
 
-test("detect-agents handler maps a detector failure to a private 500 envelope", async () => {
+test("detect-agents handler keeps cached data when background discovery fails", async () => {
   calls = 0;
   failure = new Error("private host details");
   try {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-test" };
-    await handler(true)({ params: { workspaceId: "workspace-test" } }, res);
+    const run = handler(true);
+    await run({ params: { workspaceId: "workspace-test" } }, res);
+    const previous = capture.jsonBody as { data: Record<string, unknown>[] };
+    await new Promise<void>(resolve => setImmediate(resolve));
+    await new Promise<void>(resolve => setImmediate(resolve));
+    await run({ params: { workspaceId: "workspace-test" } }, res);
     assert.equal(calls, 1);
-    assert.equal(capture.statusCode, 500);
-    assert.deepEqual(capture.jsonBody, { error: "internal error", code: "INTERNAL_ERROR" });
+    assert.equal(capture.statusCode, 200);
+    assert.deepEqual(capture.jsonBody, { data: previous.data.map(agent => ({ ...agent, discoveryPending: false })) });
+    assert.ok(!JSON.stringify(capture.jsonBody).includes("private host details"));
   } finally {
     failure = undefined;
   }
+});
+
+// This route-level case proves the strict body flag reaches discovery, not just the cache helper.
+test("Rescan forces discovery once after the cached response and preserves exact model IDs", async () => {
+  const forces: boolean[] = [];
+  let calls = 0;
+  const app = express();
+  registerAdminAssistantDetectAgentsRoute(app, {
+    adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
+    siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
+    siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
+    detectAgents: async (_input, options = {}) => { calls++; forces.push(options.force === true); return agents; },
+    workspaceId: "workspace-test", authorize: async () => ({ allowed: true, reason: "granted" }),
+  });
+  const run = extractRouteHandler(app, "post", routePath);
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "principal-test" };
+  await run({ params: { workspaceId: "workspace-test" } }, res);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await run({ params: { workspaceId: "workspace-test" }, body: { force: true } }, res);
+  assert.equal(calls, 1);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  await run({ params: { workspaceId: "workspace-test" } }, res);
+  assert.equal(calls, 2);
+  assert.deepEqual(forces, [false, true]);
+  assert.deepEqual((capture.jsonBody as { data: { models: unknown[] }[] }).data[0]?.models, [{ id: "model-pro", label: "Model Pro" }]);
 });

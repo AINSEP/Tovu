@@ -70,7 +70,7 @@ export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegist
         return;
       }
 
-      const agents = await (deps.detectAgents ?? detectAgents)({});
+      const agents = await (deps.detectAgents ?? detectAgents)({}, { force: true });
       const agent = agents.find((candidate) => candidate.id === agentId);
 
       if (!agent || !agent.available) {

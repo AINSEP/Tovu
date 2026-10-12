@@ -47,7 +47,8 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   let available = true;
   let detectionFails = false;
   let allowed = true;
-  const detectAgents = t.mock.fn(async (): Promise<DetectedAgent[]> => {
+  const detectAgents = t.mock.fn(async (_input: Record<string, never>, options: { force?: boolean } = {}): Promise<DetectedAgent[]> => {
+    assert.equal(options.force, true, "an explicit Test must bypass the process detection cache");
     if (detectionFails) throw new Error("probe failed");
     return [
       {
@@ -123,10 +124,9 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   assert.equal(body.ok, true);
   assert.equal(body.message, "Mocked CLI 3.1.4 is installed and authenticated, and offers 'model-a'.");
   // Proves the route reached the injected detector rather than a real PATH scan: exactly one call, with no
-  // configuration -- Jini's `(required, optional)` shape makes that an empty required object and no
-  // options argument (no configured env, no AMR profile resolver).
+  // configuration -- the explicit Test forces discovery through Jini's optional object.
   assert.equal(detectAgents.mock.callCount(), 1);
-  assert.deepEqual(detectAgents.mock.calls[0]?.arguments, [{}]);
+  assert.deepEqual(detectAgents.mock.calls[0]?.arguments, [{}, { force: true }]);
 
   available = false;
   const unavailable = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli", model: "model-a" });

@@ -1,8 +1,8 @@
 import {
-  detectAgents,
   type DetectedAgent as RuntimeDetectedAgent,
   type RuntimeModelOption,
 } from "@jini-ai/agent-runtime";
+import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agents";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
@@ -143,10 +143,11 @@ export function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
  * classify probe traced from Open Design's `apps/daemon/src/runtimes/
  * detection.ts` — see the dispatch trace, Q4).
  *
- * No request body — detection runs against whatever CLIs are on THIS
- * server's PATH, not per-caller configuration.
+ * A strict `force:true` body is explicit Rescan. Ordinary reads return the previous
+ * inventory immediately while one background scan refreshes it; no per-caller configuration.
  */
 export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
+  const inventory = deps.detectAgents ? createAssistantDetectionCache({ detector: deps.detectAgents }) : undefined;
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -170,8 +171,10 @@ export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteReg
         return;
       }
 
-      const agents = await (deps.detectAgents ?? detectAgents)({});
-      res.json({ data: agents.map(toExecutionTabAgent) });
+      const input = { force: req.body?.force === true };
+      const agents = await (inventory ? inventory.read(input) : listDetectedAssistantAgents(input));
+      const discoveryPending = inventory ? inventory.isPending({}) : assistantAgentDiscoveryPending();
+      res.json({ data: agents.map(agent => ({ ...toExecutionTabAgent(agent), discoveryPending })) });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

@@ -523,7 +523,7 @@ export function reconcileExecutionConfigRefresh(current: ExecutionConfig, loaded
 
 /** Routes and authenticated HTTP remain host-owned; one adapter shares detection across mounts. */
 const executionHttpAdapter = createExecutionHttpAdapter({ transport: {
-  detectExecutionAgents: () => api.detectExecutionAgents(),
+  detectExecutionAgents: (input, options) => api.detectExecutionAgents(input, options),
   testExecutionConnection: (input) => api.testExecutionConnection(input),
   testExecutionAgent: (input) => api.testExecutionAgent(input),
   listExecutionModels: (input) => api.listExecutionModels(input),
