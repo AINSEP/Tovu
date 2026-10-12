@@ -22,7 +22,7 @@ import { WS_API, expect, hasHorizontalScroll, stubPostsListForBaseline, test } f
  * label; the long-label tests expand it first through its persisted localStorage key.
  */
 const RAIL_KEY = "tovu-admin-sidebar-rail-collapsed";
-const KEY_SCREENS = ["/admin", "/admin/posts", "/admin/pages", "/admin/media", "/admin/collections", "/admin/forms", "/admin/menus", "/admin/plugins", "/admin/settings"];
+const KEY_SCREENS = ["/admin/", "/admin/posts", "/admin/pages", "/admin/media", "/admin/collections", "/admin/forms", "/admin/menus", "/admin/plugins", "/admin/settings"];
 
 async function setLocale(page: Page, locale: string): Promise<void> {
   const res = await page.request.put(`${WS_API}/settings/value`, {
@@ -58,7 +58,7 @@ for (const { locale, overview, longLabel } of [
 ]) {
   test(`${locale}: long translated labels fit the expanded sidebar and no key screen scrolls sideways`, { tag: ["@unrun"] }, async ({ page }) => {
     await expandRail(page);
-    await page.goto("/admin");
+    await page.goto("/admin/");
     await setLocale(page, locale);
     await page.reload();
     const nav = page.getByRole("navigation", { name: "Admin" });
@@ -81,7 +81,7 @@ for (const { locale, overview, longLabel } of [
 
 test("ar: the admin flips to right-to-left, with the sidebar on the right", { tag: ["@unrun"] }, async ({ page }) => {
   await expandRail(page);
-  await page.goto("/admin");
+  await page.goto("/admin/");
   await setLocale(page, "ar");
   await page.reload();
   const nav = page.getByRole("navigation", { name: "Admin" });
@@ -150,6 +150,9 @@ test.describe("phone width (390 px)", () => {
 test.describe("keyboard only", () => {
   test("first Tab reaches Skip to content, which moves focus into the main region", { tag: ["@unrun"] }, async ({ page }) => {
     await page.goto("/admin/posts");
+    // `goto` resolves on `load`, while the admin still shows its "Loading Tovu…" boot screen (the
+    // session check): a Tab pressed then lands nowhere. Wait for the shell before the first Tab.
+    await expect(page.locator("#main-content")).toBeVisible();
     await page.keyboard.press("Tab");
     const skip = page.getByRole("link", { name: "Skip to content" });
     await expect(skip).toBeFocused();
@@ -162,7 +165,7 @@ test.describe("keyboard only", () => {
 
   test("Posts is reachable from the nav and New Post opens the editor without a mouse, with a visible focus ring", { tag: ["@unrun"] }, async ({ page }) => {
     await expandRail(page);
-    await page.goto("/admin");
+    await page.goto("/admin/");
     const postsLink = page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Posts", exact: true });
     for (let i = 0; i < 80 && !(await postsLink.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
     await expect(postsLink).toBeFocused();
@@ -193,7 +196,9 @@ test.describe("keyboard only", () => {
     await expect(dialog).toBeVisible();
     for (let i = 0; i < 6; i++) {
       await page.keyboard.press("Tab");
-      expect(await page.evaluate(() => !!document.activeElement?.closest("[role=dialog]")), "focus stays inside the dialog").toBe(true);
+      // ConfirmDialog is a native modal `<dialog>` (implicit role, no role attribute) since the JS
+      // focus traps were removed (14964d10c), so match the element as well as the attribute.
+      expect(await page.evaluate(() => !!document.activeElement?.closest("dialog, [role=dialog]")), "focus stays inside the dialog").toBe(true);
     }
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
