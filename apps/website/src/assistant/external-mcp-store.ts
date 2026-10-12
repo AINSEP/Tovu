@@ -1713,12 +1713,13 @@ export const EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION = 1;
  * `schemaVersion` is stripped from the result: it is a wire concern, and a caller that saw it could
  * persist it back into a payload it does not own.
  *
+ * The vault's open already refuses a non-object payload, so `parsed` is always an object here.
+ *
  * @throws When the payload was written by a newer build than this one understands.
  * @complexity O(1).
  */
-export function hydrateExternalMcpOAuthPayload(parsed: unknown): ExternalMcpSealedOAuthPayload {
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-  const { schemaVersion, ...rest } = parsed as Record<string, unknown>;
+export function hydrateExternalMcpOAuthPayload(parsed: Record<string, unknown>): ExternalMcpSealedOAuthPayload {
+  const { schemaVersion, ...rest } = parsed;
   const stored = typeof schemaVersion === "number" ? schemaVersion : 0;
   if (stored > EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION) {
     throw new Error(
@@ -1762,7 +1763,7 @@ export async function openExternalMcpOAuthPayload(
   record: Pick<ExternalMcpServerRecord, "sealedOAuth" | "workspaceId" | "serverId" | "oauthAadVersion">,
 ): Promise<ExternalMcpSealedOAuthPayload> {
   if (record.sealedOAuth === null) return {};
-  let parsed: unknown;
+  let parsed: Record<string, unknown>;
   try {
     parsed = await openExternalMcpVaultPayload({ sealer, sealed: record.sealedOAuth, identity: record, kind: "mcp-auth" });
   } catch (err) {
