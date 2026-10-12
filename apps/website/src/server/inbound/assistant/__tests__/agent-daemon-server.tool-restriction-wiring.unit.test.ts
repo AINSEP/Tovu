@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test, { describe } from "node:test";
 import { getAgentDef } from "@jini-ai/agent-runtime";
-import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools } from "../assistant-system-overlay.js";
-import { captureDaemonRun, daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
-import { AsyncResource } from "node:async_hooks";
+import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
+import { captureDaemonRun, daemonSource, evaluateDaemonStatements, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { AsyncResource, AsyncLocalStorage } from "node:async_hooks";
 import ts from "typescript";
 import { createChatDeleteScope } from "../../../../assistant/permanent-delete-tool-gate.js";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective, set } from "@jini-ai/core/settings";
@@ -78,11 +78,11 @@ test("onStarted omits hook settings when the hook file is absent", async () => {
   assert.equal(Object.hasOwn(input, "settings"), false);
 });
 
-test("the Claude opt-in removes exactly Task; other runtimes and every other isolation keep their grant", async () => {
+test("the Claude setting allows Agent and Task; other runtimes and every other isolation keep their grant", async () => {
   for (const agentId of ["claude", "codex", "gemini", "byok"]) {
     for (const subagentsEnabled of [false, true]) {
       const expected = agentId === "claude" && subagentsEnabled
-        ? ASSISTANT_DISALLOWED_TOOLS.filter((tool) => tool !== "Task") : ASSISTANT_DISALLOWED_TOOLS;
+        ? ASSISTANT_DISALLOWED_TOOLS.filter((tool) => tool !== "Task" && tool !== "Agent") : ASSISTANT_DISALLOWED_TOOLS;
       assert.deepEqual(resolveAssistantDisallowedTools({ agentId, subagentsEnabled }), expected);
       const input = await captureDaemonRun({ prompt: "Delegate this" }, { hookPresent: true,
         request: { agentId }, bindings: { readAssistantSubagentsEnabled: async () => subagentsEnabled } });
@@ -102,16 +102,16 @@ test("real per-launch reads apply enable AND revoke without restarting the daemo
   const ids = { newId: () => `subag-launch-${++id}` };
   const principals = { findActiveById: async () => null };
   await ensureSettingDefinitions({ settingsRepo, clock, ids, principals }, {
-    namespace: "core.assistant-subagents", definitions: [{ key: "enabled", schema: { type: "boolean" }, defaultValue: false }], systemPrincipalId: "boot",
+    namespace: "core.assistant-subagents", definitions: [{ key: "enabled", schema: { type: "boolean" }, defaultValue: true }], systemPrincipalId: "boot",
   });
   const routeDeps = { settingsRepo, getEffective, settingsUiTabsReady: Promise.resolve(), workspaceId: "ws-daemon-test" };
   const launch = () => captureDaemonRun({ prompt: "Delegate this" }, { bindings: { routeDeps, readAssistantSubagentsEnabled } });
-  assert.ok((await launch()).disallowedTools?.includes("Task"));
+  for (const tool of ["Agent", "Task"]) assert.equal((await launch()).disallowedTools?.includes(tool), false);
   for (const value of [true, false]) {
     await set({ deps: { repo: settingsRepo, clock, ids, principals, authorize: async () => ({ allowed: true, reason: "owner" }) },
       input: { namespace: "core.assistant-subagents", key: "enabled", scope: "workspace", workspaceId: routeDeps.workspaceId,
         authWorkspaceId: routeDeps.workspaceId, callerPrincipalId: "owner", value } });
-    assert.equal((await launch()).disallowedTools?.includes("Task"), !value);
+    for (const tool of ["Agent", "Task"]) assert.equal((await launch()).disallowedTools?.includes(tool), !value);
   }
 });
 
@@ -164,4 +164,31 @@ test("catalog grants survive a parser continuation using the pre-existing reques
       next();
     });
   } finally { stream.emitDestroy(); }
+});
+
+
+test("the real prompt augmenter receives the same fresh grant as each concurrent launch", async () => {
+  const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
+  const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string; turnIndex: number }): string }>(
+    daemonInitializer("assistantPromptAugmenter"), {
+      buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantSubagentsContext,
+      bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => "Owner custom guidance" },
+    });
+  const observed: { enabled: boolean; overlay: string; tools: readonly string[] }[] = [];
+  await Promise.all([true, false].map(enabled => captureDaemonRun({ prompt: "Import posts" }, { bindings: {
+    assistantSubagentsContext, readAssistantSubagentsEnabled: async () => enabled,
+    agentExecutor: { run: async (_required: unknown, optional: { disallowedTools: readonly string[] }) => {
+      // Read after an async boundary so a process-wide last-value cache cannot satisfy this test.
+      await Promise.resolve();
+      observed.push({ enabled, overlay: augmenter.systemOverlay({ agentId: "claude", turnIndex: 0 }), tools: optional.disallowedTools });
+      throw new Error("captured launch without starting a process");
+    } },
+  } }).catch(error => assert.match(error.message, /captured launch/))));
+  assert.equal(observed.length, 2);
+  for (const { enabled, overlay, tools } of observed) {
+    assert.ok(overlay.includes(enabled ? "may spawn subagents" : "cannot spawn subagents"));
+    assert.ok(overlay.includes("Owner custom guidance"));
+    for (const tool of ["Agent", "Task"]) assert.equal(tools.includes(tool), !enabled);
+  }
+  assert.equal(assistantSubagentsContext.getStore(), undefined);
 });

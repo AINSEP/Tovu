@@ -1,10 +1,10 @@
-import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { AdminSubagents } from "../AdminSubagents";
 import { SubagentsIndicator } from "@/components/AssistantDock/SubagentsIndicator";
 import { useAdminSubagents, useAssistantSubagentsSettings } from "../hooks/use-admin-subagents.hooks";
-import { SUBAGENT_DANGERS, SUBAGENTS_NAMESPACE, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
+import { SUBAGENTS_NAMESPACE, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { t as translate } from "../ai-assistant-i18n";
 
@@ -24,57 +24,34 @@ function fakePort(initial: AssistantSubagentsSettings = { enabled: false, canEdi
 function mount(port: AssistantSubagentsPort) {
   return render(<>
     <AdminSubagents useController={(input) => useAdminSubagents({ ...input, port })} />
-    <SubagentsIndicator useSettings={() => useAssistantSubagentsSettings({ port })} />
+    <SubagentsIndicator mode="local-cli" agentId="claude" useSettings={(input) => useAssistantSubagentsSettings({ ...input, port })} />
   </>);
 }
 const toggle = () => screen.getByRole("checkbox", { name: "Allow the admin assistant to spawn subagents" });
 const ready = () => waitFor(() => expect(toggle()).toBeEnabled());
-const dangerDialog = () => screen.getByRole("dialog", { name: "Allow the assistant to spawn subagents?" });
+// The icon is an InfoTip trigger since 2026-10-10 (white bubble below it), named by its tip text.
+const icon = () => screen.queryByRole("button", { name: "This chat can use subagents" });
 
-describe("owner subagent opt-in", () => {
-  it("starts off; shows all four dangers; cancel and native Escape cancel do not save", async () => {
-    const f = fakePort();
-    const user = userEvent.setup();
+describe("owner subagent setting", () => {
+  it("shows the default-ON grant and copy; disabling and re-enabling save without confirmation", async () => {
+    const f = fakePort({ enabled: true, canEdit: true });
     mount(f.port);
     await ready();
-    expect(toggle()).not.toBeChecked();
-    expect(screen.queryByText("Subagents: on")).toBeNull();
-    await user.click(toggle());
-    for (const danger of SUBAGENT_DANGERS) expect(dangerDialog()).toHaveTextContent(danger);
-    expect(within(dangerDialog()).getByRole("button", { name: "Cancel" })).toHaveFocus();
-    expect(within(dangerDialog()).getByRole("button", { name: "Allow subagents" })).not.toHaveAttribute("data-agent-handle");
-    expect(f.writes).toEqual([]);
-    await user.click(within(dangerDialog()).getByRole("button", { name: "Cancel" }));
-    await ready();
-    expect(toggle()).not.toBeChecked();
-    expect(toggle()).toHaveFocus();
-    await user.click(toggle());
-    // Browsers dispatch cancel when Escape is pressed in a modal native dialog.
-    fireEvent(dangerDialog(), new Event("cancel", { bubbles: true, cancelable: true }));
-    await ready();
-    expect(f.writes).toEqual([]);
-    expect(toggle()).not.toBeChecked();
-    expect(toggle()).toHaveFocus();
-  });
-
-  it("enables only after confirmation; the shared dock indicator updates; disabling needs no dialog", async () => {
-    const f = fakePort();
-    const user = userEvent.setup();
-    mount(f.port);
-    await ready();
-    await user.click(toggle());
-    expect(f.writes).toEqual([]);
-    await user.click(within(dangerDialog()).getByRole("button", { name: "Allow subagents" }));
-    await waitFor(() => expect(toggle()).toBeChecked());
-    expect(f.writes).toEqual([{ enabled: true, riskAcknowledged: true }]);
-    expect(screen.getByText("Subagents: on")).toBeVisible();
-    expect(screen.getByText("Subagents: on")).toHaveClass("jini-chat-pane__subagents");
-    await ready();
-    await user.click(toggle());
+    expect(toggle()).toBeChecked();
+    expect(toggle()).toHaveAccessibleDescription("On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue.");
+    expect(icon()).toBeVisible();
+    expect(icon()).toHaveAccessibleName("This chat can use subagents");
+    expect(icon()?.querySelector(".ri-group-line")).not.toBeNull();
+    expect(icon()).toHaveTextContent("");
+    await userEvent.setup().click(toggle());
     await waitFor(() => expect(toggle()).not.toBeChecked());
-    expect(f.writes).toEqual([{ enabled: true, riskAcknowledged: true }, { enabled: false, riskAcknowledged: false }]);
+    expect(icon()).toBeNull();
+    await ready();
+    await userEvent.setup().click(toggle());
+    await waitFor(() => expect(toggle()).toBeChecked());
+    expect(f.writes).toEqual([{ enabled: false, riskAcknowledged: false }, { enabled: true, riskAcknowledged: false }]);
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.queryByText("Subagents: on")).toBeNull();
+    expect(icon()).toBeVisible();
   });
 
   it("a failed save reports the real error and leaves both checkbox and dock at server truth", async () => {
@@ -84,10 +61,9 @@ describe("owner subagent opt-in", () => {
     mount(f.port);
     await ready();
     await user.click(toggle());
-    await user.click(within(dangerDialog()).getByRole("button", { name: "Allow subagents" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The owner grant was revoked.");
     expect(toggle()).not.toBeChecked();
-    expect(screen.queryByText("Subagents: on")).toBeNull();
+    expect(icon()).toBeNull();
   });
 
   it("renders a disabled owner-only control for non-owners while exposing the active grant in the dock", async () => {
@@ -95,9 +71,9 @@ describe("owner subagent opt-in", () => {
     mount(f.port);
     await screen.findByText("Only the owner can change subagent access.");
     expect(toggle()).toBeDisabled();
-    expect(toggle()).toHaveAccessibleDescription("Off by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue. Only the owner can change subagent access.");
+    expect(toggle()).toHaveAccessibleDescription("On by default. Applies to Claude CLI runs only; BYOK and other CLIs are unaffected. Changes apply to new runs; existing subagents may continue. Only the owner can change subagent access.");
     expect(toggle()).toBeChecked();
-    expect(screen.getByText("Subagents: on")).toBeVisible();
+    expect(icon()).toBeVisible();
     expect(f.writes).toEqual([]);
   });
 
@@ -107,10 +83,10 @@ describe("owner subagent opt-in", () => {
     await ready();
     f.changeElsewhere(true);
     act(() => publishSettingsRefresh([SUBAGENTS_NAMESPACE]));
-    expect(await screen.findByText("Subagents: on")).toBeVisible();
+    await waitFor(() => expect(icon()).toBeVisible());
     f.changeElsewhere(false);
     act(() => publishSettingsRefresh([SUBAGENTS_NAMESPACE]));
-    await waitFor(() => expect(screen.queryByText("Subagents: on")).toBeNull());
+    await waitFor(() => expect(icon()).toBeNull());
   });
 
   it("a read failure disables the control and exposes the actual error", async () => {
@@ -118,17 +94,17 @@ describe("owner subagent opt-in", () => {
     mount({ ...f.port, read: async () => { throw new Error("Settings are unavailable."); } });
     expect(await screen.findByRole("alert")).toHaveTextContent("Settings are unavailable.");
     expect(toggle()).toBeDisabled();
-    expect(await screen.findByText("Subagents: unknown")).toHaveClass("jini-chat-pane__subagents");
-    expect(screen.queryByText("Subagents: on")).toBeNull();
+    expect(icon()).toBeNull();
   });
 
-  it("concurrent toggles share one confirmation/write lock", async () => {
+  it("concurrent toggles share one write lock and never request confirmation", async () => {
     const f = fakePort();
-    let answer!: (accepted: boolean) => void;
-    const decision = new Promise<boolean>((resolve) => { answer = resolve; });
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => { finish = resolve; });
+    const port: AssistantSubagentsPort = { ...f.port, write: async input => { await pending; return f.port.write(input); } };
     let asks = 0;
-    const { result } = renderHook(() => useAdminSubagents({ port: f.port }, { useConfirmation: () => ({
-      confirm: () => { asks++; return decision; },
+    const { result } = renderHook(() => useAdminSubagents({ port }, { useConfirmation: () => ({
+      confirm: async () => { asks++; return false; },
       dialog: { open: false, title: "", body: "", confirmLabel: "", onConfirm: () => {}, onCancel: () => {} },
     }) }));
     await waitFor(() => expect(result.current.settings?.canEdit).toBe(true));
@@ -137,52 +113,46 @@ describe("owner subagent opt-in", () => {
       first = result.current.setEnabled({ enabled: true });
       void result.current.setEnabled({ enabled: true });
     });
-    expect(asks).toBe(1);
-    expect(f.writes).toEqual([]);
-    await act(async () => { answer(true); await first; });
-    expect(f.writes).toEqual([{ enabled: true, riskAcknowledged: true }]);
+    expect(asks).toBe(0);
+    await act(async () => { finish(); await first; });
+    expect(f.writes).toEqual([{ enabled: true, riskAcknowledged: false }]);
   });
 });
 
 
-describe("subagent status recovery and dialog copy", () => {
-  it("shows unknown after a failed refresh even if the cached grant was ON", async () => {
-    const f = fakePort({ enabled: true, canEdit: true });
-    mount(f.port);
-    await ready();
-    expect(screen.getByText("Subagents: on")).toBeVisible();
-    f.failRead("Settings are unavailable.");
-    act(() => publishSettingsRefresh([SUBAGENTS_NAMESPACE]));
-    expect(await screen.findByText("Subagents: unknown")).toBeVisible();
-    expect(screen.queryByText("Subagents: on")).toBeNull();
-    expect(toggle()).toBeDisabled();
-  });
-
-  it("renders the controller's authoritative dialog body", async () => {
-    const f = fakePort();
-    render(<AdminSubagents useController={(input) => {
-      const controller = useAdminSubagents({ ...input, port: f.port });
-      return { ...controller, dialog: { ...controller.dialog, body: "Risk copy from the controller." } };
-    }} />);
-    await ready();
-    await userEvent.setup().click(toggle());
-    expect(dangerDialog()).toHaveTextContent("Risk copy from the controller.");
-    expect(dangerDialog()).not.toHaveTextContent(SUBAGENT_DANGERS[0]);
-  });
-});
-
-
-it("translates the dock's ON and unknown states with the AI assistant dictionary", async () => {
-  const f = fakePort({ enabled: true, canEdit: false });
-  render(<SubagentsIndicator t={(key) => translate({ locale: "es", key })}
-    useSettings={() => useAssistantSubagentsSettings({ port: f.port })} />);
-  expect(await screen.findByText("Subagentes: activados")).toHaveAttribute("role", "status");
+it("hides cached ON after a failed refresh", async () => {
+  const f = fakePort({ enabled: true, canEdit: true });
+  mount(f.port);
+  await ready();
+  expect(icon()).toBeVisible();
   f.failRead("Settings are unavailable.");
   act(() => publishSettingsRefresh([SUBAGENTS_NAMESPACE]));
-  expect(await screen.findByText("Subagentes: estado desconocido")).toHaveAttribute("role", "status");
-  expect(screen.queryByText("Subagentes: activados")).toBeNull();
+  await waitFor(() => expect(toggle()).toBeDisabled());
+  expect(icon()).toBeNull();
 });
 
+it("the hook hides the icon for OFF, BYOK and other CLIs and reacts to runtime changes", async () => {
+  const f = fakePort({ enabled: true, canEdit: false });
+  const { rerender } = render(<SubagentsIndicator mode="byok" agentId="claude"
+    useSettings={input => useAssistantSubagentsSettings({ ...input, port: f.port })} />);
+  await waitFor(() => expect(icon()).toBeNull());
+  rerender(<SubagentsIndicator mode="local-cli" agentId="claude"
+    useSettings={input => useAssistantSubagentsSettings({ ...input, port: f.port })} />);
+  await waitFor(() => expect(icon()).toBeVisible());
+  rerender(<SubagentsIndicator mode="byok" agentId="claude"
+    useSettings={input => useAssistantSubagentsSettings({ ...input, port: f.port })} />);
+  expect(icon()).toBeNull();
+  rerender(<SubagentsIndicator mode="local-cli" agentId="codex"
+    useSettings={input => useAssistantSubagentsSettings({ ...input, port: f.port })} />);
+  expect(icon()).toBeNull();
+});
+
+it("translates the icon tooltip through the existing assistant dictionary", async () => {
+  const f = fakePort({ enabled: true, canEdit: false });
+  render(<SubagentsIndicator mode="local-cli" agentId="claude" t={key => translate({ locale: "es", key })}
+    useSettings={input => useAssistantSubagentsSettings({ ...input, port: f.port })} />);
+  expect(await screen.findByRole("button", { name: "Este chat puede usar subagentes" })).toBeInTheDocument();
+});
 
 it("uses a translated fallback when a subagent save fails without an error message", async () => {
   const f = fakePort({ enabled: true, canEdit: true });

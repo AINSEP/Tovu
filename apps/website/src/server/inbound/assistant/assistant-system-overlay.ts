@@ -33,7 +33,7 @@ export const BASH_PROHIBITION_BLOCK =
 /**
  * Finding 2 of SEC-assistant-env-isolation-2026-09-07: the actual, enforced restriction on the
  * assistant's default tool grant — resolved by `resolveAssistantDisallowedTools` for the sole
- * owner-approved Task opt-in, then forwarded to `AgentExecutorRunInput.disallowedTools`
+ * owner-controlled Agent/Task grant, then forwarded to `AgentExecutorRunInput.disallowedTools`
  * (`agent-daemon-server.ts`'s `agentExecutor.run()` call), which reaches the spawned `claude` CLI's
  * own `--disallowedTools` flag (`@jini-ai/agent-runtime`'s `defs/claude.ts`). Confirmed live against
  * installed Claude Code 2.1.263 that this refuses the named tool's execution outright — even under
@@ -65,7 +65,7 @@ export const BASH_PROHIBITION_BLOCK =
  * Kept independent of {@link BASH_PROHIBITION_BLOCK}/`TOVU_AGENT_FORBID_BASH`: this list applies
  * unconditionally to every run regardless of that diagnostic flag's state, which is what makes the flag's own
  * "not a security control" framing accurate rather than aspirational. The owner-approved subagent
- * opt-in removes only Task for Claude CLI; every other entry remains enforced.
+ * setting removes only Agent/Task for Claude CLI; every other entry remains enforced.
  */
 export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "Bash",
@@ -76,6 +76,8 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "BashOutput",
   "KillShell",
   "Task",
+  // Claude Code 2.1.296 names the spawn tool Agent and recognizes Task as its legacy name.
+  "Agent",
   "CronCreate",
   "CronDelete",
   "CronList",
@@ -95,15 +97,35 @@ export const ASSISTANT_DISALLOWED_TOOLS: readonly string[] = [
   "Read(//proc/**)",
 ];
 
-/** Claude-only owner opt-in; never mutate the default grant or loosen another isolation.
- * @complexity O(t) for the fixed tool list, O(1) when the opt-in does not apply.
+/** Claude-only owner setting; never mutate the default grant or loosen another isolation.
+ * @complexity O(t) for the fixed tool list, O(1) when the setting does not apply.
  */
 export function resolveAssistantDisallowedTools(required: {
   agentId: string; subagentsEnabled: boolean;
 }, _optional: Record<string, never> = {}): readonly string[] {
   return required.agentId === "claude" && required.subagentsEnabled === true
-    ? ASSISTANT_DISALLOWED_TOOLS.filter((tool) => tool !== "Task")
+    ? ASSISTANT_DISALLOWED_TOOLS.filter((tool) => tool !== "Task" && tool !== "Agent")
     : ASSISTANT_DISALLOWED_TOOLS;
+}
+
+/** Explain the same per-run grant enforced by the CLI, outside catalog discovery.
+ * @param required - Bound runtime and its freshly read site-owner subagent setting.
+ * @returns Explicit native-tool availability and cost-conscious delegation instructions.
+ * @complexity O(1) time/space: fixed guidance for one run. */
+export function buildAssistantSubagentsOverlay(required: {
+  agentId: string; subagentsEnabled: boolean;
+}, _optional: Record<string, never> = {}): string {
+  return required.agentId === "claude" && required.subagentsEnabled
+    ? "Subagents are ON for this chat. You may spawn subagents using the native Claude CLI Agent tool " +
+      "(Task in older versions); this is not a Tovu catalog tool, so do not search the catalog for it. " +
+      "Use subagents for tedious, parallel or bulk work, such as importing many posts. Give each a " +
+      "clear, scoped brief and choose a cheaper/faster model through the tool's model parameter: " +
+      "prefer haiku for simple tasks or sonnet for tasks needing more reasoning. Avoid fork agents, " +
+      "which inherit the parent model instead of honoring the model parameter. Subagents must follow " +
+      "the same tool-catalog, authorization and confirmation rules as you. "
+    : "Subagents are OFF for this chat; you cannot spawn subagents. The native Claude CLI Agent tool " +
+      "(Task in older versions) is not a Tovu catalog tool. Do not search the catalog for it or try " +
+      "to bypass this chat's tool grant. ";
 }
 
 /**

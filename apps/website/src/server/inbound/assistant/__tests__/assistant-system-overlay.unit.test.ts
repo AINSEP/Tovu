@@ -10,6 +10,8 @@ import {
   buildBashProhibitionBlock,
   resolveAssistantRunSettings,
   resolveBashProhibitionEnabled,
+  buildAssistantSubagentsOverlay,
+  resolveAssistantDisallowedTools,
 } from "../assistant-system-overlay.js";
 
 test("resolveBashProhibitionEnabled defaults to false with no env var set", () => {
@@ -112,6 +114,7 @@ test("ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the se
   assert.deepEqual(
     ASSISTANT_DISALLOWED_TOOLS.filter((rule) => !rule.includes("(")).sort(),
     [
+      "Agent",
       "Bash",
       "BashOutput",
       "CronCreate",
@@ -129,6 +132,29 @@ test("ASSISTANT_DISALLOWED_TOOLS names exactly the host-CLI-builtin tools the se
       "Write",
     ].sort(),
   );
+});
+
+test("both Claude spawn names follow the effective grant and leave other restrictions intact", () => {
+  for (const subagentsEnabled of [false, true]) {
+    const tools = resolveAssistantDisallowedTools({ agentId: "claude", subagentsEnabled });
+    for (const tool of ["Agent", "Task"]) assert.equal(tools.includes(tool), !subagentsEnabled);
+    for (const tool of ASSISTANT_DISALLOWED_TOOLS.filter(tool => tool !== "Agent" && tool !== "Task")) assert.ok(tools.includes(tool));
+  }
+  assert.deepEqual(resolveAssistantDisallowedTools({ agentId: "codex", subagentsEnabled: true }), ASSISTANT_DISALLOWED_TOOLS);
+});
+
+test("ON overlay explains native CLI delegation, scoped briefs and cheaper model parameters", () => {
+  const overlay = buildAssistantSubagentsOverlay({ agentId: "claude", subagentsEnabled: true });
+  for (const phrase of ["native Claude CLI", "Agent", "Task", "not a Tovu catalog tool", "tedious", "parallel", "bulk", "importing many posts", "model", "haiku", "sonnet", "clear, scoped brief"]) assert.ok(overlay.includes(phrase), phrase);
+});
+
+test("OFF and other runtimes explicitly forbid delegation", () => {
+  for (const required of [{ agentId: "claude", subagentsEnabled: false }, { agentId: "codex", subagentsEnabled: true }]) {
+    const overlay = buildAssistantSubagentsOverlay(required);
+    assert.match(overlay, /cannot spawn subagents/);
+    assert.match(overlay, /not a Tovu catalog tool/);
+    assert.ok(!overlay.includes("may spawn"));
+  }
 });
 
 // FAQ claim (public docs): "In Local CLI mode, Claude Code can read files and search the web, but

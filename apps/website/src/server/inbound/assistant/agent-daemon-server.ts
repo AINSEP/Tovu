@@ -1,4 +1,5 @@
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-memory";
 import { createPluginInstallAttachmentReader } from "../../runtime/composition/plugin-install-attachment-reader.js";
 import { sniffContentType } from "#src/features/media/index";
@@ -119,6 +120,7 @@ import {
   resolveAssistantDisallowedTools,
   ASSISTANT_SETTING_SOURCES,
   buildBaseSystemOverlay,
+  buildAssistantSubagentsOverlay,
   resolveAssistantRunSettings,
   resolveBashProhibitionEnabled,
 } from "./assistant-system-overlay.js";
@@ -132,7 +134,6 @@ import { registerInstalledExtensionTools } from "../../runtime/composition/insta
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
-import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import {
   listAssistantAgents,
   rescanAssistantAgents,
@@ -649,6 +650,10 @@ const customInstructionsCache = createCustomInstructionsCache(
   { workspaceId: routeDeps.workspaceId },
 );
 
+// Scope the fresh site setting to its launch, rather than sharing the last chat's grant across
+// concurrent runs. The synchronous Jini prompt seam reads the same value as the CLI deny list.
+const assistantSubagentsContext = new AsyncLocalStorage<boolean>();
+
 /**
  * Live-tested 2026-07-30: given a bare natural-language admin request with a matching registered
  * tool (a DB health check, user creation, role listing, form creation), the spawned CLI reliably
@@ -662,11 +667,12 @@ const customInstructionsCache = createCustomInstructionsCache(
 const assistantPromptAugmenter: PromptAugmenter = {
   contextKinds: () => [],
   augmentUserRequest: ({ basePrompt }) => basePrompt,
-  systemOverlay: () => {
+  systemOverlay: ({ agentId }) => {
     // Base overlay text lives in `assistant-system-overlay.ts` now — see that file's own doc for
     // why this had to move (direct unit-testability without booting this whole daemon process) and
     // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
-    const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled);
+    const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled) +
+      buildAssistantSubagentsOverlay({ agentId, subagentsEnabled: assistantSubagentsContext.getStore() === true }, {});
     // Appended, not replaced: the tool-catalog protocol above is load-bearing for every run
     // regardless of what an operator writes in the Instructions tab, and an operator's custom text
     // should not be able to silently drop it. `readOverlay()` is `null` for an unset/cleared tab
@@ -1143,7 +1149,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
         settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId,
       }, {});
-      await deleteScope.fresh({ run: () => agentExecutor.run({
+      await assistantSubagentsContext.run(subagentsEnabled, () => deleteScope.fresh({ run: () => agentExecutor.run({
         runId: run.id,
         agentId: sessionBinding.agentId,
         prompt,
@@ -1152,7 +1158,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         permissionMode: resolvePermissionMode(),
         // Finding 2 (SEC-assistant-env-isolation-2026-09-07): the actual, enforced tool-grant
         // restriction — see ASSISTANT_DISALLOWED_TOOLS's own doc for the evidence behind this exact
-        // list. Only Task may be removed by the owner's Claude-only opt-in; all other restrictions
+        // list. Only Agent/Task may be removed by the owner's Claude-only setting; all other restrictions
         // remain unconditional, unlike resolveBashProhibitionEnabled()'s prompt-only diagnostic.
         disallowedTools: resolveAssistantDisallowedTools({ agentId: sessionBinding.agentId, subagentsEnabled }, {}),
         // Owner call 2026-09-28: no personal or repo CLI settings layers (hooks, plugins, defaults)
@@ -1173,7 +1179,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // ever reaches `AgentExecutor.run()`. Assembled inside `resolveSessionBinding` above so the
         // id that was persisted and the id handed to the CLI can never drift apart.
         ...sessionBinding.sessionFields,
-      }) });
+      }) }));
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
     // every failure path before it rejects — this catch only guards against an unhandled rejection.
@@ -1351,17 +1357,10 @@ frontendControl.httpExtension({ app, context: { adapter } });
  * cross-process refresh lease all live — `tryClaimOAuthRefreshLease` is what keeps the two from
  * redeeming one single-use rotating refresh token twice.
  *
- * `pending`/`devices` below are `routeDeps.externalMcpOAuthPending`/`externalMcpOAuthDevices` —
- * the SAME two stores `routeDeps.externalMcpOAuth` was built with, not a second pair. They are
- * still, in practice, unreachable through THIS instance specifically: the stored-connection source
- * only reads `.tokenResolver`, and `buildExternalMcpFederationDeps`'s `onAuthFailed` only calls
- * `.reportAuthFailure` — neither reaches `beginConnect`/`completeAuthorizationCallback`/
- * `pollDeviceAuthorization`, which is where a handshake actually touches them. The assistant tool
- * that DOES start a handshake from this process (`external_mcp_oauth_connect`, wired against
- * `routeDeps.externalMcpOAuth` in `features/external-mcp/tool-registrations.ts`) uses the OTHER
- * instance — and reusing the same store objects here rather than building a redundant in-memory pair
- * is what keeps this file's own doc accurate instead of quietly wrong the next time something is
- * wired through this local.
+ * `devices` below reuses `routeDeps.externalMcpOAuthDevices`, so no extra database handle is opened.
+ * This instance serves token resolution and auth-failure reporting; the assistant connect tool uses
+ * `routeDeps.externalMcpOAuth`. Redirect state needs only the same site sealer/keyring in each
+ * process, while device begin/poll still share the durable store.
  */
 const externalMcpOAuth = createExternalMcpOAuthService({
   httpPorts: createTovuOAuthHttpPorts({ http: routeDeps.mediaGenerationHttpClient }),
@@ -1370,9 +1369,7 @@ const externalMcpOAuth = createExternalMcpOAuthService({
   sealer: routeDeps.siteAssistantSecretSealer,
   keyring: routeDeps.siteAssistantSecretKeyring,
   clock: routeDeps.clock,
-  // Falls back to a fresh in-memory pair only if some future narrower `RouteDeps` builder leaves
-  // these unset (see `routes/types.ts`'s doc on both fields) — every real composition root sets them.
-  pending: routeDeps.externalMcpOAuthPending ?? createPendingAuthorizationStore({ clock: routeDeps.clock }),
+  // Only a narrow composition without a device store falls back to an in-memory adapter.
   devices: routeDeps.externalMcpOAuthDevices ?? createDeviceAuthorizationStore(),
   onConnected: createApplyConnectDefaults({ agentPluginLayout: routeDeps.agentPluginLayout, workspaceId: routeDeps.workspaceId, repo: routeDeps.externalMcpServerRepo, clock: routeDeps.clock }),
 });

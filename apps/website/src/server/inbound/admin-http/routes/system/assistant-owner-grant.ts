@@ -5,9 +5,11 @@ import { mountSettingsJsonRoute, rejectSettingsRequest, toWriteServiceDeps } fro
 import { set } from "#src/features/settings/index";
 export type AssistantOwnerGrantDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "settingsReady" | "settingsUiTabsReady" | "settingsRepo" | "clock" | "idGen" | "principalRepo" | "ownerPrincipalId" | "getEffective">;
 /** Shared site-owner grant ceremony over the existing audited settings chokepoint.
- * A receipt is persisted before enabling: failure can leave a receipt, never an unacknowledged grant.
+ * For grants requiring acknowledgment, a receipt is persisted before enabling: failure can leave
+ * a receipt, never an unacknowledged grant. Subagents need only the owner's ordinary toggle.
  * Every value change has its normal atomic setting revision; no alternate store or schema.
  * @param required - Existing authenticated route/ledger ports and setting-specific parse/read/value projections.
+ * @param optional - Site-grant acknowledgment policy; required by default for permanent deletes.
  * @returns Nothing; mounts GET/PUT routes over this site's existing store.
  * @throws Route adapters report validation, authorization and storage errors without converting them into success.
  * @example registerAssistantOwnerGrantRoutes({ app, deps, path, namespace, key, writeReason, validationError, read, parse, value });
@@ -17,7 +19,7 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
   writeReason: string; validationError: string;
   read(): Promise<T>; parse(body: Record<string, unknown>): T;
   value(settings: T): JsonValue;
-}, _optional = {}): void {
+}, optional: { requireAcknowledgment?: boolean } = {}): void {
   const { app, deps, path } = required;
   const routeDeps = { ...deps, settingsReady: deps.settingsUiTabsReady };
   mountSettingsJsonRoute({ app, deps: routeDeps, method: "get", path,
@@ -34,11 +36,12 @@ export function registerAssistantOwnerGrantRoutes<T extends { enabled: boolean }
       if (!body || Array.isArray(body) || typeof body.enabled !== "boolean") rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
       const settings = required.parse(body);
       const previous = await required.read();
-      if (settings.enabled && !previous.enabled && body.riskAcknowledged !== true) rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
+      const needsAcknowledgment = optional.requireAcknowledgment !== false && settings.enabled && !previous.enabled;
+      if (needsAcknowledgment && body.riskAcknowledged !== true) rejectSettingsRequest({ status: 400, code: "VALIDATION_ERROR", error: required.validationError });
       await authorize({ permission: "settings.workspace.write", entityType: "setting-value" });
       const input = { namespace: required.namespace, scope: "workspace" as const,
         workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: principal.id };
-      if (settings.enabled && !previous.enabled) await set({ deps: toWriteServiceDeps(routeDeps), input: {
+      if (needsAcknowledgment) await set({ deps: toWriteServiceDeps(routeDeps), input: {
         ...input, key: "riskAcknowledgment", value: { riskAcknowledged: true, acknowledgedAt: deps.clock.nowIso(), grant: required.value(settings) },
       } });
       const result = await set({ deps: toWriteServiceDeps(routeDeps), input: { ...input, key: required.key, value: required.value(settings) } });

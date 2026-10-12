@@ -49,12 +49,12 @@ async function fixture() {
   };
 }
 
-test("boot defaults off, registration is idempotent, and reads expose owner editability", async () => {
+test("boot defaults on, registration is idempotent, and reads expose owner editability", async () => {
   const f = await fixture();
-  assert.equal(f.definition.defaultValue, false);
+  assert.equal(f.definition.defaultValue, true);
   assert.equal(f.definition.scopes, 2);
-  assert.deepEqual((await f.request("get")).jsonBody, { enabled: false, canEdit: true });
-  assert.deepEqual((await f.request("get", settingPath, { principal: "admin" })).jsonBody, { enabled: false, canEdit: false });
+  assert.deepEqual((await f.request("get")).jsonBody, { enabled: true, canEdit: true });
+  assert.deepEqual((await f.request("get", settingPath, { principal: "admin" })).jsonBody, { enabled: true, canEdit: false });
   const before = await f.repo.maxRevisionSeq();
   await ensureExecutionSettingDefinitions({ settingsRepo: f.repo, clock: f.deps.clock, ids: f.deps.idGen,
     principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: "system" });
@@ -64,8 +64,8 @@ test("boot defaults off, registration is idempotent, and reads expose owner edit
 test("owner enable and disable are audited and a separate daemon read sees the current grant", async () => {
   const f = await fixture();
   const read = () => readAssistantSubagentsEnabled({ ...f.deps, settingsReady: f.deps.settingsUiTabsReady });
-  assert.equal(await read(), false);
-  assert.equal((await f.request("put", settingPath, { body: { enabled: true, riskAcknowledged: true } })).statusCode, 200);
+  assert.equal(await read(), true);
+  assert.equal((await f.request("put", settingPath, { body: { enabled: true } })).statusCode, 200);
   assert.equal(await read(), true);
   assert.equal((await f.request("put", settingPath, { body: { enabled: false } })).statusCode, 200);
   assert.equal(await read(), false);
@@ -84,13 +84,12 @@ test("a non-owner with all settings permissions cannot enable OR disable", async
   assert.deepEqual(await f.values(), []);
 });
 
-test("malformed or unacknowledged enabling writes never create a revision", async () => {
+test("malformed writes never create a revision", async () => {
   const f = await fixture();
-  for (const body of [null, {}, { enabled: "true", riskAcknowledged: true }, { enabled: true },
-    { enabled: true, riskAcknowledged: "true" }, { enabled: true, riskAcknowledged: false }]) {
+  for (const body of [null, {}, [], { enabled: "true", riskAcknowledged: true }]) {
     const response = await f.request("put", settingPath, { body });
     assert.equal(response.statusCode, 400);
-    assert.deepEqual(response.jsonBody, { code: "VALIDATION_ERROR", error: "enabled must be a boolean; enabling subagents requires riskAcknowledged: true." });
+    assert.deepEqual(response.jsonBody, { code: "VALIDATION_ERROR", error: "enabled must be a boolean." });
   }
   assert.deepEqual(await f.values(), []);
 });
@@ -100,12 +99,12 @@ test("workspace, authentication, and permission boundaries fail closed", async (
   assert.equal((await f.request("put", settingPath, { workspaceId: "foreign", body: { enabled: true, riskAcknowledged: true } })).statusCode, 404);
   assert.equal((await f.request("get", settingPath, { principal: null })).statusCode, 500);
   f.deny();
-  assert.deepEqual((await f.request("get", settingPath, { principal: "admin" })).jsonBody, { enabled: false, canEdit: false });
+  assert.deepEqual((await f.request("get", settingPath, { principal: "admin" })).jsonBody, { enabled: true, canEdit: false });
   assert.equal((await f.request("put", settingPath, { body: { enabled: true, riskAcknowledged: true } })).statusCode, 403);
   assert.deepEqual(await f.values(), []);
 });
 
-test("generic set, clear, reset and definition edits cannot bypass owner danger confirmation", async () => {
+test("generic set, clear, reset and definition edits cannot bypass the owner setting route", async () => {
   const f = await fixture();
   for (const [method, path, body] of [
     ["put", "/settings/value", { namespace, key: "enabled", scope: "workspace", valueJson: true }],
@@ -131,9 +130,10 @@ test("generic mutations also refuse an alias to the protected grant, including r
   assert.deepEqual(await f.values(), []);
 });
 
-test("unavailable/malformed reads never enable subagents", async () => {
+test("missing values default on, while unavailable or malformed reads deny delegation", async () => {
   const f = await fixture();
-  assert.equal(await readAssistantSubagentsEnabled({ ...f.deps, getEffective: async () => null }), false);
+  assert.equal(await readAssistantSubagentsEnabled({ ...f.deps, getEffective: async () => null }), true);
+  assert.equal(await readAssistantSubagentsEnabled({ ...f.deps, getEffective: async () => ({ value: "true", sourceLayer: "workspace", defVersion: 1 }) }), false);
   const warnings: string[] = [];
   const failedRead = { ...f.deps, getEffective: async () => { throw new Error("settings store unavailable"); } };
   assert.equal(await readAssistantSubagentsEnabled(failedRead, { warn: message => warnings.push(message) }), false);
@@ -144,19 +144,28 @@ test("unavailable/malformed reads never enable subagents", async () => {
 });
 
 
-test("subagent acknowledgment receipt records owner, workspace, timestamp and grant before enable", async () => {
+test("explicit off survives boot, and re-enabling needs no acknowledgment or receipt", async () => {
   const f = await fixture();
-  assert.equal((await f.request("put", settingPath, { body: { enabled: true, riskAcknowledged: true } })).statusCode, 200);
+  await f.request("put", settingPath, { body: { enabled: false } });
+  await ensureExecutionSettingDefinitions({ settingsRepo: f.repo, clock: f.deps.clock, ids: f.deps.idGen,
+    principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: "system" });
+  assert.deepEqual((await f.request("get")).jsonBody, { enabled: false, canEdit: true });
+  assert.equal((await f.request("put", settingPath, { body: { enabled: true } })).statusCode, 200);
   const receipt = (await f.repo.listActiveDefinitions({ workspaceId: null }))
     .find(def => def.namespace === namespace && def.key === "riskAcknowledgment")!;
   assert.ok(receipt);
   const revisions = (await f.repo.listRevisions({ settingId: receipt.settingId })).filter(row => row.entityKind === "value");
-  assert.equal(revisions.length, 1);
-  assert.deepEqual(revisions.map(row => [row.actor, row.workspaceId, row.scope, row.afterJson]),
-    [["owner", "ws", "workspace", { riskAcknowledged: true, acknowledgedAt: f.deps.clock.nowIso(), grant: true }]]);
-  assert.ok(revisions[0]!.seq < (await f.values())[0]!.seq, "receipt must precede the grant revision");
-  await f.request("put", settingPath, { body: { enabled: false } });
-  assert.equal((await f.repo.listRevisions({ settingId: receipt.settingId })).filter(row => row.entityKind === "value").length, 1);
+  assert.equal(revisions.length, 0);
+  assert.deepEqual((await f.values()).map(row => [row.actor, row.afterJson]), [["owner", false], ["owner", true]]);
+  assert.deepEqual((await f.request("get")).jsonBody, { enabled: true, canEdit: true });
+});
+
+test("boot reconciles an old OFF definition for an install with no stored value", async () => {
+  const f = await fixture();
+  await f.repo.saveDefinition({ ...f.definition, defaultValue: false });
+  await ensureExecutionSettingDefinitions({ settingsRepo: f.repo, clock: f.deps.clock, ids: f.deps.idGen,
+    principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: "system" });
+  assert.deepEqual((await f.request("get")).jsonBody, { enabled: true, canEdit: true });
 });
 
 test("HTTP read failure stays unknown instead of presenting a false OFF setting", async () => {

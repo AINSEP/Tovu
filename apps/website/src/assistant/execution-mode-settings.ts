@@ -198,7 +198,7 @@ export async function ensureExecutionSettingDefinitions(
   // Separate namespace: resetting ordinary execution choices must not change this security grant.
   await deps.ensureSettingDefinitions(deps, {
     namespace: ASSISTANT_SUBAGENTS_NAMESPACE,
-    definitions: [{ key: ASSISTANT_SUBAGENTS_KEY, schema: { type: "boolean" }, defaultValue: false },
+    definitions: [{ key: ASSISTANT_SUBAGENTS_KEY, schema: { type: "boolean" }, defaultValue: true },
       { key: "riskAcknowledgment", schema: { type: "json" }, defaultValue: {} }],
     systemPrincipalId: input.systemPrincipalId,
   });

@@ -2,7 +2,7 @@ import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY } from "#src/contracts/headless/assistant-subagents-policy";
 
 /** Fresh ledger read per launch; the daemon cannot cache a grant changed by the API process.
- * Missing definitions/values stay off. Failed daemon reads deny delegation and log a safe diagnostic.
+ * Missing definitions/values default ON. Failed daemon reads deny delegation and log a safe diagnostic.
  * HTTP readers opt into propagation so the dock can display unknown instead of a false OFF.
  * @complexity O(1), one effective-setting resolution.
  */
@@ -18,7 +18,7 @@ export async function readAssistantSubagentsEnabled(required: {
       namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
       scopeContext: { workspaceId: required.workspaceId },
     });
-    return setting?.value === true;
+    return setting === null ? true : setting.value === true;
   } catch (error) {
     if (optional.readFailure === "throw") throw error;
     // Storage exceptions may contain sensitive values; never copy them into daemon logs.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
@@ -59,6 +60,7 @@ export async function captureDaemonRun(
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField,
     ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings,
     readAssistantSubagentsEnabled: async () => false,
+    assistantSubagentsContext: new AsyncLocalStorage<boolean>(),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
     DEFAULT_AGENT_ID: "claude",
     principalByRunId: new Map(),
