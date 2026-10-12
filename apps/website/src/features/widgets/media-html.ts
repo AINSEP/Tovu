@@ -6,7 +6,7 @@ import type { JsonObject } from '@jini-ai/core/primitives';
 
 type Element = DefaultTreeAdapterMap['element'];
 type Child = DefaultTreeAdapterMap['childNode'];
-const SAFE_ELEMENTS = new Set('a abbr address article aside audio b blockquote br button caption code col colgroup dd details div dl dt em figcaption figure footer form h1 h2 h3 h4 h5 h6 header hr i img input label li main nav ol option p picture pre section select small source span style strong sub summary sup table tbody td textarea tfoot th thead time tr track u ul video wbr'.split(' '));
+const SAFE_ELEMENTS = new Set('a abbr address article aside audio b blockquote br button caption code col colgroup dd details div dl dt em figcaption figure footer form h1 h2 h3 h4 h5 h6 header hr i img input label li main nav ol option p picture pre section select small source span style strong sub summary sup table tbody td template textarea tfoot th thead time tr track u ul video wbr'.split(' '));
 // Content attributes run through the SAME value checks as the shared allowlist's URL attribute.
 // Names are fixed here, never taken from input; script-bearing attributes remain disallowed.
 const CONTENT_ATTRIBUTES = new Set('src srcset href alt width height controls preload sizes type name value method action for required disabled checked selected multiple placeholder rows cols min max step colspan rowspan datetime open download target rel'.split(' '));
@@ -44,7 +44,9 @@ export function sanitizePageHtml({ html }: { html: string }, _optional: Record<s
         if (!safeAttribute({ name: 'style', value: css }, { styleContext: 'stylesheet' })) return false;
       }
       child.attrs = child.attrs.filter(attr => safeAttribute(attr));
-      parents.push({ parent: child, depth: depth + 1 });
+      // A collection marker's authored <template> keeps its item markup in the inert `content`
+      // fragment, not childNodes: hold that markup to the same element/attribute rules.
+      parents.push({ parent: 'content' in child ? child.content : child, depth: depth + 1 });
       return true;
     });
   }
