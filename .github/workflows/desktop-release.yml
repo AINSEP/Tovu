@@ -65,6 +65,9 @@ jobs:
       # Vendored Jini tarballs (vendor/jini/, removed) used to be installed here to get unpublished
       # Jini APIs; the registry `@jini-ai/*` pins now cover them, so `npm ci` alone is enough.
       - run: npm ci && npm run build && npm ci --prefix apps/desktop
+      # The renderer layout tests (src/renderer/websites-width.test.ts) launch real headless
+      # Chromium through the root `playwright`; a fresh runner has no browser.
+      - run: npx playwright install --with-deps --only-shell chromium
       - run: npm run gates
         working-directory: apps/desktop
       - name: Tag matches desktop version

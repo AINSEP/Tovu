@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import React, { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { chromium } from 'playwright';
@@ -80,10 +81,11 @@ test('Websites fits at 375px with every nav control and header action inside the
 });
 
 test('narrow collapsed multi-tab content fills the dialog, and the desktop single-tab dialog uses its one column', { timeout: 120_000 }, async (t) => {
-  // Read current shared source so this regression does not accidentally validate stale dist CSS.
-  const sharedRoot = new URL('../../../../../Jini/packages/ui/src/', import.meta.url);
-  const variables = fs.readFileSync(new URL('styles/variables.css', sharedRoot), 'utf8');
-  const sharedCss = fs.readFileSync(new URL('features/tabbed-dialog/styles/tabbed-dialog.css', sharedRoot), 'utf8').replace(/@import[^;]+;/g, '');
+  // The CSS the renderer bundles: @jini-ai/ui's published dist, resolved as Vite resolves it. A
+  // sibling ../Jini checkout path does not exist in CI, where the gates install from the registry.
+  const requireFromHere = createRequire(import.meta.url);
+  const variables = fs.readFileSync(requireFromHere.resolve('@jini-ai/ui/styles/variables.css'), 'utf8');
+  const sharedCss = fs.readFileSync(requireFromHere.resolve('@jini-ai/ui/tabbed-dialog.css'), 'utf8').replace(/@import[^;]+;/g, '');
   const hostCss = fs.readFileSync(new URL('./app.css', import.meta.url), 'utf8');
   const browser = await chromium.launch({ headless: true });
   t.after(() => browser.close());
