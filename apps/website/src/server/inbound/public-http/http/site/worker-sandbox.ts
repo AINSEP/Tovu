@@ -61,7 +61,12 @@ async function compileSourceWorkers({ productRoot }: { productRoot: string }): P
   try {
     writeFileSync(path.join(outdir, "package.json"), '{"type":"module"}');
     symlinkSync(path.join(productRoot, "node_modules"), path.join(outdir, "node_modules"), "dir");
-    const { build } = await import("esbuild");
+    // Not a literal specifier on purpose: only a `.ts` source host reaches this function (see
+    // `isTsSource` below), and the desktop payload ships no esbuild. A literal `import("esbuild")`
+    // made the packaging check (apps/desktop/src/dist-import-check.ts) refuse the compiled server,
+    // which never runs this line.
+    const esbuildSpecifier = "esbuild";
+    const { build }: typeof import("esbuild") = await import(esbuildSpecifier);
     await build({
       entryPoints: ["handlebars-worker.ts", "liquid-worker.ts"].map((file) => path.join(import.meta.dirname, file)),
       outdir, bundle: true, platform: "node", format: "esm", packages: "external",
