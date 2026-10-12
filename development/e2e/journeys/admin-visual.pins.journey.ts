@@ -10,6 +10,7 @@ import { expect } from "../support/bug-pin-fixtures.js";
 import { type BrowserContext } from "../support/bug-pin-fixtures.js";
 import { type Page } from "../support/bug-pin-fixtures.js";
 import { loginAsAdmin, pinSessionHeaders } from "../support/bug-pin-auth.js";
+import { BASELINE_TIME, narrowListForBaseline } from "./_fixtures.js";
 
 // Migrated from admin-visual-regression.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: admin-visual-regression", () => {
@@ -646,6 +647,13 @@ test.describe("seeded entity pages and editor tabs", () => {
         await expect(tab).toHaveAttribute("aria-selected", "true");
         if (editor.entity === "page" && id === "html") await expect(page.getByRole("textbox", { name: "Page HTML", exact: true })).not.toHaveValue("");
         if (editor.entity === "theme" && id === "html") await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("");
+        if (editor.entity === "post" && id === "preview") {
+          // The draft's preview renders its byline date server-side as today; pin that <time> text
+          // (a mask alone would still vary with the label's width).
+          const date = page.locator("iframe.page-preview-iframe").contentFrame().locator("time");
+          await expect(date).toHaveCount(1);
+          await date.evaluate(element => { element.textContent = "Jan 15, 2026"; });
+        }
         await capture(page, `admin-${editor.entity}-editor-tab-${id}.png`);
       });
     }
@@ -669,6 +677,8 @@ test.describe("seeded entity pages and editor tabs", () => {
   ];
   for (const detail of details) {
     test(detail.id, async ({ page, adminSeed }) => {
+      // The masked Updated cell's text width still moves the other columns; pin the server's time.
+      if (detail.id === "collection-entries") await narrowListForBaseline({ page, pathname: `${API}/entries`, keep: () => true }, { pin: { updatedAt: BASELINE_TIME } });
       await page.goto(detail.url(adminSeed.entities));
       if (detail.id === "change-password") {
         // showModal makes the underlying Users page inert and removes its heading from
