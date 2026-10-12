@@ -49,7 +49,7 @@ test.describe("Bug pin: admin-visual-regression", () => {
  * Authentication -> home, google, facebook, linkedin; Observability -> overview, providers.
  * Page editor -> html, interactive, preview; Post editor -> edit, preview.
  * Form detail -> fields, submissions (URL: /:formId, /:formId/submissions).
- * Theme Explore -> preview, html (file selected by ?theme=tovu-theme&file=theme.json;
+ * Theme Explore -> preview, html (file selected by ?theme=tovu-starter&file=theme.json;
  *   a shipped text asset keeps the preview independent of remote fonts/images/scripts).
  * Settings / Memory -> memories, how: the host wraps these controls in `inert`;
  *   capture the real default Memories view, skip How it works rather than bypassing inert.
@@ -515,6 +515,18 @@ test.describe("every admin page tab", () => {
     for (const [index, id] of tabPage.ids.entries()) {
       test(`${tabPage.route}: tab ${id}`, async ({ page }) => {
         const queryId = tabPage.route === "pages" && id === "theme" ? "themes" : id;
+        // cb7cfdcb9 shows Trash only with local site management (switcher + site supervisor), which
+        // the isolated pin boot lacks. Flag only that capability for this capture; the real (empty)
+        // trash list still comes from the API. No Restore/Delete is submitted.
+        if (tabPage.route === "sites" && id === "trash") {
+          await page.route(url => url.pathname === `${WORKSPACE_API}/system/sites`, async route => {
+            if (route.request().method() !== "GET") return route.continue();
+            const response = await route.fetch();
+            await expect(response).toBeOK();
+            const body = await response.json() as { trash?: unknown[] };
+            await route.fulfill({ response, json: { ...body, switchingEnabled: true, localManagementEnabled: true, trash: body.trash ?? [] } });
+          });
+        }
         await page.goto(`/admin/${tabPage.route}${tabPage.clickOnly ? "" : `?tab=${queryId}`}`);
         await settle(page);
         if (tabPage.clickOnly) await selectShellTab(page, id);
@@ -592,10 +604,11 @@ test.describe("nested page tabs", () => {
     test(`ai-assistant visitor: provider ${preset.id}`, async ({ page }) => {
       await page.goto("/admin/ai-assistant?tab=visitor");
       await settle(page);
-      const provider = page.locator(".jini-provider-chip-row").getByRole("tab", { name: preset.title, exact: true });
-      await provider.click();
-      await expect(provider).toHaveAttribute("aria-selected", "true");
-      await provider.evaluate(element => element.closest('[role="tablist"]')?.scrollIntoView({ block: "start", behavior: "instant" }));
+      // 7b82f7b02 replaced the Visitor tab's provider chip row with one native "Provider" select.
+      const provider = page.getByRole("combobox", { name: "Provider", exact: true });
+      await provider.selectOption(preset.id);
+      await expect(provider).toHaveValue(preset.id);
+      await provider.evaluate(element => element.closest(".visitor-step")?.scrollIntoView({ block: "start", behavior: "instant" }));
       await capture(page, `admin-ai-assistant-visitor-provider-${preset.id}.png`);
     });
   }
@@ -610,9 +623,10 @@ test.describe("seeded entity pages and editor tabs", () => {
   for (const editor of editors) {
     for (const [index, id] of editor.ids.entries()) {
       test(`${editor.entity} editor: ${id}`, async ({ page, adminSeed }) => {
-        // basic-2 was an owner-site clone, absent on a cold boot. Use the shipped catalog theme
-        // renamed by 85e29beac; these tests only preview/read its files.
-        const url = editor.entity === "theme" ? "/admin/themes/explore?theme=tovu-theme&file=theme.json"
+        // basic-2 was an owner-site clone, absent on a cold boot. Use the theme a new site ships
+        // with: tovu-starter since 0fb27e1c2 (tovu-theme, renamed by 85e29beac, is no longer
+        // installed on a fresh site). These tests only preview/read its files.
+        const url = editor.entity === "theme" ? "/admin/themes/explore?theme=tovu-starter&file=theme.json"
           : `/admin/${editor.route}/${encodeURIComponent(adminSeed.entities[editor.entity])}`;
         await page.goto(url);
         await settle(page);
