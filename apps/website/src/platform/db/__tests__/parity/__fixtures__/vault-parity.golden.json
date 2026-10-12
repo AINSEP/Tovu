@@ -1,0 +1,2487 @@
+{
+  "baseline": "57291a25b",
+  "read": {
+    "site.get@ws": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••7890",
+        "tokenHint": {
+          "length": 21,
+          "last4": "7890"
+        },
+        "provider": "google",
+        "baseUrl": null,
+        "model": "test-model",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "site.resolve@ws": {
+      "ok": {
+        "apiKey": "long-token-1234567890",
+        "provider": "google",
+        "baseUrl": null,
+        "model": "test-model"
+      }
+    },
+    "media.get@ws": {
+      "ok": {
+        "media-test": {
+          "model": "media-model",
+          "apiKeyConfigured": true,
+          "apiKeyHint": {
+            "length": 5,
+            "last4": null
+          }
+        },
+        "openai": {
+          "baseUrl": "https://media.example.test",
+          "model": "two-model",
+          "apiKeyConfigured": true,
+          "apiKeyHint": {
+            "length": 22,
+            "last4": "3456"
+          },
+          "apiKeyTail": "3456"
+        }
+      }
+    },
+    "media.resolve.media-test@ws": {
+      "ok": {
+        "apiKey": "short",
+        "baseUrl": null,
+        "model": "media-model"
+      }
+    },
+    "media.resolve.openai@ws": {
+      "ok": {
+        "apiKey": "media-two-token-123456",
+        "baseUrl": "https://media.example.test",
+        "model": "two-model"
+      }
+    },
+    "custom.list@ws": {
+      "ok": [
+        {
+          "id": "custom-ai",
+          "label": "AI keys",
+          "category": "ai",
+          "baseUrl": "https://ai.example.test",
+          "additionalHosts": [],
+          "username": "column-login",
+          "configured": true,
+          "tokenHint": {
+            "length": 26,
+            "last4": "7890"
+          },
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "custom",
+          "label": "Custom",
+          "category": "general",
+          "baseUrl": "https://api.example.test/v1",
+          "additionalHosts": [
+            "https://other.example.test"
+          ],
+          "configured": true,
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "custom.resolve.Custom@ws": {
+      "ok": {
+        "id": "custom",
+        "category": "general",
+        "baseUrl": "https://api.example.test/v1",
+        "additionalHosts": [
+          "https://other.example.test"
+        ],
+        "connection": {
+          "token": "long-token-1234567890",
+          "username": "login"
+        }
+      }
+    },
+    "custom.resolve.AI keys@ws": {
+      "ok": {
+        "id": "custom-ai",
+        "category": "ai",
+        "baseUrl": "https://ai.example.test",
+        "additionalHosts": [],
+        "connection": {
+          "token": "custom-ai-token-1234567890",
+          "username": "column-login"
+        }
+      }
+    },
+    "peer.list@ws": {
+      "ok": [
+        {
+          "id": "peer-empty",
+          "label": "Empty peer",
+          "baseUrl": "https://empty.example.test",
+          "remoteWorkspaceId": "remote-empty",
+          "masked": null,
+          "hasCredential": false
+        },
+        {
+          "id": "peer",
+          "label": "Peer",
+          "baseUrl": "https://peer.example.test",
+          "remoteWorkspaceId": "remote",
+          "masked": "••••7890",
+          "hasCredential": true
+        }
+      ]
+    },
+    "peer.resolve.peer@ws": {
+      "ok": {
+        "id": "peer",
+        "label": "Peer",
+        "baseUrl": "https://peer.example.test",
+        "remoteWorkspaceId": "remote",
+        "apiKey": "long-token-1234567890"
+      }
+    },
+    "peer.resolve.peer-empty@ws": {
+      "error": "PublishContentPeerCredentialMissingError"
+    },
+    "peer.resolve.peer-ws2@ws": {
+      "error": "PublishContentPeerNotFoundError"
+    },
+    "destination.get@ws": {
+      "ok": {
+        "connectionString": "postgres://writer:password@db.example.test/content",
+        "tokenHint": {
+          "length": 50,
+          "last4": "tent"
+        },
+        "description": {
+          "host": "db.example.test",
+          "port": "5432",
+          "database": "content",
+          "user": "writer"
+        },
+        "savedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "destination.lastRun@ws": {
+      "ok": {
+        "copied": true,
+        "snapshotAt": "2026-10-11T12:00:00.000Z",
+        "tableCount": 2,
+        "rowCount": 4
+      }
+    },
+    "vendor.list@ws": {
+      "ok": [
+        {
+          "id": "collision",
+          "providerId": "legacy-host",
+          "vendorId": "vendor-test",
+          "label": "Saved",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "accountLabel": "vendor-account",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-a",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie A",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-b",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie B",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-c",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie C",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "vendor.hasDefault.legacy-host@ws": {
+      "ok": true
+    },
+    "vendor.resolveDefault.legacy-host@ws": {
+      "ok": {
+        "id": "collision",
+        "label": "Saved",
+        "connection": {
+          "token": "long-token-1234567890",
+          "providerId": "legacy-host"
+        }
+      }
+    },
+    "vendor.hasDefault.tie-host@ws": {
+      "ok": true
+    },
+    "vendor.resolveDefault.tie-host@ws": {
+      "ok": {
+        "id": "tie-b",
+        "label": "Tie B",
+        "connection": {
+          "token": "tie-b-token-1234567890",
+          "providerId": "tie-host"
+        }
+      }
+    },
+    "source.list@ws": {
+      "ok": [
+        {
+          "id": "gh",
+          "providerId": "github",
+          "label": "GitHub",
+          "configured": true,
+          "tokenHint": {
+            "length": 27,
+            "last4": "7890"
+          },
+          "isDefault": true,
+          "accountLabel": "octo",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "source",
+          "providerId": "source-test",
+          "label": "Source",
+          "configured": true,
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "isDefault": true,
+          "accountLabel": "source-account",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "source.resolveDefault.github@ws": {
+      "ok": {
+        "id": "gh",
+        "label": "GitHub",
+        "connection": {
+          "providerId": "github",
+          "token": "ghp-parity-token-1234567890",
+          "username": "octo"
+        }
+      }
+    },
+    "mcp.list@ws": {
+      "ok": [
+        {
+          "serverId": "bare",
+          "label": "Bare",
+          "provisionedByPluginId": null,
+          "transport": "stdio",
+          "authMode": "none",
+          "enabled": false,
+          "command": "mcp-server",
+          "url": null,
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [],
+          "hasAccessToken": false,
+          "accessTokenHint": null,
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": null,
+            "grant": null,
+            "clientId": null,
+            "scopes": [],
+            "status": "disconnected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": false
+          }
+        },
+        {
+          "serverId": "env-only",
+          "label": "Env only",
+          "provisionedByPluginId": null,
+          "transport": "stdio",
+          "authMode": "static_env",
+          "enabled": true,
+          "command": "mcp-server",
+          "url": null,
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [
+            "TOKEN"
+          ],
+          "hasAccessToken": false,
+          "accessTokenHint": null,
+          "envTokenHints": {
+            "TOKEN": {
+              "length": 15,
+              "last4": "cret"
+            }
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": null,
+            "grant": null,
+            "clientId": null,
+            "scopes": [],
+            "status": "disconnected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": false
+          }
+        },
+        {
+          "serverId": "oauth-only",
+          "label": "OAuth only",
+          "provisionedByPluginId": null,
+          "transport": "streamable_http",
+          "authMode": "oauth",
+          "enabled": true,
+          "command": "",
+          "url": "https://oauth-only.example.test",
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [],
+          "hasAccessToken": false,
+          "accessTokenHint": {
+            "length": 17,
+            "last4": "cess"
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": "oauth-test",
+            "grant": "authorization_code",
+            "clientId": "client-2",
+            "scopes": [],
+            "status": "connected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": true
+          }
+        },
+        {
+          "serverId": "server",
+          "label": "Server",
+          "provisionedByPluginId": null,
+          "transport": "streamable_http",
+          "authMode": "oauth",
+          "enabled": true,
+          "command": "",
+          "url": "https://mcp.example.test",
+          "args": [
+            "--safe"
+          ],
+          "allowedToolNames": [
+            "read"
+          ],
+          "writeAllowedToolNames": [
+            "write"
+          ],
+          "writeGrantsUpdatedByPrincipalId": "p",
+          "writeGrantsUpdatedAt": "2026-10-11T12:00:00.000Z",
+          "envNames": [
+            "NAME"
+          ],
+          "hasAccessToken": false,
+          "accessTokenHint": {
+            "length": 12,
+            "last4": "oken"
+          },
+          "envTokenHints": {
+            "NAME": {
+              "length": 9,
+              "last4": null
+            }
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": "oauth-test",
+            "grant": "authorization_code",
+            "clientId": "client",
+            "scopes": [
+              "scope"
+            ],
+            "status": "connected",
+            "expiresAt": "2026-10-11T12:00:00.000Z",
+            "tokenEnvName": null,
+            "hasStoredToken": true
+          }
+        }
+      ]
+    },
+    "mcp.enabled@ws": {
+      "ok": {
+        "configs": [
+          {
+            "serverId": "env-only",
+            "label": "Env only",
+            "transport": "stdio",
+            "authMode": "static_env",
+            "enabled": true,
+            "allowedToolNames": [],
+            "writeAllowedToolNames": [],
+            "target": {
+              "kind": "stdio",
+              "command": "mcp-server",
+              "args": [],
+              "env": {
+                "TOKEN": "env-only-secret"
+              }
+            }
+          }
+        ],
+        "failures": [
+          {
+            "serverId": "oauth-only",
+            "reason": "this process was not wired with an OAuth token resolver, so its access token cannot be obtained"
+          },
+          {
+            "serverId": "server",
+            "reason": "this process was not wired with an OAuth token resolver, so its access token cannot be obtained"
+          }
+        ]
+      }
+    },
+    "site.get@ws2": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••7890",
+        "tokenHint": {
+          "length": 25,
+          "last4": "7890"
+        },
+        "provider": "openai",
+        "baseUrl": null,
+        "model": "ws2-model",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "site.resolve@ws2": {
+      "ok": {
+        "apiKey": "ws2-site-token-1234567890",
+        "provider": "openai",
+        "baseUrl": null,
+        "model": "ws2-model"
+      }
+    },
+    "media.get@ws2": {
+      "ok": {
+        "media-test": {
+          "model": "ws2-media",
+          "apiKeyConfigured": true,
+          "apiKeyHint": {
+            "length": 22,
+            "last4": "3456"
+          },
+          "apiKeyTail": "3456"
+        }
+      }
+    },
+    "media.resolve.media-test@ws2": {
+      "ok": {
+        "apiKey": "ws2-media-token-123456",
+        "baseUrl": null,
+        "model": "ws2-media"
+      }
+    },
+    "media.resolve.openai@ws2": {
+      "ok": null
+    },
+    "custom.list@ws2": {
+      "ok": [
+        {
+          "id": "custom-ws2",
+          "label": "Custom",
+          "category": "general",
+          "baseUrl": "https://ws2.example.test",
+          "additionalHosts": [],
+          "configured": true,
+          "tokenHint": {
+            "length": 27,
+            "last4": "7890"
+          },
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "custom.resolve.Custom@ws2": {
+      "ok": {
+        "id": "custom-ws2",
+        "category": "general",
+        "baseUrl": "https://ws2.example.test",
+        "additionalHosts": [],
+        "connection": {
+          "token": "custom-ws2-token-1234567890"
+        }
+      }
+    },
+    "custom.resolve.AI keys@ws2": {
+      "ok": null
+    },
+    "peer.list@ws2": {
+      "ok": [
+        {
+          "id": "peer-ws2",
+          "label": "Peer",
+          "baseUrl": "https://ws2-peer.example.test",
+          "remoteWorkspaceId": "remote-ws2",
+          "masked": "••••7890",
+          "hasCredential": true
+        }
+      ]
+    },
+    "peer.resolve.peer@ws2": {
+      "error": "PublishContentPeerNotFoundError"
+    },
+    "peer.resolve.peer-empty@ws2": {
+      "error": "PublishContentPeerNotFoundError"
+    },
+    "peer.resolve.peer-ws2@ws2": {
+      "ok": {
+        "id": "peer-ws2",
+        "label": "Peer",
+        "baseUrl": "https://ws2-peer.example.test",
+        "remoteWorkspaceId": "remote-ws2",
+        "apiKey": "ws2-peer-token-1234567890"
+      }
+    },
+    "destination.get@ws2": {
+      "ok": {
+        "connectionString": "postgres://ws2-writer:secret@ws2.example.test:5433/ws2",
+        "tokenHint": {
+          "length": 54,
+          "last4": "/ws2"
+        },
+        "description": {
+          "host": "ws2.example.test",
+          "port": "5433",
+          "database": "ws2",
+          "user": "ws2-writer"
+        },
+        "savedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "destination.lastRun@ws2": {
+      "ok": null
+    },
+    "vendor.list@ws2": {
+      "ok": [
+        {
+          "id": "ws2-vendor",
+          "providerId": "legacy-host",
+          "vendorId": "vendor-test",
+          "label": "Saved",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 27,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "vendor.hasDefault.legacy-host@ws2": {
+      "ok": true
+    },
+    "vendor.resolveDefault.legacy-host@ws2": {
+      "ok": {
+        "id": "ws2-vendor",
+        "label": "Saved",
+        "connection": {
+          "token": "ws2-vendor-token-1234567890",
+          "providerId": "legacy-host"
+        }
+      }
+    },
+    "vendor.hasDefault.tie-host@ws2": {
+      "ok": false
+    },
+    "vendor.resolveDefault.tie-host@ws2": {
+      "ok": null
+    },
+    "source.list@ws2": {
+      "ok": [
+        {
+          "id": "gh-ws2",
+          "providerId": "github",
+          "label": "GitHub",
+          "configured": true,
+          "tokenHint": {
+            "length": 24,
+            "last4": "7890"
+          },
+          "isDefault": true,
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "source.resolveDefault.github@ws2": {
+      "ok": {
+        "id": "gh-ws2",
+        "label": "GitHub",
+        "connection": {
+          "providerId": "github",
+          "token": "ghp-ws2-token-1234567890"
+        }
+      }
+    },
+    "mcp.list@ws2": {
+      "ok": [
+        {
+          "serverId": "server",
+          "label": "Other workspace",
+          "provisionedByPluginId": null,
+          "transport": "stdio",
+          "authMode": "static_env",
+          "enabled": true,
+          "command": "mcp-server",
+          "url": null,
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [
+            "NAME"
+          ],
+          "hasAccessToken": false,
+          "accessTokenHint": null,
+          "envTokenHints": {
+            "NAME": {
+              "length": 13,
+              "last4": "alue"
+            }
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": null,
+            "grant": null,
+            "clientId": null,
+            "scopes": [],
+            "status": "disconnected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": false
+          }
+        }
+      ]
+    },
+    "mcp.enabled@ws2": {
+      "ok": {
+        "configs": [
+          {
+            "serverId": "server",
+            "label": "Other workspace",
+            "transport": "stdio",
+            "authMode": "static_env",
+            "enabled": true,
+            "allowedToolNames": [],
+            "writeAllowedToolNames": [],
+            "target": {
+              "kind": "stdio",
+              "command": "mcp-server",
+              "args": [],
+              "env": {
+                "NAME": "ws2-env-value"
+              }
+            }
+          }
+        ],
+        "failures": []
+      }
+    },
+    "site.get@ws-empty": {
+      "ok": {
+        "isSet": false,
+        "masked": null,
+        "tokenHint": null,
+        "provider": "google",
+        "baseUrl": null,
+        "model": "metadata-only",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "site.resolve@ws-empty": {
+      "ok": null
+    },
+    "media.get@ws-empty": {
+      "ok": {
+        "media-test": {
+          "model": "metadata-only"
+        }
+      }
+    },
+    "media.resolve.media-test@ws-empty": {
+      "ok": null
+    },
+    "media.resolve.openai@ws-empty": {
+      "ok": null
+    },
+    "custom.list@ws-empty": {
+      "ok": []
+    },
+    "custom.resolve.Custom@ws-empty": {
+      "ok": null
+    },
+    "custom.resolve.AI keys@ws-empty": {
+      "ok": null
+    },
+    "peer.list@ws-empty": {
+      "ok": []
+    },
+    "peer.resolve.peer@ws-empty": {
+      "error": "PublishContentPeerNotFoundError"
+    },
+    "peer.resolve.peer-empty@ws-empty": {
+      "error": "PublishContentPeerNotFoundError"
+    },
+    "peer.resolve.peer-ws2@ws-empty": {
+      "error": "PublishContentPeerNotFoundError"
+    },
+    "destination.get@ws-empty": {
+      "ok": null
+    },
+    "destination.lastRun@ws-empty": {
+      "ok": null
+    },
+    "vendor.list@ws-empty": {
+      "ok": []
+    },
+    "vendor.hasDefault.legacy-host@ws-empty": {
+      "ok": false
+    },
+    "vendor.resolveDefault.legacy-host@ws-empty": {
+      "ok": null
+    },
+    "vendor.hasDefault.tie-host@ws-empty": {
+      "ok": false
+    },
+    "vendor.resolveDefault.tie-host@ws-empty": {
+      "ok": null
+    },
+    "source.list@ws-empty": {
+      "ok": []
+    },
+    "source.resolveDefault.github@ws-empty": {
+      "ok": null
+    },
+    "mcp.list@ws-empty": {
+      "ok": []
+    },
+    "mcp.enabled@ws-empty": {
+      "ok": {
+        "configs": [],
+        "failures": []
+      }
+    },
+    "exec.get@ws/p": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••oken",
+        "tokenHint": {
+          "length": 19,
+          "last4": "oken"
+        },
+        "protocol": "openai",
+        "providerId": "provider-test",
+        "baseUrl": "https://ai.example.test/v1",
+        "model": "personal-model",
+        "maxTokens": 333,
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "exec.resolve@ws/p": {
+      "ok": {
+        "apiKey": "personal-long-token",
+        "protocol": "openai",
+        "providerId": "provider-test",
+        "baseUrl": "https://ai.example.test/v1",
+        "model": "personal-model",
+        "maxTokens": 333
+      }
+    },
+    "exec.get@ws/p2": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••1234",
+        "tokenHint": {
+          "length": 26,
+          "last4": "1234"
+        },
+        "protocol": "anthropic",
+        "providerId": "provider-p2",
+        "baseUrl": null,
+        "model": "model-p2",
+        "maxTokens": null,
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "exec.resolve@ws/p2": {
+      "ok": {
+        "apiKey": "second-personal-token-1234",
+        "protocol": "anthropic",
+        "providerId": "provider-p2",
+        "baseUrl": null,
+        "model": "model-p2",
+        "maxTokens": null
+      }
+    },
+    "exec.get@ws2/q": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••1234",
+        "tokenHint": {
+          "length": 25,
+          "last4": "1234"
+        },
+        "protocol": "anthropic",
+        "providerId": "provider-q",
+        "baseUrl": null,
+        "model": "model-q",
+        "maxTokens": null,
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "exec.resolve@ws2/q": {
+      "ok": {
+        "apiKey": "other-personal-token-1234",
+        "protocol": "anthropic",
+        "providerId": "provider-q",
+        "baseUrl": null,
+        "model": "model-q",
+        "maxTokens": null
+      }
+    },
+    "exec.get@ws2/p": {
+      "ok": {
+        "isSet": false,
+        "masked": null,
+        "tokenHint": null,
+        "protocol": "anthropic",
+        "providerId": null,
+        "baseUrl": null,
+        "model": null,
+        "maxTokens": null,
+        "updatedAt": null
+      }
+    },
+    "exec.resolve@ws2/p": {
+      "ok": null
+    }
+  },
+  "write": {
+    "vendor.1.create-default": {
+      "ok": {
+        "id": "parity-1",
+        "providerId": "tie-host",
+        "vendorId": "vendor-tie",
+        "label": "New",
+        "configured": true,
+        "isDefault": true,
+        "tokenTail": "7890",
+        "tokenHint": {
+          "length": 27,
+          "last4": "7890"
+        },
+        "accountLabel": null,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "vendor.2.list": {
+      "ok": [
+        {
+          "id": "collision",
+          "providerId": "legacy-host",
+          "vendorId": "vendor-test",
+          "label": "Saved",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "accountLabel": "vendor-account",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "parity-1",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "New",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 27,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-a",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie A",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-b",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie B",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-c",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie C",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "vendor.3.rotate": {
+      "ok": {
+        "id": "parity-1",
+        "providerId": "tie-host",
+        "vendorId": "vendor-tie",
+        "label": "New",
+        "configured": true,
+        "isDefault": true,
+        "tokenTail": "7890",
+        "tokenHint": {
+          "length": 31,
+          "last4": "7890"
+        },
+        "accountLabel": null,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "vendor.4.resolve-default": {
+      "ok": {
+        "id": "parity-1",
+        "label": "New",
+        "connection": {
+          "token": "rotated-vendor-token-1234567890",
+          "providerId": "tie-host"
+        }
+      }
+    },
+    "vendor.5.set-default-other": {
+      "ok": {
+        "id": "tie-c",
+        "providerId": "tie-host",
+        "vendorId": "vendor-tie",
+        "label": "Tie C",
+        "configured": true,
+        "isDefault": true,
+        "tokenTail": "7890",
+        "tokenHint": {
+          "length": 22,
+          "last4": "7890"
+        },
+        "accountLabel": null,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "vendor.6.list": {
+      "ok": [
+        {
+          "id": "collision",
+          "providerId": "legacy-host",
+          "vendorId": "vendor-test",
+          "label": "Saved",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "accountLabel": "vendor-account",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "parity-1",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "New",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 31,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-a",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie A",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-b",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie B",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-c",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie C",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "vendor.7.delete-default": {
+      "ok": null
+    },
+    "vendor.8.has-default": {
+      "ok": true
+    },
+    "vendor.9.resolve-promoted": {
+      "ok": {
+        "id": "parity-1",
+        "label": "New",
+        "connection": {
+          "token": "rotated-vendor-token-1234567890",
+          "providerId": "tie-host"
+        }
+      }
+    },
+    "vendor.10.label-collision": {
+      "error": "PublishCredentialDuplicateLabelError"
+    },
+    "vendor.11.list": {
+      "ok": [
+        {
+          "id": "collision",
+          "providerId": "legacy-host",
+          "vendorId": "vendor-test",
+          "label": "Saved",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "accountLabel": "vendor-account",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "parity-1",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "New",
+          "configured": true,
+          "isDefault": true,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 31,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-a",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie A",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "tie-b",
+          "providerId": "tie-host",
+          "vendorId": "vendor-tie",
+          "label": "Tie B",
+          "configured": true,
+          "isDefault": false,
+          "tokenTail": "7890",
+          "tokenHint": {
+            "length": 22,
+            "last4": "7890"
+          },
+          "accountLabel": null,
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "source.1.create-default": {
+      "ok": {
+        "id": "parity-3",
+        "providerId": "github",
+        "label": "Second GH",
+        "configured": true,
+        "tokenHint": {
+          "length": 27,
+          "last4": "7890"
+        },
+        "isDefault": true,
+        "accountLabel": null,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z",
+        "connection": "saved"
+      }
+    },
+    "source.2.resolve-default": {
+      "ok": {
+        "id": "parity-3",
+        "label": "Second GH",
+        "connection": {
+          "providerId": "github",
+          "token": "ghp-second-token-1234567890"
+        }
+      }
+    },
+    "source.3.rotate": {
+      "ok": {
+        "id": "parity-3",
+        "providerId": "github",
+        "label": "Second GH",
+        "configured": true,
+        "tokenHint": {
+          "length": 28,
+          "last4": "7890"
+        },
+        "isDefault": true,
+        "accountLabel": null,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z",
+        "connection": "saved"
+      }
+    },
+    "source.4.describe": {
+      "ok": {
+        "id": "parity-3",
+        "providerId": "github",
+        "label": "Second GH",
+        "configured": true,
+        "tokenHint": {
+          "length": 28,
+          "last4": "7890"
+        },
+        "isDefault": true,
+        "accountLabel": null,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "source.5.delete-default": {
+      "ok": null
+    },
+    "source.6.resolve-promoted": {
+      "ok": {
+        "id": "gh",
+        "label": "GitHub",
+        "connection": {
+          "providerId": "github",
+          "token": "ghp-parity-token-1234567890",
+          "username": "octo"
+        }
+      }
+    },
+    "source.7.label-collision": {
+      "error": "SourceControlCredentialDuplicateLabelError"
+    },
+    "source.8.list": {
+      "ok": [
+        {
+          "id": "gh",
+          "providerId": "github",
+          "label": "GitHub",
+          "configured": true,
+          "tokenHint": {
+            "length": 27,
+            "last4": "7890"
+          },
+          "isDefault": true,
+          "accountLabel": "octo",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "source",
+          "providerId": "source-test",
+          "label": "Source",
+          "configured": true,
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "isDefault": true,
+          "accountLabel": "source-account",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "custom.1.create": {
+      "ok": {
+        "id": "parity-5",
+        "label": "Ops",
+        "category": "ops",
+        "baseUrl": "https://ops.example.test",
+        "additionalHosts": [],
+        "username": "ops-user",
+        "configured": true,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z",
+        "tokenHint": {
+          "length": 20,
+          "last4": "7890"
+        }
+      }
+    },
+    "custom.2.same-label-other-category": {
+      "error": "CustomCredentialDuplicateLabelError"
+    },
+    "custom.3.rename": {
+      "ok": {
+        "id": "parity-5",
+        "label": "Ops renamed",
+        "category": "ops",
+        "baseUrl": "https://ops.example.test",
+        "additionalHosts": [],
+        "username": "ops-user",
+        "configured": true,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "custom.4.rename-onto-existing": {
+      "error": "CustomCredentialDuplicateLabelError"
+    },
+    "custom.5.resolve": {
+      "ok": {
+        "id": "parity-5",
+        "category": "ops",
+        "baseUrl": "https://ops.example.test",
+        "additionalHosts": [],
+        "connection": {
+          "token": "ops-token-1234567890",
+          "username": "ops-user"
+        }
+      }
+    },
+    "custom.6.clear-username": {
+      "ok": {
+        "id": "parity-5",
+        "label": "Ops renamed",
+        "category": "ops",
+        "baseUrl": "https://ops.example.test",
+        "additionalHosts": [],
+        "configured": true,
+        "createdAt": "2026-10-11T12:00:00.000Z",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "custom.7.resolve": {
+      "ok": {
+        "id": "parity-5",
+        "category": "ops",
+        "baseUrl": "https://ops.example.test",
+        "additionalHosts": [],
+        "connection": {
+          "token": "ops-token-1234567890"
+        }
+      }
+    },
+    "custom.8.delete": {
+      "ok": null
+    },
+    "custom.9.list": {
+      "ok": [
+        {
+          "id": "custom-ai",
+          "label": "AI keys",
+          "category": "ai",
+          "baseUrl": "https://ai.example.test",
+          "additionalHosts": [],
+          "username": "column-login",
+          "configured": true,
+          "tokenHint": {
+            "length": 26,
+            "last4": "7890"
+          },
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "custom",
+          "label": "Custom",
+          "category": "general",
+          "baseUrl": "https://api.example.test/v1",
+          "additionalHosts": [
+            "https://other.example.test"
+          ],
+          "configured": true,
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    },
+    "peer.1.create": {
+      "ok": {
+        "id": "parity-7",
+        "label": "New peer",
+        "baseUrl": "https://new-peer.example.test",
+        "remoteWorkspaceId": "remote-new",
+        "masked": "••••7890",
+        "hasCredential": true
+      }
+    },
+    "peer.2.rename-keeps-key": {
+      "ok": {
+        "id": "parity-7",
+        "label": "Renamed peer",
+        "baseUrl": "https://new-peer.example.test",
+        "remoteWorkspaceId": "remote-new",
+        "masked": "••••7890",
+        "hasCredential": true
+      }
+    },
+    "peer.3.resolve": {
+      "ok": {
+        "id": "parity-7",
+        "label": "Renamed peer",
+        "baseUrl": "https://new-peer.example.test",
+        "remoteWorkspaceId": "remote-new",
+        "apiKey": "new-peer-key-1234567890"
+      }
+    },
+    "peer.4.rekey": {
+      "ok": {
+        "id": "parity-7",
+        "label": "Renamed peer",
+        "baseUrl": "https://new-peer.example.test",
+        "remoteWorkspaceId": "remote-new",
+        "masked": "••••7890",
+        "hasCredential": true
+      }
+    },
+    "peer.5.resolve": {
+      "ok": {
+        "id": "parity-7",
+        "label": "Renamed peer",
+        "baseUrl": "https://new-peer.example.test",
+        "remoteWorkspaceId": "remote-new",
+        "apiKey": "rekeyed-peer-key-1234567890"
+      }
+    },
+    "peer.6.key-the-keyless": {
+      "ok": {
+        "id": "peer-empty",
+        "label": "Empty peer",
+        "baseUrl": "https://empty.example.test",
+        "remoteWorkspaceId": "remote-empty",
+        "masked": "••••7890",
+        "hasCredential": true
+      }
+    },
+    "peer.7.resolve-keyless": {
+      "ok": {
+        "id": "peer-empty",
+        "label": "Empty peer",
+        "baseUrl": "https://empty.example.test",
+        "remoteWorkspaceId": "remote-empty",
+        "apiKey": "late-key-1234567890"
+      }
+    },
+    "peer.8.duplicate-label": {
+      "error": "PublishContentPeerDuplicateLabelError"
+    },
+    "peer.9.delete": {
+      "ok": null
+    },
+    "peer.10.resolve-deleted": {
+      "error": "PublishContentPeerNotFoundError"
+    },
+    "peer.11.list": {
+      "ok": [
+        {
+          "id": "peer-empty",
+          "label": "Empty peer",
+          "baseUrl": "https://empty.example.test",
+          "remoteWorkspaceId": "remote-empty",
+          "masked": "••••7890",
+          "hasCredential": true
+        },
+        {
+          "id": "peer",
+          "label": "Peer",
+          "baseUrl": "https://peer.example.test",
+          "remoteWorkspaceId": "remote",
+          "masked": "••••7890",
+          "hasCredential": true
+        }
+      ]
+    },
+    "media.1.save": {
+      "ok": {
+        "openai": {
+          "apiKeyConfigured": true,
+          "apiKeyHint": {
+            "length": 27,
+            "last4": "7890"
+          },
+          "apiKeyTail": "7890"
+        },
+        "grok": {
+          "model": "grok-imagine",
+          "apiKeyConfigured": true,
+          "apiKeyHint": {
+            "length": 25,
+            "last4": "7890"
+          },
+          "apiKeyTail": "7890"
+        }
+      }
+    },
+    "media.2.batch-with-unknown": {
+      "error": "MediaProviderCredentialValidationError"
+    },
+    "media.3.get-unchanged": {
+      "ok": {
+        "grok": {
+          "model": "grok-imagine",
+          "apiKeyConfigured": true,
+          "apiKeyHint": {
+            "length": 25,
+            "last4": "7890"
+          },
+          "apiKeyTail": "7890"
+        },
+        "openai": {
+          "apiKeyConfigured": true,
+          "apiKeyHint": {
+            "length": 27,
+            "last4": "7890"
+          },
+          "apiKeyTail": "7890"
+        }
+      }
+    },
+    "media.4.resolve": {
+      "ok": {
+        "apiKey": "openai-media-key-1234567890",
+        "baseUrl": null,
+        "model": null
+      }
+    },
+    "media.5.model-only": {
+      "ok": {
+        "grok": {
+          "model": "grok-2",
+          "apiKeyConfigured": true,
+          "apiKeyHint": {
+            "length": 25,
+            "last4": "7890"
+          },
+          "apiKeyTail": "7890"
+        }
+      }
+    },
+    "media.6.resolve": {
+      "ok": {
+        "apiKey": "grok-media-key-1234567890",
+        "baseUrl": null,
+        "model": "grok-2"
+      }
+    },
+    "destination.1.record-missing": {
+      "ok": null
+    },
+    "destination.2.last-run-missing": {
+      "ok": null
+    },
+    "destination.3.get-missing": {
+      "ok": null
+    },
+    "destination.4.record": {
+      "ok": null
+    },
+    "destination.5.last-run": {
+      "ok": {
+        "copied": true,
+        "snapshotAt": "2026-10-11T12:00:00.000Z",
+        "tableCount": 3,
+        "rowCount": 9
+      }
+    },
+    "destination.6.get": {
+      "ok": {
+        "connectionString": "postgres://writer:password@db.example.test/content",
+        "tokenHint": {
+          "length": 50,
+          "last4": "tent"
+        },
+        "description": {
+          "host": "db.example.test",
+          "port": "5432",
+          "database": "content",
+          "user": "writer"
+        },
+        "savedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "destination.7.replace": {
+      "ok": null
+    },
+    "destination.8.get": {
+      "ok": {
+        "connectionString": "postgres://new:pw@new.example.test/db",
+        "tokenHint": {
+          "length": 37,
+          "last4": "t/db"
+        },
+        "description": {
+          "host": "new.example.test",
+          "port": "5432",
+          "database": "db",
+          "user": "new"
+        },
+        "savedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "destination.9.last-run-forgotten": {
+      "ok": null
+    },
+    "mcp.1.save-env": {
+      "ok": {
+        "serverId": "new-env",
+        "label": "New env",
+        "provisionedByPluginId": null,
+        "transport": "stdio",
+        "authMode": "static_env",
+        "enabled": true,
+        "command": "mcp-new",
+        "url": null,
+        "args": [],
+        "allowedToolNames": [],
+        "writeAllowedToolNames": [],
+        "writeGrantsUpdatedByPrincipalId": null,
+        "writeGrantsUpdatedAt": null,
+        "envNames": [
+          "A"
+        ],
+        "hasAccessToken": false,
+        "accessTokenHint": null,
+        "envTokenHints": {
+          "A": {
+            "length": 3,
+            "last4": null
+          }
+        },
+        "accessTokenEnvName": null,
+        "oauth": {
+          "providerId": null,
+          "grant": null,
+          "clientId": null,
+          "scopes": [],
+          "status": "disconnected",
+          "expiresAt": null,
+          "tokenEnvName": null,
+          "hasStoredToken": false
+        }
+      }
+    },
+    "mcp.2.save-keeps-env": {
+      "ok": {
+        "serverId": "new-env",
+        "label": "Renamed env",
+        "provisionedByPluginId": null,
+        "transport": "stdio",
+        "authMode": "static_env",
+        "enabled": true,
+        "command": "mcp-new",
+        "url": null,
+        "args": [],
+        "allowedToolNames": [],
+        "writeAllowedToolNames": [],
+        "writeGrantsUpdatedByPrincipalId": null,
+        "writeGrantsUpdatedAt": null,
+        "envNames": [
+          "A"
+        ],
+        "hasAccessToken": false,
+        "accessTokenHint": null,
+        "envTokenHints": {
+          "A": {
+            "length": 3,
+            "last4": null
+          }
+        },
+        "accessTokenEnvName": null,
+        "oauth": {
+          "providerId": null,
+          "grant": null,
+          "clientId": null,
+          "scopes": [],
+          "status": "disconnected",
+          "expiresAt": null,
+          "tokenEnvName": null,
+          "hasStoredToken": false
+        }
+      }
+    },
+    "mcp.3.enabled": {
+      "ok": {
+        "configs": [
+          {
+            "serverId": "env-only",
+            "label": "Env only",
+            "transport": "stdio",
+            "authMode": "static_env",
+            "enabled": true,
+            "allowedToolNames": [],
+            "writeAllowedToolNames": [],
+            "target": {
+              "kind": "stdio",
+              "command": "mcp-server",
+              "args": [],
+              "env": {
+                "TOKEN": "env-only-secret"
+              }
+            }
+          },
+          {
+            "serverId": "new-env",
+            "label": "Renamed env",
+            "transport": "stdio",
+            "authMode": "static_env",
+            "enabled": true,
+            "allowedToolNames": [],
+            "writeAllowedToolNames": [],
+            "target": {
+              "kind": "stdio",
+              "command": "mcp-new",
+              "args": [],
+              "env": {
+                "A": "one"
+              }
+            }
+          }
+        ],
+        "failures": [
+          {
+            "serverId": "oauth-only",
+            "reason": "this process was not wired with an OAuth token resolver, so its access token cannot be obtained"
+          },
+          {
+            "serverId": "server",
+            "reason": "this process was not wired with an OAuth token resolver, so its access token cannot be obtained"
+          }
+        ]
+      }
+    },
+    "mcp.4.claim": {
+      "ok": true
+    },
+    "mcp.5.claim-again": {
+      "ok": false
+    },
+    "mcp.6.release": {
+      "ok": null
+    },
+    "mcp.7.claim-after-release": {
+      "ok": true
+    },
+    "mcp.8.delete": {
+      "ok": true
+    },
+    "mcp.9.delete-again": {
+      "ok": false
+    },
+    "mcp.10.list": {
+      "ok": [
+        {
+          "serverId": "bare",
+          "label": "Bare",
+          "provisionedByPluginId": null,
+          "transport": "stdio",
+          "authMode": "none",
+          "enabled": false,
+          "command": "mcp-server",
+          "url": null,
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [],
+          "hasAccessToken": false,
+          "accessTokenHint": null,
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": null,
+            "grant": null,
+            "clientId": null,
+            "scopes": [],
+            "status": "disconnected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": false
+          }
+        },
+        {
+          "serverId": "env-only",
+          "label": "Env only",
+          "provisionedByPluginId": null,
+          "transport": "stdio",
+          "authMode": "static_env",
+          "enabled": true,
+          "command": "mcp-server",
+          "url": null,
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [
+            "TOKEN"
+          ],
+          "hasAccessToken": false,
+          "accessTokenHint": null,
+          "envTokenHints": {
+            "TOKEN": {
+              "length": 15,
+              "last4": "cret"
+            }
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": null,
+            "grant": null,
+            "clientId": null,
+            "scopes": [],
+            "status": "disconnected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": false
+          }
+        },
+        {
+          "serverId": "new-env",
+          "label": "Renamed env",
+          "provisionedByPluginId": null,
+          "transport": "stdio",
+          "authMode": "static_env",
+          "enabled": true,
+          "command": "mcp-new",
+          "url": null,
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [
+            "A"
+          ],
+          "hasAccessToken": false,
+          "accessTokenHint": null,
+          "envTokenHints": {
+            "A": {
+              "length": 3,
+              "last4": null
+            }
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": null,
+            "grant": null,
+            "clientId": null,
+            "scopes": [],
+            "status": "disconnected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": false
+          }
+        },
+        {
+          "serverId": "oauth-only",
+          "label": "OAuth only",
+          "provisionedByPluginId": null,
+          "transport": "streamable_http",
+          "authMode": "oauth",
+          "enabled": true,
+          "command": "",
+          "url": "https://oauth-only.example.test",
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [],
+          "hasAccessToken": false,
+          "accessTokenHint": {
+            "length": 17,
+            "last4": "cess"
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": "oauth-test",
+            "grant": "authorization_code",
+            "clientId": "client-2",
+            "scopes": [],
+            "status": "connected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": true
+          }
+        }
+      ]
+    },
+    "assistant.1.site-set": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••7890",
+        "tokenHint": {
+          "length": 27,
+          "last4": "7890"
+        },
+        "provider": "openai",
+        "baseUrl": null,
+        "model": "ws2-model",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "assistant.2.site-resolve": {
+      "ok": {
+        "apiKey": "ws2-new-site-key-1234567890",
+        "provider": "openai",
+        "baseUrl": null,
+        "model": "ws2-model"
+      }
+    },
+    "assistant.3.site-metadata-only": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••7890",
+        "tokenHint": {
+          "length": 27,
+          "last4": "7890"
+        },
+        "provider": "openai",
+        "baseUrl": null,
+        "model": "ws2-next",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "assistant.4.site-delete": {
+      "ok": {
+        "isSet": false,
+        "masked": null,
+        "tokenHint": null,
+        "provider": "openai",
+        "baseUrl": null,
+        "model": "ws2-next",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "assistant.5.site-get": {
+      "ok": {
+        "isSet": false,
+        "masked": null,
+        "tokenHint": null,
+        "provider": "openai",
+        "baseUrl": null,
+        "model": "ws2-next",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "assistant.6.exec-set": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••1234",
+        "tokenHint": {
+          "length": 26,
+          "last4": "1234"
+        },
+        "protocol": "anthropic",
+        "providerId": "provider-p2",
+        "baseUrl": null,
+        "model": "next-model",
+        "maxTokens": null,
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "assistant.7.exec-resolve": {
+      "ok": {
+        "apiKey": "second-personal-token-1234",
+        "protocol": "anthropic",
+        "providerId": "provider-p2",
+        "baseUrl": null,
+        "model": "next-model",
+        "maxTokens": null
+      }
+    },
+    "assistant.8.exec-delete": {
+      "ok": {
+        "isSet": false,
+        "masked": null,
+        "tokenHint": null,
+        "protocol": "anthropic",
+        "providerId": "provider-p2",
+        "baseUrl": null,
+        "model": "next-model",
+        "maxTokens": null,
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "assistant.9.exec-other-untouched": {
+      "ok": {
+        "apiKey": "personal-long-token",
+        "protocol": "openai",
+        "providerId": "provider-test",
+        "baseUrl": "https://ai.example.test/v1",
+        "model": "personal-model",
+        "maxTokens": 333
+      }
+    }
+  },
+  "cascade": {
+    "purge.1.user-p2": {
+      "ok": {
+        "roles": 0,
+        "policies": 0,
+        "sessions": 0,
+        "apiKeys": 0,
+        "userSettings": 0
+      }
+    },
+    "purge.2.p2-key": {
+      "ok": null
+    },
+    "purge.3.p-key-kept": {
+      "ok": {
+        "apiKey": "personal-long-token",
+        "protocol": "openai",
+        "providerId": "provider-test",
+        "baseUrl": "https://ai.example.test/v1",
+        "model": "personal-model",
+        "maxTokens": 333
+      }
+    },
+    "principal.1.delete-p": {
+      "ok": "deleted"
+    },
+    "principal.2.p-key": {
+      "ok": {
+        "isSet": false,
+        "masked": null,
+        "tokenHint": null,
+        "protocol": "anthropic",
+        "providerId": null,
+        "baseUrl": null,
+        "model": null,
+        "maxTokens": null,
+        "updatedAt": null
+      }
+    },
+    "principal.3.mcp": {
+      "ok": [
+        {
+          "serverId": "bare",
+          "label": "Bare",
+          "provisionedByPluginId": null,
+          "transport": "stdio",
+          "authMode": "none",
+          "enabled": false,
+          "command": "mcp-server",
+          "url": null,
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [],
+          "hasAccessToken": false,
+          "accessTokenHint": null,
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": null,
+            "grant": null,
+            "clientId": null,
+            "scopes": [],
+            "status": "disconnected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": false
+          }
+        },
+        {
+          "serverId": "env-only",
+          "label": "Env only",
+          "provisionedByPluginId": null,
+          "transport": "stdio",
+          "authMode": "static_env",
+          "enabled": true,
+          "command": "mcp-server",
+          "url": null,
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [
+            "TOKEN"
+          ],
+          "hasAccessToken": false,
+          "accessTokenHint": null,
+          "envTokenHints": {
+            "TOKEN": {
+              "length": 15,
+              "last4": "cret"
+            }
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": null,
+            "grant": null,
+            "clientId": null,
+            "scopes": [],
+            "status": "disconnected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": false
+          }
+        },
+        {
+          "serverId": "oauth-only",
+          "label": "OAuth only",
+          "provisionedByPluginId": null,
+          "transport": "streamable_http",
+          "authMode": "oauth",
+          "enabled": true,
+          "command": "",
+          "url": "https://oauth-only.example.test",
+          "args": [],
+          "allowedToolNames": [],
+          "writeAllowedToolNames": [],
+          "writeGrantsUpdatedByPrincipalId": null,
+          "writeGrantsUpdatedAt": null,
+          "envNames": [],
+          "hasAccessToken": false,
+          "accessTokenHint": {
+            "length": 17,
+            "last4": "cess"
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": "oauth-test",
+            "grant": "authorization_code",
+            "clientId": "client-2",
+            "scopes": [],
+            "status": "connected",
+            "expiresAt": null,
+            "tokenEnvName": null,
+            "hasStoredToken": true
+          }
+        },
+        {
+          "serverId": "server",
+          "label": "Server",
+          "provisionedByPluginId": null,
+          "transport": "streamable_http",
+          "authMode": "oauth",
+          "enabled": true,
+          "command": "",
+          "url": "https://mcp.example.test",
+          "args": [
+            "--safe"
+          ],
+          "allowedToolNames": [
+            "read"
+          ],
+          "writeAllowedToolNames": [
+            "write"
+          ],
+          "writeGrantsUpdatedByPrincipalId": "p",
+          "writeGrantsUpdatedAt": "2026-10-11T12:00:00.000Z",
+          "envNames": [
+            "NAME"
+          ],
+          "hasAccessToken": false,
+          "accessTokenHint": {
+            "length": 12,
+            "last4": "oken"
+          },
+          "envTokenHints": {
+            "NAME": {
+              "length": 9,
+              "last4": null
+            }
+          },
+          "accessTokenEnvName": null,
+          "oauth": {
+            "providerId": "oauth-test",
+            "grant": "authorization_code",
+            "clientId": "client",
+            "scopes": [
+              "scope"
+            ],
+            "status": "connected",
+            "expiresAt": "2026-10-11T12:00:00.000Z",
+            "tokenEnvName": null,
+            "hasStoredToken": true
+          }
+        }
+      ]
+    },
+    "principal.4.site-kept": {
+      "ok": {
+        "apiKey": "long-token-1234567890",
+        "provider": "google",
+        "baseUrl": null,
+        "model": "test-model"
+      }
+    },
+    "workspace.1.delete-ws2": {
+      "ok": "deleted"
+    },
+    "workspace.2.site": {
+      "ok": {
+        "isSet": true,
+        "masked": "••••7890",
+        "tokenHint": {
+          "length": 25,
+          "last4": "7890"
+        },
+        "provider": "openai",
+        "baseUrl": null,
+        "model": "ws2-model",
+        "updatedAt": "2026-10-11T12:00:00.000Z"
+      }
+    },
+    "workspace.3.q-key": {
+      "ok": {
+        "isSet": false,
+        "masked": null,
+        "tokenHint": null,
+        "protocol": "anthropic",
+        "providerId": null,
+        "baseUrl": null,
+        "model": null,
+        "maxTokens": null,
+        "updatedAt": null
+      }
+    },
+    "workspace.4.sources": {
+      "ok": []
+    },
+    "workspace.5.ws-untouched": {
+      "ok": [
+        {
+          "id": "gh",
+          "providerId": "github",
+          "label": "GitHub",
+          "configured": true,
+          "tokenHint": {
+            "length": 27,
+            "last4": "7890"
+          },
+          "isDefault": true,
+          "accountLabel": "octo",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        },
+        {
+          "id": "source",
+          "providerId": "source-test",
+          "label": "Source",
+          "configured": true,
+          "tokenHint": {
+            "length": 21,
+            "last4": "7890"
+          },
+          "isDefault": true,
+          "accountLabel": "source-account",
+          "createdAt": "2026-10-11T12:00:00.000Z",
+          "updatedAt": "2026-10-11T12:00:00.000Z"
+        }
+      ]
+    }
+  },
+  "boundary": {
+    "copied": [
+      "agent_tool_attempts",
+      "analytics_events",
+      "asset_blobs",
+      "asset_renditions",
+      "change_set_items",
+      "change_sets",
+      "commerce_order_items",
+      "commerce_orders",
+      "commerce_prices",
+      "commerce_product_images",
+      "commerce_products",
+      "commerce_webhook_events",
+      "content_type_revisions",
+      "content_types",
+      "database_write_watermark",
+      "entries",
+      "entry_refs",
+      "entry_revisions",
+      "entry_terms",
+      "form_definitions",
+      "form_submissions",
+      "media",
+      "media_slug_history",
+      "member_consents",
+      "member_revisions",
+      "member_subscriptions",
+      "member_tiers",
+      "members",
+      "menus",
+      "nav_location_bindings",
+      "newsletter_campaign_revisions",
+      "newsletter_campaigns",
+      "origin_settings",
+      "outbox_events",
+      "plugin_activations",
+      "policies",
+      "policy_permissions",
+      "post_revisions",
+      "posts",
+      "presentation_settings",
+      "principal_policies",
+      "principal_roles",
+      "principals",
+      "publish_backstop_log",
+      "publish_content_baselines",
+      "publish_content_bundles",
+      "publish_content_runs",
+      "publish_history",
+      "publish_trust_revocations",
+      "redirect_hits",
+      "redirect_revisions",
+      "redirects",
+      "role_policies",
+      "roles",
+      "setting_definitions",
+      "setting_revisions",
+      "setting_values_global",
+      "setting_values_user",
+      "setting_values_workspace",
+      "site_title_preexisting_workspaces",
+      "taxonomies",
+      "taxonomy_revisions",
+      "terms",
+      "transform_registry",
+      "trashed_items",
+      "webhook_deliveries",
+      "webhook_subscriptions",
+      "widget_region_bindings",
+      "workspaces"
+    ],
+    "leftOut": [
+      "__drizzle_migrations",
+      "admin_execution_credentials",
+      "api_keys",
+      "custom_credential_sets",
+      "database_transfer_destinations",
+      "external_mcp_servers",
+      "external_mcp_tool_approvals",
+      "gated_mutation_tokens",
+      "identity_users",
+      "media_provider_credentials",
+      "member_magic_tokens",
+      "member_sessions",
+      "oauth_device_authorizations",
+      "oauth_pending_authorizations",
+      "post_search_document",
+      "post_search_fts",
+      "post_search_fts_config",
+      "post_search_fts_data",
+      "post_search_fts_docsize",
+      "post_search_fts_idx",
+      "publish_content_peers",
+      "publish_credential_sets",
+      "sessions",
+      "site_assistant_credentials",
+      "source_control_credential_sets",
+      "sqlite_sequence",
+      "tovu_migrations",
+      "vendor_credential_sets"
+    ],
+    "excluded": [
+      "admin_execution_credentials",
+      "api_keys",
+      "custom_credential_sets",
+      "database_transfer_destinations",
+      "external_mcp_servers",
+      "external_mcp_tool_approvals",
+      "gated_mutation_tokens",
+      "identity_users",
+      "media_provider_credentials",
+      "member_magic_tokens",
+      "member_sessions",
+      "oauth_device_authorizations",
+      "oauth_pending_authorizations",
+      "publish_content_peers",
+      "publish_credential_sets",
+      "sessions",
+      "site_assistant_credentials",
+      "source_control_credential_sets",
+      "vendor_credential_sets"
+    ],
+    "partiallyExcluded": [
+      "setting_revisions",
+      "setting_values_global",
+      "setting_values_user",
+      "setting_values_workspace"
+    ],
+    "keyDependent": true
+  }
+}

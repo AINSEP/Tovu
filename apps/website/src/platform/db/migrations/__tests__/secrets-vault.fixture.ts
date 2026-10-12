@@ -26,8 +26,10 @@ export async function insertFixture(kernel: StorageKernel<unknown>, table: strin
     VALUES (${sql.join(Object.values(values).map(value => sql`${value}`))})`);
 }
 
-export async function vaultFixture(dialect: "sqlite" | "pglite") {
-  const kernel = dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>();
+/** `options.kernel`: an empty database of the given dialect's family (real Postgres for the
+ * `*.postgres.test.ts` parity file); otherwise a fresh in-memory one. */
+export async function vaultFixture(dialect: "sqlite" | "pglite", options: { kernel?: StorageKernel<unknown> } = {}) {
+  const kernel = options.kernel ?? (dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>());
   try {
     await runMigrations(kernel, previous);
     for (const id of ["ws", "ws-empty"]) await insertFixture(kernel, "workspaces", { id, name: id, slug: id, created_at: stamp });
@@ -86,4 +88,73 @@ export async function vaultFixture(dialect: "sqlite" | "pglite") {
     await insertFixture(kernel, "publish_content_peers", { ...common, id: "peer-empty", label: "Empty peer", base_url: "https://empty.example.test", remote_workspace_id: "remote-empty", aad_version: 1 });
     return { kernel, keyring, sealer, envelopes };
   } catch (error) { await kernel.close(); throw error; }
+}
+
+/** Query-parity rows the S2 fixture lacks (DBMERGE-PLAN §2d): a second workspace for isolation, a
+ * second principal per workspace, a vendor group whose rows share `updated_at` (tie-break), two media
+ * providers, two custom categories, a keyed and a keyless peer, MCP servers that are env-only,
+ * oauth-only and bare, and a real `github` source row. Same historical AAD literals as above; rows
+ * are added on the pre-0012 schema so 0012 and the boot re-seal carry them like a live site's.
+ */
+export async function seedParityRows(fixture: { kernel: StorageKernel<unknown>; keyring: InMemoryKeyring; sealer: AesGcmSecretSealer },
+  dialect: "sqlite" | "pglite"): Promise<void> {
+  const { kernel, keyring, sealer } = fixture;
+  const key = await keyring.activeKey({});
+  const bool = (value: boolean) => dialect === "sqlite" ? (value ? 1 : 0) : value;
+  async function seal(plaintext: string, aad: string, prefix = "") {
+    const sealed = await sealer.seal({ plaintext, aad, key });
+    return { [`${prefix}sealed_key_id`]: sealed.keyId, [`${prefix}sealed_ciphertext`]: sealed.ciphertext,
+      [`${prefix}sealed_nonce`]: sealed.nonce, [`${prefix}sealed_alg`]: sealed.alg };
+  }
+  await insertFixture(kernel, "workspaces", { id: "ws2", name: "ws2", slug: "ws2", created_at: stamp });
+  await insertFixture(kernel, "principals", { id: "p2", workspace_id: "ws", kind: "user", display_name: "Second", status: "active", created_at: stamp });
+  await insertFixture(kernel, "principals", { id: "q", workspace_id: "ws2", kind: "user", display_name: "Other", status: "active", created_at: stamp });
+  const ws = { workspace_id: "ws", created_at: stamp, updated_at: stamp };
+  const ws2 = { workspace_id: "ws2", created_at: stamp, updated_at: stamp };
+  await insertFixture(kernel, "site_assistant_credentials", { ...ws2, provider: "openai", model: "ws2-model", base_url: null,
+    ...await seal("ws2-site-token-1234567890", "site-assistant-credential:v1:ws2"), masked: "••••7890", aad_version: 1 });
+  for (const [workspace, principal, token] of [["ws", "p2", "second-personal-token-1234"], ["ws2", "q", "other-personal-token-1234"]] as const) {
+    await insertFixture(kernel, "admin_execution_credentials", { workspace_id: workspace, created_at: stamp, updated_at: stamp, principal_id: principal,
+      protocol: "anthropic", provider_id: `provider-${principal}`, base_url: null, model: `model-${principal}`, max_tokens: null,
+      ...await seal(token, ""), masked: "••••1234", aad_version: 0 });
+  }
+  await insertFixture(kernel, "media_provider_credentials", { ...ws, provider_id: "openai", model: "two-model", base_url: "https://media.example.test",
+    ...await seal("media-two-token-123456", "media-provider-credential:v1:ws:openai"), key_tail: "3456", aad_version: 1 });
+  await insertFixture(kernel, "media_provider_credentials", { ...ws2, provider_id: "media-test", model: "ws2-media", base_url: null,
+    ...await seal("ws2-media-token-123456", "media-provider-credential:v1:ws2:media-test"), key_tail: "3456", aad_version: 1 });
+  await insertFixture(kernel, "custom_credential_sets", { ...ws, id: "custom-ai", label: "AI keys", category: "ai",
+    base_url: "https://ai.example.test", additional_hosts_json: "[]", username: "column-login",
+    ...await seal(JSON.stringify({ token: "custom-ai-token-1234567890" }), "custom-credential-set:v1:ws:custom-ai") });
+  await insertFixture(kernel, "custom_credential_sets", { ...ws2, id: "custom-ws2", label: "Custom", category: "general",
+    base_url: "https://ws2.example.test", additional_hosts_json: "[]", username: null,
+    ...await seal(JSON.stringify({ token: "custom-ws2-token-1234567890" }), "custom-credential-set:v1:ws2:custom-ws2") });
+  for (const [id, label, isDefault] of [["tie-a", "Tie A", false], ["tie-b", "Tie B", true], ["tie-c", "Tie C", false]] as const) {
+    await insertFixture(kernel, "vendor_credential_sets", { ...ws, id, vendor_id: "vendor-tie", label, is_default: bool(isDefault), account_label: null, token_tail: "",
+      ...await seal(JSON.stringify({ vendorId: "vendor-tie", token: `${id}-token-1234567890` }), `vendor-credential-set:v1:ws:vendor-tie:${id}`) });
+  }
+  await insertFixture(kernel, "vendor_credential_sets", { ...ws2, id: "ws2-vendor", vendor_id: "vendor-test", label: "Saved", is_default: bool(true), account_label: null, token_tail: "",
+    ...await seal(JSON.stringify({ vendorId: "vendor-test", token: "ws2-vendor-token-1234567890" }), "vendor-credential-set:v1:ws2:vendor-test:ws2-vendor") });
+  await insertFixture(kernel, "source_control_credential_sets", { ...ws, id: "gh", provider_id: "github", label: "GitHub", is_default: bool(true), account_label: "octo",
+    ...await seal(JSON.stringify({ providerId: "github", token: "ghp-parity-token-1234567890", username: "octo" }), "source-control-credential-set:v1:ws:github:gh") });
+  await insertFixture(kernel, "source_control_credential_sets", { ...ws2, id: "gh-ws2", provider_id: "github", label: "GitHub", is_default: bool(true), account_label: null,
+    ...await seal(JSON.stringify({ providerId: "github", token: "ghp-ws2-token-1234567890" }), "source-control-credential-set:v1:ws2:github:gh-ws2") });
+  await insertFixture(kernel, "publish_content_peers", { ...ws2, id: "peer-ws2", label: "Peer", base_url: "https://ws2-peer.example.test",
+    remote_workspace_id: "remote-ws2", masked: "••••7890", aad_version: 1,
+    ...await seal("ws2-peer-token-1234567890", "publish-content-peer:v1:ws2:peer-ws2") });
+  await insertFixture(kernel, "database_transfer_destinations", { workspace_id: "ws2", host: "ws2.example.test", port: "5433", database_name: "ws2", user_name: "ws2-writer",
+    saved_at: stamp, aad_version: 1, last_run_json: null,
+    ...await seal("postgres://ws2-writer:secret@ws2.example.test:5433/ws2", "database-transfer-destination:v1:ws2") });
+  const mcp = { url: null, command: "mcp-server", args: "[]", allowed_tool_names: "[]", write_allowed_tool_names: "[]",
+    write_grants_updated_by_principal_id: null, write_grants_updated_at: null, oauth_provider_id: null, oauth_grant: null, oauth_client_id: null,
+    oauth_status: null, oauth_expires_at: null, oauth_endpoints_json: null, oauth_scopes_json: null, oauth_refresh_lease_until: null, enabled: bool(true) };
+  await insertFixture(kernel, "external_mcp_servers", { ...ws, ...mcp, server_id: "env-only", label: "Env only", transport: "stdio", auth_mode: "static_env",
+    env_names: '["TOKEN"]', aad_version: 0, oauth_aad_version: 0, ...await seal(JSON.stringify({ TOKEN: "env-only-secret" }), "") });
+  await insertFixture(kernel, "external_mcp_servers", { ...ws, ...mcp, server_id: "oauth-only", label: "OAuth only", transport: "streamable_http", auth_mode: "oauth",
+    url: "https://oauth-only.example.test", command: null, env_names: "[]", oauth_provider_id: "oauth-test", oauth_grant: "authorization_code", oauth_client_id: "client-2",
+    oauth_status: "connected", oauth_endpoints_json: '{"tokenEndpoint":"https://oauth-only.example.test/token"}', oauth_scopes_json: "[]", aad_version: 0, oauth_aad_version: 1,
+    ...await seal(JSON.stringify({ schemaVersion: 1, tokens: { accessToken: "oauth-only-access" } }), "external-mcp-oauth:v1:ws:oauth-only", "oauth_") });
+  await insertFixture(kernel, "external_mcp_servers", { ...ws, ...mcp, server_id: "bare", label: "Bare", transport: "stdio", auth_mode: "none",
+    env_names: "[]", enabled: bool(false), aad_version: 0, oauth_aad_version: 0 });
+  await insertFixture(kernel, "external_mcp_servers", { ...ws2, ...mcp, server_id: "server", label: "Other workspace", transport: "stdio", auth_mode: "static_env",
+    env_names: '["NAME"]', aad_version: 0, oauth_aad_version: 0, ...await seal(JSON.stringify({ NAME: "ws2-env-value" }), "") });
 }
