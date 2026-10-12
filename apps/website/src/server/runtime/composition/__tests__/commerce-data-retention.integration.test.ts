@@ -1,13 +1,19 @@
 import assert from "node:assert/strict";
+import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { initSite } from "#src/platform/site-dir/init-site";
+import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
+import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { openSqliteContentConnection } from "#src/platform/db/sqlite/content-db";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
-import { commerceProducts, commercePrices, commerceOrders, commerceOrderItems, commerceProductImages, commerceWebhookEvents, workspaces, members, media } from "#src/platform/db/schema.sqlite";
+import { workspaces, members, media } from "#src/platform/db/schema.sqlite";
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { CONTENT_MIGRATIONS, runMigrations } from "#src/platform/db/migrations/index";
+import { DROP_EMPTY_CORE_COMMERCE_TABLES_ID } from "#src/platform/db/migrations/0011_drop_empty_core_commerce_tables";
 import { declareDataModule } from "#src/features/plugins/data-module";
 import { LIPAY_MANIFEST } from "#src/features/plugins/lipay/manifest";
 import { STORE_MANIFEST } from "#src/features/plugins/store/manifest";
@@ -26,12 +32,13 @@ function snapshot(filePath: string) {
   try {
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND (name GLOB 'commerce_*' OR name GLOB 'p_lipay__*' OR name GLOB 'p_store__*') ORDER BY name").all() as { name: string }[];
     const rows = tables.map(({ name }) => ({ name, rows: db.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY id`).all() }));
-    const schema = db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE tbl_name GLOB 'commerce_*' OR tbl_name GLOB 'p_lipay__*' OR tbl_name GLOB 'p_store__*' ORDER BY type, name").all();
+    const schema = db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE tbl_name GLOB 'commerce_*' OR tbl_name GLOB 'p_lipay__*' OR tbl_name GLOB 'p_store__*' ORDER BY type, name").all() as Array<{ type: string; name: string; tbl_name: string; sql: string | null }>;
+    const retirement = db.prepare("SELECT id FROM tovu_migrations WHERE id = ?").all(DROP_EMPTY_CORE_COMMERCE_TABLES_ID);
     const bookkeeping = ["_plugin_identity", "_plugin_migrations", "_plugin_migration_journal"].map(name => {
       const exists = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
       return { name, rows: exists ? db.prepare(`SELECT * FROM "${name}" WHERE plugin_id IN ('lipay', 'store') ORDER BY rowid`).all() : [] };
     });
-    return { rows, schema, bookkeeping };
+    return { rows, schema, bookkeeping, retirement };
   } finally { db.close(); }
 }
 
@@ -53,11 +60,13 @@ test("commerce off: a fresh site does not activate payment or store storage", as
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "commerce-fresh-off-"));
   try {
     const dir = path.join(parent, "site");
-    await initSite({ dir, name: "Commerce off", storage: { kind: "sqlite" } });
-    const filePath = path.join(dir, "content.db");
+    const workspace = createSitesWorkspace({}, { homeDir: parent, appDataDir: path.join(parent, "app-data"), env: {}, sourceRoots: [] });
+    workspace.updateConfig({ patch: { databases: "inSite" } });
+    await initSite({ dir, name: "Commerce off", storage: { kind: "sqlite" } }, { workspace });
+    const { contentDbPath: filePath } = resolveSiteDatabasePaths({ dir }, { workspace });
     await bootAndClose(filePath);
     const state = snapshot(filePath);
-    assert.deepEqual(state.rows.filter(({ name }) => name.startsWith("p_lipay__") || name.startsWith("p_store__")), []);
+    assert.deepEqual(state.rows, [], "fresh sites have neither core commerce nor inactive plugin storage");
     assert.deepEqual(state.bookkeeping.flatMap(({ rows }) => rows), []);
     for (const key of ["p_lipay__*", "p_store__*"]) {
       assert.ok(TOVU_CORE_EXTENSION_CLAIMS.some(claim => claim.kind === "table" && claim.key === key), `retain reserved namespace ${key}`);
@@ -65,41 +74,68 @@ test("commerce off: a fresh site does not activate payment or store storage", as
   } finally { fs.rmSync(parent, { recursive: true, force: true }); }
 });
 
-test("commerce off: all eleven historical commerce tables and declaration records survive two real boots unchanged", async () => {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "commerce-retention-"));
-  try {
-    const dir = path.join(parent, "site");
-    await initSite({ dir, name: "Retained commerce", storage: { kind: "sqlite" } });
-    const filePath = path.join(dir, "content.db");
-    const db = openSqliteContentConnection(filePath);
+for (const populated of [false, true]) {
+  test(`commerce off: plugin storage survives; ${populated ? "populated core refuses boot without changes" : "empty core is removed across two boots"}`, async () => {
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "commerce-retention-"));
     try {
-      // Only fixture setup declares the historical modules. Production boot must never invoke
-      // them or reconcile them against an empty/off inventory.
-      for (const decl of [LIPAY_MANIFEST, STORE_MANIFEST]) {
-        const result = await declareDataModule({ db, dbPath: filePath, decl });
-        assert.equal(result.ok, true);
+      const dir = path.join(parent, "site");
+      const workspace = createSitesWorkspace({}, { homeDir: parent, appDataDir: path.join(parent, "app-data"), env: {}, sourceRoots: [] });
+      workspace.updateConfig({ patch: { databases: "inSite" } });
+      await initSite({ dir, name: "Retained commerce", storage: { kind: "sqlite" } }, { workspace });
+      const { contentDbPath: filePath } = resolveSiteDatabasePaths({ dir }, { workspace });
+      // initSite closes its handles. Replace only this temporary fixture's database to model an upgrade.
+      for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${filePath}${suffix}`, { force: true });
+      const db = openSqliteContentConnection(filePath);
+      try {
+        await runMigrations(sqliteKernel<unknown>(db), CONTENT_MIGRATIONS.filter(step => step.id < DROP_EMPTY_CORE_COMMERCE_TABLES_ID));
+        // Only fixture setup declares the historical modules. Production boot must never invoke
+        // them or reconcile them against an empty/off inventory.
+        for (const decl of [LIPAY_MANIFEST, STORE_MANIFEST]) {
+          const result = await declareDataModule({ db, dbPath: filePath, decl });
+          assert.equal(result.ok, true);
+        }
+        db.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();
+        if (populated) {
+          db.insert(members).values({ id: "retained-member", workspaceId: "retained-ws", email: "retained@example.test", status: "active", createdAt: NOW, updatedAt: NOW, version: 9 }).run();
+          db.insert(media).values({ id: "retained-media", workspaceId: "retained-ws", title: "Retained", alt: "Retained", caption: "", credit: "", sourceSha256: "retained-hash", status: "active", createdAt: NOW, updatedAt: NOW, version: 3 }).run();
+          // Historical SQL fixtures use the frozen schema, whose Drizzle exports were retired.
+          db.$client.prepare("INSERT INTO commerce_products (id, workspace_id, name, slug, kind, status, specs_json, created_at, updated_at, version) VALUES ('retained-product', 'retained-ws', 'Retained', 'retained', 'one_time', 'archived', ?, ?, ?, 7)").run(PAYLOAD, NOW, NOW);
+          db.$client.prepare("INSERT INTO commerce_prices (id, workspace_id, product_id, unit_amount_cents, compare_at_amount_cents, currency, status, created_at, version) VALUES ('retained-price', 'retained-ws', 'retained-product', 123, 456, 'usd', 'archived', ?, 4)").run(NOW);
+          db.$client.prepare("INSERT INTO commerce_product_images (id, workspace_id, product_id, media_id, position, created_at) VALUES ('retained-image', 'retained-ws', 'retained-product', 'retained-media', 2, ?)").run(NOW);
+          db.$client.prepare("INSERT INTO commerce_orders (id, workspace_id, member_id, status, currency, total_amount_cents, provider, provider_payment_ref, provider_event_at, placed_at, created_at, updated_at, version) VALUES ('retained-order', 'retained-ws', 'retained-member', 'paid', 'usd', 123, 'lipay', 'retained-provider-ref', ?, ?, ?, ?, 5)").run(NOW, NOW, NOW, NOW);
+          db.$client.prepare("INSERT INTO commerce_order_items (id, workspace_id, order_id, price_id, product_id, description, unit_amount_cents, quantity, currency, created_at) VALUES ('retained-item', 'retained-ws', 'retained-order', 'retained-price', 'retained-product', 'Historical price', 123, 1, 'usd', ?)").run(NOW);
+          db.$client.prepare("INSERT INTO commerce_webhook_events (id, workspace_id, provider, event_id, event_type, event_occurred_at, payload_json, status, received_at, processed_at) VALUES ('retained-event', 'retained-ws', 'lipay', 'retained-provider-event', 'succeeded', ?, ?, 'applied', ?, ?)").run(NOW, PAYLOAD, NOW, NOW);
+        }
+        db.$client.prepare("INSERT INTO p_lipay__payments (id, workspace_id, provider_id, idempotency_key, status, amount_minor, currency, amount_refunded_minor, provider_ref, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("payment", "retained-ws", "lipay", "retained-charge-key", "succeeded", 123, "USD", 12, "retained-ref", 1, 2);
+        db.$client.prepare("INSERT INTO p_lipay__events (id, workspace_id, provider_id, provider_event_id, payment_id, kind, occurred_at, received_at, applied, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("event", "retained-ws", "lipay", "retained-delivery", "payment", "succeeded", 1, 2, 1, PAYLOAD);
+        db.$client.prepare("INSERT INTO p_lipay__refunds (id, workspace_id, payment_id, idempotency_key, amount_minor, currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("refund", "retained-ws", "payment", "retained-refund-key", 12, "USD", "succeeded", 1, 2);
+        db.$client.prepare("INSERT INTO p_store__products (id, title, price, stock, version) VALUES (?, ?, ?, ?, ?)").run("retained-stock", "Historical", 123, 17, 8);
+        db.$client.prepare("INSERT INTO p_store__orders (id, product_id, qty, total, at) VALUES (?, ?, ?, ?, ?)").run("retained-store-order", "retained-stock", 2, 246, 3);
+      } finally { closeSqliteConnection(db); }
+      const before = snapshot(filePath);
+      assert.equal(before.rows.length, 11);
+      assert.deepEqual(before.retirement, []);
+      assert.ok(before.rows.every(({ name, rows }) => rows.length === (name.startsWith("commerce_") && !populated ? 0 : 1)));
+      const retained = {
+        rows: before.rows.filter(({ name }) => !name.startsWith("commerce_")),
+        schema: before.schema.filter(({ tbl_name }) => !tbl_name.startsWith("commerce_")),
+        bookkeeping: before.bookkeeping,
+        retirement: [{ id: DROP_EMPTY_CORE_COMMERCE_TABLES_ID }],
+      };
+      assert.equal(retained.rows.length, 5, "all store/payment plugin tables have rows at risk");
+      for (let boot = 0; boot < 2; boot += 1) {
+        if (populated) {
+          await assert.rejects(bootAndClose(filePath), (error: unknown) => {
+            assert.ok(error instanceof Error);
+            for (const { name } of before.rows.filter(({ name }) => name.startsWith("commerce_"))) assert.ok(error.message.includes(`${name}: 1`), error.message);
+            return true;
+          });
+          assert.deepEqual(snapshot(filePath), before, "refused boot preserves all core/plugin rows, schema and bookkeeping without recording 0011");
+        } else {
+          await bootAndClose(filePath);
+          assert.deepEqual(snapshot(filePath), retained, "empty core is removed; plugin rows, schema and declaration bookkeeping remain exact");
+        }
       }
-      db.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();
-      db.insert(members).values({ id: "retained-member", workspaceId: "retained-ws", email: "retained@example.test", status: "active", createdAt: NOW, updatedAt: NOW, version: 9 }).run();
-      db.insert(media).values({ id: "retained-media", workspaceId: "retained-ws", title: "Retained", alt: "Retained", caption: "", credit: "", sourceSha256: "retained-hash", status: "active", createdAt: NOW, updatedAt: NOW, version: 3 }).run();
-      db.insert(commerceProducts).values({ id: "retained-product", workspaceId: "retained-ws", name: "Retained", slug: "retained", kind: "one_time", status: "archived", specsJson: PAYLOAD, createdAt: NOW, updatedAt: NOW, version: 7 }).run();
-      db.insert(commercePrices).values({ id: "retained-price", workspaceId: "retained-ws", productId: "retained-product", unitAmountCents: 123, compareAtAmountCents: 456, currency: "usd", status: "archived", createdAt: NOW, version: 4 }).run();
-      db.insert(commerceProductImages).values({ id: "retained-image", workspaceId: "retained-ws", productId: "retained-product", mediaId: "retained-media", position: 2, createdAt: NOW }).run();
-      db.insert(commerceOrders).values({ id: "retained-order", workspaceId: "retained-ws", memberId: "retained-member", status: "paid", currency: "usd", totalAmountCents: 123, provider: "lipay", providerPaymentRef: "retained-provider-ref", providerEventAt: NOW, placedAt: NOW, createdAt: NOW, updatedAt: NOW, version: 5 }).run();
-      db.insert(commerceOrderItems).values({ id: "retained-item", workspaceId: "retained-ws", orderId: "retained-order", priceId: "retained-price", productId: "retained-product", description: "Historical price", unitAmountCents: 123, quantity: 1, currency: "usd", createdAt: NOW }).run();
-      db.insert(commerceWebhookEvents).values({ id: "retained-event", workspaceId: "retained-ws", provider: "lipay", eventId: "retained-provider-event", eventType: "succeeded", eventOccurredAt: NOW, payloadJson: PAYLOAD, status: "applied", receivedAt: NOW, processedAt: NOW }).run();
-      db.$client.prepare("INSERT INTO p_lipay__payments (id, workspace_id, provider_id, idempotency_key, status, amount_minor, currency, amount_refunded_minor, provider_ref, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("payment", "retained-ws", "lipay", "retained-charge-key", "succeeded", 123, "USD", 12, "retained-ref", 1, 2);
-      db.$client.prepare("INSERT INTO p_lipay__events (id, workspace_id, provider_id, provider_event_id, payment_id, kind, occurred_at, received_at, applied, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("event", "retained-ws", "lipay", "retained-delivery", "payment", "succeeded", 1, 2, 1, PAYLOAD);
-      db.$client.prepare("INSERT INTO p_lipay__refunds (id, workspace_id, payment_id, idempotency_key, amount_minor, currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("refund", "retained-ws", "payment", "retained-refund-key", 12, "USD", "succeeded", 1, 2);
-      db.$client.prepare("INSERT INTO p_store__products (id, title, price, stock, version) VALUES (?, ?, ?, ?, ?)").run("retained-stock", "Historical", 123, 17, 8);
-      db.$client.prepare("INSERT INTO p_store__orders (id, product_id, qty, total, at) VALUES (?, ?, ?, ?, ?)").run("retained-store-order", "retained-stock", 2, 246, 3);
-    } finally { closeSqliteConnection(db); }
-    const before = snapshot(filePath);
-    assert.equal(before.rows.length, 11);
-    assert.ok(before.rows.every(({ rows }) => rows.length === 1), "every retained table has data at risk");
-    for (let boot = 0; boot < 2; boot += 1) {
-      await bootAndClose(filePath);
-      assert.deepEqual(snapshot(filePath), before, "off boot cannot mutate rows, schema or commerce declaration bookkeeping");
-    }
-  } finally { fs.rmSync(parent, { recursive: true, force: true }); }
-});
+    } finally { fs.rmSync(parent, { recursive: true, force: true }); }
+  });
+}

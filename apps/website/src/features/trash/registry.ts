@@ -176,9 +176,9 @@ export function buildTrashRegistry(): TrashRegistry {
         versionColumn: "version",
         touchColumn: "updated_at",
         display: { title: "members.email" },
-        // Financial truth must survive account removal. Refuse these members rather than cascade
-        // orders or leave the 60-day sweeper fighting commerce_orders' RESTRICT foreign key.
-        blocker: { table: "commerce_orders", parentIdColumn: "member_id", code: "MEMBER_HAS_ORDERS" },
+        // Financial truth must survive account removal. The former core-order blocker guarded
+        // a RESTRICT FK, but that catalog is unwired and retiring; plugin orders remain owned
+        // by the store and are never part of this member cascade.
         purgeFirst: [
           { table: "member_sessions", parentIdColumn: "member_id" },
           { table: "member_magic_tokens", parentIdColumn: "member_id" },

@@ -1,5 +1,4 @@
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
-import { toSiteProducts, type CommerceProductRepoPort, type CommercePriceRepoPort } from "@jini-ai/commerce";
 import type { StoreApi } from "@jini-ai/commerce/store";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
@@ -41,43 +40,25 @@ function cacheControlFor(req: Parameters<typeof isStaticExportRequest>[0]): stri
 }
 
 /**
- * 2026-08-12 (wiring products into template render data): Commerce's real catalog
- * (`deps.commerceProductRepo`/`commercePriceRepo`, both optional — see `RouteDeps`'s own doc)
- * takes priority when it has at least one active, priced product for this workspace; the sample
- * `store` plugin is the fallback, preserving the existing demo experience when the real catalog
- * is empty (the templates' own "No products available yet" copy already anticipates exactly this
- * case). Workspace-scoped throughout — `commerceProductRepo.listActive`/`commercePriceRepo
- * .listByProduct` both take `deps.workspaceId` as a required query parameter, the same isolation
- * every other repo call in this file already relies on; a public site render can never see
- * another workspace's catalog through this path.
+ * The store plugin owns the rendered catalog. The former optional core-catalog path was unwired
+ * in production; removing it preserves the existing plugin experience and leaves the parked
+ * catalog library in Jini. An absent or empty store still uses the templates' own "No products
+ * available yet" copy. Catalog isolation belongs to the injected store, never a second catalog
+ * lookup in this rendering adapter.
  *
- * `images`/`stock` are deliberately absent from Commerce-sourced products this pass — see
- * `features/commerce/storefront.ts`'s file header for why (the ADR-027 media-transform pipeline
- * for the former, no inventory tracking at all for the latter). The templates already degrade
- * gracefully for both.
+ * The parked core mapper deliberately omitted images (ADR-027 media-transform pipeline) and
+ * stock (no inventory tracking). Templates must still degrade gracefully when optional product
+ * data is absent.
  */
-/** Exported (2026-08-15, static exporter) so `export/route-manifest.ts` enumerates the SAME
- *  product set `/products`/`/products/:id` actually render — one source of truth for the
- *  Commerce-vs-sample-store fallback below, rather than a second copy that could drift from it. */
 export interface CommerceSiteAdapterDeps extends RouteDeps {
-  commerceProductRepo?: CommerceProductRepoPort;
-  commercePriceRepo?: CommercePriceRepoPort;
   store?: StoreApi;
 }
 
+/** Exported (2026-08-15, static exporter) so `export/route-manifest.ts` enumerates the SAME
+ *  product set `/products`/`/products/:id` actually render — one source of truth for the
+ *  store-plugin selection below, rather than a second copy that could drift from it.
+ *  Returns plugin products unchanged, or an empty list without a store; store errors propagate. */
 export async function resolveStorefrontProducts(deps: CommerceSiteAdapterDeps): Promise<SiteProduct[]> {
-  const { commerceProductRepo, commercePriceRepo, workspaceId } = deps;
-  if (commerceProductRepo && commercePriceRepo) {
-    const products = await commerceProductRepo.listActive({ workspaceId });
-    const withPrices = await Promise.all(
-      products.map(async (product) => ({
-        product,
-        prices: await commercePriceRepo.listByProduct({ workspaceId, productId: product.id }),
-      }))
-    );
-    const mapped = toSiteProducts({ items: withPrices });
-    if (mapped.length > 0) return mapped;
-  }
   return (await deps.store?.listProducts()) ?? [];
 }
 

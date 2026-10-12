@@ -7,7 +7,6 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { InMemoryPresentationSettingsRepo, type PresentationSettingsRecord } from "#src/features/presentation/index";
-import type { CommerceProductRecord, CommerceProductRepoPort, CommercePriceRepoPort } from "@jini-ai/commerce";
 import { NO_THEME_ID } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
@@ -48,25 +47,16 @@ function closeServer(server: ReturnType<typeof createServer>) {
 }
 
 async function startThemelessServer() {
-  const product: CommerceProductRecord = {
-    id: "themeless-product", workspaceId: WORKSPACE_ID, name: "Themeless Canvas Tote", slug: "themeless-canvas-tote",
-    kind: "one_time", status: "active", createdAt: "2026-09-12T00:00:00.000Z", updatedAt: "2026-09-12T00:00:00.000Z", version: 1,
-  };
-  const commerceProductRepo: CommerceProductRepoPort = {
-    findById: async ({ workspaceId, id }) => workspaceId === WORKSPACE_ID && id === product.id ? product : null,
-    findBySlug: async ({ workspaceId, slug }) => workspaceId === WORKSPACE_ID && slug === product.slug ? product : null,
-    listActive: async ({ workspaceId }) => workspaceId === WORKSPACE_ID ? [product] : [],
-    save: async () => { throw new Error("not used by this read-only route"); },
-  };
-  const commercePriceRepo: CommercePriceRepoPort = {
-    findById: async () => null,
-    listByProduct: async ({ workspaceId, productId }) => workspaceId === WORKSPACE_ID && productId === product.id ? [{
-      id: "themeless-price", workspaceId: WORKSPACE_ID, productId: product.id, unitAmountCents: 2700,
-      currency: "usd", status: "active", createdAt: "2026-09-12T00:00:00.000Z", version: 1,
-    }] : [],
-    save: async () => { throw new Error("not used by this read-only route"); },
-  };
-  return startServer({ presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [NO_THEME_SETTINGS] }), commerceProductRepo, commercePriceRepo });
+  return startServer({
+    presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [NO_THEME_SETTINGS] }),
+    store: {
+      listProducts: async () => [{
+        id: "themeless-product", slug: "themeless-canvas-tote", title: "Themeless Canvas Tote",
+        price: 2700, stock: 5, version: 1,
+      }],
+      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
+    },
+  });
 }
 
 test("GET / with the theme off serves a real, unstyled page — 200, not the no-themes 500", async (t) => {

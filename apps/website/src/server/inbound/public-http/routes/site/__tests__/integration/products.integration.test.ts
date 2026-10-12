@@ -3,10 +3,9 @@ import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { CommercePriceRecord, CommercePriceRepoPort, CommerceProductRecord, CommerceProductRepoPort } from "@jini-ai/commerce";
+import type { Product, StoreApi } from "@jini-ai/commerce/store";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file Integration-tier coverage for the public `/products`/`/products/:id` routes — through the
@@ -15,27 +14,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  * already cover through this real-app path.
  */
 
-const WORKSPACE_ID = "workspace-local";
-const NOW = "2026-08-18T00:00:00.000Z";
-
-function fakeProductRepo(products: CommerceProductRecord[]): CommerceProductRepoPort {
+function fakeStore(required: { products: Product[] }, _optional: Record<string, never> = {}): StoreApi {
   return {
-    findById: async ({ id }) => products.find((p) => p.id === id) ?? null,
-    findBySlug: async ({ slug }) => products.find((p) => p.slug === slug) ?? null,
-    listActive: async ({ workspaceId }) => products.filter((p) => p.workspaceId === workspaceId && p.status === "active"),
-    save: async () => {
-      throw new Error("not implemented in this fake");
-    },
-  };
-}
-
-function fakePriceRepo(pricesByProduct: Record<string, CommercePriceRecord[]>): CommercePriceRepoPort {
-  return {
-    findById: async () => null,
-    listByProduct: async ({ productId }) => pricesByProduct[productId] ?? [],
-    save: async () => {
-      throw new Error("not implemented in this fake");
-    },
+    listProducts: async () => required.products,
+    checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
   };
 }
 
@@ -43,30 +25,13 @@ function testDeps(overrides: Partial<CommerceSiteTestDeps> = {}): CommerceSiteTe
   return { ...createRouteDeps(), ...overrides };
 }
 
-test("products: a Commerce-sourced product renders through the real composed app", async (t) => {
-  const product: CommerceProductRecord = {
-    id: "prod-int-1",
-    workspaceId: WORKSPACE_ID,
-    name: "Integration Tee",
-    slug: "integration-tee",
-    kind: "one_time",
-    status: "active",
-    createdAt: NOW,
-    updatedAt: NOW,
-    version: 1,
-  };
-  const price: CommercePriceRecord = {
-    id: "price-int-1",
-    workspaceId: WORKSPACE_ID,
-    productId: "prod-int-1",
-    unitAmountCents: 4200,
-    currency: "usd",
-    status: "active",
-    createdAt: NOW,
-    version: 1,
+test("products: a store-plugin product renders through the real composed app", async (t) => {
+  const product: Product = {
+    id: "prod-int-1", slug: "integration-tee", title: "Integration Tee",
+    price: 4200, stock: 5, version: 1,
   };
   const app = createApp(
-    testDeps({ commerceProductRepo: fakeProductRepo([product]), commercePriceRepo: fakePriceRepo({ "prod-int-1": [price] }) })
+    testDeps({ store: fakeStore({ products: [product] }) })
   );
   const baseUrl = await startTestServer(app, t);
 
@@ -79,11 +44,9 @@ test("products: a Commerce-sourced product renders through the real composed app
   assert.match(await detail.text(), /Integration Tee/);
 });
 
-test("products: with no Commerce repos wired, falls back to the sample store plugin", async (t) => {
+test("products: the sample store plugin catalog renders through the composed app", async (t) => {
   const app = createApp(
     testDeps({
-      commerceProductRepo: undefined,
-      commercePriceRepo: undefined,
       store: {
         listProducts: async () => [{ id: "sample-1", slug: "sample-1", title: "Sample Fallback Product", price: 999, stock: 1, version: 0 }],
         checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
@@ -97,38 +60,29 @@ test("products: with no Commerce repos wired, falls back to the sample store plu
   assert.match(await res.text(), /Sample Fallback Product/);
 });
 
-test("products: Commerce repos are wired but have zero active priced products, falls back to the sample store plugin (integration tier's own coverage of this branch, not just unit's)", async (t) => {
-  const app = createApp(
-    testDeps({
-      commerceProductRepo: fakeProductRepo([]),
-      commercePriceRepo: fakePriceRepo({}),
-      store: {
-        listProducts: async () => [{ id: "int-fallback-1", slug: "int-fallback-1", title: "Integration Fallback Product", price: 500, stock: 2, version: 0 }],
-        checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
-      },
-    })
-  );
+test("products: an empty store plugin catalog renders an empty grid through the composed app", async (t) => {
+  const app = createApp(testDeps({ store: fakeStore({ products: [] }) }));
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/products`);
   assert.equal(res.status, 200);
-  assert.match(await res.text(), /Integration Fallback Product/);
+  assert.match(await res.text(), /No products available yet\./);
 });
 
-test("products: neither Commerce nor a store plugin is wired at all — resolveStorefrontProducts's `deps.store?.listProducts() ?? []` fallback yields an empty grid, not a crash", async (t) => {
+test("products: no store plugin is wired — resolveStorefrontProducts's `deps.store?.listProducts() ?? []` fallback yields an empty grid, not a crash", async (t) => {
   const app = createApp(
-    testDeps({ commerceProductRepo: undefined, commercePriceRepo: undefined, store: undefined })
+    testDeps({ store: undefined })
   );
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/products`);
   assert.equal(res.status, 200, await res.clone().text());
-  assert.doesNotMatch(await res.text(), /Sample Teacup|Integration Tee|No Commerce Wired/);
+  assert.doesNotMatch(await res.text(), /Sample Teacup|Integration Tee|Sample Fallback Product/);
 });
 
 test("products: an unknown product id 404s through the real composed app", async (t) => {
   const app = createApp(
-    testDeps({ commerceProductRepo: fakeProductRepo([]), commercePriceRepo: fakePriceRepo({}), store: { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) } })
+    testDeps({ store: fakeStore({ products: [] }) })
   );
   const baseUrl = await startTestServer(app, t);
 
@@ -155,7 +109,7 @@ function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: 
 
 test("products: /products/:id's `req.params.id ?? \"\"` fallback, forced via a direct handler call on the REAL composed app with id omitted -- still 404s, not a crash", async () => {
   const app = createApp(
-    testDeps({ commerceProductRepo: fakeProductRepo([]), commercePriceRepo: fakePriceRepo({}) })
+    testDeps({ store: fakeStore({ products: [] }) })
   );
   const handler = extractHandler(app, "/products/:id");
   let statusCode: number | undefined;
@@ -181,31 +135,13 @@ test("products: /products/:id's `req.params.id ?? \"\"` fallback, forced via a d
 });
 
 test("products: 'No themes installed' 500s when no theme is discovered (both routes)", async (t) => {
-  const product: CommerceProductRecord = {
-    id: "prod-int-2",
-    workspaceId: WORKSPACE_ID,
-    name: "No Theme Product",
-    slug: "no-theme-product",
-    kind: "one_time",
-    status: "active",
-    createdAt: NOW,
-    updatedAt: NOW,
-    version: 1,
-  };
-  const price: CommercePriceRecord = {
-    id: "price-int-2",
-    workspaceId: WORKSPACE_ID,
-    productId: "prod-int-2",
-    unitAmountCents: 1000,
-    currency: "usd",
-    status: "active",
-    createdAt: NOW,
-    version: 1,
+  const product: Product = {
+    id: "prod-int-2", slug: "no-theme-product", title: "No Theme Product",
+    price: 1000, stock: 5, version: 1,
   };
   const app = createApp(
     testDeps({
-      commerceProductRepo: fakeProductRepo([product]),
-      commercePriceRepo: fakePriceRepo({ "prod-int-2": [price] }),
+      store: fakeStore({ products: [product] }),
       themes: [],
     })
   );
@@ -221,17 +157,10 @@ test("products: 'No themes installed' 500s when no theme is discovered (both rou
 });
 
 test("products: an unexpected exception 500s with 'Site error' (both routes)", async (t) => {
-  const throwingRepo: CommerceProductRepoPort = {
-    listActive: async () => {
-      throw new Error("boom");
-    },
-    findById: async () => null,
-    findBySlug: async () => null,
-    save: async () => {
-      throw new Error("not implemented in this fake");
-    },
-  };
-  const app = createApp(testDeps({ commerceProductRepo: throwingRepo, commercePriceRepo: fakePriceRepo({}) }));
+  const app = createApp(testDeps({ store: {
+    listProducts: async () => { throw new Error("boom"); },
+    checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
+  } }));
   const baseUrl = await startTestServer(app, t);
 
   const list = await fetch(`${baseUrl}/products`);

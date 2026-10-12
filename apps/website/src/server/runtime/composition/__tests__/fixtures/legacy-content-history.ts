@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import assert from "node:assert/strict";
 
 import type Database from "better-sqlite3";
 
@@ -29,6 +30,80 @@ export const LEGACY_CHAT_TABLES: ReadonlySet<string> = new Set(constList("0002_d
 /** Step 0004 drops these unconditionally. */
 const UNUSED_DEPLOYMENT_TABLES = constList("0004_drop_unused_deployment_tables.ts", "TABLES_IN_DROP_ORDER");
 
+/** Step 0011 refuses populated core commerce, so successful-upgrade fixtures leave these empty. */
+export const EMPTY_CORE_COMMERCE_TABLES: ReadonlySet<string> = new Set(
+  constList("0011_drop_empty_core_commerce_tables.ts", "CORE_COMMERCE_TABLES_IN_DROP_ORDER")
+);
+
+// 0012 folds these into the vault; pending redirect OAuth states are intentionally retired.
+const VAULT_SOURCE_KINDS: Readonly<Record<string, string>> = {
+  site_assistant_credentials: "site-assistant", admin_execution_credentials: "personal-execution",
+  media_provider_credentials: "media-provider", custom_credential_sets: "custom",
+  publish_content_peers: "publish-peer", database_transfer_destinations: "database-destination",
+  vendor_credential_sets: "vendor", source_control_credential_sets: "source-control", publish_credential_sets: "vendor",
+};
+
+/** Verify relocated secrets against the pristine history, including colliding identities and
+ * defaults. A missing/mis-scoped row or changed ciphertext/metadata fails; obsolete token hints
+ * are deliberately withheld until the payload is opened and its length is known.
+ * Reads only, throws assertion errors. O(n²) matching for the small historical fixtures. */
+export function assertVaultPreserved(
+  { original, migrated }: { original: Database.Database; migrated: Database.Database }, _options = {},
+): void {
+  type Row = Record<string, unknown>;
+  type VaultRow = Row & { meta: Record<string, unknown> & { migration: Row; legacyAad: Row } };
+  const vaulted: VaultRow[] = (migrated.prepare("SELECT * FROM secrets_vault").all() as Row[])
+    .map(row => ({ ...row, meta: JSON.parse(String(row.meta)) }));
+  const sourceTables = new Set((original.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]).map(row => row.name));
+  let expectedRows = 0;
+  const sourcesByKind: readonly (readonly [string, string])[] = [
+    ...Object.entries(VAULT_SOURCE_KINDS), ["external_mcp_servers", "mcp-env"], ["external_mcp_servers", "mcp-auth"],
+  ];
+  for (const [table, kind] of sourcesByKind) {
+    if (!sourceTables.has(table)) continue;
+    const prefix = kind === "mcp-auth" ? "oauth_" : "";
+    const sources = (original.prepare(`SELECT * FROM "${table}"`).all() as Row[])
+      .filter(row => table !== "external_mcp_servers" || row[`${prefix}sealed_ciphertext`] !== null);
+    expectedRows += sources.length;
+    for (const source of sources) {
+      const provider = source[kind === "mcp-auth" ? "oauth_provider_id" : table === "site_assistant_credentials" ? "provider" : table === "vendor_credential_sets" ? "vendor_id" : "provider_id"] ?? null;
+      const matches = vaulted.filter(row => row.kind === kind && row.workspace_id === source.workspace_id &&
+        row.meta.migration.table === table && row.meta.migration.id === (source.id ?? source.workspace_id) &&
+        row.meta.migration.principalId === (source.principal_id ?? null) && row.meta.migration.provider === provider &&
+        row.meta.migration.serverId === (source.server_id ?? null));
+      assert.equal(matches.length, 1, `${table}/${source.id ?? source.workspace_id}/${kind}: one preserved vault row`);
+      const row = matches[0]!;
+      assert.equal(row.owner_key, source.server_id ?? "tovu");
+      assert.equal(row.principal_id, source.principal_id ?? null);
+      assert.equal(row.provider, provider);
+      for (const field of ["sealed_key_id", "sealed_ciphertext", "sealed_nonce", "sealed_alg"]) assert.equal(row[field], source[`${prefix}${field}`], `${table}.${prefix}${field}`);
+      assert.equal(row.meta.legacyAad.aadVersion, Number(source[`${prefix}aad_version`] ?? 1));
+      assert.equal(row.meta.migration.originalLabel, source.label ?? null);
+      assert.equal(row.meta.migration.originalDefault, source.is_default === 1);
+      assert.equal(row.meta.migration.mappedId, row.id);
+      assert.equal(row.meta.migration.mappedLabel, row.label);
+      assert.equal(row.created_at, source.saved_at ?? source.created_at);
+      assert.equal(row.updated_at, source.saved_at ?? source.updated_at);
+      for (const [field, target] of Object.entries({ base_url: "baseUrl", model: "model", protocol: "protocol", max_tokens: "maxTokens",
+        category: "category", username: "username", remote_workspace_id: "remoteWorkspaceId", account_label: "accountLabel" })) {
+        if (field in source && table !== "external_mcp_servers") assert.deepEqual(row.meta[target], source[field], `${table}.${field}`);
+      }
+      if (table === "custom_credential_sets") assert.deepEqual(row.meta.additionalHosts, source.additional_hosts_json === null ? [] : JSON.parse(String(source.additional_hosts_json)));
+      if (table === "database_transfer_destinations") {
+        assert.deepEqual(row.meta.description, { host: source.host, port: source.port, database: source.database_name, user: source.user_name });
+        assert.deepEqual(row.meta.lastRun, source.last_run_json === null ? null : JSON.parse(String(source.last_run_json)));
+      }
+      if (table === "external_mcp_servers") {
+        const server = migrated.prepare("SELECT env_secret_id, oauth_secret_id FROM external_mcp_servers WHERE workspace_id=? AND server_id=?").get(source.workspace_id, source.server_id) as Row;
+        assert.equal(server[kind === "mcp-env" ? "env_secret_id" : "oauth_secret_id"], row.id);
+      }
+      assert.equal(row.last4, null);
+      assert.equal(row.token_length, null);
+    }
+  }
+  assert.equal(vaulted.length, expectedRows, "every legacy credential/envelope moves exactly once");
+}
+
 interface JournalEntry {
   tag: string;
 }
@@ -43,18 +118,25 @@ const statementTargets = (sources: readonly string[], pattern: RegExp): Set<stri
 
 /**
  * Tables a boot of a history with `appliedEntries` drizzle entries may remove: the empty legacy chat
- * tables (0002), the unused deployment tables (0004), and every `DROP TABLE` in the drizzle tail the
+ * tables (0002), empty core commerce (0011), folded credentials/pending OAuth states (0012),
+ * the unused deployment tables (0004), and every `DROP TABLE` in the drizzle tail the
  * boot applies. A drizzle table rebuild drops and re-creates the same name, so it never shows up as
  * removed — only real drops can.
  */
 export function allowedRemovals(appliedEntries: number): Set<string> {
   const dropped = statementTargets(drizzleTail(appliedEntries), /^\s*DROP TABLE (?:IF EXISTS )?[`"]?(\w+)[`"]?/gim);
-  return new Set([...LEGACY_CHAT_TABLES, ...UNUSED_DEPLOYMENT_TABLES, ...dropped]);
+  return new Set([...LEGACY_CHAT_TABLES, ...EMPTY_CORE_COMMERCE_TABLES, ...UNUSED_DEPLOYMENT_TABLES,
+    ...Object.keys(VAULT_SOURCE_KINDS), "oauth_pending_authorizations", ...dropped]);
 }
 
 /** Tables the drizzle tail rewrites rows of (`UPDATE`/`DELETE FROM`): their content may change. */
 export function rewrittenByTail(appliedEntries: number): Set<string> {
   return statementTargets(drizzleTail(appliedEntries), /^\s*(?:UPDATE|DELETE FROM) [`"]?(\w+)[`"]?/gim);
+}
+
+/** Columns the drizzle tail ADDs to `table`: a site behind head gains them on its first boot. */
+export function addedByTail(appliedEntries: number, table: string): Set<string> {
+  return statementTargets(drizzleTail(appliedEntries), new RegExp(`^\\s*ALTER TABLE [\`"]?${table}[\`"]? ADD (?:COLUMN )?[\`"]?(\\w+)[\`"]?`, "gim"));
 }
 
 export interface TableContent {
@@ -125,8 +207,8 @@ const COLUMN_OVERRIDES: Record<string, (n: number) => unknown> = {
 
 /**
  * Puts two distinctive rows into every ordinary table of a generated history, except the legacy
- * chat tables (left empty, as every real site had them after the two-database split — step 0002
- * drops them only when empty) and FTS virtual/shadow tables (their triggers fill them). Key and
+ * chat tables (left empty after the two-database split) and retired core commerce (0011 refuses
+ * rows; its own step/retention tests cover refusal), plus FTS virtual/shadow tables (their triggers fill them). Key and
  * foreign-key columns get matching `k1`/`k2` (or 1/2) values so every reference resolves; other
  * columns get `"<table>.<column>.<n>"` — a JSON string, so no step that rewrites invalid JSON
  * (0003) mistakes it for legacy data. A CHECK those values cannot satisfy needs an entry in
@@ -150,7 +232,7 @@ export function fillEveryTable(db: Database.Database, optional: { except?: reado
   }
   const filled: string[] = [];
   for (const { name, sql } of tables) {
-    if (optional.except?.includes(name) || LEGACY_CHAT_TABLES.has(name) || virtual.includes(name) || virtual.some((v) => name.startsWith(`${v}_`))) continue;
+    if (optional.except?.includes(name) || LEGACY_CHAT_TABLES.has(name) || EMPTY_CORE_COMMERCE_TABLES.has(name) || virtual.includes(name) || virtual.some((v) => name.startsWith(`${v}_`))) continue;
     const columns = db.prepare(`SELECT name, type FROM pragma_table_info(?) ORDER BY cid`).all(name) as Array<{ name: string; type: string }>;
     for (let n = 1; n <= 2; n++) {
       const value = (column: (typeof columns)[number]): unknown => {

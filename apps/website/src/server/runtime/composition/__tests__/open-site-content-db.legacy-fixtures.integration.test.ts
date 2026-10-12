@@ -10,7 +10,7 @@ import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "../open-site-content-db.js";
-import { LEGACY_CHAT_TABLES, allowedRemovals, contentOver, fillEveryTable, missingRows, readContent } from "./fixtures/legacy-content-history.js";
+import { EMPTY_CORE_COMMERCE_TABLES, LEGACY_CHAT_TABLES, allowedRemovals, assertVaultPreserved, contentOver, fillEveryTable, missingRows, readContent } from "./fixtures/legacy-content-history.js";
 
 const drizzleDir = path.resolve(import.meta.dirname, "../../../../platform/db/drizzle");
 const sha = (file: string) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
@@ -34,8 +34,8 @@ function legacyFile(file: string, count: number, duplicate: boolean): void {
       db.exec("CREATE TABLE p_history_probe (id TEXT PRIMARY KEY, value TEXT NOT NULL)");
       db.prepare("INSERT INTO p_history_probe VALUES (?, ?)").run("existing-record", `preserve history ${count}`);
     })();
-    // Every core table holds rows, so a tail step that rebuilds a table (copy -> drop -> rename) has
-    // real content to lose, and a dropped table is a populated one (F2248/F2249).
+    // Surviving core tables hold rows, so tail rebuilds have content to lose (F2248/F2249).
+    // Retired core commerce stays empty; 0011 refusal coverage lives in its step/retention tests.
     fillEveryTable(db, { except: ["p_history_probe"] });
   } finally {
     db.close();
@@ -102,10 +102,12 @@ for (const fixture of [
         const before = readContent(original);
         const after = readContent(db);
         const allowed = allowedRemovals(fixture.count);
+        assertVaultPreserved({ original, migrated: db });
         for (const [table, content] of Object.entries(before)) {
           if (after[table] === undefined) {
             assert.ok(allowed.has(table), `${table} vanished, but no migration drops it`);
             if (LEGACY_CHAT_TABLES.has(table)) assert.equal(content.rows, 0, `0002 drops ${table} only when empty`);
+            if (EMPTY_CORE_COMMERCE_TABLES.has(table)) assert.equal(content.rows, 0, `0011 drops ${table} only when empty`);
             continue;
           }
           if (table === "__drizzle_migrations") continue;

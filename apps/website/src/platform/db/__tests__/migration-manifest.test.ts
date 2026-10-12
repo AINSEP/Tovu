@@ -49,6 +49,15 @@ test("classifying every column of every core table does not throw — the real s
   assert.ok(all.length > 500, `sanity: expected several hundred columns, got ${all.length}`);
 });
 
+test("the current core transfer manifest excludes the six retired commerce tables and retains held newsletter storage", () => {
+  const tables = new Set(collectCoreTables().map(({ table }) => getTableConfig(table).name));
+  for (const name of [
+    "commerce_order_items", "commerce_product_images", "commerce_webhook_events",
+    "commerce_orders", "commerce_prices", "commerce_products",
+  ]) assert.equal(tables.has(name), false, name);
+  for (const name of ["newsletter_campaigns", "newsletter_campaign_revisions"]) assert.ok(tables.has(name), name);
+});
+
 /**
  * Every column of every core table, derived DIRECTLY via `getTableConfig()` — deliberately NOT via
  * `classifyAllCoreColumns()`/`classifyCoreColumn()`, which throws for any autoincrement PK missing
@@ -193,22 +202,17 @@ test("entry_revisions.seq's rationale correctly scopes to entries, not posts —
 test("boolean-flag classification matches exactly the SQLiteBoolean columns in schema.sqlite.ts, not the many plain-integer 0/1 flags", () => {
   const all = classifyAllCoreColumns();
   const booleans = all.filter((c) => c.columnClass.kind === "boolean-flag").map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
-  // `publish_credential_sets.is_default`/`source_control_credential_sets.is_default` (2026-08-15),
-  // `publish_history.reachable` (2026-08-16), and `vendor_credential_sets.is_default` (its own doc
-  // comment in schema.sqlite.ts: "same invariant... the two predecessor tables' own isDefault columns
-  // document" — a third sibling of the two credential-set columns above) post-date this test's
-  // original hardcoded set — added here rather than left stale, since this assertion's whole point
-  // is to track real schema.sqlite.ts state.
+  // 0012 consolidates the three credential default flags into one vault default flag.
+  // Keep an explicit set here so adding or retiring a boolean requires a reviewed transform.
   assert.deepEqual(
     new Set(booleans),
     new Set([
       "posts.overrides_theme_page",
+      "posts.show_author",
       "plugin_activations.enabled",
       "external_mcp_servers.enabled",
-      "publish_credential_sets.is_default",
-      "source_control_credential_sets.is_default",
       "publish_history.reachable",
-      "vendor_credential_sets.is_default",
+      "secrets_vault.is_default",
     ])
   );
 
@@ -316,10 +320,11 @@ test("REVIEWED_JSON_COLUMNS: every entry actually classifies json-text via class
 // `allowed_tool_names`, but its own REVIEWED_JSON_COLUMNS entry was never added at the time — the
 // same naming-convention gap the round-3 audit exists to catch, just on a column the round-3 scan
 // predates rather than missed.
-test("REVIEWED_JSON_COLUMNS matches exactly the five columns known-reviewed today (the 2026-08-12 round-3 audit's five, minus the dropped composio_config.auth_config_ids, plus write_allowed_tool_names) — not more, not fewer", () => {
+test("REVIEWED_JSON_COLUMNS matches the current reviewed JSON metadata and MCP arrays", () => {
   assert.deepEqual(
     new Set(Object.keys(REVIEWED_JSON_COLUMNS)),
     new Set([
+      "secrets_vault.meta",
       "posts.ext",
       "external_mcp_servers.args",
       "external_mcp_servers.allowed_tool_names",

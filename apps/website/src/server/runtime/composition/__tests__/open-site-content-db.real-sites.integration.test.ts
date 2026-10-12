@@ -11,7 +11,7 @@ import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "../open-site-content-db.js";
-import { LEGACY_CHAT_TABLES, allowedRemovals, contentOver, missingRows, readContent, rewrittenByTail, type TableContent } from "./fixtures/legacy-content-history.js";
+import { EMPTY_CORE_COMMERCE_TABLES, LEGACY_CHAT_TABLES, addedByTail, allowedRemovals, assertVaultPreserved, contentOver, missingRows, readContent, rewrittenByTail, type TableContent } from "./fixtures/legacy-content-history.js";
 
 /**
  * @file R1h: a site's boot (`openSiteContentDb`: open → recover → migration runner → prepare) on
@@ -152,17 +152,32 @@ describe("site boot on copies of real SQLite sites (R1h)", () => {
       const original = new Database(pristine, { readonly: true });
       const migrated = new Database(dbPath, { readonly: true });
       try {
+        assertVaultPreserved({ original, migrated });
+        const repairIds = ["tovu.internal.boot_repair.unreadable_owner_entries", "tovu.internal.boot_repair.footer_page_links"];
+        const repairMarkers = (db: Database.Database) => (db.prepare("SELECT setting_id FROM setting_values_global WHERE setting_id IN (?, ?) ORDER BY setting_id").all(...repairIds) as { setting_id: string }[]).map(row => row.setting_id);
+        assert.deepEqual(repairMarkers(migrated), [...repairIds].sort(), "both once-per-site repairs record completion");
         for (const [table, columns] of Object.entries(before.columns)) {
           if (afterFirst.columns[table] === undefined) {
             assert.ok(allowed.has(table), `${table} vanished, but no migration drops it`);
             if (LEGACY_CHAT_TABLES.has(table)) assert.equal(before.rows[table], 0, `0002 drops ${table} only when empty`);
+            if (EMPTY_CORE_COMMERCE_TABLES.has(table)) assert.equal(before.rows[table], 0, `0011 drops ${table} only when empty`);
             continue;
           }
-          if (atHead) assert.equal(afterFirst.columns[table], columns, `${table} columns`);
+          if (table === "external_mcp_servers") {
+            // 0012 replaces envelope/AAD columns with two nullable workspace-scoped pointers.
+            const retained = (JSON.parse(columns) as { name: string; type: string; notnull: number; pk: number }[])
+              .filter(column => !column.name.includes("sealed_") && !column.name.includes("aad_version"));
+            const textType = retained.find(column => column.name === "server_id")!.type;
+            retained.push(...["env_secret_id", "oauth_secret_id"].map(name => ({ name, type: textType, notnull: 0, pk: 0 })));
+            // A site behind head also gains the drizzle tail's ADDs (0061's provisioned_by_plugin_id).
+            const tailAdded = addedByTail(applied, table);
+            retained.push(...(JSON.parse(afterFirst.columns[table]!) as typeof retained).filter(column => tailAdded.has(column.name)));
+            const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+            assert.deepEqual(JSON.parse(afterFirst.columns[table]!).sort(byName), retained.sort(byName), `${table} vault columns`);
+          } else if (atHead) assert.equal(afterFirst.columns[table], columns, `${table} columns`);
           if (table === "__drizzle_migrations" || before.rows[table] === 0) continue;
-          // The one row a boot adds to a table that already had rows: the unreadable-owner repair's
-          // marker (`boot-data-repairs.ts`), written once per site in `setting_values_global`.
-          const added = table === "setting_values_global" ? 1 : 0;
+          // Both repairs add a completion marker only if that marker was absent before boot.
+          const added = table === "setting_values_global" ? repairIds.length - repairMarkers(original).length : 0;
           assert.equal(afterFirst.rows[table], before.rows[table]! + added, `${table} rows`);
           if (rewritten.has(table)) continue;
           const common = before.content[table]!.columns.filter((column) => afterFirst.content[table]!.columns.includes(column));

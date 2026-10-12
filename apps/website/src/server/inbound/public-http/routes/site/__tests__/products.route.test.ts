@@ -7,49 +7,25 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import type {
-  CommercePriceRepoPort,
-  CommerceProductRepoPort,
-  CommercePriceRecord,
-  CommerceProductRecord,
-} from "@jini-ai/commerce";
+import type { Product, StoreApi } from "@jini-ai/commerce/store";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
- * @file Route-level coverage for `registerProductRoutes`'s 2026-08-12 commerce wiring — real HTTP
- * requests against `registerProductRoutes` (via `createApp`), with fake commerce repos rather than
- * a real SQLite DB (repo-level DB behavior is already covered by
- * `features/commerce/__tests__/integration/repo.sqlite.integration.test.ts`; this file proves the
- * ROUTE composes them correctly and falls back to the sample store plugin when they're absent/empty).
+ * @file Route-level coverage for `registerProductRoutes` — real HTTP requests against the
+ * route (via `createApp`), with a fake StoreApi rather than a real plugin database. This file
+ * proves the route renders plugin products and handles an absent or empty store; persistence
+ * invariants belong to the store plugin's own tests.
  *
  * Deliberately does not touch `/api/admin/v1/auth/login` or anything else `packet-one-routes
  * .test.ts` exercises — that keeps this file isolated from that suite's unrelated, independently
  * observed flakiness under this session's heavy concurrent load.
  */
 
-const NOW = "2026-08-12T00:00:00.000Z";
-const WORKSPACE_ID = "workspace-local"; // must match server/seed.ts's seededWorkspace.id
-
-function fakeProductRepo(products: CommerceProductRecord[]): CommerceProductRepoPort {
+function fakeStore(required: { products: Product[] }, _optional: Record<string, never> = {}): StoreApi {
   return {
-    findById: async ({ id }) => products.find((p) => p.id === id) ?? null,
-    findBySlug: async ({ slug }) => products.find((p) => p.slug === slug) ?? null,
-    listActive: async ({ workspaceId }) =>
-      products.filter((p) => p.workspaceId === workspaceId && p.status === "active"),
-    save: async () => {
-      throw new Error("not implemented in this fake");
-    },
-  };
-}
-
-function fakePriceRepo(pricesByProduct: Record<string, CommercePriceRecord[]>): CommercePriceRepoPort {
-  return {
-    findById: async () => null,
-    listByProduct: async ({ productId }) => pricesByProduct[productId] ?? [],
-    save: async () => {
-      throw new Error("not implemented in this fake");
-    },
+    listProducts: async () => required.products,
+    checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
   };
 }
 
@@ -62,36 +38,17 @@ async function startServer(overrides: Partial<CommerceSiteTestDeps>) {
   return { server, baseUrl: `http://127.0.0.1:${address.port}` };
 }
 
-test("GET /products renders a Commerce-sourced product with its formatted price and compare-at price", async (t) => {
-  const product: CommerceProductRecord = {
-    id: "prod-1",
-    workspaceId: WORKSPACE_ID,
-    name: "Classic Boxy Tee",
-    slug: "classic-boxy-tee",
-    kind: "one_time",
-    status: "active",
-    createdAt: NOW,
-    updatedAt: NOW,
-    version: 1,
-  };
-  const price: CommercePriceRecord = {
-    id: "price-1",
-    workspaceId: WORKSPACE_ID,
-    productId: "prod-1",
-    unitAmountCents: 3500,
-    compareAtAmountCents: 4500,
-    currency: "usd",
-    status: "active",
-    createdAt: NOW,
-    version: 1,
+test("GET /products renders a store-plugin product with its formatted price and compare-at price", async (t) => {
+  const product: Product & { compareAtPrice: number } = {
+    id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee",
+    price: 3500, compareAtPrice: 4500, stock: 5, version: 1,
   };
 
   const theme = createRouteDeps().themes.find((theme) => theme.manifest.id === "fashion-modern");
   assert.ok(theme, "the compare-at fixture must use the shipped storefront template");
   const { server, baseUrl } = await startServer({
     themes: [theme],
-    commerceProductRepo: fakeProductRepo([product]),
-    commercePriceRepo: fakePriceRepo({ "prod-1": [price] }),
+    store: fakeStore({ products: [product] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -107,32 +64,14 @@ test("GET /products renders a Commerce-sourced product with its formatted price 
   assert.match(card[1], /class="product-card__price-compare">\$45\.00<\/span>/);
 });
 
-test("GET /products/:id renders the single Commerce-sourced product's detail route", async (t) => {
-  const product: CommerceProductRecord = {
-    id: "prod-1",
-    workspaceId: WORKSPACE_ID,
-    name: "Classic Boxy Tee",
-    slug: "classic-boxy-tee",
-    kind: "one_time",
-    status: "active",
-    createdAt: NOW,
-    updatedAt: NOW,
-    version: 1,
-  };
-  const price: CommercePriceRecord = {
-    id: "price-1",
-    workspaceId: WORKSPACE_ID,
-    productId: "prod-1",
-    unitAmountCents: 3500,
-    currency: "usd",
-    status: "active",
-    createdAt: NOW,
-    version: 1,
+test("GET /products/:id renders the single store-plugin product's detail route", async (t) => {
+  const product: Product = {
+    id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee",
+    price: 3500, stock: 5, version: 1,
   };
 
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: fakeProductRepo([product]),
-    commercePriceRepo: fakePriceRepo({ "prod-1": [price] }),
+    store: fakeStore({ products: [product] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -141,19 +80,14 @@ test("GET /products/:id renders the single Commerce-sourced product's detail rou
   assert.match(await res.text(), /Classic Boxy Tee/);
 });
 
-function activeProduct(id: string, name: string, slug: string): CommerceProductRecord {
-  return { id, workspaceId: WORKSPACE_ID, name, slug, kind: "one_time", status: "active", createdAt: NOW, updatedAt: NOW, version: 1 };
-}
-
-function activePrice(productId: string): CommercePriceRecord {
-  return { id: `price-${productId}`, workspaceId: WORKSPACE_ID, productId, unitAmountCents: 3500, currency: "usd", status: "active", createdAt: NOW, version: 1 };
+function storeProduct(required: { id: string; title: string; slug: string }, optional: { compareAtPrice?: number } = {}): Product & { compareAtPrice?: number } {
+  return { ...required, price: 3500, stock: 5, version: 1, ...optional };
 }
 
 // Readable-slugs S7: the grid links by slug, so the detail route must resolve that slug.
-test("GET /products/:slug resolves a Commerce product by its slug", async (t) => {
+test("GET /products/:slug resolves a store-plugin product by its slug", async (t) => {
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: fakeProductRepo([activeProduct("prod-1", "Classic Boxy Tee", "classic-boxy-tee")]),
-    commercePriceRepo: fakePriceRepo({ "prod-1": [activePrice("prod-1")] }),
+    store: fakeStore({ products: [storeProduct({ id: "prod-1", title: "Classic Boxy Tee", slug: "classic-boxy-tee" })] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -165,11 +99,10 @@ test("GET /products/:slug resolves a Commerce product by its slug", async (t) =>
 // Id first, then slug: a product whose slug spells another product's id must not shadow it.
 test("GET /products/:id prefers an id match over another product's identical slug", async (t) => {
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: fakeProductRepo([
-      activeProduct("prod-a", "Id Owner", "id-owner"),
-      activeProduct("prod-b", "Slug Squatter", "prod-a"),
-    ]),
-    commercePriceRepo: fakePriceRepo({ "prod-a": [activePrice("prod-a")], "prod-b": [activePrice("prod-b")] }),
+    store: fakeStore({ products: [
+      storeProduct({ id: "prod-a", title: "Id Owner", slug: "id-owner" }),
+      storeProduct({ id: "prod-b", title: "Slug Squatter", slug: "prod-a" }),
+    ] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -180,10 +113,8 @@ test("GET /products/:id prefers an id match over another product's identical slu
   assert.doesNotMatch(html, /Slug Squatter/);
 });
 
-test("GET /products falls back to the sample store plugin when Commerce has no active priced products", async (t) => {
+test("GET /products renders the sample store plugin catalog", async (t) => {
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: fakeProductRepo([]),
-    commercePriceRepo: fakePriceRepo({}),
     store: {
       listProducts: async () => [{ id: "store-prod-1", slug: "store-prod-1", title: "Sample Teacup", price: 2800, stock: 5, version: 0 }],
       checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
@@ -196,26 +127,8 @@ test("GET /products falls back to the sample store plugin when Commerce has no a
   assert.match(await res.text(), /Sample Teacup/);
 });
 
-test("GET /products falls back to the sample store plugin when NEITHER Commerce repo is wired at all (deps.commerceProductRepo/commercePriceRepo absent)", async (t) => {
+test("GET /products renders an empty grid when no store plugin is wired (deps.store itself undefined)", async (t) => {
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: undefined,
-    commercePriceRepo: undefined,
-    store: {
-      listProducts: async () => [{ id: "store-prod-2", slug: "store-prod-2", title: "No Commerce Wired", price: 1200, stock: 3, version: 0 }],
-      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
-    },
-  });
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-
-  const res = await fetch(`${baseUrl}/products`);
-  assert.equal(res.status, 200);
-  assert.match(await res.text(), /No Commerce Wired/);
-});
-
-test("GET /products renders an empty grid, not a crash, when NEITHER Commerce NOR a store plugin is wired at all (deps.store itself undefined)", async (t) => {
-  const { server, baseUrl } = await startServer({
-    commerceProductRepo: undefined,
-    commercePriceRepo: undefined,
     store: undefined,
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -234,8 +147,6 @@ test("GET /products renders an empty grid, not a crash, when NEITHER Commerce NO
 
 test("GET /products/:id returns 404 for an id that doesn't match any product", async (t) => {
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: fakeProductRepo([]),
-    commercePriceRepo: fakePriceRepo({}),
     store: { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) },
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -247,8 +158,6 @@ test("GET /products/:id returns 404 for an id that doesn't match any product", a
 
 test("GET /products 500s with 'No themes installed' when resolveActiveTheme finds none", async (t) => {
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: fakeProductRepo([]),
-    commercePriceRepo: fakePriceRepo({}),
     store: { listProducts: async () => [], checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }) },
     themes: [],
   });
@@ -260,30 +169,12 @@ test("GET /products 500s with 'No themes installed' when resolveActiveTheme find
 });
 
 test("GET /products/:id 500s with 'No themes installed' when resolveActiveTheme finds none", async (t) => {
-  const product: CommerceProductRecord = {
-    id: "prod-1",
-    workspaceId: WORKSPACE_ID,
-    name: "Classic Boxy Tee",
-    slug: "classic-boxy-tee",
-    kind: "one_time",
-    status: "active",
-    createdAt: NOW,
-    updatedAt: NOW,
-    version: 1,
-  };
-  const price: CommercePriceRecord = {
-    id: "price-1",
-    workspaceId: WORKSPACE_ID,
-    productId: "prod-1",
-    unitAmountCents: 3500,
-    currency: "usd",
-    status: "active",
-    createdAt: NOW,
-    version: 1,
+  const product: Product = {
+    id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee",
+    price: 3500, stock: 5, version: 1,
   };
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: fakeProductRepo([product]),
-    commercePriceRepo: fakePriceRepo({ "prod-1": [price] }),
+    store: fakeStore({ products: [product] }),
     themes: [],
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -295,17 +186,10 @@ test("GET /products/:id 500s with 'No themes installed' when resolveActiveTheme 
 
 test("GET /products 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: {
-      listActive: async () => {
-        throw new Error("boom");
-      },
-      findById: async () => null,
-      findBySlug: async () => null,
-      save: async () => {
-        throw new Error("not implemented in this fake");
-      },
+    store: {
+      listProducts: async () => { throw new Error("boom"); },
+      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
-    commercePriceRepo: fakePriceRepo({}),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -316,60 +200,16 @@ test("GET /products 500s with a generic 'Site error' when an unexpected exceptio
 
 test("GET /products/:id 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
   const { server, baseUrl } = await startServer({
-    commerceProductRepo: {
-      listActive: async () => {
-        throw new Error("boom");
-      },
-      findById: async () => null,
-      findBySlug: async () => null,
-      save: async () => {
-        throw new Error("not implemented in this fake");
-      },
+    store: {
+      listProducts: async () => { throw new Error("boom"); },
+      checkout: async () => ({ ok: false, reason: "not-found", retries: 0 }),
     },
-    commercePriceRepo: fakePriceRepo({}),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   const res = await fetch(`${baseUrl}/products/anything`);
   assert.equal(res.status, 500);
   assert.match(await res.text(), /Site error/);
-});
-
-test("GET /products never leaks another workspace's Commerce catalog (workspace-scoped listActive)", async (t) => {
-  const otherWorkspaceProduct: CommerceProductRecord = {
-    id: "prod-other-ws",
-    workspaceId: "some-other-workspace",
-    name: "Should Never Appear",
-    slug: "should-never-appear",
-    kind: "one_time",
-    status: "active",
-    createdAt: NOW,
-    updatedAt: NOW,
-    version: 1,
-  };
-
-  const { server, baseUrl } = await startServer({
-    commerceProductRepo: fakeProductRepo([otherWorkspaceProduct]),
-    commercePriceRepo: fakePriceRepo({
-      "prod-other-ws": [
-        {
-          id: "price-other-ws",
-          workspaceId: "some-other-workspace",
-          productId: "prod-other-ws",
-          unitAmountCents: 1000,
-          currency: "usd",
-          status: "active",
-          createdAt: NOW,
-          version: 1,
-        },
-      ],
-    }),
-  });
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-
-  const res = await fetch(`${baseUrl}/products`);
-  assert.equal(res.status, 200);
-  assert.doesNotMatch(await res.text(), /Should Never Appear/);
 });
 
 /** `/products/:id`'s `String(req.params.id ?? "")` is unreachable through any real HTTP request --
@@ -392,7 +232,7 @@ function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: 
 }
 
 test("GET /products/:id -- `req.params.id ?? \"\"` fallback, forced via a direct handler call with id omitted -- still 404s (no product has an empty-string id), not a crash", async () => {
-  const deps = { ...createRouteDeps(), commerceProductRepo: fakeProductRepo([]), commercePriceRepo: fakePriceRepo({}) };
+  const deps = { ...createRouteDeps(), store: fakeStore({ products: [] }) };
   const app = createApp(deps);
   const handler = extractHandler(app, "/products/:id");
   let statusCode: number | undefined;
@@ -430,8 +270,6 @@ test("GET /products/:id -- `req.params.id ?? \"\"` fallback, forced via a direct
 test("GET /products survives a workspace with no presentation_settings row, exactly as GET / already does", async (t) => {
   const { server, baseUrl } = await startServer({
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
-    commerceProductRepo: fakeProductRepo([]),
-    commercePriceRepo: fakePriceRepo({}),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -443,32 +281,14 @@ test("GET /products survives a workspace with no presentation_settings row, exac
 });
 
 test("GET /products/:id survives a workspace with no presentation_settings row", async (t) => {
-  const product: CommerceProductRecord = {
-    id: "prod-1",
-    workspaceId: WORKSPACE_ID,
-    name: "Classic Boxy Tee",
-    slug: "classic-boxy-tee",
-    kind: "one_time",
-    status: "active",
-    createdAt: NOW,
-    updatedAt: NOW,
-    version: 1,
-  };
-  const price: CommercePriceRecord = {
-    id: "price-1",
-    workspaceId: WORKSPACE_ID,
-    productId: "prod-1",
-    unitAmountCents: 3500,
-    currency: "usd",
-    status: "active",
-    createdAt: NOW,
-    version: 1,
+  const product: Product = {
+    id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee",
+    price: 3500, stock: 5, version: 1,
   };
 
   const { server, baseUrl } = await startServer({
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
-    commerceProductRepo: fakeProductRepo([product]),
-    commercePriceRepo: fakePriceRepo({ "prod-1": [price] }),
+    store: fakeStore({ products: [product] }),
   });
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -480,25 +300,24 @@ test("GET /products/:id survives a workspace with no presentation_settings row",
 });
 
 
-test("the product adapter preserves Commerce sale prices and the handler renders the unwired empty state", async () => {
+test("the product adapter preserves store-plugin sale prices and the handler renders the unwired empty state", async () => {
   const baseDeps = createRouteDeps();
   // The real HTTP test above owns the shipped sale-card markup and both formatted prices.
   // Assert adapter data here without repeating a worker render against the fixed 5s budget.
   const products = await resolveStorefrontProducts({
-    ...baseDeps, store: undefined,
-    commerceProductRepo: fakeProductRepo([activeProduct("sale", "Sale Tee", "sale-tee")]),
-    commercePriceRepo: fakePriceRepo({ sale: [{ ...activePrice("sale"), compareAtAmountCents: 4500 }] }),
+    ...baseDeps,
+    store: fakeStore({ products: [storeProduct({ id: "sale", title: "Sale Tee", slug: "sale-tee" }, { compareAtPrice: 4500 })] }),
   });
   // A message on every assert.ok here: without one, Node regenerates the failing expression by
   // acorn-parsing this file's tsx output (one very long line), which takes minutes and looks like a hang.
-  assert.ok(products[0], "the Commerce adapter must return the sale product");
+  assert.ok(products[0], "the store adapter must return the sale product");
   assert.equal(products.length, 1);
   assert.equal(products[0].title, "Sale Tee");
   assert.equal(products[0].slug, "sale-tee");
   assert.equal(products[0].price, 3500);
   assert.equal(products[0].compareAtPrice, 4500);
   const deps = {
-    ...baseDeps, store: undefined, commerceProductRepo: undefined, commercePriceRepo: undefined,
+    ...baseDeps, store: undefined,
   };
   let html = "";
   let status = 200;

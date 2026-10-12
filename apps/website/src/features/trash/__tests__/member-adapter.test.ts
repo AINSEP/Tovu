@@ -134,12 +134,14 @@ test("gapb member: revocation failure rolls back marker and Trash index together
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 0);
 });
 
-test("gapb member: financial orders block Trash without revoking credentials", async t => {
+test("gapb member: Trash revokes credentials and purge works without a core-commerce blocker", async t => {
   const h = harness(); t.after(() => h.client.close()); h.seed();
-  h.client.prepare(`INSERT INTO commerce_orders (id, workspace_id, member_id, status, currency, total_amount_cents, provider, placed_at, created_at, updated_at, version)
-    VALUES ('order-1', ?, 'member-1', 'paid', 'usd', 100, 'test', ?, ?, ?, 1)`).run(WS, AT, AT, AT);
-  assert.deepEqual(await h.move(), { ok: false, reason: "blocked", code: "MEMBER_HAS_ORDERS", count: 1 });
-  assert.equal((await h.sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-member-1" }))!.revokedAt, undefined);
+  assert.equal(h.registry.get("member")!.blocker, undefined);
+  assert.deepEqual(await h.move(), { ok: true, version: 2 });
+  assert.equal((await h.sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-member-1" }))!.revokedAt, AT);
+  assert.equal(await h.adapter.purge({ workspaceId: WS, entityId: "member-1", expectedVersion: 2 }), "purged");
+  assert.equal(await h.members.findByEmail({ workspaceId: WS, email: "member-1@example.test" }), null);
+  assert.equal(await h.sessions.findByTokenHash({ workspaceId: WS, tokenHash: "hash-member-1" }), null);
 });
 
 test("gapb member: generic tool schemas include member without a per-resource delete tool", t => {
