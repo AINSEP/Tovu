@@ -8,15 +8,28 @@ import path from 'node:path';
  * @complexity O(n) in the path length, with no filesystem probes.
  */
 export function assertSpecificSiteRoot({ root }: { root: string }, { homeDir = os.homedir(), sitesHome }: { homeDir?: string; sitesHome?: string } = {}): void {
-  const spelling = root.replaceAll('\\', '/');
-  const normalized = spelling.startsWith('//') ? spelling.replace(/\/+$/, '') : path.posix.normalize(spelling).replace(/\/+$/, '') || '/';
-  const home = homeDir.replaceAll('\\', '/').replace(/\/+$/, '');
+  const normalized = normalizeRoot(root);
+  const home = trimSlashes(homeDir);
   // The selected local fallback has one known Tovu parent at the former level. This narrow
   // application folder can be scanned without admitting unrelated direct home children.
-  if (normalized === `${home}/Tovu` && sitesHome?.replaceAll('\\', '/').replace(/\/+$/, '') === `${normalized}/sites`) return;
-  const broad = normalized === '/' || normalized === '~' || normalized === home || path.posix.dirname(normalized) === home ||
-    /^~\/[^/]+$/.test(normalized) || /^\/(?:Users|home)(?:\/[^/]+)?$/.test(normalized) ||
-    /^[a-z]:$/i.test(normalized) || /^\/\/[^/]+(?:\/[^/]+)?$/.test(normalized) ||
-    /^\/(?:Volumes|mnt|media)(?:\/[^/]+)?$/.test(normalized);
-  if (broad) throw new Error(`Sites folder is too broad: ${root}. Choose a specific folder containing your Tovu websites.`);
+  if (normalized === `${home}/Tovu` && sitesHome !== undefined && trimSlashes(sitesHome) === `${normalized}/sites`) return;
+  if (isBroadRoot(normalized, home)) throw new Error(`Sites folder is too broad: ${root}. Choose a specific folder containing your Tovu websites.`);
+}
+
+const trimSlashes = (value: string) => value.replaceAll('\\', '/').replace(/\/+$/, '');
+
+/** Forward slashes, no trailing slash; a UNC `//host/share` is kept as written. */
+function normalizeRoot(root: string): string {
+  const spelling = root.replaceAll('\\', '/');
+  return spelling.startsWith('//') ? spelling.replace(/\/+$/, '') : path.posix.normalize(spelling).replace(/\/+$/, '') || '/';
+}
+
+/** Whole accounts, volumes, drives, shares and direct home children. */
+const BROAD_ROOT_PATTERNS = [
+  /^~\/[^/]+$/, /^\/(?:Users|home)(?:\/[^/]+)?$/, /^[a-z]:$/i, /^\/\/[^/]+(?:\/[^/]+)?$/, /^\/(?:Volumes|mnt|media)(?:\/[^/]+)?$/,
+];
+
+function isBroadRoot(normalized: string, home: string): boolean {
+  if (['/', '~', home].includes(normalized) || path.posix.dirname(normalized) === home) return true;
+  return BROAD_ROOT_PATTERNS.some((pattern) => pattern.test(normalized));
 }

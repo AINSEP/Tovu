@@ -284,29 +284,58 @@ function siteLifecycle(running: boolean, transition: "starting" | "stopping" | n
  *
  * @complexity O(1).
  */
-function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir">>) {
+type SiteRecordDeps = Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir">>;
+type SharedRunning = ReturnType<ReturnType<SitesWorkspace["running"]>["read"]> | undefined;
+
+/** A legacy-home site sitting beside the shared sites home, which the card offers to move in. */
+function offersMoveIntoSites(siteDir: string, sharedSites: SitesWorkspace | undefined): boolean {
+  const home = sharedSites?.home({});
+  if (!home || !sharedSites) return false;
+  const parent = path.dirname(siteDir);
+  return sharedSites.legacyHomes({}).includes(parent) && parent === path.dirname(home) && parent !== home && siteDir !== home;
+}
+
+/** The admin URL of a server this window does not own: an external one it attached to, or the other app's. */
+function siteExternalUrl(openEntry: OpenSiteEntry | undefined, sharedRunning: SharedRunning): string | undefined {
+  if (openEntry) return openEntry.server.external ? `${openEntry.server.origin}/admin/` : undefined;
+  return sharedRunning && sharedRunning.port > 0 ? `${sharedRunning.scheme}://localhost:${sharedRunning.port}/admin/` : undefined;
+}
+
+/** Which app runs the site, or the last exit of a settled stop; see the `statusDetail` field below. */
+function siteStatusDetail(sharedRunning: SharedRunning, status: string, openSites: OpenSites, siteDir: string): string | null {
+  if (sharedRunning) return `Running in ${sharedRunning.app} (${sharedRunning.port > 0 ? `port ${sharedRunning.port}` : "starting"})`;
+  return status === "stopped" ? describeLastExit(openSites, siteDir) : null;
+}
+
+/** The card name: an alias, the config's name, or (config gone) the last known name. */
+function siteDisplayName(row: SiteRow, validSite: boolean, readSiteName: (siteDir: string) => string): string {
+  return row.displayNameAlias ?? (validSite ? readSiteName(row.siteDir) : row.displayName ?? path.basename(row.siteDir));
+}
+
+function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
   const validSite = (deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) === "site";
   const openEntry = deps.openSites.get(row.siteDir);
-  const sharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
-  const running = openEntry !== undefined || (sharedRunning?.port ?? 0) > 0;
+  const sharedRunning: SharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
+  const sharedPort = sharedRunning?.port ?? 0;
+  const running = openEntry !== undefined || sharedPort > 0;
   // `openSites` answers "is it alive", which is a two-valued answer to a four-valued question:
   // both transitions take real wall-clock time, and during either one the two-valued answer is
   // wrong in the direction the operator can SEE — a Start they just pressed reads `stopped` for the
   // whole boot, a Stop reads `running` until the child is gone, and both look like a dead button.
   // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
   // is not exercising them) it reads `null` and nothing here changes.
-  const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? (sharedRunning && !sharedRunning.port ? "starting" : null));
-  const home = deps.sharedSites?.home({}), parent = path.dirname(row.siteDir);
+  const sharedStarting = sharedRunning && !sharedPort ? "starting" : null;
+  const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? sharedStarting);
   return {
-    moveIntoSites: !!home && deps.sharedSites!.legacyHomes({}).includes(parent) && parent === path.dirname(home) && parent !== home && row.siteDir !== home,
+    moveIntoSites: offersMoveIntoSites(row.siteDir, deps.sharedSites),
     id: row.siteDir,
     slug: path.basename(row.siteDir),
     // The config may be gone even when a themes-only folder remains; keep the last known name.
-    displayName: row.displayNameAlias ?? (validSite ? deps.readSiteName(row.siteDir) : row.displayName ?? path.basename(row.siteDir)),
+    displayName: siteDisplayName(row, validSite, deps.readSiteName),
     installDir: row.siteDir,
-    port: openEntry?.server.port ?? sharedRunning?.port ?? 0,
+    port: openEntry?.server.port ?? sharedPort,
     runningApp: sharedRunning?.app,
-    externalUrl: openEntry?.server.external ? `${openEntry.server.origin}/admin/` : sharedRunning && !openEntry && sharedRunning.port > 0 ? `${sharedRunning.scheme}://localhost:${sharedRunning.port}/admin/` : undefined,
+    externalUrl: siteExternalUrl(openEntry, sharedRunning),
     // Independent of `running` — a project's partition is a pure function of its own directory
     // (`desktop-auth.ts`'s `sitePartition`), not of whether a server currently answers on it. The
     // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
@@ -324,7 +353,7 @@ function buildSiteRecord(row: SiteRow, deps: Pick<ProjectIpcDeps, "openSites" | 
     // Only for a settled `stopped`. Mid-transition the prior crash is not what the operator is
     // looking at — a card that says "Starting" and "the server exited (code 1)" in the same breath
     // is reporting two different moments as one.
-    statusDetail: sharedRunning ? `Running in ${sharedRunning.app} (${sharedRunning.port > 0 ? `port ${sharedRunning.port}` : "starting"})` : lifecycle.status === "stopped" ? describeLastExit(deps.openSites, row.siteDir) : null,
+    statusDetail: siteStatusDetail(sharedRunning, lifecycle.status, deps.openSites, row.siteDir),
     createdAt: row.createdAt,
     updatedAt: row.createdAt,
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
@@ -757,12 +786,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   //
   // The non-erasing arm is deliberately NOT gated. There it means "take this card off my Projects
   // screen"; a sibling instance keeping its own copy running is not endangered by that.
-  if (erasesFiles) {
-    const shared = deps.sharedSites?.running({ path: id }).read({});
-    if (shared && (shared.pid !== openEntry?.server.pid || openEntry?.server.external)) throw new Error(`Running in ${shared.app} (port ${shared.port}). Stop it in that app before deleting.`);
-    const foreign = liveForeignServers(deps, id, openEntry?.server.pid);
-    if (foreign.length > 0) throw new Error(foreignServerMessage(id, foreign));
-  }
+  if (erasesFiles) assertNoOtherServer({ id, openEntry, deps });
 
   deps.cancelPreviewCapture?.({ siteDir: id }, {});
   if (openEntry !== undefined) {
@@ -772,10 +796,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   // The row is the recovery handle for a partial erase: keep it until removal succeeds.
   if (erasesFiles) await eraseProjectDirectory({ id, deps });
   untrackSite(deps.projectsPath, id);
-  if (erasesFiles) {
-    try { deps.sharedSites?.registry({}).remove({ path: id }); }
-    catch { console.warn("tovu desktop: could not remove the erased website from the shared catalog."); }
-  }
+  if (erasesFiles) removeFromSharedCatalog({ id, sharedSites: deps.sharedSites });
   // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
   // not the operator's data, so a row that is merely REMOVED (adopted, files kept) still drops its
   // cached thumbnail: once the row is gone `buildSiteRecord` can never ask for it again
@@ -783,6 +804,27 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   // unlikely), so leaving the file behind would only be litter for the boot sweep to find later.
   deps.deletePreview(id);
 
+}
+
+/** {@link deleteProject}'s erase gate (D-08): refuse while another app or instance serves the site.
+ * @complexity O(r) registry rows.
+ */
+function assertNoOtherServer(
+  { id, openEntry, deps }: { id: string; openEntry: OpenSiteEntry | undefined; deps: Pick<ProjectIpcDeps, "readRegistry" | "registryPath" | "isLiveServeRow" | "sharedSites"> }, _options = {},
+): void {
+  const ownPid = openEntry?.server.pid;
+  const shared = deps.sharedSites?.running({ path: id }).read({});
+  if (shared && (shared.pid !== ownPid || openEntry?.server.external)) throw new Error(`Running in ${shared.app} (port ${shared.port}). Stop it in that app before deleting.`);
+  const foreign = liveForeignServers(deps, id, ownPid);
+  if (foreign.length > 0) throw new Error(foreignServerMessage(id, foreign));
+}
+
+/** Drop an erased site from the shared catalog; a failure only warns, the folder is already gone.
+ * @complexity O(1).
+ */
+function removeFromSharedCatalog({ id, sharedSites }: { id: string; sharedSites: SitesWorkspace | undefined }, _options = {}): void {
+  try { sharedSites?.registry({}).remove({ path: id }); }
+  catch { console.warn("tovu desktop: could not remove the erased website from the shared catalog."); }
 }
 
 /** Remove this process's stopped handle and close its window before folder deletion.

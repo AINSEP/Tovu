@@ -27,6 +27,49 @@ export function createSitesWorkspace(_required: Record<string, never>, { homeDir
 export type SitesWorkspace = ReturnType<typeof createSitesWorkspace>;
 
 
+type SitesRegistry = ReturnType<SitesWorkspace["registry"]>;
+
+/** Merge one folder into the catalog under its marker identity, relocating a moved record.
+ * Throws (ENOENT for an unmounted folder) when the entry must be skipped.
+ * @complexity O(1) catalog work plus one metadata read.
+ */
+function shareOneDirectory(
+  { workspace, registry, registered, dir, createdBy, allowRelocation }: { workspace: SitesWorkspace; registry: SitesRegistry; registered: Map<string, DirectoryRecord>; dir: string; createdBy: string; allowRelocation: boolean }, _options = {},
+): void {
+  // Probe the folder before tolerant config reading erases ENOENT: an unmounted MRU
+  // entry must keep its import pending so the original path is retried after remount.
+  const canonical = fs.realpathSync(dir);
+  const { name, siteId } = readCatalogSite({ siteDir: canonical });
+  const id = siteId !== undefined ? siteId : createHash("sha256").update(canonical).digest("hex");
+  const previous = registered.get(id);
+  if (previous && previous.path !== canonical) relocateRecord({ workspace, registry, from: previous.path, to: canonical, id, allowRelocation });
+  const entry = { id, name, path: canonical, createdBy, lastOpened: null };
+  registry.merge({ entries: [entry] }); registered.set(id, entry);
+}
+
+/** Move a catalog record whose marker identity now lives at `to`, unless that is a copy.
+ * @complexity O(1).
+ */
+function relocateRecord(
+  { workspace, registry, from, to, id, allowRelocation }: { workspace: SitesWorkspace; registry: SitesRegistry; from: string; to: string; id: string; allowRelocation: boolean }, _options = {},
+): void {
+  if (fs.existsSync(from)) throw new Error("Copied identity");
+  const database = workspace.databasePath({ dir: to, id, filename: "content.db" });
+  const appDataRoot = path.join(workspace.config({}).appData, "databases") + path.sep;
+  // An unplugged app-data site's marker can also be a Finder copy: retain its reservation
+  // until the operator explicitly uses Locate (or the stopped-site migration owner).
+  if (!allowRelocation && database.startsWith(appDataRoot)) throw new Error("App-data identity needs explicit relocation");
+  // The existing marker identity is the relocation proof used by Desktop's Locate/scan owner.
+  registry.relocate({ from, to });
+}
+
+/** Report a skipped catalog entry once per folder, not on every poll. @complexity O(1). */
+function noticeSkippedEntry({ notices, dir, report }: { notices: Set<string>; dir: string; report: (message: string) => void }, _options = {}): void {
+  if (notices.has(dir)) return;
+  notices.add(dir);
+  report(`tovu desktop: skipped shared catalog entry ${dir}; its metadata, identity or folder is unavailable/invalid.`);
+}
+
 /** Desktop keeps deletion authority/aliases locally; this catalog only owns discoverability.
  * A record for an unavailable volume retains its saved path and metadata.
  * @complexity O(n) metadata reads and O(n * r) catalog work for n directories and r records.
@@ -42,30 +85,11 @@ export function shareSiteDirectories(
     let unavailable = false;
     for (const dir of dirs) {
       try {
-        // Probe the folder before tolerant config reading erases ENOENT: an unmounted MRU
-        // entry must keep its import pending so the original path is retried after remount.
-        const canonical = fs.realpathSync(dir);
-        const { name, siteId } = readCatalogSite({ siteDir: canonical });
-        const id = siteId !== undefined ? siteId : createHash("sha256").update(canonical).digest("hex");
-        const previous = registered.get(id);
-        if (previous && previous.path !== canonical) {
-          if (fs.existsSync(previous.path)) throw new Error("Copied identity");
-          const database = workspace.databasePath({ dir: canonical, id, filename: "content.db" });
-          const appDataRoot = path.join(workspace.config({}).appData, "databases") + path.sep;
-          // An unplugged app-data site's marker can also be a Finder copy: retain its reservation
-          // until the operator explicitly uses Locate (or the stopped-site migration owner).
-          if (!allowRelocation && database.startsWith(appDataRoot)) throw new Error("App-data identity needs explicit relocation");
-          // The existing marker identity is the relocation proof used by Desktop's Locate/scan owner.
-          registry.relocate({ from: previous.path, to: canonical });
-        }
-        const entry = { id, name, path: canonical, createdBy, lastOpened: null };
-        registry.merge({ entries: [entry] }); registered.set(id, entry); notices.delete(dir);
+        shareOneDirectory({ workspace, registry, registered, dir, createdBy, allowRelocation });
+        notices.delete(dir);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") unavailable = true;
-        if (!notices.has(dir)) {
-          notices.add(dir);
-          report(`tovu desktop: skipped shared catalog entry ${dir}; its metadata, identity or folder is unavailable/invalid.`);
-        }
+        noticeSkippedEntry({ notices, dir, report });
       }
     }
     // Missing-volume MRU entries are retried after remount; do not certify an incomplete import.

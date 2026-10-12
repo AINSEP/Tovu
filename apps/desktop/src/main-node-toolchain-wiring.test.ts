@@ -105,7 +105,8 @@ test("startTovuServer is called with nodeToolchainEnv, so the write's result act
   const body = source.slice(callIndex);
   const ownCall = body.slice(0, body.indexOf("});") + 3);
   assert.match(ownCall, /nodeToolchainEnv/, "expected the startTovuServer call to pass nodeToolchainEnv");
-  assert.match(ownCall, /nodeToolchainEnv:\s*NODE_TOOLCHAIN_ENV\s*[,}]/, "the child must receive the written toolchain's environment");
+  // 79de6eff7 spreads it and adds TOVU_RUNNING_APP; the written environment must still be the base.
+  assert.match(ownCall, /nodeToolchainEnv:\s*(NODE_TOOLCHAIN_ENV\s*[,}]|\{\s*\.\.\.NODE_TOOLCHAIN_ENV\s*[,}])/, "the child must receive the written toolchain's environment");
   const environment = { TOVU_NODE_TOOLCHAIN_DIR: "/user-data/node-toolchain", TOVU_BUNDLED_NPM_ROOT: "/npm" };
   const warnings: string[] = [];
   const actual = initializeToolchain(

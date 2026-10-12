@@ -521,29 +521,14 @@ interface DiscoverSiteDirsInput {
 function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }: DiscoverSiteDirsInput, {
   maxCandidates = 1000, maxRoots = 32, homeDir, sitesHome,
 }: { maxCandidates?: number; maxRoots?: number; homeDir?: string; sitesHome?: string } = {}): string[] {
-  if (!Number.isSafeInteger(maxCandidates) || maxCandidates < 1 || !Number.isSafeInteger(maxRoots) || maxRoots < 1) {
-    throw new Error("Sites discovery limits must be positive integers.");
-  }
-  if (scanRoots.length > maxRoots) throw new Error(`Sites discovery is limited to ${maxRoots} folders. Remove unused sites folders and try again.`);
+  assertDiscoveryLimits({ scanRoots, maxCandidates, maxRoots });
   const candidates: string[] = [];
   for (const root of scanRoots) {
-    let directory: fs.Dir;
     // Old saved settings may contain broad roots. Refuse before any privacy/volume probe.
     assertSpecificSiteRoot({ root }, { homeDir, sitesHome });
-    try {
-      directory = fs.opendirSync(root);
-    } catch {
-      continue;
-    }
-    try {
-      let entry: fs.Dirent | null;
-      while ((entry = directory.readSync()) !== null) {
-        if (candidates.length >= maxCandidates) throw new Error(`Sites discovery is limited to ${maxCandidates} entries. Choose smaller sites folders and try again.`);
-        candidates.push(path.join(root, entry.name));
-      }
-    } finally { directory.closeSync(); }
+    collectRootEntries({ root, candidates, maxCandidates });
   }
-  if (candidates.length + knownDirs.length > maxCandidates) throw new Error(`Sites discovery is limited to ${maxCandidates} entries. Choose smaller sites folders and try again.`);
+  if (candidates.length + knownDirs.length > maxCandidates) throw new Error(tooManyEntriesMessage(maxCandidates));
   candidates.push(...knownDirs);
   const sites = new Map<string, string>();
   for (const dir of candidates) {
@@ -552,6 +537,35 @@ function discoverSiteDirs({ scanRoots, knownDirs, classifySiteDir }: DiscoverSit
     if (!sites.has(identity)) sites.set(identity, path.resolve(dir));
   }
   return [...sites.values()].sort();
+}
+
+const tooManyEntriesMessage = (maxCandidates: number) => `Sites discovery is limited to ${maxCandidates} entries. Choose smaller sites folders and try again.`;
+
+/** {@link discoverSiteDirs}'s limits: positive integers, and no more roots than allowed. @complexity O(1). */
+function assertDiscoveryLimits({ scanRoots, maxCandidates, maxRoots }: { scanRoots: readonly string[]; maxCandidates: number; maxRoots: number }, _options = {}): void {
+  const positive = (value: number) => Number.isSafeInteger(value) && value >= 1;
+  if (!positive(maxCandidates) || !positive(maxRoots)) throw new Error("Sites discovery limits must be positive integers.");
+  if (scanRoots.length > maxRoots) throw new Error(`Sites discovery is limited to ${maxRoots} folders. Remove unused sites folders and try again.`);
+}
+
+/** Push a root's immediate children onto `candidates`; a missing root is skipped, not an error.
+ * @throws once `candidates` would pass `maxCandidates`.
+ * @complexity O(k) for k entries in the root.
+ */
+function collectRootEntries({ root, candidates, maxCandidates }: { root: string; candidates: string[]; maxCandidates: number }, _options = {}): void {
+  let directory: fs.Dir;
+  try {
+    directory = fs.opendirSync(root);
+  } catch {
+    return;
+  }
+  try {
+    let entry: fs.Dirent | null;
+    while ((entry = directory.readSync()) !== null) {
+      if (candidates.length >= maxCandidates) throw new Error(tooManyEntriesMessage(maxCandidates));
+      candidates.push(path.join(root, entry.name));
+    }
+  } finally { directory.closeSync(); }
 }
 
 /** Physical identity for discovery, retaining a lexical identity for missing tracked/dismissed

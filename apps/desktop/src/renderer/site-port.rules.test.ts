@@ -55,7 +55,7 @@ test('the rendered card keeps the running port and blanks the stopped port', () 
     ['stopped', undefined, ''], ['running', 4100, '4100'],
   ] as const) {
     const tree = SiteCard({
-      project: { id: 'test-site', displayName: 'Test site', status, port, database: { kind: 'sqlite' } },
+      project: { id: 'test-site', displayName: 'Test site', installDir: '/sites/test-site', status, port, database: { kind: 'sqlite' } },
       overlay: null, power: { statusOf: () => status, errorOf: () => null },
     });
     assert.ok(renderToStaticMarkup(tree).includes(`<span class="card__port">${expected}</span>`));
@@ -82,7 +82,7 @@ test('the rendered stopped panel says Stopped without port 0', () => {
 test('stopping a tab blanks its URL immediately even while the last guest URL is remembered', () => {
   const state = { ...initialSiteWorkspaceState, liveUrl: 'http://127.0.0.1:4100/admin/posts' };
   const useSiteWorkspace = sourceFunction(workspaceSource, 'useSiteWorkspace', {
-    useReducer: () => [state, () => {}], useEffect: () => {},
+    useReducer: () => [state, () => {}], useEffect: () => {}, useState: (initial: unknown) => [initial, () => {}],
     useWebviewLoadFailure: () => ({ guest: null, guestRef: () => {}, failed: false, stalled: false, loaded: false }),
     runnerInventoryBridge: () => undefined,
     initialSiteWorkspaceState, siteWorkspaceReducer, loadResetKey, siteSurfaceUrl, createWorkspaceActions,

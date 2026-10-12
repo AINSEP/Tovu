@@ -71,12 +71,14 @@ export const formatArea = (result: AreaResult, area: coverage.CoverageArea) => c
  * same split, and `coverage-runner-split.test.ts` fails when the two disagree.
  * The node pass enables module mocks for both preload exposure/parity tests, just as `npm test`
  * does; enabling them only in the suite would leave the coverage gate unable to run those tests.
+ * It also loads `scripts/resolve-ts-ext.ts`, so a main test can import a contract or website module
+ * whose own relative imports are written `.js`.
  *
  * Several of these globs match nothing today. Measured on node 24.2.0: a glob that matches nothing
  * exits 0 reporting "tests 0", with no error. Only a literal path errors. So `check-coverage.ts`'s
  * `runSuite` refuses to run a pass whose globs match no test file at all.
  */
 export const TEST_PASSES: readonly coverage.TestPass[] = [
-  { id: "node", nodeArgs: ["--experimental-test-module-mocks"], globs: ["src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
+  { id: "node", nodeArgs: ["--experimental-test-module-mocks", "--import", "./scripts/resolve-ts-ext.ts"], globs: ["src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
   { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/contracts/**/*.test.ts"] },
 ];
