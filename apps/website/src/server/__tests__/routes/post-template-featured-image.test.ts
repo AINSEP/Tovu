@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
-import type { PostRecord } from "#src/features/post/index";
+import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
@@ -24,6 +24,40 @@ process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
 
 const WORKSPACE_ID = "workspace-local";
 const MEDIA_SLUG = "cover-shot";
+
+test("featfallback: static heroes and post-preview cards use doc and HTML body images without storing featured ids", async (t) => {
+  const { app, deps } = buildTestApp();
+  const assetId = await saveImage(deps);
+  const theme = deps.themes[0]!;
+  theme.manifest.publishedPages = ["blog"];
+  theme.pages.blog = `<html><body><section data-embed-config='{"type":"post-previews"}'></section></body></html>`;
+  for (const format of ["doc", "html"] as const) {
+    const slug = `body-${format}`;
+    await savePost(deps, slug, null);
+    const stored = await deps.postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug });
+    assert.ok(stored);
+    await deps.postRepo.save({ ...stored, bodyFormat: format,
+      bodyJson: format === "doc" ? { type: "doc", content: [{ type: "media", attrs: { assetId, transformName: "public", alt: `Alt ${format}` } }] } : {},
+      bodyHtml: format === "html" ? `<img src="/m/${MEDIA_SLUG}/public.v1/image.jpg" alt="Alt html">` : null,
+    });
+  }
+  await savePost(deps, "empty-body", null);
+  const baseUrl = await startTestServer(app, t);
+  for (const format of ["doc", "html"] as const) {
+    const response = await fetch(`${baseUrl}/body-${format}`);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(html.includes(`<figure class="post-featured"><img src="/m/${MEDIA_SLUG}/public.v1/image.jpg" alt="Alt ${format}" width="1600" height="900"`));
+    assert.equal((await deps.postRepo.findBySlug({ workspaceId: WORKSPACE_ID, slug: `body-${format}` }))?.featuredMediaId, null);
+  }
+  const listResponse = await fetch(`${baseUrl}/blog`);
+  assert.equal(listResponse.status, 200);
+  const list = await listResponse.text();
+  for (const format of ["doc", "html"] as const) {
+    assert.ok(list.includes(`<article class="post-card"><img src="/m/${MEDIA_SLUG}/public.v1/image.jpg" alt="Alt ${format}" width="1600" height="900" decoding="async" loading="lazy">`));
+  }
+  assert.equal((list.match(/<img /g) ?? []).length, 2, "the empty post must not produce a broken image tag");
+});
 
 function staticTheme(): DiscoveredTheme {
   return {
@@ -52,6 +86,8 @@ function staticTheme(): DiscoveredTheme {
 
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
+  // The demo /blog page wins over the test theme; this fixture owns only its seeded posts.
+  deps.postRepo = new InMemoryPostRepo();
   deps.themes = [staticTheme()];
   const app = express();
   registerSiteRoutes(app, deps);
