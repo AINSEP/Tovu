@@ -5,6 +5,7 @@ import { buildVaultAad, SecretsVaultService } from "@jini-ai/platform/secrets/cr
 import { countSealedCredentialsOpening, discardSealedCredentialsNotOpening, resealCredentialsOpeningUnder } from "../sealed-credential-discard.js";
 import { eachDialect } from "../kernel/__tests__/dialect-matrix.js";
 import { createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
+import { recoveryAad } from "#src/server/runtime/composition/site-key-recovery";
 import { createSqlDeviceAuthorizationStore } from "../repos/oauth-pending-store.js";
 import { fixture, keyPair, WS, NOW } from "./vault-credential.fixture.js";
 
@@ -24,9 +25,10 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     await fx.put({ id: "empty", key: null, kind: "media-provider", provider: "other", meta: { model: "keep-empty" } });
     await fx.put({ id: "vendor-default", kind: "vendor", provider: "host", isDefault: true, key: fx.wrong });
     await fx.put({ id: "vendor-next", kind: "vendor", provider: "host", key: fx.wrong });
+    await fx.put({ id: "vendor-readable", kind: "vendor", provider: "host" });
     const common = { kernel: fx.kernel, sealer: fx.right.sealer };
-    assert.deepEqual(await countSealedCredentialsOpening(common), { sealed: 8, opens: 1 });
-    assert.deepEqual(await discardSealedCredentialsNotOpening(common), { discarded: 7, kept: 1 });
+    assert.deepEqual(await countSealedCredentialsOpening(common), { sealed: 9, opens: 2 });
+    assert.deepEqual(await discardSealedCredentialsNotOpening(common), { discarded: 7, kept: 2 });
     assert.equal(await fx.repo.find({ workspaceId: WS, id: "custom-wrong" }), null);
     for (const id of ["site-assistant", "personal-execution", "media-provider", "publish-peer"]) {
       const record = await fx.repo.find({ workspaceId: WS, id });
@@ -36,6 +38,30 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     assert.equal((await fx.repo.find({ workspaceId: WS, id: "empty" }))?.meta.model, "keep-empty");
     assert.equal(await fx.repo.find({ workspaceId: WS, id: "vendor-default" }), null);
     assert.equal(await fx.repo.find({ workspaceId: WS, id: "vendor-next" }), null, "promotion's revision must not skip another unreadable row");
+    assert.equal((await fx.repo.find({ workspaceId: WS, id: "vendor-readable" }))?.isDefault, true, "the readable sibling is promoted to default");
+  });
+
+  test(`AAD selection: a throwing codec counts as unreadable without opening; a legacy row the recovery codec opens is kept [${each.name}]`, async () => {
+    const fx = await fixture(each.make());
+    await fx.put({ id: "ordinary" });
+    let opens = 0;
+    const sealer = { open: async () => { opens += 1; return "unexpected"; } };
+    assert.deepEqual(await countSealedCredentialsOpening({ kernel: fx.kernel, sealer, aadFor: () => { throw new Error("no lineage"); } }), { sealed: 1, opens: 0 });
+    assert.equal(opens, 0);
+
+    // Migrated before boot normalization: still sealed under its original table's AAD.
+    const lineage = { table: "custom_credential_sets", workspaceId: WS, id: "legacy", principalId: null, provider: null, serverId: null, aadVersion: 1 };
+    const scaffold = await fx.put({ id: "legacy" });
+    const legacy = await fx.repo.put({ expectedRevision: scaffold.revision, record: { ...scaffold, revision: scaffold.revision + 1,
+      meta: { ...scaffold.meta, legacyAad: lineage, migration: { ...lineage, mappedId: "legacy" } },
+      sealed: await fx.right.sealer.seal({ plaintext: JSON.stringify({ token: "legacy-token" }), key: await fx.right.keyring.activeKey(),
+        aad: `custom-credential-set:v1:${WS}:legacy` }) } });
+    assert.deepEqual(await countSealedCredentialsOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { sealed: 2, opens: 1 },
+      "ordinary reads have no legacy fallback");
+    const recovery = { kernel: fx.kernel, sealer: fx.right.sealer, aadFor: recoveryAad };
+    assert.deepEqual(await countSealedCredentialsOpening(recovery), { sealed: 2, opens: 2 });
+    assert.deepEqual(await discardSealedCredentialsNotOpening(recovery), { discarded: 0, kept: 2 });
+    assert.deepEqual(await fx.repo.find(legacy), legacy);
   });
 
   test(`MCP discard unlinks only its matching pointer before deletion and retains the roster [${each.name}]`, async () => {
