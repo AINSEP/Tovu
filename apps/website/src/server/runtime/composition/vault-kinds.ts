@@ -130,3 +130,10 @@ const storeKinds = createTovuVaultKinds({ policy: {
 export function parseTovuStoreMeta(input: { kind: "media-provider" | "custom" | "site-assistant" | "personal-execution"; meta: unknown }, _options = {}): VaultMeta {
   return storeKinds.metaParsers[input.kind]({ meta: input.meta });
 }
+
+/** Binary label order for labelled kinds (`custom`, `publish-peer`): what their pre-vault label
+ * index returned on every dialect. Labels are unique per workspace and kind, so ties never occur.
+ * @complexity O(1) per comparison. */
+export function byVaultLabel(a: { label: string }, b: { label: string }): number {
+  return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
+}

@@ -2,7 +2,7 @@ import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
 import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialTokenHint } from "#src/contracts/core/credential-token";
-import { createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
+import { byVaultLabel, createTovuVaultKinds } from "#src/server/runtime/composition/vault-kinds";
 import { normalizePeerBaseUrl } from "./peer-url.js";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
 
@@ -461,7 +461,8 @@ export class VaultPublishContentPeerRepo implements PublishContentPeerRepoPort {
     return record ? peerRecord({ record }) : null;
   }
   async listByWorkspace(input: { workspaceId: string }): Promise<PublishContentPeerRecord[]> {
-    return (await this.vault.list({ ...peerScope, ...input })).map(record => peerRecord({ record }));
+    // Label order, as before the vault (the label index drove the scan); the vault lists by id.
+    return (await this.vault.list({ ...peerScope, ...input })).sort(byVaultLabel).map(record => peerRecord({ record }));
   }
   async delete(input: { workspaceId: string; id: string }): Promise<void> {
     const existing = await this.vault.find(input);

@@ -1,5 +1,5 @@
 import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
-import { parseTovuStoreMeta } from "../../server/runtime/composition/vault-kinds.js";
+import { byVaultLabel, parseTovuStoreMeta } from "../../server/runtime/composition/vault-kinds.js";
 import type { CustomCredentialCategoryId, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
 
 export function customVaultScope({ workspaceId, id }: { workspaceId: string; id?: string }, _options = {}) {
@@ -35,7 +35,8 @@ export class CustomCredentialVaultRepo implements CustomCredentialSetRepoPort {
     return customVaultRecord({ row });
   }
   async listByWorkspace(input: { workspaceId: string }): Promise<CustomCredentialSetRecord[]> {
-    return (await this.vault.list(customVaultScope(input))).map(row => customVaultRecord({ row }));
+    // Label order, as before the vault (the label index drove the scan); the vault lists by id.
+    return (await this.vault.list(customVaultScope(input))).sort(byVaultLabel).map(row => customVaultRecord({ row }));
   }
   async insert(record: CustomCredentialSetRecord): Promise<void> { await this.write({ record, expectedRevision: null }); }
   async update(record: CustomCredentialSetRecord): Promise<void> {
