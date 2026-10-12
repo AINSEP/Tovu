@@ -110,6 +110,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * this assignment at compile time for any field only a DIFFERENT extension declares.
  */
 export type AssistantToolRegistryDeps = import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
+  import("../server/runtime/composition/assistant-history-tools.js").AssistantHistoryHostDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
   DeployOpsToolDeps & CommentsToolDeps &
