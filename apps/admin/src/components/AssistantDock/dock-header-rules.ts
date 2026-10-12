@@ -4,6 +4,9 @@
  * menu. Kept out of the `.tsx` files so the behaviour is testable without rendering.
  */
 
+import { CHAT_TOOL_CALL_OPTIONS } from "./chat-display-preferences";
+import type { ChatDisplayPreferencesController } from "./hooks/use-chat-display-preferences.hooks";
+
 /**
  * Whether a hover/focus on `target` should open the header tooltip. Never while the control's own
  * popup is open (its trigger reports `aria-expanded="true"`) or for anything inside that popup —
@@ -18,32 +21,75 @@ export function shouldShowHeaderTip({ target }: { target: EventTarget | null }):
   return target.closest('[role="menu"]') === null && target.closest('[aria-expanded="true"]') === null;
 }
 
-/** One row of the gear menu. `disabled` rows render but do nothing when chosen. */
+/**
+ * One row of the gear menu. A plain `menuitem` runs and closes the menu; a `menuitemradio` or
+ * `menuitemcheckbox` row is a setting, applied in place with the menu left open so several can be
+ * changed in one visit. `disabled` rows render but do nothing when chosen.
+ */
 export interface DockSettingsMenuItem {
   key: string;
   label: string;
+  role?: "menuitem" | "menuitemradio" | "menuitemcheckbox";
+  checked?: boolean;
+  /** What the setting does, shown on hover. */
+  hint?: string;
   disabled?: boolean;
   onSelect?: () => void;
 }
 
+/** A run of rows, under an optional heading; sections after the first are drawn with a divider. */
+export interface DockSettingsMenuSection {
+  key: string;
+  label?: string;
+  items: DockSettingsMenuItem[];
+}
+
 /**
- * The gear menu's rows. A list rather than one hard-coded row so settings can be added later
- * without reshaping the menu. Today it holds one row, which opens the Chat settings dialog (owner,
- * 2026-10-11; it replaced the disabled "Settings — coming soon" placeholder).
+ * The gear menu (owner, 2026-10-11): the chat's display settings right in the dropdown — Tool calls
+ * as a Show/Collapsed/Hidden radio group, then Done line and Thinking as on/off rows. They replaced
+ * the one-tab Chat settings modal ("Open chat settings…"); a modal comes back only once there are
+ * advanced chat options to put in it. Sections rather than one fixed list so settings can be added
+ * later without reshaping the menu.
  * @param input.t - The dock's translator.
- * @param options.onOpenChatSettings - Opens the dialog.
- * @returns The rows, in display order.
+ * @param options.display - The current choices and their saver (`useChatDisplayPreferences`).
+ * @returns The sections, in display order.
+ * @complexity O(1).
  */
-export function dockSettingsMenuItems(
+export function dockSettingsMenuSections(
   { t }: { t: (key: string) => string },
-  { onOpenChatSettings }: { onOpenChatSettings: () => void },
-): DockSettingsMenuItem[] {
-  return [{ key: "chat-settings", label: t("Open chat settings…"), onSelect: onOpenChatSettings }];
+  { display }: { display: Pick<ChatDisplayPreferencesController, "preferences" | "update"> },
+): DockSettingsMenuSection[] {
+  const { preferences, update } = display;
+  const toolCallsHint = t("Show: every tool call. Collapsed: one line per reply, click to open. Hidden: only failed calls.");
+  return [
+    {
+      key: "tool-calls",
+      label: t("Tool calls"),
+      items: CHAT_TOOL_CALL_OPTIONS.map((option) => ({
+        key: `tool-calls-${option.value}`,
+        label: t(option.label),
+        role: "menuitemradio",
+        checked: preferences.toolCalls === option.value,
+        hint: toolCallsHint,
+        onSelect: () => update({ toolCalls: option.value }),
+      })),
+    },
+    {
+      key: "transcript",
+      items: [
+        { key: "done-line", label: t("Done line"), role: "menuitemcheckbox", checked: preferences.showUsageLine,
+          hint: t("Time, cost and running total under each reply."), onSelect: () => update({ showUsageLine: !preferences.showUsageLine }) },
+        { key: "thinking", label: t("Thinking"), role: "menuitemcheckbox", checked: preferences.showThinking,
+          hint: t("The model's reasoning, folded where it happened, when the agent shares it."), onSelect: () => update({ showThinking: !preferences.showThinking }) },
+      ],
+    },
+  ];
 }
 
 /**
  * Runs a chosen row. A disabled row leaves the menu open and calls nothing, so clicking the
- * placeholder does not look like it did something.
+ * placeholder does not look like it did something. A setting row (radio/checkbox) applies without
+ * closing, so focus stays on it and the new check mark is visible at once.
  * @param input.item - The chosen row.
  * @param input.selectItem - The menu hook's close-then-run action.
  * @returns Whether the row was run.
@@ -53,6 +99,7 @@ export function activateDockMenuItem({ item, selectItem }: {
   selectItem: (input: { onSelect: () => void }) => void;
 }): boolean {
   if (item.disabled || !item.onSelect) return false;
-  selectItem({ onSelect: item.onSelect });
+  if (item.role === "menuitemradio" || item.role === "menuitemcheckbox") item.onSelect();
+  else selectItem({ onSelect: item.onSelect });
   return true;
 }

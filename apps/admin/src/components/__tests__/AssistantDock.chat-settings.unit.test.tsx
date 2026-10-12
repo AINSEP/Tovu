@@ -12,8 +12,9 @@ import { useTovuExecutionPolicy } from "../../hooks/use-tovu-execution-policy.ho
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
 /**
- * @file The dock's Chat settings wiring (owner, 2026-10-11): header gear → "Open chat settings…" →
- * the dialog, and a choice made there reaching `ChatPane` as its display props on the next render.
+ * @file The dock's chat display settings wiring (owner, 2026-10-11): the header gear's menu holds
+ * them directly (no dialog), and a choice made there reaches `ChatPane` as its display props on the
+ * next render.
  * `ChatPane` is a recorder that renders the dock's `header` (where the gear lives), as in
  * `AssistantDock.runtime-access.unit.test.tsx`; the display-preferences hook is the dock's
  * `useChatDisplayPreferences` seam, faked with local state so no settings ledger is involved.
@@ -103,26 +104,27 @@ describe("AssistantDock Chat settings", () => {
     expect(latestPaneProps()).toMatchObject({ toolCallDisplay: "collapsed", showUsageLine: true, showThinking: false });
   });
 
-  it("opens from the gear menu, and a choice there reaches ChatPane at once", async () => {
+  it("changes the choices from the gear menu itself, reaching ChatPane at once, with no dialog", async () => {
     const user = userEvent.setup();
     render(<AssistantDock useChats={fakeChats} />);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(within(screen.getByTestId("chat-pane")).getByRole("button", { name: "Settings" }));
-    await user.click(screen.getByRole("menuitem", { name: "Open chat settings…" }));
-    const dialog = await screen.findByRole("dialog");
+    const menu = screen.getByRole("menu", { name: "Settings" });
 
-    await user.click(within(dialog).getByRole("button", { name: "Hidden" }));
+    await user.click(within(menu).getByRole("menuitemradio", { name: "Hidden" }));
     expect(updates).toEqual([{ toolCalls: "hidden" }]);
     await waitFor(() => expect(latestPaneProps().toolCallDisplay).toBe("hidden"));
-    expect(within(dialog).getByRole("button", { name: "Hidden" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(menu).getByRole("menuitemradio", { name: "Hidden" })).toHaveAttribute("aria-checked", "true");
 
-    await user.click(within(dialog).getByRole("switch", { name: "Done line" }));
+    await user.click(within(menu).getByRole("menuitemcheckbox", { name: "Done line" }));
     await waitFor(() => expect(latestPaneProps().showUsageLine).toBe(false));
-
-    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    await user.click(within(menu).getByRole("menuitemcheckbox", { name: "Thinking" }));
+    await waitFor(() => expect(latestPaneProps().showThinking).toBe(true));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     // Closing keeps the choices.
-    expect(latestPaneProps()).toMatchObject({ toolCallDisplay: "hidden", showUsageLine: false });
+    expect(latestPaneProps()).toMatchObject({ toolCallDisplay: "hidden", showUsageLine: false, showThinking: true });
   });
 });

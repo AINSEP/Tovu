@@ -1,10 +1,12 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DockHeaderTip } from "../DockHeaderTip";
 import { DockSettingsMenu } from "../DockSettingsMenu";
-import { activateDockMenuItem, dockSettingsMenuItems, shouldShowHeaderTip } from "../dock-header-rules";
+import { activateDockMenuItem, dockSettingsMenuSections, shouldShowHeaderTip } from "../dock-header-rules";
+import { DEFAULT_CHAT_DISPLAY, type ChatDisplayPreferences } from "../chat-display-preferences";
 
 /**
  * @file The dock header's gear menu and white icon tooltips (owner, 2026-10-11). Real hooks, real
@@ -31,7 +33,7 @@ describe("dock header rules", () => {
     expect(shouldShowHeaderTip({ target: null })).toBe(false);
   });
 
-  it("does nothing for a disabled row and closes-then-runs an enabled one", () => {
+  it("does nothing for a disabled row, closes-then-runs an action row, and applies a setting row in place", () => {
     const selectItem = vi.fn();
     expect(activateDockMenuItem({ item: { key: "x", label: "X", disabled: true, onSelect: vi.fn() }, selectItem })).toBe(false);
     expect(selectItem).not.toHaveBeenCalled();
@@ -39,35 +41,64 @@ describe("dock header rules", () => {
     const onSelect = vi.fn();
     expect(activateDockMenuItem({ item: { key: "x", label: "X", onSelect }, selectItem })).toBe(true);
     expect(selectItem).toHaveBeenCalledWith({ onSelect });
+
+    selectItem.mockClear();
+    const onToggle = vi.fn();
+    expect(activateDockMenuItem({ item: { key: "y", label: "Y", role: "menuitemcheckbox", onSelect: onToggle }, selectItem })).toBe(true);
+    expect(activateDockMenuItem({ item: { key: "z", label: "Z", role: "menuitemradio", onSelect: onToggle }, selectItem })).toBe(true);
+    expect(onToggle).toHaveBeenCalledTimes(2);
+    expect(selectItem).not.toHaveBeenCalled();
   });
 
-  it("offers one row, which opens the Chat settings dialog", () => {
-    const onOpenChatSettings = vi.fn();
-    const items = dockSettingsMenuItems({ t: identity }, { onOpenChatSettings });
-    expect(items).toEqual([{ key: "chat-settings", label: "Open chat settings…", onSelect: onOpenChatSettings }]);
+  it("puts Tool calls, Done line and Thinking in the menu, checked from the current choices", () => {
+    const update = vi.fn();
+    const sections = dockSettingsMenuSections({ t: identity }, { display: { preferences: DEFAULT_CHAT_DISPLAY, update } });
+    expect(sections.map((section) => section.label)).toEqual(["Tool calls", undefined]);
+    expect(sections.flatMap((section) => section.items.map(({ label, role, checked }) => ({ label, role, checked })))).toEqual([
+      { label: "Show", role: "menuitemradio", checked: false },
+      { label: "Collapsed", role: "menuitemradio", checked: true },
+      { label: "Hidden", role: "menuitemradio", checked: false },
+      { label: "Done line", role: "menuitemcheckbox", checked: true },
+      { label: "Thinking", role: "menuitemcheckbox", checked: false },
+    ]);
+    for (const item of sections.flatMap((section) => section.items)) item.onSelect?.();
+    expect(update.mock.calls.map(([patch]) => patch)).toEqual([
+      { toolCalls: "show" }, { toolCalls: "collapsed" }, { toolCalls: "hidden" }, { showUsageLine: false }, { showThinking: true },
+    ]);
   });
 });
 
+/** Local-state stand-in for the stored choices, so the menu re-renders as a real save would. */
+function SettingsMenuHarness({ notice }: { notice?: string }) {
+  const [preferences, setPreferences] = useState(DEFAULT_CHAT_DISPLAY);
+  const update = (patch: Partial<ChatDisplayPreferences>) => setPreferences((current) => ({ ...current, ...patch }));
+  return <DockSettingsMenu label="Settings" sections={dockSettingsMenuSections({ t: identity }, { display: { preferences, update } })} notice={notice} />;
+}
+
 describe("DockSettingsMenu", () => {
-  it("opens a menu whose row opens Chat settings, and closes on Escape, outside click and a second click", async () => {
+  it("changes settings in place with the menu left open, and closes on Escape, outside click and a second click", async () => {
     const user = userEvent.setup();
-    const onOpenChatSettings = vi.fn();
-    render(<DockSettingsMenu label="Settings" items={dockSettingsMenuItems({ t: identity }, { onOpenChatSettings })} />);
+    render(<SettingsMenuHarness />);
     const gear = screen.getByRole("button", { name: "Settings" });
     expect(gear).toHaveAttribute("aria-expanded", "false");
 
     await user.click(gear);
     const menu = screen.getByRole("menu", { name: "Settings" });
-    const row = within(menu).getByRole("menuitem", { name: "Open chat settings…" });
-    expect(row).not.toHaveAttribute("aria-disabled");
     expect(gear).toHaveAttribute("aria-expanded", "true");
+    expect(within(menu).getByRole("group", { name: "Tool calls" })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitemradio", { name: "Collapsed" })).toHaveAttribute("aria-checked", "true");
+    // No modal behind the gear any more.
+    expect(within(menu).queryByRole("menuitem")).not.toBeInTheDocument();
 
-    // Choosing the row closes the menu, then opens the dialog.
-    await user.click(row);
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    expect(onOpenChatSettings).toHaveBeenCalledTimes(1);
+    await user.click(within(menu).getByRole("menuitemradio", { name: "Hidden" }));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitemradio", { name: "Hidden" })).toHaveAttribute("aria-checked", "true");
+    expect(within(menu).getByRole("menuitemradio", { name: "Collapsed" })).toHaveAttribute("aria-checked", "false");
 
-    await user.click(gear);
+    await user.click(within(menu).getByRole("menuitemcheckbox", { name: "Done line" }));
+    expect(within(menu).getByRole("menuitemcheckbox", { name: "Done line" })).toHaveAttribute("aria-checked", "false");
+    expect(within(menu).getByRole("menuitemcheckbox", { name: "Done line" })).toHaveFocus();
+
     fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(gear).toHaveFocus();
@@ -79,6 +110,28 @@ describe("DockSettingsMenu", () => {
     await user.click(gear);
     await user.click(gear);
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("moves through the rows with the arrow keys and toggles with Enter", async () => {
+    const user = userEvent.setup();
+    render(<SettingsMenuHarness />);
+    screen.getByRole("button", { name: "Settings" }).focus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Thinking" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Thinking" })).toHaveAttribute("aria-checked", "true");
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+  });
+
+  it("shows a failed save as a status line under the rows", async () => {
+    const user = userEvent.setup();
+    render(<SettingsMenuHarness notice="Couldn't save." />);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    expect(within(screen.getByRole("menu")).getByRole("status")).toHaveTextContent("Couldn't save.");
   });
 });
 
@@ -105,7 +158,7 @@ describe("DockHeaderTip", () => {
 
   it("stays hidden over the gear while its menu is open", async () => {
     const user = userEvent.setup();
-    render(<DockHeaderTip label="Settings"><DockSettingsMenu label="Settings" items={dockSettingsMenuItems({ t: identity }, { onOpenChatSettings: vi.fn() })} /></DockHeaderTip>);
+    render(<DockHeaderTip label="Settings"><SettingsMenuHarness /></DockHeaderTip>);
     const gear = screen.getByRole("button", { name: "Settings" });
 
     await user.click(gear);

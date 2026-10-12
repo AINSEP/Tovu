@@ -1,8 +1,9 @@
+import { Fragment } from "react";
 import { createPortal } from "react-dom";
 import { RemixIcon } from "@jini-ai/ui";
 
 import { useTaxonomyRowMenu } from "@/features/taxonomy/TaxonomyRowMenu.hooks";
-import { activateDockMenuItem, type DockSettingsMenuItem } from "./dock-header-rules";
+import { activateDockMenuItem, type DockSettingsMenuSection } from "./dock-header-rules";
 
 /**
  * The dock header's gear (owner, 2026-10-11): a small menu under it, right-aligned. Built from the
@@ -10,12 +11,17 @@ import { activateDockMenuItem, type DockSettingsMenuItem } from "./dock-header-r
  * positioning and roving-focus hook `TaxonomyRowMenu` uses (published `RowMenu` hard-codes its ⋮
  * trigger and has no disabled rows). The hook already anchors the popup's right edge to the
  * trigger's, which keeps it inside the narrow dock.
+ * Rows come in sections (a heading, then its rows); a setting row carries a check mark that is
+ * always laid out and only shown when on, so toggling never shifts the menu. `notice` is a status
+ * line under the rows (a failed save).
  * Disabled rows use `aria-disabled`, not `disabled`, so keyboard focus can still land on them.
  */
-export function DockSettingsMenu({ label, items, useMenu = useTaxonomyRowMenu }: {
-  label: string; items: DockSettingsMenuItem[]; useMenu?: typeof useTaxonomyRowMenu;
+export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonomyRowMenu }: {
+  label: string; sections: DockSettingsMenuSection[]; notice?: string; useMenu?: typeof useTaxonomyRowMenu;
 }) {
+  const items = sections.flatMap((section) => section.items);
   const menu = useMenu({ itemCount: items.length });
+  let index = 0;
   return <>
     <button
       ref={menu.triggerRef}
@@ -34,7 +40,7 @@ export function DockSettingsMenu({ label, items, useMenu = useTaxonomyRowMenu }:
         ref={menu.menuRef}
         role="menu"
         aria-label={label}
-        className={`row-menu-popup${menu.position?.placement === "above" ? " row-menu-popup-above" : ""}`}
+        className={`row-menu-popup dock-settings-menu${menu.position?.placement === "above" ? " row-menu-popup-above" : ""}`}
         style={{
           position: "fixed",
           top: menu.position ? menu.position.top : -9999,
@@ -44,16 +50,32 @@ export function DockSettingsMenu({ label, items, useMenu = useTaxonomyRowMenu }:
         }}
         onKeyDown={menu.onMenuKeyDown}
       >
-        {items.map((item, index) => <button
-          key={item.key}
-          ref={(element) => { menu.itemRefs.current[index] = element; }}
-          type="button"
-          role="menuitem"
-          tabIndex={-1}
-          className="row-menu-item"
-          aria-disabled={item.disabled ? true : undefined}
-          onClick={() => activateDockMenuItem({ item, selectItem: menu.selectItem })}
-        >{item.label}</button>)}
+        {sections.map((section, sectionIndex) => <Fragment key={section.key}>
+          {sectionIndex > 0 ? <div role="separator" className="dock-settings-menu-separator" /> : null}
+          <div role="group" aria-labelledby={section.label ? `dock-settings-${section.key}` : undefined}>
+            {section.label ? <div id={`dock-settings-${section.key}`} className="dock-settings-menu-heading">{section.label}</div> : null}
+            {section.items.map((item) => {
+              const itemIndex = index++;
+              const checkable = item.role === "menuitemradio" || item.role === "menuitemcheckbox";
+              return <button
+                key={item.key}
+                ref={(element) => { menu.itemRefs.current[itemIndex] = element; }}
+                type="button"
+                role={item.role ?? "menuitem"}
+                aria-checked={checkable ? Boolean(item.checked) : undefined}
+                tabIndex={-1}
+                className="row-menu-item"
+                title={item.hint}
+                aria-disabled={item.disabled ? true : undefined}
+                onClick={() => activateDockMenuItem({ item, selectItem: menu.selectItem })}
+              >
+                {checkable ? <span className="dock-settings-menu-check" aria-hidden="true"><RemixIcon name="check-line" size={14} /></span> : null}
+                {item.label}
+              </button>;
+            })}
+          </div>
+        </Fragment>)}
+        {notice ? <p className="dock-settings-menu-notice" role="status">{notice}</p> : null}
       </div>,
       document.body,
     ) : null}

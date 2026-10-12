@@ -3,11 +3,9 @@ import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { SubagentsIndicator } from "./SubagentsIndicator";
 import { DockHeaderTip } from "./DockHeaderTip";
 import { DockSettingsMenu } from "./DockSettingsMenu";
-import { dockSettingsMenuItems } from "./dock-header-rules";
-import { ChatSettingsDialog } from "./ChatSettingsDialog";
+import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
-import { useChatSettingsDialog } from "./hooks/use-chat-settings-dialog.hooks";
 import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
@@ -306,7 +304,7 @@ export interface AssistantDockProps {
   /** Pane implementation seam: host wiring tests inject a recorder without replacing Jini's module. */
   ChatPane?: typeof ChatPane;
   useExecutionPolicy?: typeof useTovuExecutionPolicy;
-  /** The Chat settings → Display choices seam (`useChatDisplayPreferences`); a test passes a fake. */
+  /** The gear menu's chat display choices seam (`useChatDisplayPreferences`); a test passes a fake. */
   useChatDisplayPreferences?: typeof useChatDisplayPreferences;
   /**
    * This tab's page-control connection, owned by `App.tsx` (it outlives this pane, which unmounts
@@ -469,9 +467,8 @@ export function AssistantDock({
   // than three separate calls.
   const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
   const conversationDelete = useConfirmRequest({});
-  // Gear → "Open chat settings…": per-operator transcript display, applied to the pane at once.
+  // Gear menu: per-operator transcript display, applied to the pane at once.
   const chatDisplay = useChatDisplayPreferencesOverride();
-  const chatSettingsDialog = useChatSettingsDialog();
 
   const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
@@ -682,7 +679,8 @@ export function AssistantDock({
               </DockHeaderTip>
               {/* Right of the switcher; the bar's ✕ (App.tsx) sits to its right. */}
               <DockHeaderTip label={t("Settings")}>
-                <DockSettingsMenu label={t("Settings")} items={dockSettingsMenuItems({ t }, { onOpenChatSettings: chatSettingsDialog.show })} />
+                <DockSettingsMenu label={t("Settings")} sections={dockSettingsMenuSections({ t }, { display: chatDisplay })}
+                  notice={chatDisplay.saveFailed ? t("Couldn't save. This choice lasts until you reload.") : undefined} />
               </DockHeaderTip>
             </div>
             {emptyState.empty ? (
@@ -815,7 +813,6 @@ export function AssistantDock({
         // ]}
       />
       <ConfirmDialog {...conversationDelete.dialog} />
-      {chatSettingsDialog.open ? <ChatSettingsDialog locale={locale} t={t} display={chatDisplay} onClose={chatSettingsDialog.close} /> : null}
       </div>
       </FailureSurfaceContext.Provider>
     </JiniChatProvider>

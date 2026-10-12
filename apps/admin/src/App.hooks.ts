@@ -786,7 +786,7 @@ export function useChatDockLayout(): UseChatDockLayout {
     if (!chatOpen) return;
     function onKeyDown(e: KeyboardEvent) {
       // The composer consumes Escape to dismiss its palette; keep the containing dock open.
-      // An open modal (Chat settings) or menu (Chats, gear) owns its Escape too: one press closes only it.
+      // An open modal (a confirm dialog) or menu (Chats, gear) owns its Escape too: one press closes only it.
       if (e.key === "Escape" && !isEscapeOwnedByInnerLayer({ key: e.key, defaultPrevented: e.defaultPrevented, root: document })) setChatOpen(false);
     }
     document.addEventListener("keydown", onKeyDown);
