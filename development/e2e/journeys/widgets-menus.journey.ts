@@ -16,7 +16,7 @@ import { WS_API, createPublishedPageWithHtml, expect, fetchPublic, test, uniq, u
  * asserts the INTENDED copy.
  *
  * Selectors: `apps/admin/src/features/menus/MenuEditor.tsx` ("Menu title", "Menu slug",
- * "+ Add item", "Item label", "Link type", URL placeholder `https://…`, `.save-ok`/`.save-error`).
+ * "+ Add item", "Item label", "Link type", URL placeholder `https://…`, `.save-ok`/`.notice.error` alert).
  */
 const MENU_ITEM = new RegExp(`${WS_API}/menus/[^/?]+$`);
 
@@ -155,7 +155,8 @@ test.describe("menus stress", () => {
     await expect(page.locator(".save-ok")).toBeVisible();
     await other.getByRole("button", { name: "Save" }).click();
 
-    const error = other.locator(".save-error");
+    // fb8962f41 moved the editor's save error into the top `.notice.error` alert banner.
+    const error = other.locator(".notice.error[role='alert']");
     await expect(error).toBeVisible();
     // INTENDED copy (likely bug today: the raw `MenuConflictError` message is shown).
     await expect(error).toContainText("Someone else changed this while you were editing. Your changes were not saved.");
@@ -211,8 +212,8 @@ test.describe("menus stress", () => {
     await page.getByRole("textbox", { name: "Menu slug" }).fill(slug);
     await addUrlItem(page, "Click me", "javascript:alert(document.cookie)");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.locator(".save-ok, .save-error").first()).toBeVisible();
-    if (await page.locator(".save-error").isVisible()) return; // refused at save time: the safe outcome
+    await expect(page.locator(".save-ok, .notice.error[role='alert']").first()).toBeVisible();
+    if (await page.locator(".notice.error[role='alert']").isVisible()) return; // refused at save time: the safe outcome
     const pageSlug = uniqSlug("js-menu-page");
     await createPublishedPageWithHtml(request, {
       title: "JS menu",

@@ -46,6 +46,13 @@ async function createEditorViaApi(request: APIRequestContext): Promise<Editor> {
 
 async function deleteUser(request: APIRequestContext, principalId: string): Promise<void> {
   const res = await request.delete(`${WS_API}/users/${principalId}`);
+  // routes/users/delete.ts: user Trash is SQLite-only; other stores answer 501 NOT_SUPPORTED.
+  // There the cleanup disables the user instead so it can no longer sign in.
+  if (res.status() === 501) {
+    const disabled = await request.post(`${WS_API}/users/${principalId}/disable`);
+    expect([200, 404], "user cleanup (disable)").toContain(disabled.status());
+    return;
+  }
   expect([204, 404], "user cleanup").toContain(res.status());
 }
 
@@ -85,7 +92,8 @@ test.describe("W8 users and roles", () => {
     try {
       await page.goto("/admin/users");
       await page.getByRole("button", { name: "New user" }).click();
-      await page.getByLabel("Username").fill(username);
+      // The users page now has more "username" fields (Change username dialog, own profile); use the create-form handle.
+      await page.locator('[data-agent-element="users-new-username"]').fill(username);
       await page.getByLabel("Password", { exact: true }).fill(EDITOR_PASSWORD);
       const createdResponse = page.waitForResponse((r) => r.url().endsWith(`${WS_API}/users`) && r.request().method() === "POST");
       await page.getByRole("button", { name: "Create user" }).click();

@@ -99,7 +99,8 @@ test.describe("Reset password — confirm field + reveal toggles, end to end", (
     //    resetting mid-suite would leave every later run starting from different credentials.
     await page.goto("/admin/users", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "New user" }).click();
-    await page.getByLabel("Username").fill(USERNAME);
+    // The users page now has more "username" fields (Change username dialog, own profile); use the create-form handle.
+    await page.locator('[data-agent-element="users-new-username"]').fill(USERNAME);
     await page.getByLabel("Password", { exact: true }).fill(CREATE_PASSWORD);
     await page.getByRole("button", { name: "Create user" }).click();
 

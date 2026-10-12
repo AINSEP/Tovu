@@ -61,10 +61,11 @@ async function restoreTheme(request: APIRequestContext, themeId: string): Promis
 async function activateThroughUi(page: Page, theme: ThemeSummary): Promise<void> {
   await page.goto(`/admin/themes?tab=${tabGroupOf(theme.tier)}`);
   const patched = page.waitForResponse((r) => r.url().endsWith(`${WS_API}/presentation`) && r.request().method() === "PATCH");
-  await page.getByRole("button", { name: `Activate ${displayName(theme)}`, exact: true }).click();
+  // bd99e7cbd: the card's Activate button is now a switch; aria-checked marks the active theme.
+  const toggle = page.getByRole("switch", { name: `Activate ${displayName(theme)}`, exact: true });
+  await toggle.click();
   expect((await patched).status()).toBe(200);
-  const card = page.locator(".theme-card").filter({ has: page.getByRole("heading", { name: displayName(theme), exact: true }) });
-  await expect(card.getByText("Active", { exact: true })).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
 }
 
 test.describe("W5 theme switching", () => {
@@ -114,9 +115,10 @@ test.describe("W5 theme switching", () => {
     });
     try {
       await page.goto(`/admin/themes?tab=${tabGroupOf(target.tier)}`);
-      await page.getByRole("button", { name: `Activate ${displayName(target)}`, exact: true }).dblclick();
-      const card = page.locator(".theme-card").filter({ has: page.getByRole("heading", { name: displayName(target), exact: true }) });
-      await expect(card.getByText("Active", { exact: true })).toBeVisible();
+      // bd99e7cbd: Activate is a switch, so an unswallowed second click would turn the theme back off.
+      const toggle = page.getByRole("switch", { name: `Activate ${displayName(target)}`, exact: true });
+      await toggle.dblclick();
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
       expect(patches, "the busy state must swallow the second click").toHaveLength(1);
     } finally {
       await restoreTheme(request, before.settings.activeThemeId);
