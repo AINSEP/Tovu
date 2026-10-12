@@ -1050,7 +1050,7 @@ test.describe("mobile chat sheet reserves scroll room instead of blocking it", (
 
     await openSheet(page);
     await expandSheet(page);
-    await page.getByRole("button", { name: "Close assistant" }).click();
+    await page.getByRole("button", { name: "Close AI chat" }).click();
     await expect(page.locator(".admin-chat-dock")).toHaveAttribute("hidden", "");
 
     const closedMaxScroll = await page.evaluate(() => {

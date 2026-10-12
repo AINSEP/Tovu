@@ -6,6 +6,7 @@ import type { DragEvent } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
+import { appShellApiBody } from "../app-shell-api.fixture";
 import type { UseAdminSession, UseChatDockLayout } from "../../App.hooks";
 import { ADMIN_LOCALES } from "../../lib/settings-tabs";
 import { ASSISTANT_DOCK_DICT } from "../../components/AssistantDock/assistant-dock-i18n";
@@ -34,7 +35,7 @@ vi.mock("../../features/fs-files/hooks/use-folder-drop.hooks", () => ({
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
-  fetchMock = vi.fn(async () => new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } }));
+  fetchMock = vi.fn(async (url: string) => new Response(JSON.stringify(appShellApiBody({ url: String(url) })), { status: 200, headers: { "content-type": "application/json" } }));
   vi.stubGlobal("fetch", fetchMock);
   // See the sibling App tests in this directory: jsdom has no `EventSource`, and `App`'s
   // page-control bridge (`useAgentPageBridge`, not faked here) constructs one once `<main>`
@@ -104,7 +105,7 @@ it("renders the assistant dock's open state through a fake useChatDock, with no 
 
 it.each(ADMIN_LOCALES)("points toward the next sheet height and names that action in $code", async ({ code }) => {
   fetchMock.mockImplementation(async (url: string) => new Response(JSON.stringify(
-    String(url).includes("core.language") ? { data: [{ key: "locale", value: code }] } : {},
+    appShellApiBody({ url: String(url) }, { locale: code }),
   ), { status: 200, headers: { "content-type": "application/json" } }));
 
   function useSheetDock(): UseChatDockLayout {

@@ -304,8 +304,10 @@
    boxes, so each server's card was a different width (a "Tools 20" button is wider than "Tools 8"),
    the Remove buttons did not line up, and names truncated at ~12 characters. The row becomes the
    one card instead — the Jini card inside goes borderless at full width (checkbox, name, Remove),
-   and Tools sits on a second line inside the same box, under the name. */
-@media (max-width: 640px) {
+   and Tools sits on a second line inside the same box, under the name. Container (2026-10-11): the
+   pane's width, so a desktop pane squeezed by the nav + dock gets the one-card row too. The tools
+   MODAL below stays a viewport rule — it is sized against the screen, not the pane. */
+@container admin-content (max-width: 620px) {
   .external-mcp-source-row {
     flex-wrap: wrap;
     gap: 0;

@@ -7,6 +7,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
+import { appShellApiBody } from "../app-shell-api.fixture";
 import { api } from "../../lib/api";
 
 /**
@@ -42,8 +43,8 @@ function stubFetch(assistantSettingsBody: Record<string, unknown>): ReturnType<t
       });
     }
     // Any other call this render pulls in (locale, execution config, BYOK credential status, …) —
-    // a benign empty success, same fallback `app-plugins-route.unit.test.tsx` uses.
-    return new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } });
+    // valid empty screen payloads, so the dashboard mounted beside the dock can finish rendering.
+    return new Response(JSON.stringify(appShellApiBody({ url: String(url) })), { status: 200, headers: { "content-type": "application/json" } });
   });
 }
 
@@ -146,7 +147,7 @@ function stubFetchWithPost(assistantSettingsBody: Record<string, unknown>): Retu
     if (href.endsWith("/posts")) {
       return new Response(JSON.stringify({ posts: [] }), { status: 200, headers: { "content-type": "application/json" } });
     }
-    return new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify(appShellApiBody({ url: String(url) })), { status: 200, headers: { "content-type": "application/json" } });
   });
 }
 

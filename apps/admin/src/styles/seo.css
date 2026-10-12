@@ -295,8 +295,10 @@
 
 /* Below ~960px the rail's 224px + 32px gutter leaves the control column narrower than the fields
    need, so the section stacks: title above its group, seam and spacing unchanged. The action row
-   loses its indent at the same breakpoint or it would hang off a form whose fields start at 0. */
-@media (max-width: 60rem) {
+   loses its indent at the same breakpoint or it would hang off a form whose fields start at 0.
+   Container (2026-10-11): the PANE's width, not the viewport's — with the nav + dock open a wide
+   window still left the control column too narrow. 45rem keeps the control column ≥ ~460px. */
+@container admin-content (max-width: 45rem) {
   .jini-seo-section {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);

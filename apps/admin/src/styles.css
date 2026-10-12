@@ -532,14 +532,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 .info-tip-icon:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 50%; }
 .info-tip-bubble {
   position: fixed; transform: translate(-50%, calc(-100% - 8px));
-  width: max-content; max-width: 18rem; padding: 0.55rem 0.75rem; border-radius: var(--r-sm);
+  width: max-content; max-width: min(18rem, calc(100vw - 16px)); padding: 0.55rem 0.75rem; border-radius: var(--r-sm);
   background: #fff; color: #111; font-size: 0.78rem; font-weight: 400;
   line-height: 1.4; letter-spacing: normal; text-transform: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); border: 1px solid rgba(0, 0, 0, 0.1);
   pointer-events: none; z-index: 1000;
 }
 .info-tip-bubble::after {
-  content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  content: ""; position: absolute; top: 100%; left: var(--info-tip-arrow-left, 50%); transform: translateX(-50%);
   border: 5px solid transparent; border-top-color: #fff;
 }
 /* Below-placement variant (`InfoTip.tsx`'s `ABOVE_HEADROOM_PX` fallback, 2026-08-11) — a trigger too
@@ -663,7 +663,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   }
 }
 
-@media (max-width: 640px) {
+/* Container, not viewport (2026-10-11): the toolbar wraps whenever the PAGE is narrow — phone, or
+   desktop with the nav expanded and the dock open — so the same left-aligned grouping applies.
+   620px ≈ the old 640px viewport minus a phone's 2 × 12px page padding. */
+@container admin-content (max-width: 620px) {
   .page-toolbar { margin-block: 0; }
   .page-toolbar > button:first-of-type { margin-left: 0; }
 }
@@ -726,14 +729,21 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    tied/lower-specificity shared rule. */
 .theme-explore-header.page-header .page-description { max-width: 34ch; }
 
-/* Explore screen: file list beside the editor. `minmax(0, 1fr)` on the second column rather than a
+/* Explore screen: the file picker tray on top, then the toolbar and preview at full width (owner,
+   2026-10-11: "the file list that's on the left, make that up top ... it's way too small right now
+   when the assistant chat is open"). It was a 190px sidebar beside the editor, which with the chat
+   dock open left the preview a ~200px thumbnail. `minmax(0, 1fr)` on the single column rather than a
    bare `1fr` — without it a wide `<pre>`/`<textarea>` sets the column's min-content width and pushes
-   the grid past the viewport instead of scrolling inside its own box. */
+   the grid past its box instead of scrolling inside its own.
+   `container-type` sits here, on this inner wrapper, so the rules below respond to the width this
+   screen really gets (side nav and chat dock open or not), not the viewport. Not on `.page`:
+   containment makes the container the containing block for `position: fixed` descendants, and this
+   screen's toasts render as `.page` children. */
 .theme-explore {
-  display: grid; grid-template-columns: 190px minmax(0, 1fr);
+  display: grid; grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
+  container-type: inline-size; container-name: theme-explore;
 }
-@media (max-width: 720px) { .theme-explore { grid-template-columns: minmax(0, 1fr); } }
 /* SUPERSEDED 2026-08-11 (owner: "it's taking up too much space... just show 'You're editing your
    own copy' and then a tooltip icon"): `.theme-explore-directions` used to be a bordered `.notice`
    block here, capped to half the page ("it spans the whole page, which is just unnecessary and
@@ -751,95 +761,128 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    against and would otherwise leave it flush left. Auto margins are resolved per flex LINE, so this
    keeps working whether the column shares a row with the title or has fallen to a row of its own. */
 .theme-explore-header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; margin-left: auto; }
+/* Back arrow | centred title | Saved/Reset (owner, 2026-10-11: "center the title section ... just make
+   it a back arrow to the left"). A grid with equal `1fr` rails, not the flex row above: flex would
+   centre the title only in the space left over, and the wider actions column would push it left of
+   true centre — the same reason `.page-header-split` below is a grid. Not that modifier itself:
+   `.page:has(.page-header-split)` turns `.page` into a size container, and that containment makes
+   `.page` the containing block for this screen's `position: fixed` toasts. The rails keep grid's
+   `auto` minimum, so when the chat dock squeezes the page the actions column keeps its width and
+   the title drifts off-centre instead of overlapping it. Three classes deep (0,3,0) for the same
+   reason as the subtitle rule above. */
+.theme-explore-header.page-header {
+  display: grid; grid-template-columns: 1fr minmax(0, 2fr) 1fr; align-items: start;
+}
+.theme-explore-header.page-header > .page-header-text { grid-column: 2; align-items: center; text-align: center; }
+.theme-explore-header.page-header > .theme-explore-header-actions { grid-column: 3; justify-self: end; margin-left: 0; }
+/* The Edit post/page back arrow (`.content-editor-back`, styles/editor.css) on a `<button>`: same
+   size, colour and hover, with the app-wide `button` fill/padding reset away. */
+.theme-explore-header.page-header > .theme-explore-back {
+  grid-column: 1; justify-self: start;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2.4rem; margin-left: -0.35rem; padding: 0;
+  border: 0; border-radius: var(--r-sm); background: transparent; color: var(--fg-2); cursor: pointer;
+}
+.theme-explore-header.page-header > .theme-explore-back:hover:not(:disabled) { background: transparent; color: var(--fg); opacity: 1; }
+/* Phones: arrow and title share the first row (title centred between the arrow and an equal empty
+   rail), Saved/Reset and the copy line drop to their own right-aligned row below. */
+@media (max-width: 640px) {
+  .theme-explore-header.page-header { grid-template-columns: 2rem minmax(0, 1fr) 2rem; column-gap: var(--space-2); row-gap: var(--space-3); }
+  .theme-explore-header.page-header > .theme-explore-header-actions { grid-column: 1 / -1; grid-row: 2; max-width: 100%; }
+}
 /* `white-space: nowrap` makes "one line" a guarantee rather than a hope: the visible text plus icon
    ("You're editing your own copy. ⓘ") is short enough to fit even at the narrowest viewport this
    header supports (measured at 390px), so there's no wrap-vs-truncate tradeoff to weigh here the way
    there was for the old block's full sentence. */
 .theme-explore-copy-tip { margin: 0; font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+/* Phones: the shared 40px tap-target floor (`[role="button"]`, the P-3 block near the end of this
+   file) grows the ~18px ⓘ to a 40x40 box with the glyph centred, which pushed this line ~20px under
+   Saved/Reset and left the ⓘ ~11px past its text plus the box's own slack (Chrome check, 2026-10-11).
+   Negative margins equal to that slack keep the 40px hit area but take it out of the layout, so the
+   line sits right under the buttons with the ⓘ just after the text and flush with their right edge. */
+@media (max-width: 640px) {
+  .theme-explore-copy-tip .info-tip-icon { margin: calc((1.1rem - 40px) / 2); }
+}
 /* Explore's no-stored-original banner (2026-10-08): message left, "Save as original" right, wrapping
    under the message on a narrow screen instead of squeezing it. */
 .theme-explore-no-original { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3); }
 .theme-explore-no-original-action { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-/* 2026-08-11: the sidebar needs to span the SAME height as `.theme-explore-main` (its toolbar row
-   plus the preview/HTML pane) — but ONE direction only: matching `.theme-explore-main`'s own natural
-   height, never the other way around. A first attempt just gave both grid items `align-items: stretch`
-   (the grid default) plus `height: 100%` on the file list — that mutually stretches whichever column
-   is TALLER onto the other, and with up to 60 files across six groups the SIDEBAR is very often the
-   taller one, which then inflated `.theme-explore-main` far past its own content (toolbar + a ~500px
-   textarea, or a ~700px scaled preview iframe), leaving hundreds of pixels of dead space below it —
-   worse than the fixed-cap version this replaced, not better.
-   The fix: `.theme-explore-files-wrap` is the actual grid item. It has no IN-FLOW content of its own
-   — only the absolutely-positioned `<nav>` below — so it contributes NOTHING to the grid row's
-   auto-height calculation; the row's height is set by `.theme-explore-main` alone. `align-items:
-   stretch` (the grid default, so no rule needed for it) still stretches the now-empty wrap to that
-   row height, and the `<nav>`'s `position: absolute; inset: 0` fills exactly that stretched box,
-   scrolling internally via `overflow-y: auto` if its own content is taller than the space this leaves
-   it — the "keep the scroll container, drop the fixed number" fix `6161855`'s vh-based cap needed,
-   now actually matching the PANE'S height instead of a viewport guess OR the file list's own size. */
-.theme-explore-files-wrap { position: relative; }
+/* The picker tray (`ThemeExploreFileList`): group tabs on top, the active group's files as wrapping
+   chips below. In normal flow with no height cap and no scroller of its own, so the page wheel
+   scrolls straight past it — the old sidebar's internal scroller stopped the wheel at its bottom
+   edge. The 2026-08-11 sidebar trick (an absolutely-positioned `<nav>` in an empty grid cell, to
+   borrow the preview column's height) and its 720px/640px fallbacks went with the column. */
 .theme-explore-files {
-  position: absolute; inset: 0;
-  overflow-y: auto;
-  /* Room for the scrollbar so it never overlaps the file names. */
-  padding-right: var(--space-2);
-  overscroll-behavior: contain;
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface);
 }
-/* Below 720px the sidebar and main pane drop into separate grid ROWS (single column, per
-   `.theme-explore`'s own media query above), so the stretch trick the base rules just above rely on
-   (matching `.theme-explore-main`'s height via `align-items: stretch` in a shared row) has no sibling
-   left to borrow height from — the wrap's own row auto-height is 0 (still no in-flow content),
-   collapsing the absolutely-positioned `<nav>` inside it to 0px too, i.e. an invisible sidebar. Back
-   to normal flow with an explicit cap instead. Placed AFTER the base rules on purpose, not just inside
-   a media query next to them: equal-specificity class selectors resolve ties by source order
-   regardless of which one's media condition is true, so an override earlier in the file loses to an
-   unconditional rule later in the file even while its own `@media` matches. */
-@media (max-width: 720px) {
-  .theme-explore-files-wrap { position: static; }
-  .theme-explore-files { position: static; inset: auto; max-height: 240px; }
+/* Group tabs: quiet underline tabs, so they don't read as a second copy of the Preview/HTML segmented
+   control just below. They wrap instead of scrolling sideways on a narrow screen, keeping every group
+   one tap away with no hidden horizontal scroller. */
+.theme-explore-groups {
+  display: flex; flex-wrap: wrap; gap: 0 var(--space-1);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--border);
 }
-/* TH-4: once the file list has its own row on a phone, use the page's scroller. The capped
-   tablet/desktop layout above still keeps a long list from inflating its neighbouring pane. */
-@media (max-width: 640px) {
-  .theme-explore-files { max-height: none; overflow-y: visible; overscroll-behavior: auto; }
-}
-.theme-explore-files ul { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
-/* Group headings stay visible while their own group scrolls past — with six groups and 60 entries,
-   a name alone does not say whether you are looking at a script or an asset. */
-.theme-explore-files-heading {
-  /* Sticky within the scrolling list: with six groups and 60+ entries, a filename alone does not say
-     whether you are looking at a script or an asset once its heading has scrolled away. Needs an
-     opaque background or the rows show through it. */
-  position: sticky; top: 0; z-index: 1;
-  background: var(--surface); padding-top: var(--space-2);
-  margin: 0 0 4px; font-size: 0.7rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3, var(--fg-2));
-}
-/* `:not(.row-menu-trigger)` — without it this rule's (0,1,1) specificity beats `.row-menu-trigger`'s
-   own (0,1,0) further down this file (both are plain classes/type selectors, no cascade layers), so
-   the ⋮ button inside this list would otherwise inherit `width: 100%; display: block`, an unlabeled
-   full-width bar rather than the small round trigger every other row-actions menu in the app uses. */
-.theme-explore-files button:not(.row-menu-trigger) {
-  display: block; width: 100%; text-align: left;
-  padding: 5px 8px; border: 0; border-radius: var(--r-sm);
+.theme-explore-group {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: -1px; padding: 8px 10px 7px;
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0;
   background: transparent; color: var(--fg-2);
-  font-family: var(--font-mono, monospace); font-size: 0.8rem; cursor: pointer;
+  font-size: 0.82rem; font-weight: 500;
 }
-.theme-explore-files button:not(.row-menu-trigger):hover { background: var(--surface-2); opacity: 1; }
-.theme-explore-files button.is-active { background: var(--accent-dim); color: var(--fg-1); font-weight: 600; }
-/* Each row pairs the filename control (or its inline-rename replacement) with the ⋮ overflow menu —
-   2026-08-11 owner ask (Copy/Rename). Flex rather than the plain block layout the rest of this list
-   uses, so the trigger sits fixed-width at the row's end instead of forcing a second line under a
-   full-width filename button. */
-.theme-explore-file-row { display: flex; align-items: center; gap: 2px; }
-.theme-explore-file-row button:not(.row-menu-trigger) {
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.theme-explore-group:hover { background: transparent; color: var(--fg-1); opacity: 1; }
+.theme-explore-group.is-active { color: var(--fg-1); font-weight: 600; border-bottom-color: var(--selected-ring); }
+.theme-explore-group-count { font-size: 0.72rem; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* A group's modified dot: same token and size as the per-file `.theme-explore-file-modified` below,
+   so the two read as one signal. */
+.theme-explore-group-modified { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
+.theme-explore-files-panel { padding: var(--space-2); }
+.theme-explore-file-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  list-style: none; margin: 0; padding: 0;
 }
-/* Scaled down from the table row menu's 30px default — this column is 190px wide total, shared with
-   a filename that is often longer than the space left after a full-size trigger. `flex-shrink: 0`
-   plus the fixed width reserve this space in the row's layout AT ALL TIMES — the `opacity` toggle
-   below only ever changes visibility, never the box the row is laid out around, so revealing the
-   trigger can never shift the filename or reflow the row. */
-.theme-explore-file-row .row-menu-trigger { width: 22px; height: 22px; flex-shrink: 0; opacity: 0; }
+/* "Show all (N)" / "Show fewer" under a long group (assets): a plain text button, not another chip,
+   so it never reads as a file. */
+.theme-explore-files-more {
+  margin-top: var(--space-2); padding: 2px 4px;
+  border: 0; background: transparent; color: var(--link);
+  font-size: 0.8rem; font-weight: 500;
+}
+.theme-explore-files-more:hover { background: transparent; text-decoration: underline; opacity: 1; }
+/* One chip per file (`ThemeExploreFileRow`): the filename control (or its inline-rename replacement),
+   the modified dot and the ⋮ overflow menu — 2026-08-11 owner ask (Copy/Rename). Flex, so the
+   trigger sits fixed-width at the chip's end instead of forcing a second line under the name. The
+   chip owns the border, fill and hover; the filename button inside stays transparent so the two
+   never stack two tints. */
+.theme-explore-file-row {
+  display: inline-flex; align-items: center; max-width: 100%;
+  padding-right: 2px;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.theme-explore-file-row:hover { background: var(--surface-2); }
+.theme-explore-file-row.is-active { background: var(--accent-dim); border-color: var(--border-strong); }
+/* `:not(.row-menu-trigger)` — without it this rule's specificity beats `.row-menu-trigger`'s own
+   (0,1,0) (both are plain classes/type selectors, no cascade layers), so the ⋮ button inside a chip
+   would inherit the filename's padding and ellipsis rather than staying the small round trigger
+   every other row-actions menu in the app uses. `max-width` in `ch` stops one long asset name
+   (`inter-latin-400-normal.woff2`) taking a whole row; the ellipsis plus the button's `title` (the
+   full path) is the entire truncation implementation. */
+.theme-explore-file-row > button:not(.row-menu-trigger) {
+  display: block; flex: 0 1 auto; min-width: 0; max-width: 24ch;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+  padding: 4px 4px 4px 9px; border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--fg-2);
+  font-family: var(--font-mono, monospace); font-size: 0.8rem; font-weight: 400; cursor: pointer;
+}
+.theme-explore-file-row > button:not(.row-menu-trigger):hover { background: transparent; opacity: 1; }
+.theme-explore-file-row > button.is-active { color: var(--fg-1); font-weight: 600; }
+/* Scaled down from the table row menu's 30px default to fit inside a chip. `flex-shrink: 0` plus the
+   fixed width reserve this space in the chip's layout AT ALL TIMES — the `opacity` toggle below only
+   ever changes visibility, never the box the chip is laid out around, so revealing the trigger can
+   never resize the chip and reflow the whole wrapping row. */
+.theme-explore-file-row .row-menu-trigger { width: 20px; height: 20px; flex-shrink: 0; opacity: 0; }
 .theme-explore-file-row .row-menu-trigger svg { width: 13px; height: 13px; }
 /* Modified marker (`ThemeExploreModifiedMarker`, 2026-09-12): a dot between the filename and the ⋮
    trigger for a file whose bytes differ from its catalog original. Fixed size plus `flex-shrink: 0`,
@@ -863,11 +906,18 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 .theme-explore-file-row .row-menu-trigger[aria-expanded="true"] {
   opacity: 1;
 }
+/* Touch screens have no hover to reveal a chip's ⋮, and the phone tap-target floor (P-3, further
+   down this file) grows every trigger to 40px: reserved blank space in every chip. There the ⋮ shows
+   on the selected chip only (tap a file, then its ⋮). A selection change re-renders the tray anyway,
+   so the hover-reflow reason for reserving the space above does not apply. */
+@media (hover: none) {
+  .theme-explore-file-row:not(.is-active) .row-menu-trigger:not([aria-expanded="true"]) { display: none; }
+}
 /* Takes over the filename button's slot and sizing while a rename is in progress, so double-clicking
    a name and typing over it reads as editing that same control rather than swapping to a visually
    unrelated one. */
 .theme-explore-rename-input {
-  flex: 1; min-width: 0;
+  flex: 0 1 auto; width: 22ch; min-width: 0;
   padding: 4px 7px; border: 1px solid var(--link); border-radius: var(--r-sm);
   background: var(--surface); color: var(--fg-1);
   font-family: var(--font-mono, monospace); font-size: 0.8rem;
@@ -879,8 +929,48 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    inside `.theme-explore-main`, so that margin pushed the Preview/HTML tabs a full line below the
    file list's "PAGES" heading, which starts flush with the grid's own top edge. Owner feedback
    2026-08-11: "make the pages title flush with preview and HTML tabs ... it just looks off." Scoped
-   to this one context so `PageEditor`'s own spacing is untouched. */
+   to this one context so `PageEditor`'s own spacing is untouched. Since the file tray moved above
+   the toolbar (2026-10-11), `.theme-explore`'s own grid gap is the only space between the two. */
 .theme-explore-main .page-editor-toolbar { margin-top: 0; }
+/* Preview of a data/style/script file (2026-10-10, `ThemeExploreMainPane`): the shared `CodeView`
+   at the HTML tab's own type size instead of the device-scaled iframe, which shrank Chrome's raw
+   JSON viewer to unreadable. Same gutter/wrap rules as `.template-source-modal`'s viewer below; the
+   code box is its own scroller so the sticky gutter stays put while code scrolls under it. */
+/* Sized to the window below its own top (2026-10-11): the old `32rem` floor overrode the viewport
+   term on a short window (a ~623px one gave it 512px starting ~192px down), so the page scrolled as
+   well as the box. `--theme-explore-code-offset` is the box's top plus `.admin-content`'s 2rem bottom
+   padding and a little slack; the `16rem` floor keeps a usable box on a short phone/window. With the
+   file tray above the toolbar (2026-10-11) that top is ~300px on desktop (header, a one-row tray,
+   toolbar); a narrow container wraps the header, tray and toolbar onto more rows, hence the larger
+   offset in the container query below. 22rem still left the page scrolling ~54px past the box on
+   a 900px-tall desktop pane (Chrome check, 2026-10-11: `.admin-content` scrollHeight 954 vs 900), so
+   the desktop offset carries that measured 3.5rem too. */
+.theme-explore-code-view { --theme-explore-code-offset: 25.5rem; }
+@container theme-explore (max-width: 560px) {
+  .theme-explore-code-view { --theme-explore-code-offset: 28rem; }
+}
+.theme-explore-code-view .code-viewer {
+  display: grid; grid-template-columns: auto minmax(max-content, 1fr);
+  min-height: 16rem; max-height: max(16rem, calc(100dvh - var(--theme-explore-code-offset))); overflow: auto;
+  margin: 0; color: var(--fg-2); background: var(--surface);
+  font: 0.82rem/1.6 var(--font-mono, ui-monospace, monospace);
+  border: 1px solid var(--border); border-radius: 10px;
+}
+.theme-explore-code-view .code-viewer code { display: block; padding: var(--space-3) var(--space-4); white-space: pre; }
+.theme-explore-code-view .code-viewer .gutter {
+  position: sticky; left: 0; text-align: right; user-select: none;
+  color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
+}
+.theme-explore-code-view .code-viewer--wrap {
+  grid-template-columns: auto minmax(0, 1fr); align-content: start; padding: var(--space-3) 0;
+}
+.theme-explore-code-view .code-viewer--wrap .line-number {
+  position: sticky; left: 0; text-align: right; user-select: none; padding: 0 var(--space-3);
+  color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
+}
+.theme-explore-code-view .code-viewer--wrap .line-content {
+  padding: 0 var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere;
+}
 /* The view tabs plus the publish toggle sit together on the LEFT of the toolbar; the preview-width
    control and fullscreen trigger (Preview tab only) sit on the right — `.page-editor-toolbar`'s own
    `justify-content: space-between` then only has to place TWO children (this wrapper and
@@ -892,6 +982,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    own line without dragging the Preview/HTML tabs down with it. */
 .theme-explore-toolbar-start { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; min-width: 0; }
 .theme-explore-toolbar-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+/* Narrow container (a phone, or a desktop squeezed by the side nav plus the chat dock): the device /
+   reload / fullscreen group wraps under the Preview/HTML tabs; tighten that wrapped row's gap from
+   the toolbar's 1rem so the two lines read as one toolbar. A container query, not `@media`, for the
+   reason on `.theme-explore` above. */
+@container theme-explore (max-width: 560px) {
+  .theme-explore-main .page-editor-toolbar { row-gap: var(--space-2); }
+}
 /* The publish toggle for the selected PAGE (2026-08-30 owner ask, restyled from a two-button
    Off/Published segmented control the same day — "Can the publish just be a toggle rather than the
    tab... it will be a toggle, a green toggle, Apple style"). Lives inside `.theme-explore-toolbar-
@@ -901,11 +998,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    longest content this group ever carries) drops to its own line rather than forcing the row wider. */
 .theme-explore-publish-toggle { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .theme-explore-publish-label { font-size: 0.85rem; color: var(--muted); }
-/* The reason a LOCKED toggle can't be changed — visible by default, not tucked behind a tooltip: the
-   whole point of this control replacing "show nothing" is that the reason is the first thing an
-   operator sees, not something they have to discover by hovering (2026-08-30 owner-reported
-   confusion this replaces — see `selectedFilePublishState`'s own doc). */
-.theme-explore-publish-reason { font-size: var(--text-xs); color: var(--muted); }
+/* `.theme-explore-publish-reason` (the LOCKED toggle's visible reason text, 2026-08-30) is gone:
+   owner, 2026-10-11, moved the reason into the ⓘ tooltip so the row is just "Publish [switch] ⓘ".
+   The disabled switch itself still shows the control exists, which was the 2026-08-30 fix. */
 /* The switch itself — a real `<button>`, reset back to a bare pill: the app-wide `button` rule
    (top of this file) paints every button with the burnt-orange primary fill/padding/radius, which
    this control replaces entirely rather than layers on top of. Sized to match `.jini-toggle-row-
@@ -1216,32 +1311,45 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
 }
 .editor-publishing-field { display: flex; align-items: center; gap: var(--space-2); }
 .editor-publishing-field .field-label { margin: 0; }
-.editor-featured-preview {
-  width: 2.25rem; height: 2.25rem; object-fit: cover; flex: none; overflow: hidden;
-  border: 1px solid var(--border); border-radius: var(--r-sm);
-}
 /* A featured asset that will not load (deleted, or a non-image saved before the server refused
-   those) — an empty hatched square the size of the thumb, never a broken image with spilled alt text. */
+   those) — an empty hatched box, never a broken image with spilled alt text. The cover slot sizes it;
+   the settings Image tab's 2.25rem thumb it was first drawn for is gone (2026-10-11). */
 .editor-featured-preview-missing {
   display: inline-block; background: repeating-linear-gradient(45deg, var(--surface-3) 0 4px, transparent 4px 8px);
 }
 /* Cover image above the title node (owner, 2026-10-10) — `PostCoverImage.tsx`. Empty: one quiet
-   button. Set: the image across the content column, short enough to keep the title on screen, with
+   button. Set: the image across the content column at its natural height, with
    Change/Remove over its corner on hover or focus (always shown where there is no hover). */
 .post-cover { position: relative; padding: 1.5rem 2rem 0; background: var(--surface); }
 .post-cover + .editor-body { padding-top: 0.75rem; }
 .post-cover-add { display: inline-flex; align-items: center; gap: var(--space-2); padding: 0.3rem 0.6rem; margin-inline-start: -0.6rem; color: var(--muted); font-weight: 500; }
-.post-cover-image { display: block; width: 100%; height: 220px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); }
-.post-cover-missing { display: block; }
+/* Natural height, uncropped, like the published cover (owner 2026-10-11: "same as the published
+   page" — a fixed 220px band with `object-fit: cover` cut the image the public page shows whole).
+   The missing placeholder keeps a height.
+   Width: the published post column, not the whole editor (owner 2026-10-11: the slot spanning the
+   wide editor read much wider and shorter than the public cover). 672px = tovu-theme's
+   `.post-detail` (max-width 720px, border-box) minus `.wrap`'s 24px side padding, measured with
+   getComputedStyle on /how-tovu-saves-you-time. The admin cannot read the site theme's CSS, so
+   this is one constant; change it here if the theme's post column changes. Left-aligned with the
+   editor text, which starts at the same edge. `.post-cover-frame` holds the image and its
+   Change/Remove so the buttons sit on the image's corner, not the editor's. */
+.post-cover { --post-cover-max-width: 672px; }
+.post-cover-frame { position: relative; display: block; max-width: var(--post-cover-max-width); }
+.post-cover-image { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); }
+.post-cover-missing { display: block; height: 220px; }
 .post-cover-actions {
-  position: absolute; top: calc(1.5rem + var(--space-2)); right: calc(2rem + var(--space-2)); display: flex; gap: var(--space-2);
+  position: absolute; top: var(--space-2); right: var(--space-2); display: flex; gap: var(--space-2);
   opacity: 0; transition: opacity 0.14s;
 }
 .post-cover-actions .btn-secondary { padding: 0.3rem 0.65rem; box-shadow: var(--shadow-sm); }
+/* "Hide the cover image in the body" under the slot (owner, 2026-10-11; was the settings Image tab).
+   One quiet line sized to its text; the ⓘ carries the explanation. */
+.post-cover-option { display: flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); font-size: 0.8125rem; color: var(--muted); }
+.post-cover-option label { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; cursor: pointer; }
+.post-cover-option input { margin: 0; }
 .post-cover-set:hover .post-cover-actions, .post-cover:focus-within .post-cover-actions { opacity: 1; }
 @media (hover: none), (max-width: 640px) {
   .post-cover-actions { opacity: 1; }
-  .post-cover-image { height: 160px; }
 }
 .editor-scheduled-badge {
   font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px;
@@ -1481,6 +1589,23 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    and had to be restored for this one. */
 .admin-main-col { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
 .admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
+/* The page's REAL width, as a named size container (2026-10-11, owner: "horrendous" with the side
+   nav expanded and the dock open). Page layouts used to key their breakpoints on the VIEWPORT, but
+   the width a page actually gets is viewport − nav (232px expanded / 60px rail) − dock (380px) −
+   this box's padding: a 1280px window with both open leaves ~590px, so pages kept their "wide"
+   layout in a phone-sized column and centred/fixed-width rows overflowed and clipped. Page-level
+   "content is narrow" rules now use `@container admin-content (…)` against this box instead;
+   rules that really mean "this is a phone" (touch targets, the sheet, the FAB) stay `@media`.
+
+   Safe on the scroller itself, no inner wrapper needed: `container-type: inline-size` applies
+   style + inline-size containment only, NOT layout containment, so it does not become the
+   containing block for `position: fixed` toasts/backdrops rendered inside pages. Probed in
+   headless Chromium 149 (2026-10-11): a `position: fixed; inset: 0` child of a 300px
+   `container-type: inline-size` box still measured the full 1000×600 viewport. Its width comes
+   from `.admin-main-col` (flex stretch), never from its content, so inline-size containment
+   changes nothing about how it sizes. Nearer containers (`.dashboard-page`,
+   `.page:has(.page-header-split)`, the plugin lists) keep winning their own unnamed/named queries. */
+.admin-content { container-type: inline-size; container-name: admin-content; }
 
 /* Mobile top bar — hidden above the tablet breakpoint (desktop keeps the always-visible
    sidebar and needs no drawer toggle or page-orientation label). */
@@ -1579,12 +1704,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .cms-item > span:not(.soon) { flex: 1 0 min-content; white-space: normal; overflow-wrap: normal; word-break: normal; }
 /* Sites keeps its word and parentheses visible while only the live site name ellipsizes.
    The shared row's original full label remains available to assistive technology and rail tooltips.
-   Keyed on the portaled label's presence (`:has`), never a JS-added row class: Jini's Sidebar is
+   Keyed on the adapter's data attribute, never a JS-added row class: Jini's Sidebar is
    React-rendered, so every active-row change rewrites `className` and dropped such a class, leaving
-   both labels visible side by side (2026-10-08). `.cms-item > span.cms-sites-label` stays below the
-   rail rule's specificity so the collapsed rail still clips it. */
-.cms-item:has(> span.cms-sites-label) { flex-wrap: nowrap; }
-.cms-item:has(> span.cms-sites-label) > span:first-of-type {
+   both labels visible side by side (2026-10-08). React preserves unmanaged attributes; avoiding
+   `:has` also keeps composer keystrokes from re-matching this rule (2026-10-11).
+   `.cms-item > span.cms-sites-label` stays below the rail rule's specificity so the collapsed rail
+   still clips it. */
+.cms-item[data-cms-sites-split] { flex-wrap: nowrap; }
+.cms-item[data-cms-sites-split] > span:first-of-type {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
@@ -2147,7 +2274,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 @media (prefers-reduced-motion: reduce) { .dash-stat { transition: none; } .dash-stat:hover { transform: none; } }
 /* Phone padding for the 2-up stat grid above — after `.dash-stat` so it wins the cascade. */
-@media (max-width: 480px) { .dash-stats { gap: var(--space-3); } .dash-stat { padding: var(--space-3) var(--space-4); } }
+/* Container (2026-10-11): keyed on the pane, like the 4-up rule above, so the tight padding also
+   applies when the nav + dock leave a phone-width pane on desktop. 456px ≈ the old 480px viewport
+   minus a phone's page padding. */
+@container admin-content (max-width: 456px) { .dash-stats { gap: var(--space-3); } .dash-stat { padding: var(--space-3) var(--space-4); } }
 .dash-stat-label { font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 /* `font-variant-numeric: tabular-nums` keeps a column of counts optically aligned as values change
    width (9 -> 10 -> 100) instead of the digits shifting under each other. */
@@ -2166,7 +2296,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* Everything that is not a single number. `minmax(0, …)` on both tracks lets a long title inside
    the activity list ellipsize instead of forcing the column wider than its share. */
 .dash-panels { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
-@media (max-width: 1100px) { .dash-panels { grid-template-columns: minmax(0, 1fr); } }
+/* Container (2026-10-11): 800px ≈ the old 1100px viewport minus the expanded nav and page padding
+   (1100 − 232 − 80) — the width the two panels actually had when that breakpoint was picked. With
+   the dock open the viewport query kept them side by side in a ~590px pane. */
+@container admin-content (max-width: 800px) { .dash-panels { grid-template-columns: minmax(0, 1fr); } }
 .dash-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
 .dash-panel-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3);
@@ -2315,8 +2448,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    clipped off the right edge instead of wrapping to its own line, and the id block (no visible
    divider, see the JSX comment on `.editor-id`'s markup for why) sat crowded against "view". Stack
    into two clearly separated rows instead of trying to force three variable-width controls onto one
-   line at narrow widths. */
-@media (max-width: 640px) {
+   line at narrow widths. Container, not viewport (2026-10-11): the slug row overflows the same way
+   when the nav + dock leave a narrow pane on desktop. */
+@container admin-content (max-width: 620px) {
   /* Same reasoning the Pages editor's equivalent rule gives: below this width two halves read as
      cramped rather than usable, and both are free-typed inputs. Stack them full-width instead. */
   .editor-title-row { flex-direction: column; align-items: stretch; }
@@ -2380,8 +2514,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    at every depth. The guide rule already shows the nesting; one small step per level is enough
    (`!important` only because the depth margin is an inline style). Label + link type share line 1,
    the link target gets line 2 whole (the page select clipped to "Documentatio" at 6.5rem), and the
-   move/child/remove buttons share line 3 with Remove pushed to the far end. */
-@media (max-width: 640px) {
+   move/child/remove buttons share line 3 with Remove pushed to the far end. Container (2026-10-11):
+   a desktop pane squeezed by the nav + dock compounds the depth margins the same way. */
+@container admin-content (max-width: 620px) {
   .menu-item-row[style*="margin-left"] { margin-left: 0 !important; padding-left: var(--space-2); }
   .menu-item-fields { padding: 0.6rem; }
   .menu-item-fields > label:nth-of-type(n+3) :is(input, select) { flex: 1 1 100%; width: auto; min-width: 0; }
@@ -2505,10 +2640,15 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* Phones (2026-10-06 mobile catalog PO-2): wrapped, this toolbar was ~6 ragged rows (~200px) with
    items clipped at the right edge and labels breaking inside their buttons ("• / List"). One row that
    scrolls sideways instead, every group and label kept whole, buttons at a 40px touch size. Nothing
-   in it positions out of the row (the Embed menu expands inline), so the scroller clips nothing. */
-@media (max-width: 640px) {
+   in it positions out of the row (the Embed menu expands inline), so the scroller clips nothing.
+   Split 2026-10-11: the one-scrolling-row LAYOUT follows the pane (container — a desktop pane
+   squeezed by the nav + dock wrapped and clipped the same way), while the 40px TOUCH sizes stay a
+   phone-only `@media` rule — a mouse on a narrow desktop pane does not need them. */
+@container admin-content (max-width: 620px) {
   .editor-toolbar { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
   .editor-toolbar > *, .editor-toolbar .grp > *, .embed-insert-menu > * { flex-shrink: 0; }
+}
+@media (max-width: 640px) {
   .editor-toolbar .tb-btn { min-width: 40px; height: 40px; white-space: nowrap; }
   .editor-toolbar .tb-color { width: 40px; height: 40px; }
   .editor-toolbar .tb-select { height: 40px; min-height: 40px; }
@@ -2795,6 +2935,17 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* In flight (a duplicate running): dimmed and waiting, not the "no" cursor — the click is not refused,
    it is queued behind the copy already running. */
 .theme-card button.theme-card-icon-btn:disabled { color: var(--muted); background: transparent; cursor: progress; }
+/* The card's ⋮ (`RowMenu`'s trigger, owner 2026-10-10) dressed as the compass button beside it —
+   same 36px square outline — instead of the round, borderless table-row trigger. Same
+   `.theme-card button.<class>` specificity reason as above. */
+.theme-card button.row-menu-trigger {
+  width: 36px; height: 36px;
+  color: var(--fg); background: transparent;
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+}
+.theme-card button.row-menu-trigger svg { width: 18px; height: 18px; }
+.theme-card button.row-menu-trigger:hover,
+.theme-card button.row-menu-trigger[aria-expanded="true"] { background: var(--surface-2); border-color: var(--fg-2); color: var(--fg); opacity: 1; }
 
 /* Theme card preview thumbnail (Themes screen, 2026-08-10) — a `static`-tier theme's own
    `screenshots/index.png` (served straight off disk by `theme-static-assets.ts`'s
@@ -2881,6 +3032,22 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
 }
 .tab-bar-item[aria-selected="true"] .tab-bar-tag { color: var(--accent-text); opacity: 0.75; }
+/* Themes' "Soon" tabs (Declarative/Templated/Code, owner 2026-10-11): label greyed like the
+   sidebar's `.cms-item.is-soon`, but still a live tab (no `disabled`), so hover and the selected
+   state keep their normal colours. Scoped to `.themes-page`: other screens' tagged tabs are unchanged. */
+.themes-page .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]) { color: var(--faint); }
+.themes-page .tab-bar-item:has(.tab-bar-tag):not([aria-selected="true"]):hover { color: var(--muted); }
+/* Themes header right side (owner 2026-10-11): "View site ↗" pinned to the header's top-right corner,
+   the Rescan / Turn off / Publish buttons as one right-aligned row. The link is absolute so it stays in
+   the corner even after the button row wraps under the description; beside the title the row is
+   padded down to clear it. */
+.themes-page > .page-header { position: relative; }
+.themes-header-side { min-width: 0; max-width: 100%; margin-left: auto; padding-top: 2rem; }
+.themes-header-side > a { position: absolute; top: 0; right: 0; }
+.themes-header-side > .page-actions { justify-content: flex-end; }
+@container admin-content (max-width: 1000px) {
+  .themes-header-side { padding-top: 0; }
+}
 /* The "this one has something configured" signifier (`TabBarTab.dot`'s own doc) — a small filled
    circle, not a colored ring or outline, so it reads clearly at 6px. `--ok` (the same green
    `.status-ok` uses) rather than `--primary`: this is a fact about STATE ("connected"), not a
@@ -4194,7 +4361,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .settings-ui-section--page-flow.observability-section .jini-tabbed-dialog-content { max-width: none; }
 .observability-page-title { display: flex; align-items: center; gap: var(--space-2); }
 .observability-queries-scroll { max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
-@media (max-width: 640px) {
+/* Keyed on the pane like the settings strip below (2026-10-11). */
+@container admin-content (max-width: 620px) {
   .admin-layout .page:is(.ai-assistant-page, .observability-page) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar,
   .admin-layout.wraps-tabs .page:is(.ai-assistant-page, .observability-page) .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
@@ -4425,8 +4593,7 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .tab-bar,
   /* The Jini host sheet loads later; the admin scope keeps this mobile behavior
      above its desktop wrap rule regardless of stylesheet order. */
-  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar,
-  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
@@ -4434,27 +4601,48 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     scrollbar-width: none;
   }
   .tab-bar::-webkit-scrollbar,
-  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar::-webkit-scrollbar,
-  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar { display: none; }
-  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
-    padding-inline: 0;
-    border-bottom: none;
-    box-shadow: inset 0 -1px 0 var(--jini-border);
-  }
+  .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar::-webkit-scrollbar { display: none; }
   /* Slightly tighter tab padding so the common three-tab strips (Plugins, Agent plugins) still
    * fit 375px whole instead of scrolling by a few pixels. */
   .tab-bar-item,
   .admin-layout :is(.jini-page, .jini-dialog) .jini-tab-bar-item { padding-inline: 0.7rem; flex-shrink: 0; white-space: nowrap; }
+  /* Settings → User Interface → "Wrap tabs instead of scrolling" (owner, 2026-10-07; class from
+     `useInterfacePreferences`): the operator opted back into the wrap, every tab visible at the
+     cost of a taller strip. The inset bottom rule above stays, under the last row. */
+  .admin-layout.wraps-tabs .tab-bar,
+  .admin-layout.wraps-tabs :is(.jini-page, .jini-dialog) .jini-tab-bar {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  /* Themes (Chrome check, 2026-10-11): at 390px its strip scrolled with the Code tab entirely off
+     screen and nothing said more tabs were there. Same right-edge fade the AI Assistant /
+     Observability strips use (above); the 32px end padding lets the last tab scroll clear of the
+     fade. Not when the operator chose wrapping tabs, where nothing is hidden. */
+  .admin-layout:not(.wraps-tabs) .themes-page > .tab-bar {
+    padding-right: 32px;
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 32px), transparent);
+  }
+}
+/* The settings-shell half of the strip above, keyed on the PANE, not the viewport (2026-10-11): with
+   the nav expanded and the assistant dock open, a desktop pane is phone-narrow, and the wrap turned
+   Settings' nine tabs into four rows above the form. Same one swipeable row as on a phone. */
+@container admin-content (max-width: 620px) {
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-inline: 0;
+    border-bottom: none;
+    box-shadow: inset 0 -1px 0 var(--jini-border);
+  }
+  .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar::-webkit-scrollbar { display: none; }
   .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
     flex-shrink: 0;
     margin-bottom: 0;
     padding-inline: 8px;
   }
-  /* Settings → User Interface → "Wrap tabs instead of scrolling" (owner, 2026-10-07; class from
-     `useInterfacePreferences`): the operator opted back into the wrap, every tab visible at the
-     cost of a taller strip. The inset bottom rule above stays, under the last row. */
-  .admin-layout.wraps-tabs .tab-bar,
-  .admin-layout.wraps-tabs :is(.jini-page, .jini-dialog) .jini-tab-bar,
   .admin-layout.wraps-tabs .settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
     flex-wrap: wrap;
     overflow: visible;
@@ -4569,6 +4757,18 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .settings-ui-section .jini-settings-field { display: flex; flex-direction: column; gap: 6px; }
 .settings-ui-section .jini-settings-field > label { font-size: 12px; font-weight: 500; color: var(--jini-text-muted); }
+
+/* AI agent tab (Chrome check, 2026-10-11; design checklist: no control wider than its content).
+   The Local CLI / BYOK segmented switch spanned the whole panel (~530px for two short words) and,
+   inside the selected CLI's card, Jini's narrow-strip rule (`@container (max-width: 480px)`, which
+   the card always is) stretched Model and Reasoning effort to the card's full width. The switch
+   now sizes to its labels (its `1fr` columns keep the two halves equal) and the stacked selects
+   stay full width only up to 16rem. Three classes deep so it beats Jini's two-class rules in any
+   stylesheet order. */
+.settings-ui-section .jini-settings-execution > .jini-seg-control { width: max-content; max-width: 100%; }
+.settings-ui-section .jini-agent-settings :is(.jini-searchable-select, select.jini-input, .jini-agent-settings-custom) {
+  max-width: min(100%, 16rem);
+}
 
 /* Privacy — `od-settings-privacy.png`: the two disclosure items read as
    plain title+description pairs, not an indented definition list; the two
@@ -5541,8 +5741,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .deployment-step-done .deployment-action { padding-left: calc(1.75rem + var(--space-3)); }
 /* Phones (2026-10-06 mobile catalog DE-1): one row left the status text a ~65px column between the
    check and the Verify / Replace token controls, wrapping one word (even a lone "·") per line. The
-   text takes the whole row beside the marker; the controls wrap under it, aligned with the text. */
-@media (max-width: 640px) {
+   text takes the whole row beside the marker; the controls wrap under it, aligned with the text.
+   Container (2026-10-11): the same squeeze happens on desktop with the nav + dock open. */
+@container admin-content (max-width: 620px) {
   .deployment-step-summary { flex-wrap: wrap; row-gap: var(--space-2); }
   .deployment-step-summary-text { flex-basis: calc(100% - 1.75rem - var(--space-3)); }
   .deployment-step-summary > .deployment-step-verify { margin-left: calc(1.75rem + var(--space-3)); }
@@ -5868,7 +6069,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 /* An optional service the new site can connect with a pasted token: no radio, so one column. */
 .site-db-option.is-token { grid-template-columns: 1fr; }
 
-@media (max-width: 32rem) {
+/* Container (2026-10-11): keyed on the pane, not the viewport. 30.5rem ≈ the old 32rem viewport
+   minus a phone's 2 × 12px page padding. */
+@container admin-content (max-width: 30.5rem) {
   .onboarding-section { padding: var(--space-5) var(--space-4); }
   .onboarding-actions { padding: var(--space-4); }
   .onboarding-actions-buttons { flex-direction: column-reverse; }
@@ -5921,8 +6124,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 .sites-process-notices > .status { align-self: flex-start; }
 
 /* Below roughly a phone's width the square becomes a liability: a 1-column grid would render one
- * enormous square. Two narrow tracks, aspect released. */
-@media (max-width: 30rem) {
+ * enormous square. Two narrow tracks, aspect released. Container (2026-10-11): the pane's width,
+ * not the viewport's; 28.5rem ≈ the old 30rem viewport minus a phone's page padding. */
+@container admin-content (max-width: 28.5rem) {
   .sites-grid { grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
   .site-card { aspect-ratio: auto; }
 }
@@ -6025,7 +6229,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   font-size: var(--text-sm); color: var(--muted); cursor: pointer;
 }
 .site-card-trashed .site-card-name { color: var(--fg-2); }
-@media (max-width: 30rem) {
+/* Container, same threshold and reason as the two-track rule above (2026-10-11). */
+@container admin-content (max-width: 28.5rem) {
   .sites-grid { grid-template-columns: 1fr; }
   .site-card { min-height: 0; }
 }
@@ -6277,8 +6482,11 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    and a select-all checkbox — and disappears when it has none of those.
    `table.list-table` (0,1,1) so this outranks per-table desktop rules like `.form-fields-table`'s
    `min-width: 720px` regardless of which stylesheet loads last.
+   Container, not viewport (2026-10-11): a desktop pane squeezed to ~590px by the expanded nav and
+   the open dock had the same off-screen actions column, so the cards follow the pane's width.
+   `useListTableCellLabels` sets `data-label` at every width, so nothing JS-side is phone-gated.
    ------------------------------------------------------------------------ */
-@media (max-width: 640px) {
+@container admin-content (max-width: 620px) {
   .table-scroll:has(> table.list-table) { overflow-x: visible; }
   table.list-table { display: block; min-width: 0; table-layout: auto; }
   table.list-table > colgroup { display: none; }
@@ -6374,6 +6582,49 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
     background: transparent;
   }
 
+  /* TR-2, DB-1/AI-4/FO-4, PO-3, DE-3 and the dashboard activity row moved to the
+     `@container admin-content` block right after this one (2026-10-11) — they are "the pane is
+     narrow" layout rules, not touch rules. */
+
+  /* AP-3: the page owns phone scrolling; release every fixed-height shell layer together. */
+  .settings-ui-section.agent-plugins-section,
+  .agent-plugins-section .jini-tabbed-dialog,
+  .agent-plugins-section .jini-tabbed-dialog-body,
+  .agent-plugins-section .jini-tabbed-dialog-content {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+  .agent-plugins-section .jini-tabbed-dialog,
+  .agent-plugins-section .jini-tabbed-dialog-content { overflow: visible; overscroll-behavior: auto; }
+
+  /* The drawer's active indicator belongs inside its gutter, not against the screen edge. */
+  .cms-nav .cms-item.active::before { left: -6px; border-radius: var(--r-pill); }
+
+  /* US-2 (card rows open from anywhere) moved to the container block below with the card layout
+     itself, which is now container-based too (2026-10-11). */
+
+  /* Mobile sweep 2026-10-07 (P-3 follow-up), measured at a real 375px viewport. Text inputs were
+     37px against the 40px floor buttons and selects already get; one floor for every field. */
+  .admin-content input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
+    min-height: 40px;
+  }
+  /* Standalone links that sit beside 40px buttons (a panel head's "All posts"/"Change", a
+     toolbar's "View site ↗" or "Regions →", an editor's "view ↗") were 15-19px tall. Padding that
+     a matching negative margin cancels grows the hit area to ~40px without moving anything. */
+  .admin-content :is(.page-toolbar, .page-actions, .themes-header-side, .dash-panel-head, .editor-slug) > a:not([class*="btn"]) {
+    display: inline-block; padding-block: 11px; margin-block: -11px;
+  }
+  /* The pill switches keep their drawn 38x22 / 34x20 track; an invisible ring around it takes
+     the tap (P-3 deliberately left `[role="switch"]` out of the min-height floor). */
+  :is(.agent-plugin-switch, .theme-explore-switch)::before { content: ""; position: absolute; inset: -10px -4px; }
+
+}
+
+/* The layout half of the phone block above, keyed on the PANE (2026-10-11): the same rows were
+   squeezed just as hard on desktop with the nav expanded and the dock open (~590px at 1280). The
+   touch half (40px floors, hit-area padding, switch rings) stays viewport-only above. */
+@container admin-content (max-width: 620px) {
   /* TR-2: bulk actions only take space once there is a selection; busy selected actions stay
      visible and disabled, so their progress does not cause the toolbar to jump. */
   .trash-toolbar[data-selection-empty="true"] .trash-bulk-action { display: none; }
@@ -6383,7 +6634,6 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .database-filter-bar .field { min-width: 0; width: 100%; }
   .database-filter-bar :is(input, select) { width: 100%; min-width: 0; }
   .database-filter-bar > button { justify-self: start; }
-  .theme-explore-files-heading { position: static; }
   .settings-ui-section .jini-byok-model-row { flex-direction: column; align-items: stretch; }
   .settings-ui-section .jini-byok-model-row > .jini-field { flex: 0 1 auto; width: 100%; }
   .settings-ui-section .jini-byok-model-row > .jini-byok-test-btn { align-self: flex-start; }
@@ -6404,42 +6654,13 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   }
   .deployment-path-head > .card-title { flex-basis: calc(100% - 2.25rem - var(--space-3)); }
 
-  /* AP-3: the page owns phone scrolling; release every fixed-height shell layer together. */
-  .settings-ui-section.agent-plugins-section,
-  .agent-plugins-section .jini-tabbed-dialog,
-  .agent-plugins-section .jini-tabbed-dialog-body,
-  .agent-plugins-section .jini-tabbed-dialog-content {
-    height: auto;
-    max-height: none;
-    min-height: 0;
-  }
-  .agent-plugins-section .jini-tabbed-dialog,
-  .agent-plugins-section .jini-tabbed-dialog-content { overflow: visible; overscroll-behavior: auto; }
-
-  /* The drawer's active indicator belongs inside its gutter, not against the screen edge. */
-  .cms-nav .cms-item.active::before { left: -6px; border-radius: var(--r-pill); }
-
   /* A card row opens its record from anywhere on the card, not only from the ~16px-tall title
      link (US-2): the title link's `::after` stretches over the whole row, and the row's own
-     controls sit above it so they still get their taps. */
+     controls sit above it so they still get their taps. Follows the card layout, which is
+     container-based too. */
   table.list-table > tbody > tr:has(> td:first-child > a[href]) { position: relative; }
   table.list-table > tbody > tr > td:first-child > a[href]::after { content: ""; position: absolute; inset: 0; }
   table.list-table > tbody > tr > td:not(:first-child) :is(a, button, select, input, label) { position: relative; z-index: 1; }
-
-  /* Mobile sweep 2026-10-07 (P-3 follow-up), measured at a real 375px viewport. Text inputs were
-     37px against the 40px floor buttons and selects already get; one floor for every field. */
-  .admin-content input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"]) {
-    min-height: 40px;
-  }
-  /* Standalone links that sit beside 40px buttons (a panel head's "All posts"/"Change", a
-     toolbar's "View site ↗" or "Regions →", an editor's "view ↗") were 15-19px tall. Padding that
-     a matching negative margin cancels grows the hit area to ~40px without moving anything. */
-  .admin-content :is(.page-toolbar, .page-actions, .dash-panel-head, .editor-slug) > a:not([class*="btn"]) {
-    display: inline-block; padding-block: 11px; margin-block: -11px;
-  }
-  /* The pill switches keep their drawn 38x22 / 34x20 track; an invisible ring around it takes
-     the tap (P-3 deliberately left `[role="switch"]` out of the min-height floor). */
-  :is(.agent-plugin-switch, .theme-explore-switch)::before { content: ""; position: absolute; inset: -10px -4px; }
 
   /* Dashboard "Recently updated": the title took whatever the kind chip and the 16-character
      timestamp left (~125px), so most titles ended in "…", and the 16px link was the only tap
@@ -6450,7 +6671,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .dash-activity-title::after { content: ""; position: absolute; inset: 0; }
 }
 
-@media (max-width: 480px) {
+/* Container (2026-10-11): one column once the PANE is phone-narrow, whatever squeezed it.
+   456px ≈ the old 480px viewport minus a phone's page padding. */
+@container admin-content (max-width: 456px) {
   .sites-grid { grid-template-columns: minmax(0, 1fr); }
   .form-editor-panel .field-row:has(#form-name) { grid-template-columns: minmax(0, 1fr); }
 }
@@ -6460,7 +6683,10 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
    header itself is the `.page-header-split` container rule above; this is the toolbar and the
    Save row under it.
    ------------------------------------------------------------------------ */
-@media (max-width: 640px) {
+/* The toolbar row follows the PANE (2026-10-11): a desktop pane squeezed by the nav + dock needs
+   the same one-row arrangement. The sticky Save row below stays phone-only: its `top` offset is
+   tied to the phone's own page padding. */
+@container admin-content (max-width: 620px) {
   /* Device toggle and template picker share one row (they took two, plus the view tabs' own). The
      "390px" readout goes — the pressed device icon already says which width is showing. Prefixed
      with `.page-editor-toolbar` to outrank `styles/pages.css`'s own wrap/width rules for these
@@ -6469,7 +6695,8 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   .page-editor-toolbar .page-editor-toolbar-end .page-editor-width { display: none; }
   .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-end; }
   .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select { flex: 1 1 auto; width: auto; min-width: 0; max-width: none; }
-
+}
+@media (max-width: 640px) {
   /* Save stays in reach while scrolling a long body: the row pins under the top bar. `top` is minus
      `.admin-content`'s own phone padding-top, because sticky offsets count from the scroller's
      padding edge — at `top: 0` the body scrolled visibly through a 16px strip above the row. */

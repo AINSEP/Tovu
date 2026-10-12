@@ -1501,6 +1501,11 @@
 @media (max-width: 640px) {
   :is(.jini-page, .jini-dialog) .jini-media-provider-fields { grid-template-columns: minmax(0, 1fr); }
 }
+/* The on-page copy also follows the PANE (2026-10-11): with the nav + dock open a desktop pane is
+   phone-narrow. The dialog copy keeps the viewport rule above — a dialog is not sized by the pane. */
+@container admin-content (max-width: 620px) {
+  .jini-page .jini-media-provider-fields { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* `.field-row`'s own definition lives in `styles.css` (off-limits to this dispatch) as a plain
    grid with no `align-items` set, so its default is `stretch`. Stretch is invisible as long as

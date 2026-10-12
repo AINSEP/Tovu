@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
+import { appShellApiBody } from "../app-shell-api.fixture";
 
 /**
  * @file Pins the desktop sidebar rail's `localStorage` key as wired by `App.tsx`, not the
@@ -36,7 +37,7 @@ beforeEach(() => {
         headers: { "content-type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify(appShellApiBody({ url: String(url) })), { status: 200, headers: { "content-type": "application/json" } });
   });
   vi.stubGlobal("fetch", fetchMock);
   // See app-plugins-route.unit.test.tsx: jsdom has no EventSource, and App's page-control bridge

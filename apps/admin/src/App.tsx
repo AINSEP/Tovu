@@ -23,8 +23,10 @@ import { useDrawerActiveItemCentring } from "./hooks/use-drawer-active-item-cent
 import { useAgentScreenRoute } from "./hooks/use-agent-screen-context.hooks";
 import { useSidebarEmptyClickToggle } from "./hooks/use-sidebar-empty-click-toggle.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
+import { DockHeaderTip } from "./components/AssistantDock/DockHeaderTip";
 import { ChatFab } from "./components/ChatFab/ChatFab";
 import { useListTableCellLabels } from "./hooks/use-list-table-cell-labels.hooks";
+import { useDockAutoRail } from "./hooks/use-dock-auto-rail.hooks";
 import { PublishContentDialog } from "./features/publish-content/PublishContentDialog";
 import { closePublishRequest, usePublishRequest } from "./features/publish-content/hooks/publish-request.store";
 import { t as translateDashboard } from "./features/dashboard/dashboard-i18n";
@@ -391,6 +393,8 @@ function AssistantChrome(props: {
       <aside
         ref={chatDockRef}
         data-theme="light"
+        // Jini's tip placement keeps every ⓘ / header tip bubble inside the dock, not over the page.
+        data-jini-tip-bounds=""
         className={`admin-chat-dock${chatOpen ? " is-open" : ""}${sheetExpanded ? " is-expanded" : ""}`}
         hidden={!chatOpen}
         inert={!chatOpen}
@@ -428,16 +432,19 @@ function AssistantChrome(props: {
                 {sheetExpanded ? <path d="M4 6.5 9 11.5l5-5" /> : <path d="M4 11.5 9 6.5l5 5" />}
               </svg>
             </button>
-            <button
-              type="button"
-              className="chat-sheet-action"
-              onClick={() => setChatOpen(false)}
-              aria-label={dockT("Close assistant")}
-            >
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                <path d="M5 5 13 13M13 5 5 13" strokeLinecap="round" />
-              </svg>
-            </button>
+            {/* Same white tip under it as the dock header's other icon buttons (owner, 2026-10-11). */}
+            <DockHeaderTip label={dockT("Close AI chat")}>
+              <button
+                type="button"
+                className="chat-sheet-action"
+                onClick={() => setChatOpen(false)}
+                aria-label={dockT("Close AI chat")}
+              >
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                  <path d="M5 5 13 13M13 5 5 13" strokeLinecap="round" />
+                </svg>
+              </button>
+            </DockHeaderTip>
           </span>
         </div>
         <AssistantDock
@@ -570,6 +577,9 @@ export function App(props: AppProps) {
     handleDockDropCapture,
     publishDropCapture,
   } = useChatDock();
+  // Nav expanded + dock open in a 901–1171px window left a phone-width page: fold the nav to its
+  // rail while the dock is open there (see the hook's doc for the rule and the mechanism).
+  const dockRail = useDockAutoRail({ dockOpen: chatOpen });
 
   const { setContentEl, contentEl, agentBridge } = useAgentBridge();
   // Phone card layout for every `.list-table` needs each cell's column name (mobile catalog P-4).
@@ -675,6 +685,7 @@ export function App(props: AppProps) {
           activeId={currentPanelId(route)}
           open={sidebarOpen}
           railStorageKey={SIDEBAR_RAIL_STORAGE_KEY}
+          {...dockRail}
           railDefaultCollapsed
         >
           <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />

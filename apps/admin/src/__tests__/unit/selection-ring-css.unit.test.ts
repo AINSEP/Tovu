@@ -88,6 +88,11 @@ describe("admin selection ring", () => {
     );
   });
 
+  it("uses the shared orange selection token for the active theme file group", () => {
+    expect(effectiveDeclarationsFor(stylesheet, ".theme-explore-group.is-active"))
+      .toMatch(/border-bottom-color: var\(--selected-ring\);/);
+  });
+
   it("no selected-state outline anywhere in the admin is drawn in a near-black accent", () => {
     const state = /(\.active|\.is-selected|\.is-active|\.selected\b|\[aria-(?:selected|pressed|checked|current)[^\]]*\]|:checked)/;
     const edge = /^(?:border(?:-(?:top|bottom|left|right))?(?:-color)?|outline(?:-color)?|box-shadow)$/;

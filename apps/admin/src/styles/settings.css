@@ -219,7 +219,9 @@
 
 /* The phone tap-target floor enlarges Memory's icon buttons. Let control rows wrap instead
  * of keeping Jini's intrinsic, non-shrinking width and clipping the last switch (SE-2). */
-@media (max-width: 640px) {
+/* The wrapping half is keyed on the PANE (2026-10-11): a desktop pane squeezed by the nav + dock
+ * clipped the last switch the same way. The 40px swatch floor below stays phone-only. */
+@container admin-content (max-width: 620px) {
   .admin-content .memory-panel-head-controls {
     flex: 1 1 auto;
     min-width: 0;
@@ -240,7 +242,8 @@
     min-width: 0;
     overflow-wrap: anywhere;
   }
-
+}
+@media (max-width: 640px) {
   /* SE-4: the 40px button floor and the custom colour input must use the same circular box. */
   .admin-content :is(.jini-accent-swatch, .jini-accent-swatch-picker) {
     flex: 0 0 40px;

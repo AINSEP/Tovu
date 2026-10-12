@@ -29,7 +29,8 @@
 .skills-row-source code { font: inherit; font-family: var(--font-mono); }
 .skills-confirm-dialog { box-sizing: border-box; width: calc(100% - 2rem); max-height: calc(100dvh - 2rem); overflow-y: auto; }
 .skills-confirm-source { overflow-wrap: anywhere; }
-@media (max-width: 560px) {
+/* Container (2026-10-11): the pane's width; 536px ≈ the old 560px viewport minus phone padding. */
+@container admin-content (max-width: 536px) {
   .skills-row-source { padding-right: 14px; }
 }
 /* The narrow shared row moves 9px of the bottom inset onto `.agent-plugin-row-main` (styles.css). */
