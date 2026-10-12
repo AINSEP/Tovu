@@ -43,6 +43,8 @@ export interface WebScreenshotInput {
   viewport: ViewportName;
   fullPage: boolean;
   waitMs: number;
+  /** Explicit consent interaction only; screenshots leave banners visible by default. */
+  dismissCookieBanners?: boolean;
   /** `sitePath` only: render through this installed theme instead of the active one, without activating it. */
   themeId?: string;
 }
@@ -53,6 +55,9 @@ export interface PageCaptureRequest {
   fullPage: boolean;
   maxPageHeightPx: number;
   settleMs: number;
+  /** Optional shared render selector/seconds override; otherwise settleMs applies. */
+  waitFor?: string | number;
+  dismissCookieBanners?: boolean;
   /** Exact origins fetched through the own-site loopback path instead of the public egress guard. */
   allowedOrigins: readonly string[];
 }
@@ -153,8 +158,9 @@ export function readWebScreenshotInput(input: Readonly<Record<string, unknown>>)
   if (typeof viewport !== "string" || !(VIEWPORT_NAMES as string[]).includes(viewport)) throw refusal(`viewport must be one of ${VIEWPORT_NAMES.join(", ")}.`);
   if (typeof fullPage !== "boolean") throw refusal("fullPage must be a boolean.");
   if (typeof waitMs !== "number" || !Number.isInteger(waitMs) || waitMs < 0 || waitMs > MAX_WAIT_MS) throw refusal(`waitMs must be an integer from 0 to ${MAX_WAIT_MS}.`);
+  if (input.dismissCookieBanners !== undefined && typeof input.dismissCookieBanners !== "boolean") throw refusal("dismissCookieBanners must be a boolean.");
   const target = url !== undefined ? { kind: "url" as const, url: readUrl(url) } : { kind: "site" as const, path: readSitePath(sitePath) };
-  return { target, viewport: viewport as ViewportName, fullPage, waitMs, ...readThemeId(themeId, target) };
+  return { target, viewport: viewport as ViewportName, fullPage, waitMs, ...(input.dismissCookieBanners === undefined ? {} : { dismissCookieBanners: input.dismissCookieBanners }), ...readThemeId(themeId, target) };
 }
 
 /** Lowercase ASCII words joined by `-`, capped so a long URL still makes a short file name. */
@@ -240,7 +246,7 @@ export function createWebScreenshotService(
       let shot: PageCapture;
       try {
         shot = await ports.capture.capture(
-          { url, viewport: preset, fullPage: input.fullPage, maxPageHeightPx: MAX_FULL_PAGE_HEIGHT_PX, settleMs: input.waitMs, allowedOrigins: site === null ? [] : [site.origin] },
+          { url, viewport: preset, fullPage: input.fullPage, maxPageHeightPx: MAX_FULL_PAGE_HEIGHT_PX, settleMs: input.waitMs, ...(input.dismissCookieBanners === undefined ? {} : { dismissCookieBanners: input.dismissCookieBanners }), allowedOrigins: site === null ? [] : [site.origin] },
           signal ? { signal } : {},
         );
       } catch (error) {

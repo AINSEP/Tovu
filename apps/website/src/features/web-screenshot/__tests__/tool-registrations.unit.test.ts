@@ -4,6 +4,7 @@ import test from "node:test";
 import sharp from "sharp";
 import { createContributionRegistry, createToolRegistry, isReadOnlyTool, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
+import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
@@ -103,6 +104,10 @@ test("BYOK path: execute_delegated_tool hands the provider image content blocks,
   contributions.contributors.register({ contribution: contributeWebScreenshotTools({ ports: await fakePorts() }) });
   const routeDeps = {
     workspaceId: WORKSPACE_ID,
+    // No stored grant: the real settings resolver keeps permanent deletes off.
+    settingsRepo: new InMemorySettingsRepo(),
+    settingsUiTabsReady: Promise.resolve(),
+    getEffective,
     clock: { nowMs: () => 0, nowIso: () => "2026-10-08T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     authorize: async () => ({ allowed: true, reason: "matched" }),

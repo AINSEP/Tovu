@@ -47,7 +47,6 @@ function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400 }
               current = url;
               return { status: () => fulfilled! };
             },
-            async waitForLoadState() {},
             async waitForTimeout(ms) { events.push(`settle:${ms}`); },
             async evaluate(expression) { events.push(expression.includes("scrollTo") ? "scroll-through" : "measure"); return pageHeight; },
             async title() { return "T".repeat(400); },
@@ -133,7 +132,9 @@ test("full page: height is measured, capped at maxPageHeightPx, and captured as 
   // Scroll-reveal sections and lazy images only render once scrolled into view, so the page is
   // scrolled through (bounded by the cap) BEFORE its height is measured and shot.
   assert.deepEqual(fake.events.filter((event) => event === "scroll-through" || event === "measure"), ["scroll-through", "measure"]);
-  assert.deepEqual(fake.screenshots[0], { type: "png", fullPage: true, timeout: 20_000, animations: "disabled", clip: { x: 0, y: 0, width: 1280, height: 8000 } });
+  const { timeout, ...shotOptions } = fake.screenshots[0]!;
+  assert.ok(timeout > 0 && timeout <= 20_000, "screenshot gets only the remaining total budget");
+  assert.deepEqual(shotOptions, { type: "png", fullPage: true, animations: "disabled", clip: { x: 0, y: 0, width: 1280, height: 8000 } });
 });
 
 test("a top-level navigation the egress guard refuses is a 'refused' PageCaptureError, and the context is still closed", async () => {
@@ -217,4 +218,50 @@ test("a redirect to a private address is 'refused' at that hop; endless redirect
   await assert.rejects(looping.capture(request()), (error: unknown) => error instanceof PageCaptureError && error.kind === "failed" && error.message === "too many redirects");
   await looping.close();
   assert.equal(loop.urls.length, MAX_REDIRECT_HOPS + 1);
+});
+
+test("screenshots preserve cookie banners by default and wait for capped load after their wait strategy", async () => {
+  const fake = fakeBrowser();
+  const originalNewContext = fake.launcher.launch;
+  fake.launcher.launch = async options => {
+    const browser = await originalNewContext(options);
+    const newContext = browser.newContext.bind(browser);
+    browser.newContext = async contextOptions => {
+      const context = await newContext(contextOptions); const newPage = context.newPage.bind(context);
+      context.newPage = async () => {
+        const page = await newPage();
+        const locator = { first: () => locator, count: async () => 1, isVisible: async () => true, click: async () => { fake.events.push("cookie-dismiss"); } };
+        return Object.assign(page, { waitForLoadState: async (state: string, options: { timeout: number }) => { assert.equal(state, "load"); assert.ok(options.timeout > 0 && options.timeout <= 5000); fake.events.push("load-wait"); }, locator: () => locator, waitForSelector: async (selector: string) => { fake.events.push(`selector:${selector}`); } });
+      };
+      return context;
+    };
+    return browser;
+  };
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
+  await capture.capture(request({ waitFor: "#loaded" }));
+  assert.ok(!fake.events.includes("cookie-dismiss"));
+  assert.ok(fake.events.indexOf("selector:#loaded") < fake.events.indexOf("load-wait"));
+  await capture.capture(request({ waitFor: "#loaded", dismissCookieBanners: true }));
+  await capture.close();
+  assert.ok(fake.events.includes("cookie-dismiss"));
+  assert.equal(fake.screenshots.length, 2);
+  assert.equal(fake.events.filter(event => event === "load-wait").length, 2);
+  assert.ok(fake.events.includes("context-close"));
+});
+
+test("screenshot uses an injected shared browser pool without launching or closing an active sibling", async () => {
+  const fake = fakeBrowser(); const launched = await fake.launcher.launch({ headless: true, chromiumSandbox: false, args: [] });
+  let leases = 0; let closes = 0;
+  const browserPool = {
+    acquire: async () => {
+      leases++;
+      return { browser: { newContext: () => launched.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false, serviceWorkers: "block" as const, acceptDownloads: false as const, ignoreHTTPSErrors: false as const, javaScriptEnabled: true as const }), close: () => launched.close() }, release: () => { leases--; } };
+    },
+    close: async () => { closes++; },
+  };
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { browserPool, loadLauncher: async () => { throw new Error("the injected pool owns launching"); } });
+  await capture.capture(request());
+  assert.equal(leases, 0); assert.equal(fake.launches.length, 1);
+  assert.ok(fake.events.includes("context-close")); assert.ok(!fake.events.includes("browser-close"));
+  await capture.close(); assert.equal(closes, 1);
 });

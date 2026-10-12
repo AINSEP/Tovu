@@ -2,6 +2,7 @@
  *  contributor shape the composition root installs. Fakes are DI ports; no module mocks. */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { withBatchInput, BATCHABLE_TOOLS } from "../../../assistant/batch-tool-inputs.js";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import type { HttpRequest } from "#src/platform/http/index";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "../agent-tools.js";
@@ -63,4 +64,83 @@ test("contributeWebTools contributes the 'web' domain with its risk map and a de
   for (let i = 0; i < 30; i++) await registration!.handler(ctx({ url: "https://a.example/" }));
   await assert.rejects(registration!.handler(ctx({ url: "https://a.example/" })), { message: /^web_fetch_page: too many fetches from a\.example in the last minute\. Retry in \d+ seconds\.$/ });
   assert.equal(sent.length, 30);
+});
+
+test("render schema publishes browser options on the existing tool; screenshot returns image with text", async () => {
+  const properties = webAgentToolCatalog[0]!.inputSchema!.properties as Record<string, unknown>;
+  for (const key of ["render", "waitFor", "dismissCookieBanners", "captureData", "screenshot"]) assert.ok(properties[key]);
+  const sent: HttpRequest[] = [];
+  const fake = ports(sent);
+  const renderedInputs: unknown[] = [];
+  fake.htmlToMarkdown = () => "Live content";
+  fake.renderPage = async ({ input }) => {
+    renderedInputs.push(input);
+    return { finalUrl: input.url, status: 200, title: "Live", html: "<p>Live content</p>", text: "Live content", images: [], imagesTruncated: false, truncated: false, data: [], dataTruncated: false, screenshot: { mimeType: "image/jpeg", data: "cG5n" } };
+  };
+  const contributor = contributeWebTools({ httpClient: fake.httpClient, htmlToMarkdown: fake.htmlToMarkdown, renderPage: fake.renderPage }, { observeFetch: () => {} });
+  const [registration] = contributor.build({ workspaceId: "ws-render", authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as Parameters<typeof contributor.build>[0], {} as Parameters<typeof contributor.build>[1]);
+  const result = await registration!.handler(ctx({ url: "https://a.example/", render: true, waitFor: "#content", screenshot: true })) as { content: Array<{ type: string; text?: string; mimeType?: string; data?: string }> };
+  assert.equal(result.content[0]!.type, "text");
+  const facts = JSON.parse(result.content[0]!.text!);
+  assert.deepEqual([facts.content, facts.rendered, facts.untrusted], ["Live content", true, true]);
+  assert.equal(facts.screenshot, undefined, "image bytes must not be repeated in JSON");
+  assert.deepEqual(result.content[1], { type: "image", mimeType: "image/jpeg", data: "cG5n" });
+  assert.equal(renderedInputs.length, 1); assert.deepEqual(sent, []);
+});
+
+
+test("the existing batch wrapper carries shared render options and per-item overrides without a mirrored schema", async () => {
+  const fake = ports([]); const inputs: Array<Record<string, unknown>> = [];
+  fake.htmlToMarkdown = () => "Live";
+  fake.renderPage = async ({ input }) => {
+    inputs.push({ ...input });
+    return { finalUrl: input.url, status: 200, title: "Live", html: "<p>Live</p>", text: "Live", images: [], imagesTruncated: false, truncated: false, data: [], dataTruncated: false };
+  };
+  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, fake);
+  const wrapped = withBatchInput({ registration: registration!, tool: BATCHABLE_TOOLS.find(tool => tool.toolId === "web_fetch_page")! });
+  const schema = wrapped.descriptor.inputSchema as { properties: Record<string, unknown> };
+  assert.deepEqual(schema.properties.render, { type: "boolean", description: (webAgentToolCatalog[0]!.inputSchema!.properties as Record<string, { description: string }>).render!.description });
+  await wrapped.handler(ctx({ render: true, waitFor: 1, captureData: true, items: [{ url: "https://a.example/" }, { url: "https://b.example/", waitFor: "#ready", captureData: false }] }));
+  assert.deepEqual(inputs.map(input => [input.url, input.render, input.waitFor, input.captureData, input.maxChars]), [
+    ["https://a.example/", true, 1, true, 8000], ["https://b.example/", true, "#ready", false, 8000],
+  ]);
+});
+
+test("render filtering schema and guidance flow through single and batch registrations", async () => {
+  const fake = ports([]);
+  fake.htmlToMarkdown = () => { throw new Error("data-only calls should skip Markdown conversion"); };
+  fake.renderPage = async ({ input }) => ({ finalUrl: input.url, status: 200, title: "Live", html: "<p>Visible content</p>", text: "Visible content", images: [], imagesTruncated: false, truncated: false,
+    data: [{ url: "https://cms.example/rows", status: 200, body: '{"rows":[]}', truncated: false }], dataTruncated: false,
+    dataUnmatched: [{ url: "https://noise.example/data", status: 201, size: 20000 }],
+  });
+  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, fake);
+  const properties = (registration!.descriptor.inputSchema as { properties: Record<string, unknown> }).properties;
+  assert.deepEqual(properties.textMode, { type: "string", enum: ["full", "none", "summary"], description: (webAgentToolCatalog[0]!.inputSchema!.properties as Record<string, { description: string }>).textMode!.description });
+  assert.ok(properties.captureDataMatch);
+  assert.match(registration!.descriptor.description!, /first call without a filter/i);
+  assert.match(registration!.descriptor.description!, /batch.*captureDataMatch/i);
+  const result = await registration!.handler(ctx({ url: "https://a.example/", render: true, captureDataMatch: "/rows", textMode: "none" })) as Record<string, unknown>;
+  assert.equal(result.content, "");
+  assert.deepEqual(result.dataUnmatched, [{ url: "https://noise.example/data", status: 201, size: 20000 }]);
+  const wrapped = withBatchInput({ registration: registration!, tool: BATCHABLE_TOOLS.find(tool => tool.toolId === "web_fetch_page")! });
+  const schema = wrapped.descriptor.inputSchema as { properties: Record<string, unknown> };
+  assert.deepEqual(schema.properties.captureDataMatch, properties.captureDataMatch); assert.deepEqual(schema.properties.textMode, properties.textMode);
+});
+
+test("batch render filters inherit shared fields and let each item override filtering and textMode", async () => {
+  const fake = ports([]);
+  fake.htmlToMarkdown = () => { throw new Error("filtered data-only and summary calls should skip Markdown conversion"); };
+  const inputs: Array<Record<string, unknown>> = [];
+  fake.renderPage = async ({ input }) => {
+    inputs.push({ ...input });
+    return { finalUrl: input.url, status: 200, title: "Live", html: "<p>Live</p>", text: "Live summary", images: [], imagesTruncated: false, truncated: false, data: [], dataTruncated: false };
+  };
+  const [registration] = buildWebRegistrations({ workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }) }, fake);
+  const wrapped = withBatchInput({ registration: registration!, tool: BATCHABLE_TOOLS.find(tool => tool.toolId === "web_fetch_page")! });
+  const result = await wrapped.handler(ctx({ render: true, captureDataMatch: "/rows", textMode: "none", items: [
+    { url: "https://a.example/" }, { url: "https://b.example/", captureDataMatch: ["*/records*"], textMode: "summary" },
+  ] })) as { succeeded: number; results: Array<{ result: { content: string } }> };
+  assert.equal(result.succeeded, 2);
+  assert.deepEqual(inputs.map(input => [input.captureDataMatch, input.textMode, input.maxChars]), [["/rows", "none", 8000], [["*/records*"], "summary", 8000]]);
+  assert.deepEqual(result.results.map(item => item.result.content), ["", "Live summary"]);
 });

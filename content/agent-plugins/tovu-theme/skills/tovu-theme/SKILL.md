@@ -528,7 +528,8 @@ missing.
 ## C2 — Extract the design system (read only)
 
 1. `web_fetch_page { url, format: "html" }` → markup, `stylesheets`, `meta` (favicon,
-   theme-color, og:image).
+   theme-color, og:image). For JS-rendered sources or empty shells, add `render: true`; use
+   `waitFor` (CSS selector or seconds) for late content and `screenshot: true` to see it in the same call.
 2. Every same-host stylesheet and font stylesheet, in ONE call:
    `web_fetch_page { format: "raw", items: [{ url: <stylesheet> }, ...] }` (up to 10 per call).
 3. `web_screenshot_page { url, viewport: "desktop", fullPage: true }` and the same with

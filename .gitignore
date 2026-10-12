@@ -97,6 +97,13 @@ sites/*/ops/*.db-shm
 # so the agent daemon can signal the website's admin previews. Runtime state, never content.
 sites/*/themes/.preview-refresh.json
 sites/*/themes/.preview-refresh.json.*.tmp
+# `web_screenshot_page` captures (`features/web-screenshot/capture-files.ts`, 2026-10-08): agent
+# artifacts for the owner to open, a few hundred KB each. Never content; site backup, duplicate and
+# publish/export already skip the folder.
+sites/*/.captures/
+# `theme_trash` (`features/theme/theme-trash.ts`, 2026-10-08): a trashed theme's folder moved beside
+# `themes/` until restored or purged from the Trash. Never content to commit.
+sites/*/themes-trash/
 # R1h: the migration runner's pre-change copy of a SQLite site (`content-db.ts`
 # migrateSqliteContentFile), about the size of content.db with every row in it: never committed,
 # whatever folder the site lives in (sidecars included).

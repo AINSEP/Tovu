@@ -20,7 +20,7 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: webAgentToolCatalog });
 
 /** This layer's own risk classification, cross-checked against the catalog's `sideEffects`. */
 export const webDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> fetchWebPage(): one guarded, credential-free GET (plus followed redirects); writes nothing.
+  // -> fetchWebPage(): guarded anonymous reads, optionally with browser data POST/PUT/PATCH; no local writes.
   ["web_fetch_page", "none"],
 ]);
 
@@ -37,7 +37,10 @@ export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPor
     web_fetch_page: async ctx => {
       const input = readWebFetchInput(requireInputRecord({ input: ctx.input }));
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: WEB_READ_PERMISSION }, { entityType: "web-page" });
-      return fetchWebPage({ input, ports, rateLimitScope: routeDeps.workspaceId }, { signal: ctx.signal });
+      const result = await fetchWebPage({ input, ports, rateLimitScope: routeDeps.workspaceId }, { signal: ctx.signal });
+      if (!result.screenshot) return result;
+      const { screenshot, ...facts } = result;
+      return { content: [{ type: "text", text: JSON.stringify(facts) }, { type: "image", mimeType: screenshot.mimeType, data: screenshot.data }] };
     },
   };
   return buildDomainRegistrations({ metadata: toolMetadata, domain: DOMAIN, catalogModule: "features/web/agent-tools.ts", catalog: CATALOG_BY_ID, handlers, derivedRisk: webDerivedRisk });
@@ -49,15 +52,17 @@ export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPor
  * One limiter per contributor, so the daemon and BYOK surfaces in one process share the budget.
  * @param required.httpClient - Guarded egress client; never a raw transport.
  * @param required.htmlToMarkdown - The HTML -> Markdown converter.
+ * @param required.renderPage - Optional Jini diagnostics renderer, using the host's guarded transport.
  * @param optional.rateLimiter - Defaults to an in-memory {@link WEB_FETCH_PER_HOST} limiter.
  */
 export function contributeWebTools(
-  { httpClient, htmlToMarkdown }: Pick<WebFetchPorts, "httpClient" | "htmlToMarkdown">,
+  { httpClient, htmlToMarkdown, renderPage }: Pick<WebFetchPorts, "httpClient" | "htmlToMarkdown" | "renderPage">,
   { rateLimiter, observeFetch, nowMs }: Partial<Pick<WebFetchPorts, "rateLimiter" | "observeFetch" | "nowMs">> = {},
 ): ToolContributor {
   const clock = createSystemClock();
   const ports: WebFetchPorts = {
     httpClient, htmlToMarkdown,
+    ...(renderPage ? { renderPage } : {}),
     nowMs: nowMs ?? (() => clock.nowMs()),
     rateLimiter: rateLimiter ?? createRateLimiter({ profile: WEB_FETCH_PER_HOST, clock }),
     observeFetch: observeFetch ?? (event => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web", message: "web_fetch_page", context: event }))),

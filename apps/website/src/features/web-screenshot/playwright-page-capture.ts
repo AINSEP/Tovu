@@ -1,6 +1,7 @@
-import { createLazyBrowser, importPlaywrightChromium } from "#src/platform/headless-browser/lazy-browser";
+import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease } from "@jini-ai/diagnostics/web-evidence/playwright";
+import { importPlaywrightChromium } from "#src/platform/headless-browser/lazy-browser";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { createRequestRouter, fetchOwnSiteResource, MAX_REDIRECT_HOPS, type OwnSiteFetch, type RequestRouter, type RequestRouterOptions, type RouteLike } from "./request-guard.js";
+import { createRequestRouter, fetchOwnSiteResource, type OwnSiteFetch, type RequestRouterOptions, type RouteLike } from "./request-guard.js";
 import { CAPTURE_DEADLINE_MS, PageCaptureError, type PageCapture, type PageCapturePort, type PageCaptureRequest } from "./web-screenshot.js";
 
 /**
@@ -14,7 +15,7 @@ import { CAPTURE_DEADLINE_MS, PageCaptureError, type PageCapture, type PageCaptu
  * a dead proxy and no loopback bypass, so any request that somehow escaped routing would fail
  * rather than reach a network, and WebRTC is limited to proxied UDP (none). That proxy is not
  * hypothetical: Playwright does not route the next hop of a fulfilled 3xx, which is why the router
- * never fulfills one and the page's own redirects are followed by {@link navigate} instead.
+ * never fulfills one and the page's own redirects are followed by {@link renderPage} instead.
  *
  * Unlike the preview capture, Chromium's own sandbox stays ON (`chromiumSandbox: true`): this
  * browser renders arbitrary, untrusted pages. A host that cannot run the sandbox (some containers)
@@ -26,8 +27,8 @@ import { CAPTURE_DEADLINE_MS, PageCaptureError, type PageCapture, type PageCaptu
 /** The slice of Playwright this adapter drives — structural, so tests pass a fake without mocking modules. */
 export interface CapturePage {
   goto(url: string, options: { waitUntil: "domcontentloaded"; timeout: number }): Promise<{ status(): number } | null>;
-  waitForLoadState(state: "load", options: { timeout: number }): Promise<void>;
   waitForTimeout(ms: number): Promise<void>;
+  waitForLoadState?(state: "load", options: { timeout: number }): Promise<void>;
   /** Called with a string expression only, so no page-side function crosses the boundary. */
   evaluate(expression: string): Promise<unknown>;
   title(): Promise<string>;
@@ -60,8 +61,6 @@ export interface CaptureBrowserLauncher {
 }
 
 export const IDLE_CLOSE_MS = 60_000;
-/** Longest wait for the `load` event after the DOM is ready; slow trackers must not cost a capture. */
-const LOAD_WAIT_MS = 8_000;
 /**
  * Scrolls a full-page capture through its height (capped at `cap` px) one viewport at a time, then
  * back to the top. Scroll-reveal sections and lazy images only appear once scrolled into view; a
@@ -74,18 +73,11 @@ const scrollThroughExpression = (cap: number) =>
   `(async () => { const end = Math.min(document.documentElement.scrollHeight, ${cap}); ` +
   `for (let y = 0; y < end; y += window.innerHeight) { window.scrollTo({ top: y, behavior: "instant" }); await new Promise((r) => setTimeout(r, 150)); } ` +
   `window.scrollTo({ top: 0, behavior: "instant" }); await new Promise((r) => setTimeout(r, 300)); })()`;
-/** Port 9 (discard) on loopback: nothing listens, so an unrouted request fails instead of escaping. */
-const DEAD_PROXY = "http://127.0.0.1:9";
-const LAUNCH_ARGS = [
-  "--disable-dev-shm-usage",
-  `--proxy-server=${DEAD_PROXY}`,
-  // Chromium implicitly bypasses proxies for loopback; `<-loopback>` removes that bypass.
-  "--proxy-bypass-list=<-loopback>",
-  "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
-];
 
 export interface PlaywrightPageCaptureOptions {
   loadLauncher?: () => Promise<CaptureBrowserLauncher>;
+  /** Host shares this pool with public reading; its composition owns sandbox/loader choices. */
+  browserPool?: RenderBrowserPool;
   ownSiteFetch?: OwnSiteFetch;
   routerOptions?: RequestRouterOptions;
   /** Only for hosts that cannot run Chromium's sandbox; never set from env. */
@@ -109,47 +101,57 @@ function clampHeight(raw: unknown, fallback: number): number {
  */
 export function createPlaywrightPageCapture(
   { httpClient }: { httpClient: HttpClientPort },
-  { loadLauncher = loadPlaywrightLauncher, ownSiteFetch = fetchOwnSiteResource, routerOptions = {}, allowUnsandboxed = false, deadlineMs = CAPTURE_DEADLINE_MS, idleCloseMs = IDLE_CLOSE_MS }: PlaywrightPageCaptureOptions = {},
+  { loadLauncher = loadPlaywrightLauncher, ownSiteFetch = fetchOwnSiteResource, routerOptions = {}, allowUnsandboxed = false, deadlineMs = CAPTURE_DEADLINE_MS, idleCloseMs = IDLE_CLOSE_MS, browserPool }: PlaywrightPageCaptureOptions = {},
 ): PageCapturePort {
-  const browser = createLazyBrowser(
-    { launch: async () => (await loadLauncher()).launch({ headless: true, chromiumSandbox: !allowUnsandboxed, args: [...LAUNCH_ARGS] }) },
+  const browser = browserPool ?? createRenderBrowserPool(
+    { launch: async () => {
+      const launched = await (await loadLauncher()).launch({ headless: true, chromiumSandbox: !allowUnsandboxed, args: [...PUBLIC_RENDER_LAUNCH_OPTIONS.args] });
+      return { newContext: options => launched.newContext(options as unknown as CaptureContextOptions), close: () => launched.close() };
+    } },
     { idleCloseMs },
   );
 
   async function shoot(request: PageCaptureRequest, signal: AbortSignal): Promise<PageCapture> {
-    let launched: CaptureBrowser;
+    let lease: RenderBrowserLease;
     try {
-      launched = await browser.acquire();
+      lease = await browser.acquire({}, { signal });
     } catch (error) {
       throw new PageCaptureError({ kind: "unavailable", message: (error as Error).message });
     }
     const { viewport } = request;
-    const router = createRequestRouter({ httpClient, ownSiteFetch, allowedOrigins: request.allowedOrigins, signal }, routerOptions);
-    const context = await launched.newContext({
+    const router = createRequestRouter({ httpClient, ownSiteFetch, allowedOrigins: request.allowedOrigins, signal }, { ...routerOptions, allowDataRequests: false });
+    const contextOptions: CaptureContextOptions = {
       viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: viewport.deviceScaleFactor,
       isMobile: viewport.isMobile, hasTouch: viewport.isMobile, serviceWorkers: "block", acceptDownloads: false,
       ignoreHTTPSErrors: false, javaScriptEnabled: true,
-    });
+    };
     try {
-      await context.routeWebSocket(/.*/, (socket) => socket.close().catch(() => {}));
-      await context.route("**/*", (route) => router.handle(route));
-      const page = await context.newPage();
-      const response = await navigate({ page, router, url: request.url, timeoutMs: deadlineMs });
-      await page.waitForLoadState("load", { timeout: LOAD_WAIT_MS }).catch(() => {});
-      if (request.fullPage) await page.evaluate(scrollThroughExpression(request.maxPageHeightPx)).catch(() => {});
-      if (request.settleMs > 0) await page.waitForTimeout(request.settleMs);
-      const pageHeight = request.fullPage
-        ? clampHeight(await page.evaluate("Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)"), viewport.height)
-        : viewport.height;
-      const capturedHeight = Math.min(pageHeight, request.fullPage ? request.maxPageHeightPx : viewport.height);
-      const png = await page.screenshot({
-        type: "png", fullPage: request.fullPage, timeout: deadlineMs, animations: "disabled",
-        ...(request.fullPage ? { clip: { x: 0, y: 0, width: viewport.width, height: capturedHeight } } : {}),
+      return await renderPage({
+        browser: { newContext: () => lease.browser.newContext({ ...contextOptions }), close: () => lease.browser.close() },
+        url: request.url,
+        consume: async ({ page, response, finalUrl, budget }) => {
+          if (request.fullPage) await budget.run({ work: () => page.evaluate(scrollThroughExpression(request.maxPageHeightPx)) }).catch(error => { if (error instanceof PageWorkTimeout) throw error; });
+          const pageHeight = request.fullPage
+            ? clampHeight(await budget.run({ work: () => page.evaluate("Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)") }), viewport.height)
+            : viewport.height;
+          const capturedHeight = Math.min(pageHeight, request.fullPage ? request.maxPageHeightPx : viewport.height);
+          if (!page.screenshot) throw new Error("Browser cannot take screenshots");
+          const png = await budget.run({ work: () => page.screenshot!({
+            type: "png", fullPage: request.fullPage, timeout: budget.remainingMs(), animations: "disabled",
+            ...(request.fullPage ? { clip: { x: 0, y: 0, width: viewport.width, height: capturedHeight } } : {}),
+          }) });
+          const title = (await budget.run({ work: () => page.title() })).slice(0, 300);
+          return { png, finalUrl, status: response?.status() ?? null, title, pageHeight, capturedHeight, blockedRequests: router.report().blocked };
+        },
+      }, { originPolicy: "public", router, signal, timeoutMs: deadlineMs,
+        waitFor: request.waitFor ?? request.settleMs / 1000,
+        dismissCookieBanners: request.dismissCookieBanners === true, loadWaitMs: 5_000,
       });
-      return { png, finalUrl: page.url(), status: response?.status() ?? null, title: (await page.title()).slice(0, 300), pageHeight, capturedHeight, blockedRequests: router.report().blocked };
-    } finally {
-      await context.close().catch(() => {});
-    }
+    } catch (error) {
+      if (error instanceof PageWorkTimeout) throw new PageCaptureError({ kind: "timeout", message: `exceeded ${deadlineMs}ms` });
+      if (router.report().navigationRefused) throw new PageCaptureError({ kind: "refused", message: "refused by the egress guard" });
+      throw new PageCaptureError({ kind: "failed", message: navigationErrorCode(error) });
+    } finally { lease.release(); }
   }
 
   return {
@@ -157,6 +159,7 @@ export function createPlaywrightPageCapture(
       const controller = new AbortController();
       const onAbort = () => controller.abort();
       signal?.addEventListener("abort", onAbort, { once: true });
+      if (signal?.aborted) controller.abort();
       let timer: NodeJS.Timeout | undefined;
       const deadline = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
@@ -171,12 +174,11 @@ export function createPlaywrightPageCapture(
         return await Promise.race([work, deadline]);
       } catch (error) {
         // A page that hung the renderer can also hang its context's close: drop the whole browser.
-        if (error instanceof PageCaptureError && error.kind === "timeout") await browser.close();
+        if (!browserPool && error instanceof PageCaptureError && error.kind === "timeout") void browser.close().catch(() => {});
         throw error;
       } finally {
         clearTimeout(timer);
         signal?.removeEventListener("abort", onAbort);
-        browser.release();
       }
     },
     close() {
@@ -185,30 +187,9 @@ export function createPlaywrightPageCapture(
   };
 }
 
-/**
- * Navigates the page, following the page's own redirects one `goto` per hop: the router aborts a
- * main-frame redirect and records its target, so every hop is routed and vetted like the first.
- * @complexity O(hops), at most {@link MAX_REDIRECT_HOPS} + 1 navigations.
- */
-async function navigate(
-  { page, router, url, timeoutMs }: { page: CapturePage; router: RequestRouter; url: string; timeoutMs: number },
-  _optional: {} = {},
-): Promise<{ status(): number } | null> {
-  let target = url;
-  for (let hop = 0; ; hop += 1) {
-    try {
-      return await page.goto(target, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-    } catch (error) {
-      const next = router.takeNavigationRedirect();
-      if (next !== undefined && hop < MAX_REDIRECT_HOPS) { target = next; continue; }
-      if (router.report().navigationRefused) throw new PageCaptureError({ kind: "refused", message: "refused by the egress guard" });
-      throw new PageCaptureError({ kind: "failed", message: next !== undefined ? "too many redirects" : navigationErrorCode(error) });
-    }
-  }
-}
-
 /** Chromium's `net::ERR_*` code only — never a raw message that could echo an internal address. */
 function navigationErrorCode(error: unknown): string {
+  if (error instanceof Error && error.message === "too many redirects") return error.message;
   const code = /net::(ERR_[A-Z_]+)/.exec(error instanceof Error ? error.message : "")?.[1];
   return code ?? "navigation failed";
 }

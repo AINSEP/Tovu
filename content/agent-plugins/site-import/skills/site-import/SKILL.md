@@ -127,6 +127,12 @@ Fetch the candidate URLs up to 10 per `web_fetch_page` call as `items` (`format:
 top level, so the article markup, `<time>` and meta tags are visible) and classify each as **page**, **post**, or **skip** using the rules in
 `references/discovery-and-classification.md`. Record, per URL: title, target slug, kind, date,
 author, categories, tags, images, description, social image, and the reason for the class.
+For Softr, Wix, Webflow, SPAs, or an empty shell, use the same `web_fetch_page` with
+`render: true`. Default waiting is DOM content loaded + 1.2 seconds; set `waitFor` to a visible
+content selector or 0–10 settle seconds when needed. Cookie banners are dismissed by default.
+Read `data` for the page's own XHR/fetch JSON answers and `dataTruncated`/`truncated` before
+treating the result as complete. `screenshot: true` reads and sees the page in one call.
+Keep `format: "raw"` without rendering for robots, sitemaps and stylesheets.
 Fetch the main stylesheets the homepage links (`stylesheets`, `format: "raw"`) for Step 5.
 
 ### Step 3: the plan (write it down, then go on)

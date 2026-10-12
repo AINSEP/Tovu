@@ -279,3 +279,12 @@ test("a failed save never fails the screenshot: the images still come back with 
   assert.deepEqual(facts.savedFiles, []);
   assert.equal(facts.saveError, "the capture could not be saved to disk (EACCES); the images above are still valid.");
 });
+
+
+test("cookie dismissal is explicitly validated and forwarded to screenshot capture", async () => {
+  assert.throws(() => readWebScreenshotInput({ url: "https://example.com/", dismissCookieBanners: "yes" }), /dismissCookieBanners must be a boolean/);
+  const capture = fakeCapture(request => shotFor(request));
+  const service = createWebScreenshotService({ ports: ports(capture) });
+  for (const dismissCookieBanners of [undefined, false, true]) await service.screenshot({ input: readWebScreenshotInput({ url: "https://example.com/", ...(dismissCookieBanners === undefined ? {} : { dismissCookieBanners }) }) });
+  assert.deepEqual(capture.requests.map(request => request.dismissCookieBanners), [undefined, false, true]);
+});

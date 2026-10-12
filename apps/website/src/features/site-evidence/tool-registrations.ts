@@ -6,6 +6,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
 
+import type { HttpClientPort } from "#src/platform/http/index";
 import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
@@ -14,7 +15,8 @@ import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "./agent-too
 import { SITE_EVIDENCE_LIMITS, type SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
 // Browser/privacy rationale: Jini/packages/diagnostics/src/web-evidence/browser-port.ts; serialized DOM rationale: page-structure-script.ts beside it.
 import { collectPageEvidence } from "./collect-page-evidence.js";
-import { openPlaywrightSiteEvidenceBrowser, type PlaywrightLike } from "@jini-ai/diagnostics/web-evidence/playwright";
+import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
+import { openPlaywrightSiteEvidenceBrowser, createRequestRouter, fetchOwnSiteResource, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
 
 /**
  * @file Wires `site_collect_page_evidence` into the assistant's tool catalog, through the same
@@ -83,43 +85,13 @@ const siteEvidenceDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: siteEvidenceAgentToolCatalog });
 
-/** Resolve the optional browser module from Tovu, including when Jini is linked from another repo. */
-const playwrightModuleLoader = {
-  // A literal host import checks the native module against the structural port without a cast;
-  // dynamic loading still lets Jini report a missing module or browser as unavailable evidence.
-  load: async (_required: { moduleName: string }): Promise<PlaywrightLike> => {
-    const { chromium } = await import("playwright");
-    return {
-      chromium: {
-        launch: async (options) => {
-          const { args, ...launchOptions } = options ?? {};
-          const browser = await chromium.launch({ ...launchOptions, ...(args === undefined ? {} : { args: [...args] }) });
-          return {
-            newContext: async (contextOptions) => {
-              const context = await browser.newContext(contextOptions);
-              return {
-                newPage: () => context.newPage(),
-                // Playwright returns a Disposable; the evidence port only awaits registration.
-                route: async (pattern, handler) => { await context.route(pattern, handler); },
-                cookies: () => context.cookies(),
-                close: () => context.close(),
-              };
-            },
-            close: () => browser.close(),
-          };
-        },
-      },
-    };
-  },
-};
-
 // `--no-sandbox` is required to launch Chromium as a non-root user inside a container without
 // granting SYS_ADMIN. Acceptable here and only here: this browser opens exactly one origin —
 // the operator's own site — never arbitrary attacker-chosen URLs, so the sandbox is not the
 // boundary doing the security work; Jini's web-evidence/same-origin.ts is.
 const TOVU_BROWSER_LAUNCH_OPTIONS = {
   headless: true,
-  args: ["--no-sandbox", "--disable-dev-shm-usage"],
+  args: [...PUBLIC_RENDER_LAUNCH_OPTIONS.args, "--no-sandbox"],
 };
 
 export interface SiteEvidenceToolDeps {
@@ -184,7 +156,7 @@ export function readOptionalEvidenceArguments(input: Readonly<Record<string, unk
   };
 }
 
-export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps): ToolRegistration[] {
+export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps, { httpClient }: { httpClient?: HttpClientPort } = {}): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [SITE_EVIDENCE_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -200,7 +172,11 @@ export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps):
             originRegistry: routeDeps.originRegistry,
             openBrowser: routeDeps.siteEvidenceBrowser ?? (required => openPlaywrightSiteEvidenceBrowser(required, {
               moduleLoader: playwrightModuleLoader,
-              launchOptions: TOVU_BROWSER_LAUNCH_OPTIONS,
+              launchOptions: httpClient ? TOVU_BROWSER_LAUNCH_OPTIONS : { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] },
+              ...(httpClient ? { routerFactory: ({ originBaseUrl, signal }) => createRequestRouter({
+                httpClient: { send: ({ request }) => httpClient.send(request) }, ownSiteFetch: fetchOwnSiteResource,
+                allowedOrigins: [new URL(originBaseUrl).origin], signal,
+              }, { preserveOwnSiteCookies: true }) } : {}),
             })),
             paths,
           },
@@ -241,6 +217,6 @@ export { siteEvidenceDerivedRisk };
  * Contributes the site-evidence tool to the assistant's catalog — called once by
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  */
-export function contributeSiteEvidenceTools(): ToolContributor {
-  return { domain: "site-evidence", build: buildSiteEvidenceRegistrations, risk: siteEvidenceDerivedRisk };
+export function contributeSiteEvidenceTools({ httpClient }: { httpClient?: HttpClientPort } = {}, _optional = {}): ToolContributor {
+  return { domain: "site-evidence", build: deps => buildSiteEvidenceRegistrations(deps, httpClient ? { httpClient } : {}), risk: siteEvidenceDerivedRisk };
 }
