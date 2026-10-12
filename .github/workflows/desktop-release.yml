@@ -137,7 +137,7 @@ jobs:
           # spctl fails the assignment itself under `bash -e`.
           out="$(spctl -a -vv -t exec "${{ matrix.app }}" 2>&1)"; echo "$out"
           grep -q "source=Notarized Developer ID" <<<"$out"
-          xcrun stapler validate "${{ matrix.app }}"
+          "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-validate.sh" "${{ matrix.app }}"
           test "$(lipo -archs "${{ matrix.app }}/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
       - if: runner.os == 'macOS'
         name: Notarize + staple the dmg itself
@@ -148,7 +148,7 @@ jobs:
         run: |
           xcrun notarytool submit "${{ matrix.out }}" --key "$APPLE_API_KEY" --key-id "$KID" --issuer "$ISS" --wait
           xcrun stapler staple "${{ matrix.out }}"
-          xcrun stapler validate "${{ matrix.out }}"
+          "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-validate.sh" "${{ matrix.out }}"
           out="$(spctl -a -vv -t open --context context:primary-signature "${{ matrix.out }}" 2>&1)"; echo "$out"
           grep -q "source=Notarized Developer ID" <<<"$out"
       - if: always() && runner.os == 'macOS'
@@ -179,7 +179,7 @@ jobs:
           test -s "$zip" && test -s "$zip.blockmap" && test -s release/latest-mac.yml
           ditto -x -k "$zip" "$RUNNER_TEMP/zip"
           codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/zip/Tovu.app"
-          xcrun stapler validate "$RUNNER_TEMP/zip/Tovu.app"
+          "$GITHUB_WORKSPACE/apps/desktop/scripts/stapler-validate.sh" "$RUNNER_TEMP/zip/Tovu.app"
           test "$(lipo -archs "$RUNNER_TEMP/zip/Tovu.app/Contents/MacOS/Tovu")" = "${{ matrix.lipo }}"
           node scripts/verify-package.ts --asar "$RUNNER_TEMP/zip/Tovu.app/Contents/Resources/app.asar"
           grep -q "url: Tovu-mac-${{ matrix.arch }}.zip" release/latest-mac.yml
