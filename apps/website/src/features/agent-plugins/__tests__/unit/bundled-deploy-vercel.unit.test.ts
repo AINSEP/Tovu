@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { describe, it, afterEach } from "node:test";
 import { pathToFileURL } from "node:url";
@@ -17,7 +18,9 @@ import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
  * through `../fixtures/vitest-compat.ts` with the module bound to the REAL host kit (whose `fetch`
  * calls the stubbed global `fetch` at call time). The network guard fails the file if any call
  * reaches an unstubbed `fetch`. The cases above the marker are new: the module contract and
- * `responseHeaders` (rendered into `vercel.json` by the module itself).
+ * `responseHeaders` (rendered into `vercel.json` by the module itself), and the per-file `/v2/files`
+ * upload (2026-10-11). Ported cases whose fake answered EVERY POST as the create call now match the
+ * create by its `/v13/deployments` path, so the file uploads fall through to a plain 200.
  */
 
 installNetworkGuard();
@@ -35,15 +38,21 @@ interface VercelBinding {
 const loaded = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployTargetModule; bindVercel(kit: DeployHostKit): VercelBinding };
 const { VercelDeployTarget, isVercelProtectedResponse } = loaded.bindVercel(createDeployHostKit());
 
-/** A Vercel API double that accepts one deployment and reports it READY; returns the posted files. */
+/** A Vercel API double that stores `/v2/files` uploads by digest, accepts one deployment and reports
+ *  it READY; returns the deployed files, resolved from the uploads by `sha`. */
 function stubVercelApi(): () => Array<{ file: string; data: string }> {
   let posted: Array<{ file: string; data: string }> = [];
+  const uploads = new Map<string, Buffer>();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
       const url = String(input);
+      if (init?.method === "POST" && url.includes("/v2/files")) {
+        uploads.set(new Headers(init.headers).get("x-vercel-digest") ?? "", Buffer.from(init.body as Uint8Array));
+        return jsonResponse(200, {});
+      }
       if (init?.method === "POST" && url.includes("/v13/deployments")) {
-        posted = JSON.parse(String(init.body)).files.map((f: { file: string; data: string }) => ({ file: f.file, data: Buffer.from(f.data, "base64").toString("utf8") }));
+        posted = JSON.parse(String(init.body)).files.map((f: { file: string; sha: string }) => ({ file: f.file, data: uploads.get(f.sha)?.toString("utf8") ?? "<not uploaded>" }));
         return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
       }
       if (url.includes("/v13/deployments/dpl_1")) return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
@@ -155,6 +164,139 @@ describe("VercelDeployTarget.publish — responseHeaders", () => {
   });
 });
 
+describe("VercelDeployTarget.publish — per-file uploads (/v2/files)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const sha1 = (data: string | Buffer) => createHash("sha1").update(data).digest("hex");
+  const { VercelDeployTarget: NoWaitTarget } = loaded.bindVercel({ ...createDeployHostKit(), sleep: async () => undefined });
+
+  /** Records every Vercel API call; `create` answers each `/v13/deployments` POST in order. */
+  function recordVercelApi(options: { create?: Array<() => Response>; upload?: (sha: string) => Response } = {}) {
+    const uploads: Array<{ url: string; headers: Headers; body: Buffer }> = [];
+    const creates: Array<{ url: string; body: string; bytes: number }> = [];
+    const create = [...(options.create ?? [])];
+    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST" && url.includes("/v2/files")) {
+        const headers = new Headers(init.headers);
+        uploads.push({ url, headers, body: Buffer.from(init.body as Uint8Array) });
+        return options.upload?.(headers.get("x-vercel-digest") ?? "") ?? jsonResponse(200, {});
+      }
+      if (init?.method === "POST" && url.includes("/v13/deployments")) {
+        creates.push({ url, body: String(init.body), bytes: Buffer.byteLength(String(init.body)) });
+        return create.shift()?.() ?? jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
+      }
+      if (url.includes("/v13/deployments/dpl_1")) return jsonResponse(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
+      return new Response("", { status: 200 });
+    }));
+    return { uploads, creates };
+  }
+
+  it("uploads each distinct file once with its SHA-1 digest and size, and the deployment references them by sha/size with no inline data", async () => {
+    const api = recordVercelApi();
+    const photo = Buffer.from([0xff, 0xd8, 0xff, 0x00, 0x01]);
+    await new NoWaitTarget({ token: "tok", teamId: "team_1" }).publish({
+      files: [{ file: "index.html", data: "<html></html>" }, { file: "a/photo.jpg", data: photo }, { file: "b/copy.html", data: "<html></html>" }],
+      projectName: "demo",
+    });
+
+    expect(api.uploads.map((u) => u.headers.get("x-vercel-digest")).sort()).toEqual([sha1("<html></html>"), sha1(photo)].sort());
+    for (const upload of api.uploads) {
+      expect(new URL(upload.url).pathname).toBe("/v2/files");
+      expect(new URL(upload.url).searchParams.get("teamId")).toBe("team_1");
+      expect(upload.headers.get("Authorization")).toBe("Bearer tok");
+      expect(upload.headers.get("Content-Type")).toBe("application/octet-stream");
+      expect(upload.headers.get("Content-Length")).toBe(String(upload.body.length));
+      expect(sha1(upload.body)).toBe(upload.headers.get("x-vercel-digest"));
+    }
+    expect(api.creates).toHaveLength(1);
+    expect(JSON.parse(api.creates[0]!.body).files).toEqual([
+      { file: "index.html", sha: sha1("<html></html>"), size: 13 },
+      { file: "a/photo.jpg", sha: sha1(photo), size: 5 },
+      { file: "b/copy.html", sha: sha1("<html></html>"), size: 13 },
+    ]);
+  });
+
+  it("a site over 10 MB never goes in one request: every request body stays under Vercel's 10 MB cap", async () => {
+    const api = recordVercelApi();
+    const files = Array.from({ length: 4 }, (_, i) => ({ file: `photos/${i}.jpg`, data: Buffer.alloc(4 * 1024 * 1024, i + 1) }));
+    await new NoWaitTarget({ token: "tok" }).publish({ files, projectName: "demo" });
+
+    expect(api.uploads).toHaveLength(4);
+    const limit = 10 * 1024 * 1024;
+    for (const upload of api.uploads) expect(upload.body.length < limit).toBe(true);
+    expect(api.creates[0]!.bytes < 10_000).toBe(true);
+  });
+
+  it("re-uploads exactly the files a missing_files answer names, then creates the deployment once more", async () => {
+    const api = recordVercelApi({
+      create: [() => jsonResponse(400, { error: { code: "missing_files", message: "Missing files", missing: [sha1("b"), "not-ours"] } })],
+    });
+    const result = await new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }, { file: "b.html", data: "b" }], projectName: "demo" });
+
+    expect(result.url).toBe("https://demo.vercel.app");
+    expect(api.creates).toHaveLength(2);
+    expect(api.uploads.map((u) => u.headers.get("x-vercel-digest"))).toEqual([sha1("a"), sha1("b"), sha1("b")]);
+  });
+
+  it("a second missing_files answer fails the publish instead of looping", async () => {
+    const missing = () => jsonResponse(400, { error: { code: "missing_files", message: "Missing files", missing: [sha1("a")] } });
+    const api = recordVercelApi({ create: [missing, missing] });
+    await expect(new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" })).rejects.toThrow("Missing files");
+    expect(api.creates).toHaveLength(2);
+  });
+
+  it("retries an upload Vercel answers with 429 or 5xx, and fails on a non-transient error without creating a deployment", async () => {
+    const answers = [jsonResponse(429, {}), jsonResponse(503, {})];
+    const retried = recordVercelApi({ upload: () => answers.shift() ?? jsonResponse(200, {}) });
+    await new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" });
+    expect(retried.uploads).toHaveLength(3);
+    expect(retried.creates).toHaveLength(1);
+
+    const refused = recordVercelApi({ upload: () => jsonResponse(400, { error: { code: "bad_request", message: "Digest is not valid" } }) });
+    await expect(new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" })).rejects.toThrow("Digest is not valid");
+    expect(refused.uploads).toHaveLength(1);
+    expect(refused.creates).toHaveLength(0);
+  });
+
+  it("retries an upload whose connection drops, and names the transport cause once the tries run out", async () => {
+    const dropped = () => Promise.reject(new TypeError("fetch failed", { cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }) }));
+    let drops = 1;
+    const recovered = recordVercelApi({ upload: () => (drops-- > 0 ? (dropped() as unknown as Response) : jsonResponse(200, {})) });
+    await new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" });
+    expect(recovered.uploads).toHaveLength(2);
+    expect(recovered.creates).toHaveLength(1);
+
+    const api = recordVercelApi({ upload: () => dropped() as unknown as Response });
+    await expect(new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" })).rejects.toThrow(
+      "Vercel file upload failed: fetch failed (other side closed)",
+    );
+    expect(api.uploads).toHaveLength(3);
+    expect(api.creates).toHaveLength(0);
+  });
+
+  it("does not retry an upload that hit the host-kit timeout", async () => {
+    const kit = createDeployHostKit({
+      timeouts: { QUICK: 10, DEPLOY: 10, UPLOAD: 10 },
+      fetchFn: async (_url, init) => new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true })),
+    });
+    let sleeps = 0;
+    const { VercelDeployTarget: Bounded } = loaded.bindVercel({ ...kit, sleep: async () => { sleeps += 1; } });
+    await expect(new Bounded({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" })).rejects.toThrow(
+      "Vercel file upload failed: fetch timed out after 10ms",
+    );
+    expect(sleeps).toBe(0);
+  });
+
+  it("gives up on a file after three transient failures", async () => {
+    const api = recordVercelApi({ upload: () => jsonResponse(502, { error: { message: "Bad gateway" } }) });
+    await expect(new NoWaitTarget({ token: "tok" }).publish({ files: [{ file: "a.html", data: "a" }], projectName: "demo" })).rejects.toThrow("Bad gateway");
+    expect(api.uploads).toHaveLength(3);
+    expect(api.creates).toHaveLength(0);
+  });
+});
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
@@ -205,7 +347,7 @@ describe('VercelDeployTarget.publish', () => {
     const readyBody = { id: 'dpl_1', readyState: 'READY', url: 'demo-abc123.vercel.app' };
 
     const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
-      if (init?.method === 'POST') {
+      if (init?.method === 'POST' && String(input).includes('/v13/deployments')) {
         // Assert the deployment name was sanitized from the caller's projectName.
         const parsed = JSON.parse(String(init.body));
         expect(parsed.name).toBe('my-demo-site');
@@ -241,7 +383,7 @@ describe('VercelDeployTarget.publish', () => {
     let pollSignal: AbortSignal | null | undefined;
 
     const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
-      if (init?.method === 'POST') {
+      if (init?.method === 'POST' && String(input).includes('/v13/deployments')) {
         createSignal = init?.signal;
         expect(new Headers(init.headers).get('Authorization')).toBe('Bearer tok');
         return jsonResponse(200, createBody);
@@ -261,7 +403,8 @@ describe('VercelDeployTarget.publish', () => {
 
     expect(createSignal).toBeInstanceOf(AbortSignal);
     expect(pollSignal).toBeInstanceOf(AbortSignal);
-    expect(deadlines.slice(0, 2)).toEqual([120_000, 30_000]);
+    // The one file upload, the create call, then the status poll.
+    expect(deadlines.slice(0, 3)).toEqual([120_000, 120_000, 30_000]);
   });
 
   it('aborts stalled create and poll requests at the host-kit timeout bounds', async () => {
@@ -333,7 +476,7 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('falls back to a generic "Vercel request failed" message when the error body carries neither an error object nor a message', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(500, {})));
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => String(input).includes('/v2/files') ? jsonResponse(200, {}) : jsonResponse(500, {})));
     const target = new VercelDeployTarget({ token: 'tok' });
     await expect(
       target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' }),
@@ -341,7 +484,7 @@ describe('VercelDeployTarget.publish', () => {
   });
 
   it('throws DeployError when Vercel responds with a non-JSON body', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not json', { status: 200 })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('not json', { status: 200 })));
     const target = new VercelDeployTarget({ token: 'tok' });
     await expect(
       target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' }),
@@ -474,16 +617,16 @@ describe('VercelDeployTarget.publish', () => {
     // ''. This exercises: candidates.length===0 -> [initialUrl]; the full
     // `link.url || deploymentUrl(ready) || initialUrl` fallback chain bottoming out; and
     // `reachableAt` staying absent (link-delayed with no candidates never sets it).
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy.mockResolvedValue(jsonResponse(200, { readyState: 'READY' })));
+    const fetchSpy = vi.fn(async () => jsonResponse(200, { readyState: 'READY' }));
+    vi.stubGlobal('fetch', fetchSpy);
     const target = new VercelDeployTarget({ token: 'tok' });
     const result = await target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' });
     expect(result.url).toBe('');
     expect(result.status).toBe('link-delayed');
     expect(result.reachableAt).toBeUndefined();
-    // One create call only — no reachability probe network call, since waitForReachableDeploymentUrl
-    // short-circuits before ever calling fetch when its candidate list is empty.
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    // The file upload and one create call only — no reachability probe network call, since
+    // waitForReachableDeploymentUrl short-circuits before ever calling fetch when its candidate list is empty.
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it('skips polling entirely when the create response carries neither an id nor a uid', async () => {
@@ -496,8 +639,8 @@ describe('VercelDeployTarget.publish', () => {
 
     expect(result.deploymentId).toBeUndefined();
     expect(result.url).toBe('https://demo.vercel.app');
-    // One create call plus one reachability probe — no poll call in between.
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    // The file upload, one create call, one reachability probe and the login-redirect HEAD — no poll call in between.
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
   });
 
   it('collects deployment URL candidates from string aliases, and from aliases entries shaped as {domain} or {url} objects', async () => {
@@ -522,12 +665,11 @@ describe('VercelDeployTarget.publish', () => {
     const target = new VercelDeployTarget({ token: 'tok' });
     const result = await target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' });
 
-    // Failed candidates get both HEAD and GET probes; the final alias is the first reachable one.
-    expect(probed[0]).toMatch(/^https:\/\/(primary\.vercel\.app|alias-one\.vercel\.app|from-domain\.example|from-url\.example)/);
+    // Failed candidates get both HEAD and GET probes; aliases go before the per-deployment `url`, and
+    // the reachable one gets one more HEAD for a login redirect.
     expect(probed).toEqual([
-      'https://primary.vercel.app/', 'https://primary.vercel.app/',
       'https://alias-one.vercel.app/', 'https://alias-one.vercel.app/',
-      'https://from-domain.example/', 'https://from-domain.example/', 'https://from-url.example/',
+      'https://from-domain.example/', 'https://from-domain.example/', 'https://from-url.example/', 'https://from-url.example',
     ]);
     expect(result.url).toBe('https://from-url.example');
   });
@@ -632,6 +774,36 @@ describe('VercelDeployTarget.publish', () => {
     expect(result.url).toBe('https://protected.vercel.app');
   });
 
+  it('creates a production deployment and reports the production alias, not the per-deployment URL', async () => {
+    let createBody: Record<string, unknown> | undefined;
+    const ready = { id: 'dpl_p', readyState: 'READY', url: 'plannie-leon-abc123-team.vercel.app', alias: ['plannie-leon.vercel.app'] };
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === 'POST' && url.includes('/v13/deployments')) {
+        createBody = JSON.parse(String(init.body));
+        return jsonResponse(200, { id: 'dpl_p', readyState: 'QUEUED', url: ready.url });
+      }
+      if (url.includes('/v13/deployments/dpl_p')) return jsonResponse(200, ready);
+      // The per-deployment URL sits behind Deployment Protection; the production alias is public.
+      if (url.startsWith('https://plannie-leon-abc123')) return new Response('', { status: 302, headers: { location: 'https://vercel.com/sso-api?url=x' } });
+      return new Response('', { status: 200 });
+    }));
+    const result = await new VercelDeployTarget({ token: 'tok' }).publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'plannie-leon' });
+    expect(createBody?.target).toBe('production');
+    expect(result.url).toBe('https://plannie-leon.vercel.app');
+    expect(result.status).toBe('ready');
+  });
+
+  it('reports a URL that redirects to Vercel login as protected, not ready', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => init?.method === 'POST'
+      ? jsonResponse(200, { readyState: 'READY', url: 'demo-abc123.vercel.app' })
+      : new Response('', { status: 302, headers: { location: 'https://vercel.com/sso-api?url=https%3A%2F%2Fdemo-abc123.vercel.app' } })));
+    const result = await new VercelDeployTarget({ token: 'tok' }).publish({ files: [], projectName: 'demo' });
+    expect(result.status).toBe('protected');
+    expect(result.url).toBe('https://demo-abc123.vercel.app');
+    expect(result.reachableAt).toBeUndefined();
+  });
+
   it('includes teamId (preferred over teamSlug) or teamSlug in the query string when configured', async () => {
     const fetchSpy = vi.fn(async (_input: string, _init?: RequestInit) => jsonResponse(200, { id: 'dpl_scoped', readyState: 'READY', url: 'demo.vercel.app' }));
     vi.stubGlobal('fetch', fetchSpy);
@@ -643,7 +815,7 @@ describe('VercelDeployTarget.publish', () => {
     expect(teamIdQuery.get('teamId')).toBe('team_1');
     expect(teamIdQuery.has('slug')).toBe(false);
     const idApiCalls = fetchSpy.mock.calls.filter(([url]) => String(url).startsWith('https://api.vercel.com/'));
-    expect(idApiCalls.map(([url]) => new URL(String(url)).pathname)).toEqual(['/v13/deployments', '/v13/deployments/dpl_scoped']);
+    expect(idApiCalls.map(([url]) => new URL(String(url)).pathname)).toEqual(['/v2/files', '/v13/deployments', '/v13/deployments/dpl_scoped']);
     for (const [url] of idApiCalls) expect([...new URL(String(url)).searchParams]).toEqual([['teamId', 'team_1']]);
 
     fetchSpy.mockClear();
@@ -654,13 +826,13 @@ describe('VercelDeployTarget.publish', () => {
     expect(teamSlugQuery.get('slug')).toBe('my-team');
     expect(teamSlugQuery.has('teamId')).toBe(false);
     const slugApiCalls = fetchSpy.mock.calls.filter(([url]) => String(url).startsWith('https://api.vercel.com/'));
-    expect(slugApiCalls.map(([url]) => new URL(String(url)).pathname)).toEqual(['/v13/deployments', '/v13/deployments/dpl_scoped']);
+    expect(slugApiCalls.map(([url]) => new URL(String(url)).pathname)).toEqual(['/v2/files', '/v13/deployments', '/v13/deployments/dpl_scoped']);
     for (const [url] of slugApiCalls) expect([...new URL(String(url)).searchParams]).toEqual([['slug', 'my-team']]);
   });
 
   it('falls back to a random project name when the caller-supplied projectName sanitizes to nothing', async () => {
-    const fetchSpy = vi.fn(async (_input: string, init?: RequestInit) => {
-      if (init?.method === 'POST') {
+    const fetchSpy = vi.fn(async (input: string, init?: RequestInit) => {
+      if (init?.method === 'POST' && String(input).includes('/v13/deployments')) {
         const parsed = JSON.parse(String(init.body));
         expect(parsed.name).toMatch(/^deploy-[a-z0-9]+$/);
         return jsonResponse(200, { url: 'demo.vercel.app' });

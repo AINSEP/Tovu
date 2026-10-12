@@ -10,11 +10,24 @@
  *   bound once per target by {@link bindVercel}: an installed plugin has no npm dependencies.
  * - `responseHeaders` (the host's security header set) is rendered into a root `vercel.json` here,
  *   which Tovu core used to add itself.
+ * - Files are uploaded one per request to `POST /v2/files` (by SHA-1) and the deployment references
+ *   them as `{ file, sha, size }`, the way Vercel's CLI does (2026-10-11). The devops source sent every
+ *   file inline, base64, in the one `/v13/deployments` body, which Vercel refuses past 10 MB
+ *   ("Request body too large"): any real site with photos.
  *
  * Plain JS by owner decision (2026-09-29).
  */
 
+import { createHash } from "node:crypto";
+
 export const VERCEL_TARGET_ID = "vercel";
+
+/** `/v2/files` uploads in flight at once per publish: a few hundred files finish in reasonable time
+ *  without tripping Vercel's rate limit. */
+const VERCEL_UPLOAD_CONCURRENCY = 5;
+/** Tries per file upload; a 429, a 5xx or a dropped connection is retried, anything else fails the
+ *  publish at once. */
+const VERCEL_UPLOAD_ATTEMPTS = 3;
 
 /** The root file Vercel reads response-header rules from. */
 const VERCEL_CONFIG_FILE = "vercel.json";
@@ -41,6 +54,24 @@ function renderVercelConfig(headers) {
 function withVercelConfigFile(files, responseHeaders) {
   if (!responseHeaders || Object.keys(responseHeaders).length === 0) return files;
   return [...files.filter((file) => file.file !== VERCEL_CONFIG_FILE), { file: VERCEL_CONFIG_FILE, data: renderVercelConfig(responseHeaders) }];
+}
+
+/**
+ * Content-addresses a file set for Vercel: the deployment's `files` entries (`{ file, sha, size }`,
+ * no data) and one upload body per distinct SHA-1, so identical files upload once.
+ *
+ * @param {Array<{ file: string, data: string | Uint8Array }>} files
+ * @returns {{ refs: Array<{ file: string, sha: string, size: number }>, blobs: Map<string, Buffer> }}
+ */
+function vercelFileManifest(files) {
+  const blobs = new Map();
+  const refs = files.map((f) => {
+    const data = Buffer.from(f.data);
+    const sha = createHash("sha1").update(data).digest("hex");
+    blobs.set(sha, data);
+    return { file: f.file, sha, size: data.length };
+  });
+  return { refs, blobs };
 }
 
 /**
@@ -105,7 +136,7 @@ export function bindVercel(kit) {
        *   terminal `readyState` (or the poll budget is exhausted).
        * @throws {DeployError} If `config.token` is missing, or Vercel's API
        *   rejects the deployment request or reports `readyState: 'ERROR'`.
-       * @complexity O(files) to encode the payload, plus a bounded poll loop
+       * @complexity O(files) to hash and upload them, plus a bounded poll loop
        *   (`pollVercelDeployment`) and the reachability wait's own bound.
        * @overallScore 100/100
        */
@@ -113,24 +144,22 @@ export function bindVercel(kit) {
           if (!this.config.token) {
               throw new DeployError('Vercel token is required.', 400);
           }
-          const createResp = await fetchWithTimeout(`${VERCEL_API}/v13/deployments${vercelTeamQuery(this.config)}`, redirectGuardInit({
-              method: 'POST',
-              headers: {
-                  Authorization: `Bearer ${this.config.token}`,
-                  'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                  name: safeVercelProjectName(input.projectName),
-                  files: withVercelConfigFile(input.files, input.responseHeaders).map((f) => ({
-                      file: f.file,
-                      data: Buffer.from(f.data).toString('base64'),
-                      encoding: 'base64',
-                  })),
-                  projectSettings: { framework: null },
-              }),
-          }), { timeoutMs: FETCH_TIMEOUT_MS.UPLOAD });
-          assertNotRedirected(createResp, 'Vercel deployment creation');
-          const created = await readVercelJson(createResp);
+          const { refs, blobs } = vercelFileManifest(withVercelConfigFile(input.files, input.responseHeaders));
+          await uploadVercelFiles(this.config, blobs, [...blobs.keys()]);
+          // `target: "production"`: without it Vercel makes a preview deployment, and only a project's
+          // FIRST deployment takes the production alias, so every later publish never reached the
+          // public address (2026-10-11). A publish is meant to update the live site.
+          const body = JSON.stringify({ name: safeVercelProjectName(input.projectName), files: refs, target: 'production', projectSettings: { framework: null } });
+          let createResp = await createVercelDeployment(this.config, body);
+          let created = await readVercelJson(createResp);
+          const missing = created?.error?.code === 'missing_files' ? created.error.missing : undefined;
+          if (!createResp.ok && Array.isArray(missing)) {
+              // Vercel did not keep (or never got) some uploads: send exactly what it names, then create
+              // once more. A second `missing_files` is reported like any other create failure.
+              await uploadVercelFiles(this.config, blobs, missing.filter((sha) => blobs.has(sha)));
+              createResp = await createVercelDeployment(this.config, body);
+              created = await readVercelJson(createResp);
+          }
           if (!createResp.ok)
               throw vercelError(created, createResp.status);
           const deploymentId = typeof created.id === 'string' ? created.id : typeof created.uid === 'string' ? created.uid : undefined;
@@ -156,11 +185,16 @@ export function bindVercel(kit) {
               throw new DeployError(readyError?.message || 'Vercel deployment failed.', 502, ready ?? undefined);
           }
           const candidates = deploymentUrlCandidates(ready, created);
-          const link = await waitForReachableDeploymentUrl(candidates.length ? candidates : [initialUrl], {
+          let link = await waitForReachableDeploymentUrl(candidates.length ? candidates : [initialUrl], {
               providerLabel: 'Vercel',
               detectProtected: isVercelProtectedResponse,
               protectedMessage: VERCEL_PROTECTED_MESSAGE,
           });
+          // The kit counts any 3xx as reachable, but Deployment Protection answers a per-deployment
+          // URL with a redirect to Vercel's login, which is not a public link.
+          if (link.status === 'ready' && await redirectsToVercelLogin(link.url)) {
+              link = { status: 'protected', url: link.url, statusMessage: VERCEL_PROTECTED_MESSAGE };
+          }
           return {
               targetId: this.id,
               url: link.url || deploymentUrl(ready) || initialUrl,
@@ -176,6 +210,93 @@ export function bindVercel(kit) {
               detectProtected: isVercelProtectedResponse,
               protectedMessage: VERCEL_PROTECTED_MESSAGE,
           });
+      }
+  }
+  /** One HEAD, redirects not followed: does `url` send visitors to Vercel's SSO/login wall? Any
+   *  failure answers `false`, leaving the reachability result as it was. */
+  async function redirectsToVercelLogin(url) {
+      try {
+          const resp = await fetchWithTimeout(url, { method: 'HEAD', redirect: 'manual' }, { timeoutMs: FETCH_TIMEOUT_MS.QUICK });
+          await resp.arrayBuffer().catch(() => undefined);
+          return resp.status >= 300 && resp.status < 400 && /vercel\.com\/(sso-api|login)/i.test(resp.headers.get('location') || '');
+      }
+      catch {
+          return false;
+      }
+  }
+  async function createVercelDeployment(config, body) {
+      const resp = await fetchWithTimeout(`${VERCEL_API}/v13/deployments${vercelTeamQuery(config)}`, redirectGuardInit({
+          method: 'POST',
+          headers: {
+              Authorization: `Bearer ${config.token}`,
+              'Content-Type': 'application/json',
+          },
+          body,
+      }), { timeoutMs: FETCH_TIMEOUT_MS.UPLOAD });
+      assertNotRedirected(resp, 'Vercel deployment creation');
+      return resp;
+  }
+  /**
+   * Uploads `shas` (keys of `blobs`) to `POST /v2/files`, {@link VERCEL_UPLOAD_CONCURRENCY} at a
+   * time. The first failure stops the remaining queue and rejects.
+   *
+   * @complexity O(n) requests, plus at most `VERCEL_UPLOAD_ATTEMPTS - 1` retries each.
+   */
+  async function uploadVercelFiles(config, blobs, shas) {
+      const queue = [...shas];
+      const worker = async () => {
+          while (queue.length) {
+              const sha = queue.shift();
+              try {
+                  await uploadVercelFile(config, sha, blobs.get(sha));
+              }
+              catch (err) {
+                  queue.length = 0;
+                  throw err;
+              }
+          }
+      };
+      await Promise.all(Array.from({ length: Math.min(VERCEL_UPLOAD_CONCURRENCY, queue.length) }, worker));
+  }
+  async function uploadVercelFile(config, sha, data) {
+      for (let attempt = 1; ; attempt += 1) {
+          let resp;
+          try {
+              resp = await fetchWithTimeout(`${VERCEL_API}/v2/files${vercelTeamQuery(config)}`, redirectGuardInit({
+                  method: 'POST',
+                  headers: {
+                      Authorization: `Bearer ${config.token}`,
+                      'Content-Type': 'application/octet-stream',
+                      'Content-Length': String(data.length),
+                      'x-vercel-digest': sha,
+                  },
+                  body: data,
+              }), { timeoutMs: FETCH_TIMEOUT_MS.UPLOAD });
+          }
+          catch (err) {
+              // A dropped connection is retried like a 5xx (the first real plannie publish lost one of
+              // ~200 uploads that way); a timeout is not, since each try already waited the full bound.
+              if (attempt < VERCEL_UPLOAD_ATTEMPTS && !/timed out/i.test(String(err?.message))) {
+                  await sleep(1000 * attempt);
+                  continue;
+              }
+              // Node's fetch reports every transport failure as a bare "fetch failed"; the cause (a
+              // reset socket, a TLS or DNS error) is the only part that says what happened.
+              const cause = err?.cause?.message || err?.cause?.code;
+              throw new DeployError(`Vercel file upload failed: ${err?.message ?? err}${cause ? ` (${cause})` : ''}`, 502);
+          }
+          assertNotRedirected(resp, 'Vercel file upload');
+          if (resp.ok) {
+              // Drain the small JSON ack so the connection goes back to the pool.
+              await resp.arrayBuffer().catch(() => undefined);
+              return;
+          }
+          if (attempt < VERCEL_UPLOAD_ATTEMPTS && (resp.status === 429 || resp.status >= 500)) {
+              await resp.arrayBuffer().catch(() => undefined);
+              await sleep(1000 * attempt);
+              continue;
+          }
+          throw vercelError(await readVercelJson(resp), resp.status);
       }
   }
   /**
@@ -280,12 +401,15 @@ export function bindVercel(kit) {
    * already documents for its structurally identical guard.
    */
   function deploymentUrlCandidates(...responses) {
+      // Aliases (the production `<project>.vercel.app` among them) are tried before `url`: `url` is the
+      // per-deployment address, which Deployment Protection puts behind Vercel's login by default.
       const urls = [];
+      const deploymentUrls = [];
       for (const json of responses) {
           if (!json)
               continue;
           if (typeof json.url === 'string')
-              urls.push(json.url);
+              deploymentUrls.push(json.url);
           for (const alias of json.alias ?? []) {
               if (typeof alias === 'string')
                   urls.push(alias);
@@ -302,7 +426,7 @@ export function bindVercel(kit) {
               }
           }
       }
-      return [...new Set(urls.map(normalizeDeploymentUrl).filter(Boolean))];
+      return [...new Set([...urls, ...deploymentUrls].map(normalizeDeploymentUrl).filter(Boolean))];
   }
 
   return { VercelDeployTarget, isVercelProtectedResponse };

@@ -194,20 +194,29 @@ test("the REAL plugin Vercel module, fed through the adapter, posts exactly one 
   const vercel = ((await import(pathToFileURL(VERCEL_MODULE_PATH).href)) as { default: DeployTargetModule }).default;
   let posted: string[] = [];
   let vercelJson: string | undefined;
+  let createTarget: unknown;
+  const uploads = new Map<string, string>();
   const realFetch = globalThis.fetch;
   t.mock.method(globalThis, "fetch", async (input: string | URL, init: RequestInit = {}) => {
     const url = String(input);
     // The export itself fetches every page from the in-process app over loopback: let those through.
     if (!url.includes("vercel")) return realFetch(input, init);
     const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+    if (init.method === "POST" && url.includes("/v2/files")) {
+      uploads.set(new Headers(init.headers).get("x-vercel-digest") ?? "", Buffer.from(init.body as Uint8Array).toString("utf8"));
+      return json(200, {});
+    }
     if (init.method === "POST" && url.includes("/v13/deployments")) {
-      const files = JSON.parse(String(init.body)).files as Array<{ file: string; data: string }>;
+      const files = JSON.parse(String(init.body)).files as Array<{ file: string; sha: string }>;
       posted = files.map((file) => file.file);
-      vercelJson = Buffer.from(files.find((file) => file.file === "vercel.json")?.data ?? "", "base64").toString("utf8");
+      createTarget = JSON.parse(String(init.body)).target;
+      vercelJson = uploads.get(files.find((file) => file.file === "vercel.json")?.sha ?? "");
       return json(200, { id: "dpl_1", readyState: "QUEUED", url: "demo.vercel.app" });
     }
-    if (url.includes("/v13/deployments/dpl_1")) return json(200, { id: "dpl_1", readyState: "READY", url: "demo.vercel.app" });
+    if (url.includes("/v13/deployments/dpl_1")) return json(200, { id: "dpl_1", readyState: "READY", url: "demo-abc123.vercel.app", alias: ["demo.vercel.app"] });
     if (url.startsWith("https://demo.vercel.app")) return new Response("", { status: 200 });
+    // The per-deployment URL is behind Deployment Protection.
+    if (url.startsWith("https://demo-abc123.vercel.app")) return new Response("", { status: 302, headers: { location: "https://vercel.com/sso-api" } });
     throw new Error(`unexpected Vercel call: ${init.method ?? "GET"} ${url}`);
   });
 
@@ -217,6 +226,8 @@ test("the REAL plugin Vercel module, fed through the adapter, posts exactly one 
   );
 
   assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(createTarget, "production", "a publish updates the live address, not a preview");
+  assert.ok(result.ok && result.url === "https://demo.vercel.app" && result.status === "ready", "the production alias is the reported link");
   assert.equal(posted.filter((file) => file === "vercel.json").length, 1);
   const rule = { source: "/(.*)", headers: Object.entries(PUBLIC_PAGE_SECURITY_HEADERS).map(([key, value]) => ({ key, value })) };
   assert.ok(vercelJson !== undefined, "the publish must have posted a vercel.json");
