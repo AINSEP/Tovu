@@ -10,6 +10,8 @@ import express from "express";
 import type { UUID } from "@jini-ai/core/primitives";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { PostRepoPort, PostRecord } from "#src/features/post/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "#src/assistant/index";
@@ -1339,3 +1341,40 @@ for (const boundary of ["network", "body"] as const) {
     assert.equal(close.mock.calls.length, 1, "the temporary server must close even when body reading fails");
   });
 }
+
+test("exportSite: a see-more listing with a card <template> exports its JSON batches as .json files, following nextCursor to the end", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const themeDir = makeTmpOutputDir();
+  t.after(() => rmSync(themeDir, { recursive: true, force: true }));
+  const base = createRouteDeps();
+  const card = '<template data-jini-card><article><a data-field="title" data-field-href="href"></a></article></template>';
+  base.themes = [{
+    manifest: { id: "json-listing-export-theme", name: "JSON listing", version: "1.0.0", tier: "static", engine: 1, templates: [], publishedPages: ["blog"] },
+    dir: themeDir,
+    tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      blog: `<html><body><div data-jini-see-more data-embed-config='{"type":"post-previews","limit":12}'>${card}none</div></body></html>`,
+    },
+    partials: {}, css: "", source: "site", status: "valid", errors: [],
+  } as unknown as DiscoveredTheme];
+  base.postRepo = new InMemoryPostRepo(Array.from({ length: 30 }, (_, i) => ({
+    id: `json-export-${i}`, workspaceId: base.workspaceId, title: `Json export ${i}`, slug: `json-export-${i}`, bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post", updatedAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString(), version: 1,
+  }) as PostRecord));
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  const batch = (after: number) => path.join(outputDir, "blog", "_more", "1", `${after}.json`);
+  assert.match(readFileSync(path.join(outputDir, "blog", "index.html"), "utf8"), /data-jini-more-href="\/blog\/_more\/1\/12\.json"/);
+  const second = JSON.parse(readFileSync(batch(12), "utf8")) as { items: { href: string }[]; nextCursor: number | null };
+  assert.equal(second.items.length, 12);
+  assert.equal(second.items[0]!.href, "/json-export-12");
+  assert.equal(second.nextCursor, 24);
+  const last = JSON.parse(readFileSync(batch(24), "utf8")) as { items: unknown[]; nextCursor: number | null };
+  assert.equal(last.items.length, 6);
+  assert.equal(last.nextCursor, null);
+  assert.equal(existsSync(batch(36)), false);
+  assert.deepEqual(report.routes.failed.filter((r) => r.path.includes("/_more/")), []);
+});

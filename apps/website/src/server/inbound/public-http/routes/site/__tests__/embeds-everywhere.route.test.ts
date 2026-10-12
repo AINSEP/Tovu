@@ -695,7 +695,7 @@ test("GET /pricing: a see-more collection marker pages its entries through /pric
   assert.match(page, /<section class="gadgets">/);
   assert.match(page, /data-tovu-entry-list data-jini-listing="1"[^>]*><!--jini-listing:1-->/);
   assert.ok(page.includes("Widget Gamma") && page.includes("Widget Beta") && !page.includes("Widget Alpha"));
-  assert.match(page, /data-jini-more="1" href="\/pricing\/_more\/1\/2"/);
+  assert.match(page, /data-jini-more="1" data-jini-more-href="\/pricing\/_more\/1\/2"/);
 
   const batch = await (await fetch(`${baseUrl}/pricing/_more/1/2`)).text();
   assert.ok(batch.includes("Widget Alpha") && !batch.includes("Widget Beta"));

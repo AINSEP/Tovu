@@ -328,7 +328,7 @@ test("GET /blog: a see-more listing pages 12 at a time through /blog/_more/<key>
   const page = await (await fetch(`${baseUrl}/blog`)).text();
   assert.deepEqual(slugsIn(page), range(0, 12));
   assert.match(page, /<div class="grid" data-jini-listing="1"[^>]*><!--jini-listing:1-->/);
-  assert.match(page, /<a class="jini-see-more" data-jini-more="1" href="\/blog\/_more\/1\/13" rel="nofollow" hidden>See more<\/a>/);
+  assert.match(page, /<button type="button" class="jini-see-more" data-jini-more="1" data-jini-more-href="\/blog\/_more\/1\/13"[^>]* hidden>See more<\/button>/);
   assert.equal(page.split("data-jini-see-more-script").length, 2, "one inline script per page");
 
   const second = await fetch(`${baseUrl}/blog/_more/1/13`);
@@ -336,7 +336,7 @@ test("GET /blog: a see-more listing pages 12 at a time through /blog/_more/<key>
   const secondHtml = await second.text();
   assert.match(secondHtml, /<meta name="robots" content="noindex">/);
   assert.deepEqual(slugsIn(secondHtml), range(12, 24));
-  assert.match(secondHtml, /data-jini-more="1" href="\/blog\/_more\/1\/25"/);
+  assert.match(secondHtml, /data-jini-more="1" data-jini-more-href="\/blog\/_more\/1\/25"/);
   assert.doesNotMatch(secondHtml, /<main|data-jini-see-more-script/, "a batch is the items only, not the page");
 
   const last = await (await fetch(`${baseUrl}/blog/_more/1/25`)).text();
@@ -346,4 +346,47 @@ test("GET /blog: a see-more listing pages 12 at a time through /blog/_more/<key>
   for (const path of ["/blog/_more/9/12", "/about/_more/1/12", "/blog/_more/1/x", "/blog/page/2", "/nope/_more/1/12"]) {
     assert.equal((await fetch(`${baseUrl}${path}`)).status, 404, path);
   }
+});
+
+test("GET /blog: a listing with a <template data-jini-card> pages as JSON through /blog/_more/<key>/<after>.json, public fields only", async (t) => {
+  const body = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello <b>world</b>" }] }] };
+  const posts = Array.from({ length: 14 }, (_, i) =>
+    publishedPost({ id: `json-${i}`, slug: `json-${i}`, title: `Json ${i}`, publishAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString(), bodyJson: body, author: "Ada", showAuthor: i === 12 })
+  );
+  posts.push(publishedPost({ id: "gated", slug: "gated", title: "Gated", publishAt: "2026-01-01T12:00:00.000Z", memberAccessJson: JSON.stringify({ visibility: "members" }) }));
+  const card = '<template data-jini-card><article class="post-card"><h3><a data-field="title" data-field-href="href"></a></h3></article></template>';
+  const theme = themeWithPostPreviewsMarker();
+  theme.pages.blog = `<html><body><div class="grid" data-jini-see-more data-embed-config='{"type":"post-previews","limit":12}'>${card}fallback card</div></body></html>`;
+  const { server, baseUrl } = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo(posts) });
+  t.after(() => closeServer(server));
+
+  const page = await (await fetch(`${baseUrl}/blog`)).text();
+  assert.ok(page.includes(`data-jini-listing="1" data-embed-config='{"type":"post-previews","limit":12}'>${card}<!--jini-listing:1-->`), "the card template stays in the listing, before the server-rendered first batch");
+  assert.match(page, /data-jini-more-href="\/blog\/_more\/1\/12\.json"/);
+
+  const res = await fetch(`${baseUrl}/blog/_more/1/12.json`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type") ?? "", /^application\/json/);
+  const json = (await res.json()) as { items: Record<string, unknown>[]; nextCursor: number | null };
+  assert.deepEqual(json.items.map((item) => item.title), ["Json 12", "Json 13"], "the gated post is skipped");
+  assert.equal(json.nextCursor, null, "the last batch has no next cursor");
+  assert.deepEqual(json.items[0], {
+    title: "Json 12",
+    href: "/json-12",
+    date: "2026-01-18T00:00:00.000Z",
+    dateLabel: json.items[0]!.dateLabel,
+    excerpt: "Hello <b>world</b>",
+    cover: null,
+    terms: [],
+    author: "Ada",
+  });
+  assert.equal("author" in json.items[1]!, false, "a hidden byline never enters the JSON");
+  assert.deepEqual(Object.keys(json.items[1]!).sort(), ["cover", "date", "dateLabel", "excerpt", "href", "terms", "title"]);
+
+  const first = (await (await fetch(`${baseUrl}/blog/_more/1/0.json`)).json()) as { items: unknown[]; nextCursor: number | null };
+  assert.equal(first.items.length, 12);
+  assert.equal(first.nextCursor, 12);
+  assert.equal((await fetch(`${baseUrl}/blog/_more/2/0.json`)).status, 404);
+  assert.equal((await fetch(`${baseUrl}/about/_more/1/0.json`)).status, 404);
+  assert.equal((await fetch(`${baseUrl}/blog/_more/1/12`)).status, 200, "the HTML batch still answers");
 });

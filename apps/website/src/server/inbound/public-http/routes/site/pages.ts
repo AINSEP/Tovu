@@ -58,6 +58,7 @@ import { markersOfType, substituteMarkers, withInnerContentFinal, MENU_MARKER_TY
 import {
   assignListingKeys,
   extractListingBatch,
+  extractListingCardTemplate,
   injectListingScript,
   listingBatchPath,
   listingKeyOfAttributes,
@@ -66,8 +67,11 @@ import {
   renderListingBatchDocument,
   renderListingMore,
   type ListingBatchRequest,
+  type ListingJsonPage,
   type ListingSource,
 } from "@jini-ai/cms/listing";
+import { postAuthorForDisplay } from "#src/features/post/author";
+import { extractPlainTextFromHtml } from "#src/features/post/html-plain-text";
 import { comparePostsByDisplayDate, postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
@@ -76,7 +80,7 @@ import { resolveHtmlPageEmbeds, type ResolveHtmlPageEmbedsResult } from "@jini-a
 import { resolvePageWidgets, type ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/adapter";
 import { type RouteTarget } from '@jini-ai/cms/routing';
-import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
+import { deriveExcerpt, resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { resolveMenuDoc } from "#src/features/navigation/index";
 import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "#src/features/media/index";
@@ -2291,7 +2295,7 @@ function formatPostPreviewDate(iso: string): string {
  * it never adds an unbounded post query or resolves hidden posts' cover metadata.
  */
 async function resolvePostPreviewsForRender(
-  deps: Pick<RouteDeps, "workspaceId" | "postRepo" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo"> & Pick<TemplateRenderDeps, "listingBatch">,
+  deps: Pick<RouteDeps, "workspaceId" | "postRepo" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo" | "entryTermReadRepo"> & Pick<TemplateRenderDeps, "listingBatch">,
   memberAccessResolver: MemberAccessResolver,
   memberContext: MemberContext,
   pageHtml: string,
@@ -2305,16 +2309,18 @@ async function resolvePostPreviewsForRender(
   const isVisible = (post: PostRecord): boolean => decidePostMemberAccess(memberAccessResolver, post, memberContext).allowed;
 
   // Plain markers share one batch at the widest limit (each slices its own); a see-more marker
-  // (`data-jini-listing`) reads its own batch, from `after` when this request asks for that key.
+  // (`data-jini-listing`) reads its own batch, from `after` when this request asks for that key. A
+  // listing with a `<template data-jini-card>` loads its next batches as JSON (`.json` batch URLs).
   const plainLimit = markers.reduce((widest, marker) => (listingKeyOfAttributes({ attrs: marker.attrs }) === undefined ? Math.max(widest, postPreviewsBatchSize(marker)) : widest), 0);
   const plain = plainLimit > 0 ? (await readListingBatch({ source, after: 0, size: plainLimit }, { isVisible })).items : [];
-  const keyed = new Map<number, { posts: readonly PostRecord[]; nextHref?: string }>();
+  const keyed = new Map<number, { posts: readonly PostRecord[]; next: number | null; nextHref?: string }>();
   for (const marker of markers) {
     const key = listingKeyOfAttributes({ attrs: marker.attrs });
     if (key === undefined || keyed.has(key)) continue;
     const after = deps.listingBatch?.key === key ? deps.listingBatch.after : 0;
     const batch = await readListingBatch({ source, after, size: postPreviewsBatchSize(marker) }, { isVisible });
-    keyed.set(key, { posts: batch.items, ...(batch.hasMore ? { nextHref: listingBatchPath({ pagePath, key, after: batch.next }) } : {}) });
+    const format = extractListingCardTemplate({ html: marker.inner }) === undefined ? {} : { format: "json" as const };
+    keyed.set(key, { posts: batch.items, next: batch.hasMore ? batch.next : null, ...(batch.hasMore ? { nextHref: listingBatchPath({ pagePath, key, after: batch.next, ...format }) } : {}) });
   }
 
   const listed = [...plain, ...[...keyed.values()].flatMap((batch) => batch.posts)];
@@ -2328,7 +2334,44 @@ async function resolvePostPreviewsForRender(
   };
   const batches = new Map<number, StaticListingBatch<StaticPostPreview>>();
   for (const [key, batch] of keyed) batches.set(key, { items: batch.posts.map(toPreview), ...(batch.nextHref !== undefined ? { nextHref: batch.nextHref } : {}) });
+  const jsonRequest = deps.listingBatch?.format === "json" ? deps.listingBatch : undefined;
+  const jsonBatch = jsonRequest && keyed.get(jsonRequest.key);
+  if (jsonRequest && jsonBatch) {
+    const items = await Promise.all(jsonBatch.posts.map(async (post) => toListingJsonItem({ post, preview: toPreview(post), terms: await resolveAssignedTermsForRender(deps, post) })));
+    listingJsonPages.set(jsonRequest, { items, nextCursor: jsonBatch.next });
+  }
   return { previews: plain.map(toPreview), batches };
+}
+
+/** One post as a see-more JSON batch item: public fields only, the same ones its card shows plus the
+ *  excerpt, term names and a byline the post shows. */
+interface ListingJsonItem {
+  readonly title: string;
+  readonly href: string;
+  readonly date: string;
+  readonly dateLabel: string;
+  readonly excerpt?: string;
+  readonly cover: StaticFeaturedImage | null;
+  readonly terms: readonly string[];
+  readonly author?: string;
+}
+
+function toListingJsonItem(
+  { post, preview, terms }: { post: PostRecord; preview: StaticPostPreview; terms: readonly AssignedTermView[] },
+  _optional: Record<string, never> = {}
+): ListingJsonItem {
+  const excerpt = deriveExcerpt({ post, postRepo: { extractPlainText: ({ html }) => extractPlainTextFromHtml(html) } });
+  const author = postAuthorForDisplay({ post });
+  return {
+    title: preview.title,
+    href: preview.href,
+    date: preview.dateIso,
+    dateLabel: preview.dateLabel,
+    ...(excerpt !== undefined ? { excerpt } : {}),
+    cover: preview.featuredImage ?? null,
+    terms: terms.map((term) => term.termName),
+    ...(author !== null ? { author } : {}),
+  };
 }
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
@@ -2426,6 +2469,13 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
 async function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined, deps: RouteDeps): Promise<string> {
   // A see-more batch URL answers with just that listing's next items, not the page around them.
   const listingBatch = listingBatchRequests.get(req);
+  if (listingBatch?.format === "json") {
+    const page = listingJsonPages.get(listingBatch);
+    if (page === undefined) throw new ListingBatchNotFoundError();
+    // Every caller has already typed the response as html; the JSON form answers as JSON.
+    req.res?.type("json");
+    return JSON.stringify(page);
+  }
   if (listingBatch !== undefined) {
     const batch = extractListingBatch({ html, key: listingBatch.key });
     if (batch === undefined) throw new ListingBatchNotFoundError();
@@ -2473,6 +2523,9 @@ async function resolveHomePageContent(
 
 /** See-more batch requests by request, set by the `/_more/` rewrite in {@link registerSiteRoutes}. */
 const listingBatchRequests = new WeakMap<Request, ListingBatchRequest>();
+
+/** A `.json` batch request's page, recorded by the post-previews resolver for that request's key. */
+const listingJsonPages = new WeakMap<ListingBatchRequest, ListingJsonPage<ListingJsonItem>>();
 
 /** The page behind a batch URL has no see-more listing with that key: answered as a 404. */
 class ListingBatchNotFoundError extends Error {}

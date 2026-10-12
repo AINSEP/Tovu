@@ -1,5 +1,5 @@
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, PARTIAL_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
-import { injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
+import { extractListingCardTemplate, injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation";
 import { postAuthorForDisplay } from "../post/author.js";
 import { renderHtmlMenu } from "#src/features/navigation/html-render";
@@ -519,7 +519,9 @@ function injectPostPreviewsEmbeds(
     const batch = key === undefined ? undefined : batches.get(key);
     if (key !== undefined && batch !== undefined) {
       if (batch.items.length === 0) return undefined;
-      const inner = wrapListingItems({ key, items: batch.items.map(renderPostPreviewCard).join("") });
+      // A theme's client-side card stays in the listing for the see-more script to fill.
+      const card = extractListingCardTemplate({ html: marker.inner }) ?? "";
+      const inner = card + wrapListingItems({ key, items: batch.items.map(renderPostPreviewCard).join("") });
       return withInnerContent({ marker, inner }) + (batch.nextHref === undefined ? "" : renderListingMore({ key, href: batch.nextHref }));
     }
     const slice = previews.slice(0, postPreviewsBatchSize(marker));

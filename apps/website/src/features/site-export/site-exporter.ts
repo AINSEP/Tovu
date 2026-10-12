@@ -2,7 +2,7 @@ import type { RequestListener } from "node:http";
 import path from "node:path";
 import { exportSite as runExport, redirectOutcomeFor as redirectDecision } from "@jini-ai/devops/static-export";
 import { createNodeAppFactory, createNodeArtifactWriter, createNodeAssetSource } from "@jini-ai/devops/static-export/node";
-import { extractListingMoreHrefs } from "@jini-ai/cms/listing";
+import { extractListingMoreHrefs, listingJsonNextPath } from "@jini-ai/cms/listing";
 import { trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
 import { resolveThemeLayout } from "#src/features/theme/index";
 import { buildRouteManifest, type RouteManifestDeps } from "./route-manifest.js";
@@ -524,7 +524,8 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath }: Expo
     describeError: ({ error }) => error instanceof Error ? error.message : String(error),
     // See-more batches (`<page>/_more/<key>/<after>`): each exported page's next-batch link is
     // exported too, and that batch's own link after it, so the button works on a static host.
-    discoverRoutes: ({ html }) => extractListingMoreHrefs({ html })
+    // A JSON batch's next batch comes from its `nextCursor`; a page or HTML batch names it in its button.
+    discoverRoutes: ({ path, html }) => [...extractListingMoreHrefs({ html }), ...[listingJsonNextPath({ path, body: html })].filter((next) => next !== undefined)]
       .filter((href) => href.startsWith("/") && !href.startsWith("//"))
       .map((href) => ({ path: href, kind: "listing-batch", label: href })),
   }, { ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) }).then(report => ({ ...report, outputDir }));
