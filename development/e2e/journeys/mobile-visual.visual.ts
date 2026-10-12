@@ -115,7 +115,6 @@ const SCREENS: Screen[] = [
   route("plugins", "/admin/plugins"),
   route("skills", "/admin/skills"),
   route("providers", "/admin/providers"),
-  route("payments", "/admin/payments"),
   route("database", "/admin/database"),
   route("recovery", "/admin/recovery"),
   route("deployment", "/admin/deployment"),
