@@ -35,7 +35,7 @@ function parsePostUpdateBody(
   rawBody: unknown
 ): Pick<
   UpdatePostInput,
-  "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "expectedVersion" | "publishAt" | "featuredMediaId" | "author" | "showAuthor"
+  "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "expectedVersion" | "publishAt" | "featuredMediaId" | "author" | "showAuthor" | "hideCoverImageInBody" | "slugFromTitle"
 > {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
@@ -51,6 +51,8 @@ function parsePostUpdateBody(
     featuredMediaId: body.featuredMediaId as UpdatePostInput["featuredMediaId"],
     author: body.author as UpdatePostInput["author"],
     showAuthor: body.showAuthor as UpdatePostInput["showAuthor"],
+    hideCoverImageInBody: body.hideCoverImageInBody as UpdatePostInput["hideCoverImageInBody"],
+    slugFromTitle: body.slugFromTitle as UpdatePostInput["slugFromTitle"],
     // Validated, not cast — see `features/post/expected-version.ts`, which owns this rule for BOTH
     // arms that accept a basis (this route and the `content_post_update` agent tool). Every other
     // field above is either coerced (`title`/`slug`) or handed to `updatePost`'s own validation;

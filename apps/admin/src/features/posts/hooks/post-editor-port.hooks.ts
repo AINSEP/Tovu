@@ -53,6 +53,8 @@ export interface PostEditorPort extends StandingDraftAutosavePort {
     target: { id: string },
     patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId" | "author" | "showAuthor">> & {
       expectedVersion?: number;
+      hideCoverImageInBody?: boolean;
+      slugFromTitle?: boolean;
     }
   ): Promise<{ post: AdminPost }>;
   deletePost(id: string): Promise<{ post: AdminPost }>;

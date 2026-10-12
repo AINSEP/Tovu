@@ -339,6 +339,26 @@ test('resolveHtmlPageEmbeds: "menu"/"partial" markers — theme-structural types
   }
 });
 
+// Same false alarm, 2026-10-11 (plannie dev log, once per post render): the `post-author` byline
+// marker is filled by `static-render.ts`'s `injectPostAuthor`, a later stage, and rendered fine.
+test('resolveHtmlPageEmbeds: a "post-author" marker, filled later by static-render.ts\'s injectPostAuthor, does not log the "unknown embed type" warning', async () => {
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+
+  try {
+    const resolved = await resolveHtmlPageEmbeds({
+      deps: { host: buildWidgetHostPorts({}, {}), entryRepo: new InMemoryEntryRepo() },
+      input: { workspaceId: WORKSPACE_ID, html: `<span class="post-author" data-embed-config='{"type":"post-author"}'></span>` },
+    });
+
+    assert.equal(resolved.size, 0);
+    assert.deepEqual(warnings, []);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
 test('resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake', async () => {
   const entryRepo = new InMemoryEntryRepo();
   const warnings: unknown[][] = [];

@@ -45,7 +45,7 @@ function testDeps(overrides: Partial<RouteDeps> = {}): ReturnType<typeof createR
 /** A minimal static-tier theme shipping only `page-shell.html` — the same canonical, content-slot-
  *  bearing document `resolveStaticTierPageShellFallback` looks up by convention (no `templates`
  *  array entry needed; that gate is bypassed on this fallback branch, see this function's own doc). */
-function pageShellTheme(): DiscoveredTheme {
+function pageShellTheme(pageShell = `<html><body><article><div data-embed-config='{"type":"content"}'></div></article></body></html>`): DiscoveredTheme {
   return {
     manifest: {
       id: "page-shell-terms-integration-theme",
@@ -63,7 +63,7 @@ function pageShellTheme(): DiscoveredTheme {
     handlebarsTemplates: {},
     pages: {
       index: "<html><body><main>home</main></body></html>",
-      "page-shell": `<html><body><article><div data-embed-config='{"type":"content"}'></div></article></body></html>`,
+      "page-shell": pageShell,
     },
     partials: {},
     css: "",
@@ -130,6 +130,31 @@ test("integration: GET /:slug renders a Page's assigned category/tag terms as pl
   // Plain labels only — never a link, since no term-archive route exists anywhere in this codebase
   // (`@jini-ai/cms/routing`'s `TermRefTarget` doc: `urlFor` resolves every `termRef` to `null`).
   assert.ok(!/<a[^>]*>QA<\/a>/.test(html), "a term must render as a plain label, not a link, until an archive route exists");
+});
+
+// Owner report (2026-10-11, plannie): "for some of the blogs you put the tags under the footer". The
+// terms block was appended to the WHOLE resolved template, so it landed after `</html>`, below the
+// footer. It now sits right after the entry's own content element, inside the article.
+test("integration: GET /:slug places the terms block right after the entry's content, inside the article and before the footer", async (t) => {
+  const post = htmlPageWithNoTemplateChoice();
+  const app = createApp(
+    testDeps({
+      themes: [pageShellTheme(`<html><body><main><article><div data-embed-config='{"type":"content"}'></div></article></main><footer>Site footer</footer></body></html>`)],
+      postRepo: new InMemoryPostRepo([post]),
+      entryTermReadRepo: stubEntryTermReadRepo(post.id),
+    })
+  );
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/page-with-terms-int`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(
+    html.includes(`<article><div><p>Hello from a taxonomy-tagged page.</p></div><div class="entry-terms"><span class="entry-terms__group"><span class="entry-terms__taxonomy">Category:</span> <span class="entry-terms__term">QA</span></span> <span class="entry-terms__group"><span class="entry-terms__taxonomy">Tag:</span> <span class="entry-terms__term">e2e</span></span></div></article></main><footer>Site footer</footer>`),
+    html
+  );
+  assert.equal(html.split('class="entry-terms"').length - 1, 1, "exactly one terms block");
 });
 
 test("integration: GET /:slug renders no terms block when nothing is assigned (byte-identical to before this feature)", async (t) => {

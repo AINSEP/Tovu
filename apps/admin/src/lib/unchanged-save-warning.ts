@@ -4,15 +4,27 @@
  * "Nothing changed. Save anyway?" warning, whose "Save anyway" closes it and saves anyway. The server
  * skips the write when the content really is identical and answers with the same version.
  *
- * @complexity O(1) — three closures, one branch.
+ * @complexity O(1) — three closures, one branch (plus the optional flush).
  */
 export function unchangedSaveHandlers(
   required: { dirty: boolean; save: () => Promise<void>; setConfirmingUnchangedSave: (open: boolean) => void },
-  _optional: Record<string, never> = {}
+  optional: {
+    /** Folds an edit the editor hasn't reported yet (an open Interactive text session) into the
+     *  working copy and says whether it differs from the saved body. Without it, typing in the
+     *  Interactive tab and pressing Save showed "Nothing changed": the RTE only reports on close.
+     *  "failed" means the flush already showed its own error, so neither save nor warn. */
+    flushPendingEdits?: () => Promise<"changed" | "unchanged" | "failed">;
+  } = {}
 ): { onSave: () => void; onUnchangedSaveConfirm: () => void; onUnchangedSaveCancel: () => void } {
   const { dirty, save, setConfirmingUnchangedSave } = required;
+  const { flushPendingEdits } = optional;
+  const saveOrWarn = async () => {
+    const pending = flushPendingEdits ? await flushPendingEdits() : "unchanged";
+    if (pending === "changed") await save();
+    else if (pending === "unchanged") setConfirmingUnchangedSave(true);
+  };
   return {
-    onSave: () => (dirty ? void save() : setConfirmingUnchangedSave(true)),
+    onSave: () => void (dirty ? save() : saveOrWarn()),
     onUnchangedSaveConfirm: () => {
       setConfirmingUnchangedSave(false);
       void save();

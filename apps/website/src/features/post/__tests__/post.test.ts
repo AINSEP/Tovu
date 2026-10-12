@@ -6,6 +6,7 @@ import type { OutboxPort } from "@jini-ai/cms/core";
 import type { BeforeSaveHookPort } from "../post.js";
 import {
   createPost,
+  hasPostBeenPublished,
   findPublishedPostById,
   getAdminPostById,
   getAdminPostByIdOrSlug,
@@ -341,7 +342,7 @@ test("createPost disambiguates a slug collision", async () => {
     input: { workspaceId: "workspace-1", id: "post-new", title: "Hello World" },
   });
 
-  assert.equal(result.post.slug, "hello-world-2");
+  assert.equal(result.post.slug, "hello-world-1");
 });
 
 test("createPost defaults an empty title to 'Untitled'", async () => {
@@ -930,4 +931,65 @@ test("updatePost preserves omitted template/theme choices and honors explicit nu
   assert.equal((await repo.findById({ workspaceId: "workspace-1", id: "post-1" }))?.templateChoice, null);
   const unset = await updatePost({ deps, input: { ...input, overridesThemePage: null } });
   assert.equal(unset.post.overridesThemePage, null);
+});
+
+test("postpolish: post collisions number from 1, pages retain 2, and trashed slots remain reusable", async () => {
+  const repo = new InMemoryPostRepo([]);
+  const deps = { repo, clock: { nowMs: () => 0 } };
+  const slugs: string[] = [];
+  for (let i = 0; i < 3; i++) slugs.push((await createPost({ deps, input: { id: `untitled-${i}`, workspaceId: "w", title: "" } })).post.slug);
+  assert.deepEqual(slugs, ["untitled", "untitled-1", "untitled-2"]);
+  const page = await createPost({ deps, input: { id: "page", workspaceId: "w", title: "Untitled", kind: "page" } });
+  assert.equal(page.post.slug, "untitled-3");
+  const separate = await createPost({ deps, input: { id: "other", workspaceId: "other", title: "Untitled" } });
+  assert.equal(separate.post.slug, "untitled");
+  const trashed = buildPostRecord({ id: "trash", workspaceId: "w", slug: "free", deletedAt: "2026-10-11T00:00:00Z" });
+  await repo.save(trashed);
+  assert.equal((await createPost({ deps, input: { id: "reuse", workspaceId: "w", title: "Free" } })).post.slug, "free");
+  await assert.rejects(createPost({ deps, input: { id: "explicit", workspaceId: "w", title: "x", slug: "untitled" } }), { message: "slug 'untitled' already exists" });
+  const pageRepo = new InMemoryPostRepo([buildPostRecord({ slug: "page", kind: "page" })]);
+  assert.equal((await createPost({ deps: { ...deps, repo: pageRepo }, input: { id: "page-2", workspaceId: "workspace-1", title: "Page", kind: "page" } })).post.slug, "page-2");
+});
+
+test("postpolish: title derivation shares collision search and never renames a manual or ever-published post", async () => {
+  const draft = buildPostRecord({ status: "draft", slug: "untitled" });
+  const repo = new InMemoryPostRepo([draft, buildPostRecord({ id: "taken", slug: "new-title" }), buildPostRecord({ id: "taken-1", slug: "new-title-1" })]);
+  const deps = { repo, clock: { nowMs: () => 0 }, outbox: noopOutbox };
+  const input = { workspaceId: draft.workspaceId, id: draft.id, title: "New title", slugFromTitle: true, bodyJson: draft.bodyJson, status: "draft" as const };
+  const derived = await updatePost({ deps, input });
+  assert.equal(derived.post.slug, "new-title-2");
+  const manual = await updatePost({ deps, input: { ...input, slugFromTitle: false, slug: "custom-url" } });
+  assert.equal(manual.post.slug, "custom-url");
+  assert.equal((await updatePost({ deps, input: { ...input, title: "Later title" } })).post.slug, "custom-url");
+  const published = buildPostRecord({ id: "past", status: "published", title: "Past", slug: "past" });
+  await repo.save(published);
+  await repo.appendRevision({ workspaceId: published.workspaceId, postId: published.id, seq: 1, op: "create", stateJson: published, actorId: "test", recordedAt: published.updatedAt });
+  await repo.save({ ...published, status: "draft" });
+  assert.equal(await hasPostBeenPublished({ post: { ...published, status: "draft" } }, { repo }), true);
+  assert.equal((await updatePost({ deps, input: { ...input, id: "past", title: "Changed again" } })).post.slug, "past");
+  assert.equal((await updatePost({ deps, input: { ...input, id: "past", slugFromTitle: false, slug: "manual-after-publication" } })).post.slug, "manual-after-publication");
+});
+
+test("postpolish: cover preference validates before writes and merges only its namespace through hooks", async () => {
+  const stored = buildPostRecord({ ext: { other: { keep: "value" }, "post-presentation": { another: 7 } } });
+  const repo = new InMemoryPostRepo([stored]);
+  const deps = { repo, clock: { nowMs: () => 0 }, outbox: noopOutbox,
+    beforeSaveHook: (async () => ({ plugin: { added: "hook" } })) satisfies BeforeSaveHookPort };
+  const input = { workspaceId: stored.workspaceId, id: stored.id, title: stored.title, slug: stored.slug, status: stored.status, bodyJson: stored.bodyJson };
+  for (const value of [null, "false", 0]) {
+    await assert.rejects(updatePost({ deps, input: { ...input, hideCoverImageInBody: value as unknown as boolean } }), { message: "hideCoverImageInBody must be a boolean" });
+    await assert.rejects(updatePost({ deps, input: { ...input, slugFromTitle: value as unknown as boolean } }), { message: "slugFromTitle must be a boolean" });
+  }
+  assert.equal((await repo.findById({ workspaceId: stored.workspaceId, id: stored.id }))?.version, 1);
+  const result = await updatePost({ deps, input: { ...input, hideCoverImageInBody: false } });
+  assert.deepEqual(result.post.ext, { other: { keep: "value" }, plugin: { added: "hook" }, "post-presentation": { another: 7, hideCoverImageInBody: false } });
+  assert.deepEqual((await updatePost({ deps: { ...deps, beforeSaveHook: undefined }, input })).post.ext, result.post.ext);
+});
+
+test("postpolish: exhausted derived slugs write no post or revision", async () => {
+  const occupied = Array.from({ length: 999 }, (_, i) => buildPostRecord({ id: `taken-${i}`, slug: i ? `busy-${i}` : "busy" }));
+  const repo = new InMemoryPostRepo(occupied);
+  await assert.rejects(createPost({ deps: { repo, clock: { nowMs: () => 0 } }, input: { workspaceId: "workspace-1", id: "new", title: "Busy" } }), { message: "slug 'busy' already exists" });
+  assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "new" }), null);
+  assert.deepEqual(await repo.listRevisions({ workspaceId: "workspace-1", postId: "new" }), []);
 });

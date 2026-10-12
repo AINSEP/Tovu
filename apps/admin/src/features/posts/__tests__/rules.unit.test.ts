@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_POST_SORT,
+  postSlugFollowsTitle,
+  postSlugForTitle,
   buildPostAutosaveDraft,
   buildPostRowMenuHandleMap,
   isAutosaveDraftStale,
@@ -840,5 +842,22 @@ describe("postAutosaveStaleBasisMessage", () => {
     } });
 
     expect(message).not.toMatch(/restore|recover|saved locally|in your browser/i);
+  });
+});
+
+describe("postpolish title-following slug rules", () => {
+  const post = { kind: "post" as const, status: "draft" as const, title: "Café Launch", slug: "cafe-launch" };
+  it("infers automatic slugs from the stored title or untitled series", () => {
+    for (const slug of ["cafe-launch", "cafe-launch-1", "cafe-launch-23", "untitled", "untitled-2"]) expect(postSlugFollowsTitle({ post: { ...post, slug } })).toBe(true);
+    for (const slug of ["custom", "cafe-launch-x", "untitled-name"]) expect(postSlugFollowsTitle({ post: { ...post, slug } })).toBe(false);
+    expect(postSlugForTitle({ title: "Café Launch" })).toBe("cafe-launch");
+    expect(postSlugForTitle({ title: "" })).toBe("untitled");
+    expect(postSlugForTitle({ title: "a".repeat(200) })).toBe("a".repeat(116));
+  });
+  it("freezes published, previously published and manually edited slugs, and leaves pages alone", () => {
+    expect(postSlugFollowsTitle({ post: { ...post, status: "published" } })).toBe(false);
+    expect(postSlugFollowsTitle({ post: { ...post, everPublished: true } })).toBe(false);
+    expect(postSlugFollowsTitle({ post, manuallyEdited: true })).toBe(false);
+    expect(postSlugFollowsTitle({ post: { ...post, kind: "page" } })).toBe(false);
   });
 });

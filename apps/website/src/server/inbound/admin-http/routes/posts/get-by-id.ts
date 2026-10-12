@@ -1,3 +1,4 @@
+import { hasPostBeenPublished } from "#src/features/post/post";
 import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -31,7 +32,8 @@ export const registerAdminPostGetRoute: ContentRouteRegistrar = (app, deps) => {
         input: { workspaceId: deps.workspaceId, idOrSlug: String(req.params.postId ?? "") },
       });
 
-      res.json(toAdminPostResponse(result.post));
+      const response = toAdminPostResponse(result.post);
+      res.json({ post: { ...response.post, everPublished: await hasPostBeenPublished({ post: result.post }, { repo: deps.postRepo }) } });
     } catch (err) {
       if (err instanceof PostNotFoundError) {
         res.status(404).json({ error: err.message });

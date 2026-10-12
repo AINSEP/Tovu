@@ -1,3 +1,4 @@
+import { derivePostSlugBase, isAutomaticPostSlug } from "../../../../website/src/features/post/slug";
 import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/core";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
@@ -662,4 +663,24 @@ export function isScheduledPost(input: { status: "draft" | "published"; publishA
  *  (`bodyFormat` "doc", the default when absent), never an html page. @complexity O(1). */
 export function showsCoverImageSlot(bodyFormat: "doc" | "html" | undefined): boolean {
   return (bodyFormat ?? "doc") === "doc";
+}
+
+/** Whether the cover slot carries the "Hide the cover image in the body" toggle (owner, 2026-10-11,
+ *  moved there from the settings modal's Image tab): posts only, as it was in that tab.
+ *  @complexity O(1). */
+export function showsHideCoverInBodyToggle(kind: "post" | "page"): boolean {
+  return kind === "post";
+}
+
+/** A persisted manual slug or any publication history freezes title following. */
+export function postSlugFollowsTitle(
+  { post, manuallyEdited = false }: { post: Pick<AdminPost, "kind" | "status" | "title" | "slug" | "everPublished">; manuallyEdited?: boolean },
+  _optional: Record<string, never> = {},
+): boolean {
+  return post.kind === "post" && post.status !== "published" && !post.everPublished && !manuallyEdited && isAutomaticPostSlug(post);
+}
+
+/** Preview the same bounded base the server derives; the server chooses the available suffix. */
+export function postSlugForTitle({ title }: { title: string }, _optional: Record<string, never> = {}): string {
+  return derivePostSlugBase({ title });
 }

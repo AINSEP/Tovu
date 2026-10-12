@@ -188,11 +188,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  // Added alongside the new "Formatting toolbar" describe blocks below, several of which
-  // `vi.spyOn(window, "prompt")` per test — without this, a later test's fresh `vi.spyOn` wraps the
-  // PRIOR test's still-active spy instead of the real `window.prompt`, so its own call count includes
-  // every earlier test's calls too (confirmed: a "called once" assertion saw 3, then 6, accumulating
-  // across tests in file order).
   vi.restoreAllMocks();
 });
 
@@ -453,17 +448,52 @@ describe("Formatting toolbar — alignment button clicks", () => {
 });
 
 describe("Formatting toolbar — Link button", () => {
-  it("applies a link when the prompt returns a URL", async () => {
+  // A modal <dialog> makes the page behind it inert, so in a browser the submit chain's `focus()`
+  // cannot reach the editor while the URL dialog is open. jsdom has no inertness: it focuses the
+  // editor, and React's post-commit focus restore then refocuses it without ProseMirror's selection,
+  // which collapses to the doc start. Emulate inertness so the real close-then-refocus path runs.
+  let nativeFocus: HTMLElement["focus"];
+  beforeEach(() => {
+    nativeFocus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function focus(this: HTMLElement, options?: FocusOptions) {
+      const modal = document.querySelector("dialog[open]");
+      if (modal && !modal.contains(this)) return;
+      nativeFocus.call(this, options);
+    };
+  });
+  afterEach(() => { HTMLElement.prototype.focus = nativeFocus; });
+
+  it("validates the URL dialog, focuses its input and applies a link on Enter", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
     const ctrl = await renderRealPostEditor();
     selectBodyText(ctrl);
+    // A model-only selection on a blurred editor is not a browser text selection.
+    act(() => { ctrl.editor!.view.focus(); });
+    expect(document.getSelection()?.toString()).toBe("Body text here");
     const link = await screen.findByTitle("Link");
 
-    vi.spyOn(window, "prompt").mockReturnValueOnce("https://example.com");
     await user.click(link);
+    const dialog = screen.getByRole("dialog", { name: "Link URL" });
+    const url = within(dialog).getByRole("textbox", { name: "URL" });
+    expect(url).toHaveFocus();
+    expect(url).toHaveValue("https://");
+    // The Chrome-check follow-up delays errors until the author edits or submits.
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    const beforeInvalidSubmit = ctrl.editor!.getJSON();
+    await user.keyboard("{Enter}");
+    expect(within(dialog).getByRole("button", { name: "Insert" })).toBeDisabled();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Enter an HTTP or HTTPS URL.");
+    expect(ctrl.editor!.getJSON()).toEqual(beforeInvalidSubmit);
+    expect(dialog).toBeInTheDocument();
+    await user.clear(url);
+    await user.type(url, "https://example.com");
+    expect(within(dialog).getByRole("button", { name: "Insert" })).toBeEnabled();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Link URL" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Content" })).toHaveFocus());
 
-    expect(link).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(link).toHaveAttribute("aria-pressed", "true"));
     expect(document.querySelector(".ProseMirror a")).toHaveAttribute("href", "https://example.com");
     expect(ctrl.editor!.getJSON().content![1].content![0].marks).toContainEqual({ type: "link", attrs: expect.objectContaining({ href: "https://example.com" }) });
   });
@@ -471,27 +501,37 @@ describe("Formatting toolbar — Link button", () => {
   it("removes the link on a second click while it is already active", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
-    render(<PostEditor postId="p1" />);
+    const ctrl = await renderRealPostEditor();
+    selectBodyText(ctrl);
+    act(() => { ctrl.editor!.view.focus(); });
+    expect(document.getSelection()?.toString()).toBe("Body text here");
     const link = await screen.findByTitle("Link");
 
-    vi.spyOn(window, "prompt").mockReturnValueOnce("https://example.com");
     await user.click(link);
-    expect(link).toHaveAttribute("aria-pressed", "true");
+    const dialog = screen.getByRole("dialog", { name: "Link URL" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "URL" }), { target: { value: "https://example.com" } });
+    await user.click(within(dialog).getByRole("button", { name: "Insert" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Link URL" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Content" })).toHaveFocus());
+    await waitFor(() => expect(link).toHaveAttribute("aria-pressed", "true"));
+    expect(document.querySelector(".ProseMirror a")).toHaveAttribute("href", "https://example.com");
 
     await user.click(link);
     expect(link).toHaveAttribute("aria-pressed", "false");
+    expect(document.querySelector(".ProseMirror a")).not.toBeInTheDocument();
   });
 
-  it("does nothing when the URL prompt is cancelled", async () => {
+  it("does nothing when the URL dialog is cancelled", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
     render(<PostEditor postId="p1" />);
     const link = await screen.findByTitle("Link");
 
-    const promptSpy = vi.spyOn(window, "prompt").mockReturnValueOnce(null);
     await user.click(link);
-
-    expect(promptSpy).toHaveBeenCalledTimes(1);
+    const dialog = screen.getByRole("dialog", { name: "Link URL" });
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: "Link URL" })).not.toBeInTheDocument();
+    expect(link).toHaveFocus();
     expect(link).toHaveAttribute("aria-pressed", "false");
   });
 });
@@ -564,29 +604,36 @@ describe("Formatting toolbar — font family/size/line height selects", () => {
 });
 
 describe("Formatting toolbar — insert image by URL", () => {
-  it("inserts a media-image node with the prompted src/alt", async () => {
+  it("inserts a media-image node with the dialog src/alt", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
     render(<PostEditor postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
-    vi.spyOn(window, "prompt").mockReturnValueOnce("https://example.com/pic.png").mockReturnValueOnce("A picture");
-    await user.click(screen.getByRole("button", { name: /img by url/i }));
+    const trigger = screen.getByRole("button", { name: /img by url/i });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Image URL" });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "URL" }), { target: { value: "https://example.com/pic.png" } });
+    fireEvent.change(within(dialog).getByRole("textbox", { name: "Alt text (optional)" }), { target: { value: "A picture" } });
+    await user.click(within(dialog).getByRole("button", { name: "Insert" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Image URL" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Content" })).toHaveFocus());
 
     const img = await screen.findByRole("img", { name: "A picture" });
     expect(img).toHaveAttribute("src", "https://example.com/pic.png");
   });
 
-  it("inserts nothing when the URL prompt is cancelled", async () => {
+  it("inserts nothing when the URL dialog is cancelled", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
     render(<PostEditor postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
-    const promptSpy = vi.spyOn(window, "prompt").mockReturnValueOnce(null);
-    await user.click(screen.getByRole("button", { name: /img by url/i }));
-
-    expect(promptSpy).toHaveBeenCalledTimes(1); // never asked for alt text
+    const trigger = screen.getByRole("button", { name: /img by url/i });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Image URL" });
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(trigger).toHaveFocus();
     expect(document.querySelector(".media-image-node__preview")).not.toBeInTheDocument();
   });
 });
@@ -598,22 +645,37 @@ describe("Formatting toolbar — insert YouTube video", () => {
     const ctrl = await renderRealPostEditor();
     await screen.findByTitle("Bold (⌘B)");
 
-    vi.spyOn(window, "prompt").mockReturnValueOnce("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-    await user.click(screen.getByRole("button", { name: /youtube/i }));
+    const trigger = screen.getByRole("button", { name: /youtube/i });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "YouTube video URL" });
+    const url = within(dialog).getByRole("textbox", { name: "URL" });
+    expect(within(dialog).queryByRole("textbox", { name: "Alt text (optional)" })).not.toBeInTheDocument();
+    fireEvent.change(url, { target: { value: "https://example.com/video" } });
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Enter a supported YouTube URL.");
+    expect(within(dialog).getByRole("button", { name: "Insert" })).toBeDisabled();
+    fireEvent.change(url, { target: { value: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" } });
+    await user.click(within(dialog).getByRole("button", { name: "Insert" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "YouTube video URL" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Content" })).toHaveFocus());
 
     expect(document.querySelector("[data-youtube-video] iframe")).toBeInTheDocument();
     expect(document.querySelector("[data-youtube-video] iframe")).toHaveAttribute("src", expect.stringContaining("/embed/dQw4w9WgXcQ"));
     expect(ctrl.editor!.getJSON().content).toContainEqual(expect.objectContaining({ type: "youtube", attrs: expect.objectContaining({ src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }) }));
   });
 
-  it("inserts nothing when the URL prompt is cancelled", async () => {
+  it("inserts nothing when the URL dialog is cancelled", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST_WITH_BODY_TEXT }));
     render(<PostEditor postId="p1" />);
     await screen.findByTitle("Bold (⌘B)");
 
-    vi.spyOn(window, "prompt").mockReturnValueOnce(null);
-    await user.click(screen.getByRole("button", { name: /youtube/i }));
+    const trigger = screen.getByRole("button", { name: /youtube/i });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "YouTube video URL" });
+    // Browsers deliver Escape as the native dialog cancel event; jsdom has no modal key handling.
+    fireEvent(dialog, new Event("cancel", { bubbles: false, cancelable: true }));
+    expect(screen.queryByRole("dialog", { name: "YouTube video URL" })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
 
     expect(document.querySelector("[data-youtube-video] iframe")).not.toBeInTheDocument();
   });
@@ -913,6 +975,8 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     setAuthor: vi.fn(),
     showAuthor: false,
     setShowAuthor: vi.fn(),
+    hideCoverImageInBody: true,
+    setHideCoverImageInBody: vi.fn(),
     hasSlugCollision: false,
     view: "edit",
     setView: vi.fn(),

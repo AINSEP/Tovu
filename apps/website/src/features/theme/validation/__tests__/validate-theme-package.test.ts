@@ -487,6 +487,19 @@ test("markup: the theme-owned post-previews embed type is accepted", () => {
   assert.equal(findError(result, "markup-embed-config-unknown-type"), undefined, JSON.stringify(result.errors));
 });
 
+test("markup: the theme-owned post-author embed type is accepted", () => {
+  const dir = tmpDir("tovu-validate-markup-post-author-");
+  writeMinimalV2Static(dir);
+  fs.writeFileSync(
+    path.join(dir, "render", "pages", "index.html"),
+    `<p class="post-author" data-embed-config='{"type":"post-author"}'></p>`,
+    "utf8"
+  );
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(findError(result, "markup-embed-config-unknown-type"), undefined, JSON.stringify(result.errors));
+});
+
 test("markup: the theme-owned collection embed type is accepted", () => {
   const dir = tmpDir("tovu-validate-markup-collection-");
   writeMinimalV2Static(dir);

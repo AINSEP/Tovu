@@ -4,6 +4,8 @@ import test from "node:test";
 import { renderPostPreview } from "../template-preview-render.js";
 import { registerAdminPostTemplatePreviewRoute } from "../template-preview.js";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
+import { InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
 import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 
 import { bareDeps, barePost } from "./preview-fixtures.js";
@@ -58,4 +60,42 @@ test("the extracted renderer preserves the route's actionable no-theme error", a
     name: 'TemplatePreviewRenderError', status: 409,
     message: 'this site has no active theme, so there is no template to preview — activate a theme to use the template picker',
   });
+});
+
+test("postpolish: public static render and editor preview share saved cover choice with a pending body", async () => {
+  const assetId = "44444444-4444-4444-4444-444444444444";
+  const image = (alt: string) => ({ type: "image", attrs: { assetId, transformName: "public", alt } });
+  const bodyJson = { type: "doc", content: [image("Saved cover"), image("Later image")] };
+  const post = { ...barePost, kind: "post" as const, status: "published" as const, bodyFormat: "doc" as const,
+    bodyHtml: null, templateChoice: "article.html", bodyJson };
+  const { deps, repo, writes } = bareDeps([post]);
+  await deps.mediaRepo.save({ id: assetId, workspaceId: "w", title: "Cover", slug: "cover", alt: "", caption: "", credit: "",
+    source: { sha256: "cover-sha" }, status: "active", version: 1, createdAt: post.updatedAt, updatedAt: post.updatedAt,
+    width: 100, height: 100, cssClass: null, htmlAttributes: null });
+  await deps.mediaContentTypeStore.set({ workspaceId: "w", sha256: "cover-sha", contentType: "image/jpeg" });
+  deps.transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [
+    { id: "public-transform", workspaceId: "w", name: "public", version: 1, params: { format: "jpeg" }, owner: "core", createdAt: post.updatedAt },
+  ] });
+  const theme = { manifest: { id: "cover-theme", name: "Cover", version: "1", tier: "static", engine: 1, templates: ["article.html"] },
+    dir: "/unused", tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
+    pages: { article: `<html><body><figure data-embed-config='{"type":"featured-image"}'></figure><main data-embed-config='{"type":"content"}'></main></body></html>` },
+    partials: {}, css: "", source: "site", status: "valid", errors: [],
+  } as unknown as DiscoveredTheme;
+  deps.themes = [theme];
+  deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "w", activeThemeId: "cover-theme", updatedAt: post.updatedAt }] });
+  for (const variant of [post, { ...post, ext: { "post-presentation": { hideCoverImageInBody: false } } }, { ...post, featuredMediaId: assetId }]) {
+    await repo.save(variant);
+    const publicHtml = await renderViaTemplate(deps, theme, variant, undefined);
+    const preview = await renderPostPreview(deps, { post: variant });
+    assert.equal(preview.html, publicHtml);
+    assert.equal((publicHtml.match(/<img /g) ?? []).length, variant.ext || variant.featuredMediaId ? 3 : 2);
+  }
+  const pending = { type: "doc", content: [image("Pending cover"), image("Pending repeat")] };
+  const preview = await renderPostPreview(deps, { post, bodyJson: pending });
+  assert.equal((preview.html.match(/alt="Pending cover"/g) ?? []).length, 1);
+  assert.ok(preview.html.includes('alt="Pending repeat"'));
+  assert.doesNotMatch(preview.html, /Saved cover/);
+  assert.equal(pending.content.length, 2);
+  assert.equal(bodyJson.content.length, 2);
+  assert.equal(writes(), 3); // Only the three explicit fixture saves; no render writes.
 });

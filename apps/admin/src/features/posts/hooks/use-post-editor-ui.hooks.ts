@@ -80,8 +80,9 @@ export function usePostEditorUi(deps: PostEditorUiDependencies): PostEditorUiCon
   };
 }
 
-/** The gear modal's tabs (owner, 2026-10-10): the byline, the publish time, and the featured image. */
-export type PostSettingsTab = "author" | "publish" | "image";
+/** The gear modal's tabs (owner, 2026-10-10): the byline and the publish time. The featured-image
+ *  tab was dropped 2026-10-11; the cover slot above the title edits that field. */
+export type PostSettingsTab = "author" | "publish";
 
 export interface PostSettingsDialogController {
   open: boolean;
@@ -93,7 +94,7 @@ export interface PostSettingsDialogController {
 
 /**
  * Open/closed state and active tab for the post settings modal (the gear beside Save/Delete). The
- * tab survives a close so reopening lands where the operator left off, e.g. after picking an image.
+ * tab survives a close so reopening lands where the operator left off.
  *
  * @complexity O(1).
  */

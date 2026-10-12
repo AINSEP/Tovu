@@ -30,6 +30,8 @@ import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
 import { PostCoverImage } from "./PostCoverImage";
 import { PostSettingsDialog } from "./PostSettingsDialog";
+import { PostUrlDialog } from "./PostUrlDialog";
+import { usePostUrlDialog, type PostUrlDialogController } from "./hooks/use-post-url-dialog.hooks";
 import {
   toolbarBtnClass,
   hexOrDefault,
@@ -202,6 +204,7 @@ function Toolbar({
   editor,
   mentionablePosts,
   currentPostId,
+  urlDialog,
   t,
 }: {
   editor: Editor;
@@ -210,6 +213,7 @@ function Toolbar({
    *  field doc for why an empty array here means "loading or fetch failed", not "no other posts". */
   mentionablePosts: AdminPost[];
   currentPostId: string;
+  urlDialog: PostUrlDialogController;
   t: Translate;
 }) {
   const s = useEditorState({
@@ -230,11 +234,10 @@ function Toolbar({
         <button className={toolbarBtnClass(s.subscript)} title={t("Subscript")} aria-pressed={s.subscript} onClick={() => chain().toggleSubscript().run()}>X₂</button>
         <button className={toolbarBtnClass(s.superscript)} title={t("Superscript")} aria-pressed={s.superscript} onClick={() => chain().toggleSuperscript().run()}>X²</button>
         <button className={toolbarBtnClass(s.code)} title={t("Inline code")} aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
-        {/* Link (2026-08-11) — a prompt-based toggle, same "simplest thing that works" idiom as
-            "Insert image by URL" just below rather than a dedicated dialog: a click while the
-            selection already sits inside a link removes it (no second prompt needed to know the
-            operator's intent); otherwise it prompts for a URL and applies it to the current
-            selection. `extendMarkRange("link")` first so clicking anywhere inside an existing link
+        {/* Link (2026-08-11) — a click while the selection already sits inside a link removes it;
+            otherwise the shared URL dialog applies a URL to the current selection.
+            The toggle and commands live in the dialog hook (2026-10-11). `extendMarkRange("link")`
+            first so clicking anywhere inside an existing link
             (not just an exact selection of its text) still targets the whole mark, matching how the
             other toggle buttons on this row already read the mark/node at the cursor rather than
             requiring an exact selection. */}
@@ -242,15 +245,7 @@ function Toolbar({
           className={toolbarBtnClass(s.link)}
           title={t("Link")}
           aria-pressed={s.link}
-          onClick={() => {
-            if (s.link) {
-              chain().extendMarkRange("link").unsetLink().run();
-              return;
-            }
-            const url = window.prompt("Link URL:", "https://");
-            if (!url) return;
-            chain().extendMarkRange("link").setLink({ href: url }).run();
-          }}
+          onClick={urlDialog.openLink}
         >
           {t("Link")}
         </button>
@@ -489,28 +484,19 @@ function Toolbar({
         <button
           className="tb-btn"
           title={t("Insert image by URL")}
-          onClick={() => {
-            const src = window.prompt("Image URL:");
-            if (!src) return;
-            const alt = window.prompt("Alt text (optional):") ?? "";
-            chain().setImage({ src, alt: alt || undefined }).run();
-          }}
+          onClick={urlDialog.openImage}
         >
           {t("Img by URL")}
         </button>
-        {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — a "prompt for a URL" idiom, the
-            same shape as "Insert image by URL" just above.
+        {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — shares the URL dialog with
+            "Insert image by URL" just above (2026-10-11).
             `setYoutubeVideo` itself rejects an unrecognized URL
             (returns `false`, no-ops) before insertion — the render.ts side independently
             re-validates anyway, see `extractYoutubeVideoId`'s own doc for why. */}
         <button
           className="tb-btn"
           title={t("Insert YouTube video")}
-          onClick={() => {
-            const src = window.prompt("YouTube video URL:");
-            if (!src) return;
-            chain().setYoutubeVideo({ src }).run();
-          }}
+          onClick={urlDialog.openYoutube}
         >
           YouTube
         </button>
@@ -604,7 +590,7 @@ export function probeBubbleMenu(editor: Editor | null): BubbleMenuState {
   return Object.fromEntries(entries) as BubbleMenuState;
 }
 
-function BubbleFormattingMenu({ editor, t }: { editor: Editor; t: Translate }) {
+function BubbleFormattingMenu({ editor, urlDialog, t }: { editor: Editor; urlDialog: PostUrlDialogController; t: Translate }) {
   const s = useEditorState({
     editor,
     selector: ({ editor }) => probeBubbleMenu(editor),
@@ -621,15 +607,7 @@ function BubbleFormattingMenu({ editor, t }: { editor: Editor; t: Translate }) {
         className={toolbarBtnClass(s.link)}
         title={t("Link")}
         aria-pressed={s.link}
-        onClick={() => {
-          if (s.link) {
-            chain().extendMarkRange("link").unsetLink().run();
-            return;
-          }
-          const url = window.prompt("Link URL:", "https://");
-          if (!url) return;
-          chain().extendMarkRange("link").setLink({ href: url }).run();
-        }}
+        onClick={urlDialog.openLink}
       >
         {t("Link")}
       </button>
@@ -1284,6 +1262,7 @@ function PostEditorBody({
   cover: ReactNode;
   t: Translate;
 }) {
+  const urlDialog = usePostUrlDialog({ editor });
   return (
     <div
       className="editor-shell post-editor-pane"
@@ -1292,8 +1271,9 @@ function PostEditorBody({
         label: "Formatting toolbar and the post body editor",
       })}
     >
-      {editor ? <Toolbar editor={editor} mentionablePosts={mentionablePosts} currentPostId={currentPostId} t={t} /> : null}
-      {editor ? <BubbleFormattingMenu editor={editor} t={t} /> : null}
+      {editor ? <Toolbar editor={editor} mentionablePosts={mentionablePosts} currentPostId={currentPostId} urlDialog={urlDialog} t={t} /> : null}
+      {editor ? <BubbleFormattingMenu editor={editor} urlDialog={urlDialog} t={t} /> : null}
+      <PostUrlDialog dialog={urlDialog} t={t} />
       {/* Drag handle (owner, 2026-08-11: "anything and everything") — a grip icon that appears
           beside whichever top-level block the cursor is hovering, letting an author reorder
           blocks by dragging instead of cut/paste. `nested` left at its `false` default: this is
@@ -1502,6 +1482,8 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     setAuthor,
     showAuthor,
     setShowAuthor,
+    hideCoverImageInBody,
+    setHideCoverImageInBody,
     hasSlugCollision,
     view,
     setView,
@@ -1643,7 +1625,8 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         t={t}
       />
       {/* Author, scheduled publishing and featured image (2026-10-05) used to be two rows here; they
-          moved into the gear's modal (owner, 2026-10-10). */}
+          moved into the gear's modal (owner, 2026-10-10). The featured image left the modal again
+          for the cover slot above the title (owner, 2026-10-11). */}
       <PostSettingsDialog
         dialog={settingsDialog}
         kindLabel={kindLabel}
@@ -1654,8 +1637,6 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         publishAtInput={publishAtInput}
         setPublishAtInput={setPublishAtInput}
         scheduled={scheduled}
-        featuredMediaId={featuredMediaId}
-        setFeaturedMediaId={setFeaturedMediaId}
         t={t}
       />
       {/* Slug-collision override — see `PostEditorSlugCollisionWarning`'s own doc for the tri-state
@@ -1692,7 +1673,17 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           editor={editor}
           mentionablePosts={mentionablePosts}
           currentPostId={post.id}
-          cover={<PostCoverImage bodyFormat={post.bodyFormat} featuredMediaId={featuredMediaId} setFeaturedMediaId={setFeaturedMediaId} t={t} />}
+          cover={
+            <PostCoverImage
+              bodyFormat={post.bodyFormat}
+              featuredMediaId={featuredMediaId}
+              setFeaturedMediaId={setFeaturedMediaId}
+              kind={kindLabel}
+              hideCoverImageInBody={hideCoverImageInBody}
+              setHideCoverImageInBody={setHideCoverImageInBody}
+              t={t}
+            />
+          }
           t={t}
         />
       )}
@@ -2043,4 +2034,3 @@ function PostPreviewFrame({
     </>
   );
 }
-

@@ -6,25 +6,25 @@ import "../../styles/native-domain-dialogs.css";
 
 import type { PostSettingsDialogController, PostSettingsTab } from "./hooks/use-post-editor-ui.hooks";
 import { PostAuthorFields } from "./PostAuthorFields";
-import { PostFeaturedImageField, PostPublishAtField, type PostPublishingFieldsProps } from "./PostPublishingFields";
+import { PostPublishAtField, type PostPublishAtFieldProps } from "./PostPublishingFields";
 
 /**
- * @file The post settings modal behind the gear in the action row (owner, 2026-10-10): Author,
- * Publish and Image tabs holding the byline, publish-time and featured-image controls that used to
- * sit as two rows on the page. Props and JSX only; open state lives in `usePostSettingsDialog`, the
- * field values in `usePostEditor`, so nothing here is saved until the editor's own Save.
+ * @file The post settings modal behind the gear in the action row (owner, 2026-10-10): Author and
+ * Publish tabs holding the byline and publish-time controls that used to sit as two rows on the
+ * page. Props and JSX only; open state lives in `usePostSettingsDialog`, the field values in
+ * `usePostEditor`, so nothing here is saved until the editor's own Save.
  *
- * The featured image's Change button opens the media picker on top of this modal (both are native
- * modal dialogs, so the picker stacks above it) and closing the picker lands back here.
+ * There was an Image tab too (featured image + "Hide the cover image in the body"); it was removed
+ * (owner, 2026-10-11) because the cover slot above the title (`PostCoverImage.tsx`) edits the same
+ * `featuredMediaId` and now carries that toggle.
  */
 
 const TABS: ReadonlyArray<{ id: PostSettingsTab; label: string }> = [
   { id: "author", label: "Author" },
   { id: "publish", label: "Publish" },
-  { id: "image", label: "Image" },
 ];
 
-export interface PostSettingsDialogProps extends Omit<PostPublishingFieldsProps, "t"> {
+export interface PostSettingsDialogProps extends Omit<PostPublishAtFieldProps, "t"> {
   dialog: PostSettingsDialogController;
   kindLabel: "post" | "page";
   author: string;
@@ -65,7 +65,6 @@ export function PostSettingsDialog({ dialog, kindLabel, author, setAuthor, showA
           <PostAuthorFields author={author} setAuthor={setAuthor} showAuthor={showAuthor} setShowAuthor={setShowAuthor} t={t} />
         ) : null}
         {dialog.tab === "publish" ? <PostPublishAtField {...publishing} t={t} /> : null}
-        {dialog.tab === "image" ? <PostFeaturedImageField {...publishing} t={t} /> : null}
       </div>
       <div className="widget-picker-footer">
         <span className="editor-actions">

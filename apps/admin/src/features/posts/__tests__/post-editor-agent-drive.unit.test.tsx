@@ -94,6 +94,8 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
     scheduled: false,
     featuredMediaId: null,
     setFeaturedMediaId: vi.fn(),
+    hideCoverImageInBody: true,
+    setHideCoverImageInBody: vi.fn(),
     hasSlugCollision: false,
     view: "edit",
     setView: vi.fn(),

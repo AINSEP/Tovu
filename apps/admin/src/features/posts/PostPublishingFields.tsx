@@ -1,37 +1,24 @@
 import { agentHandle } from "@jini-ai/agentic";
-import { MediaPickerDialog } from "@/components/MediaPickerDialog/MediaPickerDialog";
 import type { Translate } from "@jini-ai/ui/panel-kit";
-import { useWiredPostFeaturedImage } from "./hooks/use-post-featured-image.hooks";
 
 /**
- * @file The editor's "Publish at" and "Featured image" controls (2026-10-05) — props and JSX only.
- * State lives in `usePostEditor` (both values are saved with the post) and the picker's visibility in
- * `use-post-featured-image.hooks.ts`.
+ * @file The editor's "Publish at" control (2026-10-05) — props and JSX only. State lives in
+ * `usePostEditor` (the value is saved with the post).
+ *
+ * Its "Featured image" sibling (and the `PostPublishingFields` row that held both) was removed with
+ * the settings modal's Image tab (owner, 2026-10-11): the cover slot above the title
+ * (`PostCoverImage.tsx`) edits the same `featuredMediaId` through the same picker hook.
  */
 
-export interface PostPublishingFieldsProps {
+export interface PostPublishAtFieldProps {
   publishAtInput: string;
   setPublishAtInput: (value: string) => void;
   scheduled: boolean;
-  featuredMediaId: string | null;
-  setFeaturedMediaId: (id: string | null) => void;
   t: Translate;
-  /** Injectable seam for the picker state — defaults to the real hook. */
-  useFeaturedImage?: typeof useWiredPostFeaturedImage;
-}
-
-/** Both controls in one row — kept for callers that still want them together. */
-export function PostPublishingFields(props: PostPublishingFieldsProps) {
-  return (
-    <div className="editor-publishing-fields">
-      <PostPublishAtField {...props} />
-      <PostFeaturedImageField {...props} />
-    </div>
-  );
 }
 
 /** "Publish at" — the post settings modal's Publish tab. */
-export function PostPublishAtField({ publishAtInput, setPublishAtInput, scheduled, t }: PostPublishingFieldsProps) {
+export function PostPublishAtField({ publishAtInput, setPublishAtInput, scheduled, t }: PostPublishAtFieldProps) {
   return (
     <label className="editor-publishing-field">
       <span className="field-label">{t("Publish at")}</span>
@@ -48,47 +35,5 @@ export function PostPublishAtField({ publishAtInput, setPublishAtInput, schedule
       />
       {scheduled ? <span className="editor-scheduled-badge">{t("Scheduled")}</span> : null}
     </label>
-  );
-}
-
-/** "Featured image" — the post settings modal's Image tab. The media picker opens on top of the modal. */
-export function PostFeaturedImageField({
-  featuredMediaId,
-  setFeaturedMediaId,
-  t,
-  useFeaturedImage = useWiredPostFeaturedImage,
-}: PostPublishingFieldsProps) {
-  const picker = useFeaturedImage(featuredMediaId, setFeaturedMediaId);
-  return (
-    <div className="editor-publishing-field">
-      <span className="field-label">{t("Featured image")}</span>
-      {picker.previewUrl && picker.previewFailed ? (
-        <span className="editor-featured-preview editor-featured-preview-missing" role="img" aria-label={t("Featured image unavailable")} title={t("Featured image unavailable")} />
-      ) : null}
-      {picker.previewUrl && !picker.previewFailed ? (
-        <img className="editor-featured-preview" src={picker.previewUrl} alt={t("Featured image")} onError={picker.onPreviewError} />
-      ) : null}
-      <button
-        type="button"
-        className="btn-secondary"
-        onClick={picker.openPicker}
-        {...agentHandle({ handle: "post-featured-image-choose" }, { role: "button", label: "Choose this post's featured image from the media library" })}
-      >
-        {featuredMediaId ? t("Change") : t("Choose image")}
-      </button>
-      {featuredMediaId ? (
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={picker.clear}
-          {...agentHandle({ handle: "post-featured-image-clear" }, { role: "button", label: "Remove this post's featured image" })}
-        >
-          {t("Remove")}
-        </button>
-      ) : null}
-      {picker.pickerOpen ? (
-        <MediaPickerDialog onSelect={picker.handleSelect} onCancel={picker.closePicker} accept={picker.accept} agentHandle="post-featured-image-dialog" />
-      ) : null}
-    </div>
   );
 }

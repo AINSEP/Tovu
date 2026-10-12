@@ -538,3 +538,29 @@ for (const [label, value] of [
     assert.equal((await getPost(baseUrl, cookie, id)).title, "Bad Version Basis");
   });
 }
+
+test("postpolish: REST update derives a title slug, validates cover choice, and GET exposes publication history", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const headers = { "content-type": "application/json", cookie };
+  const url = `${baseUrl}/api/admin/v1/workspaces/${WS}/posts`;
+  const created = await fetch(url, { method: "POST", headers, body: JSON.stringify({ title: "Untitled" }) });
+  assert.equal(created.status, 201);
+  const { post } = await created.json() as { post: { id: string; slug: string; version: number; bodyJson: object } };
+  const patch = { title: "Post polish REST", status: "draft", bodyJson: post.bodyJson, expectedVersion: post.version, slugFromTitle: true, hideCoverImageInBody: false };
+  const invalid = await fetch(`${url}/${post.id}`, { method: "PUT", headers, body: JSON.stringify({ ...patch, hideCoverImageInBody: "false" }) });
+  assert.equal(invalid.status, 400);
+  assert.equal((await invalid.json() as { error: string }).error, "hideCoverImageInBody must be a boolean");
+  const updated = await fetch(`${url}/${post.id}`, { method: "PUT", headers, body: JSON.stringify(patch) });
+  assert.equal(updated.status, 200);
+  const { post: saved } = await updated.json() as { post: { slug: string; ext: Record<string, unknown>; version: number } };
+  assert.equal(saved.slug, "post-polish-rest");
+  assert.deepEqual(saved.ext, { "post-presentation": { hideCoverImageInBody: false } });
+  assert.equal((await (await fetch(`${url}/${post.id}`, { headers })).json() as { post: { everPublished: boolean } }).post.everPublished, false);
+  for (const [offset, status] of ["published", "draft"].entries()) {
+    const response = await fetch(`${url}/${post.id}`, { method: "PUT", headers, body: JSON.stringify({ ...patch, expectedVersion: saved.version + offset, status }) });
+    assert.equal(response.status, 200);
+  }
+  const loaded = await (await fetch(`${url}/${post.id}`, { headers })).json() as { post: { everPublished: boolean; slug: string } };
+  assert.equal(loaded.post.everPublished, true);
+  assert.equal(loaded.post.slug, "post-polish-rest");
+});
