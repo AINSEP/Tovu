@@ -58,8 +58,10 @@ test.describe("W3 page lifecycle", () => {
   });
 
   test("published page at phone width: no horizontal scroll on the public page or in the admin editor", { tag: ["@unrun"] }, async ({ page, request }) => {
-    // A fixed title: it is on screen in the baseline. The slug stays unique; its field is masked.
-    const created = await request.post(`${WS_API}/pages`, { data: { title: "Phone page", slug: uniq("phone-page").toLowerCase(), status: "published" } });
+    // A fixed title (on screen in the baseline) and a fixed slug. At phone width the slug field is
+    // `field-sizing: content` (styles/editor.css), so a random slug's glyph widths moved the field's
+    // edge and the "view" link beside it even under the mask. The finally block deletes the page.
+    const created = await request.post(`${WS_API}/pages`, { data: { title: "Phone page", slug: "phone-page", status: "published" } });
     expect(created.status()).toBe(201);
     const { id, slug } = (await created.json()).post as { id: string; slug: string };
     try {
