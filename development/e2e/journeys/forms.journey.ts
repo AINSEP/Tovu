@@ -24,7 +24,9 @@ interface FieldSpec {
   id: string;
   label: string;
   type: "text" | "email" | "textarea" | "checkbox";
-  required?: boolean;
+  /** Mandatory: the field-type registry (Jini 20d4e8a2, `descriptor-rules.ts`) rejects a descriptor
+   *  without a boolean `required`, matching `FieldDescriptor` and the forms tool schema. */
+  required: boolean;
   maxLength?: number;
 }
 
@@ -212,7 +214,7 @@ test.describe("forms abuse and stress (public, no login)", () => {
 
   test("unknown fields, prototype keys and oversized values never reach the stored answer", { tag: ["@unrun"] }, async ({ request }) => {
     const slug = uniqSlug("unknown-fields");
-    await createForm(request, slug, [{ id: "message", label: "Message", type: "textarea" }]);
+    await createForm(request, slug, [{ id: "message", label: "Message", type: "textarea", required: false }]);
     // Raw JSON text: an object literal's `__proto__` key sets the prototype instead of an own key.
     const res = await request.post(`${PUBLIC_URL}/forms/${slug}/submit`, {
       headers: { "content-type": "application/json", accept: "application/json" },

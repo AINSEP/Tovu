@@ -50,16 +50,19 @@ test("collection dialog contains Tab, dismisses on Escape/backdrop, and restores
   await expect(opener).toBeFocused();
 });
 
-test("form field attributes keep focus inside and return it to the chosen field", async ({ page }) => {
+test("form field settings keep focus inside and return it to the chosen field", async ({ page }) => {
   await page.goto("/admin/forms/new");
   await page.getByRole("button", { name: "Add field", exact: true }).click();
-  const opener = page.getByRole("button", { name: /^Attributes for field/ }).last();
+  // Jini 669e1f88 renamed "Field attributes" to "Field settings": per-type settings lead, and the
+  // CSS classes / HTML attributes fold into a closed <details> below them.
+  const opener = page.getByRole("button", { name: /^Settings for field/ }).last();
   await opener.click();
-  const dialog = page.getByRole("dialog", { name: /^Field attributes/ });
+  const dialog = page.getByRole("dialog", { name: /^Field settings/ });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByLabel("CSS classes", { exact: true })).toBeFocused();
-  // SeeMore may add a focusable disclosure before CSS classes. Native Tab order follows
-  // the visible controls, while the explicit initial-focus marker still chooses CSS classes.
+  // The first per-type input carries the initial-focus marker (a new field is a text field, so
+  // Placeholder), never a Help text ⓘ tip.
+  await expect(dialog.getByLabel("Placeholder", { exact: true })).toBeFocused();
+  // Native Tab order follows the visible controls, starting at the first one.
   const first = dialog.locator('button:visible:not([disabled]), input:visible:not([disabled]), a[href]:visible').first();
   // Tovu hides Jini's generic Close in domain dialogs (native-domain-dialogs.css); Cancel is last.
   const last = dialog.getByRole("button", { name: "Cancel", exact: true });
