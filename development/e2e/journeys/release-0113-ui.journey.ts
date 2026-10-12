@@ -59,6 +59,9 @@ test.describe("0.1.13 A8 operator journeys", { tag: ["@unrun", "@isolated-site"]
     await expect(chat.ui.composer).toHaveValue("");
     await expect(chat.ui.root.getByText("Use the second layout instead", { exact: true })).toHaveCount(1);
     expect(await chat.currentConversationId()).toBe(id);
+    // A Stop click within 500 ms of Send is swallowed as a double-clicked Send
+    // (`use-composer-send-stop-guard.hooks.ts`, 3dcb9138f); a person's deliberate Stop comes later.
+    await page.waitForTimeout(600);
     await chat.ui.stop.click();
     await expect.poll(() => stub.cancels.length).toBe(1);
     expect(new URL(stub.cancels[0]!.url()).pathname).toBe("/api/runs/journey-run-1/cancel");
@@ -207,6 +210,12 @@ test.describe("0.1.13 A8 operator journeys", { tag: ["@unrun", "@isolated-site"]
     await chat.open({ navigate: true });
     await chat.newConversation();
     await chat.send({ text: "Show tool details" });
+    // The dock folds a turn's tool cards into one line by default (Chat settings → Display,
+    // `d26601e80`; Jini `c58beff6` ToolCallGroup); while a tool runs the line names it. Open it first.
+    const group = chat.ui.root.getByRole("button", { name: "Running Assistant Ask Choice…", exact: true });
+    await expect(group).toHaveAttribute("aria-expanded", "false");
+    await group.click();
+    await expect(group).toHaveAttribute("aria-expanded", "true");
     for (const [id, text] of [["read-row", "Read result"], ["pending-row", "Waiting for the result or answer…"]]) {
       const row = chat.ui.root.locator(`[data-agent-element="tool-call-${id}"]`);
       const toggle = row.getByRole("button").first();

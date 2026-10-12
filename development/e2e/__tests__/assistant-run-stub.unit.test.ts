@@ -13,6 +13,14 @@ function routingPage() {
     },
   } as unknown as Page;
   async function request(pathname: string, method = "GET", data: unknown = undefined) {
+    const sent = await open(pathname, method, data);
+    const response = sent.response();
+    assert.ok(response, "Route never fulfilled the request");
+    return { status: response.status ?? 200, body: response.body ?? JSON.stringify(response.json),
+      json: () => response.json ?? JSON.parse(response.body!) };
+  }
+  /** Sends a request without requiring an answer yet: a parked SSE resume answers later. */
+  async function open(pathname: string, method = "GET", data: unknown = undefined) {
     const url = new URL(pathname, "http://journey.test");
     const found = [...routes].reverse().find(({ match }) => typeof match === "function"
       ? match(url) : url.href.endsWith(match.replace(/^\*\*/, "")));
@@ -24,11 +32,9 @@ function routingPage() {
       continue: async () => { throw new Error(`Unexpected real request: ${method} ${url.pathname}`); },
     } as unknown as Route;
     await found.handle(route);
-    assert.ok(response, "Route never fulfilled the request");
-    return { status: response.status ?? 200, body: response.body ?? JSON.stringify(response.json),
-      json: () => response!.json ?? JSON.parse(response!.body!) };
+    return { response: () => response };
   }
-  return { page, request };
+  return { page, request, open };
 }
 
 const binding = { assistantMessageId: "answer-1", conversationId: "chat-1" };
@@ -78,6 +84,33 @@ test("SSE resume excludes frames at or before the client's last cursor", async (
   assert.equal(resumed.body.includes("Which plan do you want?"), false);
   assert.equal(resumed.body.includes('"id":"ask-1"'), false);
   assert.ok(resumed.body.includes('id: 3\nevent: agent\n'));
+});
+
+test("the read-only checkpoint returns the same running message as recover", async () => {
+  const browser = routingPage();
+  await stubPendingRun({ page: browser.page, payloads, toolCallStatus: 202 });
+  await browser.request("/api/runs", "POST", { contextRef: JSON.stringify(binding) });
+  const recovered = await browser.request("/api/runs/journey-run-1/recover", "POST", { messageId: "answer-1" });
+  const checkpoint = await browser.request("/api/runs/journey-run-1/checkpoint?messageId=answer-1");
+  assert.equal(checkpoint.status, 200);
+  assert.deepEqual(checkpoint.json(), recovered.json());
+  const unknown = await browser.request("/api/runs/journey-run-1/checkpoint?messageId=other");
+  assert.equal(unknown.status, 404);
+});
+
+test("a mid-run message answers the parked stream with its user_message frame", async () => {
+  const browser = routingPage();
+  const stub = await stubPendingRun({ page: browser.page, payloads, toolCallStatus: 202 });
+  await browser.request("/api/runs", "POST", { contextRef: JSON.stringify(binding) });
+  const waiting = await browser.open("/api/runs/journey-run-1/events?afterCursor=3");
+  assert.equal(waiting.response(), undefined, "a caught-up resume waits for the next frame");
+  const sent = await browser.request("/api/runs/journey-run-1/messages", "POST", { text: "Use the second layout" });
+  assert.equal(sent.status, 202);
+  assert.deepEqual(stub.midRunMessages, [{ text: "Use the second layout" }]);
+  const body = waiting.response()?.body ?? "";
+  assert.ok(body.includes('id: 4\nevent: agent\n'), body);
+  assert.ok(body.includes('"type":"user_message"') && body.includes("Use the second layout"), body);
+  assert.equal(body.includes("Which plan do you want?"), false, "only frames after the cursor");
 });
 
 for (const status of [202, 409, 500] as const) {

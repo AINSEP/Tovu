@@ -54,21 +54,41 @@ export async function stubPendingRun(
       await route.fulfill({ status: 201, json: { run: { id: RUN_ID }, messageId: message.id, conversationId } });
     },
   );
-  await page.route((url) => url.pathname === `/api/runs/${RUN_ID}/events`, (route) => {
+  // Every frame the run has emitted; a mid-run message appends its `user_message` frame.
+  const frames: Payload[] = [...payloads];
+  // The resumed stream request waiting for a new frame, if any.
+  let parked: Route | undefined;
+  const streamFrames = (route: Route) => {
     const cursor = Number(new URL(route.request().url()).searchParams.get("afterCursor") ?? 0);
-    // fulfill cannot keep an SSE body open. Once the prefix is consumed, leave the resumed
-    // request pending until the test page closes, like a real stream waiting for new events.
-    // Retrying finite empty bodies would otherwise cause a dropped -> recover -> reopen loop.
-    if (cursor >= payloads.length) return;
     return route.fulfill({
       status: 200,
       contentType: "text/event-stream",
-      body: "retry: 3600000\n\n" + payloads.map((p, i) => i + 1 > cursor ? frame("agent", p, i + 1) : "").join(""),
+      body: "retry: 3600000\n\n" + frames.map((p, i) => i + 1 > cursor ? frame("agent", p, i + 1) : "").join(""),
     });
+  };
+  await page.route((url) => url.pathname === `/api/runs/${RUN_ID}/events`, (route) => {
+    const cursor = Number(new URL(route.request().url()).searchParams.get("afterCursor") ?? 0);
+    // fulfill cannot keep an SSE body open. Once the prefix is consumed, park the resumed
+    // request until a new frame arrives, like a real stream waiting for new events.
+    // Retrying finite empty bodies would otherwise cause a dropped -> recover -> reopen loop.
+    if (cursor >= frames.length) {
+      parked = route;
+      return;
+    }
+    return streamFrames(route);
   });
   await page.route((url) => url.pathname === `/api/runs/${RUN_ID}/recover`, (route) => {
     if (route.request().method() !== "POST") return route.continue();
     if (!message || route.request().postDataJSON().messageId !== message.id) {
+      return route.fulfill({ status: 404, json: { error: "not found" } });
+    }
+    return route.fulfill({ json: { message, conversationId } });
+  });
+  // Between drops the client polls this read-only checkpoint every second (Jini `13230574`); left
+  // to the real server it 404s, which the client reads as "run gone" and stops following the run.
+  await page.route((url) => url.pathname === `/api/runs/${RUN_ID}/checkpoint`, (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    if (!message || new URL(route.request().url()).searchParams.get("messageId") !== message.id) {
       return route.fulfill({ status: 404, json: { error: "not found" } });
     }
     return route.fulfill({ json: { message, conversationId } });
@@ -84,11 +104,18 @@ export async function stubPendingRun(
     stub.midRunMessages.push(input);
     // The daemon checkpoints user_message inside the active answer; a 202 alone never renders it.
     // Keep recovery in sync, using the same translator as the initial run events.
-    const event = translateRunAgentPayload({ type: "user_message", id: `journey-mid-run-${stub.midRunMessages.length}`, text: input.text });
+    const payload: Payload = { type: "user_message", id: `journey-mid-run-${stub.midRunMessages.length}`, text: input.text };
+    const event = translateRunAgentPayload(payload);
     if (message && event) {
       const nextEvents = [...(message.events ?? []), event];
       message = { ...message, events: nextEvents, content: assistantContentFromEvents({ events: nextEvents }) };
     }
+    // The client renders a delivered message only from the run's live `user_message` event (Jini
+    // `MidRunUserMessage`), so push it down the waiting stream as the daemon does.
+    frames.push(payload);
+    const waiting = parked;
+    parked = undefined;
+    if (waiting) await streamFrames(waiting);
     await route.fulfill({ status: 202, json: { delivery: "delivered" } });
   });
   await page.route(`**/api/runs/${RUN_ID}/cancel`, async (route) => {

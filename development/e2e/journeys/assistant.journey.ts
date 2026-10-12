@@ -155,7 +155,7 @@ test.describe("assistant ask_choice typed answer", () => {
 });
 
 test.describe("assistant confirm card", () => {
-  test("typing while a CONFIRM card is pending queues the message instead of posting it as a typed answer", { tag: ["@unrun"] }, async ({ page }) => {
+  test("typing while a CONFIRM card is pending steers the run instead of posting it as a typed answer", { tag: ["@unrun"] }, async ({ page }) => {
     test.skip(CODEX_JOURNEY, "Requires a scripted pending card, delivery status, or fake clock; live Codex cannot guarantee these conditions.");
     const stub = await stubPendingRun({ page, payloads: confirmPayloads(), toolCallStatus: 202 });
     const chat = createAdminChatDriver({ page }, { adminPath: "/admin/posts" });
@@ -165,15 +165,15 @@ test.describe("assistant confirm card", () => {
     const card = page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/content-post-delete/"] iframe');
     await expect(card.locator('[data-mcpui-action="confirm"]')).toBeVisible();
 
+    // A text-only message sent mid-run goes INTO the running run (Jini `31ca33d8`, `f9d06757`
+    // "mid-run messages steer the run instead of queuing"), not into a queued next turn.
     await chat.send({ text: "actually, also rename it" }, { submission: "enter" });
-    const queued = page.getByTestId("chat-pane-queued");
-    await expect(queued).toContainText("actually, also rename it");
+    await expect.poll(() => stub.midRunMessages).toEqual([{ text: "actually, also rename it" }]);
+    await expect(chat.ui.root.getByText("actually, also rename it", { exact: true })).toHaveCount(1);
+    await expect(page.getByTestId("chat-pane-queued")).toHaveCount(0);
     await expect(chat.ui.paneErrors, "no 'no longer waiting' notice for a confirm card").toHaveCount(0);
     expect(stub.toolCalls, "nothing may be posted to the question endpoint for a confirm card").toEqual([]);
-    expect(stub.runStarts, "the queued message waits for the run; it does not start a second one").toHaveLength(1);
-
-    await queued.getByRole("button").click(); // cancel the queued message
-    await expect(queued).toHaveCount(0);
+    expect(stub.runStarts, "the message joins the run; it does not start a second one").toHaveLength(1);
   });
 
   test("confirm sends exactly one decision for the right tool", { tag: ["@unrun"] }, async ({ page }) => {
