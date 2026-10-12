@@ -20,6 +20,15 @@ function withoutPreviewRevision(url: string | null, baseUrl: string): string | n
   return parsed.href;
 }
 
+/** STALE PIN UPDATED: `0e8ca8ac7` replaced the toolbar's `window.prompt` with the in-app URL dialog
+ *  ("Link URL" / "Image URL" / "YouTube video URL"), so the pins fill its URL field and press Insert. */
+async function answerUrlDialog(page: Page, { title, url }: { title: string; url: string }): Promise<void> {
+  const dialog = page.getByRole("dialog", { name: title });
+  await dialog.getByLabel("URL", { exact: true }).fill(url);
+  await dialog.getByRole("button", { name: "Insert" }).click();
+  await expect(dialog).toHaveCount(0);
+}
+
 /** Wait for the real live-site navigation, not the iframe's initial about:blank document. */
 async function waitForLivePostFrame({ page, slug }: { page: Page; slug: string }, _options = {}): Promise<Frame> {
   const liveUrl = new URL(`/${slug}`, page.url()).href;
@@ -560,9 +569,11 @@ test.describe("Post editor Preview tab — mention link regression (2026-08-12)"
     await page.goto("/admin/posts");
     await page.getByRole("button", { name: "New Post" }).click();
     await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
-    const targetSlug = await page.getByLabel("URL slug").inputValue();
     await page.getByLabel("Title").fill("Mention Target");
     await publishAndWaitForConfirmation(page);
+    // STALE PIN UPDATED: since `0e8ca8ac7` an untitled slug follows the title until first publish, so
+    // the target's slug is `mention-target…`, read only after the publish that fixed it.
+    const targetSlug = await page.getByLabel("URL slug").inputValue();
 
     // Source post: publish once clean, then dirty its content (the owner's own repro shape — see
     // `post-editor-preview-branches.spec.ts` for why `contentDirty` on an already-published post is
@@ -672,26 +683,31 @@ test.describe("Post editor Link toolbar — open-redirect fix (2026-08-20)", () 
     await loginAsAdmin(page);
   });
 
-  test("a protocol-relative link URL is neutralized to '#' on the real published public page, never left pointing off-site", async ({
+  test("a protocol-relative link URL is refused by the Link dialog and never served as an off-site link on the published page", async ({
     page,
     request,
   }) => {
-    const { slug } = await openFreshPost(page);
+    await openFreshPost(page);
 
     await bodyParagraph(page).click();
     await page.keyboard.type("click me");
 
-    // Select the whole (one-word... well, two-word) paragraph and drive the real "Link" toolbar
-    // button, same triple-click + native-dialog pattern `post-editor-toolbar.spec.ts`'s own
-    // `selectWordAndToggleMark`/full-chain test already establishes for this exact control — the
-    // prompt is a real `window.prompt`, not a fillable in-app dialog, so it can only be answered via
-    // Playwright's `page.on('dialog')` API, not a locator.
+    // STALE PIN UPDATED: `0e8ca8ac7` replaced the Link `window.prompt` with the in-app URL dialog,
+    // which only accepts absolute HTTP(S) URLs — so the protocol-relative URL is now refused at the
+    // editor, before `safeHref` ever sees it (the renderer half stays pinned in `render.test.ts` /
+    // `tiptap-render-contract.test.ts`). Whole path still checked: refused here, never served below.
     await page.getByText("click me", { exact: true }).click({ clickCount: 3 });
-    page.once("dialog", (dialog) => dialog.accept("//evil.example"));
     await page.getByTitle("Link", { exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Link URL" });
+    await dialog.getByLabel("URL", { exact: true }).fill("//evil.example");
+    await expect(dialog.getByRole("alert")).toHaveText("Enter an HTTP or HTTPS URL.");
+    await expect(dialog.getByRole("button", { name: "Insert" })).toBeDisabled();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(dialog).toHaveCount(0);
 
     // Publish (not Save): the public site only serves published posts.
     await saveAndWaitForConfirmation(page, "Published");
+    const slug = await page.getByLabel("URL slug").inputValue();
 
     // Fetched via `request` (Playwright's own HTTP client, not `page.evaluate`/`fetch`): the public
     // site is served by the API process directly, a different origin from the admin SPA's Vite dev
@@ -702,22 +718,10 @@ test.describe("Post editor Link toolbar — open-redirect fix (2026-08-20)", () 
     expect(res.status(), `expected the published post to be publicly reachable at ${publicUrl}`).toBe(200);
     const html = await res.text();
 
-    // FIX target: the rendered anchor's href must never be the raw attacker-chosen protocol-relative
-    // string — safeHref collapses it to "#" (in-page, inert) rather than emitting it unchanged.
-    expect(html, `served HTML must not contain the raw protocol-relative href, got: ${html}`).not.toContain(
-      'href="//evil.example"'
-    );
-    expect(html).toContain('<a href="#">click me</a>');
-
-    // Belt-and-braces: load the REAL public page in the browser and read the DOM property a browser
-    // would actually navigate on click, not just the serialized attribute string — `HTMLAnchorElement
-    // .href` is the browser's OWN fully-resolved interpretation, so this proves the fix from the
-    // reader's actual point of view, not just from the HTML source text.
+    expect(html).toContain("click me");
+    expect(html, `served HTML must not link off-site, got: ${html}`).not.toContain("evil.example");
     await page.goto(publicUrl);
-    const resolvedHref = await page.locator('a:has-text("click me")').first().evaluate((el) => (el as HTMLAnchorElement).href);
-    expect(new URL(resolvedHref).hostname, `the rendered link must resolve on-site, not to evil.example — resolved to: ${resolvedHref}`).not.toBe(
-      "evil.example"
-    );
+    await expect(page.locator('a:has-text("click me")'), "the refused URL must not have produced a link").toHaveCount(0);
   });
 });
 });
@@ -785,11 +789,9 @@ test.describe("Bug pin: post-editor-preview-branches", () => {
  * the raw-fallback behavior as `INTENDED`; it now asserts the fixed behavior instead — same scenario,
  * opposite expectation, so this suite still proves the regression can't come back.
  *
- * `PostPreview`'s own JSX pairs every non-live-site branch with an `.editor-preview-notice`
- * explaining what's being shown. This suite verifies, DOM-first (`toBeVisible()`, not a screenshot —
- * this project's own memory records CSS presence not being proof of precedence, and a
- * `display: contents` element hiding a class that "existed" but did nothing), whether that notice is
- * genuinely rendered and visible in each branch.
+ * `PostPreview`'s own JSX USED TO pair every non-live-site branch with an `.editor-preview-notice`
+ * explaining what's being shown — removed in `58a7c284e` (owner, 2026-10-10); the tests below now pin
+ * its absence.
  *
  * ## Scope discipline
  *
@@ -859,28 +861,10 @@ async function waitForPendingContentFrame(page: Page): Promise<Frame> {
   return frame;
 }
 
-/**
- * Asserts `.editor-preview-notice` is GENUINELY visible to a human, not merely "visible" by
- * Playwright's narrower `toBeVisible()` definition (non-empty box + not `display:none`/
- * `visibility:hidden` — it does NOT check `opacity`). This project's own memory records a real defect
- * that `toBeVisible()` alone would have missed: a class sitting on a `display: contents` element,
- * doing nothing, while still reading as "present." Measured directly via `getBoundingClientRect` and
- * computed style rather than trusted from one boolean, per the coordinator's own instruction for
- * exactly this class of check.
- */
-async function expectNoticeGenuinelyVisible(page: Page): Promise<void> {
-  const notice = page.locator(".editor-preview-notice");
-  await expect(notice).toBeVisible();
-  const measured = await notice.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    const style = window.getComputedStyle(el);
-    return { width: rect.width, height: rect.height, opacity: Number(style.opacity), display: style.display, visibility: style.visibility };
-  });
-  expect(measured.width, "notice must have real rendered width, not a zero-size box").toBeGreaterThan(0);
-  expect(measured.height, "notice must have real rendered height, not a zero-size box").toBeGreaterThan(0);
-  expect(measured.opacity, "notice must not be transparent").toBeGreaterThan(0);
-  expect(measured.display).not.toBe("none");
-  expect(measured.visibility).not.toBe("hidden");
+/** STALE PIN UPDATED: `58a7c284e` (owner, 2026-10-10: "remove this") deleted every "Previewing your
+ *  …" notice above the preview frame, so every branch now pins its ABSENCE from the DOM. */
+async function expectNoPreviewNotice(page: Page): Promise<void> {
+  await expect(page.locator(".editor-preview-notice")).toHaveCount(0);
 }
 
 test.describe("Post editor Preview tab — which of the four branches renders", () => {
@@ -921,13 +905,8 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
       await livePage.close();
     }
 
-    // The notice this suite exists to verify — measured, not a screenshot.
-    await expectNoticeGenuinelyVisible(page);
-    await expect(page.locator(".editor-preview-notice")).toContainText(
-      "Previewing your unsaved edits through the live template"
-    );
-    // The old "rough render... publish this post" notice must never appear again.
-    await expect(page.locator(".editor-preview-notice")).not.toContainText("preview it with the theme's real template");
+    // The notices were removed (`58a7c284e`) — neither the old "rough render" one nor its successor.
+    await expectNoPreviewNotice(page);
   });
 
   test("WIDENED (2026-09-09): a DRAFT post's own content edit shows the themed pending-content preview, not the raw editor-buffer fallback", async ({
@@ -954,10 +933,7 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
     // `template-preview.ts`'s `pendingBodyJson` override exists for.
     await expect(pendingFrame.locator("body")).toContainText("Draft body");
 
-    await expectNoticeGenuinelyVisible(page);
-    await expect(page.locator(".editor-preview-notice")).toContainText(
-      "Previewing your unsaved edits through the live template"
-    );
+    await expectNoPreviewNotice(page);
   });
 
   test("INTENDED: a published, unedited post's Preview tab shows the real live site through an actual navigable iframe, with NO notice", async ({
@@ -1035,11 +1011,7 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
     // confirming the inline-code mark just applied actually survived that pipeline.
     await expect(pendingFrame.locator("code")).toContainText("Sample text");
 
-    // The notice DOES exist in `PostPreview`'s JSX for this branch too.
-    await expectNoticeGenuinelyVisible(page);
-    await expect(page.locator(".editor-preview-notice")).toContainText(
-      "Previewing your unsaved edits through the live template"
-    );
+    await expectNoPreviewNotice(page);
   });
 
   test("BRANCH 2: changing only a published post's template loads the alternate preview without changing the live page", async ({ page, request }) => {
@@ -1059,7 +1031,7 @@ test.describe("Post editor Preview tab — which of the four branches renders", 
     const preview = page.getByTitle("Post preview", { exact: true }).contentFrame();
     await expect(preview.locator("body")).toContainText("Template-only preview content");
     await expect(preview.locator(".docs-sidebar")).toBeVisible();
-    await expectNoticeGenuinelyVisible(page);
+    await expectNoPreviewNotice(page);
     const liveAfter = await request.get(`${PIN_PUBLIC_URL}/${slug}`);
     expect(liveAfter.ok()).toBe(true);
     expect(await liveAfter.text()).toBe(liveHtml);
@@ -1279,8 +1251,8 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     await selectWordAndToggleMark(page, "Delta", "Underline (⌘U)");
     await selectWordAndToggleMark(page, "Echo", "Inline code");
 
-    page.once("dialog", (dialog) => dialog.accept("https://example.com/plugins"));
     await selectWordAndToggleMark(page, "Foxtrot", "Link");
+    await answerUrlDialog(page, { title: "Link URL", url: "https://example.com/plugins" });
 
     await saveAndWaitForConfirmation(page);
     const doc = await fetchBodyJson(page, id);
@@ -1476,8 +1448,8 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
 
     await selectWordAndToggleMark(page, "Bold", "Bold (⌘B)");
 
-    page.once("dialog", (dialog) => dialog.accept("https://example.com/full-chain"));
     await selectWordAndToggleMark(page, "link", "Link");
+    await answerUrlDialog(page, { title: "Link URL", url: "https://example.com/full-chain" });
 
     // Centers whichever paragraph the cursor is in — "link", since it's the one just edited. The
     // assertion below only checks the STYLE exists in the served HTML, not which paragraph carries
@@ -1555,8 +1527,8 @@ test.describe("Post editor Preview tab — YouTube embed regression (2026-08-12)
     await bodyParagraph(page).click();
     await page.keyboard.type("hello world");
 
-    page.once("dialog", (dialog) => dialog.accept("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
     await page.click('button[title="Insert YouTube video"]');
+    await answerUrlDialog(page, { title: "YouTube video URL", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" });
     // Click back into plain text — collapses the atom's NodeSelection before anything else touches
     // the doc, matching the isolated repro this test locks in (a separate, still-open interaction
     // finding — inserting a mention immediately after an atom is still node-selected can replace
@@ -1585,8 +1557,8 @@ test.describe("Post editor Preview tab — YouTube embed regression (2026-08-12)
     const { slug } = await openFreshPost(page);
     await bodyParagraph(page).click();
     await page.keyboard.type("hello world");
-    page.once("dialog", (dialog) => dialog.accept("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
     await page.click('button[title="Insert YouTube video"]');
+    await answerUrlDialog(page, { title: "YouTube video URL", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" });
     await page.getByText("hello world").click();
     await publishAndWaitForConfirmation(page);
 

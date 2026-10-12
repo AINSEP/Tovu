@@ -170,7 +170,7 @@ test.describe("Pages editor", () => {
     expect(sandbox).not.toContain("allow-top-navigation");
   });
 
-  test("draft preview POSTs saved and pending HTML into its iframe with the notice above it", async ({ page }) => {
+  test("draft preview POSTs saved and pending HTML into its iframe, with no notice above it", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/admin/pages");
     await page.getByRole("button", { name: "New Page" }).click();
@@ -200,15 +200,9 @@ test.describe("Pages editor", () => {
     await expect(preview.getByRole("heading", { name: "Saved draft preview" })).toHaveCount(0);
     await expect(page).toHaveURL(editorUrl);
 
-    // No scroll to the notice: its initial position must precede the large preview frame.
-    const notice = page.getByText(/previewing your unsaved edits/i);
-    await expect(notice).toBeVisible();
-    await expect(notice).toBeInViewport({ ratio: 1 });
-    await expect.poll(async () => {
-      const noticeBox = await notice.boundingBox();
-      const frameBox = await iframe.boundingBox();
-      return !!noticeBox && !!frameBox && noticeBox.y + noticeBox.height <= frameBox.y;
-    }).toBe(true);
+    // STALE PIN UPDATED: `58a7c284e` (owner, 2026-10-10: "remove this") deleted the "Previewing your
+    // unsaved edits" notice that used to sit above the frame.
+    await expect(page.getByText(/previewing your unsaved edits/i)).toHaveCount(0);
   });
 
   test("a saved page survives a reload — the HTML is persisted, not just held in component state", async ({ page }) => {
