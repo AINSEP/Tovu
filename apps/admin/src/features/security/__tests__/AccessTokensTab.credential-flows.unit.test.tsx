@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isValidElementHandle } from "@jini-ai/agentic";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AccessTokensTab } from "../AccessTokensTab";
@@ -152,8 +153,36 @@ function groupFor(
 }
 
 function renderTab(overrides: Partial<AccessTokensController> = {}, otherOverrides: Partial<OtherCredentialsController> = {}) {
-  return render(<AccessTokensTab useAccessTokensHook={() => makeAccessTokens(overrides)} useOtherCredentialsHook={() => makeOtherCredentials(otherOverrides)} />);
+  return render(<FetchQueryProvider><AccessTokensTab useAccessTokensHook={() => makeAccessTokens(overrides)} useOtherCredentialsHook={() => makeOtherCredentials(otherOverrides)} /></FetchQueryProvider>);
 }
+
+it("renders migrated vault ids in every row control and passes the unchanged id to mutations", () => {
+  const id = 'vault:["publish_credential_sets","e6b6ec84-1234-4567-89ab-0123456789ab"]:0';
+  // Cloudflare Pages: the fixture provider with a revoke page, so every per-row control renders.
+  const saved = row({ id, providerId: "cloudflare-pages", isDefault: false });
+  const setExistingField = vi.fn();
+  const makeDefault = vi.fn(async () => {});
+  const replaceToken = vi.fn(async () => {});
+  const rows = [rowState({ row: saved, token: "replacement", values: { accountId: "acct-1" } }), rowState({ row: row({ id: "row-2", providerId: "cloudflare-pages" }) })];
+  const { container } = renderTab({ groups: [groupFor("publish", "cloudflare-pages", rows)], setExistingField, makeDefault, replaceToken });
+  const safeId = "h-c776c79ac3a9600f";
+  expect(container.querySelector(`[data-agent-element="security-access-tokens-row-publish-cloudflare-pages-${safeId}"]`)).not.toBeNull();
+  for (const action of ["default", "save", "remove", "revoke-page", "remove-cancel"]) {
+    expect(container.querySelector(`[data-agent-element="security-access-tokens-${action}-${safeId}"]`)).not.toBeNull();
+  }
+  const name = container.querySelector<HTMLInputElement>(`#security-existing-${safeId}-name`)!;
+  expect(name.getAttribute("data-agent-element")).toBe(`security-existing-${safeId}-name`);
+  fireEvent.change(name, { target: { value: "Renamed" } });
+  expect(setExistingField).toHaveBeenCalledWith(id, { name: "Renamed" });
+  fireEvent.click(container.querySelector(`[data-agent-element="security-access-tokens-default-${safeId}"]`)!);
+  expect(makeDefault).toHaveBeenCalledWith(saved);
+  fireEvent.click(container.querySelector(`[data-agent-element="security-access-tokens-save-${safeId}"]`)!);
+  expect(replaceToken).toHaveBeenCalledWith(saved);
+  for (const element of container.querySelectorAll("[data-agent-element]")) {
+    expect(isValidElementHandle({ handle: element.getAttribute("data-agent-element")! })).toBe(true);
+  }
+  expect(saved.id).toBe(id);
+});
 
 describe("AccessTokensTab — loading and error states", () => {
   it("shows the loading placeholder until both tiers' groups resolve", () => {

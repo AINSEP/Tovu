@@ -262,6 +262,12 @@ test("mediaOriginalUrl encodes an id containing '/' in the URL string it builds"
   expect(api.mediaOriginalUrl(SLASH_ID)).toBe(`${BASE_API}/workspaces/workspace-local/media/${ENC}/original`);
 });
 
+// The Edit post cover slot shows the same `public` rendition the published post's cover uses, not the
+// cropped `og` share card (owner 2026-10-11: the slot must match the published page).
+test("mediaPreviewRenditionUrl builds the published cover's public.v1 URL with the id encoded", () => {
+  expect(api.mediaPreviewRenditionUrl(SLASH_ID)).toMatch(new RegExp(`/m/${ENC}/public\\.v1/image\\.jpg$`));
+});
+
 // --- Two-id call sites: each segment asserted independently ----------------
 
 test("removePolicyPermission encodes both policyId and policyPermissionId", async () => {

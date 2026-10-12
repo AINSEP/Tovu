@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
+import { isValidElementHandle } from "@jini-ai/agentic";
 
 import { OtherCredentialEntry } from "../OtherCredentialsSection";
 import type { OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
@@ -291,6 +292,23 @@ describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
 });
 
 describe("OtherCredentialEntry — agentHandle id safety (unsafe item ids never crash the row)", () => {
+  it("publishes opaque item ids under safe handles without altering draft or mutation keys", () => {
+    const store = otherCredentialStoreInfo("external-mcp");
+    const itemId = 'vault:["publish_credential_sets","e6b6ec84-1234-4567-89ab-0123456789ab"]:0';
+    const row = rowFixture(store, { itemId, key: `${store.id}:${itemId}`, name: "Opaque credential" });
+    const remove = vi.fn(async () => {});
+    const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
+    expect(container.querySelector('[data-agent-element="security-other-credentials-external-mcp-h-c776c79ac3a9600f"]')).not.toBeNull();
+    expect(container.querySelector('[data-agent-element="security-other-credentials-remove-external-mcp-h-c776c79ac3a9600f"]')).not.toBeNull();
+    for (const element of container.querySelectorAll("[data-agent-element]")) {
+      expect(isValidElementHandle({ handle: element.getAttribute("data-agent-element")! })).toBe(true);
+    }
+    fireEvent.click(container.querySelector('[data-agent-element="security-other-credentials-remove-external-mcp-h-c776c79ac3a9600f"]')!);
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove from Tovu" }));
+    expect(remove).toHaveBeenCalledWith(row);
+    expect(row.key).toBe(`external-mcp:${itemId}`);
+    expect(row.itemId).toBe(itemId);
+  });
   it("renders an external-mcp row whose raw item id is not handle-safe (contains an underscore), without throwing", () => {
     const store = otherCredentialStoreInfo("external-mcp");
     const row = rowFixture(store, { itemId: "google_calendar", name: "Google Calendar" });

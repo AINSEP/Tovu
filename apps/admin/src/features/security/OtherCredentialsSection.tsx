@@ -1,5 +1,5 @@
 import { forwardRef, useRef } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "@jini-ai/ui/panel-kit";
@@ -7,20 +7,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { OtherCredentialStoreInfo } from "./rules";
 import { otherCredentialRemoveDialogBody, removeDialogTitle } from "./security-i18n";
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
-import { useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
-
-/**
- * `agentHandle()` throws on anything that isn't lowercase words joined by single hyphens
- * (`@jini-ai/agentic`'s own `HANDLE_PATTERN`, `/^[a-z0-9]+(?:-[a-z0-9]+)*$/` — no underscores, no
- * colons, no spaces). Tier 1's providers are all drawn from this app's own fixed tables, so every
- * id there is already handle-safe by construction. Tier 2's per-item ids are NOT: `media-provider`'s
- * ids come from a vendor catalog and `external-mcp`'s are operator- or plugin-chosen — this app does
- * not own either spelling, and either can carry underscores. The predecessor already caught the identical class of
- * bug once, for a raw provider LABEL fed into a Tier-1 handle (`AccessTokensTab.tsx`'s own
- * `NotConnectedRow` comment); this is the same trap for a raw ITEM ID here — caught live via a
- * headless-browser console check before this reached the owner's own screen, the same way it was
- * caught the first time. */
-const HANDLE_SAFE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+import { rowHandleBase, useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
 /**
  * @file Tier 2 of the Access Tokens list — {@link OtherCredentialEntry}, the one top-level entry
@@ -51,28 +38,6 @@ function entryHandleLabel(name: string, purposeLabel: string, configured: boolea
   return configured ? `${name} — ${purposeLabel}, configured` : `${name} — ${purposeLabel}, not configured`;
 }
 
-/** A DOM-id/`agentHandle()`-safe form of `row.key` — `row.key` itself is `${storeId}:${itemId}`
- *  (a colon-joined React/draft-state map key, fine for those two uses), but `agentHandle()` throws
- *  on anything that isn't lowercase words joined by single hyphens, and a colon is also a live CSS
- *  pseudo-class delimiter that would break any `#id` selector built from it. Caught live, the exact
- *  same class of bug `AccessTokensTab.tsx`'s own `NotConnectedRow` comment records for Tier 1 (a raw
- *  provider LABEL there; a raw ROW KEY here) — every `id`/`htmlFor`/`agentHandle()` call in this file
- *  must build from this helper, never from `row.key` directly.
- *  @complexity O(1). */
-function rowHandleBase(row: OtherCredentialRowState): string {
-  return `${row.store.id}-${row.itemId}`;
-}
-
-/** `agentHandle()`'s own spread, guarded against an unsafe id — mirrors `TabBar.tsx`'s own
- *  `tabHandleProps` ("omit the spread entirely when there is nothing safe to hand it"), extended
- *  from "handle is absent" to "handle is present but not safe": a media-provider or server id this
- *  app doesn't control just never gets tagged, rather than crashing the row that would have rendered
- *  it — see this file's header for why the id can be unsafe at all. @complexity O(1). */
-function safeAgentHandle(handle: string, options: Parameters<typeof agentHandle>[1]): ReturnType<typeof agentHandle> | Record<string, never> {
-  if (!HANDLE_SAFE_PATTERN.test(handle)) return {};
-  return agentHandle({ handle }, options);
-}
-
 /** One top-level Tier-2 entry — see this file's header for why this has no separate parent heading
  *  the way a Tier-1 `ProviderGroup` does. `row` is `undefined` for the not-configured placeholder.
  *  Exported (2026-09-21 round 2): `AccessTokensTab.tsx` now mounts this directly, one call per
@@ -83,7 +48,7 @@ export function OtherCredentialEntry({ store, row, controller }: { store: OtherC
   return (
     <section
       className="access-tokens-provider-group"
-      {...safeAgentHandle(`security-other-credentials-${store.id}-${row?.itemId ?? "none"}`, {
+      {...agentHandle({ handle: `security-other-credentials-${store.id}-${agentHandleSegment({ value: row?.itemId ?? "none" })}` }, {
         role: "region",
         label: entryHandleLabel(name, store.purposeLabel, row !== undefined),
       })}
@@ -114,7 +79,7 @@ function DeepLink({ store, handleSuffix, t: translate }: { store: OtherCredentia
     <a
       className="btn-secondary"
       href={`/admin${store.screenPath}`}
-      {...safeAgentHandle(`security-other-credentials-manage-${handleSuffix}`, {
+      {...agentHandle({ handle: `security-other-credentials-manage-${handleSuffix}` }, {
         role: "link",
         label: `Open ${store.screenLabel} to manage this credential`,
       })}
@@ -163,7 +128,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
         ) : null}
       </div>
       <div className="access-tokens-row-actions">
-        <DeepLink store={row.store} handleSuffix={rowHandleBase(row)} t={translate} />
+        <DeepLink store={row.store} handleSuffix={rowHandleBase({ row })} t={translate} />
         <button
           type="button"
           className="btn-danger"
@@ -174,7 +139,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
           // same store put two identically-labeled "Remove from Tovu" buttons on screen at once.
           // `row.name` is this row's own display name, already visible in its heading.
           aria-label={`${translate("Remove from Tovu")} — ${row.name}`}
-          {...safeAgentHandle(`security-other-credentials-remove-${rowHandleBase(row)}`, { role: "button", label: `Remove ${row.name} from Tovu` })}
+          {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
         >
           {translate("Remove from Tovu")}
         </button>
@@ -209,7 +174,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
       <div className="access-tokens-row-block">
         <div className="access-tokens-row-fields access-tokens-row-fields-top">
           <div className="field">
-            <label className="field-label" htmlFor={`security-other-credential-${rowHandleBase(row)}`}>
+            <label className="field-label" htmlFor={`security-other-credential-${rowHandleBase({ row })}`}>
               {translate("Access token")}
               {row.updatedAt ? (
                 <span className="access-tokens-row-summary-meta access-tokens-field-label-meta">
@@ -221,7 +186,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
                 string (leading dots + last 4 real characters); a password-type input would mask the
                 last 4 a second time, hiding the one part of this value that's meant to stay visible. */}
             <input
-              id={`security-other-credential-${rowHandleBase(row)}`}
+              id={`security-other-credential-${rowHandleBase({ row })}`}
               className="access-tokens-row-field-disabled"
               type="text"
               autoComplete="off"
@@ -231,7 +196,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
           </div>
         </div>
         <div className="access-tokens-row-actions access-tokens-row-actions-top">
-          <DeepLink store={row.store} handleSuffix={rowHandleBase(row)} t={translate} />
+          <DeepLink store={row.store} handleSuffix={rowHandleBase({ row })} t={translate} />
           <button
             type="button"
             className="btn-danger"
@@ -239,7 +204,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
             // Same multi-item-per-store ambiguity as `OtherCredentialStaticRow`'s identical button
             // above.
             aria-label={`${translate("Remove from Tovu")} — ${row.name}`}
-            {...safeAgentHandle(`security-other-credentials-remove-${rowHandleBase(row)}`, { role: "button", label: `Remove ${row.name} from Tovu` })}
+            {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
           >
             {translate("Remove from Tovu")}
           </button>
@@ -275,9 +240,9 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
     // `RemoveConfirmDialog` (`AccessTokensTab.tsx`): a native `<dialog>` gets no accessible name
     // for free from an `<h2>` inside it, and this doc comment's own header already promises this
     // dialog "mirrors Tier 1's `RemoveConfirmDialog` exactly" — this brings that true for the title
-    // link too. `rowHandleBase(row)` (already this row's DOM-id-safe base, used below by its own
+    // link too. `rowHandleBase({ row })` (already this row's DOM-id-safe base, used below by its own
     // input/deep-link ids) keeps this id unique across every Tier-2 row's own dialog.
-    const titleId = `security-other-credentials-remove-title-${rowHandleBase(row)}`;
+    const titleId = `security-other-credentials-remove-title-${rowHandleBase({ row })}`;
     return (
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
         <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
@@ -288,7 +253,7 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
           <button
             type="button"
             onClick={close}
-            {...safeAgentHandle(`security-other-credentials-remove-cancel-${rowHandleBase(row)}`, { role: "button", label: "Close this dialog without removing the credential" })}
+            {...agentHandle({ handle: `security-other-credentials-remove-cancel-${rowHandleBase({ row })}` }, { role: "button", label: "Close this dialog without removing the credential" })}
           >
             {translate("Cancel")}
           </button>

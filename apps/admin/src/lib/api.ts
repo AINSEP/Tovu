@@ -507,6 +507,7 @@ export interface AdminMailStatus {
  *  `apps/website/src/platform/site-dir/site-registry.ts`. Only directories carrying a valid
  *  `.site-meta.json` commit marker appear; see {@link AdminSiteBinding.listed} for why that matters. */
 export interface AdminSiteListEntry {
+  moveIntoSites?: boolean;
   /** Folder name under `sites/` — the id every write in this feature takes. */
   name: string;
   dir: string;
@@ -542,7 +543,7 @@ export interface AdminLocalSiteState {
   app?: string; external?: boolean;
 }
 export interface AdminTrashedSite { id: string; name: string; displayName: string }
-export type AdminLocalSiteAction = "start" | "stop" | "trash" | "restore" | "delete" | "switch";
+export type AdminLocalSiteAction = "start" | "stop" | "trash" | "restore" | "delete" | "switch" | "move";
 
 /** Machine-local config, shared with desktop. Runtime env overrides are displayed explicitly. */
 export interface SitesUserConfig {
@@ -1074,6 +1075,7 @@ export interface AdminPublishDestinationView {
  *  `@jini-ai/ui` picker reads this yet; it exists so a future one can narrow the "Reasoning effort"
  *  control to the SELECTED model instead of `reasoningOptions`' agent-wide union. */
 export interface AdminExecutionDetectedAgent {
+  discoveryPending?: boolean;
   id: string;
   label: string;
   installed: boolean;
@@ -1290,6 +1292,8 @@ export interface SeoEntryAnalysis {
 }
 
 export interface AdminPost {
+  /** Derived from the revision ledger for editor URL stability after unpublishing. */
+  everPublished?: boolean;
   author?: string | null;
   showAuthor?: boolean;
   id: string;
@@ -1391,6 +1395,9 @@ export interface AdminThemeSummary {
    *  Template" fetch, which needs to know whether this theme's page templates live under `pages/`
    *  or `render/pages/`. */
   apiVersion?: 2;
+  /** Ships with the package (mirrors `HeadlessThemeSummary.builtIn`): the Themes card menu won't
+   *  offer to delete it. Absent from older servers. */
+  builtIn?: boolean;
 }
 
 export interface AdminMember {
@@ -1471,7 +1478,7 @@ export interface AdminMenuAuthoring {
 // Widgets (SPEC-043, ADR-047) — mirrors AdminMenu's shape, the direct structural sibling
 // ---------------------------------------------------------------------------
 
-export type AdminWidgetType = "text" | "social-links" | "recent-entries" | "menu" | "contact-form";
+export type AdminWidgetType = "text" | "social-links" | "recent-entries" | "menu" | "contact-form" | "gallery" | "media";
 
 export interface AdminWidget {
   id: string;
@@ -2532,6 +2539,23 @@ async function request<T>(path: string, init?: RequestInit, onOk?: (res: Respons
   return requestRidingOutRestart({ send: () => requestOnce<T>({ path, init, onOk }, options), method: init?.method }, options);
 }
 
+/** C2's safe inventory contract. Eligibility and the minimum hint length remain server-owned. */
+export interface AdminCredentialCopySource {
+  siteId: string;
+  name: string;
+  keys: { kind: string; id: string; label: string; provider: string | null; last4?: string }[];
+  reasonCode?: string;
+  message?: string;
+  actionHint?: { action: "start-site"; siteId: string; desktopSiteId: string };
+}
+export interface AdminCredentialCopyResult {
+  kind: string;
+  id: string;
+  status: "copied" | "skipped" | "failed";
+  last4?: string;
+  reasonCode?: string;
+}
+
 export interface AuthenticatedAdminRequestOptions {
   /** Explicit local API owners only: never send admin cookies to a provider URL. */
   basePath?: "/api/admin/v1" | "/api/assistant/chats" | "/api/agents";
@@ -2704,6 +2728,8 @@ export const api = {
     { id }: { id: string },
     options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId" | "author" | "showAuthor">> & {
       expectedVersion?: number;
+      hideCoverImageInBody?: boolean;
+      slugFromTitle?: boolean;
     } = {}
   ) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`, {
@@ -2820,7 +2846,7 @@ export const api = {
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}`, {
       method: "DELETE",
     }),
-  getPresentation: () =>
+  getPresentation: (required: { kind?: "post" | "page" } = {}, _optional: Record<string, never> = {}) =>
     request<{
       settings: PresentationSettings;
       availableThemeIds: string[];
@@ -2828,10 +2854,11 @@ export const api = {
       /** Template-picker feature (2026-08-10, unified 2026-08-11) — ONE list shared by both the
        *  Post editor's and the Pages editor's pickers (was two separate fields,
        *  `activeThemePostTemplates`/`activeThemePageTemplates`, until the unified `content` marker
-       *  removed the reason they needed to differ). */
+       *  removed the reason they needed to differ). Editors now request `kind` to filter this
+       *  list using the theme's optional `templateFor`; other callers retain the full catalog. */
       activeThemeTemplates: string[];
       activeThemeStaticPageIds: string[];
-    }>(`/workspaces/${WORKSPACE_ID}/presentation`),
+    }>(`/workspaces/${WORKSPACE_ID}/presentation${required.kind ? `?kind=${required.kind}` : ""}`),
   /**
    * One theme's editable surface: which pages it ships, which root partials, and where it was
    * copied from. Drives the Explore screen's file list and its "you are editing a copy" banner.
@@ -3159,6 +3186,14 @@ export const api = {
    *  sniffed HTML/SVG is deliberately served as a non-rendering attachment) — see `Media.tsx`'s
    *  `MediaPreview` for how the client discovers which element type an asset actually needs. */
   mediaOriginalUrl: (id: string) => `${BASE}/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/original`,
+  /** The image a public post shows as its cover: the `/m/` route's core `public` rendition (WebP,
+   *  uncropped, generated once and cached server-side — `apps/website/src/features/media/bootstrap.ts`).
+   *  The Edit post cover slot shows this one so it matches the published page (owner 2026-10-11:
+   *  it showed the `og` 1200 × 630 share crop squeezed into a 220px band; the public page shows the
+   *  whole image). A browser that opened the post already has it cached. `v1` because that bootstrap
+   *  is find-or-create and never mints a second version; callers still fall back to
+   *  {@link mediaOriginalUrl} when this fails to load (no `sharp`, a gated asset, a newer version). */
+  mediaPreviewRenditionUrl: (id: string) => siteUrl(`/m/${encodeURIComponent(id)}/public.v1/image.jpg`),
   /** The asset's real, server-sniffed `Content-Type`, read from a `HEAD` of {@link mediaOriginalUrl}
    *  (no body transferred) — the same value the public renderer dispatches `<img>` vs `<video>` on.
    *  Resolves `""` when the route answers non-2xx or sends no header. */
@@ -3329,8 +3364,8 @@ export const api = {
   // stateless egress probes (`src/server/modules/assistant-execution.ts`), not ledger CRUD, and the
   // `apiKey` field these two POST bodies carry is used for exactly one outbound request server-side
   // and never persisted (ADR-028 §6 — see `apps/admin/src/lib/execution-settings.ts`'s header).
-  detectExecutionAgents: () =>
-    authenticatedAdminRequest<{ data: AdminExecutionDetectedAgent[] }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/detect-agents`, body: {} }),
+  detectExecutionAgents: (_input: Record<string, never> = {}, { force = false }: { force?: boolean } = {}) =>
+    authenticatedAdminRequest<{ data: AdminExecutionDetectedAgent[] }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/detect-agents`, body: force ? { force: true } : {} }),
   // `useStoredCredential` opts a probe into the workspace's encrypted server-side SITE credential
   // when `apiKey` is empty — for the AI Assistant tab's visitor form, whose key is write-only and so
   // genuinely absent from the browser. `useAdminStoredCredential` is the same opt-in for the OTHER
@@ -4181,6 +4216,17 @@ export const api = {
    *  the publish-credentials block above. */
   deleteSourceControlCredential: (id: string) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
+  /** Safe local project choices and eligible key summaries; no credential values. */
+  listCredentialCopySources: (_required: Record<string, never>, options: AuthenticatedAdminRequestOptions = {}) =>
+    authenticatedAdminRequest<{ sources: AdminCredentialCopySource[] }>({
+      path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "GET",
+    }, options),
+  /** Copy selected source IDs through the owner-only route; overwrite is explicit. */
+  copyCredentials: (input: { sourceSiteId: string; ids: string[]; overwrite: boolean }, options: AuthenticatedAdminRequestOptions = {}) =>
+    authenticatedAdminRequest<{ results: AdminCredentialCopyResult[] }>({
+      path: `/workspaces/${WORKSPACE_ID}/system/credential-copy`, method: "POST", body: input,
+    }, options),
 
   // Access Tokens page → "Add custom provider" (`src/server/routes/admin/system/
   // custom-credentials.ts`) — a user-defined provider (name, base URL, token, optional username,

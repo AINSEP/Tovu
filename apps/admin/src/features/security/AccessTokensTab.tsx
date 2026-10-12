@@ -1,6 +1,6 @@
 import { CredentialHint } from "@/components/CredentialHint";
 import { forwardRef, useRef } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -36,6 +36,8 @@ import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { OtherCredentialEntry } from "./OtherCredentialsSection";
 import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsOrder } from "./AccessTokensTab.hooks";
+import { CopyKeysDialog } from "./CopyKeysDialog";
+import { useWiredCopyKeys } from "./hooks/use-copy-keys.hooks";
 
 /**
  * @file The Access Tokens tab — `Security.tsx`'s one tab and this feature's actual content. One
@@ -85,6 +87,7 @@ export interface AccessTokensTabProps {
   /** DI seams for tests — same convention as every other wired-hook prop in this app. */
   useAccessTokensHook?: typeof useWiredAccessTokens;
   useOtherCredentialsHook?: typeof useWiredOtherCredentials;
+  useCopyKeysHook?: typeof useWiredCopyKeys;
 }
 
 function resolveAccessTokensHook(override: typeof useWiredAccessTokens | undefined): typeof useWiredAccessTokens {
@@ -103,6 +106,8 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
   // search box, one category filter, across both tiers (this file's own header). See
   // `use-other-credentials.hooks.ts`'s header for why that state isn't duplicated here instead.
   const otherController = useOtherCredentialsHook({ query: controller.query, category: controller.category });
+  const useCopyKeysHook = props.useCopyKeysHook ?? useWiredCopyKeys;
+  const copyDialog = useCopyKeysHook({ t: controller.t });
 
   return (
     <div
@@ -112,6 +117,8 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
         label: "Every access token and other saved credential this install holds, across all eight stores, searchable and filterable by category",
       })}
     >
+      <button type="button" className="btn-secondary" onClick={copyDialog.show}>{controller.t("Copy keys from another project…")}</button>
+      <CopyKeysDialog dialog={copyDialog} t={controller.t} />
       <AccessTokensBody controller={controller} otherController={otherController} />
     </div>
   );
@@ -261,7 +268,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
   return (
     <section
       className="access-tokens-provider-group"
-      {...agentHandle({ handle: `security-access-tokens-group-${group.info.kind}-${group.info.providerId}` }, {
+      {...agentHandle({ handle: `security-access-tokens-group-${group.info.kind}-${agentHandleSegment({ value: group.info.providerId })}` }, {
         role: "region",
         label: providerGroupHandleLabel(group.info, group.rows.length),
       })}
@@ -291,7 +298,7 @@ function AddAnotherButton({ ref, label, controller, t: translate }: { ref: Acces
       type="button"
       className="link-button access-tokens-add-another"
       onClick={() => controller.openAddForm(ref)}
-      {...agentHandle({ handle: `security-access-tokens-add-${ref.kind}-${ref.providerId}` }, { role: "button", label: `Add another ${label} token` })}
+      {...agentHandle({ handle: `security-access-tokens-add-${ref.kind}-${agentHandleSegment({ value: ref.providerId })}` }, { role: "button", label: `Add another ${label} token` })}
     >
       {translate("Add another")} <span translate="no">{label}</span> {translate("token")}
     </button>
@@ -322,7 +329,7 @@ function NotConnectedRow({ ref, label, onConnect, t: translate }: { ref: AccessT
           // single hyphens, and a proper-noun label like "GitHub Pages" (capitals, a space) throws
           // at render time. Caught live: an uncaught throw here unmounted this whole row with no
           // error boundary above it, which is worse than a defensive check — a crash, not a fallback.
-          {...agentHandle({ handle: `security-access-tokens-connect-${ref.kind}-${ref.providerId}` }, { role: "button", label: `Connect ${label}` })}
+          {...agentHandle({ handle: `security-access-tokens-connect-${ref.kind}-${agentHandleSegment({ value: ref.providerId })}` }, { role: "button", label: `Connect ${label}` })}
         >
           {translate("Connect")}
           <DisclosureChevronIcon />
@@ -350,7 +357,7 @@ function TokenRow({
   return (
     <details
       className="access-tokens-row access-tokens-row-done"
-      {...agentHandle({ handle: `security-access-tokens-row-${state.row.kind}-${state.row.providerId}-${state.row.id}` }, {
+      {...agentHandle({ handle: `security-access-tokens-row-${state.row.kind}-${agentHandleSegment({ value: state.row.providerId })}-${agentHandleSegment({ value: state.row.id })}` }, {
         role: "region",
         label: tokenRowHandleLabel(state.name, info.label),
       })}
@@ -403,7 +410,7 @@ function TokenRowDefaultIndicator({ state, showDefaultUi, controller, t: transla
       // identically-labeled "Make default" buttons are on screen simultaneously. `state.name` is
       // this row's own operator-chosen display name, already unique enough to pick one out.
       aria-label={`${translate("Make default")} — ${state.name}`}
-      {...agentHandle({ handle: `security-access-tokens-default-${state.row.id}` }, { role: "button", label: `Make ${state.name} the default token` })}
+      {...agentHandle({ handle: `security-access-tokens-default-${agentHandleSegment({ value: state.row.id })}` }, { role: "button", label: `Make ${state.name} the default token` })}
     >
       {translate("Make default")}
     </button>
@@ -613,7 +620,7 @@ function ExistingTokenFields({
   return (
     <>
       <TokenInputFields
-        idPrefix={`security-existing-${state.row.id}`}
+        idPrefix={`security-existing-${agentHandleSegment({ value: state.row.id })}`}
         info={info}
         name={state.name}
         token={state.token}
@@ -639,7 +646,7 @@ function ExistingTokenFields({
           // way a sighted reader already can. Mirrors the visible text's own saving/idle split so the
           // accessible name never says "Save" while the button reads "Saving…" (WCAG 2.5.3).
           aria-label={`${state.saving ? translate("Saving…") : translate("Save")} — ${state.name}`}
-          {...agentHandle({ handle: `security-access-tokens-save-${state.row.id}` }, { role: "button", label: `Save this ${info.label} token` })}
+          {...agentHandle({ handle: `security-access-tokens-save-${agentHandleSegment({ value: state.row.id })}` }, { role: "button", label: `Save this ${info.label} token` })}
         >
           {state.saving ? translate("Saving…") : translate("Save")}
         </button>
@@ -651,7 +658,7 @@ function ExistingTokenFields({
           // see `rules.ts`'s `restoreButtonAccessibleName` (`recovery/rules.ts`) for the identical
           // reasoning applied to a different screen's own always-visible destructive control.
           aria-label={`${translate("Remove from Tovu")} — ${state.name}`}
-          {...agentHandle({ handle: `security-access-tokens-remove-${state.row.id}` }, { role: "button", label: `Open the confirm dialog to remove this ${info.label} token from Tovu` })}
+          {...agentHandle({ handle: `security-access-tokens-remove-${agentHandleSegment({ value: state.row.id })}` }, { role: "button", label: `Open the confirm dialog to remove this ${info.label} token from Tovu` })}
         >
           {translate("Remove from Tovu")}
         </button>
@@ -671,7 +678,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
   return (
     <div className="access-tokens-row">
       <TokenInputFields
-        idPrefix={`security-add-${info.kind}-${info.providerId}`}
+        idPrefix={`security-add-${info.kind}-${agentHandleSegment({ value: info.providerId })}`}
         info={info}
         name={state.name}
         token={state.token}
@@ -695,7 +702,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
           // here (there is no operator-chosen name yet to use, unlike `ExistingTokenFields`' own
           // fix above, since this token has not been saved).
           aria-label={`${state.saving ? translate("Saving…") : translate("Save")} — ${info.label}`}
-          {...agentHandle({ handle: `security-access-tokens-create-${info.kind}-${info.providerId}` }, { role: "button", label: `Save this ${info.label} token` })}
+          {...agentHandle({ handle: `security-access-tokens-create-${info.kind}-${agentHandleSegment({ value: info.providerId })}` }, { role: "button", label: `Save this ${info.label} token` })}
         >
           {state.saving ? translate("Saving…") : translate("Save")}
         </button>
@@ -704,7 +711,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
           className="link-button"
           onClick={() => controller.closeAddForm(ref)}
           aria-label={`${translate("Cancel")} adding this ${info.label} token`}
-          {...agentHandle({ handle: `security-access-tokens-cancel-${info.kind}-${info.providerId}` }, { role: "button", label: "Close this add-token form without saving" })}
+          {...agentHandle({ handle: `security-access-tokens-cancel-${info.kind}-${agentHandleSegment({ value: info.providerId })}` }, { role: "button", label: "Close this add-token form without saving" })}
         >
           {translate("Cancel")}
         </button>
@@ -741,7 +748,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
     // one of this page's per-row remove dialogs reads to an accessibility tree as an unnamed
     // "dialog", indistinguishable from any other open dialog on the page. Scoped by `row.id` (not a
     // static id) because one `RemoveConfirmDialog` is mounted per token row, all in the DOM at once.
-    const titleId = `security-access-tokens-remove-title-${row.id}`;
+    const titleId = `security-access-tokens-remove-title-${agentHandleSegment({ value: row.id })}`;
     return (
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
         <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
@@ -755,7 +762,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
             href={info.tokenPageUrl}
             target="_blank"
             rel="noreferrer"
-            {...agentHandle({ handle: `security-access-tokens-revoke-page-${row.id}` }, { role: "link", label: `Open ${info.vendorLabel} to revoke this token at the source` })}
+            {...agentHandle({ handle: `security-access-tokens-revoke-page-${agentHandleSegment({ value: row.id })}` }, { role: "link", label: `Open ${info.vendorLabel} to revoke this token at the source` })}
           >
             {translate("Revoke it on")} <span translate="no">{info.vendorLabel}</span> ↗
           </a>
@@ -765,7 +772,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
           <button
             type="button"
             onClick={close}
-            {...agentHandle({ handle: `security-access-tokens-remove-cancel-${row.id}` }, { role: "button", label: "Close this dialog without removing the token" })}
+            {...agentHandle({ handle: `security-access-tokens-remove-cancel-${agentHandleSegment({ value: row.id })}` }, { role: "button", label: "Close this dialog without removing the token" })}
           >
             {translate("Cancel")}
           </button>

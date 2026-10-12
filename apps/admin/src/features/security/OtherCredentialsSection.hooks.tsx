@@ -1,3 +1,4 @@
+import { agentHandleSegment } from "@jini-ai/agentic";
 import type { ForwardedRef, RefObject } from "react";
 
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
@@ -38,4 +39,9 @@ export function useOtherCredentialRemoveDialog(
     void controller.remove(row);
   }
   return { close, confirm };
+}
+
+/** Display-only ids for Tier 2 controls; raw item ids remain storage/draft keys. O(n) in id characters. */
+export function rowHandleBase({ row }: { row: OtherCredentialRowState }, _optional: Record<string, never> = {}): string {
+  return `${row.store.id}-${agentHandleSegment({ value: row.itemId })}`;
 }

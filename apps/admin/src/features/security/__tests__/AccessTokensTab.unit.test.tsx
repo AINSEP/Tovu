@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AccessTokensTab } from "../AccessTokensTab";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
+import { useCopyKeys } from "../hooks/use-copy-keys.hooks";
 
 /**
  * @file Regression coverage for the owner-reported bug: this page's search box was filling itself
@@ -78,6 +79,27 @@ describe("AccessTokensTab search box", () => {
     render(<AccessTokensTab useAccessTokensHook={() => makeAccessTokens()} useOtherCredentialsHook={() => makeOtherCredentials()} />);
 
     expect(screen.getByLabelText("Search access tokens")).toHaveAttribute("autocomplete", "off");
+  });
+});
+
+describe("AccessTokensTab project copy entry", () => {
+  it("has exactly one entry above the aggregate list and opens the shared dialog", async () => {
+    const user = userEvent.setup();
+    const listCredentialCopySources = vi.fn().mockResolvedValue({ sources: [] });
+    const copyCredentials = vi.fn();
+    const { container } = render(<AccessTokensTab
+      useAccessTokensHook={() => makeAccessTokens()}
+      useOtherCredentialsHook={() => makeOtherCredentials()}
+      useCopyKeysHook={input => useCopyKeys(input, { port: { listCredentialCopySources, copyCredentials } })}
+    />);
+    const entries = screen.getAllByRole("button", { name: "Copy keys from another project…" });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.compareDocumentPosition(container.querySelector(".access-tokens-tier")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(listCredentialCopySources).not.toHaveBeenCalled();
+    await user.click(entries[0]!);
+    expect(screen.getByRole("dialog", { name: "Copy keys from another project…" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Source project")).toBeInTheDocument();
+    expect(listCredentialCopySources).toHaveBeenCalledExactlyOnceWith({});
   });
 });
 

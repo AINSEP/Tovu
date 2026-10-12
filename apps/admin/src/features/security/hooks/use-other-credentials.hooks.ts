@@ -1,12 +1,14 @@
 import { credentialDraftError, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@/lib/credential-copy";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { describeApiError, type AdminMediaProviderMap } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSerialWrites, type Translate } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "../security-i18n";
 import {
   OTHER_CREDENTIAL_STORES,
+  ACCESS_TOKENS_RESOURCE,
   accessTokenCategoryMatches,
   envNamesFact,
   maskedTailFact,
@@ -214,35 +216,33 @@ export function useOtherCredentials(
   );
   const [drafts, setDrafts] = useState<Record<string, { token: string; saving: boolean; error: string | null }>>({});
 
-  // Fires once per mount — see this file's header for why six independent reads settle into one
-  // effect instead of six `useFetchQuery` mounts. Each store's own result lands on its own map entry
-  // as it settles, so a fast store renders before a slow one resolves.
-  const fetchedRef = useRef(false);
-  // Intentionally empty deps beyond the mount guard above — `port`/`t`/`locale` are stable for the
-  // lifetime of one mounted controller (bound once in `useWiredOtherCredentials`), matching
-  // `useAccessTokens`'s own seed-once effects.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: port/t/locale stable for the mounted controller's lifetime — see comment above; mount guard above prevents double-fetch.
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    for (const store of OTHER_CREDENTIAL_STORES) {
-      readStore(port, store, t, locale)
-        .then((items) => setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } })))
+  // Initial reads and copy refreshes share the existing readers and write lane. A late initial
+  // read cannot replace the inventory reloaded after copy; this fixed store set is one fan-out.
+  const writes = useSerialWrites();
+  const reloadStores = useCallback(() => {
+    void writes.run({ task: () => Promise.all(OTHER_CREDENTIAL_STORES.map(store =>
+      refetchOne(port, store, setStoreStates, t, locale)
         .catch((err: unknown) =>
           setStoreStates((prev) => ({
             ...prev,
             [store.id]: { items: [], loadError: accessTokensLoadErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale })) },
           }))
-        );
-    }
-  }, []);
+        )
+    )) });
+  }, [writes, port, t, locale]);
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    reloadStores();
+  }, [reloadStores]);
+  useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE, reloadStores);
 
   // One lane for every Tier-2 write from this controller: a media-provider write is GET map →
   // rebuild → PUT the WHOLE map, so two writes in flight at once would both rebuild from the same
   // snapshot and the second PUT would re-create whatever the first one removed. The shared lane makes
   // each write read the map only after the previous write (and its refetch) settled. Tab-local by
   // nature — two browser sessions still race; closing that needs a server-side concurrency check.
-  const writes = useSerialWrites();
 
   function setDraftToken(key: string, value: string): void {
     setDrafts((prev) => ({ ...prev, [key]: { token: value, saving: prev[key]?.saving ?? false, error: credentialDraftError({ value }, { locale }) } }));
