@@ -431,9 +431,12 @@ export function normalizeLegacyVaultPayload(
   const payload = JSON.parse(plaintext) as VaultMeta;
   if (payload === null || typeof payload !== "object" || Array.isArray(payload)) throw new VaultError({ code: "invalid-record" });
   if (record.kind === "custom" && payload.username !== undefined) {
-    // The plaintext column is authoritative, including null (an intentional clear). An old
-    // encrypted copy must never resurrect it; only an absent metadata field can be populated.
-    if (meta.username === undefined) meta.username = payload.username;
+    // A saved column value wins. A NULL column never meant a clear: the legacy clear re-sealed
+    // without the username, and the old read fell back to the sealed copy (`column ?? sealed`).
+    // NULL + sealed username is an un-backfilled row, so the sealed login moves to metadata.
+    if ((meta.username === undefined || meta.username === null) && typeof payload.username === "string" && payload.username !== "") {
+      meta.username = payload.username;
+    }
     delete payload.username;
   }
   let tokenField = policy.tokenField({ kind: record.kind, provider });

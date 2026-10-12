@@ -5,7 +5,9 @@ import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secr
 import { SecretsVaultService, buildVaultAad, VAULT_KINDS, type VaultKind, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 import { acquireOperationLock, releaseOperationLock, isOperationInFlight } from "#src/contracts/core/operation-lock";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
-import { vaultFixture, vaultStep, stamp } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
+import { vaultFixture, vaultStep, stamp, insertFixture } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
+import { describeCredential, resolveCustomCredentialByLabel, updateCustomCredential } from "#src/features/custom-credentials/store";
+import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { createTovuVaultKinds, type TovuVaultPolicy } from "../vault-kinds.js";
 import { normalizeVaultAtBoot, normalizeSiteVaultAtBoot, type VaultBootInput } from "../vault-boot.js";
 import { legacyVaultAad, buildPublishContentPeerAad, type VaultLegacyContext } from "../vault-legacy-codecs.js";
@@ -76,7 +78,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       assert.deepEqual(plaintexts.get("mcp-env"), { NAME: "env-value" });
       assert.deepEqual(plaintexts.get("mcp-auth"), { schemaVersion: 1, clientSecret: "client-secret", tokens: { accessToken: "access-token" } });
       const custom = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
-      assert.equal(custom.meta.username, null, "an intentionally cleared username must not resurrect from old ciphertext");
+      assert.equal(custom.meta.username, "login", "a NULL column never meant a clear: the sealed legacy login moves to metadata");
       const media = (await repo.find({ workspaceId: "ws", id: 'vault:["media-provider","media-test"]' }))!;
       assert.equal(media.tokenLength, 5);
       assert.equal(media.last4, null);
@@ -101,6 +103,47 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       assert.equal(empty.kinds["site-assistant"].rows, 1);
       assert.equal(empty.kinds["media-provider"].rows, 1);
       assert.equal(empty.kinds["site-assistant"].envelopes, 0);
+    } finally { await kernel.close(); }
+  });
+
+  // Replaces the retired username backfill: before the vault, reads fell back to the sealed username
+  // when the column was NULL, so a NULL column with a sealed login was un-backfilled, never cleared.
+  test(`${dialect}: a legacy custom login sealed only in the connection survives boot and token rotation; a saved column wins`, async () => {
+    const fixture = await vaultFixture(dialect);
+    const { kernel, keyring, sealer } = fixture;
+    try {
+      const key = await keyring.activeKey({});
+      for (const [id, column, connection] of [
+        ["custom-column", "column-user", { token: "column-token-1234567890", username: "stale-sealed-user" }],
+        ["custom-token-only", null, { token: "token-only-1234567890" }],
+      ] as const) {
+        const sealed = await sealer.seal({ plaintext: JSON.stringify(connection), key, aad: `custom-credential-set:v1:ws:${id}` });
+        await insertFixture(kernel, "custom_credential_sets", { workspace_id: "ws", created_at: stamp, updated_at: stamp, id, label: id,
+          category: "general", base_url: "https://api.example.test/v1", additional_hosts_json: "[]", username: column,
+          sealed_key_id: sealed.keyId, sealed_ciphertext: sealed.ciphertext, sealed_nonce: sealed.nonce, sealed_alg: sealed.alg });
+      }
+      await kernel.transaction(() => vaultStep.up(kernel, { note: () => {} }));
+      const input: VaultBootInput = { ...fixture, workspaceId: "ws", siteId: `vault-boot-username-${dialect}`, clock, registry };
+      const repo = new SqlSecretsVaultRepo({ kernel: kernel as StorageKernel<SecretsVaultDatabase> });
+      assert.equal((await normalizeVaultAtBoot(input)).green, true);
+      const service = new SecretsVaultService({ repo, keyring, sealer, metaParsers: registry.metaParsers,
+        authorize: async () => {}, now: () => stamp, newId: () => "unused" });
+      const expected = { custom: "login", "custom-column": "column-user", "custom-token-only": null };
+      for (const [id, username] of Object.entries(expected)) {
+        const record = (await repo.find({ workspaceId: "ws", id }))!;
+        assert.equal(record.meta.username, username, id);
+        assert.equal((await service.get(record))!.payload!.username, undefined, `${id}: the login is metadata only, never left sealed`);
+      }
+      const after = await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`);
+      assert.equal((await normalizeVaultAtBoot(input)).green, true);
+      assert.deepEqual(await kernel.query(sql`SELECT * FROM secrets_vault WHERE workspace_id='ws' ORDER BY id`), after, "a second boot changes nothing");
+
+      // The set-token rotation path: re-read the saved username, replace the token, resolve for Basic auth.
+      const store = { repo: new CustomCredentialVaultRepo({ vault: repo }), sealer, keyring, clock, idGen: { newId: () => "unused" } } as unknown as Parameters<typeof updateCustomCredential>[0];
+      const current = await describeCredential(store, { workspaceId: "ws", id: "custom" });
+      await updateCustomCredential(store, { workspaceId: "ws", id: "custom", connection: { token: "rotated-token-1234567890", username: current!.username } });
+      const resolved = await resolveCustomCredentialByLabel(store, { workspaceId: "ws", label: "Custom" });
+      assert.deepEqual(resolved?.connection, { token: "rotated-token-1234567890", username: "login" });
     } finally { await kernel.close(); }
   });
 
