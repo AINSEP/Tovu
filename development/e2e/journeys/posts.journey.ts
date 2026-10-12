@@ -180,7 +180,12 @@ test.describe("posts stress", () => {
   test("reload while a save is in flight never silently loses the typed title", { tag: ["@unrun"] }, async ({ page }) => {
     const { id } = await newPost(page);
     const title = uniq("Mid-save reload");
+    // Let the debounced standing draft land first. Without this the draft is only written by the
+    // exit flush's keepalive PUT during the reload, which came back cancelled under this test's
+    // request routing (below) about 1 run in 7, and the title was lost with it.
+    const drafted = page.waitForResponse((r) => r.request().method() === "PUT" && new URL(r.url()).pathname === `${WS_API}/posts/${id}/autosave` && r.ok());
     await titleInput(page).fill(title);
+    await drafted;
     await page.route(POST_ITEM, async (route) => {
       if (route.request().method() !== "PUT") return route.continue();
       await new Promise((resolve) => setTimeout(resolve, 3_000)); // slow network, not a test wait
@@ -275,6 +280,12 @@ test.describe("session expiry mid-edit", () => {
 });
 
 test.describe.serial("Content analysis card (AW-7 Tier 2)", () => {
+  // Same as `plugins.journey.ts`: never leave the analyzer on for later journeys (its Plugins row
+  // is in `settings-locale.journey.ts`'s phone-plugins baseline).
+  test.afterAll(async ({ request }) => {
+    const off = await request.patch(`${WS_API}/plugins/content-analyzer`, { data: { enabled: false } });
+    expect(off.status(), await off.text()).toBeLessThan(300);
+  });
   test("with the analyzer off, the editor shows no Content analysis card", { tag: ["@unrun"] }, async ({ page }) => {
     // `ContentAnalysisCard` returns null unless the plugin list says the analyzer is enabled, so
     // "off" means no card and no Analyze now button (the server's refusal is only reachable from a
