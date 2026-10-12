@@ -1,6 +1,7 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { isSourceDirGeneratedConflict } from "../theme-files.js";
+import { parseTemplateFor } from "../template-applicability.js";
 import type { ThemeValidationIssue } from "./profiles.js";
 
 /**
@@ -110,6 +111,7 @@ const V2_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   "pages",
   "slots",
   "templates",
+  "templateFor",
   "publishedPages",
 ]);
 
@@ -135,6 +137,7 @@ const V2_FIELDS_READ_BY_LOADER: ReadonlySet<string> = new Set([
   "fonts",
   "regions",
   "templates",
+  "templateFor",
   "modes",
   "defaultMode",
   "slots",
@@ -418,6 +421,12 @@ export function validateManifestV2(
   issues.push(...checkName(raw.name));
   issues.push(...checkVersionField(raw.version));
   issues.push(...checkTier(raw.tier));
+  // The runtime parser owns this contract too: schema acceptance must never hide loader rejection.
+  try {
+    parseTemplateFor({ value: raw.templateFor, templates: Array.isArray(raw.templates) ? raw.templates.map(String) : undefined });
+  } catch (error) {
+    issues.push({ ruleId: "v2-template-for", message: (error as Error).message });
+  }
 
   issues.push(...checkEngine(raw.engine));
   // `engine` is deliberately NOT added to `flaggedUnimplemented` here — the generic sweep already

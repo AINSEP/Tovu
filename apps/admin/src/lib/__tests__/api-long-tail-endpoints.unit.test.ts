@@ -561,3 +561,14 @@ test("getCommentsSettings hits GET /comments/settings", async () => {
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/comments/settings`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
+
+
+test("presentation requests identify each editor's template kind", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.getPresentation({ kind: "post" });
+  await api.getPresentation({ kind: "page" });
+  expect(calls.map((call) => call.url)).toEqual([
+    "/api/admin/v1/workspaces/workspace-local/presentation?kind=post",
+    "/api/admin/v1/workspaces/workspace-local/presentation?kind=page",
+  ]);
+});

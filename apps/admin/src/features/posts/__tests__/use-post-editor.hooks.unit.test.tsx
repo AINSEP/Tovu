@@ -1133,7 +1133,9 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
         bodyFormat: "doc",
         bodyJson,
         title: "Edited via autosave",
-        slug: POST.slug,
+        slug: "edited-via-autosave",
+        author: "",
+        showAuthor: false,
         baseVersion: POST.version,
       });
     } finally {
@@ -1559,4 +1561,91 @@ describe("usePostEditor — optimistic concurrency", () => {
 
     expect(port.updatePostCalls[0].expectedVersion).toBeUndefined();
   });
+});
+
+
+describe("templateFor — saved post template remains selectable", () => {
+  it.each([{ templates: ["post.html"] }, { templates: [] }])("keeps a filtered-out saved choice visible with $templates", async ({ templates }) => {
+    const port = createFakePostEditorPort({
+      post: { ...POST, templateChoice: "page.html" },
+      presentation: { activeThemeTemplates: templates },
+    });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    expect(result.current.availableTemplates).toEqual([...templates, "page.html"]);
+    expect(result.current.templateChoice).toBe("page.html");
+    expect(result.current.dirty).toBe(false);
+    expect(port.updatePostCalls).toEqual([]);
+  });
+});
+
+describe("postpolish editor save policy", () => {
+  it("follows input and document title edits, saves through derivation, then stops on a manual slug", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.title).toBe(POST.title));
+    act(() => result.current.setTitle("Café Launch"));
+    expect(result.current.slug).toBe("cafe-launch");
+    await act(async () => result.current.save());
+    expect(port.updatePostCalls[0].slugFromTitle).toBe(true);
+    expect(port.updatePostCalls[0]).not.toHaveProperty("slug");
+    expect(result.current.slug).toBe("cafe-launch");
+    expect(result.current.dirty).toBe(false);
+    act(() => result.current.editor!.commands.setContent({ type: "doc", content: [
+      { type: "title", content: [{ type: "text", text: "Document Title" }] }, { type: "paragraph" },
+    ] }));
+    expect(result.current.slug).toBe("document-title");
+    act(() => result.current.setSlug("my-url"));
+    act(() => result.current.setTitle("Another title"));
+    expect(result.current.slug).toBe("my-url");
+    await act(async () => result.current.save());
+    expect(port.updatePostCalls[1].slug).toBe("my-url");
+    expect(port.updatePostCalls[1]).not.toHaveProperty("slugFromTitle");
+  });
+  it.each([{ status: "published" as const }, { everPublished: true }, { slug: "manual-url" }])("keeps the stored URL when title following is disallowed: %j", async (fields) => {
+    const port = createFakePostEditorPort({ post: { ...POST, ...fields } });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.title).toBe(POST.title));
+    const slug = result.current.slug;
+    act(() => result.current.setTitle("Changed title"));
+    expect(result.current.slug).toBe(slug);
+  });
+  it("defaults cover hiding on, saves false only when changed, and reloads the saved choice", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const first = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(first.result.current.title).toBe(POST.title));
+    expect(first.result.current.hideCoverImageInBody).toBe(true);
+    act(() => first.result.current.setHideCoverImageInBody(false));
+    expect(first.result.current.dirty).toBe(true);
+    await act(async () => first.result.current.save());
+    expect(port.updatePostCalls[0].hideCoverImageInBody).toBe(false);
+    expect(first.result.current.dirty).toBe(false);
+    first.unmount();
+    const second = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(second.result.current.title).toBe(POST.title));
+    expect(second.result.current.hideCoverImageInBody).toBe(false);
+    await act(async () => second.result.current.save());
+    expect(port.updatePostCalls[1]).not.toHaveProperty("hideCoverImageInBody");
+  });
+});
+
+it("postpolish: a settling Save preserves a later cover toggle and manual slug edit", async () => {
+  const port = createFakePostEditorPort({ post: POST });
+  const update = port.updatePost.bind(port);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  port.updatePost = async (target, patch) => { const result = await update(target, patch); await gate; return result; };
+  const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+  await waitFor(() => expect(result.current.title).toBe(POST.title));
+  await waitFor(() => expect(result.current.dirty).toBe(false));
+  act(() => { result.current.setTitle("Saved title"); result.current.setHideCoverImageInBody(false); });
+  let save!: Promise<void>;
+  act(() => { save = result.current.save(); });
+  await waitFor(() => expect(port.updatePostCalls).toHaveLength(1));
+  act(() => { result.current.setHideCoverImageInBody(true); result.current.setSlug("pending-manual-url"); });
+  await act(async () => { release(); await save; });
+  expect(result.current.hideCoverImageInBody).toBe(true);
+  expect(result.current.slug).toBe("pending-manual-url");
+  expect(result.current.dirty).toBe(true);
 });

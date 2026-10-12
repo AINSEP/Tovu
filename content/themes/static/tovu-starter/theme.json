@@ -21,6 +21,13 @@
     "index",
     "listing-default.html"
   ],
+  "templateFor": {
+    "posts-default.html": ["post"],
+    "posts-sidebar.html": ["post"],
+    "pages-default.html": ["page"],
+    "index": ["page"],
+    "listing-default.html": ["page"]
+  },
   "slots": {
     "nav": {
       "source": "nav.html",

@@ -12,6 +12,8 @@ import { lintLiquidTemplate } from "./liquid-allowlist.js";
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-files.js";
 import { themeIdCandidates } from "./theme-id-aliases.js";
 import { resolveThemeLayout } from "./theme-layout.js";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { parseTemplateFor, type ThemeTemplateFor } from "./template-applicability.js";
 
 /**
  * @file Declarative theme package format + discovery (SPEC-004, spike slice).
@@ -185,8 +187,11 @@ export interface ThemeManifest {
    * doc's own "interim" proposal) has no signal left to key off now that every template's primary
    * slot carries the identical `{"type":"content"}"` marker, and both admin pickers therefore offer
    * this one flat list unfiltered, same as they always effectively did within their own kind.
+   * `templateFor` now declares that applicability explicitly without inferring it from markers.
    */
   templates?: string[];
+  /** Optional template -> content kinds. An unlisted template applies to both posts and pages. */
+  templateFor?: ThemeTemplateFor;
   /**
    * `static` tier only — the allow-list of {@link isPublishableThemePageCandidate} page ids this
    * theme currently serves publicly (2026-08-30, owner ask: a static theme's public routing was
@@ -629,7 +634,7 @@ const NON_ROUTABLE_THEME_PAGE_IDS: ReadonlySet<string> = new Set(["index", "404"
  */
 export function isPublishableThemePageCandidate(theme: DiscoveredTheme, pageId: string): boolean {
   if (theme.pages[pageId] === undefined) return false;
-  if (NON_ROUTABLE_THEME_PAGE_IDS.has(pageId)) return false;
+  if (NON_ROUTABLE_THEME_PAGE_IDS.has(pageId) || RESERVED_SEGMENTS.has(pageId.toLowerCase())) return false;
   return !(theme.manifest.templates ?? []).some((entry) => entry.replace(/\.html$/, "") === pageId);
 }
 
@@ -750,6 +755,7 @@ function loadStaticTierAssets(
  */
 function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeManifest {
   const resolvedId = String(raw.id ?? id);
+  const templates = parseOptionalStringArray(raw.templates);
   return {
     id: resolvedId,
     name: String(raw.name ?? id),
@@ -769,7 +775,8 @@ function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeMan
     // standing rule on this contract: strictness over compat code). A manifest still carrying the
     // retired spelling simply loads with no templates, same as one that never declared any —
     // `check:embed-marker-drift` is what catches a manifest that needed converting, not this parse.
-    templates: parseOptionalStringArray(raw.templates),
+    templates,
+    templateFor: parseTemplateFor({ value: raw.templateFor, templates }),
     publishedPages: parseOptionalStringArray(raw.publishedPages),
     modes: parseOptionalStringArray(raw.modes),
     defaultMode: parseOptionalString(raw.defaultMode),

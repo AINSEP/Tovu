@@ -26,6 +26,7 @@ import { WidgetEmbed } from "@/lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "@/lib/post-title-extension";
 import { navigate as realNavigate } from "@/lib/router";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
+import { editorTemplateOptions } from "@/lib/editor-template-options.rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
 import {
@@ -35,6 +36,8 @@ import {
 } from "@/hooks/use-standing-draft-autosave.hooks";
 import {
   buildPostAutosaveDraft,
+  postSlugFollowsTitle,
+  postSlugForTitle,
   isoToLocalDateTimeInput,
   isScheduledPost,
   localDateTimeInputToIso,
@@ -103,6 +106,7 @@ export interface PostFormState {
   featuredMediaId: string | null;
   author: string;
   showAuthor: boolean;
+  hideCoverImageInBody: boolean;
 }
 
 /** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
@@ -183,6 +187,8 @@ export interface PostEditorController extends PostEditorUiController {
   setFeaturedMediaId: (id: string | null) => void;
   setAuthor: (value: string) => void;
   setShowAuthor: (value: boolean) => void;
+  hideCoverImageInBody: boolean;
+  setHideCoverImageInBody: (value: boolean) => void;
   /** `true` when this post's own `slug` matches one of the active theme's own page ids — the caller
    *  shows the collision warning + override checkbox only then. */
   hasSlugCollision: boolean;
@@ -578,7 +584,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const { port, navigate, t } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
   const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
+  const [storedSlug, setStoredSlug] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
+  const followsTitle = post !== null && postSlugFollowsTitle({ post, manuallyEdited: slugEdited });
+  const slug = followsTitle && title !== post?.title ? postSlugForTitle({ title }) : storedSlug;
+  function setSlug(value: string) { setSlugEdited(true); setStoredSlug(value); }
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [templateChoice, setTemplateChoice] = useState<string | null>(null);
   // The active static theme's own declared template list (theme.json's `templates`) — fetched
@@ -599,6 +609,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const [featuredMediaId, setFeaturedMediaId] = useState<string | null>(null);
   const [author, setAuthor] = useState("");
   const [showAuthor, setShowAuthor] = useState(false);
+  const [hideCoverImageInBody, setHideCoverImageInBody] = useState(true);
   // Same fetch-once-independent-of-postId shape as `availableTemplates` — the active theme's own
   // page ids don't change when switching between posts.
   const [staticPageIds, setStaticPageIds] = useState<string[]>([]);
@@ -839,7 +850,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     // even though it rarely changes) — an acceptable trade for a local admin panel.
     Promise.all([port.getPost(postId), port.getPresentation()])
       .then(([{ post }, { settings, availableThemes, activeThemeTemplates, activeThemeStaticPageIds }]) => {
-        setAvailableTemplates(activeThemeTemplates);
+        setAvailableTemplates(editorTemplateOptions({ templates: activeThemeTemplates, savedTemplate: post.templateChoice }));
         setStaticPageIds(activeThemeStaticPageIds);
         setActiveThemeId(settings.activeThemeId);
         const matchedTheme = availableThemes.find((theme) => theme.id === settings.activeThemeId);
@@ -847,7 +858,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         setActiveThemeApiVersion(matchedTheme?.apiVersion);
         setPost(post);
         setTitle(post.title);
-        setSlug(post.slug);
+        setStoredSlug(post.slug);
+        setSlugEdited(false);
         setStatus(post.status);
         // Defaults to the theme's own first-listed template — never to "no template chosen" — unless
         // this post already has an explicit choice saved. Only reachable when the theme actually
@@ -867,6 +879,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         setFeaturedMediaId(post.featuredMediaId ?? null);
         setAuthor(post.author ?? "");
         setShowAuthor(post.showAuthor ?? false);
+        setHideCoverImageInBody(post.ext?.["post-presentation"]?.hideCoverImageInBody !== false);
         if (editor) {
           // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
           // every post saved before this feature has a `bodyJson` with no `title` node, which the
@@ -896,6 +909,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
             featuredMediaId: post.featuredMediaId ?? null,
             author: post.author ?? "",
             showAuthor: post.showAuthor ?? false,
+            hideCoverImageInBody: post.ext?.["post-presentation"]?.hideCoverImageInBody !== false,
           });
         }
         // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same
@@ -967,7 +981,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   const publishAt = localDateTimeInputToIso(publishAtInput);
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
     {
-      current: { title, slug, status, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author, showAuthor },
+      current: { title, slug, status, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author, showAuthor, hideCoverImageInBody },
       original,
     },
     { host: window, translate: (key) => key },
@@ -1049,19 +1063,22 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         // `expectedVersion` is the optimistic-concurrency basis, not content — see
         // `post-editor-port.hooks.ts`. `undefined` (only reachable before `post` has loaded, when
         // there is no basis to claim) sends an unguarded save, exactly the pre-2026-09-06 behavior.
-        { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, expectedVersion, ...scheduleFieldsPatch(original, { publishAt, featuredMediaId }),
+        { title, ...(followsTitle ? { slugFromTitle: true } : { slug }), status: nextStatus, bodyJson, templateChoice, overridesThemePage, expectedVersion,
+          ...(hideCoverImageInBody !== original?.hideCoverImageInBody ? { hideCoverImageInBody } : {}), ...scheduleFieldsPatch(original, { publishAt, featuredMediaId }),
           ...authorFieldsPatch({ original, author, showAuthor }) },
       );
       // A newer save/publish was issued after this one — that later call owns the outcome now, so
       // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
       // "last-to-settle wins" rather than "last-clicked wins").
       if (!settlement.isCurrent({ generation })) return;
-      setPost(saved);
+      setPost({ ...saved, everPublished: post?.everPublished || post?.status === "published" || saved.status === "published" });
+      setStoredSlug(current => current === storedSlug ? saved.slug : current);
+      setHideCoverImageInBody(current => current === hideCoverImageInBody ? saved.ext?.["post-presentation"]?.hideCoverImageInBody !== false : current);
       setStatus(nextStatus);
       setAuthor(current => current === author ? saved.author ?? "" : current);
       setShowAuthor(current => current === showAuthor ? saved.showAuthor ?? false : current);
       setMessage(formatSaveSuccessMessage(statusOverride, saved, t, expectedVersion));
-      setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author: saved.author ?? "", showAuthor: saved.showAuthor ?? false });
+      setOriginal({ title, slug: saved.slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author: saved.author ?? "", showAuthor: saved.showAuthor ?? false, hideCoverImageInBody: saved.ext?.["post-presentation"]?.hideCoverImageInBody !== false });
       // The real content just landed — any parked standing draft is now obsolete. Not awaited: this
       // is best-effort background bookkeeping (errors are already caught inside the hook), not part
       // of what "Save succeeded" means to the operator.
@@ -1236,6 +1253,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     setAuthor,
     showAuthor,
     setShowAuthor,
+    hideCoverImageInBody,
+    setHideCoverImageInBody,
     hasSlugCollision,
     view,
     setView,

@@ -15,7 +15,7 @@ import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
 export const defaultPageEditorPort: PageEditorPort = {
   getPage: (routeSlug) => api.getPage(routeSlug),
   getPresentation: async () => {
-    const { activeThemeTemplates, settings, availableThemes } = await api.getPresentation();
+    const { activeThemeTemplates, settings, availableThemes } = await api.getPresentation({ kind: "page" });
     const activeTheme = availableThemes.find((theme) => theme.id === settings.activeThemeId);
     return {
       activeThemeTemplates,
