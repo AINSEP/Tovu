@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.ts";
+import { SITE_ORIGIN, normalizeOrigin, sitesFilePath, readTrackedSites, writeTrackedSites, trackSite, untrackSite, seedDevFallbackSite, retireDevFallbackSite, readDismissedSites, isSiteDirKnown, migrateLegacyDismissals, discoverSiteDirs, adoptDiscoveredSites } from "./tracked-sites.ts";
 import { classifySiteDir } from "./site-dir-store.ts";
 
 function tempDir(): string {
@@ -136,6 +136,20 @@ test("seedDevFallbackSite is not blocked by an unrelated tracked project", () =>
     readTrackedSites(file).map((r) => r.siteDir),
     ["/sites/other", "/repo/sites/tovu-com"],
   );
+});
+
+test("retireDevFallbackSite drops only the seeded fallback row once it is no longer a site, without dismissing it", () => {
+  const file = sitesFilePath(tempDir());
+  trackSite(file, "/sites/other");
+  assert.equal(seedDevFallbackSite(file, "/repo/sites/tovu-dev", () => "site"), true);
+  assert.equal(retireDevFallbackSite(file, "/repo/sites/tovu-dev", () => "site"), false);
+  assert.equal(retireDevFallbackSite(file, "/repo/sites/tovu-dev", () => "empty"), true);
+  assert.deepEqual(readTrackedSites(file).map((r) => r.siteDir), ["/sites/other"]);
+  assert.deepEqual(readDismissedSites(file), []);
+  // A site appearing there again is offered again; a created row is never retired.
+  assert.equal(seedDevFallbackSite(file, "/repo/sites/tovu-dev", () => "site"), true);
+  untrackSite(file, "/repo/sites/tovu-dev"); trackSite(file, "/repo/sites/tovu-dev", SITE_ORIGIN.created);
+  assert.equal(retireDevFallbackSite(file, "/repo/sites/tovu-dev", () => "empty"), false);
 });
 
 // --- provenance (2026-09-06) ---------------------------------------------------------------

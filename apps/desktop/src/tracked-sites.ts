@@ -481,6 +481,27 @@ function seedDevFallbackSite(projectsPath: string, devFallbackDir: string, class
   return adoptDiscoveredSites(projectsPath, [devFallbackDir]).length > 0;
 }
 
+/**
+ * The inverse of {@link seedDevFallbackSite}: drop the `adopted` row it seeded once `devFallbackDir`
+ * no longer holds a site. The dev site now lives in the single Documents/Tovu home and is tracked
+ * there, so the old checkout row is only a dead "Folder moved" card for a folder this app itself
+ * names. Not a dismissal — the seed offers the folder again if a site appears there — and the
+ * folder is never touched.
+ *
+ * @returns whether a row was dropped.
+ * @complexity O(n) in file size; the lock is taken only when the row is tracked.
+ */
+function retireDevFallbackSite(projectsPath: string, devFallbackDir: string, classifySiteDir: ClassifySiteDirFn): boolean {
+  if (classifiesAsSite(devFallbackDir, classifySiteDir) || !readTrackedSites(projectsPath).some((row) => row.siteDir === devFallbackDir)) return false;
+  let dropped = false;
+  updateProjectsFile(projectsPath, (current) => {
+    const rows = current.rows.filter((row) => row.siteDir !== devFallbackDir || row.origin !== SITE_ORIGIN.adopted);
+    dropped = current.state === "ok" && rows.length !== current.rows.length;
+    return dropped ? { rows, dismissed: current.dismissed } : null;
+  });
+  return dropped;
+}
+
 /** Input to {@link discoverSiteDirs}. */
 interface DiscoverSiteDirsInput {
   scanRoots: string[];
@@ -678,6 +699,7 @@ export {
   trackSite,
   untrackSite,
   seedDevFallbackSite,
+  retireDevFallbackSite,
   readDismissedSites,
   isSiteDirKnown,
   migrateLegacyDismissals,

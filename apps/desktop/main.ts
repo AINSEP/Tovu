@@ -133,7 +133,7 @@ import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.
 import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
 import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
 import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
-import { sitesFilePath, seedDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
+import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
 import { writeSiteName } from "./src/site-config.ts";
 import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "./src/site-preview-store.ts";
 import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from "./src/site-theme-preview.ts";
@@ -1736,6 +1736,8 @@ app
       // dialog shows the operator the error; here one unreadable candidate quit the app before any
       // window existed, leaving no renderer for the Rescan button to live in (D-01).
         seedDevFallbackSite(sitesCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
+        // And its inverse: once the dev site moved into the single home, the seeded checkout row is a dead card.
+        retireDevFallbackSite(sitesCtx.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDirSafely);
       }
       // Built once and shared: `rescanSites` below needs the same `deps` the handlers get, and a
       // second literal would be free to drift from this one in exactly the fields (`projectsPath`,
