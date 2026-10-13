@@ -1,38 +1,17 @@
 ---
 name: deploy
-description: Put the site online on a hosting service, using the workspace's own saved credentials. Covers picking a host, getting a token, previewing before publishing, and explaining failures in plain words. Every host is its own plugin - Vercel, Netlify, Cloudflare Pages, GitHub Pages, S3-compatible storage. Also deploys the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential site key, and deploying ships code, not content.
+description: Deploy the Tovu server itself to fly.io with no CLI installed (flyctl runs on GitHub's runner) - one machine only (SQLite), the volume shadowing sites/, secrets never in fly.toml, the sealed-credential site key, and deploying ships code, not content. Publishing the site's static export to a host is not this plugin's job - each host is its own plugin.
 ---
 
-# Deploy the site to a host
+# Deploy the Tovu server
 
 ## Scope
 
-This plugin owns **publishing the site's static export to a hosting service**. Tovu renders the whole
-site to plain files, and the chosen host serves them. The host code ships inside this plugin; Tovu runs
-it only because Tovu shipped it.
-
-Every host is its own plugin: **Vercel** (`vercel`), **Netlify** (`netlify`), **Cloudflare Pages**
-(`cloudflare-pages`), **GitHub Pages** (`github-pages`) and **S3-compatible storage** (`s3-compatible`). The tools below work the same for every host.
-
-## The procedure
-
-1. **Check what is ready.** Call `deployment_get_static_publish_capabilities`. It lists every host and
-   whether a credential is saved for it. Do not guess from memory.
-2. **Pick the host with the person.** Use what they already have: "my Netlify" means Netlify. With no
-   account yet, Netlify is the quickest free start (one token, no config fields).
-3. **No credential saved?** The person saves the token themselves in **Admin, Deployment, Static site**.
-   Never ask them to paste a token into chat, and never put one in a tool argument.
-4. **Preview first, always.** Call `deployment_preview_static_publish` and tell the person what will be
-   published and where. A preview publishes nothing.
-5. **Publish.** Call `deployment_execute_static_publish`. It shows the person a confirmation card; nothing
-   is uploaded until they confirm.
-6. **Report honestly.** `ok: true` means the public URL answered. `ok: "partial"` means the host accepted
-   the files but the URL is not reachable yet (usually DNS or CDN catching up): say so, give the URL, and
-   suggest checking again in a minute. Do not call it failed, and do not call it live.
-
-## Security headers
-
-Tovu hands every host the live site's security headers.
+This plugin owns **deploying the Tovu server itself** (app, admin, database), not publishing the site's
+static export. Static hosts are their own plugins: **Vercel** (`vercel`), **Netlify** (`netlify`),
+**Cloudflare Pages** (`cloudflare-pages`), **GitHub Pages** (`github-pages`) and **S3-compatible storage**
+(`s3-compatible`). The publish procedure every host shares is the site guide's `how-tovu-works-deploy`
+topic.
 
 ## Deploying the Tovu server to fly.io
 
@@ -47,5 +26,5 @@ plugin.
 
 ## When it fails
 
-Explain the cause in one plain sentence and the one next step. See the host's file in `references/` for
-its own messages.
+Explain the cause in one plain sentence and the one next step. See `references/fly-server.md` for its
+own messages.

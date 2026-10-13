@@ -47,7 +47,7 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
  *  to export" test below) would silently never apply. See `routes/types.ts`'s `exportSiteBound` doc
  *  for this same gotcha, generalized. Every call site below therefore also takes `testRouteDeps()`'s
  *  return value directly (`const deps = testRouteDeps()`), never re-spreading it a second time. */
-/** The bundled deploy plugin's targets, read from source — what decides config fields, validation
+/** The bundled hosting plugins' targets, read from source — what decides config fields, validation
  *  and base path for every publish below (a test's `buildTarget` replaces only the module's `create`). */
 const hermeticDeployTargets = createRouteDeps().loadDeployTargets;
 

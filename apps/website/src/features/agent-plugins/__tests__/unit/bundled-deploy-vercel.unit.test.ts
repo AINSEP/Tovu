@@ -63,7 +63,7 @@ function stubVercelApi(): () => Array<{ file: string; data: string }> {
   return () => posted;
 }
 
-describe("deploy plugin module contract (vercel)", () => {
+describe("hosting plugin module contract (vercel)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();

@@ -163,7 +163,7 @@ function verificationKit(deps: { readonly fetchFn?: typeof fetch; readonly hostK
 }
 
 function noCheckReason(target: StaticPublishTargetId): string {
-  return `no turned-on deploy plugin can check '${target}' credentials`;
+  return `no turned-on hosting plugin can check '${target}' credentials`;
 }
 
 /** An `unreachable` result for a credential nothing here could check (no module, no check, or a saved

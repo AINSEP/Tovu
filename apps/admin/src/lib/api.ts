@@ -4059,7 +4059,7 @@ export const api = {
     const query = new URLSearchParams({ ...config.fields, target: config.target });
     return request<AdminStaticPublishPreview>(`/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}`);
   },
-  /** The deploy targets the installed deploy plugins provide, with their publish and credential
+  /** The deploy targets the installed hosting plugins provide, with their publish and credential
    *  form fields — the publish card renders from this. */
   getPublishTargets: () =>
     request<{ targets: AdminPublishTargetDescriptor[] }>(`/workspaces/${WORKSPACE_ID}/system/publish-targets`).then((res) => res.targets),

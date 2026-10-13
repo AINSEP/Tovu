@@ -64,7 +64,7 @@ import type { PublishCredentialRowState, PublishCredentialsController } from "./
  * the two relate.
  *
  * The CLI-first assistant route (a `gh`/`vercel` PATH probe per provider) was removed 2026-09-29
- * (owner decision: publishing goes through the deploy plugin's hosts, not a server CLI).
+ * (owner decision: publishing goes through the hosting plugins, not a server CLI).
  *
  * ## Fourth pass (2026-08-15) — the picker catches up to all four providers the credential form
  * already saved for

@@ -413,7 +413,7 @@ export function legacyVaultAad({ record, legacy }: { record: VaultRecord; legacy
 
 /** Host-specific historical payload shapes. Plain tokens become sealed JSON; secrets remain sealed.
  * Custom username is classified plain metadata; source-control's paired username stays sealed.
- * Missing deploy plugins are blocked, as the former backfill did; never guess a vendor.
+ * Targets no hosting plugin declares are blocked, as the former backfill did; never guess a vendor.
  * @throws On unsupported payloads or unavailable catalogs; boot flags the original row.
  * @complexity O(payload size); no per-vendor branches, I/O or new crypto.
  */

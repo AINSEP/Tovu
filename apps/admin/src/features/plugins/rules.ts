@@ -392,7 +392,7 @@ export function humanizeAgentPluginId(pluginId: string): string {
 /**
  * The name a row shows: the package's own `displayName` (`plugin.json` `extensions.tovu.displayName`)
  * when it set one, else {@link humanizeAgentPluginId}. The id stays the stable key; only the title
- * can differ ("deploy" shows as "Deploy Online").
+ * can differ ("deploy" shows as "Server Deploy").
  *
  * @complexity O(n) in `pluginId`'s length.
  */

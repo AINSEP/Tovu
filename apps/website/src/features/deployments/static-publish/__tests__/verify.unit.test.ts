@@ -153,7 +153,7 @@ test("verifyPublishCredential: a target no installed plugin provides (or one wit
       { workspaceId: WORKSPACE, target }
     );
     assert.equal(result!.status, "unreachable");
-    assert.equal(result!.message, `Could not verify this credential: no turned-on deploy plugin can check '${target}' credentials.`);
+    assert.equal(result!.message, `Could not verify this credential: no turned-on hosting plugin can check '${target}' credentials.`);
   }
 });
 

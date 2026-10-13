@@ -255,7 +255,7 @@
       "id": "how-tovu-works-deploy",
       "title": "Deploy",
       "summary": "Choose between content publishing, static hosting and server deployment.",
-      "explanation": "Publishing a draft makes it visible on this Tovu instance. Sending content to another Tovu site, publishing a static export, and deploying the Tovu server use different tools and native host configuration. Discover enabled target capabilities; an installed deploy plugin is not proof a host account is connected. Preview before publishing, keep credentials in their existing secure owner, and verify the target live URL after the operation.",
+      "explanation": "Publishing a draft makes it visible on this Tovu instance. Sending content to another Tovu site, publishing a static export, and deploying the Tovu server use different tools and native host configuration. Discover enabled target capabilities; a turned-on hosting plugin is not proof a host account is connected. Preview before publishing, keep credentials in their existing secure owner, and verify the target live URL after the operation.",
       "permissions": [
         "system.read"
       ],
@@ -268,15 +268,30 @@
           ]
         },
         {
-          "label": "Learn hosting workflows",
-          "tool": "agent_plugin_deploy",
+          "label": "Check which hosts are ready",
+          "tool": "deployment_get_static_publish_capabilities",
           "permissions": [
-            "admin.plugins.read",
-            "admin.assistant.use"
+            "deployments.read"
           ]
         }
       ],
-      "workflows": []
+      "workflows": [
+        {
+          "title": "Publish the static site to a host",
+          "steps": [
+            "Check what is ready: deployment_get_static_publish_capabilities lists every host and whether a credential is saved for it. Do not guess from memory.",
+            "Pick the host with the person. Use what they already have: 'my Netlify' means Netlify. Each host's own plugin has its token steps and failure messages.",
+            "No credential saved? The person saves it themselves in Admin, Deployment, Static site, or through credential_save's secure card. Never ask them to paste a token into chat, and never put one in a tool argument.",
+            "Preview first, always: deployment_preview_static_publish publishes nothing. Tell the person what will be published and where.",
+            "Publish with deployment_execute_static_publish. It shows the person a confirmation card; nothing is uploaded until they confirm.",
+            "Report honestly. ok: true means the public URL answered. ok: 'partial' means the host accepted the files but the URL is not reachable yet: say so, give the URL, suggest checking again in a minute. Never call it failed, and never call it live."
+          ],
+          "permissions": [
+            "deployments.read",
+            "deployments.publish"
+          ]
+        }
+      ]
     },
     {
       "id": "how-tovu-works-plugins",

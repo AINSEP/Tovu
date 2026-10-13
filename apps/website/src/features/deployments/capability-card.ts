@@ -5,7 +5,7 @@ export const capabilityCard = {
   "id": "deploy",
   "title": "Deploy",
   "summary": "Publishing content, exporting a static site and deploying the server are separate workflows.",
-  "explanation": "Inspect the target and saved configuration. Use the enabled deploy plugin for host-specific instructions and review a preview before publishing.",
+  "explanation": "Inspect the target and saved configuration. Use the turned-on hosting plugin for host-specific instructions and review a preview before publishing.",
   "permissions": [
     "system.read"
   ],

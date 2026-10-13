@@ -10,6 +10,7 @@ token is saved, `deployment_preview_static_publish` comes first, and `deployment
 publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
 This file is what is particular to Netlify.
 
+- **No hosting account yet?** Netlify is the quickest free start: one token, no config fields.
 - **Token:** a personal access token from https://app.netlify.com/user/applications#personal-access-tokens.
   No config fields: Tovu finds or creates the Netlify site from the project name.
 - **Site name:** `jini-<project-name>` (lowercase, hyphens). Publishing the same project again updates the

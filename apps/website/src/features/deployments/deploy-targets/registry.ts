@@ -8,7 +8,7 @@ import { defineExecutablePluginContribution, type LoadPluginContributions, loadP
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
 /**
- * @file Loads deploy targets that Agent Plugins contribute — the generic seam that lets the `deploy`
+ * @file Loads deploy targets that Agent Plugins contribute — the generic seam that lets each hosting
  * plugin (and only plugins Tovu itself ships) add a hosting vendor without core naming one.
  *
  * A plugin opts in by shipping {@link DEPLOY_TARGETS_FILENAME} at its root: a data-only list of

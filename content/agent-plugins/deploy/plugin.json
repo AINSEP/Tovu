@@ -2,13 +2,13 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "deploy",
   "version": "0.1.0",
-  "description": "Publishes the site's static export to a hosting service with the workspace's own saved credentials. Ships the host code itself (Tovu loads it only because Tovu shipped it) and the know-how an agent needs: which host fits the person, where to get a token, preview before publishing, and what each failure means in plain words. Netlify first; more hosts move in here one at a time. Also deploys the Tovu server itself to fly.io through a GitHub Actions workflow, with no CLI installed anywhere: one machine only (SQLite), secrets never in fly.toml, and deploying ships code, not content.",
+  "description": "Deploys the Tovu server itself to fly.io through a GitHub Actions workflow, with no CLI installed anywhere: one machine only (SQLite), secrets never in fly.toml, and deploying ships code, not content. Also generates the server's Render and Railway config. Publishing the site's static export is not this plugin's job: each host (Vercel, Netlify, Cloudflare Pages, GitHub Pages, S3) is its own plugin.",
   "author": "Tovu",
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "displayName": "Deploy Online",
-      "summary": "Puts your website online. The assistant publishes your site to a hosting service such as Netlify, using an account you have connected, and shows you a preview first.\n\nIf something goes wrong, it tells you what happened in plain words and what to do next. It can also move Tovu itself onto a server so it keeps running online.",
+      "displayName": "Server Deploy",
+      "summary": "Moves Tovu itself onto a server so it keeps running online. The assistant walks you through it and explains anything that goes wrong in plain words.\n\nTo put your website online on a hosting service, turn on that host's own plugin instead.",
       "id": "tovu/deploy",
       "provides": [
         "deploy-target:fly",
@@ -19,10 +19,7 @@
   },
   "keywords": [
     "deploy",
-    "publish",
     "hosting",
-    "static-site",
-    "static-export",
     "go-live",
     "website",
     "fly",
