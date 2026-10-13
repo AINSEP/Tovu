@@ -62,10 +62,10 @@ import { createInMemoryRevocations } from "#src/features/publish-trust/revocatio
 import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
-import { loadDeployOpsRegistryFromSource } from "#src/features/deployments/deploy-ops/registry";
+import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
 import { loadBundledDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 import { loadSourceControlProviderRegistryFromSource } from "#src/features/source-control/provider-registry";
-import { loadCredentialSchemeRegistryFromSource } from "#src/features/custom-credentials/auth-schemes";
+import { loadBundledCredentialSchemeRegistry } from "#src/features/custom-credentials/auth-schemes";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
@@ -1494,14 +1494,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // targets), no install or activation step — see `routes/types.ts`'s `loadDeployTargets` doc.
     loadDeployTargets: () =>
       loadBundledDeployTargetRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
-    loadDeployOps: () => loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "deploy") }),
+    loadDeployOps: () => loadBundledDeployOpsRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }),
     // Hermetic the same way: the bundled github plugin's source directory — see `routes/types.ts`'s
     // `loadSourceControlProviders` doc.
     loadSourceControlProviders: () =>
       loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "github") }),
-    // And the bundled deploy plugin's credential scheme rules — see `routes/types.ts`'s `loadAuthSchemes` doc.
+    // And the bundled plugins' credential scheme rules — see `routes/types.ts`'s `loadAuthSchemes` doc.
     loadAuthSchemes: async () =>
-      (await loadCredentialSchemeRegistryFromSource({ pluginId: "deploy", packageRoot: path.join(resolveProductRoot(), "content", "agent-plugins", "deploy") })).rules,
+      (await loadBundledCredentialSchemeRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") })).rules,
     // 2026-08-16 — hermetic double for `server/deps.ts`'s real (also in-memory — see
     // `routes/types.ts`'s `publishCredentialVerificationCache` doc for why this cache is
     // deliberately never DB-backed) instance.

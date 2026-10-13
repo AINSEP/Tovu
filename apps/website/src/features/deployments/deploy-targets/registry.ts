@@ -1,9 +1,8 @@
-import type { Dirent } from "node:fs";
-import { access, readdir } from "node:fs/promises";
+import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";
 import path from "node:path";
 
 import { parseDescriptorI18n } from "#src/features/agent-plugins/descriptor-i18n";
-import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, RETIRED_BUNDLED_AGENT_PLUGINS, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
+import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetEnvFallback, DeployTargetFieldSpec, DeployTargetModule, DeployTargetProjectNameCopy, DeployTargetRegistry, LoadedDeployTarget } from "./types.js";
 
@@ -100,30 +99,14 @@ export async function loadDeployTargetRegistryFromSource(plugin: TargetPackage, 
  * @complexity O(p + t): one listing, two existence checks per plugin dir, one import per target.
  */
 export async function loadBundledDeployTargetRegistry(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): Promise<DeployTargetRegistry> {
-  const entries: Dirent[] = await readdir(required.sourceRoot, { withFileTypes: true });
-  const pluginIds = entries.filter((entry) => entry.isDirectory() && !RETIRED_BUNDLED_AGENT_PLUGINS.has(entry.name)).map((entry) => entry.name).sort();
   const items: LoadedDeployTarget[] = [];
   const refusals: string[] = [];
-  for (const pluginId of pluginIds) {
-    const packageRoot = path.join(required.sourceRoot, pluginId);
-    if (!(await allExist(packageRoot, ["plugin.json", DEPLOY_TARGETS_FILENAME]))) continue;
-    const load = await loadPluginContributionsFromSource({ plugin: { pluginId, packageRoot }, definition: targetContribution });
+  for (const plugin of bundledContributionSources({ ...required, filename: DEPLOY_TARGETS_FILENAME })) {
+    const load = await loadPluginContributionsFromSource({ plugin, definition: targetContribution });
     items.push(...load.items);
     refusals.push(...load.refusals);
   }
   return buildRegistry(items, refusals);
-}
-
-/** Whether every named file exists in `dir`. @complexity O(f) stats. */
-async function allExist(dir: string, filenames: readonly string[]): Promise<boolean> {
-  for (const filename of filenames) {
-    try {
-      await access(path.join(dir, filename));
-    } catch {
-      return false;
-    }
-  }
-  return true;
 }
 
 /** Validate the default export after Jini's contained import. @complexity O(1). */

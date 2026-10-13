@@ -3,7 +3,7 @@ import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/repo.memory.js";
 import { createCustomCredential } from "../../../custom-credentials/store.js";
 import { InMemoryCredentialedRequestAuditLog } from "../../../custom-credentials/credentialed-request.js";
-import { loadDeployOpsRegistryFromSource } from "../registry.js";
+import { loadBundledDeployOpsRegistry } from "../registry.js";
 import path from "node:path";
 import { AT } from "./module-fixture.js";
 export async function fixture(labels: string[] = ["ops"], host = "https://api.machines.dev", additionalHosts: string[] = ["https://api.fly.io"]) {
@@ -13,7 +13,7 @@ export async function fixture(labels: string[] = ["ops"], host = "https://api.ma
   const clock = { nowMs: () => Date.parse(AT) };
   let id = 0;
   for (const label of labels) await createCustomCredential({ repo, keyring, sealer, clock, idGen: { newId: () => String(++id) } }, { workspaceId: "ws", label, category: "ops", baseUrl: host, additionalHosts, connection: { token: "saved-private-token" } });
-  const registry = await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: path.resolve("content/agent-plugins/deploy") });
+  const registry = await loadBundledDeployOpsRegistry({ sourceRoot: path.resolve("content/agent-plugins") });
   const calls: any[] = [];
   let response = { status: 200, headers: {}, bodyText: "[]" };
   const audit = new InMemoryCredentialedRequestAuditLog();

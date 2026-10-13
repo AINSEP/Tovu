@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";
 import { ToolInputError } from "@jini-ai/core";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDeployOps } from "./types.js";
@@ -70,8 +73,35 @@ export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPacka
   return buildRegistry(load.items, load.refusals);
 }
 
+/** All Tovu bundled ops sources; category parsing and duplicate refusal stay with this registry.
+ * @complexity O(p + platforms), one contained import per contribution. */
+export async function loadBundledDeployOpsRegistry(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): Promise<DeployOpsRegistry> {
+  const items: LoadedDeployOps[] = [];
+  const refusals: string[] = [];
+  for (const plugin of bundledContributionSources({ ...required, filename: DEPLOY_OPS_FILENAME })) {
+    const registry = await loadDeployOpsRegistryFromSource(plugin);
+    items.push(...registry.list());
+    refusals.push(...registry.refusals);
+  }
+  return buildRegistry(items, refusals);
+}
+
+/** Data-only enum discovery for hermetic tool catalogs, never authorization or module loading.
+ * Ambiguous ids are omitted, as in the executable registry. @complexity O(p + platforms). */
+export function readBundledDeployOpsDescriptors(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): readonly DeployOpsDescriptor[] {
+  const descriptors = bundledContributionSources({ ...required, filename: DEPLOY_OPS_FILENAME }).flatMap(plugin => {
+    try {
+      const parsed = parseDeployOpsFile(readFileSync(path.join(plugin.packageRoot, DEPLOY_OPS_FILENAME), "utf8"));
+      return parsed.ok ? parsed.descriptors : [];
+    } catch { return []; }
+  });
+  const counts = new Map<string, number>();
+  for (const descriptor of descriptors) counts.set(descriptor.id, (counts.get(descriptor.id) ?? 0) + 1);
+  return descriptors.filter(descriptor => counts.get(descriptor.id) === 1);
+}
+
 /**
- * Load only the active, bundled-digest-trusted installed deploy package; never fall back to source.
+ * Load only active, bundled-digest-trusted installed deployment packages; never fall back to source.
  * @param ctx - Workspace whose installed packages and activation records are checked fresh.
  * @returns Loaded modules and refusals, including filesystem faults; no expected failure escapes.
  * @param required - Contribution loader from this boot's lifecycle; no site-dependent module default.
@@ -80,8 +110,10 @@ export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPacka
  */
 export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<DeployOpsRegistry> {
   try {
+    // Keep deploy admitted until its retirement (B7), gated on usable successors after seed
+    // failures in Jini. `github` owns the github-actions platform alongside its source control.
     const load = await required.loadContributions({ ...ctx, definition: opsContribution }, {
-      packageRefusal: ({ plugin }) => plugin.pluginId === "deploy" ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only the bundled deploy plugin may contribute`,
+      packageRefusal: ({ plugin }) => ["deploy", "fly", "github"].includes(plugin.pluginId) ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only the bundled deploy, fly and github plugins may contribute`,
     });
     return buildRegistry(load.items, load.refusals);
   } catch { return buildRegistry([], ["deploy ops were not loaded: installed plugin packages could not be read"]); }

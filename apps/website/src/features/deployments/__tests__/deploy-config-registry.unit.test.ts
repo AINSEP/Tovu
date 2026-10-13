@@ -6,24 +6,24 @@ import test from "node:test";
 
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 
-import { DEPLOY_CONFIGS_FILENAME, loadDeployConfigGeneratorsFromSource, parseDeployConfigsFile, readDeployConfigTargetIdsFromSource } from "../deploy-config-registry.js";
+import { DEPLOY_CONFIGS_FILENAME, loadDeployConfigGeneratorsFromSource, loadBundledDeployConfigGenerators, parseDeployConfigsFile, readDeployConfigTargetIdsFromSource, readBundledDeployConfigTargetIds } from "../deploy-config-registry.js";
 
 /**
  * @file `deploy-config-registry.ts` — the generators behind `tovu deploy config --target <id>`, read
- * from a plugin's source. The bundled `deploy` plugin must yield fly, render, railway in that order
+ * from bundled source. The union yields fly, railway, render in deterministic plugin-id order
  * (the CLI's `--target must be one of: ...` text is built from it); a bad module or manifest is a
  * reported refusal, never a throw.
  */
 
-const BUNDLED_DEPLOY_PLUGIN_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins/deploy");
+const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../../content/agent-plugins");
 
-test("the bundled deploy plugin declares fly, render, railway, in that order, each with a render()", async () => {
-  const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "deploy", packageRoot: BUNDLED_DEPLOY_PLUGIN_ROOT });
+test("the bundled plugin union declares fly, railway, render in plugin-id order, each with a render()", async () => {
+  const registry = await loadBundledDeployConfigGenerators({ sourceRoot: BUNDLED_SOURCE_ROOT });
 
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(
     registry.list().map((generator) => generator.descriptor.id),
-    ["fly", "render", "railway"]
+    ["fly", "railway", "render"]
   );
   for (const generator of registry.list()) assert.equal(typeof generator.module.render, "function");
   assert.equal(registry.get("fly")?.descriptor.module, "deploy-configs/fly.mjs");
@@ -102,8 +102,8 @@ test("parseDeployConfigsFile: rejects each malformed shape with its exact reason
   for (const [raw, reason] of cases) assert.deepEqual(parseDeployConfigsFile(raw), { ok: false, reason }, raw);
 });
 
-test("readDeployConfigTargetIdsFromSource: the bundled plugin's ids in declared order, without importing modules", () => {
-  assert.deepEqual(readDeployConfigTargetIdsFromSource({ pluginId: "deploy", packageRoot: BUNDLED_DEPLOY_PLUGIN_ROOT }), ["fly", "render", "railway"]);
+test("readBundledDeployConfigTargetIds: all bundled ids in plugin-id order, without importing modules", () => {
+  assert.deepEqual(readBundledDeployConfigTargetIds({ sourceRoot: BUNDLED_SOURCE_ROOT }), ["fly", "railway", "render"]);
 });
 
 test("readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields no ids", async () => {
@@ -112,5 +112,27 @@ test("readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields 
   });
   await withPlugin({ [DEPLOY_CONFIGS_FILENAME]: "{" }, async (packageRoot) => {
     assert.deepEqual(readDeployConfigTargetIdsFromSource({ pluginId: "fixture", packageRoot }), []);
+  });
+});
+
+test("bundled config discovery skips missing categories, non-packages and retired ids; refuses cross-package duplicates", async () => {
+  const files: Record<string, string> = {};
+  for (const [pluginId, id] of [["zeta", "last"], ["alpha", "first"], ["one", "shared"], ["two", "shared"], ["tovu-deploy-fly", "retired"], ["scratch", "scratch"]]) {
+    if (pluginId !== "scratch") files[`${pluginId}/plugin.json`] = JSON.stringify({ name: pluginId, version: "1.0.0" });
+    files[`${pluginId}/${DEPLOY_CONFIGS_FILENAME}`] = manifest([{ id, label: id, module: "config.mjs" }]);
+    files[`${pluginId}/config.mjs`] = "export default { render() { return { filename: 'x', contents: '', notes: [] }; } };\n";
+  }
+  files["no-category/plugin.json"] = '{"name":"no-category","version":"1.0.0"}';
+  files["bad/plugin.json"] = '{"name":"bad","version":"1.0.0"}';
+  files[`bad/${DEPLOY_CONFIGS_FILENAME}`] = "{";
+  await withPlugin(files, async sourceRoot => {
+    const registry = await loadBundledDeployConfigGenerators({ sourceRoot });
+    assert.deepEqual(registry.list().map(item => item.descriptor.id), ["first", "last"]);
+    assert.equal(registry.get("shared"), undefined);
+    assert.deepEqual(registry.refusals, [
+      "deploy configs from 'bad' were not loaded: tovu-deploy-configs.json is invalid: not valid JSON",
+      "deploy config 'shared' was not loaded: declared more than once",
+    ]);
+    assert.deepEqual(readBundledDeployConfigTargetIds({ sourceRoot }), ["first", "last"]);
   });
 });

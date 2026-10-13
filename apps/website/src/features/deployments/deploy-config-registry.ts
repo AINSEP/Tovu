@@ -1,3 +1,4 @@
+import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -13,13 +14,14 @@ import type { DeployConfigGeneratorModule } from "./deploy-config.js";
  * default export is a `DeployConfigGeneratorModule` (`./deploy-config.ts`).
  *
  * Only the SOURCE loader exists today: its one caller, the CLI, runs at the repo root and reads the
- * product's own bundled `content/agent-plugins/deploy/`, the same trust basis as the hermetic
+ * product's own bundled `content/agent-plugins/<id>/`, the same trust basis as the hermetic
  * composition root. Module imports still go through the shared containment gate
  * (`features/agent-plugins/trusted-plugin-files.ts`). A workspace-installed variant (activation +
  * bundled-digest gates, like `deploy-targets/registry.ts`) is added when an admin route needs one.
  *
  * Failure isolation: a bad manifest drops the plugin's generators, a bad module only itself; every
- * drop is reported in `refusals`, never thrown.
+ * drop is reported in `refusals`, never thrown. Cross-package duplicate ids are refused for all
+ * claimants, never silently overwritten.
  *
  * Architectural role: `features/deployments` capability, read by `cli/commands/deploy-config.ts`.
  */
@@ -89,6 +91,28 @@ export function readDeployConfigTargetIdsFromSource(plugin: TrustedPluginPackage
   return parsed.ok ? parsed.descriptors.map((descriptor) => descriptor.id) : [];
 }
 
+/** All bundled generators in plugin-id order; refuse every cross-package duplicate.
+ * @complexity O(p + generators), one contained import per generator. */
+export async function loadBundledDeployConfigGenerators(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): Promise<DeployConfigGeneratorRegistry> {
+  const items: LoadedDeployConfigGenerator[] = [];
+  const refusals: string[] = [];
+  for (const plugin of bundledContributionSources({ ...required, filename: DEPLOY_CONFIGS_FILENAME })) {
+    const registry = await loadDeployConfigGeneratorsFromSource(plugin);
+    items.push(...registry.list());
+    refusals.push(...registry.refusals);
+  }
+  return buildRegistry(items, refusals);
+}
+
+/** Sync CLI help uses the same source selection and duplicate policy, without importing modules.
+ * @complexity O(p + generators). */
+export function readBundledDeployConfigTargetIds(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): readonly string[] {
+  const ids = bundledContributionSources({ ...required, filename: DEPLOY_CONFIGS_FILENAME }).flatMap(readDeployConfigTargetIdsFromSource);
+  const counts = new Map<string, number>();
+  for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return ids.filter(id => counts.get(id) === 1);
+}
+
 /** The export as a generator module, or the refusal reason. @complexity O(1). */
 function asGeneratorModule(candidate: unknown): DeployConfigGeneratorModule | string {
   if (!isPlainObject(candidate) || typeof candidate.render !== "function") return "its module has no render() function";
@@ -133,11 +157,17 @@ function parseDescriptor(entry: unknown, at: string): DeployConfigGeneratorDescr
 
 /** @complexity O(g). */
 function buildRegistry(loaded: readonly LoadedDeployConfigGenerator[], refusals: readonly string[]): DeployConfigGeneratorRegistry {
-  const byId = new Map(loaded.map((generator) => [generator.descriptor.id, generator]));
+  const byId = new Map<string, LoadedDeployConfigGenerator>();
+  const duplicates = new Set<string>();
+  for (const generator of loaded) {
+    if (byId.has(generator.descriptor.id)) duplicates.add(generator.descriptor.id);
+    else byId.set(generator.descriptor.id, generator);
+  }
+  for (const id of duplicates) byId.delete(id);
   return {
     get: (id) => byId.get(id),
-    list: () => [...loaded],
-    refusals,
+    list: () => [...byId.values()],
+    refusals: [...refusals, ...[...duplicates].map(id => `deploy config '${id}' was not loaded: declared more than once`)],
   };
 }
 

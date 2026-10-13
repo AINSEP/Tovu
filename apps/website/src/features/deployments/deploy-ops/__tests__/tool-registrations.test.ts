@@ -128,3 +128,10 @@ test('missing deploy credential is returned as a card diagnostic before HTTP', a
   });
   assert.deepEqual(f.calls, []);
 });
+
+test("hermetic catalog discovers platform enums from all bundled packages", async () => {
+  const { getDeployOpsAgentToolCatalog } = await import("../agent-tools.js");
+  const catalog = getDeployOpsAgentToolCatalog();
+  const status = catalog.find(tool => tool.name === "deployment_ops_status")!;
+  assert.deepEqual((status.inputSchema.properties as { platform: { enum: string[] } }).platform.enum, ["fly", "github-actions"]);
+});

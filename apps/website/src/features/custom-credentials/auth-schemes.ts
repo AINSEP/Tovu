@@ -1,3 +1,4 @@
+import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
 import { parseCredentialSchemesFile, type CredentialSchemeRule, type CredentialSchemeRegistry } from "@jini-ai/integrations/credentialed-http";
 
 // Token-prefix rationale: Jini/packages/integrations/src/credentialed-http/auth-schemes.ts; plugin trust stays here.
@@ -8,7 +9,7 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type P
  * leading prefix (a vendor token such as `<Scheme><rest>` must be sent as `Authorization: <Scheme>
  * <rest>`, and is rejected when sent as `Bearer <whole token>`). Core names no vendor: the rules are
  * DATA that Agent Plugins ship in {@link CREDENTIAL_SCHEMES_FILENAME}, and Jini applies them.
- * The `deploy` plugin ships the one rule known today, with its live-verification
+ * The `fly` plugin ships the one rule known today, with its live-verification
  * evidence in the file's `note`.
  *
  * Recognition is by the token's own content, never by the credential's saved host: a
@@ -20,7 +21,7 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type P
  * only a plugin package this build shipped may add a rule, since a rule decides how a saved secret is
  * sent. The activation gate deliberately does NOT apply: a rule is inert data (no code runs), and a
  * saved credential that already works must keep working unchanged when an operator switches the
- * contributing plugin off. Switching `deploy` off hides deploy tools; it must not silently turn a
+ * contributing plugin off. Switching `fly` off hides Fly deploy tools; it must not silently turn a
  * working credential's header into one its provider rejects.
  *
  * Architectural role: `features/custom-credentials` capability, read by `credentialed-request.ts`.
@@ -94,6 +95,19 @@ export async function loadCredentialSchemeRegistry(ctx: { readonly workspaceId: 
 export async function loadCredentialSchemeRegistryFromSource(plugin: TrustedPluginPackage, _optional: Record<string, never> = {}): Promise<CredentialSchemeRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: schemeContribution });
   return dropDuplicateIds(load.items, load.refusals);
+}
+
+/** Union of Tovu's bundled scheme data. Activation remains irrelevant to token recognition;
+ * installed loading still uses Jini's digest gate. @complexity O(p + rules). */
+export async function loadBundledCredentialSchemeRegistry(required: { readonly sourceRoot: string }, _optional: Record<string, never> = {}): Promise<CredentialSchemeRegistry> {
+  const rules: CredentialSchemeRule[] = [];
+  const refusals: string[] = [];
+  for (const plugin of bundledContributionSources({ ...required, filename: CREDENTIAL_SCHEMES_FILENAME })) {
+    const registry = await loadCredentialSchemeRegistryFromSource(plugin);
+    rules.push(...registry.rules);
+    refusals.push(...registry.refusals);
+  }
+  return dropDuplicateIds(rules, refusals);
 }
 
 /** Drops every rule id more than one plugin declares ("refusing to guess"). Order of the survivors is

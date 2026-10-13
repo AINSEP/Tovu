@@ -317,7 +317,7 @@ async function withSourceRoot<T>(plugins: Readonly<Record<string, Readonly<Recor
 const hostFiles = (id: string, label: string) => ({ ...FIXTURE_FILES, [DEPLOY_TARGETS_FILENAME]: descriptorJson([{ id, label, module: "targets/fixture.mjs" }]) });
 
 test("the bundled source registry is the union of every plugin dir that ships targets, in plugin-id order", async () => {
-  await withSourceRoot({ "zeta-host": hostFiles("zeta", "Zeta"), "alpha-host": hostFiles("alpha", "Alpha"), "no-targets": { "README.md": "no targets here" } }, async (sourceRoot) => {
+  await withSourceRoot({ "zeta-host": hostFiles("zeta", "Zeta"), "alpha-host": hostFiles("alpha", "Alpha"), "no-targets": { "plugin.json": JSON.stringify({ name: "no-targets", version: "1.0.0" }) } }, async (sourceRoot) => {
     const registry = await loadBundledDeployTargetRegistry({ sourceRoot });
 
     assert.deepEqual(registry.list().map((target) => [target.pluginId, target.descriptor.id]), [["alpha-host", "alpha"], ["zeta-host", "zeta"]]);

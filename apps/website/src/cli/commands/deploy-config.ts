@@ -4,8 +4,8 @@ import { writeFileSync } from "node:fs";
 import {
   buildDeploymentDescriptor,
   createDeployConfigKit,
-  loadDeployConfigGeneratorsFromSource,
-  readDeployConfigTargetIdsFromSource,
+  loadBundledDeployConfigGenerators,
+  readBundledDeployConfigTargetIds,
   type DeployConfigGeneratorRegistry,
   type RenderDeployConfigOptions,
 } from "../../features/deployments/index.js";
@@ -14,13 +14,13 @@ import { resolveProductRoot, ValidationError } from "../../platform/site-dir/ind
 /**
  * @file `tovu deploy config --target <id> --region <region> [--out <file>]` — wires parsed argv to
  * `features/deployments`'s single `DeploymentDescriptor` and the platform generators the bundled
- * `deploy` Agent Plugin ships (`content/agent-plugins/deploy/tovu-deploy-configs.json`, loaded by
+ * hosting Agent Plugins ship (`content/agent-plugins/<id>/tovu-deploy-configs.json`, loaded by
  * `features/deployments/deploy-config-registry.ts`). `features/deployments/deploy-config.ts`'s own
  * header explains why there is exactly one descriptor and thin generators, never independent ones.
  *
  * Purpose:
  * `--target` is this command's own value-level validation (same pattern `theme validate`'s
- * `--profile` already establishes), against the ids the plugin declares, in declared order.
+ * `--profile` already establishes), against the ids the plugins declare, in plugin-id order.
  * `--region` is NOT validated here: each generator validates it itself (presence, and — where a real
  * platform enum exists — membership), so the exact same check applies whether this CLI calls a
  * generator or a future admin route does. Prints the rendered config to stdout by default (composable
@@ -43,27 +43,29 @@ export interface RunDeployConfigCommandInput {
   out?: string;
 }
 
-/** The bundled `deploy` plugin's source directory. Same resolution as
+/** The bundled hosting plugins' source root. Same resolution as
  *  `server/runtime/composition/deps.ts`'s `bundledAgentPluginsDir()` (not imported: that module
  *  pulls in the whole server composition graph for one path). @complexity O(1). */
-function bundledDeployPluginRoot(): string {
-  return path.join(process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins"), "deploy");
+function bundledDeploySourceRoot(): string {
+  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
 }
 
 /**
- * The `--target` option's help text, built from the ids the bundled `deploy` plugin declares
- * (e.g. "deploy platform: fly, render, or railway"). Sync: `cli/program.ts` builds help text before
- * any command runs. Falls back to a generic line when the plugin declares none.
+ * The `--target` option's help text, built from the ids the bundled hosting plugins declare
+ * (e.g. "deploy platform: fly, railway, or render"). Sync: `cli/program.ts` builds help text before
+ * any command runs. Falls back to a generic line when the plugins declare none.
  *
  * @complexity O(g) in the declared generator count.
  */
 export function deployConfigTargetOptionHelp(): string {
-  return formatTargetOptionHelp(readDeployConfigTargetIdsFromSource({ pluginId: "deploy", packageRoot: bundledDeployPluginRoot() }));
+  try {
+    return formatTargetOptionHelp(readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot() }));
+  } catch { return formatTargetOptionHelp([]); }
 }
 
 /** "a", "a or b", "a, b, or c". Pure (exported for its own tests). @complexity O(g). */
 export function formatTargetOptionHelp(ids: readonly string[]): string {
-  if (ids.length === 0) return "deploy platform id declared by the deploy plugin";
+  if (ids.length === 0) return "deploy platform id declared by bundled plugins";
   if (ids.length <= 2) return `deploy platform: ${ids.join(" or ")}`;
   return `deploy platform: ${ids.slice(0, -1).join(", ")}, or ${ids[ids.length - 1]}`;
 }
@@ -71,7 +73,7 @@ export function formatTargetOptionHelp(ids: readonly string[]): string {
 /** Loads the generators, printing any refused one to stderr so a missing `--target` is explainable.
  *  @complexity O(g) generators, one import each. */
 async function loadGenerators(): Promise<DeployConfigGeneratorRegistry> {
-  const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "deploy", packageRoot: bundledDeployPluginRoot() });
+  const registry = await loadBundledDeployConfigGenerators({ sourceRoot: bundledDeploySourceRoot() });
   for (const refusal of registry.refusals) process.stderr.write(`tovu deploy config: ${refusal}\n`);
   return registry;
 }
