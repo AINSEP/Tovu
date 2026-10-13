@@ -12,6 +12,8 @@
   --faint: oklch(66% 0.012 258);
   --border: oklch(91.5% 0.007 255);
   --border-strong: oklch(86% 0.01 255);
+  /* WCAG 1.4.11 control edge: 3.6:1 on --surface, 3.3:1 on --surface-2 (--border is ~1.2:1). */
+  --border-control: oklch(62% 0.012 258);
 
   --accent: oklch(22% 0.006 260);
   --accent-ink: oklch(99% 0 0);

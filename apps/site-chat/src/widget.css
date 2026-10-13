@@ -277,7 +277,8 @@
 }
 
 .tovu-site-assistant .jini-chat-pane__suggestion {
-  border: 1px solid var(--border);
+  /* A visible edge (owner, 2026-10-13): `--border` left the pale pill at ~1.1:1 on the panel. */
+  border: 1px solid var(--border-control);
   background: var(--surface-2);
   color: var(--fg-2);
   border-radius: var(--r-pill);
@@ -288,7 +289,7 @@
 }
 
 .tovu-site-assistant .jini-chat-pane__suggestion:hover {
-  border-color: var(--border-strong);
+  border-color: var(--fg-2);
   background: var(--surface-3);
 }
 
