@@ -110,9 +110,10 @@ test("content_post_list returns a plain-text excerpt and bodyChars instead of bo
   assert.equal("bodyJson" in row, false, "the default listing must not carry the full TipTap body");
   assert.equal(row.excerpt, "Hello world.");
   assert.equal(row.bodyChars, "Hello world.".length);
+  // `author`/`showAuthor` joined every row in 21e385e7e (post author).
   assert.deepEqual(
     Object.keys(row).sort(),
-    ["adminUrl", "bodyChars", "excerpt", "id", "kind", "publicUrl", "slug", "status", "title", "updatedAt", "version"],
+    ["adminUrl", "author", "bodyChars", "excerpt", "id", "kind", "publicUrl", "showAuthor", "slug", "status", "title", "updatedAt", "version"],
   );
 });
 

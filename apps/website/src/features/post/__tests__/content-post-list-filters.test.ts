@@ -92,6 +92,9 @@ test("t02: no new params retains the pinned pre-change output and bytes", async 
         status: "published",
         updatedAt: NOW,
         version: 2,
+        // 21e385e7e (post author) added these two to every list row.
+        author: null,
+        showAuthor: false,
         publicUrl: "/welcome",
         adminUrl: "/admin/pages/welcome",
         excerpt: "Hello world.",
@@ -218,6 +221,9 @@ test("t02: list publishes the optional query, real status enum and exact project
       "publishAt",
       "featuredMediaId",
       "scheduled",
+      // 21e385e7e (post author) made both projectable.
+      "author",
+      "showAuthor",
     ],
   });
   assert.deepEqual(schema.required, ["kind"]);
