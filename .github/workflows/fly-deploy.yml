@@ -146,6 +146,10 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@v1
 
+      - name: Snapshot HTML before deploy
+        continue-on-error: true
+        run: node development/scripts/deploy-html-snapshot.mjs snapshot https://tovu.dev before.json
+
       # Fly's remote builder does the actual image build; this runner just uploads the build
       # context and polls status, so no local Docker/BuildKit setup is needed on the runner.
       # --build-arg TOVU_BUILD_SHA: the build context sent to Fly's remote builder excludes `.git`,
@@ -157,3 +161,25 @@ jobs:
       - run: flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Wait for site health
+        run: curl --fail --silent --show-error --output /dev/null --max-time 5 --retry 30 --retry-delay 5 --retry-all-errors https://tovu.dev/healthz
+
+      # The deploy has already happened; a content regression fails this job as the alert.
+      - name: Snapshot and compare HTML after deploy
+        run: |
+          node development/scripts/deploy-html-snapshot.mjs snapshot https://tovu.dev after.json
+          if [[ -f before.json ]]; then
+            node development/scripts/deploy-html-snapshot.mjs compare before.json after.json
+          else
+            echo "::warning::Pre-deploy snapshot unavailable; HTML comparison skipped"
+          fi
+
+      - name: Upload deploy HTML snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-html-snapshots
+          path: |
+            before.json
+            after.json
