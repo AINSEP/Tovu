@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
@@ -87,7 +88,8 @@ test("createSiteRouteDeps gives site backup the directories the site is served f
   assert.ok(deps.siteBackupHttpClient, "the backup gets its own long-timeout client");
   assert.notEqual(deps.siteBackupHttpClient, deps.customCredentialsHttpClient, "not the 10 s custom-credential client");
 
-  const tools = registrationsOver(deps);
+  // The github provider is read from source, never the developer's installed plugin.
+  const tools = registrationsOver({ ...deps, loadSourceControlProviders: githubFromSource } as Parameters<typeof registrationsOver>[0]);
   const plan = tools.get("site_backup_plan");
   assert.ok(plan, "site_backup_plan must be in the real registry");
   assert.ok(tools.get("site_backup_push"), "site_backup_push must be in the real registry");
