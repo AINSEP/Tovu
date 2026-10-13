@@ -20,7 +20,7 @@ import fs from "node:fs";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
-import { omitEnvironmentKeys } from "@jini-ai/platform";
+import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
 import type { SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 

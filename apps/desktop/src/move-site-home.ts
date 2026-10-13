@@ -1,5 +1,5 @@
 /** Thin CLI adapter: the website process owns stopped SQLite admission and verified relocation. */
-import { execFileBuffered } from "@jini-ai/platform";
+import { execFileBuffered } from "@jini-ai/platform/shell";
 import { buildCliEnv, buildCliSpawnPlan, type CliMode } from "./tovu-server.ts";
 
 /** Invoke the same move owner in source and installed payloads; never load SQLite into Electron.
