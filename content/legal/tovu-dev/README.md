@@ -4,11 +4,12 @@ These HTML fragments are the reviewable copies of the `privacy-policy` and `term
 content rows in `sites/tovu-dev/content.seed.db`. The local `content.db` rows were also updated
 on 2026-10-04. The CMS serves the database rows; changing a fragment alone does not publish it.
 
-Owner inputs: US$0 liability cap, California law, Los Angeles County, California venue,
+Owner inputs: US$10 liability cap, California law, Los Angeles County, California venue,
 `tovu.dev`, the existing `/contact#send-a-message` form, and 90-day deletion of form submission
-IP addresses. Each page contains one unresolved identity field, `[[OWNER NAME]]`.
+IP addresses. On 2026-10-13 the owner replaced the `[[OWNER NAME]]` field with neutral "Tovu Team"
+wording and removed the public draft banner and HTML comments; these copies are not lawyer-reviewed.
 Existing legal clauses and the original effective date were preserved; the last-updated date
-is 2026-10-04. Both pages have an `#ai-disclosure` section and a “Report AI content” form link.
+is 2026-10-13. Both pages have an `#ai-disclosure` section and a “Report AI content” form link.
 
 The form-IP cleanup worker's nullable-IP migration is committed and installed (2a41f672e); cleanup stays off until a `@jini-ai/cms-forms` release exporting `sweepExpiredSubmissionIps` is installed.
 The wording records the owner's retention rule; coordinate deployment with that worker's

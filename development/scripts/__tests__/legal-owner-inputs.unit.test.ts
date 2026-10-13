@@ -9,21 +9,22 @@ const read = (relativePath: string) => fs.readFileSync(path.join(root, relativeP
 const slugs = ["privacy-policy", "terms-of-service"] as const;
 
 for (const slug of slugs) {
-  test(`${slug} names the unresolved controller and uses the real contact form for requests and AI reports`, () => {
+  test(`${slug} carries no placeholders, draft banner, or first-person owner wording and uses the real contact form for requests and AI reports`, () => {
     const html = read(`content/legal/tovu-dev/${slug}.html`);
-    assert.equal(html.split("[[OWNER NAME]]").length - 1, 1);
+    assert.doesNotMatch(html, /\[\[|\]\]|Draft\. Not legal advice|<!--/);
+    assert.doesNotMatch(html, /\bmy liability\b|\bone person\b/i);
     assert.match(html, /tovu\.dev/);
     assert.doesNotMatch(html, /mailto:|gdatecorp@gmail\.com|tovu\.com|privacy@|legal@|abuse@/);
     assert.match(html, /id="ai-disclosure"/);
     assert.match(html, /AI (?:can be|output can be) wrong/);
     assert.match(html, /href="\/contact#send-a-message">Report AI content<\/a>/);
-    assert.match(html, /Last updated: 2026-10-04/);
+    assert.match(html, /Last updated: 2026-10-13/);
   });
 }
 
-test("terms use the owner's $0 cap and California/Los Angeles venue while preserving existing limits and sections", () => {
+test("terms use the owner's US$10 cap and California/Los Angeles venue while preserving existing limits and sections", () => {
   const html = read("content/legal/tovu-dev/terms-of-service.html");
-  assert.match(html, /total liability[^<]*US\$0/);
+  assert.match(html, /total liability[^<]*US\$10\./);
   assert.doesNotMatch(html, /US\s?\$50|greater of|no governing law|no exclusive venue/);
   assert.match(html, /laws of the State of California/);
   assert.match(html, /state or federal courts in Los Angeles County, California/);
@@ -72,7 +73,6 @@ for (const prefix of ["content/themes/static", "sites/tovu-dev/themes/static"]) 
       assert.match(termsHtml, /Los Angeles County, California/);
       assert.match(privacyHtml, /IP addresses on form submissions are deleted after 90 days/);
       for (const html of [termsHtml, privacyHtml]) {
-        assert.match(html, /\[\[OWNER NAME\]\]/);
         assert.match(html, /tovu\.dev/);
         assert.match(html, /href="\/contact#send-a-message">Report AI content<\/a>/);
         assert.doesNotMatch(html, /mailto:|privacy@|legal@|Data Protection Officer at/);
