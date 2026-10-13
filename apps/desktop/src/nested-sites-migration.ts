@@ -32,9 +32,9 @@ export async function migrateNestedSitesHome(
         if (workspace.running({ path: dir }).peek({})) continue;
         if ([`${home}.move.lock`, `${to}.creation.lock`, `${workspace.config({}).configPath}.lock`, path.join(dir, ".tovu-running.json.lock")].some((lock) => fs.existsSync(lock))) continue;
         await move({ dir, repoRoot, cliMode, projectsPath });
-      } catch {
+      } catch (error) {
         // Never stop a site, overwrite a clash, or ask the owner to repair a refused move by hand.
-        report("Tovu kept a nested website in place; automatic relocation will retry next launch.");
+        report(`Tovu kept ${dir} in place; automatic relocation will retry next launch. ${error instanceof Error ? error.message : String(error)}`);
       }
     }
     // 0.1.14 cached sibling thumbnails in sites/.tovu; they regenerate, so only they never keep the old folder alive.
