@@ -49,8 +49,12 @@ describe("plugin lists after assistant tool writes", () => {
     let finish!: (value: { agentPlugins: typeof agentRow[] }) => void;
     vi.spyOn(port, "listAgentPlugins").mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t }));
+    // Since c348ee3ba the list read starts one microtask after mount (the fetch-query gate), and
+    // cache updates reach the hook on a zero-delay timer: wait for the read to be in flight, and
+    // let the older answer fully settle before asserting it changed nothing.
+    await waitFor(() => expect(port.listAgentPlugins).toHaveBeenCalledTimes(1));
     act(() => result.current.onInstalled(agentRow));
-    await act(async () => finish({ agentPlugins: [] }));
+    await act(async () => { finish({ agentPlugins: [] }); await new Promise((resolve) => setTimeout(resolve, 20)); });
     expect(result.current.agentPlugins).toEqual([agentRow]);
   });
 });

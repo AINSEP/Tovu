@@ -206,10 +206,12 @@ describe("useAgentPlugins — onInstalled", () => {
     act(() => result.current.onInstalled(NOTE_TAKER));
     act(() => result.current.onInstalled({ ...NOTE_TAKER, version: "1.0.1" }));
 
-    expect(result.current.agentPlugins?.map((plugin) => [plugin.pluginId, plugin.version])).toEqual([
+    // `waitFor`: since c348ee3ba the row lands through the TanStack cache, whose observers are
+    // notified on a zero-delay timer, so the re-render follows the synchronous `act`.
+    await waitFor(() => expect(result.current.agentPlugins?.map((plugin) => [plugin.pluginId, plugin.version])).toEqual([
       ["deploy", "1.0.0"],
       ["note-taker", "1.0.1"],
-    ]);
+    ]));
   });
 });
 

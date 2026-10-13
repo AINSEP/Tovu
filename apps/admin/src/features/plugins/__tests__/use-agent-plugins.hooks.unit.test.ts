@@ -131,7 +131,13 @@ describe("useAgentPlugins — onToggleEnabled", () => {
       skills: [{ name: "new-skill", summary: "Server skill" }],
       mcpServerIds: ["new-server"],
     };
-    const toggle = vi.fn(async () => ({ agentPlugin: serverRow }));
+    // Since c348ee3ba an accepted toggle also invalidates the list, and this fake's list still
+    // holds the old row (a real server's would hold `serverRow`). Holding that re-read in flight
+    // keeps the assertion on the toggle's own answer instead of a race with an inconsistent list.
+    const toggle = vi.fn(async () => {
+      port.listAgentPlugins = () => new Promise(() => {});
+      return { agentPlugin: serverRow };
+    });
     port.setAgentPluginEnabled = toggle;
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(2));
