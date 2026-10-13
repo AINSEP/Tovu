@@ -19,6 +19,14 @@
 .site-key-fingerprint-label { font-size: var(--text-sm); color: var(--muted); }
 .site-key-fingerprint { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2); }
 
+/* A badge plus an unbroken fingerprint can exceed a phone card's width. Keep the
+ * value readable, like the revealed monospace value below, without changing wider layouts. */
+@media (max-width: 640px) {
+  .site-key-status-badge-row { flex-wrap: wrap; }
+  .site-key-fingerprint-group { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+  .site-key-fingerprint { min-width: 0; overflow-wrap: anywhere; }
+}
+
 .site-key-status-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 .site-key-status-note code { font-family: var(--font-mono); font-size: 0.85em; }
 

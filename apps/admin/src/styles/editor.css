@@ -269,6 +269,10 @@
   .content-editor-page .page-editor-toolbar .page-editor-toolbar-end .editor-template-picker select { flex: none; }
 }
 @media (max-width: 640px) {
+  /* Wrapping the toolbar alone still leaves its long formatting groups clipped.
+     Wrap inside those groups too, so every control remains visible and focusable. */
+  .post-editor-pane > .editor-toolbar { flex-wrap: wrap; overflow-x: visible; }
+  .post-editor-pane > .editor-toolbar .grp { flex-wrap: wrap; max-width: 100%; }
   /* The status/Save/Delete group stays together at its natural size (owner: the stretched
      buttons were "wider unnecessarily"). Pairs with `styles.css`'s phone-only Delete reorder. */
   .editor-action-row .content-action-group .btn-danger { order: 0; }
