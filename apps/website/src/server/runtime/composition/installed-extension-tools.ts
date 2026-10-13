@@ -26,6 +26,7 @@
  */
 import type { InstalledExtensionRegistrar } from "#src/assistant/installed-extension-tools";
 import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
+import { createRetiredPluginToolAliases } from "#src/features/agent-plugins/retired-plugin-tool-aliases";
 import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
 import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
 
@@ -39,7 +40,10 @@ import { registerInstalledSkillTools } from "#src/features/skills/tool-registrat
  *  for this one workspace — each family's own loader is the cost driver, not this function. */
 export const registerInstalledExtensionTools: InstalledExtensionRegistrar = async (registry, deps, log) => {
   try {
-    await registerInstalledAgentPluginTools(registry, deps);
+    // A retired plugin's tool name (`agent_plugin_deploy`) stays a gated alias of its successor's.
+    const aliases = createRetiredPluginToolAliases({ registry });
+    await registerInstalledAgentPluginTools(aliases.registry, deps);
+    aliases.registerAliases();
   } catch (error) {
     console.warn(
       `${log} agent-plugin tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,

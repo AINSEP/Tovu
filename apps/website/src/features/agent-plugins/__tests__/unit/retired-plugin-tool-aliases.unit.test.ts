@@ -1,0 +1,57 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import type { ToolRegistration } from "@jini-ai/core";
+import { createRetiredPluginToolAliases } from "../../retired-plugin-tool-aliases.js";
+
+function registration(id: string): ToolRegistration {
+  return {
+    descriptor: { id, description: `${id} guidance` },
+    handler: async () => ({ id }),
+    policy: { authorize: async () => "allow" },
+  } as unknown as ToolRegistration;
+}
+
+function recordingRegistry() {
+  const byId = new Map<string, ToolRegistration>();
+  return { byId, register(r: ToolRegistration) {
+    if (byId.has(r.descriptor.id)) throw new Error(`'${r.descriptor.id}' is already registered`);
+    byId.set(r.descriptor.id, r);
+  } };
+}
+
+test("agent_plugin_deploy is Fly's own registration under the old name: same handler, same gate", () => {
+  const registry = recordingRegistry();
+  const aliases = createRetiredPluginToolAliases({ registry });
+  const fly = registration("agent_plugin_fly");
+
+  aliases.registry.register(fly);
+  aliases.registry.register(registration("agent_plugin_render"));
+  assert.equal(registry.byId.has("agent_plugin_deploy"), false, "aliases wait for the family's own pass");
+  aliases.registerAliases();
+
+  const alias = registry.byId.get("agent_plugin_deploy");
+  assert.equal(alias?.handler, fly.handler);
+  assert.equal(alias?.policy, fly.policy, "Fly's activation/digest/revocation gate decides every alias call");
+  assert.match(alias?.descriptor.description ?? "", /^Former name of agent_plugin_fly; returns the same guidance\. agent_plugin_fly guidance$/);
+  assert.deepEqual([...registry.byId.keys()], ["agent_plugin_fly", "agent_plugin_render", "agent_plugin_deploy"]);
+});
+
+test("a still-installed deploy package keeps its own agent_plugin_deploy, in either order, and nothing throws", () => {
+  for (const order of [["agent_plugin_fly", "agent_plugin_deploy"], ["agent_plugin_deploy", "agent_plugin_fly"]]) {
+    const registry = recordingRegistry();
+    const aliases = createRetiredPluginToolAliases({ registry });
+    const own = registration("agent_plugin_deploy");
+    for (const id of order) aliases.registry.register(id === "agent_plugin_deploy" ? own : registration(id));
+    aliases.registerAliases();
+    assert.equal(registry.byId.get("agent_plugin_deploy"), own);
+  }
+});
+
+test("no Fly tool (Fly off or not installed): no alias", () => {
+  const registry = recordingRegistry();
+  const aliases = createRetiredPluginToolAliases({ registry });
+  aliases.registry.register(registration("agent_plugin_github"));
+  aliases.registerAliases();
+  assert.deepEqual([...registry.byId.keys()], ["agent_plugin_github"]);
+});

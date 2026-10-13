@@ -66,7 +66,7 @@ export function translateRetiredPluginRefs(pluginRefIds: readonly string[]): rea
  *  formatting helper of a sibling module" reasoning). If the two ever drift, `resolve-agent-plugin-
  *  refs.unit.test.ts`'s pointer-mode tests assert against the REAL installed tool id, not this
  *  template, so a drift fails loudly there. */
-function toAgentPluginToolId(pluginId: string): string {
+export function toAgentPluginToolId(pluginId: string): string {
   return `agent_plugin_${pluginId.replace(/-/g, "_")}`;
 }
 
