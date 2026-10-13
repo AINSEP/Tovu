@@ -21,10 +21,7 @@ const sourceRoot = path.resolve(import.meta.dirname, "../../../apps/website/src"
 const resolvers = new Set(["resolveAgentPluginLayout", "resolveSkillLayout", "resolveSiteRoot"]);
 const rootKeys = /\b(siteDir|homeDir|TOVU_SITE_DIR|TOVU_AGENT_PLUGINS_DIR|TOVU_SKILLS_DIR)\b/;
 /** Read-only, opt-in acceptance checks that deliberately read this machine's real install. */
-const realSiteReaders = new Set(["features/agent-plugins/__tests__/unit/resolve-agent-plugin-refs.real-install.unit.test.ts",
-  // KNOWN DEBT (2026-10-12): its CREDENTIAL_NOT_FOUND case needs the owner's installed github
-  // plugin (isolated, it answers NO_PROVIDER). Remove once the test installs its own provider.
-  "server/runtime/composition/__tests__/site-backup-wiring.integration.test.ts"]);
+const realSiteReaders = new Set(["features/agent-plugins/__tests__/unit/resolve-agent-plugin-refs.real-install.unit.test.ts"]);
 
 /**
  * Resolver calls that can reach the ambient home catalog. An explicit `env` object literal discards
