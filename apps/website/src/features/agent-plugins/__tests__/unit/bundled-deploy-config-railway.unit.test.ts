@@ -7,8 +7,8 @@ import { ValidationError } from "#src/platform/site-dir/index";
 
 import { createDeployConfigKit, type DeployConfigGeneratorModule, type DeploymentDescriptor, type RenderDeployConfigOptions, type RenderedDeployConfig } from "#src/features/deployments/deploy-config";
 
-/** The bundled `deploy` plugin's generator module, imported from its source like the other bundled-deploy tests. */
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/deploy-configs/railway.mjs");
+/** The bundled `railway` plugin's generator module, imported from its source like the other bundled-deploy tests. */
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/railway/deploy-configs/railway.mjs");
 const imported = (await import(pathToFileURL(MODULE_PATH).href)) as { default: DeployConfigGeneratorModule; RAILWAY_VALID_REGIONS: readonly string[] };
 const RAILWAY_VALID_REGIONS = imported.RAILWAY_VALID_REGIONS;
 
@@ -112,4 +112,26 @@ test("renderRailwayConfig: pins numReplicas to 1 for every documented region —
     assert.deepEqual(Object.keys(parsed.deploy.multiRegionConfig), [region]);
     assert.equal(parsed.deploy.multiRegionConfig[region]!.numReplicas, 1);
   }
+});
+
+
+test("railway is a seeded-enabled config-only package with its descriptor, module and skill packed", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { packAgentPluginDirectory, BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } = await import("../../lifecycle.js");
+  const { loadDeployConfigGeneratorsFromSource } = await import("#src/features/deployments/deploy-config-registry");
+  const packageRoot = path.dirname(path.dirname(MODULE_PATH));
+  const manifest = JSON.parse(await readFile(path.join(packageRoot, "plugin.json"), "utf8"));
+  assert.equal(manifest.name, "railway");
+  assert.equal(manifest.extensions.tovu.id, "tovu/railway");
+  assert.equal(manifest.extensions.tovu.displayName, "Railway");
+  assert.deepEqual(manifest.extensions.tovu.provides, ["deploy-config:railway"]);
+  assert.deepEqual(JSON.parse(await readFile(path.join(packageRoot, "mcp.json"), "utf8")).mcpServers, {});
+  const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "railway", packageRoot });
+  assert.deepEqual(registry.refusals, []);
+  assert.deepEqual(registry.list().map(item => item.descriptor.id), ["railway"]);
+  const packed = await packAgentPluginDirectory(packageRoot);
+  for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/railway.mjs", "skills/railway/SKILL.md"]) assert.ok(packed.files.includes(file), file);
+  assert.ok(!packed.files.includes("tovu-deploy-ops.json"));
+  assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
+  assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("railway"), true);
 });

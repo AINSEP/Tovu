@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "railway",
+  "version": "0.1.0",
+  "description": "Generates railway.json for the Tovu server. Follow the output notes to create the volume and set secrets before deploying. Config generation only.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "displayName": "Railway",
+      "summary": "Generates railway.json for the Tovu server. Follow the output notes to create the volume and set secrets before deploying. Config generation only.",
+      "id": "tovu/railway",
+      "provides": [
+        "deploy-config:railway"
+      ]
+    }
+  },
+  "keywords": [
+    "railway",
+    "deploy",
+    "deploy-config:railway"
+  ]
+}

@@ -7,7 +7,9 @@
  * and an existing site's untouched disabled seed record is switched on too (`activation.ts`'s
  * `recordBundledAgentPluginIfAbsent`). An operator can still turn one off, and that decision survives
  * every later boot; an operator who had turned `deploy` off keeps the split-out hosts off too
- * (`deploy-split-activation.ts`). `resend` hosts a mail adapter (`mail-adapter-registry.ts`),
+ * (`deploy-split-activation.ts`). Phase B extends that carry to Fly, Render and Railway; GitHub
+ * Actions deploys moved into `github` and follow its switch (owner, 2026-10-12).
+ * `resend` hosts a mail adapter (`mail-adapter-registry.ts`),
  * moved out of core 2026-09-29: with it off, a site that saved that provider's key would silently
  * stop sending mail. `github` hosts the only git-host provider (`features/source-control/provider-registry.ts`),
  * moved out of core 2026-09-29: with it off, committing the site, `custom_credential_write_files`, site
@@ -19,7 +21,7 @@
  * only ever edits a duplicated theme until the owner approves switching to it. `how-tovu-works`
  * enriches the core read-only site guide from the first boot; disabling it retains minimal cards.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "fly", "render", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "fly", "render", "railway", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin that absorbed it. `seed-bundled.ts` never seeds a

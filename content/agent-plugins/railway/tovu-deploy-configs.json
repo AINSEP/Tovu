@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "generators": [
+    {
+      "id": "railway",
+      "label": "Railway",
+      "module": "deploy-configs/railway.mjs"
+    }
+  ]
+}

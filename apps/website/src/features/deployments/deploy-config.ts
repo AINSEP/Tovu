@@ -6,8 +6,8 @@ import { ValidationError } from "#src/platform/site-dir/index";
 /**
  * @file The ONE `DeploymentDescriptor` every platform config generator is a thin, pure function over —
  * `tovu deploy config --target <id>`'s single source of truth (`cli/commands/deploy-config.ts`). The
- * generators themselves are plugin modules (the bundled `deploy` plugin's `deploy-configs/*.mjs`,
- * declared in its `tovu-deploy-configs.json`, loaded by `./deploy-config-registry.ts`); this file
+ * generators themselves are plugin modules (the bundled `fly`, `render` and `railway` plugins'
+ * `deploy-configs/*.mjs`, declared in each one's `tovu-deploy-configs.json`, loaded by `./deploy-config-registry.ts`); this file
  * keeps only the vendor-neutral half: the descriptor, the injection guard, the migrations note, and
  * the {@link DeployConfigGeneratorModule} port with the {@link DeployConfigKit} the host passes in.
  *
@@ -243,8 +243,8 @@ export const MIGRATIONS_NOTE =
 
 /**
  * Guards a value about to be interpolated, unescaped, into a generated TOML/YAML config file (the
- * `deploy` plugin's `deploy-configs/fly.mjs` and `deploy-configs/render.mjs`; passed to them in the
- * {@link DeployConfigKit}) — unlike its `deploy-configs/railway.mjs`, which is safe by construction
+ * `fly` and `render` plugins' `deploy-configs/*.mjs`; passed to them in the
+ * {@link DeployConfigKit}) — unlike the `railway` plugin's `deploy-configs/railway.mjs`, which is safe by construction
  * because it builds its config through `JSON.stringify` rather than a hand-written template string. Two
  * distinct sink shapes call this, so it covers two distinct hazards:
  *
