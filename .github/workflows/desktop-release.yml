@@ -121,7 +121,11 @@ jobs:
           APPLE_API_KEY_ID: ${{ runner.os == 'macOS' && secrets.APPLE_API_KEY_ID || '' }}
           APPLE_API_ISSUER: ${{ runner.os == 'macOS' && secrets.APPLE_API_ISSUER || '' }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ runner.os == 'Windows' && 'false' || 'true' }}
-        run: npx electron-builder ${{ matrix.eb }} --publish never
+        # Mac: @electron/notarize staples the .app inside this step with only ~7s of retries; the
+        # xcrun-retry shim routes that `xcrun stapler` through scripts/stapler-retry.sh.
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then export PATH="$PWD/scripts/xcrun-retry:$PATH"; fi
+          npx electron-builder ${{ matrix.eb }} --publish never
       - name: verify-package (unpacked build)
         working-directory: apps/desktop
         run: node scripts/verify-package.ts --asar "${{ matrix.asar }}"
