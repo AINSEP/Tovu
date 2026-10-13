@@ -214,21 +214,24 @@ async function buildDaemonRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnap
 }
 
 test("the shared base (installFirstPartyToolContributors + buildAssistantToolRegistrations) and the real BYOK module build the identical tool id, publish-content-type, and duplicate-resource-handler sets", async () => {
-  const routeDeps = createRouteDeps();
-  await routeDeps.identityReady;
-
-  const base = buildBaseRole(routeDeps);
   // `base` never calls the installed-extension-tools registrars, so it can never see this dev
   // checkout's own real installed agent-plugins/skills for `routeDeps.workspaceId` — `byok` now does
   // (S1's fix), so it needs the same "nothing installed" isolation the daemon construction tests below
   // already use, or this comparison would fail on THIS repo's own real dev-site fixtures rather than
-  // on anything this test is actually meant to catch.
-  const byok = await withEmptyAgentPluginsDir(() => withEmptySkillsDir(() => buildByokRole(routeDeps)));
+  // on anything this test is actually meant to catch. Since ac0d0db40 `createRouteDeps` resolves the
+  // agent-plugin layout once, at boot, so the empty trees must be in place before it runs.
+  await withEmptyAgentPluginsDir(() => withEmptySkillsDir(async () => {
+    const routeDeps = createRouteDeps();
+    await routeDeps.identityReady;
 
-  assert.deepEqual([...byok.ids].sort(), [...base.ids].sort());
-  assert.deepEqual(byok.publishContentTypes, base.publishContentTypes);
-  assert.ok(byok.publishContentTypes.length > 0, "the publish-content type registry must not be empty — that is the f0cfd0c67 regression this pins from the other side");
-  assert.deepEqual(byok.duplicateResources, base.duplicateResources);
+    const base = buildBaseRole(routeDeps);
+    const byok = await buildByokRole(routeDeps);
+
+    assert.deepEqual([...byok.ids].sort(), [...base.ids].sort());
+    assert.deepEqual(byok.publishContentTypes, base.publishContentTypes);
+    assert.ok(byok.publishContentTypes.length > 0, "the publish-content type registry must not be empty — that is the f0cfd0c67 regression this pins from the other side");
+    assert.deepEqual(byok.duplicateResources, base.duplicateResources);
+  }));
 });
 
 test("the daemon construction seam and real BYOK root expose identical installed-skill, native-tool and resource sets", async () => {
@@ -345,7 +348,8 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
     run: { id: "run-dev" }, sessionBinding: { agentId: "claude", sessionFields: {} },
     prompt: "Review a page", process: { env, cwd: () => "/tmp/dev-run" },
     resolvePermissionMode: () => mode,
-    ASSISTANT_DISALLOWED_TOOLS: ["Bash"], ASSISTANT_SETTING_SOURCES: [],
+    // Since 74ac1f7ff the daemon resolves the list per run (the owner's Claude subagent setting).
+    resolveAssistantDisallowedTools: () => ["Bash"], subagentsEnabled: false, ASSISTANT_SETTING_SOURCES: [],
     resolveAssistantRunSettings: () => undefined, homedir: () => "/tmp/dev-home", existsSync: () => false,
     model: undefined, reasoning: undefined, attachmentRunFields: {},
   });
