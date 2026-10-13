@@ -103,6 +103,38 @@
   background-position: right 0.45rem center;
 }
 
+/* Phone card for one field (owner, iPhone SE, 2026-10-13: Remove crooked beside the ID, "MORE" ⋮
+   floating mid-card, a full-width Max length input, REQ's checkbox adrift in the label gutter).
+   `styles.css`' phone `.list-table` cards give every non-input cell a hanging "LABEL value" line,
+   which suits read-only rows but not this all-control row. Here the card reads as three rows:
+   ID + ⋮ + Remove (bottoms aligned, so the buttons sit level with the input, not its label);
+   Label | Type; Req | Max length, label above control like the rest, the checkbox centred on the
+   control line and Max length sized to a number. Selectors carry `[data-label]:nth-child(N)` plus
+   a `:has()` with an attribute because the hanging-line rule they undo is (0,4,6). */
+@container admin-content (max-width: 620px) {
+  table.list-table.form-fields-table > tbody > tr { align-items: flex-end; gap: 0 10px; padding: 16px 14px; }
+  /* Row spacing as a margin, not `row-gap`: the shared card's zero-height `tr::after` line break is
+     a flex line of its own, so a row-gap doubled the space under the ID row. */
+  table.list-table.form-fields-table > tbody > tr > td:nth-child(-n+5):not(:first-child) { margin-top: 12px; }
+  table.list-table.form-fields-table > tbody > tr > td[data-label]:nth-child(6):has(> .row-menu-trigger) {
+    order: 1; flex: none; display: block; padding-left: 0;
+  }
+  table.list-table.form-fields-table > tbody > tr > td[data-label]:nth-child(6):has(> .row-menu-trigger)::before { content: none; }
+  table.list-table.form-fields-table > tbody > tr > td[data-label]:nth-child(4):has(> input[type="checkbox"]),
+  table.list-table.form-fields-table > tbody > tr > td[data-label]:nth-child(5):has(> input[type="number"], > span[aria-hidden]) {
+    order: 3; flex: 1 1 140px; align-self: stretch; display: flex; flex-direction: column; align-items: flex-start;
+    padding-left: 0; line-height: inherit;
+  }
+  table.list-table.form-fields-table > tbody > tr > td[data-label]:nth-child(4):has(> input[type="checkbox"])::before,
+  table.list-table.form-fields-table > tbody > tr > td[data-label]:nth-child(5):has(> input[type="number"], > span[aria-hidden])::before {
+    float: none; width: auto; margin: 0 0 4px; line-height: inherit;
+  }
+  /* 10px = (40px phone control height - 20px phone checkbox) / 2: centred on the Max length input. */
+  table.list-table.form-fields-table > tbody > tr > td:nth-child(4) > input[type="checkbox"],
+  table.list-table.form-fields-table > tbody > tr > td:nth-child(5) > span { margin: auto 0 10px; }
+  table.list-table.form-fields-table > tbody > tr > td:nth-child(5) > input { width: 6.5rem; }
+}
+
 /* Checkbox + its own text sits beside the control, not above it like `.field-label` (which is
    block/uppercase, built for a label that sits above an input) — this is deliberately a separate,
    small rule rather than a misuse of that primitive. Layout only: the surrounding `.field-group`
