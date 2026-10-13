@@ -94,7 +94,7 @@ primary_region = "iad" # PLACEHOLDER — confirm the intended region.
   # log and no origin is registered. The same variable already drives OAuth callback URLs and
   # admin deep links, deliberately reused rather than duplicated (ADR-040 names duplicated origin
   # settings as a fracture it exists to close).
-  TOVU_PUBLIC_URL = "https://tovu.fly.dev"
+  TOVU_PUBLIC_URL = "https://tovu.dev"
 
 # Persistent state: every site's content.db + WAL sidecars, uploads/,
 # themes/, ops state — everything else in the image is disposable. A missing
