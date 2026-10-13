@@ -1,7 +1,7 @@
 /**
  * @file Canonical OAuth contracts and Tovu host policy.
  * Generic flows/store contracts belong to `@jini-ai/oauth`; Tovu supplies guarded
- * transport, issuer policy, entropy defaults and operator-facing copy.
+ * transport, issuer policy and operator-facing copy.
  * Provider registry contracts live in Jini/packages/oauth/src/registry.ts.
  *
  * Host registries are per-service instances. Operator-defined providers require no
@@ -25,12 +25,3 @@
 export type { OAuthClient, OAuthClientAuthMethod, OAuthFetch, OAuthGrantKind, OAuthProviderDescriptor, OAuthRandomBytes, OAuthTokenSet } from "./ports.js";
 export { OAuthError, isOAuthError, mapProviderErrorCode } from "./errors.js";
 export type { OAuthErrorCode, OAuthErrorOptions } from "./errors.js";
-export {
-  createPendingAuthorizationStore,
-  DEFAULT_MAX_ENTRIES as PENDING_AUTHORIZATION_DEFAULT_MAX_ENTRIES,
-  DEFAULT_TTL_MS as PENDING_AUTHORIZATION_DEFAULT_TTL_MS,
-  invalidState as invalidPendingAuthorizationState,
-  secureEquals as secureEqualsForOwnerBinding,
-  STATE_BYTES as PENDING_AUTHORIZATION_STATE_BYTES,
-} from "./pending-authorizations.js";
-export type { PendingAuthorization, PendingAuthorizationStore, PendingAuthorizationStoreDeps } from "./pending-authorizations.js";

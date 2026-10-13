@@ -147,15 +147,15 @@ export function externalMcpSettingsDeepLink(serverId: string): string {
 /**
  * One device authorization awaiting the operator's approval.
  *
- * `Promise`-returning for the same reason `oauth/pending-authorizations.ts`'s
- * `PendingAuthorizationStore` is: the real adapter
+ * `Promise`-returning because the real adapter
  * (`platform/db/repos/oauth-pending-store.ts`'s `createSqliteDeviceAuthorizationStore`)
  * persists to `content.db` and seals `deviceCode` through the same ADR-058 sealer/keyring every
  * other secret there goes through, so both implementations share one async call shape. This file's
  * own `createDeviceAuthorizationStore` below is the in-memory ADR-006 "second adapter" — used by
- * tests and by any composition root with no persistent `content.db` — not the production path; see
- * `pending-authorizations.ts`'s header for the full argument (which applies here verbatim) for why
- * "worthless after a restart" was never the reason cross-process durability matters.
+ * tests and by any composition root with no persistent `content.db` — not the production path.
+ * "Worthless after a restart" was never the reason durability matters: the agent daemon starts the
+ * handshake and the web server completes it in a different process, and a process-local Map cannot
+ * join those two legs. Memory stores remain useful only where the whole handshake stays in one process.
  */
 export interface DeviceAuthorizationStore {
   put(serverId: string, authorization: DeviceAuthorization): Promise<void>;
@@ -812,6 +812,11 @@ function ownerKeyOf(workspaceId: UUID, serverId: string): string {
 }
 
 /** Thin site-key codec; Jini owns the expiring redirect payload and all binding checks.
+ * Stateless (no pending-store row) because the agent daemon can begin a connect that the web server
+ * completes in a different process; a process-local Map cannot join those two legs, and a sealed
+ * state needs no shared table. The exact redirect URI is bound into the state and replayed on
+ * exchange (RFC 6749 §4.1.3), never rebuilt from a callback Host header. Every open/expiry/binding
+ * failure is the same `OAUTH_INVALID_STATE`, so a guessed or tampered state is not an oracle.
  * @complexity O(state bytes), bounded by Jini; one site-key seal/open, no pending-store I/O.
  */
 function sealedRedirectState({ deps, serverId }: { deps: ExternalMcpOAuthDeps; serverId: string }, _optional: Record<string, never> = {}) {

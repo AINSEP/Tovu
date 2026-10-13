@@ -46,10 +46,11 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/as
  * `external_mcp_oauth_connect` whose `pending` authorization the callback route's process could never
  * see, so the human's completed browser sign-in failed to redeem.
  *
- * That gap is closed: pending and device-authorization state now lives in two `content.db` tables
- * (`oauth_pending_authorizations`, `oauth_device_authorizations`) behind SQLite-backed adapters
- * (`platform/db/sqlite/oauth-pending-store.sqlite.ts`), shared by every composition root that opens
- * the same `content.db` handle. A chat-started `authorization_code` connect from the agent daemon now
+ * That gap is closed: the authorization-code redirect state is now sealed with the site key and
+ * carried through the browser (no table; `assistant/external-mcp-oauth.ts`'s `sealedRedirectState`),
+ * and device-authorization state lives in the `content.db` table `oauth_device_authorizations` behind
+ * a SQLite-backed adapter (`platform/db/sqlite/oauth-pending-store.sqlite.ts`), shared by every
+ * composition root that opens the same `content.db` handle. A chat-started `authorization_code` connect from the agent daemon now
  * completes across the process boundary like any other — `tool-registrations.ts`'s
  * `external_mcp_oauth_connect` handler no longer needs to disclose this as a limitation either.
  */

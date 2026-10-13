@@ -32,9 +32,8 @@ import {
  * {@link beginAuthorizationCode} talks to no THIRD PARTY (nothing has been asked of the provider yet
  * — the operator's browser does the asking), and {@link completeAuthorizationCode} performs exactly
  * one bounded POST. `beginAuthorizationCode` is `async` because recording the pending authorization
- * (`deps.pending.put`) now goes through a `Promise`-returning port — see
- * `pending-authorizations.ts`'s header for why that port is async even for its in-memory
- * implementation — but it is still the ONLY thing this function awaits: no network call, no
+ * (`deps.pending.put`) now goes through a `Promise`-returning port — async even for its in-memory
+ * implementation so durable cross-process adapters share one call shape — but it is still the ONLY thing this function awaits: no network call, no
  * unbounded wait, nothing that can hang. Connect-time provider downtime surfaces at
  * {@link completeAuthorizationCode} rather than here, exactly as before.
  *

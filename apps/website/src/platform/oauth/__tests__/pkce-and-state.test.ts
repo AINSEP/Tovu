@@ -3,18 +3,16 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { createPendingAuthorizationStore } from "../pending-authorizations.js";
 import { assertValidCodeVerifier, createPkcePair, deriveCodeChallenge } from "@jini-ai/oauth";
-import { assertOAuthRejects, assertOAuthThrows, createTestClock } from "./helpers.js";
+import { assertOAuthThrows } from "./helpers.js";
 
 /**
- * @file PKCE (RFC 7636) and the single-use `state` ledger — the two mechanisms that make a PUBLIC
- * callback route safe to expose.
+ * @file PKCE (RFC 7636) — one of the two mechanisms that make a PUBLIC callback route safe to expose.
  *
  * The assertions here are the ones that would actually catch a regression that matters: that the
- * challenge is a real S256 digest rather than the verifier echoed back, that a state cannot be
- * replayed, that it cannot be redeemed against a connection it was not issued for, and that a
- * failed owner check still consumes it.
+ * challenge is a real S256 digest rather than the verifier echoed back. The other mechanism, the
+ * single-use, owner-bound `state` ledger (no replay, no cross-connection redemption, a failed owner
+ * check still consumes it), is Jini's store and is covered by Jini/packages/oauth/tests/pkce-and-state.test.ts.
 
  *
  * Design history from the retired Tovu pkce module. The implementation now lives in
@@ -88,82 +86,4 @@ test("a too-long verifier is refused", () => {
 test("a verifier outside the unreserved charset is refused rather than silently hashed", () => {
   const error = assertOAuthThrows(() => deriveCodeChallenge({ codeVerifier: `${"a".repeat(42)}/` }), "OAUTH_INVALID_REQUEST");
   assert.equal(error.message, "PKCE code verifier contains characters outside RFC 7636's unreserved set");
-});
-
-test("a state is single use — the second redemption fails", async () => {
-  const clock = createTestClock();
-  const store = createPendingAuthorizationStore({ clock });
-  const entry = await store.put({ ownerKey: "ws:server", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
-
-  assert.equal((await store.take({ state: entry.state, ownerKey: "ws:server" })).state, entry.state);
-  const error = await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
-  assert.equal(error.message, "the authorization request could not be matched — it may have expired or already been used");
-});
-
-test("a state cannot be redeemed against a different connection", async () => {
-  const store = createPendingAuthorizationStore({ clock: createTestClock() });
-  const entry = await store.put({ ownerKey: "ws:server-a", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
-
-  await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server-b" }), "OAUTH_INVALID_STATE");
-});
-
-test("a failed owner check still consumes the state, so it cannot be used as a retry oracle", async () => {
-  const store = createPendingAuthorizationStore({ clock: createTestClock() });
-  const entry = await store.put({ ownerKey: "ws:server-a", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
-
-  await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server-b" }), "OAUTH_INVALID_STATE");
-  // The CORRECT owner must now also fail: the entry is gone.
-  await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server-a" }), "OAUTH_INVALID_STATE");
-});
-
-test("a state expires and is pruned rather than lingering redeemable", async () => {
-  const clock = createTestClock();
-  const store = createPendingAuthorizationStore({ clock }, { ttlMs: 60_000 });
-  const entry = await store.put({ ownerKey: "ws:server", providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] });
-  assert.equal(await store.size({}), 1);
-
-  clock.advance(60_001);
-  await assertOAuthRejects(() => store.take({ state: entry.state, ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
-  assert.equal(await store.size({}), 0);
-});
-
-test("the store is bounded — at the cap the oldest entry is evicted, never the newest refused", async () => {
-  const store = createPendingAuthorizationStore({ clock: createTestClock() }, { maxEntries: 3 });
-  // Sequential `await`s, not `Promise.all` — insertion order is what "oldest" below depends on.
-  const entries = [];
-  for (let index = 0; index < 4; index += 1) {
-    entries.push(
-      await store.put({ ownerKey: `ws:server-${index}`, providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] }),
-    );
-  }
-
-  const [oldest, , , newest] = entries;
-  assert.ok(oldest && newest);
-  assert.equal(await store.size({}), 3);
-  // Oldest gone...
-  await assertOAuthRejects(() => store.take({ state: oldest.state, ownerKey: "ws:server-0" }), "OAUTH_INVALID_STATE");
-  // ...newest still redeemable, which is the property that keeps one caller from wedging the flow.
-  assert.equal((await store.take({ state: newest.state, ownerKey: "ws:server-3" })).ownerKey, "ws:server-3");
-});
-
-test("an unknown state is refused with the same message as an expired one", async () => {
-  const store = createPendingAuthorizationStore({ clock: createTestClock() });
-  const error = await assertOAuthRejects(() => store.take({ state: "not-a-real-state", ownerKey: "ws:server" }), "OAUTH_INVALID_STATE");
-  assert.equal(error.message, "the authorization request could not be matched — it may have expired or already been used");
-});
-
-// REGRESSION: fails if the store adapter returns its mutable internal scopes array.
-test("pending authorization cannot be rewritten through the returned scopes", async () => {
-  const store = createPendingAuthorizationStore({ clock: createTestClock() });
-  const scopes = ["read"];
-  const entry = await store.put({ ownerKey: "ws:server", providerId: "p", codeVerifier: "v", redirectUri: "https://tovu.example.com/cb", scopes });
-  scopes.push("write");
-  const redeemed = await store.take({ state: entry.state, ownerKey: "ws:server" });
-  assert.deepEqual(redeemed.scopes, ["read"]);
-});
-
-// REGRESSION: fails if invalid capacity falls through to the old permissive Map implementation.
-test("pending authorization rejects invalid limits at construction", () => {
-  for (const maxEntries of [0, -1, NaN])
-    assert.throws(() => createPendingAuthorizationStore({ clock: createTestClock() }, { maxEntries }));
 });
