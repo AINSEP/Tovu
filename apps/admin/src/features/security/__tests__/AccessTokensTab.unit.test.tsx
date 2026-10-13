@@ -82,6 +82,14 @@ describe("AccessTokensTab search box", () => {
   });
 });
 
+describe("AccessTokensTab empty categories", () => {
+  it.each(["ops", "general"] as const)("shows the existing Not connected copy for an empty %s category", (category) => {
+    render(<AccessTokensTab useAccessTokensHook={() => makeAccessTokens({ category })} useOtherCredentialsHook={() => makeOtherCredentials()} />);
+    expect(screen.getByText("Not connected")).toBeInTheDocument();
+    expect(document.querySelector(".access-tokens-tier .empty-state")).toHaveTextContent("Not connected");
+  });
+});
+
 describe("AccessTokensTab project copy entry", () => {
   // Entry hidden per owner 2026-10-11; `CopyKeysDialog`/`useCopyKeys` stay wired behind
   // `SHOW_COPY_KEYS_ENTRY` in `AccessTokensTab.tsx`.

@@ -169,6 +169,7 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
       <AccessTokensSearch controller={controller} otherController={otherController} />
       <AccessTokensCategoryFilter controller={controller} onAddCustomProvider={() => addCustomDialogRef.current?.showModal()} />
       <div className="access-tokens-tier">
+        {merged.length === 0 && !controller.query ? <div className="empty-state"><p>{controller.t("Not connected")}</p></div> : null}
         {merged.map((entry) =>
           entry.kind === "provider" ? (
             <ProviderGroup key={entry.key} group={entry.group} controller={controller} />

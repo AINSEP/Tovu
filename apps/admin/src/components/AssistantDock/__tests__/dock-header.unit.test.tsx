@@ -76,6 +76,28 @@ function SettingsMenuHarness({ notice }: { notice?: string }) {
 }
 
 describe("DockSettingsMenu", () => {
+  it("navigates from the clicked setting after opening with the mouse, including wraparound", async () => {
+    const user = userEvent.setup();
+    render(<SettingsMenuHarness />);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
+    await user.keyboard("{ArrowUp}");
+    expect(screen.getByRole("menuitemradio", { name: "Collapsed" })).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: "Hidden" })).toHaveFocus();
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Thinking" }));
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Thinking" })).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(screen.getByRole("menuitemradio", { name: "Show" })).toHaveFocus();
+    await user.keyboard("{End}{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Settings" })).toHaveFocus();
+  });
+
   it("changes settings in place with the menu left open, and closes on Escape, outside click and a second click", async () => {
     const user = userEvent.setup();
     render(<SettingsMenuHarness />);

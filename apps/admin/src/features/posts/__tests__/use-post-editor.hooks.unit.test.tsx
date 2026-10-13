@@ -863,6 +863,7 @@ describe("usePostEditor — writes target the loaded row's id, not the route slu
     await act(async () => {
       await result.current.save();
     });
+    expect(navigate).toHaveBeenCalledWith("/posts/renamed-once", { replace: true });
     const putAutosave = vi.spyOn(port, "putAutosave");
     vi.useFakeTimers();
     try {
@@ -883,6 +884,7 @@ describe("usePostEditor — writes target the loaded row's id, not the route slu
 
     expect(result.current.error).toBeNull();
     expect(port.post.slug).toBe("renamed-twice");
+    expect(navigate).toHaveBeenCalledWith("/posts/renamed-twice", { replace: true });
 
     await act(async () => {
       await result.current.remove();

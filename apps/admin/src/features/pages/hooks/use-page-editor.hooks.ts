@@ -32,6 +32,7 @@ import {
   buildPageAutosaveDraft,
   buildPageSavePlan,
   pageAcceptsHtmlBody,
+  pageAdminPath,
   pageDirtyGuardBaseline,
   pageEditableHtml,
   pagePartialSaveMessage,
@@ -956,6 +957,8 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         // this is best-effort background bookkeeping (errors are already caught inside the hook),
         // not part of what "Save succeeded" means to the operator.
         void autosave.clearStandingDraft();
+        // A successful rename retires the old slug; reloads and shared links must use the new one.
+        if (updated.slug !== basis.slug) navigate(pageAdminPath(updated), { replace: true });
       } catch (e) {
         if (!settlement.isCurrent({ generation })) return;
         autosave.preserveFailedSave({ error: e, draft: buildPageAutosaveDraft(basis, { title, slug, html: bodyHtml }) });
@@ -974,7 +977,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         if (settlement.isCurrent({ generation })) setSaving(false);
       }
     },
-    [html, title, slug, status, templateChoice, locale, port, t, settlement, autosave.clearStandingDraft, autosave.preserveFailedSave]
+    [html, title, slug, status, templateChoice, locale, port, navigate, t, settlement, autosave.clearStandingDraft, autosave.preserveFailedSave]
   );
 
   /**

@@ -88,22 +88,30 @@ export function useTaxonomyRowMenu({ itemCount }: { itemCount: number }): MenuSt
 
   /** Keep menu navigation local; Tab follows the browser's ordinary focus order. */
   function onMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // A pointer can focus another setting while the popup stays open. Navigate from that
+    // actual row, and focus explicitly even if the next index matches the last keyboard index.
+    const focusedIndex = itemRefs.current.indexOf(menuRef.current?.ownerDocument.activeElement as HTMLButtonElement);
+    const index = focusedIndex === -1 ? activeIndex : focusedIndex;
+    function focusItem(nextIndex: number) {
+      setActiveIndex(nextIndex);
+      itemRefs.current[nextIndex]?.focus();
+    }
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        setActiveIndex((index) => (index + 1) % itemCount);
+        focusItem((index + 1) % itemCount);
         break;
       case "ArrowUp":
         event.preventDefault();
-        setActiveIndex((index) => (index - 1 + itemCount) % itemCount);
+        focusItem((index - 1 + itemCount) % itemCount);
         break;
       case "Home":
         event.preventDefault();
-        setActiveIndex(0);
+        focusItem(0);
         break;
       case "End":
         event.preventDefault();
-        setActiveIndex(itemCount - 1);
+        focusItem(itemCount - 1);
         break;
       case "Escape":
         event.preventDefault();

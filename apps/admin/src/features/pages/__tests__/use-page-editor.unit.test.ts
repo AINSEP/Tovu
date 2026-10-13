@@ -341,6 +341,44 @@ describe("contentDirty (template-preview fix, 2026-08-11)", () => {
  * `Jini redirects/react/__tests__/use-redirects.hooks.unit.test.tsx`'s injected-port block, the reference this conversion follows.
  */
 describe("injected port — usePageEditor with no fetch stub", () => {
+  it.each([DOC_PAGE, HTML_PAGE])("replaces the browser route after renaming a $bodyFormat page, then writes again by id", async (page) => {
+    const port = createFakePageEditorPort({ page });
+    const targets: string[] = [];
+    const updatePost = port.updatePost;
+    port.updatePost = async (target, patch) => {
+      targets.push(target.id);
+      return updatePost(target, patch);
+    };
+    const navigate = vi.fn();
+    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate, t: (_locale: string, key: string) => key, locale: "en" };
+    const { result } = renderHook(() => usePageEditor(page.slug, deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setSlug("renamed-page"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBeNull();
+    expect(navigate).toHaveBeenCalledExactlyOnceWith("/pages/renamed-page", { replace: true });
+    expect(port.current.slug).toBe("renamed-page");
+
+    act(() => result.current.setSlug("renamed-page-again"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBeNull();
+    expect(navigate).toHaveBeenLastCalledWith("/pages/renamed-page-again", { replace: true });
+    expect(targets).toEqual([page.id, page.id]);
+  });
+
+  it("keeps the old browser route when a slug rename is rejected", async () => {
+    const port = createFakePageEditorPort({ page: DOC_PAGE });
+    const navigate = vi.fn();
+    const deps = { port: { ...port, updatePost: async () => { throw new Error("slug 'taken' already exists"); } }, themeCanvasPort: createFakeThemeCanvasPort(), navigate, t: (_locale: string, key: string) => key, locale: "en" };
+    const { result } = renderHook(() => usePageEditor(DOC_PAGE.slug, deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => result.current.setSlug("taken"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.error).toBe("slug 'taken' already exists");
+    expect(result.current.slug).toBe("taken");
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   function fakeDeps(overrides: { page: unknown; activeThemeTemplates?: string[] }) {
     const port = createFakePageEditorPort({
       page: overrides.page as Parameters<typeof createFakePageEditorPort>[0]["page"],
