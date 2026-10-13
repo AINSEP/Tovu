@@ -1,6 +1,6 @@
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -29,8 +29,7 @@ import {
  * 3. two folders declaring the same frontmatter `name` refuse loudly instead of silently colliding.
  * 4. the handler returns the exact `SKILL.md` body plus the bundled `references/`/`scripts/`/
  *    `assets/` file paths — not inlined content.
- * 5. workspace isolation, and the same `NO_INPUT_SCHEMA`/`requireNoInput` shape every other
- *    parameterless tool in this codebase uses.
+ * 5. workspace isolation, optional supporting-file requests and unexpected-input refusal.
  *
  * Uses a real temp directory rather than the production `installAgentPlugin` pipeline
  * `agent-plugins`' own tests use — there is no equivalent install pipeline for a standalone skill
@@ -258,7 +257,7 @@ test("a skill with no bundled subdirectories at all returns an empty bundledFile
   });
 });
 
-test("the input schema accepts no arguments, and a populated input throws via requireNoInput", async () => {
+test("the input schema accepts an optional file and refuses unexpected fields", async () => {
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
     const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
@@ -267,9 +266,10 @@ test("the input schema accepts no arguments, and a populated input throws via re
 
     const schema = registration.descriptor.inputSchema as { required: readonly string[]; properties: Record<string, unknown> };
     assert.deepEqual(schema.required, []);
-    assert.deepEqual(schema.properties, {});
+    assert.deepEqual(Object.keys(schema.properties), ["file"]);
+    assert.deepEqual(schema.properties.file, { type: "string", description: "Optional supporting text file relative to this skill folder, e.g. references/guide.md. Omit to read SKILL.md. Responses list readable files; unknown, unsafe, binary or over-256-KiB requests return a note and valid files." });
 
-    await assert.rejects(() => registration.handler(fakeCtx({ anything: true })), /this tool accepts no input/);
+    await assert.rejects(() => registration.handler(fakeCtx({ anything: true })), /this tool accepts only an optional 'file' argument/);
     // Omitted, or an explicit empty object, are both fine.
     await assert.doesNotReject(() => registration.handler(fakeCtx(undefined)));
     await assert.doesNotReject(() => registration.handler(fakeCtx({})));
@@ -369,5 +369,55 @@ test("a skill bundledFiles pointer chains directly into the real fs_read_file ha
     const reader = fsTools.find(t => t.descriptor.id === "fs_read_file")!;
     const { root, path: filePath } = output.bundledFiles[0]!;
     assert.deepEqual(await reader.handler(fakeCtx({ root, path: filePath })), { root: "site", path: filePath, content: "Check ownership before deleting.\n", bytes: 33 });
+  });
+});
+
+test("standalone skill tools read references, resources and examples through the shared reader even outside the active site", async () => {
+  await withSkillsDir(async skillsDir => {
+    await writeSkill(skillsDir, WORKSPACE_A, "code-review", {
+      "SKILL.md": CODE_REVIEW_SKILL_MD,
+      "references/check.md": "Check the named behavior owner.\n",
+      "resources/contracts.json": "{\"owner\":\"shared\"}\n",
+      "examples/component.tsx": "export const Example = () => <div />;\n",
+    });
+    const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A, siteBinding: { dir: path.join(skillsDir, "unrelated-site") } }));
+    const [registration] = buildSkillToolRegistrations(sources);
+    assert.ok(registration);
+    const expectedFiles = ["examples/component.tsx", "references/check.md", "resources/contracts.json"];
+    const overview = await registration.handler(fakeCtx()) as { files: string[]; bundledFiles: unknown[] };
+    assert.deepEqual(overview.files, expectedFiles);
+    assert.deepEqual(overview.bundledFiles, [], "overrides need no site-relative filesystem pointer for skill reads");
+    const reference = await registration.handler(fakeCtx({ file: "references/check.md" })) as { guidance: string; files: string[] };
+    assert.equal(reference.guidance, "Check the named behavior owner.\n");
+    assert.deepEqual(reference.files, expectedFiles);
+    assert.equal(JSON.stringify(reference).includes(skillsDir), false);
+    assert.equal((await registration.handler(fakeCtx({ file: "examples/component.tsx" })) as { guidance: string }).guidance, "export const Example = () => <div />;\n");
+    assert.equal((await registration.handler(fakeCtx({ file: "resources/contracts.json" })) as { guidance: string }).guidance, "{\"owner\":\"shared\"}\n");
+  });
+});
+
+test("standalone skill tools refuse unsafe, missing, binary, disallowed and oversize supporting files with a valid-file note", async () => {
+  await withSkillsDir(async skillsDir => {
+    const skillRoot = await writeSkill(skillsDir, WORKSPACE_A, "code-review", {
+      "SKILL.md": CODE_REVIEW_SKILL_MD,
+      "references/check.md": "Readable supporting text.\n",
+      "resources/binary.txt": "\0BINARY_CANARY",
+      "resources/asset.png": "ASSET_CANARY",
+      "resources/large.md": "x".repeat(256 * 1024 + 1),
+    });
+    const otherRoot = await writeSkill(skillsDir, WORKSPACE_A, "incident-response", { "SKILL.md": INCIDENT_RESPONSE_SKILL_MD });
+    await symlink(path.join(otherRoot, "SKILL.md"), path.join(skillRoot, "escape.md"));
+    const registration = buildSkillToolRegistrations(await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }))).find(tool => tool.descriptor.id === "skill_code_review");
+    assert.ok(registration);
+    for (const file of ["../incident-response/SKILL.md", path.join(skillRoot, "SKILL.md"), "escape.md", "missing.md", "resources/binary.txt", "resources/asset.png", "resources/large.md"]) {
+      const output = await registration.handler(fakeCtx({ file })) as { guidance: string; files: string[]; note: string };
+      assert.equal(output.guidance, CODE_REVIEW_SKILL_MD);
+      assert.deepEqual(output.files, ["references/check.md"]);
+      assert.ok(output.note.startsWith("File request refused:"));
+      assert.ok(output.note.includes("Valid supporting files: references/check.md."));
+      assert.equal(JSON.stringify(output).includes(skillsDir), false);
+      assert.equal(JSON.stringify(output).includes("BINARY_CANARY"), false);
+      assert.equal(JSON.stringify(output).includes("ASSET_CANARY"), false);
+    }
   });
 });

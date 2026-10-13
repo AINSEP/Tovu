@@ -257,12 +257,12 @@ test("calling with no 'skill' argument returns the plugin's own eponymous skill 
       pluginId: string;
       skillName: string;
       guidance: string;
-      availableSkills: readonly string[];
+      availableSkills: readonly { name: string; description: string }[];
     };
     assert.equal(result.pluginId, "ui-ux-design");
     assert.equal(result.skillName, "ui-ux-design");
     assert.match(result.guidance, /Skill: UI\/UX Design/);
-    assert.deepEqual(result.availableSkills, ["frontend-accessibility"]);
+    assert.deepEqual(result.availableSkills, [{ name: "frontend-accessibility", description: "WCAG 2.1 AA compliance guidance for frontend code review and E2E testing." }]);
   });
 });
 
@@ -304,11 +304,11 @@ test("an explicit, recognized 'skill' argument returns that skill's own guidance
       pluginId: string;
       skillName: string;
       guidance: string;
-      availableSkills: readonly string[];
+      availableSkills: readonly { name: string; description: string }[];
     };
     assert.equal(result.skillName, "frontend-accessibility");
     assert.match(result.guidance, /WCAG 2\.1 AA/);
-    assert.deepEqual(result.availableSkills, ["ui-ux-design"]);
+    assert.deepEqual(result.availableSkills, [{ name: "ui-ux-design", description: "Use when creating frontend design systems, visual direction, component/state specs, responsive behavior, brand-aware UI guidance, premium/high-converting website polish, or implementation-ready design handoff from a feature spec or existing product constraints." }]);
   });
 });
 
@@ -345,7 +345,7 @@ test("a malformed 'skill' argument (wrong type) or an unexpected extra field sti
     assert.ok(registration);
 
     await assert.rejects(() => invokeFixtureHandler(registration, fakeCtx({ skill: 123 })), error => { assert.ok(error instanceof ToolInputError); assert.equal(error.message, "'skill' must be a string"); return true; });
-    await assert.rejects(() => invokeFixtureHandler(registration, fakeCtx({ notASkillField: "x" })), { name: "Error", message: "this tool accepts only an optional 'skill' argument — unexpected field(s): notASkillField" });
+    await assert.rejects(() => invokeFixtureHandler(registration, fakeCtx({ notASkillField: "x" })), { name: "Error", message: "this tool accepts only optional 'skill' and 'file' arguments — unexpected field(s): notASkillField" });
   });
 });
 

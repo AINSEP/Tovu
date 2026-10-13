@@ -158,6 +158,7 @@ export const {
   recordBundledAgentPluginDigests, removeBundledAgentPluginDigest, rankInstalledAgentPlugins,
   packAgentPluginDirectory, createBundledSourceArchiveReader,
   readTrustedPluginFile, importContainedModule, loadPluginContributionsFromSource,
+  readInstalledSkillFile,
 } = explicitRootLifecycle;
 
 /** This boot's lifecycle owner; installed contributions always use its fixed site layout. */

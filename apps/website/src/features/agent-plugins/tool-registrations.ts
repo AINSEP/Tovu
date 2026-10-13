@@ -26,15 +26,16 @@ import {
 
 import { readInstalledMcpServerIds, readInstalledSkillMarkdown } from "./capability-projection.js";
 import type { AgentPluginLayout } from "./layout.js";
+import type { SkillFileResult } from "@jini-ai/agent-plugins/lifecycle";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
-import { isInstalledDigestPresent, listInstalledPlugins } from "./lifecycle.js";
+import { isInstalledDigestPresent, listInstalledPlugins, readInstalledSkillFile } from "./lifecycle.js";
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from "./lifecycle.js";
 import type { ToolContributor } from "#src/assistant/index";
 
 /**
  * @file Registers each installed, active Agent Plugin as one real ToolRegistry tool.
  *
- * One tool per plugin, with an optional skill argument, matches the composer's plugin chip and
+ * One tool per plugin, with optional skill and file arguments, matches the composer's plugin chip and
  * prevents one multi-skill plugin from crowding native tools out of search results. search_tools
  * is the indexed discovery surface; a parallel capability index would make the agent choose which
  * one to query. Combining skill descriptions dilutes per-term BM25 scores, but keeps result slots
@@ -57,7 +58,7 @@ import type { ToolContributor } from "#src/assistant/index";
  * naming the rejected value and valid choices, so a typo remains recoverable.
  *
  * SECURITY: no absolute host path belongs in ids, descriptions, schemas or handler outputs.
- * packageRoot/skillPath are only local read arguments; AgentPluginToolSource never carries them.
+ * packageRoot/skillPath are only local read arguments captured by reader capabilities; AgentPluginToolSource never exposes them.
  * Outputs contain plugin/skill names, guidance markdown and availability, never the source path.
  * The real-install tests assert that the temporary package root is absent from every public field.
  *
@@ -99,7 +100,7 @@ function extractFallbackSummary(markdown: string): string | undefined {
 function summarizeSkillMarkdown(skillName: string, markdown: string): string {
   return (
     readFrontmatterField(markdown, "description") ?? extractFallbackSummary(markdown) ?? `${humanize(skillName)} guidance and reference material.`
-  );
+  ).replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -132,16 +133,20 @@ function buildPluginToolDescription(
     `Use this before making any design/implementation decision in its domain — ` +
     `${humanPlugin} guidance from the installed '${pluginId}' Agent Plugin, covering ${skills.length} ` +
     `skill${skills.length === 1 ? "" : "s"}: ${details} ${defaultNote} Pass the optional 'skill' argument ` +
-    `to request a different one by name.`
+    `to request a different one by name. Pass optional 'file' (for example 'references/foundations.md') ` +
+    `relative to the chosen skill folder to read supporting text instead of SKILL.md. Every response lists ` +
+    `readable supporting files and other skills with short descriptions; unknown or refused files return a recovery note.`
   );
 }
 
-/** One installed plugin's one skill, fully resolved for tool registration — no host paths, nothing
- *  left for the handler to read from disk at call time. See this file's header, SECURITY. */
+/** One installed plugin's one skill, fully resolved for tool registration — no host paths, a deferred
+ *  reader capability for supporting-file requests at call time. See this file's header, SECURITY. */
 export interface AgentPluginSkillDetail {
   readonly name: string;
   readonly summary: string;
   readonly markdown: string;
+  /** Deferred shared-reader capability; its closed-over host paths never enter model output. */
+  readonly readFile?: (input: Record<string, never>, options?: { readonly file?: string }) => Promise<SkillFileResult>;
 }
 
 /** One installed Agent Plugin, fully resolved into a single tool-ready source. See this file's
@@ -205,7 +210,9 @@ async function resolveSkillsForPlugin(plugin: {
   const skills: AgentPluginSkillDetail[] = [];
   for (const skill of plugin.skills) {
     const markdown = await readInstalledSkillMarkdown(plugin.packageRoot, skill.skillPath);
-    skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown });
+    skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown,
+      readFile: (_input, options = {}) => readInstalledSkillFile({ packageRoot: plugin.packageRoot, skillPath: skill.skillPath }, options),
+    });
   }
   return skills;
 }
@@ -233,7 +240,9 @@ async function resolveSkillsForSearchTolerant(plugin: {
   for (const skill of plugin.skills) {
     try {
       const markdown = await readInstalledSkillMarkdown(plugin.packageRoot, skill.skillPath);
-      skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown });
+      skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown,
+        readFile: (_input, options = {}) => readInstalledSkillFile({ packageRoot: plugin.packageRoot, skillPath: skill.skillPath }, options),
+      });
     } catch (error) {
       console.warn(
         `[agent-plugins] '${plugin.pluginId}': skill '${skill.name}' could not be read ` +
@@ -355,7 +364,7 @@ export function agentPluginToolDerivedRisk(sources: readonly AgentPluginToolSour
   return new Map<string, AgentToolSideEffect>(sources.map((source) => [source.id, "none"]));
 }
 
-/** `inputSchema` for one plugin's tool: a single optional `skill` string, its `enum` documenting
+/** `inputSchema` for one plugin's tool: optional `file` and `skill` strings, the skill `enum` documenting
  *  every valid value for THIS installed plugin. Documentation only — `@jini-ai/core`'s
  *  `ToolRegistry` never parses or validates `inputSchema`, so an unrecognized value can never be
  *  rejected before it reaches {@link readSkillArgument} / {@link buildPluginToolResult}, which
@@ -367,6 +376,10 @@ function buildPluginInputSchema(source: AgentPluginToolSource): Record<string, u
     additionalProperties: false,
     required: [],
     properties: {
+      file: {
+        type: "string",
+        description: "Optional supporting text file relative to the chosen skill folder, e.g. references/foundations.md. Omit to read SKILL.md. Use paths from files in the previous result. Unknown, unsafe, binary or over-256-KiB files return a note and valid files.",
+      },
       skill: {
         type: "string",
         enum: skillNames,
@@ -379,49 +392,38 @@ function buildPluginInputSchema(source: AgentPluginToolSource): Record<string, u
   };
 }
 
-/** Reads the optional `skill` argument off `ctx.input`, refusing any OTHER field (mirrors
- *  `requireNoInput`'s "reject a populated-but-wrong shape" discipline for the one field this tool
+/** Reads optional `skill` and `file` arguments off `ctx.input`, refusing any OTHER field (mirrors
+ *  `requireNoInput`'s "reject a populated-but-wrong shape" discipline for the fields this tool
  *  does accept) but never rejecting a `skill` value merely because it does not name a real skill —
  *  see this file's header on why an unrecognized value is a graceful fallback, not a thrown error. */
-function readSkillArgument(rawInput: unknown): string | undefined {
-  if (rawInput === undefined) return undefined;
-  const candidate = { value: rawInput };
-  if (!isRecord(candidate)) throw new Error("input must be an object");
-  const unexpectedKeys = Object.keys(candidate.value).filter((key) => key !== "skill");
+function readSkillArgument(rawInput: unknown): { skill?: string; file?: string } {
+  if (rawInput === undefined) return {};
+  const input = requireInputRecord({ input: rawInput });
+  const unexpectedKeys = Object.keys(input).filter((key) => key !== "skill" && key !== "file");
   if (unexpectedKeys.length > 0) {
-    throw new Error(`this tool accepts only an optional 'skill' argument — unexpected field(s): ${unexpectedKeys.join(", ")}`);
+    throw new Error(`this tool accepts only optional 'skill' and 'file' arguments — unexpected field(s): ${unexpectedKeys.join(", ")}`);
   }
-  return optionalString({ input: candidate.value, key: "skill" });
+  const skill = optionalString({ input, key: "skill" });
+  const file = optionalString({ input, key: "file" });
+  return { ...(skill !== undefined ? { skill } : {}), ...(file !== undefined ? { file } : {}) };
 }
 
 /**
  * Resolves one plugin tool's response for a given (possibly absent, possibly unrecognized)
- * requested skill name. Pure and synchronous so the unit tests exercise it directly.
+ * requested skill name and optional supporting file. Disk access stays behind the shared-reader capability.
  *
  * - A recognized `requestedSkill` returns exactly that skill.
  * - `undefined` (argument omitted) returns {@link AgentPluginToolSource.defaultSkillName}.
  * - An unrecognized, non-empty `requestedSkill` ALSO returns the default skill, plus a `note`
  *   naming the value that was not recognized and listing every valid one — never a thrown error.
  *
- * Every response additionally carries `availableSkills`: every other skill name this plugin has, so
+ * Every response additionally carries `files` and `availableSkills`: every other skill name and description this plugin has, so
  * a model that got the default (or a specific skill) still knows what else it can ask for next.
  */
-function buildPluginToolResult(source: AgentPluginToolSource, requestedSkill: string | undefined): Record<string, unknown> {
-  const allSkillNames = source.skills.map((skill) => skill.name);
-
-  if (requestedSkill !== undefined) {
-    const match = source.skills.find((skill) => skill.name === requestedSkill);
-    if (match) {
-      return {
-        pluginId: source.pluginId,
-        skillName: match.name,
-        guidance: match.markdown,
-        availableSkills: allSkillNames.filter((name) => name !== match.name),
-      };
-    }
-  }
-
-  const fallback = source.skills.find((skill) => skill.name === source.defaultSkillName);
+async function buildPluginToolResult(source: AgentPluginToolSource, input: { skill?: string; file?: string }): Promise<Record<string, unknown>> {
+  const requestedSkill = input.skill;
+  const match = source.skills.find(skill => skill.name === requestedSkill);
+  const fallback = source.skills.find(skill => skill.name === source.defaultSkillName);
   if (!fallback) {
     // Cannot happen in practice: `defaultSkillName` is always chosen FROM `source.skills` in
     // `loadInstalledAgentPluginToolSources`. Guarded rather than asserted with `!` so a future bug
@@ -429,18 +431,24 @@ function buildPluginToolResult(source: AgentPluginToolSource, requestedSkill: st
     throw new Error(`agent-plugin tool '${source.id}': default skill '${source.defaultSkillName}' missing from its own skill list`);
   }
 
+  const selected = match ?? fallback;
+  const content = selected.readFile ? await selected.readFile({}, input.file !== undefined ? { file: input.file } : {}) : undefined;
+  // An unknown/refused file keeps the skill's instructions available, like unknown-skill recovery.
+  const notes = [content?.note];
+  if (requestedSkill !== undefined && !match) {
+    // Reflect only a simple name; a caller-supplied absolute path must never appear in a note.
+    const label = /^[a-z0-9-]+$/.test(requestedSkill) ? ` '${requestedSkill}'` : "";
+    notes.push(`Unrecognized skill${label} for the '${source.pluginId}' plugin — showing the default skill '${fallback.name}' instead. Valid values: ${source.skills.map(skill => skill.name).join(", ")}.`);
+  }
+  if (input.file !== undefined && !selected.readFile) notes.push("File request refused: no supporting-file reader is available. Valid supporting files: (none).");
   return {
     pluginId: source.pluginId,
-    skillName: fallback.name,
-    guidance: fallback.markdown,
-    availableSkills: allSkillNames.filter((name) => name !== fallback.name),
-    ...(requestedSkill !== undefined
-      ? {
-          note:
-            `Unrecognized skill '${requestedSkill}' for the '${source.pluginId}' plugin — showing the default ` +
-            `skill '${fallback.name}' instead. Valid values: ${allSkillNames.join(", ")}.`,
-        }
-      : {}),
+    skillName: selected.name,
+    guidance: content && !(content.note && !content.text) ? content.text : selected.markdown,
+    files: content?.files ?? [],
+    // Keep the availability list short without removing vocabulary from the indexed description.
+    availableSkills: source.skills.filter(skill => skill.name !== selected.name).map(skill => ({ name: skill.name, description: skill.summary.slice(0, 320) })),
+    ...(notes.some(Boolean) ? { note: notes.filter(Boolean).join(" ") } : {}),
   };
 }
 

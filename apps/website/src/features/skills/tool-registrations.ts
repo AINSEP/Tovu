@@ -1,9 +1,11 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/skills.js';
 import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
+import * as filesystem from "node:fs/promises";
 import { readFile, readdir } from "node:fs/promises";
+import { createSkillFileReader, type SkillFileReader } from "@jini-ai/agent-plugins/lifecycle";
 import path from "node:path";
 
-import { buildDomainRegistrations, indexCatalogById, requireNoInput, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, optionalString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
@@ -62,9 +64,8 @@ import type { SkillLayout } from "./layout.js";
  * instructions. Inlining their contents into every tool call would defeat that (and, for a skill like
  * this feature's own installed `incident-response` fixture, balloon a call that usually only needs
  * the top-level workflow). The handler instead returns each bundled file's path so the caller can
- * `Read` it on demand — the same "list paths, do not inline" shape
- * `resolve-agent-plugin-refs.ts`'s own `inventory` block already uses for an installed plugin's
- * non-eponymous files.
+ * request it with this tool's optional `file` argument (Jini's shared skill-file reader) — the same
+ * "list paths, do not inline" progressive disclosure run-start injection uses.
  *
  * Bundled files use `{ root: "site", path }` for direct fs_read_file calls. Files outside
  * the active site (an operator override) are omitted rather than advertising unreadable paths.
@@ -199,6 +200,8 @@ export interface SkillToolSource {
    *  file" precedent `agent-plugins/tool-registrations.ts`'s handler already establishes. */
   readonly markdown: string;
   readonly bundledFiles: readonly SkillBundledFile[];
+  /** Deferred reader keeps the host path private while all assistant surfaces can load references. */
+  readonly readFile?: SkillFileReader["read"];
   readonly directory?: string;
 }
 
@@ -270,7 +273,7 @@ async function resolveSkillEntry(input: {
 
   return {
     kind: "resolved",
-    source: { directory: entry.name, id, skillName: frontmatter.name, description: frontmatter.description, markdown, bundledFiles: await listBundledFiles({ skillDir, siteDir: input.siteDir }) },
+    source: { directory: entry.name, id, skillName: frontmatter.name, description: frontmatter.description, markdown, readFile: createSkillFileReader({ skillRoot: skillDir, filesystem }).read, bundledFiles: await listBundledFiles({ skillDir, siteDir: input.siteDir }) },
   };
 }
 
@@ -315,14 +318,13 @@ export function skillToolDerivedRisk(sources: readonly SkillToolSource[]): Deriv
   return new Map<string, AgentToolSideEffect>(sources.map((source) => [source.id, "none"]));
 }
 
-/** No arguments — every skill tool takes none (see this file's header: one skill is one tool, with
- *  no `skill` argument to select among siblings the way the agent-plugin tool needs). Shape mirrors
- *  `features/database/agent-tools.ts`'s own `NO_INPUT_SCHEMA`. */
-const NO_INPUT_SCHEMA = {
+/** Optional file only — one skill is one tool, so no `skill` argument selects siblings.
+ *  The file schema documents progressive disclosure through this tool's shared reader. */
+const SKILL_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: [],
-  properties: {},
+  properties: { file: { type: "string", description: "Optional supporting text file relative to this skill folder, e.g. references/guide.md. Omit to read SKILL.md. Responses list readable files; unknown, unsafe, binary or over-256-KiB requests return a note and valid files." } },
 } as const;
 
 /**
@@ -337,16 +339,22 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
     description: source.description,
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
-    inputSchema: NO_INPUT_SCHEMA,
+    inputSchema: SKILL_INPUT_SCHEMA,
   }));
 
   const handlers: Record<string, ToolHandler> = {};
   for (const source of sources) {
     handlers[source.id] = async (ctx) => {
-      requireNoInput({ input: ctx.input });
+      const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
+      if (Object.keys(input).some(key => key !== "file")) throw new Error("this tool accepts only an optional 'file' argument");
+      const file = optionalString({ input, key: "file" });
+      const content = source.readFile ? await source.readFile({}, file !== undefined ? { file } : {}) : undefined;
       return {
         skillName: source.skillName,
-        guidance: source.markdown,
+        guidance: content && !(content.note && !content.text) ? content.text : source.markdown,
+        files: content?.files ?? [],
+        ...(content?.note ? { note: content.note } : {}),
+        ...(file !== undefined && !source.readFile ? { note: "File request refused: no supporting-file reader is available. Valid supporting files: (none)." } : {}),
         bundledFiles: source.bundledFiles.map((file) => ({ kind: file.kind, root: "site", path: file.path })),
       };
     };
