@@ -92,13 +92,13 @@ test("t02: no new params retains the pinned pre-change output and bytes", async 
         status: "published",
         updatedAt: NOW,
         version: 2,
-        // 21e385e7e (post author) added these two to every list row.
-        author: null,
-        showAuthor: false,
         publicUrl: "/welcome",
         adminUrl: "/admin/pages/welcome",
         excerpt: "Hello world.",
         bodyChars: 12,
+        // 21e385e7e (post author) added these two to every list row.
+        author: null,
+        showAuthor: false,
       },
     ],
     total: 1,
