@@ -6,6 +6,8 @@
  * `build/entitlements.mac.plist`'s 2026-09-11 header comment records once by hand, now run on every
  * release build. `verify-package.ts` (S2) already proves the shipped BYTES are correct; this proves
  * the shipped NATIVE ADDONS actually load and run, which byte comparison alone cannot show.
+ * It then proves every static import of the shell and server entries resolves inside the shipped
+ * tree (`buildEntryLoadScript`), which the byte check cannot show either.
  *
  * All path-resolution and result-parsing logic lives in `../src/smoke-native.ts`, so it is
  * unit-tested under the normal `npm test` glob without ever spawning a real process (see that
@@ -13,7 +15,8 @@
  * result into an exit code.
  *
  * Usage: node scripts/smoke-native.ts --platform-dir <dir-containing-mac-or-win-unpacked-output>
- * Exit codes: 0 = better-sqlite3, sharp, and argon2 all round-tripped inside the packaged binary.
+ * Exit codes: 0 = better-sqlite3, sharp, and argon2 all round-tripped inside the packaged binary,
+ *                 and every static entry import resolved.
  *             1 = any check failed, the executable/node_modules could not be located or spawned,
  *                 or the child's output could not be parsed.
  */
@@ -22,7 +25,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-import { buildSmokeScript, parseSmokeOutput, resolveSmokeTargets } from "../src/smoke-native.ts";
+import { buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "../src/smoke-native.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -101,6 +104,27 @@ function main(): void {
     fail("smoke-native: one or more native modules failed inside the packaged binary");
   }
   process.stdout.write("smoke-native: OK — better-sqlite3, sharp, and argon2 all round-tripped\n");
+  checkEntryImports(targets);
+}
+
+/** Runs {@link buildEntryLoadScript} in the packaged binary: every static import of the shell and
+ *  server entries must resolve inside the shipped tree (0.1.15 crashed at launch on one that did not). */
+function checkEntryImports(targets: SmokeTargets): void {
+  const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
+  const spawned = spawnSync(targets.executablePath, ["-e", buildEntryLoadScript(resourcesDir)], {
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    encoding: "utf8",
+  });
+  if (spawned.error) fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
+  if (spawned.stderr) process.stderr.write(spawned.stderr);
+  let result: ReturnType<typeof parseEntryLoadOutput>;
+  try {
+    result = parseEntryLoadOutput(spawned.stdout ?? "");
+  } catch (error) {
+    fail((error as Error).message);
+  }
+  if (!result.ok) fail(`smoke-native: packaged entries import modules the app does not ship:\n  ${result.unresolved.join("\n  ")}`);
+  process.stdout.write("smoke-native: OK — every static import of the shell and server entries resolves\n");
 }
 
 main();

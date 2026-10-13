@@ -133,7 +133,7 @@ jobs:
       - name: verify-package (unpacked build)
         working-directory: apps/desktop
         run: node scripts/verify-package.ts --asar "${{ matrix.asar }}"
-      - name: Native-module smoke (runs the shipped binary on this CPU)
+      - name: Native-module + entry-imports smoke (runs the shipped binary on this CPU)
         working-directory: apps/desktop
         run: node scripts/smoke-native.ts --platform-dir release
       - if: runner.os == 'macOS'
@@ -294,7 +294,7 @@ jobs:
           grep -q "<desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>" "$m"
           grep -q 'Name="unvirtualizedResources"' "$m"
           node scripts/verify-package.ts --asar "$RUNNER_TEMP/appx/app/resources/app.asar"
-      - name: Native-module smoke (runs the shipped binary on this CPU)
+      - name: Native-module + entry-imports smoke (runs the shipped binary on this CPU)
         working-directory: apps/desktop
         run: node scripts/smoke-native.ts --platform-dir release
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

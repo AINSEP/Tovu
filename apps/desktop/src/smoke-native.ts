@@ -188,4 +188,83 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
   return { ok: betterSqlite3.ok && sharp.ok && argon2.ok, betterSqlite3, sharp, argon2 };
 }
 
+/**
+ * Builds the inline script that proves every STATIC import reachable from the two packaged entry
+ * points resolves inside the shipped tree: the shell's `app.asar` `main` and the staged server's
+ * `cliEntry` (`tovu/dist/runtime-manifest.json`). 0.1.15 shipped a shell that died at launch with
+ * ERR_MODULE_NOT_FOUND (`@jini-ai/agent-runtime` statically imported `@jini-ai/oauth`, an optional
+ * peer nothing installed), and every byte/native check above passed, because a dev checkout's
+ * upward `node_modules` walk always finds the package. Nothing is evaluated: a resolve hook records
+ * each failure and stubs it so the walk continues, and a first import that throws aborts
+ * evaluation before any module body runs. `electron` is stubbed because `ELECTRON_RUN_AS_NODE`
+ * has no electron module. Lazy `import()`s and CommonJS `require`s run only at evaluation, so they
+ * are out of scope here (they degrade at the call site, not at launch).
+ *
+ * @param resourcesDir the packaged resources dir holding `app.asar` and `tovu/`.
+ * @complexity O(1) — fixed template; the child's walk is O(m) in modules reachable from the entries.
+ */
+export function buildEntryLoadScript(resourcesDir: string): string {
+  return `
+(async () => {
+  const unresolved = [];
+  try {
+    const { registerHooks } = require("node:module");
+    const { pathToFileURL } = require("node:url");
+    const { join } = require("node:path");
+    const asar = join(${JSON.stringify(resourcesDir)}, "app.asar");
+    const tovu = join(${JSON.stringify(resourcesDir)}, "tovu");
+    const entries = [
+      join(asar, require(join(asar, "package.json")).main),
+      join(tovu, require(join(tovu, "dist", "runtime-manifest.json")).cliEntry),
+    ];
+    const loaded = new Set();
+    registerHooks({
+      resolve(specifier, context, next) {
+        if (specifier.startsWith("smoke:")) return { url: specifier, shortCircuit: true };
+        if (specifier === "electron") return { url: "smoke:electron", shortCircuit: true };
+        try { return next(specifier, context); } catch (error) {
+          unresolved.push(specifier + " (from " + context.parentURL + "): " + (error.code || error.message));
+          return { url: "smoke:unresolved", shortCircuit: true };
+        }
+      },
+      load(url, context, next) {
+        if (url.startsWith("file:")) loaded.add(url);
+        if (!url.startsWith("smoke:")) return next(url, context);
+        return { format: "module", source: url === "smoke:stop" ? "throw new Error('smoke:stop')" : "", shortCircuit: true };
+      },
+    });
+    for (const entry of entries) {
+      const before = loaded.size;
+      // Always rejects (the stop sentinel, or a stub's missing named export); only resolution counts.
+      const root = 'import "smoke:stop"; import ' + JSON.stringify(pathToFileURL(entry).href) + ";";
+      await import("data:text/javascript," + encodeURIComponent(root)).catch(() => {});
+      if (loaded.size === before) unresolved.push(entry + ": nothing loaded");
+    }
+  } catch (error) {
+    unresolved.push(String((error && error.message) || error));
+  }
+  console.log(JSON.stringify({ ok: unresolved.length === 0, unresolved }));
+  process.exit(unresolved.length === 0 ? 0 : 1);
+})();
+`;
+}
+
+/**
+ * Parses {@link buildEntryLoadScript}'s one JSON line. Anything but `ok: true` with an empty
+ * `unresolved` list fails, including output that is not that shape.
+ *
+ * @throws if `stdout` cannot be parsed as JSON.
+ * @complexity O(n) in reported specifiers.
+ */
+export function parseEntryLoadOutput(stdout: string): { ok: boolean; unresolved: string[] } {
+  let parsed: { ok?: unknown; unresolved?: unknown };
+  try {
+    parsed = JSON.parse(stdout.trim()) ?? {};
+  } catch (error) {
+    throw new Error(`smoke-native: could not parse entry-load output as JSON (${(error as Error).message})\n---\n${stdout}`);
+  }
+  const unresolved = Array.isArray(parsed.unresolved) ? parsed.unresolved.map(String) : ["malformed entry-load output"];
+  return { ok: parsed.ok === true && unresolved.length === 0, unresolved };
+}
+
 export type { SmokeCheckOutcome, SmokeCheckResult, SmokeNativeTargets };

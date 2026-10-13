@@ -9,12 +9,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import vm from "node:vm";
 
-import { buildSmokeScript, parseSmokeOutput, resolveSmokeTargets } from "./smoke-native.ts";
+import { buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "./smoke-native.ts";
 
 test("the generated script executes each staged package and reports its individual failure", () => {
   const root = mkdtempSync(path.join(tmpdir(), "smoke-script-"));
@@ -201,4 +201,46 @@ test("a node_modules dir containing a quote or backslash is embedded safely (JSO
 test("the generated script is syntactically valid JavaScript (constructible, never invoked)", () => {
   const script = buildSmokeScript("/some/node_modules");
   assert.doesNotThrow(() => new Function(script));
+});
+
+// --- buildEntryLoadScript / parseEntryLoadOutput: static import graph of the packaged entries ----
+
+test("the entry-load script reports every unresolvable static import without evaluating any module", () => {
+  const resources = mkdtempSync(path.join(tmpdir(), "smoke-entry-"));
+  const write = (file: string, content: string) => {
+    mkdirSync(path.dirname(path.join(resources, file)), { recursive: true });
+    writeFileSync(path.join(resources, file), content);
+  };
+  const marker = path.join(resources, "evaluated");
+  write("app.asar/package.json", JSON.stringify({ main: "main.mjs" }));
+  write("app.asar/node_modules/present/package.json", JSON.stringify({ name: "present", type: "module", exports: "./index.js" }));
+  write("app.asar/node_modules/present/index.js", `import "absent-peer"; export const value = 1;`);
+  write("tovu/dist/runtime-manifest.json", JSON.stringify({ cliEntry: "dist/cli.mjs" }));
+  write("tovu/dist/cli.mjs", `import { writeFileSync } from "node:fs"; writeFileSync(${JSON.stringify(marker)}, "x");`);
+  const run = () => spawnSync(process.execPath, ["-e", buildEntryLoadScript(resources)], { cwd: resources, encoding: "utf8", timeout: 5000 });
+  try {
+    write("app.asar/main.mjs", `import { app } from "electron"; import { value } from "present"; export default [app, value];`);
+    const failing = run();
+    assert.equal(failing.status, 1, failing.stderr);
+    const failed = parseEntryLoadOutput(failing.stdout);
+    assert.equal(failed.ok, false);
+    assert.equal(failed.unresolved.length, 1);
+    assert.match(failed.unresolved[0]!, /^absent-peer \(from file:.*present\/index\.js\): ERR_MODULE_NOT_FOUND$/);
+    write("app.asar/node_modules/present/index.js", `export const value = 1;`);
+    const passing = run();
+    assert.equal(passing.status, 0, passing.stderr);
+    assert.deepEqual(parseEntryLoadOutput(passing.stdout), { ok: true, unresolved: [] });
+    assert.equal(existsSync(marker), false, "no entry body may run");
+    rmSync(path.join(resources, "tovu/dist/cli.mjs"));
+    assert.match(parseEntryLoadOutput(run().stdout).unresolved.join("\n"), /cli\.mjs: nothing loaded/);
+    rmSync(path.join(resources, "app.asar/package.json"));
+    assert.match(parseEntryLoadOutput(run().stdout).unresolved[0]!, /package\.json/);
+  } finally { rmSync(resources, { recursive: true, force: true }); }
+});
+
+test("entry-load output that is not JSON throws; any other shape fails", () => {
+  assert.throws(() => parseEntryLoadOutput(""), /could not parse entry-load output as JSON/);
+  assert.deepEqual(parseEntryLoadOutput("null"), { ok: false, unresolved: ["malformed entry-load output"] });
+  assert.deepEqual(parseEntryLoadOutput(JSON.stringify({ ok: true })), { ok: false, unresolved: ["malformed entry-load output"] });
+  assert.deepEqual(parseEntryLoadOutput(JSON.stringify({ ok: false, unresolved: [] })), { ok: false, unresolved: [] });
 });
