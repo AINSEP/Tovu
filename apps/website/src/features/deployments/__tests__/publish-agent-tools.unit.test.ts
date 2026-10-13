@@ -1651,9 +1651,17 @@ test("propose-credential form: a cancelled run abandons the form and reports 'ab
 test("submit: a non-Error thrown by the credential write step still returns a safe string message, never the raw thrown value", async () => {
   const { deps } = fakeDeps();
   const realRepo = deps.vendorCredentialSetRepo;
+  // Since secrets_vault (9b20083b6) the write step is `vault.put`, not the legacy `insert`.
+  const failingVault = new Proxy(realRepo.vault!, {
+    get(target, prop) {
+      if (prop === "put") return async () => { throw VALID_FORM_SUBMISSION.secretAccessKey; };
+      const value = Reflect.get(target, prop);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
   deps.vendorCredentialSetRepo = new Proxy(realRepo, {
     get(target, prop) {
-      if (prop === "insert") return async () => { throw VALID_FORM_SUBMISSION.secretAccessKey; };
+      if (prop === "vault") return failingVault;
       const value = Reflect.get(target, prop);
       return typeof value === "function" ? value.bind(target) : value;
     },

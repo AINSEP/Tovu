@@ -745,8 +745,16 @@ async function saveProposedCredential(required: {
     if (typeof values[field.name] === "string") connection[field.name] = values[field.name];
   }
   const store = deps.vendorCredentialSetRepo;
+  // Since secrets_vault (9b20083b6) create/update write through `repo.vault`; dropping it here made
+  // every agent save fail with VaultError invalid-record. Its writes get the same abort guard.
+  const vault = store.vault && new Proxy(store.vault, { get(target, key) {
+    const value = Reflect.get(target, key);
+    if (typeof value !== "function") return value;
+    return (...args: unknown[]) => { if (key === "put" || key === "applyBatch") signal.throwIfAborted(); return value.apply(target, args); };
+  } });
   // Registry reads, blank-secret preservation and sealing await; guard both existing write ports.
   const repo: VendorCredentialSetRepoPort = {
+    ...(vault ? { vault } : {}),
     insert: record => { signal.throwIfAborted(); return store.insert(record); },
     update: record => { signal.throwIfAborted(); return store.update(record); },
     findById: input => store.findById(input),
