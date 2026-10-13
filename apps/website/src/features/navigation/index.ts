@@ -105,7 +105,7 @@ export {
   type DeleteMenuServiceInput,
   type DeleteMenuRequired,
   type DeleteMenuOptional,
-} from "@jini-ai/cms/navigation";
+} from "@jini-ai/cms/navigation/node";
 
 export {
   resolveForLocation,
@@ -159,4 +159,4 @@ export {
   buildMenusRegistrations,
   menusDerivedRisk,
   type MenusToolDeps,
-} from "@jini-ai/cms/navigation";
+} from "@jini-ai/cms/navigation/node";

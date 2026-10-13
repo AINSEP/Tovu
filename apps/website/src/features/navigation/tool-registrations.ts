@@ -16,7 +16,7 @@ import {
   MenuNotFoundError,
   MenuValidationError,
   type MenusToolDeps,
-} from "@jini-ai/cms/navigation";
+} from "@jini-ai/cms/navigation/node";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingRegistrationErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";

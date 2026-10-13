@@ -68,12 +68,19 @@ A claim is `{ kind, key, mode }`; `mode` is `exclusive` or `shared`.
 Each conflict reports `{ ownerId, kind, key, heldBy, heldKey }`; `heldKey` is the holder's own
 spelling (e.g. `/api/*` when a prefix matched). Pure; O(S²) in total slots.
 
-## 4) Who wins (`plugin-claims.ts`)
+## 4) Who wins a name conflict (`plugin-claims.ts`)
 - Core first, always (owner id `core`, shown as "Tovu core").
 - Then enabled plugins, earliest-enabled first: activation `updatedAt` ascending, then built-in
   before site, then id, only to break exact ties.
 - At enable time the plugin being turned on is always last, even if a coarse clock gives it the
   same `updatedAt` as an earlier plugin.
+
+This is claim arbitration, not shared-hook execution order (introduced in `36b97dfdb` and
+documented in `cba8d18c2`). Hook filters execute in TB-01 order: built-in, then site, then glue,
+with ids ascending within each source rank. `behavior.spec.md` BR-04 and ADR-057 Decision 3
+define that order; the Jini owner implements it in `packages/plugins/src/host/hook-registry.ts`
+(`compareTb01`). Activation timestamps decide which exclusive claimant survives; they do not
+reorder the shared `content.entry.beforeSave` pipeline.
 
 ## 5) Core reservations (`core-extension-claims.ts`)
 Namespaces, not inventories:

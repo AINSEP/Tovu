@@ -8,9 +8,11 @@ import { stripComments } from "#src/platform/db/kernel/__tests__/raw-sqlite-scan
  * name a hosting vendor (static hosts, and since T10 the server hosts Fly, Render and Railway), how
  * many times per vendor, with comments blanked out first.
  *
- * Hosting-vendor knowledge lives in the `deploy` Agent Plugin (`content/agent-plugins/deploy/`,
- * plan `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` T7/T8). Core reads target ids
- * from the plugin's descriptors, so a vendor id, host name or API origin spelled in core is a
+ * Hosting-vendor knowledge lives in the per-host Agent Plugins under `content/agent-plugins/`
+ * (Fly, Render, Railway, Vercel, Netlify, Cloudflare Pages, GitHub Pages and S3-compatible hosts).
+ * The original `deploy` package was deleted in ccca921e7 (Phase B7); plan
+ * `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` T7/T8 names the boundary. Core reads
+ * target ids from the plugins' descriptors, so a vendor id, host name or API origin spelled in core is a
  * branch the plugin did not absorb.
  */
 

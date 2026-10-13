@@ -93,17 +93,18 @@ function withId(ids: ReadonlySet<string>, pluginId: string, present: boolean): R
 }
 
 /**
- * Loads the real installed Agent Plugins for this workspace once on mount, and toggles one
+ * Loads the real installed Agent Plugins for this workspace on mount, and toggles one
  * plugin's activation at a time per row.
  *
- * @complexity One GET on mount, plus one PATCH per toggle. No re-fetch: the route answers with the
- * updated row, which replaces its own entry in place.
+ * @complexity One GET on mount, one PATCH per toggle, and GETs after invalidation (toggle,
+ * install/uninstall, explicit reload or shared-query refresh). The PATCH response also replaces
+ * its row in the shared cache; successful mutations invalidate the list for reconciliation.
  * @tradeoffs No optimistic flip. The switch shows only what the server has confirmed, so a refused
  * or failed toggle can never leave the operator looking at an "on" switch for a plugin that will
  * refuse the next run. The cost is one round-trip of visible latency, which the row's own
  * in-flight state covers.
  *
- * Row replacement goes through `setAgentPlugins`' functional updater rather than closing over the
+ * Row replacement reads the shared cache through `loader.peek()` rather than closing over the
  * array this render saw. Two rows toggled in quick succession settle independently, and a
  * settlement holding a stale array would otherwise revert the other row's newer answer.
  */
