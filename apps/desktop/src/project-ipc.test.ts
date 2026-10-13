@@ -22,6 +22,8 @@ import { createSiteFolders } from "./site-folders.ts";
 import { writeSiteName } from "./site-config.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
+import { sourceFunction } from "./renderer/source-test-harness.ts";
+import { sitePortPresentation } from "./renderer/site-port.rules.ts";
 import { createSiteSupervisor } from "./site-supervisor.ts";
 import type { SupervisedServer } from "./site-supervisor.ts";
 import { readRegistry, writeRegistry, isLiveServeRow, instanceFilePath } from "./site-process-registry.ts";
@@ -780,6 +782,18 @@ test("stopping an already-stopped site is a no-op that still returns its record,
   assert.equal(record.status, "stopped");
 });
 
+test("a rejected card Stop keeps the crash-recovery row and reports failure", async () => {
+  const deps = baseDeps();
+  trackSite(deps.projectsPath, "/sites/a");
+  let closedRows = 0;
+  deps.recordSiteClosed = () => { closedRows++; };
+  deps.openSites.set("/sites/a", { server: { port: 4321, pid: 123, stop: async () => {
+    throw new Error("forced Stop did not observe exit");
+  } } });
+  await assert.rejects(handleStop("/sites/a", deps), /forced Stop did not observe exit/);
+  assert.equal(closedRows, 0);
+});
+
 test("handleStop runs inside the per-site serializer, so a delete cannot erase under a running stop", async () => {
   const keys: string[] = [];
   const deps = baseDeps({ serializer: { run: <T,>(key: string, fn: () => T | PromiseLike<T>) => { keys.push(key); return fn(); } } });
@@ -791,24 +805,70 @@ test("handleStop runs inside the per-site serializer, so a delete cannot erase u
   assert.deepEqual(keys, ["/sites/a"]);
 });
 
-test("a site reads `stopping` for the whole drain, and `stopped` the moment it is over", async () => {
+test("a site reads `stopping` for the whole drain: a live lease poll cannot restart alpha or stop beta", async (t) => {
   // The defect this closes: `openSites` answers "is it alive", so a stop read `running` until the
   // child was gone — and a Stop button that leaves the card saying Running looks like a dead button.
   const transitions = createSiteTransitions();
-  const deps = baseDeps({ transitions });
+  const root = fs.realpathSync(tempDir());
+  const alpha = writeSite(path.join(root, "alpha"), "alpha-id");
+  const beta = writeSite(path.join(root, "beta"), "beta-id");
+  const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [] });
+  const alphaLease = sharedSites.claim({ path: alpha, app: "Tovu", port: 4321 });
+  const betaLease = sharedSites.claim({ path: beta, app: "Tovu", port: 4322 });
+  const deps = baseDeps({ transitions, sharedSites, serializer: createKeyedSerializer(), projectsPath: sitesFilePath(root) });
+  t.after(() => {
+    sharedSites.running({ path: alpha }).release({ token: alphaLease.record.token });
+    sharedSites.running({ path: beta }).release({ token: betaLease.record.token });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
   let release = () => {};
   const draining = new Promise<void>((resolve) => { release = resolve; });
-  deps.openSites.set("/sites/a", { server: { port: 4321, pid: 1, stop: () => draining } });
-  trackSite(deps.projectsPath, "/sites/a");
+  deps.openSites.set(alpha, { server: { port: 4321, pid: 1, stop: async () => {
+    await draining;
+    sharedSites.running({ path: alpha }).release({ token: alphaLease.record.token });
+  } } });
+  const betaEntry = { server: { port: 4322, pid: 2, stop: async () => assert.fail("beta must keep serving") } };
+  deps.openSites.set(beta, betaEntry);
+  trackSite(deps.projectsPath, alpha);
+  trackSite(deps.projectsPath, beta);
+  let automaticStarts = 0;
+  let spawned = 0;
+  deps.openSiteServer = async () => { spawned++; };
+  const source = fs.readFileSync(path.join(__dirname, "renderer", "use-site-workspace.hooks.ts"), "utf8");
+  const siteSurfaceUrl = sourceFunction(source, "siteSurfaceUrl", { sitePortPresentation });
+  const prepareExternalWorkspace = sourceFunction(source, "prepareExternalWorkspace", { siteSurfaceUrl });
 
-  const stopping = handleStop("/sites/a", deps);
-  assert.equal(first(handleList(deps)).status, "stopping", "mid-drain the card must say so");
-  assert.equal(first(handleList(deps)).desiredState, "stopped", "the operator's intent, not the child's liveness");
-
-  release();
+  const stopping = handleStop(alpha, deps);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  let attachment: Promise<unknown> | undefined;
+  try {
+    // Force the same poll a still-mounted, hidden alpha tab consumes while the drain is deferred.
+    const records = handleList(deps);
+    const midDrain = records.find((row) => row.id === alpha)!;
+    assert.equal(midDrain.status, "stopping", "mid-drain the card must say so");
+    assert.equal(midDrain.desiredState, "stopped", "the operator's intent, not the child's liveness");
+    assert.ok(sharedSites.running({ path: alpha }).read({}), "the lease is still readable during drain");
+    attachment = prepareExternalWorkspace({ project: midDrain, bridge: { startSite: (id: string) => {
+      automaticStarts++;
+      return handleStart(id, deps as ProjectIpcDeps);
+    } } }).then((url: string | null) => ({ url }), (error: unknown) => ({ error }));
+    assert.equal(automaticStarts, 0, "the attachment function must not queue Start behind Stop");
+    assert.equal(midDrain.externalUrl, undefined);
+    assert.equal(records.find((row) => row.id === beta)?.status, "running");
+  } finally {
+    release();
+    await stopping;
+    await attachment;
+  }
   const record = await stopping;
+  assert.deepEqual(await attachment, { url: null });
   assert.equal(record.status, "stopped", "what the call RESOLVES with is the settled answer");
-  assert.equal(first(handleList(deps)).status, "stopped");
+  assert.equal(handleList(deps).find((row) => row.id === alpha)?.status, "stopped");
+  assert.equal(deps.openSites.has(alpha), false);
+  assert.equal(spawned, 0);
+  assert.equal(deps.openSites.get(beta), betaEntry);
+  assert.equal(handleList(deps).find((row) => row.id === beta)?.port, 4322);
+  assert.equal(sharedSites.running({ path: beta }).read({})?.token, betaLease.record.token);
 });
 
 test("a site reads `starting` for its whole boot, not `stopped` until the port opens", async () => {

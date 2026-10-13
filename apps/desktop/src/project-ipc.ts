@@ -286,7 +286,10 @@ type SiteRecordDeps = Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoR
 type SharedRunning = ReturnType<ReturnType<SitesWorkspace["running"]>["read"]> | undefined;
 
 /** The admin URL of a server this window does not own: an external one it attached to, or the other app's. */
-function siteExternalUrl(openEntry: OpenSiteEntry | undefined, sharedRunning: SharedRunning): string | undefined {
+function siteExternalUrl(openEntry: OpenSiteEntry | undefined, sharedRunning: SharedRunning, status: string): string | undefined {
+  // The lease stays live during drain. Advertising it here makes a mounted tab queue Start
+  // behind this Stop through its external-workspace attachment effect.
+  if (status === "stopping") return undefined;
   if (openEntry) return openEntry.server.external ? `${openEntry.server.origin}/admin/` : undefined;
   return sharedRunning && sharedRunning.port > 0 ? `${sharedRunning.scheme}://localhost:${sharedRunning.port}/admin/` : undefined;
 }
@@ -324,7 +327,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     installDir: row.siteDir,
     port: openEntry?.server.port ?? sharedPort,
     runningApp: sharedRunning?.app,
-    externalUrl: siteExternalUrl(openEntry, sharedRunning),
+    externalUrl: siteExternalUrl(openEntry, sharedRunning, lifecycle.status),
     // Independent of `running` — a project's partition is a pure function of its own directory
     // (`desktop-auth.ts`'s `sitePartition`), not of whether a server currently answers on it. The
     // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
@@ -1077,8 +1080,8 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  * crash and records a `lastExitOf` the card then shows as "the site's server was stopped by
  * SIGTERM". For a stop the operator ASKED for, that is a lie in the one place they can read it.
  * Removing the entry first is what makes the supervisor's own identity check see this exit as no
- * longer its business. `stopChild` cannot reject (every path resolves), so there is no arm where
- * this forgets a site whose child is still alive.
+ * longer its business. The teardown remains visible to Quit through the injected Jini shutdown
+ * tracker; if exit cannot be confirmed, Stop rejects and retains the crash-safety row.
  *
  * The crash-safety row is dropped only AFTER the stop, never before: it exists so the NEXT launch
  * can reap a child this process left running, so it has to outlive the child. Dropping it up front
@@ -1091,11 +1094,11 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  *
  * @returns the project's fresh record, so the card settles on `stopped` without waiting for a poll.
  * @throws {Error} when `id` names a project this shell is not tracking — same refusal, and same
- *   reason, as {@link handleStart}'s.
- * @complexity O(1) beyond `server.stop()`'s own drain (bounded by its 5 s grace), plus however long
+ *   reason, as {@link handleStart}'s — or the child fails to exit after forced shutdown.
+ * @complexity O(1) beyond `server.stop()`'s own drain (bounded by grace plus exit wait), plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites">) {
+async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "pendingTeardowns">) {
   return await deps.serializer.run(id, async () => {
     const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -1115,15 +1118,19 @@ async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | 
  *
  * @complexity see {@link handleStop}.
  */
-async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites" | "cancelPreviewCapture" | "registryPath" | "recordSiteClosed">): Promise<void> {
+async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites" | "cancelPreviewCapture" | "registryPath" | "recordSiteClosed" | "pendingTeardowns">): Promise<void> {
   deps.cancelPreviewCapture?.({ siteDir: id }, {});
   const openEntry = deps.openSites.get(id);
   if (openEntry === undefined) return;
   deps.openSites.delete(id);
-  await openEntry.server.stop!(); // an entry with no `.stop` never reaches this line in practice — see `OpenSiteEntry.server.stop`'s own note in `deleteProject`
-  // By pid, never by site dir alone: a live SIBLING app instance can hold its own row for this same
-  // site, and a close by site dir would take that one too (D-07).
-  deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
+  const teardown = openEntry.server.stop!().then(() => {
+    // By pid, never by site dir alone: a live SIBLING app instance can hold its own row for this same
+    // site, and a close by site dir would take that one too (D-07). A failed Stop keeps this row.
+    deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
+  });
+  // openSites no longer exposes this child, so Quit must find its drain in the existing tracker.
+  deps.pendingTeardowns?.track({ promise: teardown });
+  await teardown;
 }
 
 /**
@@ -1316,6 +1323,8 @@ interface ProjectIpcDeps<TCtx = unknown> {
   removeSiteTree?: typeof removeSiteTree;
   /** Stop/Restart must withdraw pending hidden-window work before the server drains. */
   cancelPreviewCapture?: (required: { siteDir: string }, optional: {}) => void;
+  /** Jini's existing shutdown tracker: Quit must also await Stops removed from openSites. */
+  pendingTeardowns?: { track(required: { promise: PromiseLike<unknown> }): Promise<void> };
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
   /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */

@@ -839,7 +839,7 @@ test("on win32, a child that ignores its stdin close is tree-killed after the gr
   const started = startTovuServer({
     repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror: silentMirror(),
     spawnFn: () => child, stopGraceMs: 20, platform: "win32",
-    killTree: (pid) => killTreeCalls.push(pid),
+    killTree: (pid) => { killTreeCalls.push(pid); queueMicrotask(() => child.emit("exit", null, "SIGKILL")); },
   });
   child.stdout.write(REAL_BOOT_LINE);
   await (await started).stop();
@@ -910,6 +910,70 @@ test("Stop stays pending during graceful cleanup and cancels force-kill after th
   t.mock.timers.tick(1_000);
   assert.equal(stopResolved, true);
   assert.deepEqual(child.killed, ["SIGTERM"]);
+});
+
+test("forced Stop stays pending after SIGKILL until the delayed exit event", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const forced: unknown[] = [];
+  t.mock.method(process, "kill", (pid: number, signal?: NodeJS.Signals | number) => { forced.push([pid, signal]); return true; });
+  const child = fakeChild();
+  const started = startTovuServer({ repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601,
+    baseEnv: {}, mirror: silentMirror(), spawnFn: () => child, platform: "linux", stopGraceMs: 100 });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+  let resolved = false;
+  const stopped = handle.stop().then(() => { resolved = true; });
+  t.mock.timers.tick(100);
+  await Promise.resolve();
+  assert.deepEqual(forced, [[-child.pid, "SIGKILL"]]);
+  assert.equal(resolved, false, "requesting SIGKILL is not evidence of exit");
+  t.mock.timers.tick(90);
+  await Promise.resolve();
+  assert.equal(resolved, false);
+  child.signalCode = "SIGKILL";
+  child.emit("exit", null, "SIGKILL");
+  await stopped;
+  t.mock.timers.tick(100);
+  assert.equal(resolved, true);
+  assert.equal(forced.length, 1);
+});
+
+test("forced Stop reports a bounded failure if the child never exits", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  t.mock.method(process, "kill", () => true);
+  const child = fakeChild();
+  const started = startTovuServer({ repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601,
+    baseEnv: {}, mirror: silentMirror(), spawnFn: () => child, platform: "linux", stopGraceMs: 100 });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+  const listeners = child.listenerCount("exit");
+  const rejected = assert.rejects(handle.stop(), /pid 424242.*did not exit within 100ms after forced Stop/);
+  t.mock.timers.tick(100);
+  t.mock.timers.tick(100);
+  await rejected;
+  assert.equal(child.listenerCount("exit"), listeners, "the expired exit wait must release its listener");
+});
+
+test("failed termination signals cannot resolve Stop without an exit event", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const error = new Error("signal refused");
+  t.mock.method(process, "kill", () => { throw error; });
+  const child = fakeChild();
+  child.kill = () => { throw error; };
+  const started = startTovuServer({ repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601,
+    baseEnv: {}, mirror: silentMirror(), spawnFn: () => child, platform: "linux", stopGraceMs: 100 });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+  let settled = false;
+  const stopped = handle.stop().finally(() => { settled = true; });
+  const checked = assert.rejects(stopped, { cause: error });
+  await Promise.resolve();
+  assert.equal(settled, false, "a thrown SIGTERM must not claim the child exited");
+  t.mock.timers.tick(100);
+  await Promise.resolve();
+  assert.equal(settled, false, "a thrown SIGKILL still needs the bounded exit wait");
+  t.mock.timers.tick(100);
+  await checked;
 });
 
 test("stop() is a no-op on a child that has already exited", async () => {

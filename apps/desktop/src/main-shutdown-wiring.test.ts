@@ -15,7 +15,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import os from "node:os";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
+import { handleStop } from "./project-ipc.ts";
+import { createKeyedSerializer } from "./keyed-serializer.ts";
+import { sitesFilePath, trackSite } from "./tracked-sites.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,6 +97,56 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
     await flush();
   }
   assert.equal(finalQuits, 1);
+});
+
+test("Quit during a card Stop waits for its tracked teardown after openSites becomes empty", async (t) => {
+  assert.match(source.slice(source.indexOf("const projectDeps = {"), source.indexOf("registerSiteIpcHandlers(projectDeps)")), /\n\s*pendingTeardowns,/,
+    "card Stop must receive the same tracker before-quit drains");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-card-stop-quit-"));
+  const projectsPath = sitesFilePath(root);
+  trackSite(projectsPath, root);
+  const stop = deferred();
+  const pendingTeardowns = createShutdownTracker({});
+  const openSites = new Map([[root, { server: { port: 4321, pid: 123, stop: () => stop.promise } }]]);
+  let closedRows = 0;
+  const stopping = handleStop(root, {
+    projectsPath, registryPath: root, repoRoot: root, serializer: createKeyedSerializer(),
+    openSites, pendingTeardowns, readSiteName: () => "alpha", readPreviewVersion: () => null,
+    recordSiteClosed: () => { closedRows++; },
+  });
+  let onQuit!: (event: { preventDefault: () => void }) => void;
+  let finalQuits = 0;
+  let prevented = 0;
+  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+    app: {
+      on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
+      quit: () => { finalQuits++; },
+      exit: () => assert.fail("Stop must settle before the quit deadline"),
+    },
+    siteThemePreviews: { dispose: () => {} }, desktopAgentRuntime: { dispose: async () => {} },
+    siteDiscoveryAbort: undefined, siteValidationAbort: undefined,
+    quitPhase: "idle", openSites, pendingTeardowns, decideBeforeQuit,
+    finalQuitHeldForUpdate: () => false, setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,
+  });
+  try {
+    await flush();
+    assert.equal(openSites.size, 0);
+    assert.equal(pendingTeardowns.size, 1);
+    onQuit({ preventDefault: () => { prevented++; } });
+    await flush();
+    onQuit({ preventDefault: () => { prevented++; } });
+    assert.equal(prevented, 2);
+    assert.equal(finalQuits, 0, "Quit must not outrun the card's pending Stop");
+    assert.equal(closedRows, 0, "the recovery row must outlive the child");
+  } finally {
+    stop.resolve();
+    await stopping;
+    await pendingTeardowns.drain();
+    await flush();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+  assert.equal(finalQuits, 1);
+  assert.equal(closedRows, 1);
 });
 
 test("termination signals route into the graceful quit, armed once the app is ready", () => {
@@ -200,4 +254,25 @@ test("closing a window only deletes the entry that window still owns", () => {
   const guardedDelete = /if \(openSites\.get\(siteDir\)\?\.window === window\) \{\s*sitePreviewScheduler\.cancel\(\{ siteDir \}, \{\}\);\s*siteThemePreviews\.stop\(\{ siteDir \}, \{\}\);\s*openSites\.delete\(siteDir\);\s*\}/;
   assert.match(handler, guardedDelete);
   assert.doesNotMatch(handler.replace(guardedDelete, ""), /^\s*openSites\.delete\(siteDir\);/m, "an unguarded delete drops a replacement entry");
+});
+
+test("a window Stop that cannot confirm exit reports failure and retains its recovery row", async () => {
+  const pendingTeardowns = createShutdownTracker({});
+  let onClosed!: () => void;
+  let closedRows = 0;
+  const errors: string[] = [];
+  const window = { on: (_event: string, listener: () => void) => { onClosed = listener; } };
+  vm.runInNewContext(closedHandler(), {
+    process: { platform: "win32" }, quitPhase: "idle", window,
+    sitePreviewScheduler: { cancel: () => {} }, siteThemePreviews: { stop: () => {} },
+    openSites: new Map([["/site", { window }]]), siteDir: "/site", partition: "partition",
+    ctx: { registryPath: "/registry" }, net: {}, session: { fromPartition: () => ({}) },
+    pendingTeardowns, endSiteSession: async () => ({ ok: true }),
+    server: { pid: 123, adminUrl: "http://127.0.0.1:4321/admin/", stop: async () => { throw new Error("exit not observed"); } },
+    recordSiteClosed: () => { closedRows++; }, console: { error: (message: string) => { errors.push(message); } },
+  });
+  onClosed();
+  await pendingTeardowns.drain();
+  assert.equal(closedRows, 0, "orphan recovery must still be able to find this child");
+  assert.deepEqual(errors, ["[tovu-desktop] site shutdown failed: exit not observed"]);
 });

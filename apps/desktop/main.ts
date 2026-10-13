@@ -421,7 +421,7 @@ const serializer = createKeyedSerializer();
  *  `site-transitions.ts` for why it is not folded into the supervisor. */
 const siteTransitions = createSiteTransitions();
 
-/** Teardowns a window's `closed` handler has STARTED but not finished, so `before-quit` below can
+/** Teardowns a window's `closed` handler or a card Stop has STARTED but not finished, so `before-quit` below can
  *  wait for them — see `shutdown-tracker.ts`'s own header for the leak this closes (D-09). */
 // D-09: closed removes openSites before loopback logout/server.stop settles. The last window
 // can therefore leave an empty map with a detached tovu serve still holding content.db open;
@@ -447,7 +447,7 @@ let autoUpdaterStarting = false;
  * How long a graceful quit gets before `app.exit(1)`. The first termination signal arms it
  * (`quit-signals.ts`), and so does `before-quit` when its drain starts. The drain stops every open
  * site in parallel, and each `server.stop()` escalates to SIGKILL after one `DEFAULT_STOP_GRACE_MS`,
- * so those stops take about one grace however many sites are open. It then waits on
+ * then allows one more grace for the exit event, regardless of how many sites are open. It waits on
  * `pendingTeardowns`, whose loopback logout has no timeout of its own, and only this deadline bounds that.
  */
 const QUIT_DEADLINE_MS = DEFAULT_STOP_GRACE_MS * 3;
@@ -1086,8 +1086,8 @@ async function openSiteWindow(siteDir: string, ctx: SiteOpenCtx, options: SiteOp
       promise: endSiteSession({ net, session: session.fromPartition(partition), adminUrl: server.adminUrl })
         .catch(() => {})
         .then(() => server.stop())
-        .catch(() => {})
-        .finally(() => recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid })),
+        .then(() => recordSiteClosed(ctx.registryPath, siteDir, { pid: server.pid }))
+        .catch((error) => console.error(`[tovu-desktop] site shutdown failed: ${error.message}`)),
     });
   });
   return window;
@@ -1755,6 +1755,7 @@ app
         // server is alive, this says whether a start or a stop is in flight on it. Without it here
         // the Stop button the card just showed would report `running` for the whole drain.
         transitions: siteTransitions,
+        pendingTeardowns,
         serializer,
         projectsPath: sitesCtx.projectsPath,
         registryPath: sitesCtx.registryPath,
@@ -1914,7 +1915,8 @@ app.on("before-quit", (event) => {
   const drainDeadline = setTimeout(() => app.exit(1), QUIT_DEADLINE_MS);
   drainDeadline.unref();
   siteThemePreviews.dispose({}, {});
-  const stops = [...openSites.values()].map((entry) => entry.server.stop().catch(() => {}));
+  const stops = [...openSites.values()].map((entry) => entry.server.stop()
+    .catch((error) => console.error(`[tovu-desktop] site shutdown failed: ${error.message}`)));
   Promise.all(stops)
     .then(() => pendingTeardowns.drain())
     .finally(() => {

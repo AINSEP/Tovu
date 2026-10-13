@@ -597,6 +597,7 @@ interface SpawnedChild {
   kill(signal?: NodeJS.Signals | number): boolean;
   once(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;
   once(event: "error", listener: (error: Error) => void): this;
+  removeListener(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): this;
 }
 
 /**
@@ -629,38 +630,51 @@ function taskkillTree(pid: number): void {
  * without one the injected `killTree(pid)` (production default: {@link taskkillTree}) runs
  * IMMEDIATELY instead of SIGTERM — see {@link killWin32Tree} for why it cannot wait for the grace.
  *
- * @param platform selects the escalation primitive; defaults to the real `process.platform`. Test
+ * @param input the spawned child and graceful/forced-exit wait bound in milliseconds.
+ * @param options.platform selects the escalation primitive; defaults to the real `process.platform`. Test
  *   seam so the win32 branch is exercised on any host.
- * @param killTree win32-only tree-kill, defaulting to {@link taskkillTree}. Never called on POSIX.
- * @complexity O(1); bounded by `graceMs`.
+ * @param options.killTree win32-only tree-kill, defaulting to {@link taskkillTree}. Never called on POSIX.
+ * @throws {Error} if no exit event arrives within another `graceMs` after escalation. The caller
+ *   must retain its crash-recovery row: requesting SIGKILL does not prove the process has exited.
+ * @complexity O(1) time/space; waits at most twice `graceMs`.
  */
 function stopChild(
-  child: SpawnedChild,
-  graceMs: number,
-  platform: NodeJS.Platform = process.platform,
-  killTree: (pid: number) => void = taskkillTree,
+  { child, graceMs }: { child: SpawnedChild; graceMs: number },
+  { platform = process.platform, killTree = taskkillTree }: {
+    platform?: NodeJS.Platform; killTree?: (pid: number) => void;
+  } = {},
 ): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    let exitTimer: ReturnType<typeof setTimeout> | undefined;
+    let signalError: unknown;
     const timer = setTimeout(() => {
-      if (platform === "win32") {
-        if (child.stdin) killWin32Tree(child, killTree);
-      } else {
-        try {
+      // Keep listening after the kill request; the OS may deliver exit later. Bound that wait
+      // separately so a failed signal or missing exit is reported instead of claiming success.
+      exitTimer = setTimeout(() => {
+        child.removeListener("exit", onExit);
+        reject(new Error(`tovu serve (pid ${child.pid}) did not exit within ${graceMs}ms after forced Stop.`, { cause: signalError }));
+      }, graceMs);
+      try {
+        if (platform === "win32") {
+          if (child.stdin) killWin32Tree(child, killTree);
+        } else {
           // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
           process.kill(-child.pid!, "SIGKILL");
-        } catch {
-          // Already reaped between the timer firing and this call — nothing to kill.
         }
+      } catch (error) {
+        // Even ESRCH is not the exit event. Await it, or report the failure at the bound.
+        signalError = error;
       }
-      resolve();
     }, graceMs);
 
-    child.once("exit", () => {
+    const onExit = () => {
       clearTimeout(timer);
+      clearTimeout(exitTimer);
       resolve();
-    });
+    };
+    child.once("exit", onExit);
 
     try {
       if (platform === "win32") {
@@ -670,9 +684,9 @@ function stopChild(
       } else {
         child.kill("SIGTERM");
       }
-    } catch {
-      clearTimeout(timer);
-      resolve();
+    } catch (error) {
+      // A failed polite signal still needs escalation and exit confirmation.
+      signalError = error;
     }
   });
 }
@@ -802,6 +816,7 @@ interface TovuServerHandle {
   bootToken: string | null;
   /** Main-process-only launch proof; never serialize into SiteRecord or renderer IPC. */
   ownerSignInCapability?: string;
+  /** Resolve only after confirmed exit; reject if escalation's bounded exit wait expires. */
   stop(): Promise<void>;
   onExit: ExitSignal["onExit"];
 }
@@ -809,16 +824,17 @@ interface TovuServerHandle {
 /**
  * Spawn `tovu serve <siteDir> --port <port>` and resolve once it reports the port it bound.
  *
- * Resolves to a handle whose `stop()` is the only supported way to shut the server down. Rejects —
- * having already killed the child — if the boot line does not arrive before `readyTimeoutMs`, or if
- * the child exits first, in which case Tovu's own `tovu: <CODE>: <message>` line is reported.
+ * Resolves to a handle whose `stop()` is the only supported way to shut the server down. Rejects
+ * after shutdown if the boot line does not arrive before `readyTimeoutMs`, or if the child exits
+ * first, in which case Tovu's own `tovu: <CODE>: <message>` line is reported. Unconfirmed cleanup
+ * instead reports its bounded exit-wait failure.
  *
  * @param input.repoRoot Tovu repo root; `bin.tovu` and `apps/admin/dist` are resolved from it.
  * @param input.siteDir the site directory to serve — owns `content.db`, `uploads/` and `themes/`.
  * @param input.port port to bind; allocated from the OS when omitted.
  * @param input.spawnFn injectable `child_process.spawn` (test seam).
  * @param input.readyTimeoutMs boot-line deadline; defaults to 60s.
- * @param input.stopGraceMs SIGTERM-to-SIGKILL window; defaults to 5s.
+ * @param input.stopGraceMs SIGTERM-to-SIGKILL window and subsequent exit-event wait; each defaults to 5s.
  * @param input.mirror where the child's output is echoed; defaults to this process's own streams.
  * @param input.desktopCredential `{username, password}` seeding the shell's own owner account, so
  *   the admin comes up authenticated (see `desktop-auth.ts`). Omit to leave the child's identity
@@ -927,7 +943,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
             // passed, which is every caller but the desktop shell.
             bootToken: parseBootToken(output),
             ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
-            stop: () => stopChild(child, stopGraceMs, input.platform, input.killTree),
+            stop: () => stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree }),
             onExit: exitSignal.onExit,
           }),
         );
@@ -943,7 +959,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
       finish(() => reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.`))));
     });
   }).catch(async (error) => {
-    await stopChild(child, stopGraceMs, input.platform, input.killTree);
+    await stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });
     throw error;
   });
 }
