@@ -1,7 +1,6 @@
 {
   "schemaVersion": 1,
   "generators": [
-    { "id": "render", "label": "Render", "module": "deploy-configs/render.mjs" },
     { "id": "railway", "label": "Railway", "module": "deploy-configs/railway.mjs" }
   ]
 }

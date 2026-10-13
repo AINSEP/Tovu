@@ -19,7 +19,7 @@
  * only ever edits a duplicated theme until the owner approves switching to it. `how-tovu-works`
  * enriches the core read-only site guide from the first boot; disabling it retains minimal cards.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "fly", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "fly", "render", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin that absorbed it. `seed-bundled.ts` never seeds a

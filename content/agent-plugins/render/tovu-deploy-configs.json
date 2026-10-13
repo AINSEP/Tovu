@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "generators": [
+    {
+      "id": "render",
+      "label": "Render",
+      "module": "deploy-configs/render.mjs"
+    }
+  ]
+}

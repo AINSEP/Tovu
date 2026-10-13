@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "render",
+  "version": "0.1.0",
+  "description": "Generates render.yaml for the Tovu server with a persistent disk, health check and manually supplied secrets. Config generation only; follow the output notes to deploy.",
+  "author": "Tovu",
+  "license": "Apache-2.0",
+  "extensions": {
+    "tovu": {
+      "displayName": "Render",
+      "summary": "Generates render.yaml for the Tovu server with a persistent disk, health check and manually supplied secrets. Config generation only; follow the output notes to deploy.",
+      "id": "tovu/render",
+      "provides": [
+        "deploy-config:render"
+      ]
+    }
+  },
+  "keywords": [
+    "render",
+    "deploy",
+    "deploy-config:render"
+  ]
+}
