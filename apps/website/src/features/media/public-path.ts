@@ -1,4 +1,4 @@
-import { isValidMediaSlugFormat } from "@jini-ai/cms/media";
+import { isValidMediaSlugFormat } from "@jini-ai/cms/media/slug";
 
 /**
  * @file The one place that decides whether a `/m/...` URL is keyed by a media asset's id or its

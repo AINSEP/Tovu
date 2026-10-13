@@ -1,4 +1,4 @@
-import { isNonArrayRecord } from "@jini-ai/core";
+import { isNonArrayRecord } from "@jini-ai/core/records";
 /**
  * @file Shared "public HTML form" primitives — baseline chrome, success/error slot markup, the
  * Post/Redirect/Get result round trip, and the validation-flash cookie payload — usable by ANY
@@ -25,7 +25,7 @@ import { isNonArrayRecord } from "@jini-ai/core";
 
 import { escapeHtml } from "#src/platform/html/escape";
 import { formValidationMessages, formDocumentLocale } from "./form-validation-message.js";
-import { FORM_ATTEMPT_FIELD } from "@jini-ai/cms/forms";
+import { FORM_ATTEMPT_FIELD } from "@jini-ai/cms/forms/submission-attempts";
 
 const FORM_CLASS = "tovu-form";
 const FORM_SUCCESS_CLASS = "tovu-form-success";

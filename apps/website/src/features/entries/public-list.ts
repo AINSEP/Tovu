@@ -1,5 +1,5 @@
 import type { ContentTypeFieldDef, ContentTypeFieldKind, ContentTypeRecord } from "#src/features/content-types/index";
-import { NAV_MENU_CONTENT_TYPE } from "#src/features/navigation/index";
+import { NAV_MENU_CONTENT_TYPE } from "@jini-ai/cms/navigation/types";
 import type { EntryRecord, EntryStatus } from "./index.js";
 
 /**

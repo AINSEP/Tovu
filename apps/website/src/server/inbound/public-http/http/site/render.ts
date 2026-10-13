@@ -5,11 +5,12 @@ import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSe
 // The leaf, not the site-dir barrel: this file runs inside the 64 MB theme render workers, and the
 // barrel's site-registry/repair/new-site members load the database (`worker-import-graph.test.ts`).
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
-import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms";
+import { renderHtmlForm, renderHtmlFormBody } from "@jini-ai/cms/forms/html-render";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
-import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/post";
+import type { PostRecord } from "#src/features/post/post";
+import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/slug";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
-import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/theme";
+import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/render-contract";
 import { renderStaticPage, renderCoverImageTag } from "#src/features/theme/static-render";
 import { projectPostBody, resolveCoverImage } from "#src/features/post/cover-image";
 import { themeTokenAliasDeclarations } from "#src/features/theme/token-aliases";
@@ -24,11 +25,12 @@ import {
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "#src/features/entries/public-list";
-import { isPageEmbedType } from "@jini-ai/cms/widgets";
+import { isPageEmbedType } from "@jini-ai/cms/widgets/page-embed-types";
 import { renderHtmlTaxonomy } from "#src/features/taxonomy/html-render";
 import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { renderGallery, substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef, type GalleryImageRenderer } from "@jini-ai/cms/widgets/html";
+import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "@jini-ai/cms/widgets/html/html-embeds";
+import { renderGallery, type GalleryImageRenderer } from "@jini-ai/cms/widgets/html/gallery-render";
 import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
 import { parseEmbedHtmlAttributes } from "@jini-ai/cms/widgets/markers";
 import { LISTING_BATCH_DEFAULT, listingBatchPath, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
@@ -51,7 +53,7 @@ import {
 } from "./form-render.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { postAuthorForDisplay } from "#src/features/post/author";
-import { postAuthorForContentHeader } from "#src/features/theme/index";
+import { postAuthorForContentHeader } from "#src/features/theme/static-render";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { toSlug } from "#src/platform/html/slug";
 

@@ -34,10 +34,22 @@ const FORBIDDEN_IN_WORKER = [
   "/node_modules/aws4fetch/",
   "/Jini/packages/db/",
   "/Jini/packages/agentic/",
+  // Even verified-origin is unnecessary once render-time rules use pure leaves.
+  "/Jini/packages/http-kit/",
   // The same packages as installed from npm (a deployed build has no `/Jini/packages/` checkout).
   "/node_modules/@jini-ai/db/",
   "/node_modules/@jini-ai/agentic/",
+  "/node_modules/@jini-ai/http-kit/",
 ];
+
+/** Match both source-checkout and installed-package graphs, including every forms repo adapter. */
+const FORBIDDEN_FORM_SERVICES = /\/(?:Jini\/packages\/cms|node_modules\/@jini-ai\/cms)\/(?:src|dist)\/forms\/(?:write-service\.|submit-service\.|repo[./])/;
+
+/** Measured rendering modules: 146 Handlebars / 104 Liquid; leave a few modules of headroom. */
+const WORKER_MODULE_BUDGETS = {
+  "handlebars-worker.ts": 150,
+  "liquid-worker.ts": 110,
+} as const;
 
 function loadWorkerGraph(workerFile: string): { entryError: string; modules: string[] } {
   const script = `
@@ -50,12 +62,19 @@ function loadWorkerGraph(workerFile: string): { entryError: string; modules: str
   return JSON.parse(out) as { entryError: string; modules: string[] };
 }
 
-for (const workerFile of ["handlebars-worker.ts", "liquid-worker.ts"]) {
+for (const workerFile of ["handlebars-worker.ts", "liquid-worker.ts"] as const) {
   test(`${workerFile} loads no database, blob-store or agent packages`, () => {
     const { entryError, modules } = loadWorkerGraph(workerFile);
     // Any other error means an import failed part-way and the graph below would be incomplete.
     assert.equal(entryError, `${workerFile} must run inside a worker_threads Worker`);
     const leaked = FORBIDDEN_IN_WORKER.filter((needle) => modules.some((m) => m.includes(needle)));
     assert.deepEqual(leaked, [], `${workerFile} pulled in ${leaked.join(", ")} (${modules.length} modules loaded)`);
+    const formServices = modules.filter((module) => FORBIDDEN_FORM_SERVICES.test(module));
+    assert.deepEqual(formServices, [], `${workerFile} pulled in forms services: ${formServices.join(", ")}`);
+    // tsx and its esbuild transpiler are development-loader overhead, absent from deployed JS workers.
+    const renderingModules = modules.filter((module) => !/\/node_modules\/(?:tsx|esbuild)\//.test(module));
+    const budget = WORKER_MODULE_BUDGETS[workerFile];
+    assert.ok(renderingModules.length <= budget,
+      `${workerFile} loaded ${renderingModules.length} rendering modules (budget ${budget})`);
   });
 }

@@ -1,12 +1,13 @@
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, PARTIAL_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
-import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation";
+import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
 import { postAuthorForDisplay } from "../post/author.js";
 import { renderHtmlMenu } from "#src/features/navigation/html-render";
 import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
-import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme.js";
+import type { DiscoveredTheme, ThemeSlotDescriptor, ThemeTokens } from "./theme.js";
+import { DEFAULT_THEME_SLOTS } from "./render-contract.js";
 import { themeTokenAliasDeclarations } from "./token-aliases.js";
 
 /**

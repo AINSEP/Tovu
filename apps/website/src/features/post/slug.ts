@@ -13,3 +13,8 @@ export function isAutomaticPostSlug({ title, slug }: { title: string; slug: stri
   const base = derivePostSlugBase({ title });
   return /^untitled(-\d+)?$/.test(slug) || slug === base || (slug.startsWith(`${base}-`) && /^\d+$/.test(slug.slice(base.length + 1)));
 }
+
+/** Shared slug-format rule, exported so `agent-tools.ts` can publish the identical pattern rather
+ * than a hand-copied regex literal that could silently drift from what `updatePost`/`createPost`
+ * actually enforce. */
+export const SLUG_FORMAT_PATTERN = /^[a-z0-9-]+$/;

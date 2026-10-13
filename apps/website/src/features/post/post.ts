@@ -1,6 +1,6 @@
 import { deriveAvailableName } from "@jini-ai/core/naming";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
-import { isAutomaticPostSlug, derivePostSlugBase, MAX_SLUG_LENGTH, DERIVED_SLUG_SUFFIX_ROOM } from "./slug.js";
+import { isAutomaticPostSlug, derivePostSlugBase, MAX_SLUG_LENGTH, DERIVED_SLUG_SUFFIX_ROOM, SLUG_FORMAT_PATTERN } from "./slug.js";
 import { isDeepStrictEqual } from "node:util";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primitives";
@@ -1055,10 +1055,7 @@ function deriveSlugBase(title: string): string {
   return derivePostSlugBase({ title });
 }
 
-/** Shared slug-format rule, exported so `agent-tools.ts` can publish the identical pattern rather
- * than a hand-copied regex literal that could silently drift from what `updatePost`/`createPost`
- * actually enforce. */
-export const SLUG_FORMAT_PATTERN = /^[a-z0-9-]+$/;
+export { SLUG_FORMAT_PATTERN } from "./slug.js";
 
 /**
  * Content-owned homepage — the literal root slug a `kind: "page"` row may claim so `GET /`
