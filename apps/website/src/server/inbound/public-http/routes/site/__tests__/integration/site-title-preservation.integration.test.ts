@@ -16,6 +16,9 @@ import { duplicateSite } from "#src/platform/site-dir/duplicate-site";
 import { initSite } from "#src/platform/site-dir/init-site";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { readTemplate } from "#src/platform/site-dir/read-template";
+import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
+import type { SiteTitlePreservationStorePort } from "#src/features/settings/site-title";
+import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
 import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
@@ -55,6 +58,12 @@ function tempSiteDir(t: TestContext): string {
 }
 
 /** A site created with `tovu init --name "My Site"` after this feature shipped (REQ-05). */
+/** Where `tovu serve` opens this site's content.db: `data.nosync/` for a site made since 1cffdf3cf.
+ *  A second copy at the folder root would make boot refuse the site as ambiguous. */
+function siteContentDbPath(dir: string): string {
+  return resolveSiteDatabasePaths({ dir }).contentDbPath;
+}
+
 async function createNewSite(t: TestContext): Promise<string> {
   const dir = tempSiteDir(t);
   await initSite({ dir, name: SITE_NAME });
@@ -71,7 +80,7 @@ async function createPreExistingSite(t: TestContext): Promise<string> {
   // Sites created before 2026-10-08 were seeded with every stock theme; a new one gets only
   // tovu-starter, so put back the theme this pre-existing site renders on.
   fs.cpSync(path.join(builtInThemesDir(), "static", "tovu-theme"), path.join(dir, "themes", "static", "tovu-theme"), { recursive: true });
-  const dbPath = path.join(dir, "content.db");
+  const dbPath = siteContentDbPath(dir);
   for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${dbPath}${suffix}`, { force: true });
 
   const { seed: starterSeed } = readTemplate({ templateId: "starter" }, { withSampleContent: true });
@@ -123,19 +132,27 @@ function publishPricingPage(deps: RouteDeps): void {
 
 /**
  * Boots `dir` with the same `bootSiteDir` + `createSiteRouteDeps` overrides `tovu serve <dir>`
- * passes. `beforeBootChain` runs synchronously right after `createSiteRouteDeps` returns, before
- * any step of its chained boot registrations has run.
+ * passes. `beforeBootChain` patches the preservation store's class before composition: since
+ * 9b20083b6 `createSiteRouteDeps` awaits the vault normalization after its chained boot registrations
+ * start, so the pin can already have read the store by the time it returns. Restored after the test.
  */
-async function bootSite(t: TestContext, dir: string, beforeBootChain?: (deps: RouteDeps) => void): Promise<BootedSite> {
+async function bootSite(t: TestContext, dir: string, beforeBootChain?: (store: SiteTitlePreservationStorePort) => void): Promise<BootedSite> {
+  if (beforeBootChain) {
+    const store = SqliteSiteTitlePreservationStore.prototype as SiteTitlePreservationStorePort;
+    t.after(() => {
+      delete (store as Partial<SiteTitlePreservationStorePort>).listPendingWorkspaceIds;
+      delete (store as Partial<SiteTitlePreservationStorePort>).isPending;
+    });
+    beforeBootChain(store);
+  }
   const boot = await bootSiteDir({ dir });
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps(siteContentDbPath(dir), {
     db: boot.db,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
   });
-  beforeBootChain?.(deps);
   t.after(async () => {
     await drainBootReadiness(deps);
     await closeSiteDirBoot(boot);
@@ -249,13 +266,12 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
   });
 
   try {
-    const site = await bootSite(t, await createPreExistingSite(t), (deps) => {
-      const store = deps.siteTitlePreservationStore;
-      const listPendingWorkspaceIds = store.listPendingWorkspaceIds.bind(store);
-      store.listPendingWorkspaceIds = async () => {
+    const site = await bootSite(t, await createPreExistingSite(t), (store) => {
+      const listPendingWorkspaceIds = store.listPendingWorkspaceIds;
+      store.listPendingWorkspaceIds = async function (this: SiteTitlePreservationStorePort) {
         signalPinReached();
         await pinGate;
-        return listPendingWorkspaceIds();
+        return listPendingWorkspaceIds.call(this);
       };
     });
     await pinReached;
@@ -277,8 +293,7 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
 });
 
 test("AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check fails, so AC-10 does not pass by coincidence", async (t) => {
-  const site = await bootSite(t, await createPreExistingSite(t), (deps) => {
-    const store = deps.siteTitlePreservationStore;
+  const site = await bootSite(t, await createPreExistingSite(t), (store) => {
     store.listPendingWorkspaceIds = async () => [];
     store.isPending = async () => false;
   });
@@ -380,13 +395,13 @@ const PINNED_COPY_STATE: SiteTitleCopyState = {
 test("AC-20 (REQ-12, INV-07): a duplicate of a pinned pre-existing site carries neither the pin nor its marker, and renders its own name", async (t) => {
   const { dir: sourceDir, site: source } = await bootPinnedPreExistingSite(t);
   const workspaceId = source.deps.workspaceId;
-  const sourceDbPath = path.join(sourceDir, "content.db");
+  const sourceDbPath = siteContentDbPath(sourceDir);
   assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), PINNED_COPY_STATE, "precondition: the source is pinned and marked");
 
   const targetDir = path.join(path.dirname(sourceDir), "client-b");
   await duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
 
-  assert.deepEqual(readSiteTitleCopyState(path.join(targetDir, "content.db"), workspaceId), { titleRows: [], markerRows: 0 });
+  assert.deepEqual(readSiteTitleCopyState(siteContentDbPath(targetDir), workspaceId), { titleRows: [], markerRows: 0 });
   assert.deepEqual(readSiteTitleCopyState(sourceDbPath, workspaceId), PINNED_COPY_STATE, "duplicating must not reset the source itself");
 
   const duplicate = await bootSite(t, targetDir);
@@ -407,7 +422,7 @@ test("AC-21 (REQ-12, INV-07, EC-09): an owner's own title travels into a duplica
   assert.equal(write.status, 200, "the owner write must be accepted");
   await drainBootReadiness(source.deps);
 
-  const sourceState = readSiteTitleCopyState(path.join(sourceDir, "content.db"), workspaceId);
+  const sourceState = readSiteTitleCopyState(siteContentDbPath(sourceDir), workspaceId);
   assert.equal(sourceState.titleRows.length, 1, "precondition: one core.site/title row");
   assert.equal(sourceState.titleRows[0]?.valueJson, JSON.stringify(OWNER_TITLE), "precondition: the owner's title replaced the pin");
   assert.notEqual(sourceState.titleRows[0]?.updatedBy, SYSTEM_PRINCIPAL_ID, "precondition: attributed to the owner, not the system");
@@ -416,7 +431,7 @@ test("AC-21 (REQ-12, INV-07, EC-09): an owner's own title travels into a duplica
   const targetDir = path.join(path.dirname(sourceDir), "client-b");
   await duplicateSite({ sourceDir, targetDir, name: DUPLICATE_NAME });
 
-  assert.deepEqual(readSiteTitleCopyState(path.join(targetDir, "content.db"), workspaceId), {
+  assert.deepEqual(readSiteTitleCopyState(siteContentDbPath(targetDir), workspaceId), {
     titleRows: sourceState.titleRows,
     markerRows: 0,
   });
@@ -430,7 +445,7 @@ const DEPLOY_NAME = "Fresh Deploy";
 
 test("AC-23, AC-24 (REQ-14, INV-07): a seed published from a pinned site ships neither the pin nor its marker, and a deploy hydrated from it renders its own name", async (t) => {
   const { dir: liveDir, site: live } = await bootPinnedPreExistingSite(t);
-  const liveDbPath = path.join(liveDir, "content.db");
+  const liveDbPath = siteContentDbPath(liveDir);
   assert.deepEqual(readSiteTitleCopyState(liveDbPath, live.deps.workspaceId), PINNED_COPY_STATE, "precondition: the live site is pinned and marked");
 
   const seedDbPath = path.join(path.dirname(liveDir), "content.seed.db");
@@ -454,7 +469,7 @@ test("AC-23, AC-24 (REQ-14, INV-07): a seed published from a pinned site ships n
   // AC-24: a clean container deploy hydrates its content.db from that seed and boots under its own name.
   const deployDir = path.join(path.dirname(liveDir), "deploy");
   await initSite({ dir: deployDir, name: DEPLOY_NAME });
-  const deployDbPath = path.join(deployDir, "content.db");
+  const deployDbPath = siteContentDbPath(deployDir);
   for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${deployDbPath}${suffix}`, { force: true });
   assert.equal(hydrateContentDbFromSeed({ seedDbPath, dbPath: deployDbPath }).status, "seeded");
 
@@ -515,7 +530,7 @@ test("AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsForWo
   process.env.TOVU_SITE_DIR = dir;
   let deps: RouteDeps | undefined;
   try {
-    deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, { dbPath: path.join(dir, "content.db") });
+    deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, { dbPath: siteContentDbPath(dir) });
     await deps.siteTitleReady;
     assert.equal(await resolveSiteTitleForRender(deps), SITE_NAME, "before the rename");
 

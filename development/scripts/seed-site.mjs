@@ -139,10 +139,11 @@ function statLiveDb(liveDbPath) {
  *
  * @returns the scratch copy's `content.db` path.
  */
-function copyLiveDbToScratch(liveDir, scratchDir) {
-  for (const name of ["content.db", "content.db-wal", "content.db-shm"]) {
-    const source = path.join(liveDir, name);
-    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(scratchDir, name));
+function copyLiveDbToScratch(liveDbPath, scratchDir) {
+  // From `liveDbPath`, not `<liveDir>/content.db`: a site made since 1cffdf3cf keeps it in `data.nosync/`.
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const source = `${liveDbPath}${suffix}`;
+    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(scratchDir, `content.db${suffix}`));
   }
   return path.join(scratchDir, "content.db");
 }
@@ -401,7 +402,7 @@ export async function seedSite(required) {
 
   const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-seed-site-"));
   try {
-    const scratchDbPath = copyLiveDbToScratch(liveDir, scratchDir);
+    const scratchDbPath = copyLiveDbToScratch(liveDbPath, scratchDir);
     const db = new Database(scratchDbPath);
     try {
       db.pragma("journal_mode = WAL");
