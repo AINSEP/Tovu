@@ -1139,8 +1139,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    off-screen (2026-10-06 mobile catalog WI-1). Capped at the header's width, it wraps instead. */
 .page-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; flex-wrap: wrap; max-width: 100%; }
 /* Widget Regions' key field and its Bind button wrap as one unit (`WidgetRegions.tsx`). */
-.widget-regions-bind { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
-.widget-regions-bind > input { flex: 1 1 8rem; min-width: 0; }
+.widget-regions-bind { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-width: 0; max-width: 100%; }
+.widget-regions-bind > input { flex: 1 1 8rem; min-width: min(8rem, 100%); }
 .widget-regions-bind > button { flex-shrink: 0; white-space: nowrap; }
 
 /* EXPERIMENT (2026-09-06, owner request — expected to be reverted as one commit if it does not
@@ -1200,6 +1200,16 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    chat dock closed — the viewport figure this replaces was never the row's real budget, that
    offset was. */
 .page:has(.page-header-split) { container-type: inline-size; }
+@container (max-width: 900px) {
+  /* Region binding needs more than the split header's quarter-width action rail on tablets. */
+  .page-header-split:has(.widget-regions-bind) .page-header-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
 @container (max-width: 620px) {
   /* Left-aligned, Back beside the title (mobile catalog P-6/PG-3/MN-4, 2026-10-06). The stacked,
      centred version this replaced — Back pill, then kicker/title/description, then (Widgets/Menus)
@@ -2873,6 +2883,9 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
 }
 .theme-card h3 { margin-top: 0; font-family: var(--font-display); font-size: 1.15rem; }
 .theme-card p { font-size: 0.9rem; line-height: 1.45; opacity: 0.85; }
+/* Dark cards sit on a --surface fill, but inherit the shell's light-theme Jini text colour. */
+:root[data-theme="dark"] .theme-card { color: var(--fg); }
+:root[data-theme="dark"] .theme-card p { color: var(--fg-2); opacity: 1; }
 .theme-card button { background: color-mix(in oklch, currentColor 16%, transparent); color: currentColor; border: 1px solid color-mix(in oklch, currentColor 30%, transparent); }
 .theme-card button:hover { background: color-mix(in oklch, currentColor 26%, transparent); opacity: 1; }
 /* Activate (2026-08-10 owner feedback) — the `currentColor`-tinted rule just above exists for the
@@ -4908,6 +4921,14 @@ input[type="file"][data-jini-part^="media."]::file-selector-button:hover { backg
   border-color: transparent;
 }
 .settings-ui-section .jini-snippet-copy-btn:hover { background: color-mix(in srgb, var(--jini-text-strong) 75%, transparent); }
+/* The MCP page uses the shared visible Copy label; keep it legible over its code surface. */
+:root .providers-page .jini-snippet-copy-btn {
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+}
+:root .providers-page .jini-snippet-copy-btn:hover { background: var(--surface-2); }
+:root .providers-page .jini-snippet-copy-btn > span { display: inline; color: inherit; }
 
 /* Row action menu (`RowMenu.tsx`) + confirm dialog (`ConfirmDialog.tsx`) — replaces the
    one-visible-button-per-row pattern and `window.confirm` respectively, wired into

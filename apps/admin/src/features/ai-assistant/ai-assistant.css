@@ -85,11 +85,13 @@
 .visitor-step .jini-byok-advanced { max-width: 30rem; }
 .visitor-step .jini-byok-key-actions .info-tip { margin-left: -0.15rem; margin-right: 0.25rem; }
 .visitor-step .jini-byok-key-footer:has(> .assistant-key-footer:empty) { display: none; }
-/* The selected model sizes the picker; long ids truncate inside a bounded control. */
-.settings-ui-section--page-flow .visitor-step .jini-byok-model-row > .jini-field { flex: 0 1 auto; width: auto; max-width: 100%; }
-.visitor-step .jini-searchable-select { width: max-content; max-width: 100%; }
-.visitor-step .jini-select { width: auto; max-width: 100%; }
+/* The model control gets the same measure as the key input; long picker labels wrap inside it.
+   A width, not a flex-basis: the mobile column layout would read a 30rem basis as height. */
+.settings-ui-section--page-flow .visitor-step .jini-byok-model-row > .jini-field { flex: 0 1 auto; width: 30rem; max-width: 100%; min-width: 0; }
+.visitor-step .jini-searchable-select { width: 100%; max-width: 100%; }
+.visitor-step .jini-select { width: 100%; max-width: 100%; }
 .visitor-step .jini-select-trigger { max-width: min(30rem, 100%); }
+.visitor-step .jini-select-value { white-space: normal; overflow-wrap: anywhere; }
 .visitor-step .jini-byok-key-footer { margin-top: -6px; }
 .visitor-step .assistant-key-status { margin: 0; }
 /* Test connection matches the Model input's height, so the pair reads as one line. */
