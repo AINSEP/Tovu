@@ -1223,6 +1223,16 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
     display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; font-size: 0;
   }
   .page-header-split .page-header-lead > .btn-secondary::before { content: "\2190"; font-size: var(--text-lg); line-height: 1; }
+  /* A plain arrow, no button chrome (owner, 2026-10-13: the bordered square looked off-centre),
+     matching the Edit post/page back arrow (`.content-editor-back`, styles/editor.css). The 40px
+     square stays as the tap area: -10px puts the glyph on the content's left edge, and where a
+     kicker sits above the title (all but Forms) 0.75rem drops the arrow from the kicker's line to
+     the title's. */
+  .page-header-split .page-header-lead > .btn-secondary {
+    margin-left: -10px; border-color: transparent; background: transparent; box-shadow: none; color: var(--fg-2);
+  }
+  .page-header-split:has(.page-kicker) .page-header-lead > .btn-secondary { margin-top: 0.75rem; }
+  .page-header-split .page-header-lead > .btn-secondary:hover { background: transparent; color: var(--fg); }
 
   /* Widgets/Menus keep their header actions (Save, Copy embed…) — as one left-aligned row under
      the title, the same place every list page puts its `.page-actions`. */
