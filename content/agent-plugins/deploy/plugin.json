@@ -13,7 +13,6 @@
       "provides": [
         "deploy-target:fly",
         "deploy-target:github-pages",
-        "deploy-target:cloudflare-pages",
         "deploy-target:s3-compatible",
         "deploy-config:railway",
         "deploy-config:render"
@@ -26,7 +25,6 @@
     "hosting",
     "static-site",
     "static-export",
-    "cloudflare-pages",
     "github-pages",
     "go-live",
     "website",
@@ -40,7 +38,6 @@
     "readyz",
     "deploy-target:fly",
     "deploy-target:github-pages",
-    "deploy-target:cloudflare-pages",
     "deploy-target:s3-compatible",
     "deploy-config:railway",
     "deploy-config:render"

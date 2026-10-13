@@ -535,14 +535,14 @@
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/targets/cloudflare-pages.mjs",
+      "file": "content/agent-plugins/cloudflare-pages/targets/cloudflare-pages.mjs",
       "line": 61,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "11b159d41dd90aaf8794a7aaa70a825221bbdf5d5de3ce512ba494bda6f95f02"
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/targets/cloudflare-pages.mjs",
+      "file": "content/agent-plugins/cloudflare-pages/targets/cloudflare-pages.mjs",
       "line": 1028,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "f59a1fffda4459e08bd280d81ab4144e3c10e3b04ccefc862126b0ebd067f19d"

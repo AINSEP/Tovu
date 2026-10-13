@@ -1,4 +1,14 @@
+---
+name: cloudflare-pages
+description: Publish the site's static export to Cloudflare Pages with the workspace's own saved token and account ID. Covers the credential, the project name and address, size limits, _headers and _redirects, and what each failure means in plain words.
+---
+
 # Cloudflare Pages
+
+The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
+credential is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
+publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
+This file is what is particular to Cloudflare Pages.
 
 - **Credential:** an API token with the **Cloudflare Pages: Edit** permission
   (https://dash.cloudflare.com/profile/api-tokens) plus the **account ID** (right side of the Cloudflare
@@ -10,6 +20,8 @@
 - **Size limit:** each file must be 25 MiB or smaller.
 - **`_headers` and `_redirects`:** the root copies are sent as Cloudflare config, never served as public
   files. A copy inside a folder is an ordinary file.
+- **Security headers:** this plugin writes the live site's headers into the root `_headers` it sends;
+  the site's own root copy is replaced.
 
 ## Failure messages and what to tell the person
 

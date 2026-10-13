@@ -36,7 +36,7 @@ const TARGETS: readonly { readonly id: string; readonly pluginId: string; readon
   { id: "github-pages", pluginId: "deploy", label: "GitHub Pages" },
   { id: "vercel", pluginId: "vercel", label: "Vercel" },
   { id: "netlify", pluginId: "netlify", label: "Netlify" },
-  { id: "cloudflare-pages", pluginId: "deploy", label: "Cloudflare Pages" },
+  { id: "cloudflare-pages", pluginId: "cloudflare-pages", label: "Cloudflare Pages" },
   { id: "s3-compatible", pluginId: "deploy", label: "S3-compatible storage" },
 ];
 const HOST_PLUGINS = TARGETS.filter((target) => target.pluginId !== "deploy");

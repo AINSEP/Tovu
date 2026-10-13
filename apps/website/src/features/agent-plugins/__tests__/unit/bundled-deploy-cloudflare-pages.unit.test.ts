@@ -11,8 +11,8 @@ import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "
 import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
 
 /**
- * @file The bundled `deploy` plugin's Cloudflare Pages module
- * (`content/agent-plugins/deploy/targets/cloudflare-pages.mjs`).
+ * @file The bundled `cloudflare-pages` plugin's module
+ * (`content/agent-plugins/cloudflare-pages/targets/cloudflare-pages.mjs`).
  *
  * PORTED, not re-authored, from `@jini-ai/devops` `src/deploy/__tests__/cloudflare-pages.test.ts` at
  * Jini commit 28f67f9a (0.3.2, vitest): every original case below the "Ported" marker is unchanged,
@@ -25,7 +25,7 @@ import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
 
 installNetworkGuard();
 
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/cloudflare-pages.mjs");
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/cloudflare-pages/targets/cloudflare-pages.mjs");
 
 interface CloudflarePagesBinding {
   CloudflarePagesDeployTarget: new (config: { token: string; accountId: string }) => {
@@ -80,7 +80,7 @@ function stubPagesApi(): { deployForm: () => FormData | undefined; checkedHashes
   return { deployForm: () => deployForm, checkedHashes };
 }
 
-describe("deploy plugin module contract (cloudflare-pages)", () => {
+describe("hosting plugin module contract (cloudflare-pages)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
