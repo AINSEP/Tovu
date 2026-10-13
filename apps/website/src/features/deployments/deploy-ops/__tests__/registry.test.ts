@@ -80,7 +80,7 @@ test("a digest-trusted package outside the ops owners cannot become a parallel o
   try {
     const source = path.join(root, "source");
     await mkdir(source);
-    await writeFile(path.join(source, "plugin.json"), '{"name":"github-pages","version":"1.0.0"}');
+    await writeFile(path.join(source, "plugin.json"), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"github-pages","version":"1.0.0"}');
     await writeFile(path.join(source, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "github-actions", label: "GitHub Actions", module: "ops.mjs", hosts: ["api.github.com"] }] }));
     await writeFile(path.join(source, "ops.mjs"), "export default { status() {}, logs() {} };\n");
     const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "state") } });
