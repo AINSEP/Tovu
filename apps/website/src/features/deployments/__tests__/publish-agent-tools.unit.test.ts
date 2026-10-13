@@ -1474,8 +1474,9 @@ test("deployment_preview_static_publish: an unrecognized target throws before an
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
 
+  // Plugin-id order since the deploy split (0030358d7): each host is its own plugin.
   await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), {
-    message: "publish target 'bogus-provider' is not available; choose one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible",
+    message: "publish target 'bogus-provider' is not available; choose one of: cloudflare-pages, github-pages, netlify, s3-compatible, vercel",
   });
   assert.deepEqual(authorizeCalls, [], "unknown targets must fail before authorization");
 });
