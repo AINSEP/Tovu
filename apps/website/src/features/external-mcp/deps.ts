@@ -50,9 +50,10 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/as
  * carried through the browser (no table; `assistant/external-mcp-oauth.ts`'s `sealedRedirectState`),
  * and device-authorization state lives in the `content.db` table `oauth_device_authorizations` behind
  * a SQLite-backed adapter (`platform/db/sqlite/oauth-pending-store.sqlite.ts`), shared by every
- * composition root that opens the same `content.db` handle. A chat-started `authorization_code` connect from the agent daemon now
- * completes across the process boundary like any other — `tool-registrations.ts`'s
- * `external_mcp_oauth_connect` handler no longer needs to disclose this as a limitation either.
+ * composition root that opens the same `content.db` handle. A chat-started `authorization_code`
+ * connect from the agent daemon now completes across the process boundary like any other —
+ * `tool-registrations.ts`'s `external_mcp_oauth_connect` handler no longer needs to disclose this
+ * as a limitation either.
  */
 export interface ExternalMcpToolDeps extends OperatorLocaleDeps {
   externalMcpProbe?: (required: { serverId: string }) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }>;

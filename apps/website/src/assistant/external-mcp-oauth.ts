@@ -148,7 +148,7 @@ export function externalMcpSettingsDeepLink(serverId: string): string {
  * One device authorization awaiting the operator's approval.
  *
  * `Promise`-returning because the real adapter
- * (`platform/db/repos/oauth-pending-store.ts`'s `createSqliteDeviceAuthorizationStore`)
+ * (`platform/db/repos/oauth-pending-store.ts`'s `createSqlDeviceAuthorizationStore`)
  * persists to `content.db` and seals `deviceCode` through the same ADR-058 sealer/keyring every
  * other secret there goes through, so both implementations share one async call shape. This file's
  * own `createDeviceAuthorizationStore` below is the in-memory ADR-006 "second adapter" — used by

@@ -76,7 +76,8 @@ export interface PublishCredentialSummary {
   readonly tokenTail: string;
   /** The verified account's public login, held in the clear (never sealed) — carried through
    *  unchanged, never re-derived here (this is a read model, it never decrypts or verifies anything).
-   *  Writes clear it; only the verify heal (`healAccountLabel`) populates it. */
+   *  Create, a connection rotation or a vendor move reset it; only the verify heal
+   *  (`healAccountLabel`) populates it. */
   readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
