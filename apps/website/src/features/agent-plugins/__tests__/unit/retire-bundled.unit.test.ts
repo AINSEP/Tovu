@@ -27,8 +27,12 @@ import { AgentPluginNotUninstallableError, uninstallAgentPlugin } from "../../li
 
 /**
  * @file `retireBundledAgentPlugins()` — the boot migration that removes `tovu-deploy-fly` (merged
- * into `deploy`, 2026-09-29), and `create-tovu-theme` + `tovuize-site` (merged into `tovu-theme`,
- * 2026-10-06), from a workspace and keeps their users' capability on.
+ * into `deploy`, 2026-09-29, now straight into `fly`), `create-tovu-theme` + `tovuize-site` (merged
+ * into `tovu-theme`, 2026-10-06) and `deploy` (split across fly, render, railway, github and the
+ * static hosts, Phase B7 2026-10-12) from a workspace and keeps their users' capability on.
+ *
+ * The mechanics tests below still use `tovu-deploy-fly` -> `deploy` as an explicit test map: only
+ * the ids are borrowed, the product map is asserted on its own.
  *
  * Every test builds the real on-disk shape a workspace has after earlier boots: packages installed
  * through `installAgentPlugin`, records written by the seeder's own `recordBundledAgentPluginIfAbsent`
@@ -98,12 +102,23 @@ async function seedPreRetirementWorkspace(layout: ReturnType<typeof resolveAgent
   return { fly, deploy };
 }
 
+/** A successor the way a successful seed leaves it: installed, and its digest in the ledger —
+ *  what @jini-ai/agent-plugins 0.4.5 (R6) requires before it retires anything into it. */
+async function seedSuccessor(layout: ReturnType<typeof resolveAgentPluginLayout>, workspaceRoot: string) {
+  const installed = await installPackage(layout, SUCCESSOR, "archive-deploy");
+  await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: SUCCESSOR, archiveDigest: installed.archiveDigest }] });
+  return installed;
+}
+
 async function installedIds(workspaceRoot: string): Promise<string[]> {
   return (await listInstalledPlugins(workspaceRoot)).map((plugin) => plugin.pluginId).sort();
 }
 
-test("the retirement map sends tovu-deploy-fly to deploy", () => {
-  assert.equal(RETIRED_BUNDLED_AGENT_PLUGINS.get(RETIRED), SUCCESSOR);
+const DEPLOY_SUCCESSORS = ["fly", "render", "railway", "github", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible"];
+
+test("the retirement map sends tovu-deploy-fly to fly, and deploy to every plugin split out of it, Fly first", () => {
+  assert.equal(RETIRED_BUNDLED_AGENT_PLUGINS.get("tovu-deploy-fly"), "fly");
+  assert.deepEqual(RETIRED_BUNDLED_AGENT_PLUGINS.get("deploy"), DEPLOY_SUCCESSORS);
 });
 
 test("an ENABLED tovu-deploy-fly: its package, record and ledger entry go; deploy stays enabled", async () => {
@@ -143,7 +158,7 @@ test("an enabled tovu-deploy-fly switches on deploy's untouched disabled seed re
   const { cwd, layout, workspaceLayout } = await freshLayout();
   try {
     await installPackage(layout, RETIRED, "archive-fly");
-    await installPackage(layout, SUCCESSOR, "archive-deploy");
+    await seedSuccessor(layout, workspaceLayout.root);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: RETIRED, enabled: true, actor: "test:operator" }, { origin: "bundled" });
     // The seeder's own disabled record, never touched by an operator.
     await recordBundledAgentPluginIfAbsent({ workspaceRoot: workspaceLayout.root, pluginId: SUCCESSOR });
@@ -165,6 +180,7 @@ test("an enabled tovu-deploy-fly with NO deploy record creates deploy's record e
   const { cwd, layout, workspaceLayout } = await freshLayout();
   try {
     await installPackage(layout, RETIRED, "archive-fly");
+    await seedSuccessor(layout, workspaceLayout.root);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: RETIRED, enabled: true, actor: "test:operator" }, { origin: "bundled" });
 
     const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
@@ -251,6 +267,7 @@ test("a workspace that never had tovu-deploy-fly: 'absent', and no state file is
 test("a record with no package left is deleted directly", async () => {
   const { cwd, layout, workspaceLayout } = await freshLayout();
   try {
+    await seedSuccessor(layout, workspaceLayout.root);
     await recordBundledAgentPluginIfAbsent({ workspaceRoot: workspaceLayout.root, pluginId: RETIRED });
 
     const [outcome] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, ONLY_FLY);
@@ -387,7 +404,9 @@ test("seedBundledAgentPlugins never seeds a retired id from a stale source direc
     assert.deepEqual(result.outcomes, []);
     assert.deepEqual(
       result.retirements,
-      [...RETIRED_BUNDLED_AGENT_PLUGINS].map(([pluginId, successorId]) => ({ pluginId, successorId, status: "absent" })),
+      [...RETIRED_BUNDLED_AGENT_PLUGINS].map(([pluginId, successor]) => typeof successor === "string"
+        ? { pluginId, successorId: successor, status: "absent" }
+        : { pluginId, successorId: successor[0], successorIds: successor, status: "absent" }),
     );
     assert.deepEqual(await installedIds(workspaceLayout.root), []);
   } finally {
@@ -464,25 +483,80 @@ test("both old theme plugins DISABLED: both are removed and tovu-theme stays off
   }
 });
 
-test("R6 characterization: after Fly seed failure, current retirement can remove deploy without usable Fly", async () => {
-  // This proves the unsafe current owner contract, not release readiness. B7 must wait for Jini's
-  // seed/retirement guard; invert these assertions when the owner fix is consumed.
+// --- deploy -> its split successors (Phase B7), through the real map: R6 safety -----------------
+
+async function writeBundledSource(sourceRoot: string, pluginId: string, manifest?: string) {
+  await mkdir(path.join(sourceRoot, pluginId, "skills", pluginId), { recursive: true });
+  await writeFile(path.join(sourceRoot, pluginId, "plugin.json"), manifest ?? JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version: "1.0.0" }));
+  await writeFile(path.join(sourceRoot, pluginId, "skills", pluginId, "SKILL.md"), `# ${pluginId}\n`);
+}
+
+/** A workspace that last booted a build still shipping `deploy`: installed, and on by the operator. */
+async function seedLegacyDeployWorkspace(layout: ReturnType<typeof resolveAgentPluginLayout>, workspaceRoot: string) {
+  const deploy = await installPackage(layout, "deploy", "archive-legacy-deploy");
+  await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: true, actor: "operator" }, { origin: "bundled" });
+  return deploy;
+}
+
+test("R6: a failed Fly seed keeps deploy — its bytes and the operator's 'on' — and switches no Fly record on", async () => {
   const { cwd, layout, workspaceLayout } = await freshLayout();
   const sourceRoot = path.join(cwd, "broken-source");
   try {
-    await installPackage(layout, "deploy", "archive-legacy-deploy");
-    await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "deploy", enabled: true, actor: "operator" }, { origin: "bundled" });
-    await mkdir(path.join(sourceRoot, "fly"), { recursive: true });
-    await writeFile(path.join(sourceRoot, "fly", "plugin.json"), "{");
+    await seedLegacyDeployWorkspace(layout, workspaceLayout.root);
+    await writeBundledSource(sourceRoot, "fly", "{");
+
     const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
+
     assert.equal(seeded.outcomes.find(outcome => outcome.pluginId === "fly")?.status, "failed");
-    // Exercise exactly the proposed 1→1 map without activating it in the product catalog.
-    const [retired] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, { retired: new Map([["deploy", "fly"]]) });
-    assert.equal(retired?.status, "retired");
-    assert.deepEqual(await installedIds(workspaceLayout.root), []);
+    const deploy = seeded.retirements.find(outcome => outcome.pluginId === "deploy");
+    assert.equal(deploy?.status, "failed");
+    assert.match(deploy?.status === "failed" ? deploy.reason : "", /^'deploy' is kept until every successor is usable: successor 'fly' has never been seeded/);
+    assert.deepEqual(await installedIds(workspaceLayout.root), ["deploy"]);
     assert.equal((await readBundledAgentPluginDigests(workspaceLayout.root)).has("fly"), false);
     const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
-    assert.equal(activations.plugins.deploy, undefined);
-    assert.equal(activations.plugins.fly?.enabled, true, "an activation record alone cannot supply executable bytes");
+    assert.equal(activations.plugins.deploy?.enabled, true, "the operator's record stays with the code it switches");
+    assert.equal(activations.plugins.fly, undefined, "no Fly switch without Fly's code");
+  } finally { await forceRemove(cwd); }
+});
+
+test("R6: Fly alone seeding is not enough — deploy is kept until Render, Railway, GitHub and the static hosts are usable too", async () => {
+  const { cwd, layout, workspaceLayout } = await freshLayout();
+  const sourceRoot = path.join(cwd, "partial-source");
+  try {
+    await seedLegacyDeployWorkspace(layout, workspaceLayout.root);
+    await writeBundledSource(sourceRoot, "fly");
+
+    const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
+
+    assert.equal(seeded.outcomes.find(outcome => outcome.pluginId === "fly")?.status, "seeded");
+    const deploy = seeded.retirements.find(outcome => outcome.pluginId === "deploy");
+    assert.equal(deploy?.status, "failed");
+    assert.match(deploy?.status === "failed" ? deploy.reason : "", /successor 'render' has never been seeded/);
+    assert.deepEqual(await installedIds(workspaceLayout.root), ["deploy", "fly"]);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root })).plugins.deploy?.enabled, true);
+  } finally { await forceRemove(cwd); }
+});
+
+test("R6: once every successor seeds, deploy is retired and its successors are on; the next boot is a no-op", async () => {
+  const { cwd, layout, workspaceLayout } = await freshLayout();
+  const sourceRoot = path.join(cwd, "full-source");
+  try {
+    const legacy = await seedLegacyDeployWorkspace(layout, workspaceLayout.root);
+    for (const pluginId of DEPLOY_SUCCESSORS) await writeBundledSource(sourceRoot, pluginId);
+
+    const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
+
+    const deploy = seeded.retirements.find(outcome => outcome.pluginId === "deploy");
+    assert.equal(deploy?.status, "retired");
+    assert.deepEqual(deploy?.status === "retired" && deploy.removedDigests, [legacy.archiveDigest]);
+    assert.deepEqual(deploy?.successorIds, DEPLOY_SUCCESSORS);
+    assert.deepEqual(await installedIds(workspaceLayout.root), [...DEPLOY_SUCCESSORS].sort());
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
+    assert.equal(Object.hasOwn(activations.plugins, "deploy"), false);
+    for (const pluginId of DEPLOY_SUCCESSORS) assert.equal(activations.plugins[pluginId]?.enabled, true, pluginId);
+
+    const nextBoot = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
+    assert.equal(nextBoot.retirements.find(outcome => outcome.pluginId === "deploy")?.status, "absent");
+    assert.deepEqual(await installedIds(workspaceLayout.root), [...DEPLOY_SUCCESSORS].sort());
   } finally { await forceRemove(cwd); }
 });

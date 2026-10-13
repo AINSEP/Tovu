@@ -24,19 +24,26 @@
 export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["deploy", "fly", "render", "railway", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible", "resend", "github", "site-import", "tovu-theme", "how-tovu-works"]);
 
 /**
- * Retired bundled plugin id -> the bundled plugin that absorbed it. `seed-bundled.ts` never seeds a
+ * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a
  * retired id, even if a stale build still carries its directory.
  *
  * `tovu-deploy-fly` -> `deploy` (2026-09-29): one deploy plugin for every host; the fly.io server
- * procedure moved again to `fly` in Phase B. The old mapping and `deploy` seed entry remain
- * until B7's Jini seed-failure safety gate passes; retirement is intentionally not activated yet.
+ * procedure moved again to `fly` in Phase B, so it now retires straight into `fly`.
+ *
+ * `deploy` -> every plugin split out of it (Phase B7, 2026-10-12): `fly`, `render`, `railway`, `github`
+ * (GitHub Actions deploys) and Phase A's static hosts. All of them, not just `fly`: Jini keeps a
+ * retired plugin until EVERY listed successor is installed at its seeded digest
+ * (@jini-ai/agent-plugins 0.4.5, R6), and a workspace whose installed `deploy` predates the split still
+ * carries what each of them took over; one failed seed must not cost that capability. Fly is first:
+ * it is the outcome's `successorId` and the name `deploy` answers to (`RETIRED_PLUGIN_REPLACEMENTS`).
  *
  * `create-tovu-theme` and `tovuize-site` -> `tovu-theme` (2026-10-06): one theme plugin for both
  * jobs, a new theme or a converted static site. They shared the theme-format rules and had started
  * contradicting each other about them; `tovu-theme`'s skill now carries both procedures.
  */
-export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string> = new Map([
-  ["tovu-deploy-fly", "deploy"],
+export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string | readonly string[]> = new Map<string, string | readonly string[]>([
+  ["tovu-deploy-fly", "fly"],
+  ["deploy", ["fly", "render", "railway", "github", "vercel", "netlify", "cloudflare-pages", "github-pages", "s3-compatible"]],
   ["create-tovu-theme", "tovu-theme"],
   ["tovuize-site", "tovu-theme"],
 ]);
