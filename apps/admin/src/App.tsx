@@ -4,6 +4,7 @@ import { SitesSidebarNav } from "./components/SitesSidebarNav";
 import { useAdminDocumentLocale } from "./hooks/use-admin-document-locale.hooks";
 import { useAdminAppearance } from "./hooks/use-admin-appearance.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
+import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
 import { useMemo, type ReactNode } from "react";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
@@ -666,6 +667,7 @@ export function App(props: AppProps) {
     // `app-i18n.ts`'s own `APP_DICT` defines no `"Cancel"` key of its own — see
     // `createDictionaryTranslator`'s doc comment in `lib/dictionary-translator.ts`.
     <AdminModulesProvider permissions={effectivePermissions ?? NO_PERMISSIONS}>
+    <ChartRegistryProvider key={user.id} principalId={user.id}>
     <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale: navLocale, key: "Cancel" })}>
       <div className={resolveAdminLayoutClassName(interfacePreferences)}>
         {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
@@ -806,6 +808,7 @@ export function App(props: AppProps) {
         ) : null}
       </div>
     </ConfirmDialogDefaultsProvider>
+    </ChartRegistryProvider>
     </AdminModulesProvider>
   );
 }

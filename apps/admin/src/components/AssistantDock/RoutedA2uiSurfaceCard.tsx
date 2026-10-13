@@ -1,9 +1,11 @@
 import { createPortal } from "react-dom";
+import { useContext } from "react";
 import { A2uiSurfaceCard, useT, type A2uiSurfaceCardProps } from "@jini-ai/chat/react";
 // This boundary renders both inline and into the Playground portal; styles must follow both paths.
 import "@jini-ai/ui/interactive-ui.css";
 
 import { useRoutedA2uiSurfaceCard } from "./hooks/use-routed-a2ui-surface-card.hooks";
+import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-registry-context";
 
 /**
  * @file Makes `A2uiSurfaceCard` page-aware without touching the card itself, Jini's ext-event
@@ -70,6 +72,7 @@ export function RoutedA2uiSurfaceCard({
   ...props
 }: RoutedA2uiSurfaceCardProps) {
   const t = useT();
+  const { registry, generation, stylesheets } = useContext(AdminChartRegistryContext);
   const { 
     target, 
     dismissed, 
@@ -90,11 +93,17 @@ export function RoutedA2uiSurfaceCard({
         >
           ×
         </button>
-        <A2uiSurfaceCard {...props} onAgentAction={handleAgentAction} />
+        {/* Provider CSS belongs to this render boundary, so canvas and transcript share it. */}
+        {stylesheets.map((href) => <link key={href} rel="stylesheet" href={href} />)}
+        <A2uiSurfaceCard {...props} key={generation} registry={registry} onAgentAction={handleAgentAction} />
       </div>,
       target,
     );
   }
 
-  return <A2uiSurfaceCard {...props} onAgentAction={handleAgentAction} />;
+  return <>
+    {stylesheets.map((href) => <link key={href} rel="stylesheet" href={href} />)}
+    {/* The interpreter captures its validation catalog at construction: replace it by generation. */}
+    <A2uiSurfaceCard {...props} key={generation} registry={registry} onAgentAction={handleAgentAction} />
+  </>;
 }
