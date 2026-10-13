@@ -1840,6 +1840,10 @@ async function composeSiteRouteDeps(
   });
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
   // 0012 retains legacy AAD until this fenced pass; no credential consumer may start first.
+  // Safe alongside the settings-ledger chain: SqlSettingsRepo.transaction delegates to this SAME
+  // kernel. Jini db/kernel/kernel-core.ts takes an exclusive TurnLock through the awaited body;
+  // db/kernel/sqlite/driver.ts commits only after it resolves. The lock, not the sync driver alone,
+  // serializes BEGIN/COMMIT and prevents unrelated settings writes joining the vault transaction.
   await normalizeSiteVaultAtBoot({ kernel, workspaceId, siteDir: siteDirForKeyring, clock }, {
     keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,
     loadContributions: agentPluginLifecycle.loadPluginContributions,
