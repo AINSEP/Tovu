@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
+import { sql } from "kysely";
 import { dropDatabase, freshPostgresDatabase } from "../postgres-database.js";
 import { openPostgresKernel } from "../../kernel/drivers/postgres.js";
 import { CURRENT_SRC, GOLDEN_PATH, READ_GROUPS, countingKernel, expectedTranscript, explainPlan, knownIssue, loadParityModules,
@@ -64,13 +65,15 @@ describe("vault hot paths [postgres]", () => {
   });
   const measure = async (call: () => Promise<unknown>) => { counting.statements.length = 0; await call(); return [...counting.statements]; };
 
-  // Same real difference as vault-hot-path.test.ts (2026-10-12): the secrets_vault_default partial
-  // index is keyed on (principal_id IS NULL, coalesce(...)) while the query filters
-  // `principal_id is null and provider = ?`, so the planner cannot use it.
-  test("vendor default lookup: one LIMIT 1 read on the default index, no group scan", { todo: "default partial index unused: group read filtered on is_default" }, async () => {
+  // Same lookup as vault-hot-path.test.ts: the query restates the group in the
+  // secrets_vault_default index expressions with a literal is_default (2026-10-12), so a pooled
+  // server plans it on that index; before, it used secrets_vault_group_label without the provider.
+  test("vendor default lookup: one LIMIT 1 read on the default index, no group scan", async () => {
     const statements = await measure(() => mods.publish.resolveDefaultForPublish(d.vendor, { workspaceId: "ws", providerId: "tie-host" }));
     assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
     assert.match(statements[0].sql, /limit/i);
+    // Unanalyzed, this index and secrets_vault_group_label cost the same (vault-hot-path.test.ts).
+    await fixture.kernel.execute(sql`ANALYZE secrets_vault`);
     // A pool hands each statement any connection: the plan runs in one transaction so the
     // `SET enable_seqscan = off` in explainPlan applies to the EXPLAIN that follows it.
     const plan = await fixture.kernel.transaction(() => explainPlan(fixture.kernel, statements[0]));

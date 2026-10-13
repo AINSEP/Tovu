@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
+import { sql } from "kysely";
 import { CURRENT_SRC, PARITY_DIALECTS, countingKernel, explainPlan, loadParityModules, migratedParityFixture, parityDeps,
   type ParityModules, type RecordedStatement } from "./parity-harness.js";
 
@@ -54,16 +55,18 @@ for (const dialect of PARITY_DIALECTS) {
       await assertIndexed(fixture.kernel, statements);
     });
 
-    // Real difference (2026-10-12), not fixed here: it is one LIMIT 1 indexed read, but the
-    // secrets_vault_default partial index is keyed on (principal_id IS NULL, coalesce(...)) while
-    // the query says `principal_id is null and provider = ?`, so it cannot be used. SQLite searches
-    // secrets_vault_scope (the provider group, filtered on is_default); Postgres uses
-    // secrets_vault_group_label without the provider and filters provider AND is_default, i.e.
-    // every vendor row in the workspace.
-    test("vendor default lookup: one LIMIT 1 read on the default index, no group scan", { todo: "default partial index unused: group read filtered on is_default" }, async () => {
+    // The secrets_vault_default partial index is keyed on (principal_id IS NULL, coalesce(...)),
+    // so the lookup restates the group in those expressions with a literal is_default (Jini
+    // repo.sql.ts findDefault, 2026-10-12). Before, SQLite searched secrets_vault_scope and Postgres
+    // secrets_vault_group_label without the provider, filtering every vendor row in the workspace.
+    test("vendor default lookup: one LIMIT 1 read on the default index, no group scan", async () => {
       const statements = await measure(() => mods.publish.resolveDefaultForPublish(d.vendor, { workspaceId: "ws", providerId: "tie-host" }));
       assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
       assert.match(statements[0].sql, /limit/i);
+      // Unanalyzed, Postgres costs this index and secrets_vault_group_label (same exact-group
+      // condition, filtered on is_default) as a tie; with any statistics, as autovacuum keeps, the
+      // smaller partial index wins.
+      if (fixture.kernel.dialect === "postgres") await fixture.kernel.execute(sql`ANALYZE secrets_vault`);
       await assertIndexed(fixture.kernel, statements, "secrets_vault_default");
     });
 
