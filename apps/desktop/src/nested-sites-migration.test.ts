@@ -5,6 +5,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createRequire } from "node:module";
 import { createNodeDurableJsonPorts, type DurableJsonPorts } from "@jini-ai/platform/fs";
 import { createSitesWorkspace as createDesktopWorkspace } from "./shared-sites.ts";
 import { createSitesWorkspace } from "../../website/src/platform/site-dir/sites-home.ts";
@@ -15,6 +18,7 @@ const { moveLegacySite } = await import(moverModule) as { moveLegacySite: (requi
 import { migrateNestedSitesHome } from "./nested-sites-migration.ts";
 import { trackSite, readTrackedSites, SITE_ORIGIN } from "./tracked-sites.ts";
 import { discoverSiteDirs } from "./tracked-sites.ts";
+const sqliteModule = createRequire(import.meta.url).resolve("better-sqlite3");
 
 function fixture(t: TestContext, platform: "darwin" | "win32") {
   const homeDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-flat-home-")));
@@ -122,16 +126,30 @@ for (const platform of ["darwin", "win32"] as const) {
     fs.rmSync(to, { recursive: true }); fs.symlinkSync(path.join(f.homeDir, "absent"), to, "junction");
     await f.migrate(); assert.equal(fs.lstatSync(to).isSymbolicLink(), true); assert.equal(fs.existsSync(from), true);
   });
-  test(`${platform}: SQLite lock or journal refuses relocation without hiding the site`, async (t) => {
-    const f = fixture(t, platform), from = f.site("locked"), db = new Database(path.join(from, "content.db"));
+  test(`${platform}: SQLite lock or live WAL holder refuses relocation; an unclean stop's WAL is folded in and the site moves`, async (t) => {
+    const f = fixture(t, platform), from = f.site("locked"), file = path.join(from, "content.db"), db = new Database(file);
     try {
       db.exec("BEGIN EXCLUSIVE;");
       await f.migrate(); assert.equal(fs.existsSync(from), true); assert.ok(f.listed().includes(from));
       db.exec("ROLLBACK;");
     } finally { db.close(); }
-    fs.writeFileSync(path.join(from, "content.db-wal"), "preserve journal");
-    await f.migrate(); assert.equal(fs.readFileSync(path.join(from, "content.db-wal"), "utf8"), "preserve journal");
+    // Another process holds the DB in WAL mode with a row committed only to its WAL.
+    const holder = spawn(process.execPath, ["-e", `const D = require(${JSON.stringify(sqliteModule)}); const db = new D(${JSON.stringify(file)});
+      db.pragma("journal_mode = WAL"); db.exec("INSERT INTO content VALUES ('wal-only')"); console.log("ready"); setInterval(() => {}, 1000);`]);
+    t.after(() => holder.kill("SIGKILL"));
+    await once(holder.stdout, "data");
+    await f.migrate();
+    assert.equal(fs.existsSync(from), true); assert.ok(fs.statSync(file + "-wal").size > 0);
     assert.equal(f.workspace.registry({}).list({})[0]?.path, from);
+    // SIGKILL leaves WAL+SHM behind with no process holding the DB.
+    holder.kill("SIGKILL"); await once(holder, "exit");
+    assert.ok(fs.existsSync(file + "-wal") && fs.existsSync(file + "-shm"));
+    await f.migrate();
+    const to = path.join(f.home, "locked", "content.db");
+    assert.equal(fs.existsSync(from), false); assert.equal(f.workspace.registry({}).list({})[0]?.path, path.dirname(to));
+    for (const suffix of ["-wal", "-shm"]) assert.equal(fs.existsSync(to + suffix), false);
+    const moved = new Database(to, { readonly: true });
+    try { assert.deepEqual(moved.prepare("SELECT value FROM content").pluck().all(), ["keep", "wal-only"]); } finally { moved.close(); }
   });
   test(`${platform}: a creation lock skips the site and retries after release; an empty container is removed`, async (t) => {
     const f = fixture(t, platform), from = f.site("alpha"), lock = path.join(f.home, "alpha.creation.lock");

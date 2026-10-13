@@ -157,21 +157,29 @@ export async function moveSitesHome(
   } }, { createParent: true, staleMs: Infinity });
   return moved;
 }
-/** Released hosts have no lease. SQLite's exclusive lock is the admission proof, and surviving
- * journals require the owner to close/checkpoint the DB first. Never copy a live SQLite inode.
- * @complexity O(1) probes per DB; no rows are read or changed.
+/** Released hosts have no lease. SQLite's exclusive lock is the admission proof. Never copy a live SQLite inode.
+ * A WAL/SHM that survives while this probe holds that lock was left by an unclean stop (no process has the DB):
+ * its committed frames are checkpointed into the main file, exactly as the site's next open would, and the
+ * stale SHM is removed under the lock; close deletes the emptied WAL. Any journal still present afterwards refuses.
+ * @complexity O(1) probes per DB, plus one checkpoint of a leftover WAL; no rows are read.
  */
 export function assertDatabaseStopped({ path: file }: { path: string }, _options = {}): void {
-  for (const suffix of ["-wal", "-shm"]) {
-    if (fs.existsSync(file + suffix)) throw new Error(`Database journal exists: ${file + suffix}. Stop the site and close/checkpoint its database before moving it.`);
-  }
   const db = new Database(file, { fileMustExist: true, timeout: 0 });
   try {
+    // EXCLUSIVE locking mode keeps the lock until close and uses a heap wal-index, never the stale SHM.
     db.exec("PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; ROLLBACK;");
+    if (fs.existsSync(file + "-wal")) {
+      const [result] = db.pragma("wal_checkpoint(TRUNCATE)") as { busy: number }[];
+      if (result?.busy || fs.statSync(file + "-wal").size !== 0) throw new Error(`Database journal could not be checkpointed: ${file}-wal. Open and stop the site, then retry.`);
+    }
+    fs.rmSync(file + "-shm", { force: true });
   } catch (error) {
     if ((error as { code?: string }).code?.startsWith("SQLITE_BUSY")) throw new Error(`Database is open in another process: ${file}. Stop it before moving it.`);
     throw error;
   } finally { db.close(); }
+  for (const suffix of ["-wal", "-shm"]) {
+    if (fs.existsSync(file + suffix)) throw new Error(`Database journal exists: ${file + suffix}. Stop the site and close/checkpoint its database before moving it.`);
+  }
 }
 /** Read-only verification of every user table plus SQLite's full integrity check through Jini's
  * existing SQLite inspector. It now supports strict counts; its diagnostics mode still reports
