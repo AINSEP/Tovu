@@ -42,6 +42,7 @@ import {
   REDIRECT_ENTITY_TYPE,
   removeEntityWithoutBlocker,
   type TrashDb,
+  type TrashKindMover,
 } from "#src/features/trash/index";
 import {
   bindRemoveEntity,
@@ -579,12 +580,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const workspaceId = seededWorkspace.id;
   const taxonomyDb = createLazyProxy<ContentDb>(() => openContentDb(":memory:"));
   const sqliteTrashDb = createLazyProxy<TrashDb>(() => createSqliteTrashDb({ db: taxonomyDb }));
-  // `form_submission` mirrors production (`deps.ts` registers every `registry.ts` kind): without
-  // it the Trash routes' permission gate reports a hermetically trashed submission as "forbidden"
+  // Mirror production permissions for the memory-backed forms, menus and widgets too: without
+  // their registry entries the Trash routes report a hermetically trashed record as "forbidden"
   // and it can never be restored (F3469/F1868). Its writes still go through the in-memory adapter.
   const trashRegistry = new Map(
     [...buildTrashRegistry()].filter(([entityType]) =>
-      entityType === "term" || entityType === "taxonomy" || entityType === "form_submission"
+      ["term", "taxonomy", "form_submission", "form", "menu", "widget"].includes(entityType)
     )
   );
   const trashRepo = new InMemoryTrashRepo({});
@@ -709,6 +710,29 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       }),
     ],
     [
+      "form",
+      createRecordStoreTrashAdapter({
+        entityType: "form",
+        store: {
+          findById: (required) => formDefinitionRepo.findAnyById(required),
+          save: ({ record }) => formDefinitionRepo.save(record),
+        },
+        isHidden: ({ record }) => record.deletedAt !== null,
+        hidden: ({ record, at }) => ({ ...record, deletedAt: at }),
+        shown: ({ record }) => ({ ...record, deletedAt: null }),
+      }, {
+        // Match the durable adapter's cascade, including independently trashed submissions' index rows.
+        hardDelete: async ({ workspaceId, id }) => {
+          const submissions = await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: id });
+          for (const submission of submissions) {
+            await trashRepo.deleteByEntity({ workspaceId, entityType: "form_submission", entityId: submission.id });
+          }
+          await formSubmissionRepo.deleteAllForDefinition({ workspaceId, formDefinitionId: id });
+          await formDefinitionRepo.hardDelete({ workspaceId, id });
+        },
+      }),
+    ],
+    [
       "form_submission",
       createRecordStoreTrashAdapter<StoredFormSubmission>({
         entityType: "form_submission",
@@ -734,8 +758,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       "widget",
       createRecordStoreTrashAdapter<TrashableEntryRecord>({
         entityType: "widget",
-        // The repo's trash-blind seam — its port reads hide a trashed entry. No `hardDelete`: a purge
-        // here stands down, same as the hermetic media/comment adapters.
+        // The repo's trash-blind seam — its port reads hide a trashed entry.
         store: {
           findById: (required) => entryRepo.findAnyById(required),
           save: ({ record }) => entryRepo.saveAny(record)
@@ -749,16 +772,20 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
           ...record,
           deletedAt: null
         })
+      }, {
+        // Remove only outgoing references; other content may still refer to this now-missing widget.
+        hardDelete: async (required) => {
+          await entryRefsRepo.removeBySource({ workspaceId: required.workspaceId, sourceEntryId: required.id });
+          await entryRepo.hardDelete(required);
+        },
       }),
     ],
     [
       "menu",
       createRecordStoreTrashAdapter<TrashableMenuRecord>({
         entityType: "menu",
-        // The repo's trash-blind seam — its port reads hide a trashed menu. No `hardDelete`: a purge
-        // here stands down, same as the hermetic media/comment/widget adapters (T5's own registry
-        // work removes location bindings at purge; this composition has no bindings table to sweep
-        // either, so it stands down the same honest way).
+        // The repo's trash-blind seam — its port reads hide a trashed menu. Purge must remove
+        // location bindings first, matching the durable registry's purgeFirst contract.
         store: {
           findById: (required) => menuRepo.findAnyById(required),
           save: ({ record }) => menuRepo.saveAny(record)
@@ -778,6 +805,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
           updatedAt: at,
           priorStatus: null
         })
+      }, {
+        hardDelete: async ({ workspaceId, id }) => {
+          await navLocationBindingRepo.removeByMenu({ workspaceId, menuId: id });
+          await menuRepo.remove({ workspaceId, id });
+        },
       }),
     ],
     [
@@ -1082,6 +1114,19 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // The rest of this root stays hermetic; only term/taxonomy exercise the shared scratch database.
     registry: trashRegistry,
     db: sqliteTrashDb,
+    // `POST /trash/items` (the admin Forms list's delete) reaches these memory-backed forms here:
+    // `sqliteTrashDb` has no form row for `moveToTrash`'s snapshot read.
+    trashMovers: new Map<string, TrashKindMover>([["form", {
+      permission: trashRegistry.get("form")!.permission,
+      move: async ({ workspaceId, entityId, actor }) => {
+        const form = await formDefinitionRepo.findById({ workspaceId, id: entityId });
+        if (!form) return { ok: false, reason: "not-found" };
+        const marker = await trash.trash({ workspaceId, entityType: "form", entityId, actor,
+          display: { title: form.name, subtitle: form.slug }, at: clock.nowIso(), expectedVersion: form.version });
+        if (marker.ok) return { ok: true, version: marker.version };
+        return marker;
+      },
+    }]]),
     removePost: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: POST_ENTITY_TYPE
@@ -1982,7 +2027,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
       }),
       // A theme is a folder, not a `TRASHABLE` row: `POST /trash/items` reaches it through the same
       // `trashTheme` `theme_trash` runs (active-theme refusal included).
-      movers: new Map([[THEME_ENTITY_TYPE, createThemeTrashMover(routeDeps)]]),
+      movers: new Map([...(routeDeps.trashMovers ?? []), [THEME_ENTITY_TYPE, createThemeTrashMover(routeDeps)]]),
     })
   );
   mountRoutes(app, createExternalMcpModule(routeDeps));

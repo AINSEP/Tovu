@@ -47,10 +47,13 @@ export async function expectStatus(response: { status(): number; text(): Promise
 export async function createPublishedPageWithHtml(
   request: APIRequestContext,
   { title, slug, html }: { title: string; slug: string; html: string },
+  { onCreated }: { onCreated?: (page: { id: string; slug: string }) => void } = {},
 ): Promise<{ id: string; slug: string }> {
   const created = await request.post(`${WS_API}/pages`, { data: { title, slug, status: "published" } });
   await expectStatus(created, 201, "page create");
   const page = (await created.json()).post as { id: string; slug: string };
+  // Register cleanup before the HTML write: a failed write must not strand the new page.
+  onCreated?.(page);
   const written = await request.put(`${WS_API}/pages/${page.id}/html`, { data: { html } });
   await expectStatus(written, 200, "page html write");
   return page;

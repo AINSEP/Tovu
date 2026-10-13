@@ -164,6 +164,14 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
     else this.deletedAt.set(row.id, deletedAt);
   }
 
+  /** Purge seam: delegates physical deletion and forgets the marker only for this workspace.
+   * @complexity O(r) over the inner repository's stored revisions. */
+  async hardDelete(required: { workspaceId: string; id: string }, _optional: Record<string, never> = {}): Promise<void> {
+    if (!(await this.inner.findById(required))) return;
+    await this.inner.hardDelete(required);
+    this.deletedAt.delete(required.id);
+  }
+
   /**
    * C2 (plan lines 149-167) — the in-memory twin of `SqliteEntryRepo.listPublishedForDisplay`:
    * same filter/sort/limit semantics (published, non-trashed, `query.type`, every `where` clause

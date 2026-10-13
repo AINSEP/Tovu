@@ -34,8 +34,9 @@ export type MoveToTrashOutcome =
   | { ok: false; reason: "blocked"; code: string; count: number };
 
 /**
- * A Trash kind with no `TRASHABLE` table entry that performs its own move — a theme is a folder, not
- * a row (`features/theme/trash-theme-tool.ts`'s `createThemeTrashMover`). {@link moveToTrash} checks
+ * A Trash kind that performs its own move — a theme is a folder, not a row
+ * (`features/theme/trash-theme-tool.ts`'s `createThemeTrashMover`); a hermetic memory-backed form has
+ * no row `deps.db` can read (`composition/app.ts`'s `createRouteDeps`). {@link moveToTrash} checks
  * `permission` exactly as it checks a registry entry's, then hands the move over; the mover owns its
  * own lookup and refusals and answers in the same outcome shape.
  */
@@ -73,8 +74,8 @@ async function isAllowed(
  * fixed timestamp, and `moveToTrash`'s own required object has no `at` field per the plan's §0
  * signature list. Flagged as a deviation, not a silent addition.
  *
- * A kind outside the registry is looked up in `deps.movers` (see {@link TrashKindMover}); one in
- * neither is `unknown-type`.
+ * A kind in `deps.movers` (see {@link TrashKindMover}) moves itself, ahead of any registry entry; one
+ * in neither is `unknown-type`.
  *
  * @complexity O(1): one authorize call, one indexed read, one `TrashPort.trash` call (itself O(1)).
  */
@@ -102,15 +103,17 @@ export async function moveToTrash(
     movers?: ReadonlyMap<TrashEntityType, TrashKindMover>;
   }
 ): Promise<MoveToTrashOutcome> {
-  const entry = deps.registry.get(required.entityType);
-  if (!entry) {
-    const mover = deps.movers?.get(required.entityType);
-    if (!mover) return { ok: false, reason: "unknown-type" };
+  // A mover wins over a registry entry: the hermetic composition registers its memory-backed forms
+  // for the Trash's permission gate, but `deps.db` has no row of theirs to read below.
+  const mover = deps.movers?.get(required.entityType);
+  if (mover) {
     if (!(await isAllowed(required, { authorize: deps.authorize, permission: mover.permission }))) {
       return { ok: false, reason: "forbidden", permission: mover.permission };
     }
     return mover.move({ workspaceId: required.workspaceId, entityId: required.entityId, actor: required.actor });
   }
+  const entry = deps.registry.get(required.entityType);
+  if (!entry) return { ok: false, reason: "unknown-type" };
 
   if (!(await isAllowed(required, { authorize: deps.authorize, permission: entry.permission }))) {
     return { ok: false, reason: "forbidden", permission: entry.permission };

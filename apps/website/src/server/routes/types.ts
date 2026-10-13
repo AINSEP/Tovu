@@ -14,7 +14,7 @@ import type { LocalCredentialCopy } from "#src/server/runtime/composition/local-
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
-import type { RemoveEntity, TrashDb, TrashRegistry } from "#src/features/trash/index";
+import type { RemoveEntity, TrashDb, TrashKindMover, TrashRegistry } from "#src/features/trash/index";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
@@ -1173,6 +1173,9 @@ export interface TrashDeps {
    *  same instance `deps.ts` used to build every registry-derived `TrashAdapter`. Named to match
    *  `TrashRouteDeps.db`. */
   db: TrashDb;
+  /** Composition-supplied movers for kinds `db` cannot read (the hermetic memory-backed forms);
+   *  `createApp` hands them to the Trash module beside the theme mover. Absent in production. */
+  trashMovers?: ReadonlyMap<string, TrashKindMover>;
 }
 
 /**

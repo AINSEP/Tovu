@@ -1,7 +1,15 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { APIRequestContext, Page } from "@playwright/test";
+import { createJourneyContentCleanup, type JourneyContentCleanup } from "../support/journey-content-cleanup.js";
 
-import { WS_API, createPublishedPageWithHtml, expect, expectStatus, fetchPublic, narrowListForBaseline, test, uniq, uniqSlug } from "./_fixtures.js";
+import { WS_API, createPublishedPageWithHtml, expect, fetchPublic, narrowListForBaseline, test, uniq, uniqSlug } from "./_fixtures.js";
+
+let cleanup: JourneyContentCleanup;
+test.beforeEach(async ({ page, request }) => {
+  cleanup = createJourneyContentCleanup({ request, workspaceApi: WS_API });
+  page.on("response", response => cleanup.capture({ response }));
+});
+test.afterEach(async () => { await cleanup.cleanup({}); });
 
 /**
  * Widgets + menus journeys (SCOPE.md W7): build a menu in the admin, wrap it in a menu widget,
@@ -37,7 +45,9 @@ async function createMenuApi(request: APIRequestContext, slug: string, labels: s
     },
   });
   expect(res.status(), await res.text()).toBe(201);
-  return (await res.json()).menu;
+  const menu = (await res.json()).menu;
+  cleanup.track({ type: "menu", id: menu.id });
+  return menu;
 }
 
 async function readMenuBySlug(request: APIRequestContext, slug: string): Promise<MenuDto> {
@@ -51,7 +61,9 @@ async function readMenuBySlug(request: APIRequestContext, slug: string): Promise
 async function createWidget(request: APIRequestContext, body: { widgetType: "menu" | "text"; title: string; slug: string; config: unknown }): Promise<string> {
   const res = await request.post(`${WS_API}/widgets`, { data: body });
   expect(res.status(), await res.text()).toBe(201);
-  return (await res.json()).widget.id;
+  const widget = (await res.json()).widget;
+  cleanup.track({ type: "widget", id: widget.id });
+  return widget.id;
 }
 
 async function addUrlItem(page: Page, label: string, href: string): Promise<void> {
@@ -84,7 +96,7 @@ test.describe("W7 menus and widgets", () => {
     const textWidgetId = await createWidget(request, { widgetType: "text", title: "Journey text widget", slug: widgetSlugs[1], config: { body: textMarker } });
 
     const pageSlug = uniqSlug("widgets-page");
-    const widgetsPage = await createPublishedPageWithHtml(request, {
+    await createPublishedPageWithHtml(request, {
       title: "Widgets page",
       slug: pageSlug,
       html:
@@ -92,7 +104,7 @@ test.describe("W7 menus and widgets", () => {
         `<div data-embed-type="widget" data-embed-id="${menuWidgetId}"></div>` +
         `<div data-embed-type="widget" data-embed-id="${textWidgetId}"></div>` +
         `<div data-embed-config='{"type":"menu","id":"${slug}","mode":"html"}'></div></main>`,
-    });
+    }, { onCreated: page => cleanup.track({ type: "page", id: page.id }) });
     const live = await fetchPublic(request, `/${pageSlug}`);
     expect(live.status).toBe(200);
     expect(live.html).toMatch(/class="widget widget-menu/);
@@ -107,11 +119,7 @@ test.describe("W7 menus and widgets", () => {
     await expect(page.getByText("Journey menu widget")).toBeVisible();
     await expect(page).toHaveScreenshot("widgets-library.png", { mask: [page.locator("time, [data-relative-time]")] });
 
-    await expectStatus(await request.delete(`${WS_API}/pages/${widgetsPage.id}`), 200, "page delete");
-    // Trash, not purge: the hermetic site's Trash cannot list or purge menus and widgets (`app.ts`),
-    // so the purge happens when the cleanup reporter deletes the whole site.
-    for (const id of [menuWidgetId, textWidgetId]) await expectStatus(await request.post(`${WS_API}/widgets/${id}/trash`), 200, "widget trash");
-    await expectStatus(await request.delete(`${WS_API}/menus/${menu.id}`), 200, "menu trash");
+    // afterEach removes the page's embeds before purging these widgets and their menu.
   });
 
   test("a widget whose id does not exist renders nothing and never 500s the page", { tag: ["@unrun"] }, async ({ request }) => {
@@ -120,7 +128,7 @@ test.describe("W7 menus and widgets", () => {
       title: "Missing widget",
       slug: pageSlug,
       html: `<main><p>before</p><div data-embed-type="widget" data-embed-id="does-not-exist"></div><p>after</p></main>`,
-    });
+    }, { onCreated: page => cleanup.track({ type: "page", id: page.id }) });
     const live = await fetchPublic(request, `/${pageSlug}`);
     expect(live.status).toBe(200);
     expect(live.html).toContain("before");
@@ -134,17 +142,13 @@ test.describe("W7 menus and widgets", () => {
   test("menus list and editor baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
     // A fixed slug: the title and slug are on screen in both shots.
     const menu = await createMenuApi(request, "baseline-menu", ["One", "Two", "Three"]);
-    try {
-      await narrowListForBaseline({ page, pathname: `${WS_API}/menus`, keep: (row) => row.slug === menu.slug });
-      await page.goto("/admin/menus");
-      await expect(page.getByText(menu.title)).toBeVisible();
-      await expect(page).toHaveScreenshot("menus-list.png", { mask: [page.locator("time, [data-relative-time]")] });
-      await page.goto(`/admin/menus/${menu.id}`);
-      await expect(page.getByRole("textbox", { name: "Menu title" })).toHaveValue(menu.title);
-      await expect(page).toHaveScreenshot("menu-editor.png");
-    } finally {
-      await expectStatus(await request.delete(`${WS_API}/menus/${menu.id}`), 200, "menu trash");
-    }
+    await narrowListForBaseline({ page, pathname: `${WS_API}/menus`, keep: (row) => row.slug === menu.slug });
+    await page.goto("/admin/menus");
+    await expect(page.getByText(menu.title)).toBeVisible();
+    await expect(page).toHaveScreenshot("menus-list.png", { mask: [page.locator("time, [data-relative-time]")] });
+    await page.goto(`/admin/menus/${menu.id}`);
+    await expect(page.getByRole("textbox", { name: "Menu title" })).toHaveValue(menu.title);
+    await expect(page).toHaveScreenshot("menu-editor.png");
   });
 });
 
@@ -234,7 +238,7 @@ test.describe("menus stress", () => {
       title: "JS menu",
       slug: pageSlug,
       html: `<div data-embed-config='{"type":"menu","id":"${slug}","mode":"html"}'></div>`,
-    });
+    }, { onCreated: page => cleanup.track({ type: "page", id: page.id }) });
     const live = await fetchPublic(request, `/${pageSlug}`);
     expect(live.html.toLowerCase()).not.toContain('href="javascript:');
   });

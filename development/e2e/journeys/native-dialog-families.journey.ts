@@ -1,10 +1,17 @@
 import { test, expect, type Locator, type Page } from "../support/bug-pin-fixtures.js";
 import { loginAsAdmin } from "../support/bug-pin-auth.js";
 import { WS_API } from "./_fixtures.js";
+import { createJourneyContentCleanup, type JourneyContentCleanup } from "../support/journey-content-cleanup.js";
 
 // Phase 17: jsdom cannot exercise showModal's top layer, inert background, or native Tab loop.
 // These assertions retain the keyboard coverage formerly tied to the removed JavaScript traps.
-test.beforeEach(async ({ page }) => { await loginAsAdmin(page); });
+let cleanup: JourneyContentCleanup;
+test.beforeEach(async ({ page, request }) => {
+  cleanup = createJourneyContentCleanup({ request, workspaceApi: WS_API });
+  page.on("response", response => cleanup.capture({ response }));
+  await loginAsAdmin(page);
+});
+test.afterEach(async () => { await cleanup.cleanup({}); });
 
 // A native modal does not wrap Tab itself: past its edge, focus may leave the page (the browser's
 // own UI, seen here as document.body) before re-entering the dialog. The contract is that focus
@@ -75,11 +82,12 @@ test("form field settings keep focus inside and return it to the chosen field", 
 });
 
 test("widget Select portals within the modal and consumes only its own Escape", { tag: "@isolated-site" }, async ({ page, request }) => {
-  // The pin fixture deletes this entire isolated site, including the widget and post, on teardown.
+  // afterEach purges the widget and New Post's draft even if a dialog assertion fails.
   const created = await request.post(`${WS_API}/widgets`, {
     data: { widgetType: "text", title: "Native dialog existing widget", config: { body: "Dialog portal fixture" } },
   });
   expect(created.status()).toBe(201);
+  cleanup.track({ type: "widget", id: (await created.json()).widget.id });
   // Posts are created by New Post; /posts/new would look up a nonexistent post named "new".
   await page.goto("/admin/posts");
   await page.getByRole("button", { name: "New Post", exact: true }).click();

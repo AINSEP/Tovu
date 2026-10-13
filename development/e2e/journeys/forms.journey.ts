@@ -1,7 +1,15 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import type { APIRequestContext, Browser, BrowserContext } from "@playwright/test";
+import { createJourneyContentCleanup, type JourneyContentCleanup } from "../support/journey-content-cleanup.js";
 
 import { BASELINE_TIME, PUBLIC_URL, WS_API, createPublishedPageWithHtml, expect, narrowListForBaseline, test, uniq, uniqSlug } from "./_fixtures.js";
+
+let cleanup: JourneyContentCleanup;
+test.beforeEach(async ({ page, request }) => {
+  cleanup = createJourneyContentCleanup({ request, workspaceApi: WS_API });
+  page.on("response", response => cleanup.capture({ response }));
+});
+test.afterEach(async () => { await cleanup.cleanup({}); });
 
 /**
  * Forms journeys (SCOPE.md W6, second half): build a form in the admin, embed it on a published
@@ -38,7 +46,9 @@ const DEFAULT_FIELDS: FieldSpec[] = [
 async function createForm(request: APIRequestContext, slug: string, fields: FieldSpec[] = DEFAULT_FIELDS): Promise<{ id: string; slug: string }> {
   const res = await request.post(`${WS_API}/forms`, { data: { name: `Form ${slug}`, slug, fields } });
   expect(res.status(), await res.text()).toBe(201);
-  return (await res.json()).data;
+  const form = (await res.json()).data;
+  cleanup.track({ type: "form", id: form.id });
+  return form;
 }
 
 /** Publishes a page that embeds the form, returning its public path. */
@@ -48,7 +58,7 @@ async function embedForm(request: APIRequestContext, slug: string): Promise<stri
     title: `Contact ${slug}`,
     slug: pageSlug,
     html: `<main><h1>Contact</h1><div data-embed-config='{"type":"form","id":"${slug}","mode":"html"}'></div></main>`,
-  });
+  }, { onCreated: page => cleanup.track({ type: "page", id: page.id }) });
   return `/${pageSlug}`;
 }
 
@@ -108,8 +118,7 @@ test.describe("W6 forms", () => {
   test("forms list, builder and submissions baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
     // A fixed slug: the name and slug are on screen in all three shots.
     const slug = "baseline-form";
-    // No cleanup: the hermetic site has no form delete route and no form Trash kind (`app.ts`), so
-    // this form goes when the cleanup reporter deletes the whole site.
+    // afterEach purges this form and its submissions, so a retry can reuse the fixed baseline slug.
     await createForm(request, slug);
     await submitJson(request, slug, { email: "a@example.test", message: "baseline" });
     const pin = { createdAt: BASELINE_TIME, updatedAt: BASELINE_TIME, submittedAt: BASELINE_TIME };
