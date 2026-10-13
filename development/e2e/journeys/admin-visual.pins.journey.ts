@@ -9,6 +9,7 @@ import { test as base } from "../support/bug-pin-fixtures.js";
 import { expect } from "../support/bug-pin-fixtures.js";
 import { type BrowserContext } from "../support/bug-pin-fixtures.js";
 import { type Page } from "../support/bug-pin-fixtures.js";
+import { type Request } from "../support/bug-pin-fixtures.js";
 import { loginAsAdmin, pinSessionHeaders } from "../support/bug-pin-auth.js";
 import { BASELINE_TIME, narrowListForBaseline } from "./_fixtures.js";
 
@@ -595,18 +596,34 @@ test.describe("nested page tabs", () => {
         page.on("request", request => {
           if (request.method() === "PUT" && new URL(request.url()).pathname === `${WORKSPACE_API}/settings/value`) ledgerWrites.push(request.url());
         });
+        // BYOK mode and every provider pick start a live-model discovery probe; its result line
+        // ("Could not load live models: …") is absent while loading. Scrolling before it renders
+        // clamped the scroll 23px short (tablet google-gemini flake), so count probes to the end.
+        const probes = { started: 0, settled: 0 };
+        const isProbe = (url: string) => new URL(url).pathname === `${WORKSPACE_API}/assistant/execution/models`;
+        page.on("request", request => { if (isProbe(request.url())) probes.started += 1; });
+        const settleProbe = (request: Request) => { if (isProbe(request.url())) probes.settled += 1; };
+        page.on("requestfinished", settleProbe);
+        page.on("requestfailed", settleProbe);
         const mode = state.id === "local-cli" ? "Local CLI" : "BYOK";
         // Settings calls this control "AI agent"; select the exact mode title inside the shared
         // execution component so host labels and the tab's descriptive subtitle cannot hide it.
         const modeTab = page.locator(".jini-settings-execution").getByRole("tab").filter({ has: page.getByText(mode, { exact: true }) });
         await expect(modeTab, `${mount}: execution mode ${mode} must be present`).toBeVisible({ timeout: 5_000 });
+        let probesBefore = probes.started;
         await modeTab.click({ timeout: 5_000 });
         await expect(modeTab).toHaveAttribute("aria-selected", "true");
         if (state.id !== "local-cli" && state.id !== "byok") {
           const provider = page.locator(".jini-provider-chip-row").getByRole("tab", { name: state.title, exact: true });
           await expect(provider, `${mount}: provider ${state.id} must be present`).toBeVisible({ timeout: 5_000 });
+          // Anthropic is BYOK's default provider: re-clicking the selected chip starts no new probe.
+          if (await provider.getAttribute("aria-selected") !== "true") probesBefore = probes.started;
           await provider.click({ timeout: 5_000 });
           await expect(provider).toHaveAttribute("aria-selected", "true");
+        }
+        if (state.id !== "local-cli") {
+          await expect.poll(() => probes.started > probesBefore && probes.settled === probes.started, { message: `${mount}: ${state.id} model discovery must finish` }).toBe(true);
+          await expect(page.locator(".jini-settings-execution .jini-field-hint.is-error[role=\"status\"]")).toContainText("Could not load live models");
         }
         // Keep the mode row, provider chips and form together, including at 390px where the
         // AI Assistant header/switch would otherwise push the actual provider form below frame.
