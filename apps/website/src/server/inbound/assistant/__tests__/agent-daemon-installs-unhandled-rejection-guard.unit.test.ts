@@ -61,7 +61,7 @@ test("agent-daemon-server.ts calls installUnhandledRejectionGuard() unconditiona
   // its identical call ("before any boot step below has a chance to reject unguarded"). Opening this
   // process's own SQLite connection (`createAgentDaemonRouteDeps`, which calls
   // `createSiteRouteDepsForWorkspace`/`createRouteDeps`) is the first real I/O this file performs.
-  const routeDepsIndex = DAEMON_ENTRY_SOURCE.indexOf("createAgentDaemonRouteDeps({ env: process.env })");
+  const routeDepsIndex = DAEMON_ENTRY_SOURCE.indexOf("createAgentDaemonRouteDeps({ env: process.env },");
   assert.ok(routeDepsIndex > -1, "this test's own anchor (the routeDeps line) must still exist verbatim — update the anchor if that line's shape changes");
   assert.ok(routeDepsIndex > callIndex, "the guard must be installed before this process's first real I/O (opening its own SQLite connection), not after");
   const guardStatement = daemonSource.statements.find((statement) =>

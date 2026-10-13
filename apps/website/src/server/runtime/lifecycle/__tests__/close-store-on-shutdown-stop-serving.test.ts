@@ -92,3 +92,24 @@ test("stopServingWithinGrace still resolves when a worker's stop rejects and the
   await stopServingWithinGrace({ server, workers: [{ stop: async () => { throw new Error("boom"); } }] });
   assert.equal(server.listening, false);
 });
+
+test("an upgraded socket cannot hold database disposal past the listener grace", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const proc = new FakeProcess();
+  const calls: string[] = [];
+  const server = {
+    close: () => { calls.push("listener"); },
+    closeIdleConnections: () => { calls.push("idle"); },
+    closeAllConnections: () => { calls.push("cut"); },
+  };
+  closeStoreOnShutdown({
+    store: { storage: { kind: "sqlite" }, close: async () => { calls.push("store"); } },
+    onShutdown: () => {},
+  }, { proc, stopServing: () => stopServingWithinGrace({ server, workers: [] }, { graceMs: 500 }) });
+  const exited = proc.exited();
+  proc.emit("SIGTERM");
+  assert.deepEqual(calls, ["listener", "idle"]);
+  t.mock.timers.tick(500);
+  await exited;
+  assert.deepEqual(calls, ["listener", "idle", "cut", "store"]);
+});

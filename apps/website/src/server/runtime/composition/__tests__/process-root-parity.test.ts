@@ -358,6 +358,13 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
 
 
 // REGRESSION: fails if exitDaemon removes the pointer before registryPublication settles.
+test("daemon termination signals stay registered throughout asynchronous disposal", async () => {
+  const { daemonSource } = await import("../../../inbound/assistant/__tests__/helpers/daemon-source.js");
+  const source = daemonSource.getFullText();
+  assert.ok(source.includes('process.on("SIGTERM", () => { void exitDaemon(143); });'));
+  assert.ok(source.includes('process.on("SIGINT", () => { void exitDaemon(130); });'));
+});
+
 test("daemon shutdown waits for publication even when durability fails after rename", async () => {
   const { default: ts } = await import("typescript");
   const { daemonSource } = await import("../../../inbound/assistant/__tests__/helpers/daemon-source.js");
@@ -369,17 +376,27 @@ test("daemon shutdown waits for publication even when durability fails after ren
   let rejectPublication!: (error: Error) => void;
   const publication = new Promise<void>((_resolve, reject) => { rejectPublication = reject; });
   const calls: string[] = [];
-  const exit = new Function("registryPublication", "daemonRegistry", "process", "console",
-    `let daemonExiting = false; ${code}; return exitDaemon;`)(
+  const { closeWithinBound } = await import("../../lifecycle/close-store-on-shutdown.js");
+  const { awaitBootWorkWithinBound } = await import("../../lifecycle/await-boot-work.js");
+  let releaseStore!: () => void;
+  const storeClosed = new Promise<void>((resolve) => { releaseStore = resolve; });
+  const exit = new Function("registryPublication", "daemonRegistry", "process", "console", "closeWithinBound", "awaitBootWorkWithinBound", "assistantInventory", "daemonStore",
+    `let daemonExiting = false; const stopPluginPolling = () => {}; const stopDaemonServing = async () => {}; const daemonBootWork = []; ${code}; return exitDaemon;`)(
       publication,
       { removeIfCurrent: async ({ pid }: { pid: number }) => { calls.push(`remove:${pid}`); } },
       { pid: 123, exit: (code: number) => { calls.push(`exit:${code}`); } },
       { error: () => undefined },
+      closeWithinBound, awaitBootWorkWithinBound,
+      { dispose: async () => {} },
+      { close: async () => { calls.push("store-closing"); await storeClosed; calls.push("store-closed"); } },
     );
   const first = exit(143);
   await exit(130);
   assert.deepEqual(calls, [], "cleanup must wait; a second signal must not duplicate removal");
   rejectPublication(new Error("directory fsync failed after rename"));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls, ["remove:123", "store-closing"], "exit must wait for the composition's owned connections");
+  releaseStore();
   await first;
-  assert.deepEqual(calls, ["remove:123", "exit:143"]);
+  assert.deepEqual(calls, ["remove:123", "store-closing", "store-closed", "exit:143"]);
 });

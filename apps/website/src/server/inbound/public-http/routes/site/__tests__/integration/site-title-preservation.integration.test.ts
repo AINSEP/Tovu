@@ -515,7 +515,7 @@ test("AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsForWo
   process.env.TOVU_SITE_DIR = dir;
   let deps: RouteDeps | undefined;
   try {
-    deps = await createSiteRouteDepsForWorkspace(undefined, path.join(dir, "content.db"));
+    deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, { dbPath: path.join(dir, "content.db") });
     await deps.siteTitleReady;
     assert.equal(await resolveSiteTitleForRender(deps), SITE_NAME, "before the rename");
 

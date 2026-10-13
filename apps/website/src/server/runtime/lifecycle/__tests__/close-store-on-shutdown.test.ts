@@ -5,6 +5,7 @@ import { once } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import { OWNER_LOCK_FILE } from "#src/platform/db/kernel/drivers/pglite-owner";
@@ -13,10 +14,11 @@ import { openSiteStore, PGLITE_DATA_DIR_NAME } from "#src/server/runtime/composi
 import { closeStoreOnShutdown, type ShutdownProcess } from "../close-store-on-shutdown.js";
 
 /**
- * @file The default boot closes a PGlite/Postgres store on shutdown; SQLite is untouched.
+ * @file Every storage dialect closes through the same bounded shutdown.
  *
  * Outcome Matrix:
- *   Given a sqlite store                          -> nothing registered, returns false
+ *   Given a sqlite store, SIGTERM                 -> closes before exit, returns true
+ *   Given a sqlite store, its stopOnEnd stream ends -> same stop: daemon, close, exit(0)
  *   Given a pg store, SIGTERM                      -> daemon shutdown, store closed, then exit(0)
  *   Given a pg store whose close hangs             -> exit(0) after the bound, logged
  *   Given a pg store whose close rejects           -> exit(0), logged
@@ -92,11 +94,51 @@ test("real signals use the default process, close once across SIGTERM/SIGINT, an
   }
 });
 
-test("sqlite: nothing is registered and the caller keeps the daemon's own handlers", () => {
+// Windows: the desktop has no SIGTERM to send, so it closes `tovu serve`'s stdin pipe instead.
+test("sqlite: the end of the stopOnEnd stream runs the same stop as a signal", async () => {
   const proc = new FakeProcess();
-  const registered = closeStoreOnShutdown({ store: fakeStore("sqlite", async () => {}), onShutdown: () => {} }, { proc });
-  assert.equal(registered, false);
-  assert.deepEqual(proc.eventNames(), []);
+  const stdin = new PassThrough();
+  const order: string[] = [];
+  closeStoreOnShutdown(
+    { store: fakeStore("sqlite", async () => { order.push("store"); }), onShutdown: () => { order.push("daemon"); } },
+    { proc, stopOnEnd: stdin }
+  );
+  const exited = proc.exited();
+  stdin.end();
+  await exited;
+  assert.deepEqual(order, ["daemon", "store"]);
+  assert.deepEqual(proc.exits, [0]);
+});
+
+test("sqlite: shutdown owns the signals and closes the store before exit", async () => {
+  const proc = new FakeProcess();
+  let closed = false;
+  const registered = closeStoreOnShutdown({ store: fakeStore("sqlite", async () => { closed = true; }), onShutdown: () => {} }, { proc });
+  assert.equal(registered, true);
+  const exited = proc.exited();
+  proc.emit("SIGTERM");
+  await exited;
+  assert.equal(closed, true);
+  assert.deepEqual(proc.exits, [0]);
+});
+
+test("shutdown closes the owner store during daemon teardown and waits for both before exit", async () => {
+  const proc = new FakeProcess();
+  const order: string[] = [];
+  let release!: () => void;
+  const daemonStopped = new Promise<void>((resolve) => { release = resolve; });
+  closeStoreOnShutdown({
+    store: fakeStore("sqlite", async () => { order.push("store"); }),
+    onShutdown: () => daemonStopped.then(() => { order.push("daemon"); }),
+  }, { proc, stopServing: async () => { order.push("listener"); } });
+  const exited = proc.exited();
+  proc.emit("SIGTERM");
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(order, ["listener", "store"]);
+  assert.deepEqual(proc.exits, []);
+  release();
+  await exited;
+  assert.deepEqual(order, ["listener", "store", "daemon"]);
 });
 
 test("SIGTERM on a pg site: the daemon is shut down, the store closes, then the process exits 0", async () => {

@@ -3,16 +3,16 @@ import type { SiteStore } from "#src/server/runtime/composition/open-site-store"
 import { awaitBootWorkWithinBound } from "./await-boot-work.js";
 
 /**
- * @file The default boot's (`index.ts`) store teardown for PGlite and Postgres sites.
+ * @file Shared site-store teardown for `index.ts` and `tovu serve`, on every storage dialect.
  *
  * A PGlite owner holds `<site>/pglite/`'s owner lock and serves its socket until its store closes;
  * PGlite also flushes on close. Nothing else in the default boot closes the store (the `serve`
  * command closes its own in its BR-07 shutdown), so without this the lock and the socket file were
  * released only by process death (the next owner takes over a dead pid's lock and unlinks its socket).
  *
- * SQLite sites are left exactly as before: nothing registered, the daemon supervisor keeps its own
- * signal handlers. On a pg site this module owns the signals instead, because the supervisor's
- * handlers call `process.exit(0)` at once, which would cut an async close short.
+ * This module owns the signals instead of the daemon supervisor, whose handlers call
+ * `process.exit(0)` at once and would cut disposal short. SQLite needs explicit close too:
+ * process death can leave WAL/SHM sidecars even when no process holds the files anymore.
  */
 
 /** The slice of `process` this module touches, so a test can drive it without real signals. */
@@ -56,9 +56,9 @@ export function closeWithinBound(
 }
 
 /**
- * On a PGlite/Postgres site, closes the store on SIGINT/SIGTERM/SIGHUP (then exits 0) and when the
+ * Closes the store on SIGINT/SIGTERM/SIGHUP (then exits 0) and when the
  * event loop drains (`beforeExit`). `onShutdown` (the daemon supervisor's `shutdownAssistantDaemon`)
- * runs first on a signal and again, synchronously, on `exit`, which covers an explicit
+ * starts first on a signal and is awaited alongside store close; it runs again on `exit`, covering an explicit
  * `process.exit()` elsewhere. A store that fails or hangs on close is logged; the exit still happens.
  *
  * `optional.bootWork` returns the boot passes still reading the store (the legacy publish-credential
@@ -73,21 +73,24 @@ export function closeWithinBound(
  * lost the store beneath it, so the event stayed `processing` until its lease expired and was then
  * delivered again. See {@link stopServingWithinGrace}.
  *
+ * `optional.stopOnEnd` (the desktop's stdin pipe on Windows, which has no SIGTERM a parent can
+ * deliver) runs the same stop when the stream ends: the desktop closes the pipe to ask for it.
+ *
  * @returns `true` when the handlers were registered (the caller must then start the daemon with
- *   `registerProcessSignalHandlers: false`); `false` on SQLite, where nothing is registered.
+ *   `registerProcessSignalHandlers: false`).
  */
 export function closeStoreOnShutdown(
-  required: { store: Pick<SiteStore, "storage" | "close">; onShutdown: () => void },
+  required: { store: Pick<SiteStore, "storage" | "close">; onShutdown: () => unknown },
   optional: {
     proc?: ShutdownProcess;
     timeoutMs?: number;
     log?: (message: string) => void;
     bootWork?: () => readonly Promise<unknown>[];
     stopServing?: () => Promise<void>;
+    stopOnEnd?: { once(event: "end", listener: () => void): unknown; resume(): unknown };
   } = {}
 ): boolean {
   const { store, onShutdown } = required;
-  if (store.storage.kind === "sqlite") return false;
   const proc = optional.proc ?? process;
   const timeoutMs = optional.timeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
   const log = optional.log ?? ((message: string) => console.error(message));
@@ -95,24 +98,32 @@ export function closeStoreOnShutdown(
   const stopServing = optional.stopServing ?? (async () => {});
 
   let closing: Promise<void> | undefined;
+  let daemonStopped: unknown;
   const closeBounded = (): Promise<void> => {
     closing ??= closeWithinBound(
       async () => {
         await stopServing();
         await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
-        await store.close();
+        // Close our handles even if Jini is still draining an unresponsive daemon descendant.
+        // Wait for both outcomes so a failed tree-stop cannot cut an async store close short.
+        const results = await Promise.allSettled([store.close(), daemonStopped]);
+        for (const result of results) {
+          if (result.status === "rejected") throw result.reason;
+        }
       },
       { label: `the ${store.storage.kind} store`, timeoutMs, log }
     );
     return closing;
   };
 
-  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
-    proc.once(signal, () => {
-      onShutdown();
-      void closeBounded().then(() => proc.exit(0));
-    });
-  }
+  const stop = (): void => {
+    daemonStopped = onShutdown();
+    void closeBounded().then(() => proc.exit(0));
+  };
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) proc.once(signal, stop);
+  optional.stopOnEnd?.once("end", stop);
+  // Flowing mode, or a paused stream never reports its end.
+  optional.stopOnEnd?.resume();
   proc.once("beforeExit", () => void closeBounded());
   proc.once("exit", onShutdown);
   return true;
@@ -141,11 +152,18 @@ export async function stopServingWithinGrace(
 ): Promise<void> {
   const { server, workers } = required;
   const workersStopped = Promise.allSettled(workers.map((worker) => worker.stop()));
+  let releaseServer!: () => void;
   const serverClosed = new Promise<void>((resolve) => {
+    releaseServer = resolve;
     server.close(() => resolve());
   });
   server.closeIdleConnections?.();
-  const cut = setTimeout(() => server.closeAllConnections?.(), optional.graceMs ?? 500);
+  const cut = setTimeout(() => {
+    server.closeAllConnections?.();
+    // Upgraded sockets (e.g. admin HMR) can keep close's callback pending after the HTTP cut.
+    // The request grace is bounded; they must not prevent database disposal before process exit.
+    releaseServer();
+  }, optional.graceMs ?? 500);
   cut.unref();
   await Promise.all([workersStopped, serverClosed]);
   clearTimeout(cut);

@@ -77,7 +77,7 @@ test("REQ-08: the in-memory root's RouteDeps.set trims a core.site.title write a
 test("REQ-08: the SQLite root the agent daemon builds (createSiteRouteDepsForWorkspace) enforces the same bounds", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-title-write-"));
   try {
-    const deps = await createSiteRouteDepsForWorkspace(undefined, path.join(dir, "content.db"));
+    const deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, { dbPath: path.join(dir, "content.db") });
     // Same settle as `create-sqlite-route-deps-for-workspace.integration.test.ts`: the boot-time
     // installers must finish before the temp dir is removed.
     await Promise.all([

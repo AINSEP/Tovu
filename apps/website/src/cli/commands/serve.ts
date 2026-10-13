@@ -11,7 +11,7 @@ import { mintBootSessionToken } from "#src/features/identity/boot-session-token"
 import { bootSiteDir, closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
-import { closeWithinBound } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";
+import { closeStoreOnShutdown, stopServingWithinGrace } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
 import { PortInUseError } from "../errors.js";
@@ -427,43 +427,29 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
 
       // BR-07: on SIGINT/SIGTERM, stop accepting new connections, let the current request finish,
       // then close the db handle and exit 0.
-      const shutdown = (): void => {
-        // First, so no new outbox drain or trash sweep starts while the grace window below runs
-        // toward the db close. A sweep caught mid-batch leaves its rows leased, and the next boot
-        // re-claims them once the lease expires.
-        const workersStopped = Promise.allSettled([outboxDrainer.stop(), trashSweeper.stop({})]);
-        let exited = false;
-        // Awaits the store close (PGlite flushes, removes its socket and releases its owner lock),
-        // bounded like the default boot's (`closeWithinBound`, 4 s) so a hung close still exits.
-        // The close itself first waits (2 s of that) for boot work still reading the store.
-        const finish = async (): Promise<void> => {
-          if (exited) return;
-          exited = true;
-          shutdownAssistantDaemon();
-          await closeWithinBound(
-            async () => {
-              await workersStopped;
-              await closeOwnedStore(owned);
-            },
-            { label: "the site store" }
-          );
-          process.exit(0);
-        };
-        server.close(() => void finish());
-        // Idle keep-alive sockets don't block in-flight requests, but a client-pooled connection
-        // that never sends another request WOULD block `server.close()`'s callback indefinitely
-        // otherwise — better-sqlite3 is synchronous, so any genuinely in-flight request completes
-        // within milliseconds, not seconds; a short grace window is more than enough before this
-        // safety net force-closes anything still lingering (BR-07 only promises the current
-        // request finishes, not that an idle keep-alive socket outlives shutdown).
-        server.closeIdleConnections?.();
-        setTimeout(() => {
-          server.closeAllConnections?.();
-          void finish();
-        }, 500).unref();
-      };
-      process.once("SIGINT", shutdown);
-      process.once("SIGTERM", shutdown);
+      // First, so no new outbox drain or trash sweep starts while the grace window below runs
+      // toward the db close. A sweep caught mid-batch leaves its rows leased, and the next boot
+      // re-claims them once the lease expires.
+      // Awaits the store close (PGlite flushes, removes its socket and releases its owner lock),
+      // bounded like the default boot's (`closeWithinBound`, 4 s) so a hung close still exits.
+      // The close itself first waits (2 s of that) for boot work still reading the store.
+      // Idle keep-alive sockets don't block in-flight requests, but a client-pooled connection
+      // that never sends another request WOULD block `server.close()`'s callback indefinitely
+      // otherwise — better-sqlite3 is synchronous, so any genuinely in-flight request completes
+      // within milliseconds, not seconds; a short grace window is more than enough before the
+      // shared helper force-closes anything still lingering (BR-07 only promises the current
+      // request finishes, not that an idle keep-alive socket outlives shutdown).
+      closeStoreOnShutdown({
+        store: { storage: bootResult.storage, close: () => closeSiteDirBoot(bootResult, owned.composedStore) },
+        onShutdown: shutdownAssistantDaemon,
+      }, {
+        bootWork: () => owned.bootWork,
+        stopServing: () => stopServingWithinGrace({ server, workers: [
+          { stop: () => outboxDrainer.stop() }, { stop: () => trashSweeper.stop({}) },
+        ] }),
+        // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
+        stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,
+      });
     });
   });
 }

@@ -181,6 +181,9 @@ import { createRunScopedCredentials } from "#src/assistant/daemon-access";
 import type { RunPageContext } from "#src/assistant/run-page-context";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import type { SiteStore } from "../../runtime/composition/open-site-store.js";
+import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
+import { awaitBootWorkWithinBound } from "../../runtime/lifecycle/await-boot-work.js";
 
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
@@ -195,6 +198,10 @@ const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
 const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath }) : undefined;
 let registryPublication: Promise<void> = Promise.resolve();
 let daemonExiting = false;
+let daemonStore: SiteStore | undefined;
+let stopDaemonServing: () => Promise<void> = async () => {};
+let stopPluginPolling: () => void = () => {};
+const daemonBootWork: Promise<unknown>[] = [];
 
 /** Wait for an in-flight publication before removing our pointer: fsync may reject AFTER rename,
  * so even a failed publication can already be visible. Ownership guarding prevents an old daemon
@@ -203,19 +210,28 @@ let daemonExiting = false;
 async function exitDaemon(exitCode: number): Promise<void> {
   if (daemonExiting) return;
   daemonExiting = true;
-  await registryPublication.catch(() => undefined);
-  try {
-    await daemonRegistry?.removeIfCurrent({ pid: process.pid });
-  } catch (error) {
-    console.error("[agent-daemon] failed to remove its discovery record", error);
-  }
-  await assistantInventory.dispose({});
+  await closeWithinBound(async () => {
+    stopPluginPolling();
+    await stopDaemonServing();
+    await registryPublication.catch(() => undefined);
+    try {
+      await daemonRegistry?.removeIfCurrent({ pid: process.pid });
+    } catch (error) {
+      console.error("[agent-daemon] failed to remove its discovery record", error);
+    }
+    await awaitBootWorkWithinBound({ work: daemonBootWork });
+    // The composition owns content/chat and the ops journal; process.exit alone leaves WALs.
+    try { await assistantInventory.dispose({}); }
+    finally { await daemonStore?.close(); }
+  }, { label: "the agent daemon store" });
   process.exit(exitCode);
 }
 
 // Keep the conventional signal exit codes while giving the owned discovery record cleanup.
-process.once("SIGTERM", () => { void exitDaemon(143); });
-process.once("SIGINT", () => { void exitDaemon(130); });
+// Jini's tree-stop signals the group, then each PID. Keep listeners installed so a second
+// SIGTERM cannot take Node's default immediate-exit path while the first is closing databases.
+process.on("SIGTERM", () => { void exitDaemon(143); });
+process.on("SIGINT", () => { void exitDaemon(130); });
 
 
 /**
@@ -384,7 +400,9 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 // its bus or subscribers, so a drain here (the post tools drain after every write) marked rows
 // delivered that the serving process never saw. The serving process's background drainer
 // (`serving-app.ts`) delivers them instead.
-const routeDeps = await createAgentDaemonRouteDeps({ env: process.env });
+const routeDeps = await createAgentDaemonRouteDeps({ env: process.env }, { onStoreOpened: (store) => { daemonStore = store; } });
+// The same boot tail `index.ts` waits for before its store closes.
+if (routeDeps.legacyPublishCredentialsReady) daemonBootWork.push(routeDeps.legacyPublishCredentialsReady);
 
 /**
  * Root directory the chat composer's staged image/file uploads land in before a run claims them
@@ -411,7 +429,8 @@ const ATTACHMENT_UPLOAD_DIRECTORY = routeDeps.siteStoragePaths.chatAttachmentsDi
 // snapshot of the activation table — an enable/disable through the admin process afterwards never
 // reaches it on its own. See `agent-daemon-deps.ts`'s own header for why polling, not an outbox
 // event, is this lane's chosen mechanism.
-startPluginActivationPolling(routeDeps);
+const pluginPolling = startPluginActivationPolling(routeDeps);
+stopPluginPolling = pluginPolling.stop;
 
 const eventLog = createInMemoryEventLog({});
 const lifecycle = createRunLifecycle({ eventLog });
@@ -1649,6 +1668,7 @@ async function start(): Promise<void> {
     });
     if (!isDaemonLifecycleLogQuiet()) console.log(`[agent-daemon] listening on ${listeningUrl}`);
   });
+  stopDaemonServing = () => stopServingWithinGrace({ server, workers: [] });
 
   /**
    * Without this, a bind failure is an UNHANDLED `error` event on the `http.Server` `app.listen()`

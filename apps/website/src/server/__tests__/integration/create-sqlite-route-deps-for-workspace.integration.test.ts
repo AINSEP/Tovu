@@ -10,7 +10,7 @@ import { openSiteContentDb } from "../../runtime/composition/open-site-content-d
 
 import { createSiteRouteDepsForWorkspace, createSiteRouteDeps, defaultContentDbPath } from "../../runtime/composition/deps.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
+import { closeSqliteConnection, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
 import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
@@ -57,7 +57,7 @@ async function settle(deps: BootReadiness): Promise<void> {
 test("workspaceIdOverride undefined: behaves byte-identical to createSiteRouteDeps(dbPath) — the daemon's existing single-workspace behavior is unaffected when TOVU_WORKSPACE is unset", async () => {
   const dbPath = mkTempDbPath();
   try {
-    const deps = await createSiteRouteDepsForWorkspace(undefined, dbPath);
+    const deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, { dbPath });
     assert.equal(deps.workspaceId, "workspace-local", "no override -> same default-resolution result the legacy no-argument call already produces");
     await settle(deps);
   } finally {
@@ -80,7 +80,7 @@ test("workspaceIdOverride supplied: resolves to the NAMED workspace, not the def
     seedDb.insert(workspaces).values({ id: "ws-newer", name: "Newer", slug: "newer", createdAt: "2026-01-02T00:00:00.000Z" }).run();
     seedDb.$client.close();
 
-    const overriddenDeps = await createSiteRouteDepsForWorkspace("ws-newer", dbPath);
+    const overriddenDeps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: "ws-newer" }, { dbPath });
     assert.equal(overriddenDeps.workspaceId, "ws-newer", "the override must win over the default oldest-row resolution");
     await settle(overriddenDeps);
   } finally {
@@ -98,10 +98,12 @@ test("workspaceIdOverride names a workspace that does not exist: throws loudly r
     // Throws before constructing any deps at all (validation runs before `createSiteRouteDeps`
     // is called) — nothing to settle, unlike the other tests here.
     await assert.rejects(
-      () => createSiteRouteDepsForWorkspace("ws-does-not-exist", dbPath),
+      () => createSiteRouteDepsForWorkspace({ workspaceIdOverride: "ws-does-not-exist" }, { dbPath }),
       /no workspace with id "ws-does-not-exist" exists/,
       "a bad TOVU_WORKSPACE value must crash daemon boot with a clear message, never silently default"
     );
+    assert.equal(fs.existsSync(`${dbPath}-wal`), false, "failed workspace validation must close its owned content handle");
+    assert.equal(fs.existsSync(`${dbPath}-shm`), false);
   } finally {
     fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
   }
@@ -125,16 +127,16 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     assert.ok(declaration);
     const compiled = ts.transpileModule(declaration.getText(source).replace(/^export\s+/, ""), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
     const composeWithPorts: typeof createSiteRouteDepsForWorkspace = runInNewContext(`${compiled}\ncreateSiteRouteDepsForWorkspace`, {
-      defaultContentDbPath, isInMemoryDbPath, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel,
+      defaultContentDbPath, isInMemoryDbPath, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel, closeSqliteConnection,
+      resolveSiteDirForDatabase: ({ dbPath: file }: { dbPath: string }) => path.dirname(file),
       openSiteContentDb: async (file: string) => {
         const opened = await openSiteContentDb(file);
         openedHandles.push(opened);
         return opened;
       },
-      createSiteRouteDeps: (file: string, overrides: Parameters<typeof createSiteRouteDeps>[1]) =>
-        createSiteRouteDeps(file, { ...overrides, onStoreOpened: (opened) => { store = opened; } }),
+      createSiteRouteDeps,
     });
-    deps = await composeWithPorts("ws-shared-handle", dbPath);
+    deps = await composeWithPorts({ workspaceIdOverride: "ws-shared-handle" }, { dbPath, onStoreOpened: (opened) => { store = opened; } });
     assert.equal(openedHandles.length, 1, "validation and composition must open only one connection");
     const [validationConnection] = openedHandles;
     assert.ok(validationConnection);
@@ -144,6 +146,9 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     assert.ok(found, "the returned deps must read from the same on-disk db the override was validated against");
     assert.equal(found?.name, "Shared Handle");
     await settle(deps);
+    await store?.close();
+    store = undefined;
+    assert.equal(validationConnection.$client.open, false, "the helper's teardown closes the borrowed validation connection last");
   } finally {
     if (deps) await settle(deps);
     await store?.close();

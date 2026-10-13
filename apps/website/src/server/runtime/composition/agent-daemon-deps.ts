@@ -4,6 +4,7 @@ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsle
 import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import { createRouteDeps } from "./app.js";
 import { createSiteRouteDepsForWorkspace } from "./deps.js";
+import type { SiteStore } from "./open-site-store.js";
 
 /**
  * @file The agent daemon's `RouteDeps` composition, moved out of `agent-daemon-server.ts` (a
@@ -125,17 +126,21 @@ export function startPluginActivationPolling(
  *
  * @param required.env the daemon's environment (`process.env` in production).
  * @param optional.dbPath content database path; defaults to `defaultContentDbPath()`. Tests only.
+ * @param optional.onStoreOpened receives the owned composition store for daemon teardown.
  * @returns the composed deps.
  * @throws (rejects) whatever `createSiteRouteDepsForWorkspace` rejects with for an unknown `TOVU_WORKSPACE`.
  * @complexity O(1) beyond the wrapped factory's own boot cost.
  */
 export async function createAgentDaemonRouteDeps(
   required: { env: NodeJS.ProcessEnv },
-  optional: { dbPath?: string } = {}
+  optional: { dbPath?: string; onStoreOpened?: (store: SiteStore) => void } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { env } = required;
   const routeDeps =
-    env.TOVU_DB === "memory" ? createRouteDeps() : await createSiteRouteDepsForWorkspace(env.TOVU_WORKSPACE, optional.dbPath, "client");
+    env.TOVU_DB === "memory" ? createRouteDeps() : await createSiteRouteDepsForWorkspace(
+      { workspaceIdOverride: env.TOVU_WORKSPACE },
+      { dbPath: optional.dbPath, storeRole: "client", onStoreOpened: optional.onStoreOpened }
+    );
   // Mutated, not spread into a copy: `createSiteApp` is closed over this exact object (see
   // `RouteDeps.exportSiteBound`'s doc in `routes/types.ts`), so a copy would leave the export app's
   // routes on the claiming outbox. Services the factory built earlier kept the raw outbox, which is

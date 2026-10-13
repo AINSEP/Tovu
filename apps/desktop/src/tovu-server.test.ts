@@ -43,6 +43,7 @@ const REAL_BOOT_LINE = "tovu serve: dir=/Users/la/Programming/Tovu/sites/tovu-co
 
 /** A `ChildProcess` stand-in with just the surface `startTovuServer` touches. */
 interface FakeChild extends EventEmitter {
+  stdin?: PassThrough;
   stdout: PassThrough;
   stderr: PassThrough;
   pid: number;
@@ -806,6 +807,45 @@ test("on win32, a failing tree kill falls back to killing the direct child", asy
   assert.deepEqual(child.killed, ["SIGTERM"]);
 });
 
+// Windows has no SIGTERM a parent can send: the real child gets a stdin pipe, and Stop closes it so
+// `serve.ts` runs its graceful drain (SQLite closes cleanly) before any tree kill.
+test("on win32, Stop closes the stdin pipe and waits for the graceful exit instead of tree-killing", async () => {
+  const child = fakeChild();
+  child.stdin = new PassThrough();
+  const killTreeCalls: number[] = [];
+  let options: SpawnOptions | undefined;
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror: silentMirror(),
+    spawnFn: (_command, _args, spawnOptions) => { options = spawnOptions; return child; },
+    platform: "win32",
+    killTree: (pid) => killTreeCalls.push(pid),
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+  assert.equal((options?.stdio as unknown[])[0], "pipe");
+  assert.equal(options?.env?.TOVU_STOP_ON_STDIN_EOF, "1");
+  const stopped = handle.stop();
+  assert.equal(child.stdin.writableEnded, true, "Stop must close the pipe serve.ts listens on");
+  child.emit("exit", 0, null);
+  await stopped;
+  assert.deepEqual(killTreeCalls, []);
+  assert.deepEqual(child.killed, []);
+});
+
+test("on win32, a child that ignores its stdin close is tree-killed after the grace", async () => {
+  const child = fakeChild();
+  child.stdin = new PassThrough();
+  const killTreeCalls: number[] = [];
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror: silentMirror(),
+    spawnFn: () => child, stopGraceMs: 20, platform: "win32",
+    killTree: (pid) => killTreeCalls.push(pid),
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  await (await started).stop();
+  assert.deepEqual(killTreeCalls, [child.pid]);
+});
+
 test("on posix (the default), the boot-timeout escalation never calls an injected killTree", async () => {
   const child = fakeChild();
   const killTreeCalls: number[] = [];
@@ -846,6 +886,29 @@ test("the handle's stop() sends SIGTERM so serve.ts runs its own graceful drain"
   child.emit("exit", 0, null);
   await stopped;
 
+  assert.deepEqual(child.killed, ["SIGTERM"]);
+});
+
+test("Stop stays pending during graceful cleanup and cancels force-kill after the child's exit", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const child = fakeChild();
+  const started = startTovuServer({
+    repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601,
+    baseEnv: {}, mirror: silentMirror(), spawnFn: () => child,
+  });
+  child.stdout.write(REAL_BOOT_LINE);
+  const handle = await started;
+  let stopResolved = false;
+  const stopped = handle.stop().then(() => { stopResolved = true; });
+  t.mock.timers.tick(4_500);
+  await Promise.resolve();
+  assert.equal(stopResolved, false, "Stop must wait while SQLite cleanup is still in flight");
+  assert.deepEqual(child.killed, ["SIGTERM"]);
+  child.emit("exit", 0, null);
+  await stopped;
+  // Crossing the original deadline must not signal a process group that may have been reused.
+  t.mock.timers.tick(1_000);
+  assert.equal(stopResolved, true);
   assert.deepEqual(child.killed, ["SIGTERM"]);
 });
 

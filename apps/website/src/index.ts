@@ -379,7 +379,7 @@ async function main(): Promise<void> {
   // Set once `createServingApp` below has started the background loops: stops them and the listener
   // before the store closes, so a drain awaiting a subscriber is not cut off mid-delivery.
   let stopServing: () => Promise<void> = async () => {};
-  // PGlite/Postgres: close the store on shutdown (releases the PGlite lock and socket); SQLite: no-op.
+  // Every store closes on shutdown; SQLite close checkpoints and removes its WAL/SHM sidecars.
   const storeOwnsShutdown =
     siteStore !== undefined &&
     closeStoreOnShutdown(

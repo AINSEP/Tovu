@@ -100,13 +100,14 @@ test("the daemon polling call reconciles external activation changes and stop ha
   const { default: ts } = await import("typescript");
   const { daemonSource, evaluateDaemonExpression } = await import("../../../inbound/assistant/__tests__/helpers/daemon-source.js");
   const { startPluginActivationPolling } = await import("../../composition/agent-daemon-deps.js");
-  const statement = daemonSource.statements.find((entry) => ts.isExpressionStatement(entry) && ts.isCallExpression(entry.expression) && entry.expression.expression.getText(daemonSource) === "startPluginActivationPolling");
-  assert.ok(statement && ts.isExpressionStatement(statement));
+  const declaration = daemonSource.statements.flatMap((entry) => ts.isVariableStatement(entry) ? [...entry.declarationList.declarations] : [])
+    .find((entry) => entry.name.getText(daemonSource) === "pluginPolling");
+  assert.ok(declaration?.initializer && ts.isCallExpression(declaration.initializer));
   t.mock.timers.enable({ apis: ["setInterval"] });
   let rows = [row("word-count", true)];
   let reads = 0;
   const activeHooks = new Set(["word-count"]);
-  const poller = evaluateDaemonExpression<{ stop(): void }>(statement.expression, {
+  const poller = evaluateDaemonExpression<{ stop(): void }>(declaration.initializer, {
     startPluginActivationPolling,
     routeDeps: { workspaceId: WORKSPACE_ID, pluginRuntimeReady: Promise.resolve(),
       pluginActivationRepo: { listAll: async () => { reads += 1; return rows; } },

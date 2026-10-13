@@ -90,6 +90,7 @@ import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import type { ContentDb, ContentDbOpenOptions } from "#src/platform/db/sqlite/content-db";
+import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
 import { storeBoundServicesFor } from "./store-bound-services.js";
@@ -1634,6 +1635,8 @@ async function composeSiteRouteDeps(
   const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
   mkdirSync(dirname(databaseJournalDbPath), { recursive: true });
   const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+  // The ops journal owns a separate SQLite connection on every content dialect.
+  onStoreClose(() => databaseJournalDb.close());
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.
@@ -2576,28 +2579,45 @@ async function composeSiteRouteDeps(
  * "together or not at all" rule (`createSiteRouteDeps` above) means the caller cannot supply a
  * bare workspaceId override without also supplying the db handle it was validated against, so
  * this function opens that db handle itself rather than asking `createSiteRouteDeps` to do so
- * twice.
+ * twice. Its returned teardown hook closes that handle AFTER the composition's borrowed store.
  *
  * @throws {ValidationError} (as a rejection) `workspaceIdOverride` was supplied but names no real workspace row —
  *   propagates uncaught (`resolveWorkspace`'s own error), which is deliberate: a caller (the
  *   daemon) that silently fell back to the default workspace on a bad override would be a worse
  *   failure mode than a loud boot-time crash naming the bad id.
+ * @param required.workspaceIdOverride workspace to validate on the opened database, or the default.
+ * @param optional.onStoreOpened receives the composition's owning teardown hook.
  * @complexity O(1) beyond `resolveWorkspace`'s own cost (see that function's own complexity note).
  * @overallScore 100
  */
 export async function createSiteRouteDepsForWorkspace(
-  workspaceIdOverride: string | undefined,
-  dbPath: string = defaultContentDbPath(),
-  storeRole: SiteStoreRole = "owner"
+  { workspaceIdOverride }: { workspaceIdOverride: string | undefined },
+  { dbPath = defaultContentDbPath(), storeRole = "owner", onStoreOpened }: {
+    dbPath?: string; storeRole?: SiteStoreRole; onStoreOpened?: (store: SiteStore) => void;
+  } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
-  if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { storeRole });
+  if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { onStoreOpened, storeRole });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.
   if (!isInMemoryDbPath(dbPath) && resolveSiteStorage(resolveSiteDirForDatabase({ dbPath })).kind !== "sqlite") {
-    return await createSiteRouteDeps(dbPath, { requestedWorkspaceId: workspaceIdOverride, storeRole });
+    return await createSiteRouteDeps(dbPath, { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole });
   }
 
   const db = await openSiteContentDb(dbPath);
-  const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: workspaceIdOverride });
-  return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, storeRole });
+  try {
+    const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: workspaceIdOverride });
+    return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, storeRole,
+      onStoreOpened: (store) => onStoreOpened?.({
+        ...store,
+        close: async () => {
+          try { await store.close(); }
+          finally { closeSqliteConnection(db); }
+        },
+      }),
+    });
+  } catch (error) {
+    // Validation/composition failure still belongs to this opener, not the borrowed store.
+    closeSqliteConnection(db);
+    throw error;
+  }
 }

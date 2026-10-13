@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
+
 /**
  * @file Closes the "correct primitive, unwired call site" gap for `pinServedSiteDirIntoEnv`
  * (2026-09-07 audit, claim #5 — see `serve.ts`'s own header on that function).
@@ -128,15 +130,13 @@ test("program.ts registers --host and threads it into runServeCommand's input", 
   );
 });
 
-test("the BR-07 shutdown awaits the bounded store close before process.exit(0)", () => {
+test("the BR-07 shutdown uses the shared bounded store close with the composition and boot work", () => {
   const body = readRunServeCommandBody(fs.readFileSync(SERVE_TS_PATH, "utf8"));
-  const start = body.indexOf("const finish = async (): Promise<void> => {");
-  assert.notEqual(start, -1, "the shutdown's finish is no longer an async function");
-  const finish = body.slice(start);
-  const close = finish.indexOf("await closeWithinBound(");
-  const exit = finish.indexOf("process.exit(0)");
-  assert.ok(close !== -1 && exit !== -1 && close < exit, "finish must await closeWithinBound(...) before process.exit(0), or PGlite's flush and lock release are cut short");
-  assert.ok(finish.slice(close, exit).includes("closeOwnedStore(owned)"), "the bounded close must close the composition's store, after its boot work");
+  assert.ok(body.includes("closeStoreOnShutdown({"));
+  assert.ok(body.includes("close: () => closeSiteDirBoot(bootResult, owned.composedStore)"), "the shared close must close the composition and the CLI's borrowed content handle");
+  assert.ok(body.includes("bootWork: () => owned.bootWork"), "boot work must settle before the store closes");
+  assert.ok(body.includes("stopServing: () => stopServingWithinGrace({ server,"));
+  assert.ok(body.includes("onShutdown: shutdownAssistantDaemon"));
 });
 
 test("runServeCommand pins the site before boot, forwards the resolved bind host, and awaits storage closure before exiting", async (t) => {
@@ -150,7 +150,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   let closed: Promise<void>;
   let exitCode: number | undefined;
   const stopped: string[] = [];
-  const bootResult = { config: { port: 3456 }, workspaceId: "wiring-workspace", db: {} };
+  const bootResult = { config: { port: 3456 }, workspaceId: "wiring-workspace", storage: { kind: "sqlite" }, db: {} };
   const deps: { workspaceId: string; legacyPublishCredentialsReady?: Promise<void> } = { workspaceId: bootResult.workspaceId };
   // Boot work the composition starts and returns before it finishes: the detached legacy
   // publish-credential tail (on `deps`) and `createApp`'s BYOK pass (`createServingApp`'s `bootWork`).
@@ -179,7 +179,8 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   });
   module("../../../server/runtime/composition/deps.ts", {
     createSiteRouteDeps: async (dbPath: string, options: { onStoreOpened(store: unknown): void; siteBinding: { dir: string } }) => {
-      assert.equal(dbPath, path.join(process.env.TOVU_SITE_DIR!, "content.db"));
+      // The site's resolved placement (data.nosync on a sites-home site since 1cffdf3cf), not a fixed root file.
+      assert.equal(dbPath, resolveSiteDatabasePaths({ dir: process.env.TOVU_SITE_DIR! }).contentDbPath);
       assert.equal(options.siteBinding.dir, process.env.TOVU_SITE_DIR);
       options.onStoreOpened(composedStore);
       return deps;
@@ -199,6 +200,9 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       bootWork: [byokWork.promise],
     }),
   });
+  // The running lease (1cffdf3cf) releases on a real process exit, which this test mocks away; each
+  // scenario would otherwise find the previous one still "Running in Web".
+  module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: () => ({ ready: () => {}, release: () => {} }) });
   module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });

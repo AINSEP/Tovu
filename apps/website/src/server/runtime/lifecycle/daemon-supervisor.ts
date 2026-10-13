@@ -410,13 +410,18 @@ function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optional: Pick
   const cleanupAdapter = createProcessAdapter();
   return {
     spawnDaemonProcess: () => createProcessAdapter().spawnDaemonProcess(),
-    terminateProcess: ({ child }) => cleanupAdapter.terminateProcess({ child }),
+    terminateProcess: ({ child }) => {
+      daemonStopWork = cleanupAdapter.terminateProcess({ child });
+      return daemonStopWork;
+    },
   };
 }
 
 // Module-singleton wrapper: the only place in this file that touches real process.on.
 // Top-level boot starts after readiness; restart and lazy-start callers share this lifecycle.
 let singleton: DaemonSupervisor | undefined;
+// The package owns termination; this host only retains its completion for site-store teardown.
+let daemonStopWork: Promise<void> = Promise.resolve();
 
 /**
  * Latches shutdown even before the singleton exists. A pending readiness continuation
@@ -436,6 +441,7 @@ let shutdownRequested = false;
 export function resetAssistantDaemonSingletonForTests(): void {
   singleton = undefined;
   shutdownRequested = false;
+  daemonStopWork = Promise.resolve();
 }
 
 export interface StartAssistantDaemonOptions {
@@ -527,12 +533,15 @@ export function startAssistantDaemon(
  * The explicit teardown seam for a caller that opted out of this module's own signal handling (see
  * {@link StartAssistantDaemonOptions.registerProcessSignalHandlers}) — `cli/commands/serve.ts`'s
  * BR-07 shutdown calls this instead. A no-op if the daemon was never started this process boot.
+ * @returns The package process-tree stop, including the daemon's graceful database close.
+ * @complexity O(1) here; process-tree enumeration and bounded termination belong to Jini.
  */
-export function shutdownAssistantDaemon(): void {
+export function shutdownAssistantDaemon(): Promise<void> {
   // Set unconditionally, BEFORE the `singleton?.shutdown()` no-op-when-absent check below — see
   // `shutdownRequested`'s own doc for why this must latch even when no supervisor exists yet.
   shutdownRequested = true;
   singleton?.shutdown();
+  return daemonStopWork;
 }
 
 export type RestartAssistantDaemonResult = DaemonSupervisorActionResult;

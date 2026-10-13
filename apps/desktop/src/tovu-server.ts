@@ -589,6 +589,7 @@ function allocatePort(): Promise<number> {
  */
 interface SpawnedChild {
   pid?: number;
+  stdin?: Writable | null;
   stdout: Readable | null;
   stderr: Readable | null;
   exitCode: number | null;
@@ -623,9 +624,10 @@ function taskkillTree(pid: number): void {
  * escalation, and it goes to the process **group** (`-pid`, which the `detached: true` spawn makes
  * available) on POSIX: a `tovu serve` wedged badly enough to ignore SIGTERM has not run its own
  * shutdown, so its daemon child is exactly what would be left behind. On win32 there is neither a
- * process group nor a polite signal, so the injected `killTree(pid)` (production default:
- * {@link taskkillTree}) runs IMMEDIATELY instead of SIGTERM — see {@link killWin32Tree} for why it
- * cannot wait for the grace period.
+ * process group nor a polite signal: a child spawned with a stdin pipe (the real one) is asked to stop by
+ * closing that pipe (`serve.ts` runs the same drain on its end) and tree-killed after the grace;
+ * without one the injected `killTree(pid)` (production default: {@link taskkillTree}) runs
+ * IMMEDIATELY instead of SIGTERM — see {@link killWin32Tree} for why it cannot wait for the grace.
  *
  * @param platform selects the escalation primitive; defaults to the real `process.platform`. Test
  *   seam so the win32 branch is exercised on any host.
@@ -642,7 +644,9 @@ function stopChild(
 
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
-      if (platform !== "win32") {
+      if (platform === "win32") {
+        if (child.stdin) killWin32Tree(child, killTree);
+      } else {
         try {
           // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
           process.kill(-child.pid!, "SIGKILL");
@@ -660,7 +664,9 @@ function stopChild(
 
     try {
       if (platform === "win32") {
-        killWin32Tree(child, killTree);
+        // EPIPE when the child exits first must not become an unhandled stream error.
+        if (child.stdin) child.stdin.once("error", () => undefined).end();
+        else killWin32Tree(child, killTree);
       } else {
         child.kill("SIGTERM");
       }
@@ -675,8 +681,9 @@ function stopChild(
  * {@link stopChild}'s win32 stop, run FIRST rather than as an escalation. Node on Windows ignores
  * the signal name in `child.kill(...)` and terminates the direct child at once, so sending that
  * first would fire `exit`, clear the escalation timer, and leave the agent-daemon grandchild
- * orphaned (plan item W7). There is no graceful signal a console child can receive on win32, so the
- * forced tree kill is the whole stop; SQLite's journal is what makes that safe. A failing
+ * orphaned (plan item W7). There is no graceful signal a console child can receive on win32, so
+ * without a stdin pipe to close the forced tree kill is the whole stop; SQLite's journal is what
+ * makes that safe. A failing
  * `taskkill` (missing binary, pid already gone) falls back to the direct-child kill.
  *
  * @complexity O(1); delegates to the OS.
@@ -853,12 +860,14 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
   });
 
   const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv });
+  // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
+  const win32 = (input.platform ?? process.platform) === "win32";
   const child = spawnFn(
     plan.command,
     plan.args,
     {
-      env: serveEnv,
-      stdio: ["ignore", "pipe", "pipe"],
+      env: win32 ? { ...serveEnv, TOVU_STOP_ON_STDIN_EOF: "1" } : serveEnv,
+      stdio: [win32 ? "pipe" : "ignore", "pipe", "pipe"],
       // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
       // `tovu serve` spawns rather than just the immediate child. Same reason
       // `development/scripts/dev.mjs` and `daemon-supervisor.ts` both detach.
