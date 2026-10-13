@@ -300,7 +300,14 @@ jobs:
             test "$draft" = "true" || { echo "release $TAG is already published; refusing to replace its assets"; exit 1; }
             gh release upload "$TAG" "${assets[@]}" --clobber
           else
-            gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Tovu Desktop ${TAG#desktop-v}" \
+            # --target only when the tag is not on GitHub yet (a workflow_dispatch for a new tag). With
+            # GITHUB_TOKEN, a target_commitish the default branch's tip does not carry is refused with
+            # "403 Resource not accessible by integration" (it would need the `workflows` permission,
+            # which GITHUB_TOKEN cannot have): that failed 0.1.13 and 0.1.14, whose tags were pushed
+            # before main and changed .github/workflows. A pushed tag already pins the commit.
+            target=()
+            gh api "repos/$GH_REPO/git/ref/tags/$TAG" --silent 2>/dev/null || target=(--target "$GITHUB_SHA")
+            gh release create "$TAG" --draft "${target[@]}" --title "Tovu Desktop ${TAG#desktop-v}" \
               --notes "Mac: notarized. Windows: unsigned — SmartScreen: More info → Run anyway." \
               "${assets[@]}"
           fi

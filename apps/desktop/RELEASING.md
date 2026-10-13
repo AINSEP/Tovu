@@ -32,7 +32,10 @@ find the existing one first.
 
 1. Bump the version in `apps/desktop/package.json`.
 2. Push a tag shaped `desktop-vX.Y.Z` — or run the release workflow by hand from the Actions
-   tab (Desktop Release → Run workflow).
+   tab (Desktop Release → Run workflow). Push `main` first (or together:
+   `git push --atomic origin main desktop-vX.Y.Z`): GitHub refuses GITHUB_TOKEN releases on
+   commits whose `.github/workflows` the default branch does not carry yet (403 "Resource not
+   accessible by integration").
 3. Wait for three green builds (one per platform target).
 4. Download the draft release's artifacts and smoke-test each one before publishing.
    Run the desktop journeys against the downloaded packaged app from the repo root:
