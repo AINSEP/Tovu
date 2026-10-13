@@ -11,8 +11,8 @@ import { isSlowRunNoticeVisible, resolveSlowRunDetail } from "./SlowRunNoticeCar
  * of `ChatPane`'s own always-available run controls) is the operator's one and only action, exactly
  * as it already is for any other in-progress run.
  *
- * `AssistantDock.tsx` registers this component against `registerExtEventRenderer("slow_running",
- * ...)`, the same extension point already used for `mcp-ui`/`a2ui` (`OverflowAwareMcpUiSurfaceCard`,
+ * `hooks/use-dock-renderer-registry.hooks.ts` registers this component under `slow_running` in
+ * the dock's owned registry, the same extension point used for `mcp-ui`/`a2ui` (`OverflowAwareMcpUiSurfaceCard`,
  * `RoutedA2uiSurfaceCard`, this folder's siblings). That registration is deliberate, not incidental:
  * `@jini-ai/protocol`'s `RunAgentPayload` already has an older `'status'` variant that could have
  * carried this same `label`/`detail` shape, but nothing in this codebase renders `kind: 'status'`

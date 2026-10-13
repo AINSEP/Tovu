@@ -231,7 +231,7 @@ describe("translateRunAgentPayload — raw and surface events", () => {
  * "still working" signal, distinct from the run actually failing). It has no dedicated `case` in
  * `translateRunAgentPayload`'s switch — deliberately: it falls through to the generic `default`
  * branch (the same one every other unrecognized `payload.type` already hits) and becomes an `ext`
- * event, so `AssistantDock.tsx`'s `registerExtEventRenderer("slow_running", ...)` renders it inline
+ * event, so the dock's `"slow_running"` renderer (`use-dock-renderer-registry.hooks.ts`) renders it inline
  * — see `SlowRunNoticeCard.tsx`'s own doc for why `ext` was chosen over the pre-existing (but
  * nowhere-rendered) `'status'` kind.
  */

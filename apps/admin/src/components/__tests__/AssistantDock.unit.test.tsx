@@ -1,6 +1,6 @@
-import { act, fireEvent, render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render as renderWithoutProvider, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { isValidElement, type ComponentProps, type ReactNode } from "react";
+import { isValidElement, StrictMode, type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionConfig } from "@jini-ai/ui";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
@@ -32,6 +32,7 @@ const mcpUiFetch = vi.fn<typeof globalThis.fetch>();
 // those module-scope exports from a mock made entire suites throw before running any tests.
 vi.stubGlobal("fetch", mcpUiFetch);
 const { AssistantDock: RealAssistantDock } = await import("../AssistantDock/AssistantDock");
+const { useDockRendererRegistry } = await import("../AssistantDock/hooks/use-dock-renderer-registry.hooks");
 vi.unstubAllGlobals();
 
 function PaneRecorder(props: ComponentProps<typeof RealChatPane>) {
@@ -74,7 +75,7 @@ import {
 } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import { useByokRuntime, useExecutionConfig, useLocalCliSelection, type UseByokRuntime, type UseExecutionConfig, type UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
-import { ChatPane as RealChatPane, MCP_UI_EXT_EVENT_NAME, getExtEventRenderer, type ExtEventRenderProps } from "@jini-ai/chat/react";
+import { ChatPane as RealChatPane, MessageRow, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, registerExtEventRenderer, getExtEventRenderer, type ExtEventRenderProps, type ExtEventRendererRegistry } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
@@ -255,7 +256,7 @@ describe("AssistantDock", () => {
     }));
   });
 
-  it("hands ChatPane a mid-run deliverer that posts to the run's messages route, and draws what was sent inside the turn", async () => {
+  it("hands ChatPane a mid-run deliverer that posts to the run's messages route", async () => {
     mcpUiFetch.mockResolvedValue(new Response(JSON.stringify({ delivery: "delivered" }), { status: 202 }));
     render(<AssistantDock useChats={() => fakeChats()} />);
     const deliver = chatPaneSpy.mock.calls.at(-1)?.[0].deliverMidRunMessage as (input: { runId: string; text: string }) => Promise<string>;
@@ -267,8 +268,8 @@ describe("AssistantDock", () => {
       body: JSON.stringify({ text: "also fix the footer" }),
     }));
     // The daemon records the sent message as a `user_message` run event; without a renderer it
-    // would vanish from the transcript.
-    expect(getExtEventRenderer({ name: "user_message" })).toBeDefined();
+    // would vanish from the transcript. The dock's own registry draws it — pinned by "binds the
+    // dock's renderer before the first transcript render" below.
   });
 
   it("applies no type filter to the composer's file picker, so no file type is excluded", () => {
@@ -764,23 +765,23 @@ describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", (
 });
 
 /**
- * Coverage-gap-fill (2026-09-05). A real MCP-UI runtime would normally invoke the registered
- * renderer, and this file never runs one. That leaves the renderer callback itself (`AssistantDock.tsx`'s own
- * `registerExtEventRenderer({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) => (...) })`) registered but
- * never called. The registration runs once at module import time (this file's own `import {
- * AssistantDock } from "../AssistantDock/AssistantDock"` already triggered it), so the callback is
- * retrieved from the real registry here and invoked directly with a fabricated `props` object —
- * the same direct-invocation treatment this repo gives a callback that only a framework/runtime,
- * not a test, would otherwise call.
+ * Invoke the callbacks from a mounted dock hook's owned registry rather than a compatibility
+ * global. This pins the wrapper props and real action relay without starting an MCP iframe.
+ * A real MessageRow below also checks that the dock's provider binds this owned behavior before
+ * its first transcript render, independently of the direct callback assertions.
  */
 describe("AssistantDock — ext event renderer registrations", () => {
+  let registry: ExtEventRendererRegistry;
+  beforeEach(() => {
+    registry = renderHook(() => useDockRendererRegistry()).result.current.registry;
+  });
   /**
-   * Retrieves the callback from Jini's real registry for direct assertions.
+   * Retrieves the callback from the dock's owned Jini registry for direct assertions.
    * @throws When the dock failed to register the requested event renderer.
    * @complexity Time/space O(1) for the registry lookup.
    */
   function rendererFor(eventName: string) {
-    const renderer = getExtEventRenderer({ name: eventName });
+    const renderer = registry.get({ name: eventName });
     expect(renderer).toBeDefined();
     if (!renderer) throw new Error(`No ext-event renderer registered for ${eventName}`);
     return renderer;
@@ -848,7 +849,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
    * `rendererProps = useMemo(..., [html, sandboxProxyUrl, ...])`: a `URL` that is a new object on
    * every call defeats that memo every render even when `html` (the real View content) is unchanged,
    * discarding the memoization Jini's hook is there to provide. The fix hoists the URL to a
-   * module-scope constant (this file's existing pattern for `mcpUiToolCaller`/`postA2uiAction`), so
+   * module-scope constant in the renderer hook, alongside `mcpUiToolCaller`/`postA2uiAction`, so
    * it is computed once and every renderer invocation reuses the same object. `toBe` (reference
    * identity), not a value/string comparison, is the property under test — the URL's string value is
    * identical either way, which is exactly why this bug can hide behind a weaker assertion.
@@ -866,8 +867,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
   });
 
   /**
-   * Coverage-gap-fill (2026-09-05). Same shape as the MCP-UI registration above, for the other two
-   * module-scope-once `registerExtEventRenderer` calls in `AssistantDock.tsx`
+   * Same shape as the MCP-UI registration above, for the owned hook's registrations
    * (`"a2ui"` -> `RoutedA2uiSurfaceCard`, `"slow_running"` -> `SlowRunNoticeCard`) — neither renderer
    * callback had ever been invoked, since this file does not run the transcript runtime.
    */
@@ -888,6 +888,31 @@ describe("AssistantDock — ext event renderer registrations", () => {
 
     expect(element.type).toBe(SlowRunNoticeCard);
     expect(element.props).toMatchObject({ runId: "r-1", someProp: "value" });
+  });
+
+  it("binds the dock's renderer before the first transcript render while other trees keep their global renderer", () => {
+    const globalRenderer = () => <span>Other host's mid-run message</span>;
+    const unregisterGlobal = registerExtEventRenderer({ name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, renderer: globalRenderer });
+    const message = {
+      id: "mid-run-turn", role: "assistant" as const, content: "",
+      events: [{ kind: "ext" as const, name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, data: { id: "sent-1", text: "Dock's mid-run message" } }],
+    };
+    function TranscriptPane() {
+      return <MessageRow message={message} />;
+    }
+    try {
+      render(<>
+        <StrictMode><AssistantDock ChatPane={TranscriptPane} useChats={() => fakeChats()} /></StrictMode>
+        <section data-testid="other-chat-tree"><MessageRow message={message} /></section>
+      </>);
+      const dock = within(screen.getByTestId("admin-chat-driver-root"));
+      expect(dock.getByText("Dock's mid-run message")).toBeInTheDocument();
+      expect(dock.queryByText("Other host's mid-run message")).toBeNull();
+      expect(within(screen.getByTestId("other-chat-tree")).getByText("Other host's mid-run message")).toBeInTheDocument();
+      expect(getExtEventRenderer({ name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME })).toBe(globalRenderer);
+    } finally {
+      unregisterGlobal();
+    }
   });
 });
 

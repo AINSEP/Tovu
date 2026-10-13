@@ -8,8 +8,8 @@ import { MessageOverflowModal } from "./MessageOverflowModal";
  * @file The "Show in modal" affordance for MCP-UI surfaces (owner request, chat-overflow fix
  * 2026-08-30) — see `MessageOverflowModal.tsx`'s own doc for the owner's exact wording. Wraps
  * Jini's own `McpUiSurfaceCard` without touching it, or `@jini-ai/chat`'s package at all: the same
- * `RoutedA2uiSurfaceCard.tsx` pattern one file over — `AssistantDock.tsx` registers THIS component
- * against `registerExtEventRenderer("mcp-ui", ...)` in place of Jini's own
+ * `RoutedA2uiSurfaceCard.tsx` pattern one file over — `hooks/use-dock-renderer-registry.hooks.ts`
+ * registers THIS component under `mcp-ui` in the dock's owned registry in place of Jini's own
  * `registerMcpUiSurfaceRenderer` convenience call (which would register `McpUiSurfaceCard` itself,
  * with no seam to wrap it), and it renders the real `McpUiSurfaceCard` unchanged plus the new
  * button around it. Live immediately from Tovu's own already-built `@jini-ai/chat` dist — no Jini

@@ -12,10 +12,10 @@ import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-
  * registry, or the daemon/tool that emits the a2ui events in the first place (`render-ui-tool.ts`
  * already sends everything needed — this is purely about where the browser puts it).
  *
- * `AssistantDock.tsx` registers this component (not `A2uiSurfaceCard` directly) against
- * `registerExtEventRenderer("a2ui", ...)`. `@jini-ai/chat/react`'s `MessageRow` calls the
+ * `hooks/use-dock-renderer-registry.hooks.ts` registers this component (not `A2uiSurfaceCard`
+ * directly) under `a2ui` in the dock's owned registry. `@jini-ai/chat/react`'s `MessageRow` calls the
  * registered renderer as `renderer(props)` and treats the return value as a `ReactNode` — but the
- * registration itself returns *JSX* (`(props) => <RoutedA2uiSurfaceCard {...props} .../>`), so
+ * registration itself returns a React element via `createElement`, so
  * React evaluates this component as a real element during its own reconciliation, not as a plain
  * function call. That is what makes hooks safe to use from here — both `useRoutedA2uiSurfaceCard`
  * below and, transitively, everything it calls — the same way it is already safe inside

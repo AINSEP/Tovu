@@ -7,6 +7,7 @@ import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
 import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
+import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
 import { t as translateAiAssistant } from "@/features/ai-assistant/ai-assistant-i18n";
 import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
@@ -21,24 +22,13 @@ import {
   ChatPane,
   ConversationList,
   JiniChatProvider,
-  createMcpUiToolCaller,
   createMidRunMessagePoster,
-  registerExtEventRenderer,
-  registerMidRunUserMessageRenderer,
-  MCP_UI_EXT_EVENT_NAME,
-  mcpUiSurfaceSlotKey,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
 import { createAdminTypedAnswerPoster } from "../../lib/typed-answer-poster";
-import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
-import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
-import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
-import { AgentFailureCard } from "./AgentFailureCard";
 import { FailureSurfaceContext, useAgentFailureSurface } from "./AgentFailureCard.hooks";
-import { AGENT_FAILURE_EVENT } from "./agent-failure";
 import { SelectedAgentPluginTray } from "./SelectedAgentPluginTray";
 import { FolderDropNotice } from "./FolderDropNotice";
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
@@ -56,8 +46,6 @@ import {
   // The bare hook names below are imported for their TYPE only (`typeof useX` on
   // `AssistantDockProps`) — every actual call in this component goes through the matching
   // `useXSeam` wrapper instead; see `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
-  buildAssistantMcpUiSandboxProxyUrl,
-  openMcpUiLink,
   useAssistantDockChrome,
   resolveAssistantConversationTitle,
   useAssistantTransport,
@@ -99,154 +87,18 @@ import type { DragEvent } from "react";
 export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./hooks/AssistantDock.hooks";
 
 /**
- * Renders the MCP-UI surfaces the daemon withholds from tool results, and wires the dialog's
- * confirmed click back to Tovu's own redemption endpoint (ADR-053 Decision 3).
- *
- * Module scope, once, deliberately — `registerMcpUiSurfaceRenderer` populates `@jini-ai/chat`'s
- * ext-event renderer registry, which every `ChatPane` consults thereafter; calling it inside a
- * component would re-register on each render for no benefit. This is the whole of the host-side
- * wiring: `ChatPane` itself is untouched, and an admin build that never imports this module simply
- * renders nothing for `mcp-ui` events rather than breaking.
- *
- * `onToolCall: createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" })` is what
- * completes the confirmation loop: when a human clicks "Delete" in the rendered dialog, the View
- * posts a `tools/call`, and this relays it (same-origin, session cookie) to Tovu's own
- * admin-session-authenticated proxy (`src/server/modules/assistant.ts`), which forwards it to the
- * daemon-side redemption route (`src/assistant/mcp-ui-tool-calls-route.ts`) — the one place that
- * actually holds the `content_post_delete` handler and its held-open surface exchange. `path` is
- * required rather than the library's own bare-daemon default (`/api/mcp-ui/tool-calls`): Tovu mounts
- * this behind the admin-session-gated `/api/admin/v1` prefix, exactly the case
- * `CreateMcpUiToolCallerOptions.path`'s own doc calls out ("hosts mounting the redemption route
- * inside an already-authenticated admin API will need this"). With `onToolCall` wired, the dialog no
- * longer refuses every tool call — a real confirmed click now redeems the token and completes the
- * delete.
- *
- * The other half of the contract lives in `../../lib/assistant-transport.ts`'s `case "mcp-ui"`, which
- * unwraps the wire envelope to the bare `EmbeddedResource` this renderer's `parseUIResource`
- * requires. All three pieces are needed; any one missing renders an empty frame or a dialog that
- * cannot complete its action.
- *
- * Hoisted to a named binding (`mcpUiToolCaller`), not passed inline, because it has a second
- * caller: `resolveComposerHostBinding` below reuses the exact same allowlisted, session-cookie
- * route for a composer capability's `'allowlisted-tool-call'` binding (debate 2, "Composer slash
- * commands" — that binding is real infrastructure, unwired to any capability in the bundled
- * catalog today, since nothing is on `MCP_UI_REDEEMABLE_TOOL_IDS`'s allowlist for that purpose;
- * see `composer-capabilities.ts`'s module doc). One instance, one endpoint, one allowlist gate —
- * never a second POST path to the same route.
- */
-const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" });
-/**
  * Typed answers to a pending `assistant_ask_choice` (jl A1a/A1b): `ChatPane` calls this instead of
  * queueing when the operator types while the agent holds a question card open. Module scope for the
- * same reason as `mcpUiToolCaller` — one stable instance, same route. See `typed-answer-poster.ts`.
+ * same reason as the renderer hook's `mcpUiToolCaller` — one stable instance, same route.
+ * See `typed-answer-poster.ts`.
  */
 const typedAnswerPoster = createAdminTypedAnswerPoster({ fetch });
 /**
  * A message sent while a run streams goes to the running agent (`POST /api/runs/:runId/messages`,
  * proxied to the daemon) instead of waiting behind the run; an agent that cannot take it mid-run
- * gets stopped and the text goes out as the next turn. Module scope, like the two above.
+ * gets stopped and the text goes out as the next turn. Module scope, like the typed-answer poster.
  */
 const midRunMessagePoster = createMidRunMessagePoster({ baseUrl: "", fetch }, { onSecretRedacted: onAdminSecretRedacted });
-/**
- * Computed once, module scope — same posture as `mcpUiToolCaller` above, and for the same reason:
- * `registerExtEventRenderer`'s render-function argument below is re-invoked by `@jini-ai/chat/react`
- * on every transcript render of an active `mcp-ui` event, not just once at registration. Building
- * this URL inline there (as it used to be) minted a fresh `new URL(...)` object every such call —
- * same string value, new identity — which flows straight through `OverflowAwareMcpUiSurfaceCard` ->
- * `McpUiSurfaceCard` -> `McpUiHost` into Jini's `useMcpUiHost`, where `rendererProps = useMemo(...,
- * [html, sandboxProxyUrl, ...])` (`useMcpUiHost.ts`) treats a changed `sandboxProxyUrl` identity as a
- * reason to recompute even when `html` (the real View content) hasn't changed — silently defeating
- * that memo on every re-render (2026-09-05 Gemini audit finding 33, confirmed by tracing into
- * `useMcpUiHost.ts`). `globalThis.location.origin` does not change for the life of this tab, so
- * hoisting to a plain module-scope constant is exact, not an approximation.
- */
-const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin);
-/**
- * Registered via the low-level `registerExtEventRenderer` (not Jini's own
- * `registerMcpUiSurfaceRenderer` convenience call, which would bind `McpUiSurfaceCard` itself with
- * no seam to wrap it) so this dock can render `OverflowAwareMcpUiSurfaceCard` instead — the "Show
- * in modal" affordance (chat-overflow fix, 2026-08-30) around the same real `McpUiSurfaceCard`,
- * same props, same behavior otherwise. Exactly the shape `registerExtEventRenderer("a2ui", ...)`
- * below already uses for `RoutedA2uiSurfaceCard`.
- *
- * Deliberately NOT passing `maxHeight` here — tried 480px first and reverted it after a live
- * measurement caught a real regression it caused. `McpUiHost` sets `iframe.style.height` to
- * `min(reported, maxHeight)`, but the surface's own document (`document.ts`'s `SURFACE_BASE_CSS`)
- * has no `overflow` rule on `body`/`html` — so when a cap forces the frame SHORTER than the
- * surface's real content, that content does not get clipped or internally scrolled, it visibly
- * overflows the iframe's own box into the host page. Measured live (2026-08-16): capping at 480px
- * against a ~559-580px-tall confirmation pushed its buttons back into the composer's covered zone
- * by rendering them outside the (too-short) iframe entirely — the same failure this whole fix
- * exists to prevent, just from a different cause. That is a latent defect in `McpUiHost`/
- * `document.ts` shared by every consumer of the package (nothing before this dock had passed a cap
- * below ~720px worth of real content to notice it), not something to paper over with a Tovu-only
- * number; it needs its own careful fix to the auto-resize protocol, not a rushed one here.
- *
- * The library default (`DEFAULT_MAX_HEIGHT`, 720px) stays in effect and is untouched — it is
- * already comfortably above every surface this dock has rendered, and reachability no longer
- * depends on a tight cap at all: `MessageList`'s resize-aware sticky-scroll fix keeps a surface's
- * action buttons reachable by scrolling regardless of its real height, and
- * `useChatPaneControlsHeight`'s live-measured padding reservation keeps the transcript's true
- * bottom clear of the composer overlay. A future host that genuinely needs a tighter ceiling can
- * still pass `maxHeight` — the prop stays tested and supported — but should do so only once
- * `document.ts` gives a capped surface its own internal scrollbar to overflow into.
- */
-registerExtEventRenderer({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) => (
-  <OverflowAwareMcpUiSurfaceCard
-    {...props}
-    onToolCall={mcpUiToolCaller}
-    // Generic across every plugin's rendered card, not Supabase-specific (S-G1b) — see
-    // `openMcpUiLink`'s own doc (`AssistantDock.hooks.tsx`) for the `https:`-only allowlist and why
-    // omitting this makes `useMcpUiHost` refuse every `ui/open-link` request instead.
-    onOpenLink={openMcpUiLink}
-    // A same-document `data:` URL, not a route on this admin app's own origin — see
-    // `buildAssistantMcpUiSandboxProxyUrl`'s own doc (`AssistantDock.hooks.tsx`) for why: a
-    // same-origin route would hand any third-party MCP server's HTML this admin origin's full
-    // authority, because `@mcp-ui/client`'s `AppFrame` hardcodes `allow-same-origin` on the iframe
-    // it creates.
-    sandboxProxyUrl={assistantMcpUiSandboxProxyUrl}
-  />
-// One transcript slot per `ui://` URI, so a run's second card (a second choice, a Connect card
-// after a choice) renders where it arrived instead of inside the first card's slot, far above the
-// tool row that is waiting on it (stuck-chat investigation, 2026-09-27).
-) }, { slotKey: mcpUiSurfaceSlotKey });
-
-/**
- * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
- * completes the loop" shape. `@jini-ai/chat/react`'s `A2uiSurfaceCard` renders any run event
- * `assistant-transport.ts`'s `case "a2ui"` unwraps to a bare `AgentToRendererMessage`; when a
- * rendered `Button`'s action is agent-directed (as opposed to a `local` client-side function call,
- * which the card already resolves and displays itself), `onAgentAction` is what gives that action
- * somewhere real to go — `createA2uiActionPoster` posts it to `a2ui-actions-route.ts` (proxied,
- * same as every other assistant route), which delivers it into the held-open exchange
- * `assistant_demo_a2ui` (or any future A2UI-opening tool) is waiting on.
- *
- * Without this line, `A2uiSurfaceCard` still renders correctly but falls back to its own honest
- * "this host has not wired up a live agent-action relay yet" notice on every agent-directed click
- * (see that component's own module doc) — exactly the gap `examples/reference-web/src/A2uiLab.tsx`
- * leaves open deliberately, because a demo fixture has no real backend to relay to. Tovu does now.
- *
- * Registered against `RoutedA2uiSurfaceCard` (this file's sibling `RoutedA2uiSurfaceCard.tsx`), not
- * `A2uiSurfaceCard` directly — the Studio Playground "whiteboard" feature: when
- * `/admin/playground` is the active page, that wrapper portals the exact same card onto the
- * Playground canvas instead of rendering it inline in the transcript. Every other page is
- * unaffected — no target registered there, so the wrapper falls straight through to
- * `A2uiSurfaceCard` unchanged. See `RoutedA2uiSurfaceCard.tsx`'s own doc for the full routing
- * decision and `lib/playground-render-target-bus.ts` for the seam it reads.
- */
-const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
-registerExtEventRenderer({ name: "a2ui", renderer: (props) => <RoutedA2uiSurfaceCard {...props} onAgentAction={postA2uiAction} /> });
-
-/**
- * The wall-clock "still working" notice (`@jini-ai/daemon`'s `run-lifecycle.ts` slow-run watchdog) —
- * see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the existing (unrendered)
- * `'status'` kind" reasoning. Same module-scope-once registration shape as the two above.
- */
-registerExtEventRenderer({ name: "slow_running", renderer: (props) => <SlowRunNoticeCard {...props} /> });
-registerExtEventRenderer({ name: AGENT_FAILURE_EVENT, renderer: (props) => <AgentFailureCard {...props} /> });
-// What the operator sent mid-run, drawn as their bubble inside the running turn where the agent got it.
-registerMidRunUserMessageRenderer();
-
 declare global {
   interface Window {
     /**
@@ -459,6 +311,8 @@ export function AssistantDock({
   useExecutionPolicy,
   useChatDisplayPreferences: useChatDisplayPreferencesOverride = useChatDisplayPreferences,
 }: AssistantDockProps) {
+  const renderers = useDockRendererRegistry();
+  const { mcpUiToolCaller } = renderers;
   const agentBridge = resolveAgentBridge(agentBridgeProp);
   const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
   // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
@@ -567,7 +421,7 @@ export function AssistantDock({
   const refreshSignal = useConversationRefreshSignal({ conversationId: chats.activeId });
 
   return (
-    <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n}>
+    <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n} extEventRendererRegistry={renderers.registry}>
       <FailureSurfaceContext.Provider value={failureSurface.actions}>
       <SkillInstallConfirmation install={skillInstall} />
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
