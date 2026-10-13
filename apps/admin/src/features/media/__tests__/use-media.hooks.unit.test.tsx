@@ -76,13 +76,38 @@ describe("useMedia — injected port (no fetch stub)", () => {
     const input = document.createElement("input");
     Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
     result.current.fileInputRef.current = input;
+    const opener = document.createElement("button");
+    act(() => { result.current.openUpload({ currentTarget: opener }); });
     await act(async () => { await result.current.upload(); });
     expect(result.current.uploading).toBe(false);
-    expect(result.current.error).toBe("Upload unavailable");
+    // Upload failures show in the upload dialog, which stays open; the page banner stays clear.
+    expect(result.current.uploadError).toBe("Upload unavailable");
+    expect(result.current.error).toBeNull();
+    expect(result.current.uploadOpen).toBe(true);
     await act(async () => { await result.current.upload(); });
     expect(attempts).toBe(2);
-    expect(result.current.error).toBeNull();
+    expect(result.current.uploadError).toBeNull();
+    expect(result.current.uploadOpen).toBe(false);
     expect(port.items).toHaveLength(1);
+  });
+
+  it("shows a file that could not be read as an upload error without calling the port", async () => {
+    const port = createFakeMediaPort();
+    const uploadSpy = vi.spyOn(port, "uploadMedia");
+    vi.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (this: FileReader) {
+      // A plain Error: jsdom's DOMException is not `instanceof Error` (a browser's is).
+      Object.defineProperty(this, "error", { value: new Error("File could not be read") });
+      this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
+    });
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toEqual([]));
+    const input = document.createElement("input");
+    Object.defineProperty(input, "files", { value: [new File(["pixel"], "pixel.png", { type: "image/png" })] });
+    result.current.fileInputRef.current = input;
+    await act(async () => { await result.current.upload(); });
+    expect(result.current.uploadError).toBe("File could not be read");
+    expect(result.current.uploading).toBe(false);
+    expect(uploadSpy).not.toHaveBeenCalled();
   });
 
   it("loads the list from the injected port and never touches the real api client", async () => {

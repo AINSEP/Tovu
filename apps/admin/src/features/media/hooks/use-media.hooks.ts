@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import type { AdminMedia } from "@/lib/api";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
+import { KEYS, MEDIA_RESOURCE, describeApiError, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../media-i18n";
@@ -70,12 +70,22 @@ export interface MediaController {
   media: AdminMedia[] | null;
   error: string | null;
   uploading: boolean;
+  // Upload dialog (owner item #9, 2026-10-13): the page shows one "Upload image" button; the file,
+  // alt text and submit live in a dialog that closes only after a successful upload, so a failure
+  // stays next to the file the operator can retry. Upload failures (including a file that could
+  // not be read) show there, not in the page banner `error`.
+  uploadOpen: boolean;
+  openUpload: (event: Pick<React.MouseEvent<HTMLButtonElement>, "currentTarget">) => void;
+  closeUpload: () => void;
+  uploadError: string | null;
+  /** A file is chosen and no upload is running; alt text is optional and never blocks. */
+  canUpload: boolean;
   altDraft: string;
   setAltDraft: (value: string) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   selectedFileName: string;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  upload: () => Promise<void>;
+  upload: (event?: Pick<React.FormEvent, "preventDefault">) => Promise<void>;
   /** The id of the media item whose `EditMediaPanel` is expanded, or `null` when none is. */
   editingId: string | null;
   setEditingId: (id: string | null) => void;
@@ -139,6 +149,9 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const uploadInFlight = useRef(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
+  // FileReader runs before the mutation, so its failure never reaches `uploadMutation.error`.
+  const [readError, setReadError] = useState<unknown>(null);
   const onFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFileName(event.currentTarget.files?.[0]?.name ?? "");
   }, []);
@@ -161,7 +174,8 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     for (const write of writes) if (write !== active) write.reset();
   }
 
-  async function upload() {
+  async function upload(event?: Pick<React.FormEvent, "preventDefault">) {
+    event?.preventDefault();
     if (uploadInFlight.current) return;
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
@@ -169,15 +183,20 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     // (including one before React renders the disabled button) cannot start another upload.
     uploadInFlight.current = true;
     setUploading(true);
+    setReadError(null);
     clearOtherWriteErrors(uploadMutation);
     try {
-      const dataBase64 = await readFileAsBase64(file);
+      const dataBase64 = await readFileAsBase64(file).catch((readFailure: unknown) => {
+        setReadError(readFailure);
+        throw readFailure;
+      });
       await uploadMutation.mutate({ input: { filename: file.name, contentType: file.type, dataBase64, alt: altDraft.trim() || undefined } });
       setAltDraft("");
       if (fileInputRef.current) fileInputRef.current.value = "";
       setSelectedFileName("");
+      setUploadOpen(false);
     } catch {
-      // already surfaced through uploadMutation.error -> error below
+      // already surfaced through readError/uploadMutation.error -> uploadError below
     } finally {
       uploadInFlight.current = false;
       setUploading(false);
@@ -225,6 +244,15 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     }
   }
 
+  function openUpload(event: Pick<React.MouseEvent<HTMLButtonElement>, "currentTarget">) {
+    // Pointer clicks do not focus buttons in every browser; the dialog restores focus to the opener.
+    event.currentTarget.focus({ preventScroll: true });
+    // A reopened dialog starts without the last attempt's failure; the chosen file and alt stay.
+    setReadError(null);
+    uploadMutation.reset();
+    setUploadOpen(true);
+  }
+
   function toggleEditing(item: AdminMedia) {
     setEditingId((id) => (id === item.id ? null : item.id));
   }
@@ -234,9 +262,9 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   }
 
   const media = list.data?.media ?? null;
+  const uploadFailure = readError ?? uploadMutation.error;
+  const uploadError = uploadFailure ? describeApiError(uploadFailure, translate({ locale: locale, key: "upload failed" })) : null;
   const error = visibleMediaError({
-    uploadError: uploadMutation.error,
-    uploadFallback: translate({ locale: locale, key: "upload failed" }),
     trashError: trashMutation.error,
     purgeError: purgeMutation.error,
     deleteFallback: translate({ locale: locale, key: "delete failed" }),
@@ -249,6 +277,11 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     media,
     error,
     uploading,
+    uploadOpen,
+    openUpload,
+    closeUpload: () => setUploadOpen(false),
+    uploadError,
+    canUpload: selectedFileName !== "" && !uploading,
     altDraft,
     setAltDraft,
     fileInputRef,

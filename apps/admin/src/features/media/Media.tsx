@@ -30,6 +30,8 @@ import { TabBar } from "@jini-ai/ui/tab-strip";
 import { resolveMediaTabChange, resolveMediaTabs } from "./Media.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 import { RemoteImageImport } from "./RemoteImageImport";
+import { Button, Dialog, TextField } from "@jini-ai/ui-kit/react";
+import "../../styles/native-domain-dialogs.css";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
@@ -806,19 +808,19 @@ function MediaLightbox(props: MediaLightboxProps) {
   );
 }
 
-/** The upload row — file picker, alt-text draft, and the Upload button. Extracted out of `Media`
- *  because its "Uploading…"/"Upload" label ternary was one of that component's independent
- *  branches; as a top-level function it's scored in its own scope instead.
+/** The "Upload image" button and its dialog — file picker, alt-text draft, and the Upload button.
+ *  Extracted out of `Media` because its "Uploading…"/"Upload" label ternary was one of that
+ *  component's independent branches; as a top-level function it's scored in its own scope instead.
  *
- *  Neither the file picker nor the alt-text field has a visible `<label>` (this toolbar was built
- *  compact, one row, no stacked labels) and the alt-text field's `placeholder` alone is not an
- *  accessible name — a placeholder is erased from the accessibility tree the moment it has a
- *  value, and a bare `<input type="file">` has none at all. Both had only this file's own
- *  `agentHandle(..., { label })`, which is a `data-agent-label` attribute invisible to a real
- *  screen reader or a generic browser agent's accessibility tree (only Tovu's own `data-agent-*`
- *  convention reads it) — so both get an explicit `aria-label` too, reusing the same `t()` key
- *  already shown as the alt field's placeholder rather than inventing a second string for the
- *  same field. */
+ *  Dialog (owner item #9, 2026-10-13): the page row became one button; the fields moved into Jini's
+ *  native `Dialog`, styled like `PostUrlDialog`. The dialog stays mounted while closed so a chosen
+ *  file survives Cancel and reopen; `useMedia` closes it only after a successful upload.
+ *
+ *  The file picker has no visible `<label>` of its own (its "Choose file" button IS its label) and a
+ *  bare `<input type="file">` has no accessible name at all. `agentHandle(..., { label })` is a
+ *  `data-agent-label` attribute invisible to a real screen reader or a generic browser agent's
+ *  accessibility tree (only Tovu's own `data-agent-*` convention reads it) — so it gets an explicit
+ *  `aria-label` too. */
 function MediaToolbar({
   fileInputRef,
   altDraft,
@@ -827,84 +829,91 @@ function MediaToolbar({
   onFileChange,
   upload,
   uploading,
+  uploadOpen,
+  openUpload,
+  closeUpload,
+  uploadError,
+  canUpload,
   t,
-}: {
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  altDraft: string;
-  setAltDraft: (value: string) => void;
-  selectedFileName: string;
-  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  upload: () => void;
-  uploading: boolean;
-  t: (key: string) => string;
-}) {
+}: Pick<MediaController, "fileInputRef" | "altDraft" | "setAltDraft" | "selectedFileName" | "onFileChange" | "upload" | "uploading"
+  | "uploadOpen" | "openUpload" | "closeUpload" | "uploadError" | "canUpload" | "t">) {
   const fileInputId = useId();
 
   return (
-    <div
-      className="toolbar"
-      {...agentHandle({ handle: "media-upload-toolbar" }, { role: "region", label: "Upload — choose a file, optional alt text, and Upload" })}
-    >
-      <input
-        id={fileInputId}
-        ref={fileInputRef}
-        className="file-input"
-        type="file"
-        style={{
-          position: "absolute",
-          width: 1,
-          height: 1,
-          padding: 0,
-          margin: -1,
-          overflow: "hidden",
-          clip: "rect(0, 0, 0, 0)",
-          whiteSpace: "nowrap",
-          border: 0,
-        }}
-        // Hand-copied, not imported — same "kept in sync manually with the server's real ceiling"
-        // pattern as `FILE_HANDLER_ALLOWED_MIME_TYPES` (`apps/admin/src/features/posts/hooks/
-        // use-post-editor.hooks.ts`) and `IMPORTABLE_CONTENT_TYPES` (`apps/website/src/features/
-        // media-import/fetch-image.ts`): mirrors `DEFAULT_ALLOWED_MIME_TYPES`
-        // (`@jini-ai/cms/media`'s `media-service.ts`), which has accepted `video/mp4`/`video/webm`
-        // since 2026-08-24 — this attribute drifted out of sync with that until 2026-09-07 (see the
-        // regression test pinning this exact set). Advisory only: `port.uploadMedia` still enforces
-        // the real allowlist server-side regardless of what this lets past the file picker.
-        accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm"
-        aria-label={t("File to upload")}
-        onChange={onFileChange}
-        {...agentHandle({ handle: "media-upload-file" }, {
-          role: "field",
-          label: "The file to upload — image/jpeg, png, webp, gif, avif, mp4 or webm",
-        })}
-      />
-      <label className="btn-secondary" htmlFor={fileInputId}>
-        {t("Choose file")}
-      </label>
-      <span style={{ color: "var(--fg-2)", fontSize: "var(--text-sm)" }} aria-live="polite">
-        {selectedFileName || t("No file chosen")}
-      </span>
-      <input
-        value={altDraft}
-        onChange={(e) => setAltDraft(e.target.value)}
-        placeholder={t("Alt text (optional)")}
-        aria-label={t("Alt text (optional)")}
-        {...agentHandle({ handle: "media-upload-alt" }, { role: "field", label: "Alt text for the file being uploaded" })}
-      />
-      <button
-        onClick={upload}
-        disabled={uploading}
-        {...agentHandle({ handle: "media-upload-submit" }, { role: "button", label: "Upload the chosen file" })}
-      >
-        {uploading ? t("Uploading…") : t("Upload")}
+    <>
+      <button type="button" onClick={openUpload}
+        {...agentHandle({ handle: "media-upload-open" }, { role: "button", label: "Open the Upload image dialog" })}>
+        {t("Upload image")}
       </button>
-    </div>
+      <Dialog open={uploadOpen} title={t("Upload image")} pending={uploading} onClose={closeUpload}
+        className="settings-dialog tovu-domain-dialog media-upload-dialog">
+        <form
+          onSubmit={upload}
+          noValidate
+          {...agentHandle({ handle: "media-upload-toolbar" }, { role: "region", label: "Upload — choose a file, optional alt text, and Upload" })}
+        >
+          <div className="media-file-field">
+            <input
+              id={fileInputId}
+              ref={fileInputRef}
+              className="file-input"
+              type="file"
+              style={{
+                position: "absolute",
+                width: 1,
+                height: 1,
+                padding: 0,
+                margin: -1,
+                overflow: "hidden",
+                clip: "rect(0, 0, 0, 0)",
+                whiteSpace: "nowrap",
+                border: 0,
+              }}
+              data-jini-autofocus=""
+              disabled={uploading}
+              // Hand-copied, not imported — same "kept in sync manually with the server's real ceiling"
+              // pattern as `FILE_HANDLER_ALLOWED_MIME_TYPES` (`apps/admin/src/features/posts/hooks/
+              // use-post-editor.hooks.ts`) and `IMPORTABLE_CONTENT_TYPES` (`apps/website/src/features/
+              // media-import/fetch-image.ts`): mirrors `DEFAULT_ALLOWED_MIME_TYPES`
+              // (`@jini-ai/cms/media`'s `media-service.ts`), which has accepted `video/mp4`/`video/webm`
+              // since 2026-08-24 — this attribute drifted out of sync with that until 2026-09-07 (see the
+              // regression test pinning this exact set). Advisory only: `port.uploadMedia` still enforces
+              // the real allowlist server-side regardless of what this lets past the file picker.
+              accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm"
+              aria-label={t("File to upload")}
+              onChange={onFileChange}
+              {...agentHandle({ handle: "media-upload-file" }, {
+                role: "field",
+                label: "The file to upload — image/jpeg, png, webp, gif, avif, mp4 or webm",
+              })}
+            />
+            <label className="btn-secondary" htmlFor={fileInputId}>
+              {t("Choose file")}
+            </label>
+            <span className="media-file-name" aria-live="polite">
+              {selectedFileName || t("No file chosen")}
+            </span>
+          </div>
+          <TextField label={t("Alt text (optional)")} value={altDraft} disabled={uploading} onValueChange={({ value }) => setAltDraft(value)}
+            attrs={agentHandle({ handle: "media-upload-alt" }, { role: "field", label: "Alt text for the file being uploaded" })} />
+          {uploadError ? <div role="alert" className="notice error">{uploadError}</div> : null}
+          <div className="jini-dialog-footer">
+            <Button variant="secondary" className="btn-secondary" disabled={uploading} onPress={closeUpload}>{t("Cancel")}</Button>
+            <Button type="submit" variant="primary" disabled={!canUpload}
+              attrs={agentHandle({ handle: "media-upload-submit" }, { role: "button", label: "Upload the chosen file" })}>
+              {uploading ? t("Uploading…") : t("Upload")}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+    </>
   );
 }
 
 /**
  * The "Order by" dropdown (owner-directed, 2026-09-11) — a plain `<select>`, matching this
- * screen's existing "no new form-control primitive for one field" bar (`MediaToolbar`'s own inputs
- * are plain too). Options come from `MEDIA_ORDER_OPTIONS` (`rules.ts`) so this component and
+ * screen's existing "no new form-control primitive for one field" bar (`MediaToolbar`'s file
+ * input is plain too). Options come from `MEDIA_ORDER_OPTIONS` (`rules.ts`) so this component and
  * `sortMediaByOrder` can never disagree about which order ids exist. A real `<label htmlFor>`
  * rather than only an `agentHandle`, for the same reason `MediaToolbar`'s own fields get one
  * (see that component's header comment): a bare `<select>` needs an accessible name for a screen
@@ -1050,7 +1059,7 @@ function MediaGridOrEmpty({
         <div className="card">
           <div className="empty-state">
             <p>{t("No media uploaded yet.")}</p>
-            <p className="page-description">{t("Choose a file above and upload it to get started.")}</p>
+            <p className="page-description">{t("Use Upload image above to add your first file.")}</p>
           </div>
         </div>
       );
@@ -1122,6 +1131,11 @@ function MediaLibraryPanel(
     visibleMedia,
     mediaExpandHandles,
     uploading,
+    uploadOpen,
+    openUpload,
+    closeUpload,
+    uploadError,
+    canUpload,
     altDraft,
     setAltDraft,
     selectedFileName,
@@ -1149,18 +1163,25 @@ function MediaLibraryPanel(
   return (
     <>
       {error ? <div className="notice error">{error}</div> : null}
-      <MediaToolbar
-        fileInputRef={fileInputRef}
-        altDraft={altDraft}
-        setAltDraft={setAltDraft}
-        selectedFileName={selectedFileName}
-        onFileChange={onFileChange}
-        upload={upload}
-        uploading={uploading}
-        t={t}
-      />
-
-      <RemoteImageImport t={t} />
+      {/* Two entry points side by side (owner item #9, 2026-10-13); each button owns its dialog. */}
+      <div className="toolbar media-actions">
+        <MediaToolbar
+          fileInputRef={fileInputRef}
+          altDraft={altDraft}
+          setAltDraft={setAltDraft}
+          selectedFileName={selectedFileName}
+          onFileChange={onFileChange}
+          upload={upload}
+          uploading={uploading}
+          uploadOpen={uploadOpen}
+          openUpload={openUpload}
+          closeUpload={closeUpload}
+          uploadError={uploadError}
+          canUpload={canUpload}
+          t={t}
+        />
+        <RemoteImageImport t={t} />
+      </div>
       <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
 
       {/* `key` on `EditMediaPanel` INSIDE `EditMediaModal` (2026-08-12 audit round 2, blocker F1 —

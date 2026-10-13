@@ -1,5 +1,5 @@
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Locator, Page } from "@playwright/test";
 
 import { TINY_PNG, WS_API, expect, test, uniqSlug } from "./_fixtures.js";
 
@@ -7,8 +7,9 @@ import { TINY_PNG, WS_API, expect, test, uniqSlug } from "./_fixtures.js";
  * Media journeys (SCOPE.md W4). Uploads go to `TOVU_MEDIA_UPLOADS_DIR` in the config's temp runtime
  * dir, so nothing lands in the repo's real site dir.
  *
- * Selectors from `apps/admin/src/features/media/Media.tsx`: hidden file input labelled
- * "File to upload", "Alt text (optional)", button "Upload"; card edit button `Edit "<title>"`;
+ * Selectors from `apps/admin/src/features/media/Media.tsx`: page button "Upload image" opens the
+ * "Upload image" dialog (2026-10-13) holding the hidden file input labelled "File to upload",
+ * "Alt text (optional)" and submit "Upload"; it closes after a successful upload. Card edit button `Edit "<title>"`;
  * edit panel "File URL" link; per-card `RowMenu` (`@jini-ai/admin/react`) whose trigger is named
  * `Actions for "<title>"`, with menuitems "Trash" / "Delete permanently" (ConfirmDialog
  * "Delete permanently?"). Cards are plain `<div class="media-card">` with no list-item role, so
@@ -20,11 +21,21 @@ import { TINY_PNG, WS_API, expect, test, uniqSlug } from "./_fixtures.js";
  * (`journeySite.apiURL`), not the Vite admin origin, which only proxies `/api`. That rendition is a WebP
  * re-encode, so original bytes are checked separately through the admin original-file endpoint.
  */
-async function uploadPng(page: Page, name: string, alt: string): Promise<void> {
+/** Opens the "Upload image" dialog; its fields are scoped to it (the import dialog also has an alt label). */
+async function openUpload(page: Page): Promise<Locator> {
   await page.goto("/admin/media");
-  await page.getByLabel("File to upload").setInputFiles({ name, mimeType: "image/png", buffer: TINY_PNG });
-  await page.getByLabel("Alt text (optional)", { exact: true }).fill(alt);
-  await page.getByRole("button", { name: "Upload", exact: true }).click();
+  await page.getByRole("button", { name: "Upload image", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Upload image" });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function uploadPng(page: Page, name: string, alt: string): Promise<void> {
+  const dialog = await openUpload(page);
+  await dialog.getByLabel("File to upload").setInputFiles({ name, mimeType: "image/png", buffer: TINY_PNG });
+  await dialog.getByLabel("Alt text (optional)", { exact: true }).fill(alt);
+  await dialog.getByRole("button", { name: "Upload", exact: true }).click();
+  await expect(dialog).toBeHidden();
 }
 
 /** Trash then hard-delete (the purge route 409s on an untrashed asset) every asset with one of these titles. */
@@ -85,20 +96,21 @@ test.describe("W4 media lifecycle", () => {
     page.on("request", (r) => {
       if (r.method() === "POST" && /\/media(\/upload)?$/.test(new URL(r.url()).pathname)) uploads += 1;
     });
-    await page.goto("/admin/media");
-    await page.getByLabel("File to upload").setInputFiles({ name, mimeType: "image/png", buffer: TINY_PNG });
-    await page.getByRole("button", { name: "Upload", exact: true }).dblclick();
+    const dialog = await openUpload(page);
+    await dialog.getByLabel("File to upload").setInputFiles({ name, mimeType: "image/png", buffer: TINY_PNG });
+    await dialog.getByRole("button", { name: "Upload", exact: true }).dblclick();
     await expect(page.getByRole("button", { name: new RegExp(`^Edit ".*${name.replace(".png", "")}`) })).toHaveCount(1);
     expect(uploads).toBe(1);
   });
 
   test("a disallowed file type is refused with a visible error, and nothing is added", { tag: ["@unrun"] }, async ({ page }) => {
     const name = `${uniqSlug("not-media")}.html`;
-    await page.goto("/admin/media");
+    const dialog = await openUpload(page);
     // setInputFiles bypasses the input's accept list, which is exactly the server-side check under test.
-    await page.getByLabel("File to upload").setInputFiles({ name, mimeType: "text/html", buffer: Buffer.from("<script>alert(1)</script>") });
-    await page.getByRole("button", { name: "Upload", exact: true }).click();
-    await expect(page.locator(".save-error, [role=alert], .notice.error").first()).toBeVisible();
+    await dialog.getByLabel("File to upload").setInputFiles({ name, mimeType: "text/html", buffer: Buffer.from("<script>alert(1)</script>") });
+    await dialog.getByRole("button", { name: "Upload", exact: true }).click();
+    // The refusal shows inside the dialog, which stays open for a retry.
+    await expect(dialog.getByRole("alert")).toBeVisible();
     await expect(page.getByRole("button", { name: new RegExp(`^Edit ".*${name}`) })).toHaveCount(0);
   });
 
@@ -124,7 +136,7 @@ test.describe("W4 media lifecycle", () => {
 
   test("media library baseline", { tag: ["@unrun"] }, async ({ page }) => {
     await page.goto("/admin/media");
-    await expect(page.getByLabel("File to upload")).toBeAttached();
+    await expect(page.getByRole("button", { name: "Upload image", exact: true })).toBeVisible();
     await expect(page).toHaveScreenshot("media-library.png", { mask: [page.locator("img")] });
   });
 });

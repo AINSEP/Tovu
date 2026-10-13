@@ -55,6 +55,11 @@ function mediaController(overrides: Partial<MediaController> = {}): MediaControl
     media: [],
     error: null,
     uploading: false,
+    uploadOpen: false,
+    openUpload: vi.fn(),
+    closeUpload: vi.fn(),
+    uploadError: null,
+    canUpload: false,
     altDraft: "",
     setAltDraft: vi.fn(),
     fileInputRef: { current: null },
@@ -129,10 +134,22 @@ describe("addressing the media grid", () => {
 });
 
 describe("driving the upload toolbar through page.* verbs", () => {
-  it("page.fill on the alt-text field calls the injected setter", async () => {
+  it("the Upload image trigger has its own handle and opens the dialog", async () => {
     const { controller, container } = renderMedia();
-    await screen.findByRole("button", { name: /^Upload$/ });
+    await screen.findByRole("button", { name: "Upload image" });
     const driver = createDomPageDriver({ root: container, pages: {} });
+
+    expect(await handlesOf(driver, { role: "button" })).toEqual(expect.arrayContaining(["media-upload-open", "media-import-open"]));
+    await executePageCapability({ driver, capabilityId: "page.click", input: { handle: "media-upload-open" } });
+    expect(controller.openUpload).toHaveBeenCalled();
+  });
+
+  it("page.fill on the alt-text field calls the injected setter", async () => {
+    // The fields live in the Upload image dialog (owner item #9, 2026-10-13); open it first.
+    const { controller } = renderMedia({ uploadOpen: true });
+    await screen.findByRole("button", { name: /^Upload$/ });
+    // The kit renders dialogs into its overlay layer, outside the render container.
+    const driver = createDomPageDriver({ root: document.body, pages: {} });
 
     await executePageCapability({ driver, capabilityId: "page.fill", input: { handle: "media-upload-alt", text: "A rocky coastline" } });
     expect(controller.setAltDraft).toHaveBeenCalledWith("A rocky coastline");

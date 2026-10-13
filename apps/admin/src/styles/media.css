@@ -435,17 +435,16 @@
    underline-and-icon primitive every other tab row in this admin uses, so its rules are
    `styles.css`'s `.tab-bar*` block. Nothing else ever used these two classes. */
 
-/* Phones (mobile catalog ME-1/ME-3, 2026-10-06). The upload and import rows mixed a ~160px field
-   with half-width ones (Remote URL and its Alt text at ~165px each, the button wrapping alone);
-   here each field takes the width it is given — the remote URL a whole line, each alt text the
-   line beside its own button. Container (2026-10-11): the pane's width, so a desktop pane
-   squeezed by the nav + dock gets the same wrap. */
+/* Upload image / Import from URL (owner item #9, 2026-10-13): two buttons side by side; the
+   fields live in their dialogs (`Media.tsx`'s `MediaToolbar`, `RemoteImageImport.tsx`). Closed
+   dialogs are `display: none` and an open one sits in the top layer, so neither takes a slot here. */
+.media-upload-dialog, .media-import-dialog { --admin-dialog-width: 30rem; }
+.media-file-field { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.media-file-name { color: var(--fg-2); font-size: var(--text-sm); overflow-wrap: anywhere; min-width: 0; }
+/* Phones (and a desktop pane squeezed by the nav + dock): the two buttons share the row equally,
+   each a full touch target; a long translated label wraps inside its button. */
 @container admin-content (max-width: 620px) {
-  .page:has(> .media-grid) > .toolbar { flex-wrap: wrap; }
-  .page:has(> .media-grid) > .toolbar > input:not(.file-input) { flex: 1 1 140px; width: auto; min-width: 0; }
-  .page:has(> .media-grid) > .toolbar:not(:has(> .file-input)) > input:first-child { flex-basis: 100%; }
-  /* Wide enough basis that the upload row's alt text drops under "Choose file" beside Upload. */
-  .page:has(> .media-grid) > .toolbar:has(> .file-input) > input:not(.file-input) { flex-basis: 200px; }
+  .media-actions > button { flex: 1 1 0; min-width: 0; min-height: 44px; white-space: normal; }
 }
 /* Phones: one card per row, full filename (owner, 2026-10-07). The two-column grid below 480px
    (ME-3, 2026-10-06, chosen to shorten the scroll) left ~160px cards: filenames cut to

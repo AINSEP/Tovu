@@ -128,6 +128,11 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
+/** Upload moved into a dialog behind the page's "Upload image" button (owner item #9, 2026-10-13). */
+function openUploadDialog() {
+  fireEvent.click(screen.getByRole("button", { name: "Upload image" }));
+}
+
 function cardFor(container: HTMLElement, title: string): HTMLElement {
   const titleEl = Array.from(container.querySelectorAll(".media-card-title")).find((el) => el.textContent === title);
   if (!titleEl) throw new Error(`no card titled "${title}"`);
@@ -161,6 +166,7 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     renderScreen();
 
     await screen.findByRole("heading", { name: "Media" });
+    openUploadDialog();
     // `getByLabelText` (not `getByRole`): this jsdom/aria-query stack computes no ARIA role at all
     // for a bare `<input type="file">` (verified — it shows up under none of `getByRole`'s listed
     // groups), even though real browsers expose one. `getByLabelText` still resolves its `aria-label`
@@ -175,6 +181,7 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     renderScreen();
 
     await screen.findByRole("heading", { name: "Media" });
+    openUploadDialog();
     expect(screen.getByText("No file chosen")).toBeInTheDocument();
     expect(screen.getByText("Choose file")).toHaveAttribute("for", screen.getByLabelText("File to upload").id);
 
@@ -205,6 +212,7 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     });
     const { container } = renderScreen();
     await waitForCard(container, "Sunset Photo");
+    openUploadDialog();
     const fileInput = screen.getByLabelText("File to upload") as HTMLInputElement;
     await user.upload(fileInput, new File([new Uint8Array([0, 1, 2, 253, 254, 255])], "new.png", { type: "image/png" }));
     await user.type(screen.getByRole("textbox", { name: "Alt text (optional)" }), "  New photo alt  ");
@@ -215,7 +223,9 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     await waitFor(() => expect(fileInput.files).toHaveLength(0));
     expect(fileInput).toHaveValue("");
     expect(screen.getByText("No file chosen")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Alt text (optional)" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "Alt text (optional)", hidden: true })).toHaveValue("");
+    // Closes only after the successful upload.
+    expect(document.querySelector(".media-upload-dialog")).not.toHaveAttribute("open");
   });
 
   it("the alt-text field has a real accessible name beyond its placeholder", async () => {
@@ -223,6 +233,7 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     renderScreen();
 
     await screen.findByRole("heading", { name: "Media" });
+    openUploadDialog();
     expect(screen.getByRole("textbox", { name: "Alt text (optional)" })).toBeInTheDocument();
   });
 
@@ -239,9 +250,58 @@ describe("upload toolbar accessible names (regression: agent-driveability audit)
     renderScreen();
 
     await screen.findByRole("heading", { name: "Media" });
+    openUploadDialog();
     const fileInput = screen.getByLabelText("File to upload");
     const accepted = new Set((fileInput.getAttribute("accept") ?? "").split(",").filter(Boolean));
     expect(accepted).toEqual(DEFAULT_ALLOWED_MIME_TYPES);
+  });
+});
+
+describe("upload and import dialogs (owner item #9, 2026-10-13)", () => {
+  it("shows two buttons with both dialogs closed until one is pressed", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = renderScreen();
+
+    await screen.findByRole("heading", { name: "Media" });
+    expect(screen.getByRole("button", { name: "Upload image" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Import from URL" })).toBeInTheDocument();
+    expect(document.querySelector(".media-upload-dialog")).not.toHaveAttribute("open");
+    expect(document.querySelector(".media-import-dialog")).not.toHaveAttribute("open");
+  });
+
+  it("opens Upload image focused on the file chooser, with Upload disabled until a file is chosen", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = renderScreen();
+
+    await screen.findByRole("heading", { name: "Media" });
+    openUploadDialog();
+    expect(document.querySelector(".media-upload-dialog")).toHaveAttribute("open");
+    expect(screen.getByLabelText("File to upload")).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Upload" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("File to upload"), { target: { files: [new File(["image"], "a.png", { type: "image/png" })] } });
+    // Alt text is optional and never blocks.
+    expect(screen.getByRole("button", { name: "Upload" })).toBeEnabled();
+  });
+
+  it("shows a refused upload inside the dialog and keeps it open with the chosen file", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (String(input).endsWith("/media") && method === "POST") return Promise.resolve(jsonResponse({ error: { message: "File too large" } }, 413));
+      return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+    });
+    const { container } = renderScreen();
+    await waitForCard(container, "Sunset Photo");
+    openUploadDialog();
+    await user.upload(screen.getByLabelText("File to upload") as HTMLInputElement, new File(["x"], "big.png", { type: "image/png" }));
+    await user.click(screen.getByRole("button", { name: "Upload" }));
+
+    const dialog = document.querySelector(".media-upload-dialog") as HTMLElement;
+    expect(await within(dialog).findByRole("alert")).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("open");
+    expect(screen.getByText("big.png")).toBeInTheDocument();
+    // Not duplicated in the page banner.
+    expect(Array.from(container.querySelectorAll(".notice.error")).filter((el) => !dialog.contains(el))).toEqual([]);
   });
 });
 

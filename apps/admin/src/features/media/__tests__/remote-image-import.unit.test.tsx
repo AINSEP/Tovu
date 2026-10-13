@@ -1,5 +1,5 @@
 /** Quick wins A: visible URL-import action, retryable errors, and media-list invalidation. */
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
@@ -14,11 +14,48 @@ describe("remote media import", () => {
   it("presents the URL action and passes trimmed URL/alt through the injected port", async () => {
     const importFromUrl = vi.fn().mockResolvedValue({ media: { id: "new-media" } });
     render(<RemoteImageImport t={(key) => key} dependencies={{ port: { importFromUrl } }} />, { wrapper });
+    const dialog = document.querySelector(".media-import-dialog") as HTMLElement;
+    expect(dialog).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    expect(dialog).toHaveAttribute("open");
+    expect(screen.getByLabelText("Remote image URL")).toHaveFocus();
     fireEvent.change(screen.getByLabelText("Remote image URL"), { target: { value: " https://cdn.example/fox.png " } });
     fireEvent.change(screen.getByLabelText("Imported image alt text (optional)"), { target: { value: " A fox " } });
-    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
     await waitFor(() => expect(importFromUrl).toHaveBeenCalledWith({ url: "https://cdn.example/fox.png" }, { alt: "A fox" }));
     await waitFor(() => expect(screen.getByLabelText("Remote image URL")).toHaveValue(""));
+    // Closes only after the successful import.
+    expect(dialog).not.toHaveAttribute("open");
+  });
+
+  it("keeps Import disabled until the URL meets the server's https-only, no-credentials contract", async () => {
+    const importFromUrl = vi.fn();
+    render(<RemoteImageImport t={(key) => key} dependencies={{ port: { importFromUrl } }} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    const submit = screen.getByRole("button", { name: "Import" });
+    expect(submit).toBeDisabled();
+    for (const bad of ["not a url", "http://cdn.example/fox.png", "https://user:pw@cdn.example/fox.png"]) {
+      fireEvent.change(screen.getByLabelText("Remote image URL"), { target: { value: bad } });
+      expect(submit, bad).toBeDisabled();
+      expect(screen.getByText("Enter an https:// image URL.")).toBeInTheDocument();
+    }
+    fireEvent.change(screen.getByLabelText("Remote image URL"), { target: { value: "https://cdn.example/fox.png" } });
+    expect(submit).toBeEnabled();
+    expect(screen.queryByText("Enter an https:// image URL.")).toBeNull();
+    fireEvent.submit(submit.closest("form")!);
+    await waitFor(() => expect(importFromUrl).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows a refused import inside the open dialog and keeps the URL for retry", async () => {
+    const importFromUrl = vi.fn().mockRejectedValue(new Error("Target is not public"));
+    render(<RemoteImageImport t={(key) => key} dependencies={{ port: { importFromUrl } }} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: "Import from URL" }));
+    fireEvent.change(screen.getByLabelText("Remote image URL"), { target: { value: "https://cdn.example/fox.png" } });
+    fireEvent.click(screen.getByRole("button", { name: "Import" }));
+    const dialog = document.querySelector(".media-import-dialog") as HTMLElement;
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Target is not public");
+    expect(dialog).toHaveAttribute("open");
+    expect(screen.getByLabelText("Remote image URL")).toHaveValue("https://cdn.example/fox.png");
   });
 
   it("retains the draft and displays a refusal, then invalidates the media list after retry", async () => {
@@ -43,7 +80,7 @@ describe("remote media import", () => {
 
   it("ships import copy in every feature locale", () => {
     for (const dictionary of Object.values(MEDIA_DICT)) {
-      for (const key of ["Remote image URL", "Imported image alt text (optional)", "Import from URL", "Importing…", "Could not import media."]) {
+      for (const key of ["Remote image URL", "Imported image alt text (optional)", "Import from URL", "Importing…", "Could not import media.", "Import", "Enter an https:// image URL."]) {
         expect(dictionary[key]).toBeTruthy();
       }
     }

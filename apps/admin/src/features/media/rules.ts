@@ -610,22 +610,23 @@ export function findEditingItem(media: AdminMedia[] | null, editingId: string | 
  * `useMedia`'s error banner, extracted out of that hook (`refactor/fetch-query` complexity pass,
  * 2026-08-12 — same reason `Jini redirects/SOURCE-RATIONALE.md`'s `visibleRedirectsError` was extracted).
  *
- * Precedence: an active write's own failure (upload/trash/purge, in array order) always wins over a
+ * Precedence: an active write's own failure (trash/purge, in array order) always wins over a
  * background list-refresh failure — `use-media.hooks.ts`'s `clearOtherWriteErrors` is this rule's
  * other half, same pairing `Jini redirects/SOURCE-RATIONALE.md`'s `firstWriteError`/`clearOtherWriteErrors` document,
  * so at most one write error is ever live at a time and array order rarely matters in practice. The
  * list error only surfaces before `media` has ever loaded, matching every other migrated feature's
  * "a later background failure must not blank an already-rendered screen" guard.
  *
+ * Upload failures are not here (2026-10-13, owner item #9): upload moved into its own dialog, which
+ * shows its failure inline next to the file the operator can retry — `useMedia`'s `uploadError`.
+ *
  * Fallback strings are passed in, not hardcoded — unlike `@jini-ai/admin/forms` rules.ts's `visibleFormEditorError`
  * (whose hook never localized its own error strings), `use-media.hooks.ts`'s pre-migration catches
  * all used `translate(locale, "...")` fallbacks, and this preserves that.
  *
- * @complexity Time/space: O(1) — four fixed checks, no iteration.
+ * @complexity Time/space: O(1) — three fixed checks, no iteration.
  */
 export function visibleMediaError(params: {
-  uploadError: Error | null;
-  uploadFallback: string;
   trashError: Error | null;
   purgeError: Error | null;
   deleteFallback: string;
@@ -633,7 +634,6 @@ export function visibleMediaError(params: {
   listFallback: string;
   hasMedia: boolean;
 }): string | null {
-  if (params.uploadError) return describeApiError(params.uploadError, params.uploadFallback);
   if (params.trashError) return describeApiError(params.trashError, params.deleteFallback);
   if (params.purgeError) return describeApiError(params.purgeError, params.deleteFallback);
   if (params.hasMedia) return null;

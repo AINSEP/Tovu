@@ -50,8 +50,11 @@ async function uploadMedia(site: IsolatedJourneySite): Promise<void> {
   try {
     const page = await browser.newPage({ storageState: site.storageState, baseURL: site.adminURL });
     await page.goto("/admin/media");
-    await page.getByLabel("File to upload").setInputFiles({ name: `${MEDIA_TITLE}.png`, mimeType: "image/png", buffer: TINY_PNG });
-    await page.getByRole("button", { name: "Upload", exact: true }).click();
+    // Upload lives in the "Upload image" dialog (2026-10-13).
+    await page.getByRole("button", { name: "Upload image", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Upload image" });
+    await dialog.getByLabel("File to upload").setInputFiles({ name: `${MEDIA_TITLE}.png`, mimeType: "image/png", buffer: TINY_PNG });
+    await dialog.getByRole("button", { name: "Upload", exact: true }).click();
     await expect(page.getByRole("button", { name: `Edit "${MEDIA_TITLE}"` })).toBeVisible({ timeout: 30_000 });
   } finally {
     await browser.close();
