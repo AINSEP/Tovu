@@ -1632,6 +1632,12 @@ button.jini-composer-leading,
   border-radius: var(--r-md);
   font-size: var(--text-sm);
 }
+/* A chart host in an A2UI Column gets the normal vertical rhythm. Its table fallback
+   (`@jini-ai/ui` `renderChartTable`) is a bare bordered frame: three stacked fallbacks touched each
+   other and the text around them (2026-10-13). */
+.a2ui-column > .jini-chart-host { margin-block: var(--space-4); }
+.a2ui-column > .jini-chart-host:first-child { margin-top: 0; }
+.a2ui-column > .jini-chart-host:last-child { margin-bottom: 0; }
 /* The published Jini footer still prints its generic terminal notice. The actual failure card
    owns that notice when rendered; no diagnostics leaves the existing fallback visible. */
 .admin-chat-dock .jini-message-assistant:has(.admin-agent-failure) > .jini-message-error {

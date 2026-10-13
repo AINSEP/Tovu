@@ -24,7 +24,7 @@
     }
   ],
   "integrity": {
-    "client/provider.js": "sha256-6d789dce000e43e5ff988e2dc383938d3284cd8e33fac527716bfd3e53d9ca37",
+    "client/provider.js": "sha256-29d351dee2b2c4239f2e1d9891495b9e533fb4fec3767027146fdbc109135f3d",
     "client/styles.css": "sha256-bf1945d4c9ea2f3c8e2d99ac0e96429e486f408a72135c39b25a0da855ca4a1b",
     "server/index.mjs": "sha256-8b150b05c97bd91c5fa0015b7cdc88add7435e1b08ea7665ded2960b13c5ba85"
   }
