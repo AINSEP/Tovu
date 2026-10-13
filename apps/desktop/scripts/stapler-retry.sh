@@ -7,7 +7,8 @@
 set -uo pipefail
 action="$1"; file="$2"
 for attempt in 1 2 3 4 5; do
-  xcrun stapler "$action" "$file" && exit 0
+  # The real xcrun, not PATH's: xcrun-retry/xcrun execs this script for its stapler calls.
+  /usr/bin/xcrun stapler "$action" "$file" && exit 0
   [ "$attempt" -lt 5 ] && { echo "stapler $action: attempt $attempt failed; retrying in 30s" >&2; sleep 30; }
 done
 exit 1

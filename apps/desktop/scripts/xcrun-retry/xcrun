@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Put ahead of /usr/bin on PATH for the mac `electron-builder` step only. @electron/notarize
+# 2.5.0 staples the .app itself with `xcrun stapler staple -v Tovu.app` and gives up after
+# promise-retry's 3 quick retries (~7s), so a CloudKit drop on macos-15-intel ("The network
+# connection was lost.", exit 68) failed desktop-v0.1.15's mac-x64 build twice (run
+# 38452893243) before the workflow's own stapler-retry.sh steps were ever reached. Here those
+# stapler calls get stapler-retry.sh's five tries, 30s apart; every other xcrun call
+# (notarytool, ...) goes straight to the real one.
+if [ "${1:-}" = stapler ] && { [ "${2:-}" = staple ] || [ "${2:-}" = validate ]; }; then
+  exec "$(dirname "$0")/../stapler-retry.sh" "$2" "${@: -1}"   # last arg is the file; drops -v
+fi
+exec /usr/bin/xcrun "$@"
