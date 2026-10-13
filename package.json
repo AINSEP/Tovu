@@ -109,7 +109,7 @@
     "@jini-ai/platform": "$@jini-ai/platform"
   },
   "dependencies": {
-    "@jini-ai/agent-plugins": "^0.4.5",
+    "@jini-ai/agent-plugins": "^0.4.6",
     "@jini-ai/oauth": "^0.2.2",
     "@ag-ui/core": "0.0.58",
     "@ag-ui/encoder": "0.0.58",
