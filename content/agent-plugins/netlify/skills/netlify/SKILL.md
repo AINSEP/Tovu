@@ -1,10 +1,22 @@
+---
+name: netlify
+description: Publish the site's static export to Netlify with the workspace's own saved token. Covers the token, the site name, which files upload, and what each failure means in plain words.
+---
+
 # Netlify
+
+The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
+token is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
+publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
+This file is what is particular to Netlify.
 
 - **Token:** a personal access token from https://app.netlify.com/user/applications#personal-access-tokens.
   No config fields: Tovu finds or creates the Netlify site from the project name.
 - **Site name:** `jini-<project-name>` (lowercase, hyphens). Publishing the same project again updates the
   same site. The prefix is kept for sites published before this plugin existed.
 - **Only changed files upload.** Netlify compares file fingerprints and asks only for what it lacks.
+- **Security headers:** this plugin writes them into a root `_headers` file; a `_headers` file in the
+  site itself is replaced.
 
 ## Failure messages and what to tell the person
 

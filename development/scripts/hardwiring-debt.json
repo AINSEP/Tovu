@@ -563,14 +563,14 @@
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/targets/netlify.mjs",
+      "file": "content/agent-plugins/netlify/targets/netlify.mjs",
       "line": 28,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "68e1ee40523e6a8a042bc37d7beb3fcce58e7e00105e15569c6776b2a9033fc5"
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/targets/netlify.mjs",
+      "file": "content/agent-plugins/netlify/targets/netlify.mjs",
       "line": 338,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "311c1dac5a25c312d2d9d681ffb2c625f74f0cf23a03311174781a403462798e"

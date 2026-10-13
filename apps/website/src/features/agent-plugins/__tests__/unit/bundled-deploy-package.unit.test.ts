@@ -35,7 +35,7 @@ const WORKSPACE_ID = "workspace-local";
 const TARGETS: readonly { readonly id: string; readonly pluginId: string; readonly label: string }[] = [
   { id: "github-pages", pluginId: "deploy", label: "GitHub Pages" },
   { id: "vercel", pluginId: "vercel", label: "Vercel" },
-  { id: "netlify", pluginId: "deploy", label: "Netlify" },
+  { id: "netlify", pluginId: "netlify", label: "Netlify" },
   { id: "cloudflare-pages", pluginId: "deploy", label: "Cloudflare Pages" },
   { id: "s3-compatible", pluginId: "deploy", label: "S3-compatible storage" },
 ];

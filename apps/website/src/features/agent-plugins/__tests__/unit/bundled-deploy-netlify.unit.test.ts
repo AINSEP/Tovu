@@ -10,7 +10,7 @@ import { createDeployHostKit } from "#src/features/deployments/deploy-targets/ho
 import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "#src/features/deployments/deploy-targets/types";
 
 /**
- * @file The bundled `deploy` plugin's Netlify module (`content/agent-plugins/deploy/targets/netlify.mjs`).
+ * @file The bundled `netlify` plugin's module (`content/agent-plugins/netlify/targets/netlify.mjs`).
  *
  * PORTED, not re-authored, from `@jini-ai/devops` `src/deploy/__tests__/netlify.test.ts` (0.3.1,
  * vitest) — one case per original case, same fixtures and assertions. What changed is only the seam:
@@ -21,7 +21,7 @@ import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "
  * fake timers. The `responseHeaders` cases at the end are new: they are the reason the port exists.
  */
 
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/netlify.mjs");
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/netlify/targets/netlify.mjs");
 
 type FetchHandler = (url: string, init: RequestInit) => Promise<Response> | Response;
 interface KitCall {

@@ -100,7 +100,7 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
 });
 
 /** Seeded enabled, sorted; each hosting plugin split out of `deploy` (2026-10-12) joins this list. */
-const SEEDED_ENABLED = ["deploy", "github", "how-tovu-works", "resend", "site-import", "tovu-theme", "vercel"];
+const SEEDED_ENABLED = ["deploy", "github", "how-tovu-works", "netlify", "resend", "site-import", "tovu-theme", "vercel"];
 
 // Owner decision 2026-09-13: the admin lists every installed plugin, switched off or not. That
 // listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.
