@@ -11,7 +11,7 @@ import type { DeployHostKit, DeployTargetModule, HostDeployPublishInput } from "
 import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
 
 /**
- * @file The bundled `deploy` plugin's Vercel module (`content/agent-plugins/deploy/targets/vercel.mjs`).
+ * @file The bundled `vercel` plugin's module (`content/agent-plugins/vercel/targets/vercel.mjs`).
  *
  * PORTED, not re-authored, from `@jini-ai/devops` `src/deploy/__tests__/vercel.test.ts` at Jini commit
  * 28f67f9a (vitest): every original case below the "Ported" marker is unchanged, running on node:test
@@ -25,7 +25,7 @@ import { expect, installNetworkGuard, vi } from "../fixtures/vitest-compat.js";
 
 installNetworkGuard();
 
-const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/deploy/targets/vercel.mjs");
+const MODULE_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/vercel/targets/vercel.mjs");
 
 interface VercelBinding {
   VercelDeployTarget: new (config: { token: string; teamId?: string; teamSlug?: string }) => {

@@ -577,14 +577,14 @@
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/targets/vercel.mjs",
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
       "line": 56,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "937f1ea8fdc09813a4268fe88ef759921c0cd6d1cad28cf434a6eb098817547d"
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/targets/vercel.mjs",
+      "file": "content/agent-plugins/vercel/targets/vercel.mjs",
       "line": 349,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "42b7e71d2f455ded9d9ef33cd04b2040136a2d0f9e579a816988fbd3329b40e5"

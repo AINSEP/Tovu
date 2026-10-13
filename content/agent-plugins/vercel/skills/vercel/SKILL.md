@@ -1,4 +1,14 @@
+---
+name: vercel
+description: Publish the site's static export to Vercel with the workspace's own saved token. Covers the token, the optional team, the project name, how a publish reaches the live address, Deployment Protection, and what each failure means in plain words.
+---
+
 # Vercel
+
+The steps are the same for every host: `deployment_get_static_publish_capabilities` shows whether a
+token is saved, `deployment_preview_static_publish` comes first, and `deployment_execute_static_publish`
+publishes once the person confirms. `ok: "partial"` means not reachable yet: never call it failed or live.
+This file is what is particular to Vercel.
 
 - **Token:** an access token from https://vercel.com/account/tokens. Saved in Admin, Deployment, Static site.
 - **Team (optional):** the publish config's `teamId` puts the project under a Vercel team instead of the
@@ -7,6 +17,10 @@
   updates the same project.
 - **Security headers:** this plugin writes them into a root `vercel.json`; a `vercel.json` in the site
   itself is replaced.
+- **Production, every time:** each publish is a production deployment, so it updates the live
+  `<project>.vercel.app` address, not a preview.
+- **Only changed files upload.** Files go up one by one, keyed by their fingerprint. If Vercel says some
+  are missing when the deployment is created, Tovu sends exactly those and tries once more.
 - **Deployment Protection:** new Vercel projects often require a Vercel login to view. Tovu detects that
   and reports the link as protected rather than live.
 
