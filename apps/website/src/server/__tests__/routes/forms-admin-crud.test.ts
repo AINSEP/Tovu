@@ -116,7 +116,8 @@ test("admin forms routes: reusing a create Idempotency-Key returns DUPLICATE_COM
   assert.ok(body.changeSetId);
 });
 
-test("admin forms routes: AC-03 — type:date is rejected, nothing created", async (t) => {
+// Jini 20d4e8a2 added date to the field-type registry; AC-03 still covers unsupported types.
+test("admin forms routes: AC-03 — type:unsupported-field is rejected, nothing created", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -126,7 +127,7 @@ test("admin forms routes: AC-03 — type:date is rejected, nothing created", asy
     body: JSON.stringify({
       name: "Contact",
       slug: "contact",
-      fields: [{ id: "when", label: "When", type: "date", required: false }],
+      fields: [{ id: "when", label: "When", type: "unsupported-field", required: false }],
     }),
   });
   assert.equal(createRes.status, 400);
