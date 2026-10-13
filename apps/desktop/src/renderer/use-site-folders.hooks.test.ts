@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { createElement } from 'react';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
 import { humanSiteError } from './site-shell-policy.js';
+import { useSitesFoldersDialog } from './use-sites-folders-dialog.hooks.js';
 import type { SiteFolders } from '../contracts/project.js';
 
 const hookSource = fs.readFileSync(new URL('./use-site-folders.hooks.ts', import.meta.url), 'utf8');
@@ -124,10 +125,11 @@ test('an older preload reports unavailable settings and a late load cannot updat
 test('the shared settings dialog lists roots, only extra roots get Remove, and picker buttons invoke hooks', () => {
   let added = 0, homeChanged = 0, saved = 0;
   const removed: string[] = [];
-  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+  const placements: string[] = [];
+  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
   const nodes = elements(component({ settings: {
     folders: { home: '/home', roots: ['/repo/sites', '/extra'], extraRoots: ['/extra'] }, busy: false,
-    error: 'Actual save error', open: true, databases: 'inSite', show() {}, close() {}, setDatabases() {},
+    error: 'Actual save error', open: true, databases: 'inSite', show() {}, close() {}, setDatabases(value: string) { placements.push(value); },
     chooseHome: () => { homeChanged++; }, save: () => { saved++; },
     addFolder: async () => { added++; }, removeFolder: async ({ root }: { root: string }) => { removed.push(root); },
   } }));
@@ -140,6 +142,8 @@ test('the shared settings dialog lists roots, only extra roots get Remove, and p
   assert.deepEqual(removed, ['/extra']); assert.equal(added, 1);
   nodes.find((node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(saved, 1); assert.equal(nodes.find((node) => node.type === 'select')?.props.value, 'inSite');
+  nodes.find((node) => node.type === 'select').props.onChange({ target: { value: 'appData' } });
+  assert.deepEqual(placements, ['appData']);
   assert.equal(nodes.filter((node) => node.type === 'input' || node.type === 'textarea').length, 0);
 });
 
@@ -223,7 +227,7 @@ test("deskfx S5: IPC wrappers are stripped, close clears the action, and errors 
   const render = () => harness.render(() => storageHook({}, { useFolders: () => foldersHook({}, { getBridge }) }));
   render(); await nextTurn(); render().show(); await render().addFolder();
   assert.equal(render().error, "Choose a smaller folder.");
-  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
   assert.equal(elements(component({ settings: render() })).filter((node) => node.props.role === 'alert').length, 1);
   // Closing is a real hook action, not an unmount that would accidentally hide stale state.
   render().close(); assert.equal(render().open, false); assert.equal(render().error, null);
@@ -233,7 +237,7 @@ test("deskfx S5: IPC wrappers are stripped, close clears the action, and errors 
 });
 
 test("deskfx S2: the home row has no Remove even with an old persisted extra-root entry", () => {
-  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
   const nodes = elements(component({ settings: { open: true, folders: { home: '/home/Tovu', roots: ['/home/Tovu', '/extra'], extraRoots: ['/home/Tovu', '/extra'] },
     databases: 'inSite', show() {}, close() {}, busy: false, error: null } }));
   const removes = nodes.filter((node) => node.type === 'button' && node.props.children === 'Remove');
@@ -257,7 +261,7 @@ test("deskfx2 SHOULD-2: both warning remedies show their failures outside the cl
     assert.equal(render().open, false);
     const message = action === 'useAppData' ? 'Settings write failed.' : 'Folder change failed.';
     assert.equal(render().warningError, message);
-    const component = sourceFunction(componentSource, 'SitesFoldersDialog', { SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+    const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
     const nodes = elements(component({ settings: render() }));
     assert.equal(nodes.some((node) => node.type === 'p' && node.props.children === message), true);
     render().show(); assert.equal(render().warningError, null); assert.equal(render().error, null);

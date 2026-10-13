@@ -51,8 +51,8 @@
     {
       "rule": "complexity",
       "file": "apps/desktop/src/renderer/SitesFolders.tsx",
-      "reason": "Function 'SitesFoldersDialog' has a complexity of 22. Maximum allowed is 9.",
-      "accepted": "release 0.1.14 exception (2026-10-12): above 15, but the component is self-contained on purpose (its tests evaluate this one function with only SettingsDialogShell bound) and the count is JSX conditionals; splitting it needs a test-harness change and a visual check, so it is post-release work"
+      "reason": "Function 'SitesFoldersDialog' has a complexity of 11. Maximum allowed is 9.",
+      "accepted": "owner accepted <=15 (2026-10-09 rule); reduced from 22 by extracting display logic and event adapters into useSitesFoldersDialog"
     },
     {
       "rule": "complexity",

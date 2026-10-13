@@ -10,6 +10,7 @@ import { sourceFunction } from './source-test-harness.js';
 import { visibleSections } from '../contracts/sections.js';
 import { navAvailability } from './nav-availability.js';
 import { navLinkClick, settingsControlHandlers } from './App.hooks.js';
+import { useSitesFoldersDialog } from './use-sites-folders-dialog.hooks.js';
 
 test('Websites fits at 375px with every nav control and header action inside the page', { timeout: 120_000 }, async (t) => {
   // The queue uses Node/tsx without the renderer tsconfig; its classic JSX transform needs React.
@@ -23,7 +24,7 @@ test('Websites fits at 375px with every nav control and header action inside the
   const source = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
   const foldersSource = fs.readFileSync(new URL('./SitesFolders.tsx', import.meta.url), 'utf8');
   const settings = { folders: { roots: [], extraRoots: [], home: '' }, open: false, show() {}, close() {} };
-  const SitesFoldersDialog = sourceFunction(foldersSource, 'SitesFoldersDialog');
+  const SitesFoldersDialog = sourceFunction(foldersSource, 'SitesFoldersDialog', { useSitesFoldersDialog });
   const SitesFolders = () => createElement(SitesFoldersDialog, { settings });
   const NavLink = sourceFunction(source, 'NavLink', { navLinkClick, navAvailability, SectionIcon });
   const SettingsControl = sourceFunction(source, 'SettingsControl', {

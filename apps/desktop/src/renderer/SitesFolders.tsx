@@ -3,6 +3,7 @@ import { SettingsDialogShell } from '@jini-ai/ui';
 import '@jini-ai/ui/tabbed-dialog.css';
 import { useSiteFolders } from './use-site-folders.hooks.js';
 import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
+import { useSitesFoldersDialog } from './use-sites-folders-dialog.hooks.js';
 
 /** Jini supplies dialog lifecycle/accessibility; hooks own all state and preload effects. */
 export function SitesFolders({ useSettings = useSiteFolders }: { useSettings?: typeof useSiteFolders } = {}) {
@@ -11,28 +12,26 @@ export function SitesFolders({ useSettings = useSiteFolders }: { useSettings?: t
 }
 
 /** Kept outside the dropdown: closing its menu never unmounts a draft or a dialog.
- * Self-contained on purpose (inline SVG, CSS-drawn icons, no local helpers): the component tests
- * evaluate this one function with only `SettingsDialogShell` bound, so any other identifier here
- * would be undefined there. `jini-tooltip` tips render through the TooltipLayer in main.tsx. The sync warning renders inside the dialog while it is open; the
- * outside copy would sit behind the modal backdrop. */
-export function SitesFoldersDialog({ settings, showTrigger = true }: { settings: ReturnType<typeof useSiteStorageSettings>; showTrigger?: boolean }) {
-  // Middle truncation: the parent path gives way first, the folder's own name stays readable.
-  const home = settings.folders.home ?? '', homeCut = home.lastIndexOf('/', home.length - 2) + 1;
+ * Self-contained markup on purpose (inline SVG, CSS-drawn icons, no local helpers): the component
+ * tests evaluate this function with `SettingsDialogShell` and its display hook bound; other
+ * identifiers would be undefined there. `jini-tooltip` tips render through the TooltipLayer in main.tsx. */
+export function SitesFoldersDialog({ settings, showTrigger }: { settings: ReturnType<typeof useSiteStorageSettings>; showTrigger?: boolean }) {
+  const view = useSitesFoldersDialog({ settings }, { showTrigger });
   const warning = settings.folders.warning && <div role="alert" className="sites-settings__warning">
     <p>{settings.folders.warning.message}</p>
     <div className="sites-settings__warning-actions">
-      <button type="button" className="button button--quiet" disabled={settings.busy} onClick={() => void settings.useAppData()}>Store databases in app-data</button>
-      <button type="button" className="button button--quiet" disabled={settings.busy || settings.folders.overrides?.sitesHome} onClick={() => void settings.useLocalHome()}>Choose a local folder</button>
+      <button type="button" className="button button--quiet" disabled={settings.busy} onClick={view.onUseAppData}>Store databases in app-data</button>
+      <button type="button" className="button button--quiet" disabled={view.homeDisabled} onClick={view.onUseLocalHome}>Choose a local folder</button>
     </div>
     {settings.warningError && <p className="sites-settings__error">{settings.warningError}</p>}
   </div>;
   return <>
-    {showTrigger && <button type="button" className="button button--quiet" onClick={settings.show}>Sites settings</button>}
-    {showTrigger && !settings.open && warning}
+    {view.showTrigger && <button type="button" className="button button--quiet" onClick={settings.show}>Sites settings</button>}
+    {view.showOutsideWarning && warning}
     {settings.open && <SettingsDialogShell onClose={settings.close} fullscreenEnabled={false} dialogAriaLabelledBy="desktop-sites-settings-title"
       className="sites-settings-dialog"
       tabs={[{ id: 'sites', label: 'Sites', title: 'Sites settings', panel:
-        <form className="sites-settings" aria-busy={settings.busy} onSubmit={(event) => { event.preventDefault(); void settings.save(); }}>
+        <form className="sites-settings" aria-busy={settings.busy} onSubmit={view.onSubmit}>
           {warning}
           <div className="sites-settings__row">
             <div className="sites-settings__label">
@@ -41,12 +40,12 @@ export function SitesFoldersDialog({ settings, showTrigger = true }: { settings:
             </div>
             <div className="sites-settings__control">
               <span className="sites-settings__path sites-settings__path--field jini-tooltip" data-tooltip={settings.folders.home}>
-                <span className="sites-settings__path-head">{home.slice(0, homeCut)}</span>
-                <span className="sites-settings__path-tail">{home.slice(homeCut)}</span>
+                <span className="sites-settings__path-head">{view.home.head}</span>
+                <span className="sites-settings__path-tail">{view.home.tail}</span>
               </span>
-              <button type="button" className="button button--quiet" disabled={settings.busy || settings.folders.overrides?.sitesHome} onClick={() => void settings.chooseHome()}>Choose folder</button>
+              <button type="button" className="button button--quiet" disabled={view.homeDisabled} onClick={view.onChooseHome}>Choose folder</button>
             </div>
-            {settings.folders.overrides?.sitesHome && <p className="sites-settings__note">TOVU_SITES_HOME overrides this setting.</p>}
+            {view.homeOverridden && <p className="sites-settings__note">TOVU_SITES_HOME overrides this setting.</p>}
           </div>
 
           <div className="sites-settings__row sites-settings__row--stack">
@@ -55,25 +54,24 @@ export function SitesFoldersDialog({ settings, showTrigger = true }: { settings:
               <button type="button" className="sites-settings__tip jini-tooltip" aria-label="Rescan finds websites in these folders. Removing one keeps its files and cards."
                 data-tooltip="Rescan finds websites in these folders. Removing one keeps its files and cards." />
             </div>
-            <ul className="sites-settings__roots" aria-labelledby="sites-settings-roots-label">{settings.folders.roots.map((root) => {
-              const cut = root.lastIndexOf('/', root.length - 2) + 1;
-              return <li key={root} className="sites-settings__root">
+            <ul className="sites-settings__roots" aria-labelledby="sites-settings-roots-label">{view.roots.map((root) => (
+              <li key={root.root} className="sites-settings__root">
                 <svg className="sites-settings__folder" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
                 </svg>
-                <span className="sites-settings__path jini-tooltip" data-tooltip={root}>
-                  <span className="sites-settings__path-head">{root.slice(0, cut)}</span>
-                  <span className="sites-settings__path-tail">{root.slice(cut)}</span>
+                <span className="sites-settings__path jini-tooltip" data-tooltip={root.root}>
+                  <span className="sites-settings__path-head">{root.head}</span>
+                  <span className="sites-settings__path-tail">{root.tail}</span>
                 </span>
-                {root === settings.folders.home && <span className="sites-settings__badge">New sites</span>}
-                {root !== settings.folders.home && settings.folders.extraRoots.includes(root) && <button type="button" className="sites-settings__remove jini-tooltip" disabled={settings.busy || settings.folders.overrides?.siteRoots}
-                  aria-label={`Remove sites folder ${root}`} data-tooltip="Remove from list (files stay)" onClick={() => void settings.removeFolder({ root })}>Remove</button>}
-              </li>;
-            })}</ul>
+                {root.isHome && <span className="sites-settings__badge">New sites</span>}
+                {root.canRemove && <button type="button" className="sites-settings__remove jini-tooltip" disabled={view.rootsDisabled}
+                  aria-label={root.removeLabel} data-tooltip="Remove from list (files stay)" onClick={root.onRemove}>Remove</button>}
+              </li>
+            ))}</ul>
             <div className="sites-settings__list-actions">
-              <button type="button" className="button button--quiet sites-settings__add" disabled={settings.busy || settings.folders.overrides?.siteRoots} onClick={() => void settings.addFolder()}>Add sites folder</button>
+              <button type="button" className="button button--quiet sites-settings__add" disabled={view.rootsDisabled} onClick={view.onAddFolder}>Add sites folder</button>
             </div>
-            {settings.folders.overrides?.siteRoots && <p className="sites-settings__note">TOVU_SITE_ROOTS overrides this setting.</p>}
+            {view.rootsOverridden && <p className="sites-settings__note">TOVU_SITE_ROOTS overrides this setting.</p>}
           </div>
 
           <div className="sites-settings__row">
@@ -83,11 +81,11 @@ export function SitesFoldersDialog({ settings, showTrigger = true }: { settings:
                 data-tooltip="Applies to new sites. Existing databases stay put until moved with sites:move-home while the site is stopped." />
             </div>
             <div className="sites-settings__control">
-              <select id="sites-settings-databases" className="sites-settings__select" value={settings.databases} onChange={(event) => settings.setDatabases(event.target.value as 'inSite' | 'appData')}>
+              <select id="sites-settings-databases" className="sites-settings__select" value={settings.databases} onChange={view.onDatabasesChange}>
                 <option value="inSite">Inside each site (data.nosync)</option><option value="appData">OS app-data</option>
               </select>
             </div>
-            {settings.databases === 'appData' && <p className="sites-settings__note">App-data databases live outside the site folder. Copy them too when you move a site.</p>}
+            {view.showAppDataNote && <p className="sites-settings__note">App-data databases live outside the site folder. Copy them too when you move a site.</p>}
           </div>
 
           {settings.error && <p role="alert" className="sites-settings__error">{settings.error}</p>}
