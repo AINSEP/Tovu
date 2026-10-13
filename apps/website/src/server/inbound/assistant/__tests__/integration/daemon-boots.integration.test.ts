@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
@@ -65,7 +66,10 @@ async function reserveFreePort(): Promise<number> {
   return port;
 }
 
-test("the agent daemon boots and listens — no import cycle on its entry path", async (t) => {
+for (const stopOnEnd of [false, true]) {
+test(stopOnEnd
+  ? "the real agent daemon closes gracefully on the sidecar's stdin EOF"
+  : "the agent daemon boots and listens — no import cycle on its entry path", async (t) => {
   const port = await reserveFreePort();
 
   const child = spawn(process.execPath, ["--import", TSX_LOADER, DAEMON_ENTRY], {
@@ -78,8 +82,9 @@ test("the agent daemon boots and listens — no import cycle on its entry path",
       // Readiness below consumes this line; npm start may otherwise suppress it in inherited env.
       TOVU_DAEMON_LIFECYCLE_LOG: "on",
       TOVU_AGENT_DAEMON_TOKEN: "daemon-boots-test-token",
+      JINI_STOP_ON_STDIN_EOF: stopOnEnd ? "1" : "0",
     },
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["pipe", "pipe", "pipe"],
   });
 
   let output = "";
@@ -126,4 +131,16 @@ test("the agent daemon boots and listens — no import cycle on its entry path",
     signal: AbortSignal.timeout(5_000),
   });
   assert.equal(response.status, 200, await response.text());
+
+  if (stopOnEnd) {
+    const exited = once(child, "exit", { signal: AbortSignal.timeout(6_000) });
+    child.stdin.end();
+    assert.deepEqual(await exited, [0, null], "EOF runs the daemon's disposal before a normal exit");
+  } else {
+    child.stdin.end();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(child.exitCode, null, "EOF shutdown requires the sidecar's explicit opt-in");
+    assert.equal(child.signalCode, null);
+  }
 });
+}

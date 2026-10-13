@@ -233,6 +233,13 @@ async function exitDaemon(exitCode: number): Promise<void> {
 process.on("SIGTERM", () => { void exitDaemon(143); });
 process.on("SIGINT", () => { void exitDaemon(130); });
 
+// Windows has no graceful signal: Jini's sidecar closes its stdin pipe to run the same disposal.
+if (process.env.JINI_STOP_ON_STDIN_EOF === "1") {
+  process.stdin.once("end", () => { void exitDaemon(0); });
+  // A paused stream never reports EOF.
+  process.stdin.resume();
+}
+
 
 /**
  * Self-termination watchdog, 2026-08-05 (`ADS-memory/reports/analysis/2026-08-05-e2e-teardown-root-cause.md`).
