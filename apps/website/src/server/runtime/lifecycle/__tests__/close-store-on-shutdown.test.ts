@@ -122,7 +122,9 @@ test("sqlite: shutdown owns the signals and closes the store before exit", async
   assert.deepEqual(proc.exits, [0]);
 });
 
-test("shutdown closes the owner store during daemon teardown and waits for both before exit", async () => {
+// SQLite removes the WAL/SHM only on the last connection's close; a daemon closing at the same
+// instant left chat.db's sidecars behind in a live desktop Stop.
+test("shutdown closes the owner store after the daemon has stopped, so ours is the last connection", async () => {
   const proc = new FakeProcess();
   const order: string[] = [];
   let release!: () => void;
@@ -134,11 +136,26 @@ test("shutdown closes the owner store during daemon teardown and waits for both 
   const exited = proc.exited();
   proc.emit("SIGTERM");
   await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.deepEqual(order, ["listener", "store"]);
-  assert.deepEqual(proc.exits, []);
+  assert.deepEqual(order, ["listener"]);
   release();
   await exited;
-  assert.deepEqual(order, ["listener", "store", "daemon"]);
+  assert.deepEqual(order, ["listener", "daemon", "store"]);
+  assert.deepEqual(proc.exits, [0]);
+});
+
+test("an unresponsive daemon delays the store close by only a quarter of the bound", async () => {
+  const proc = new FakeProcess();
+  const order: string[] = [];
+  closeStoreOnShutdown({
+    store: fakeStore("sqlite", async () => { order.push("store"); }),
+    onShutdown: () => new Promise<void>(() => {}),
+  }, { proc, timeoutMs: 200, log: () => {} });
+  const exited = proc.exited();
+  proc.emit("SIGTERM");
+  await new Promise<void>((resolve) => setTimeout(resolve, 100));
+  assert.deepEqual(order, ["store"], "the store closes at timeoutMs / 4 although the daemon never settles");
+  await exited;
+  assert.deepEqual(proc.exits, [0]);
 });
 
 test("SIGTERM on a pg site: the daemon is shut down, the store closes, then the process exits 0", async () => {

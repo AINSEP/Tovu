@@ -58,7 +58,7 @@ export function closeWithinBound(
 /**
  * Closes the store on SIGINT/SIGTERM/SIGHUP (then exits 0) and when the
  * event loop drains (`beforeExit`). `onShutdown` (the daemon supervisor's `shutdownAssistantDaemon`)
- * starts first on a signal and is awaited alongside store close; it runs again on `exit`, covering an explicit
+ * starts first on a signal and the store closes once it settles (bounded); it runs again on `exit`, covering an explicit
  * `process.exit()` elsewhere. A store that fails or hangs on close is logged; the exit still happens.
  *
  * `optional.bootWork` returns the boot passes still reading the store (the legacy publish-credential
@@ -104,12 +104,15 @@ export function closeStoreOnShutdown(
       async () => {
         await stopServing();
         await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
-        // Close our handles even if Jini is still draining an unresponsive daemon descendant.
-        // Wait for both outcomes so a failed tree-stop cannot cut an async store close short.
-        const results = await Promise.allSettled([store.close(), daemonStopped]);
-        for (const result of results) {
-          if (result.status === "rejected") throw result.reason;
-        }
+        // The daemon shares content.db and chat.db, and SQLite removes the WAL/SHM only on the LAST
+        // connection's close: two processes closing at once can both leave them. So the daemon goes
+        // first, but only for a quarter of the bound, so an unresponsive daemon cannot keep ours open.
+        const daemon = Promise.allSettled([daemonStopped]);
+        await Promise.race([daemon, new Promise((resolve) => setTimeout(resolve, timeoutMs / 4).unref())]);
+        await store.close();
+        // Wait for its outcome too, so a failed tree-stop is logged rather than lost.
+        const [stopped] = await daemon;
+        if (stopped.status === "rejected") throw stopped.reason;
       },
       { label: `the ${store.storage.kind} store`, timeoutMs, log }
     );
