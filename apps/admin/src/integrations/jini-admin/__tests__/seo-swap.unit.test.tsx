@@ -85,7 +85,10 @@ describe('Jini SEO host switch', () => {
 
   it('opens the sitemap modal over the injected raw XML and regenerates through the same API', async () => {
     const { api, node } = fixture({ tabId: 'sitemap' });
-    const xml = vi.spyOn(api, 'fetchSitemapXml');
+    const freshXml = '<urlset><url><loc>https://site.test/regenerated</loc></url></urlset>';
+    const xml = vi.spyOn(api, 'fetchSitemapXml')
+      .mockResolvedValueOnce({ text: '<urlset><url><loc>https://site.test/one</loc></url></urlset>' })
+      .mockResolvedValue({ text: freshXml });
     const regenerate = vi.spyOn(api, 'regenerateSeoSitemap');
     render(node());
     fireEvent.click(await screen.findByRole('button', { name: 'View sitemap' }));
@@ -94,7 +97,13 @@ describe('Jini SEO host switch', () => {
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Regenerate sitemap' }));
     await waitFor(() => expect(regenerate).toHaveBeenCalledTimes(1));
+    expect(regenerate).toHaveBeenCalledWith({});
+    expect(await within(dialog).findByRole('link', { name: 'https://site.test/regenerated' })).toHaveAttribute('href', 'https://site.test/regenerated');
+    expect(within(dialog).queryByRole('link', { name: 'https://site.test/one' })).toBeNull();
     await waitFor(() => expect(xml).toHaveBeenCalledTimes(2));
+    // Jini 1c5d476f added mutation invalidation; the modal must not also force a third read.
+    await act(async () => {});
+    expect(xml).toHaveBeenCalledTimes(2);
   });
 
   it('formats sitemap dates in the live admin locale without remounting or rewriting XML', async () => {
