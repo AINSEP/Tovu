@@ -25,7 +25,7 @@ test("Web creation uses the home, shared external registrations appear, and lega
     const created = await createSite({ name: "alpha" }, { ...options, initSite: async ({ dir, name }) => {
       writeSite(dir, "11111111-1111-4111-8111-111111111111", name); return { dir, siteId: "11111111-1111-4111-8111-111111111111" };
     } });
-    assert.equal(created.dir, path.join(root, "Documents", "Tovu", "sites", "alpha"));
+    assert.equal(created.dir, path.join(root, "Documents", "Tovu", "alpha"));
     assert.equal(fs.existsSync(path.join(cwd, "sites")), false);
     assert.equal(workspace.registry({}).list({})[0]?.createdBy, "Web");
     assert.equal(resolveSiteRoot(options), path.join(cwd, "sites", "tovu-dev"));
@@ -100,7 +100,7 @@ test("Web boot pins its site while later MRU and home changes affect only future
   try {
     const cwd = path.join(root, "repo"), env: NodeJS.ProcessEnv = { TOVU_SITE: "alpha" }, options = { cwd, homeDir: root, env };
     fs.mkdirSync(cwd);
-    const alpha = path.join(root, "Documents", "Tovu", "sites", "alpha"), beta = path.join(root, "Documents", "Tovu", "sites", "beta");
+    const alpha = path.join(root, "Documents", "Tovu", "alpha"), beta = path.join(root, "Documents", "Tovu", "beta");
     writeSite(alpha, "alpha-id"); writeSite(beta, "beta-id");
     assert.equal(pinDefaultSiteRoot({}, options), alpha);
     createSitesWorkspace({}, options).registry({}).merge({ entries: [{ id: "alpha-id", name: "Alpha", path: alpha, createdBy: "Web", lastOpened: null }] });
@@ -160,20 +160,18 @@ test("nested and former-level sites remain discoverable, while non-site siblings
     fs.mkdirSync(path.join(root, "Documents", "Tovu", "sites", "partial"));
     const sites = listSites(options);
     assert.deepEqual(sites.map((site) => site.dir).sort(), [old, nested].sort());
-    assert.equal(sites.find((site) => site.dir === old)?.moveIntoSites, true);
-    assert.equal(sites.find((site) => site.dir === nested)?.moveIntoSites, false);
-    assert.equal(createSitesWorkspace({}, options).home({}), path.dirname(nested));
+    assert.equal(createSitesWorkspace({}, options).home({}), path.dirname(old));
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 
-for (const layout of ["documents", "local"]) test(`Web hides nesting action when environment selects the ${layout} old home`, () => {
+for (const layout of ["documents", "local"]) test(`Web keeps sites listed when environment selects the ${layout} old home`, () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sitesnest2-web-override-")));
   try {
     const home = layout === "local" ? path.join(root, "Tovu") : path.join(root, "Documents", "Tovu");
     const dir = path.join(home, "alpha"); writeSite(dir, "alpha-id");
     const sites = listSites({ homeDir: root, cwd: root, env: { TOVU_SITES_HOME: home } });
-    assert.equal(sites.find((site) => site.dir === dir)?.moveIntoSites, false);
+    assert.equal(sites.find((site) => site.dir === dir)?.dir, dir);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 

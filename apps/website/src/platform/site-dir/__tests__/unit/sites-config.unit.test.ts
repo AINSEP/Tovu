@@ -21,7 +21,7 @@ function fixture() {
 test("content and chat resolve legacy, data.nosync and app-data independently without relocating files", () => {
   const f = fixture();
   try {
-    assert.equal(f.workspace.home({}), path.join(f.root, "Documents", "Tovu", "sites"));
+    assert.equal(f.workspace.home({}), path.join(f.root, "Documents", "Tovu"));
     let paths = resolveSiteDatabasePaths({ dir: f.dir }, { workspace: f.workspace });
     assert.equal(paths.contentDbPath, path.join(f.dir, "data.nosync", "content.db"));
     fs.writeFileSync(path.join(f.dir, "content.db"), "original");
@@ -90,7 +90,7 @@ test("non-iCloud synced sites home offers appData or local home, default appData
   try {
     const workspace = createSitesWorkspace({}, { ...f.options, env: { OneDrive: path.join(f.root, "Documents") } });
     assert.equal(workspace.config({}).warning?.provider, "OneDrive");
-    assert.equal(workspace.config({}).warning?.localHome, path.join(f.root, "Tovu", "sites"));
+    assert.equal(workspace.config({}).warning?.localHome, path.join(f.root, "Tovu"));
     assert.equal(workspace.config({}).databases, "appData");
     workspace.updateConfig({ patch: { databases: "appData" } }); assert.equal(workspace.config({}).warning?.provider, "OneDrive");
     workspace.updateConfig({ patch: { databases: "inSite", sitesHome: path.join(f.root, "Tovu", "sites") } }); assert.equal(workspace.config({}).warning, null);

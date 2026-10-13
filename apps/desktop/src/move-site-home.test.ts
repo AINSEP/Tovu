@@ -16,12 +16,12 @@ function fixture({ t }: { t: TestContext }, _options = {}) {
   fs.mkdirSync(path.join(repoRoot, "dist"));
   fs.writeFileSync(path.join(repoRoot, "dist", "cli.js"), "");
   fs.writeFileSync(path.join(repoRoot, "package.json"), JSON.stringify({ bin: { tovu: "dist/cli.js" } }));
-  return { dir: "/users/a/Documents/Tovu/alpha", repoRoot, cliMode: "source" as const, projectsPath: "/profile/desktop-projects.json" };
+  return { dir: "/users/a/Documents/Tovu/sites/alpha", repoRoot, cliMode: "source" as const, projectsPath: "/profile/desktop-projects.json" };
 }
 for (const cliMode of ["source", "compiled"] as const) test(`desktop uses the ${cliMode} CLI move owner and forwards its profile without credentials`, async (t) => {
   const input = { ...fixture({ t }), cliMode };
   const calls: unknown[] = [];
-  const to = "/users/a/Documents/Tovu/sites/alpha";
+  const to = "/users/a/Documents/Tovu/alpha";
   const result = await moveSiteHome(input, { baseEnv: { TOVU_ADMIN_PASSWORD: "private", TOVU_SITES_HOME: "/custom" }, execute: async (command, args, options) => {
     calls.push([command, args]); assert.equal(options?.env?.TOVU_ADMIN_PASSWORD, undefined);
     assert.equal(options?.env?.TOVU_SITE_DIR, input.dir); assert.equal(options?.env?.TOVU_SITES_HOME, "/custom");

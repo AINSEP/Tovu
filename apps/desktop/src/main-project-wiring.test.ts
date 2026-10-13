@@ -247,3 +247,13 @@ test("deskfx2 MUST-1: main arms the site session before probing or loading admin
   assert.match(body, /armDesktopOwnerSignIn\(\{\s*session: session\.fromPartition\(partition\), adminUrl: server\.adminUrl, capability: server\.ownerSignInCapability/);
   assert.ok(body.indexOf('armDesktopOwnerSignIn({') < body.indexOf('await ensureSiteSession({'));
 });
+
+
+test("flat-home reversal of 59a036e49 invokes startup migration before any boot-mode split", () => {
+  const call = source.indexOf('await migrateNestedSitesHome({ workspace: sharedSites');
+  const mode = source.indexOf('if (sitesUiRequested())', call);
+  assert.ok(call > source.indexOf('await reconcileOrphansOnBoot('));
+  assert.ok(mode > call);
+  assert.match(source.slice(call, mode), /repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode\(\)/);
+  assert.match(source.slice(call, mode), /projectsPath: sitesFilePath\(app.getPath\("userData"\)\)/);
+});

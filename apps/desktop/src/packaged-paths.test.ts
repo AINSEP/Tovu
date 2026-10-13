@@ -88,7 +88,7 @@ test("a packaged app has no dev fallback site, so that precedence tier is absent
 
 test("a packaged app scans a user-writable root instead of the read-only payload", () => {
   const roots = packagedRoots();
-  assert.deepEqual(roots.siteScanRoots, [path.join(DOCUMENTS, "Tovu", "sites")]);
+  assert.deepEqual(roots.siteScanRoots, [path.join(DOCUMENTS, "Tovu")]);
   for (const root of roots.siteScanRoots) {
     assert.ok(!root.startsWith(roots.payloadRoot), `${root} must not sit inside the read-only payload`);
   }

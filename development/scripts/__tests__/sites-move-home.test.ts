@@ -12,7 +12,7 @@ import { moveSitesHome, planSitesMove, inspectStoppedDatabase, parseSitesMoveArg
 import { moveLegacySite } from "../../../apps/website/src/platform/site-dir/move-sites-home.js";
 import { createNodeDurableJsonPorts, directoryFingerprint, moveDirectoryVerified } from "@jini-ai/platform/fs";
 function fixture() {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-move-home2-"))), repoRoot = path.join(root, "repo"), dir = path.join(root, "Documents", "Tovu", "alpha");
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-move-home2-"))), repoRoot = path.join(root, "repo"), dir = path.join(root, "Documents", "Tovu", "sites", "alpha");
   const workspace = createSitesWorkspace({}, { homeDir: root, cwd: repoRoot, env: {}, platform: "linux" });
   fs.mkdirSync(path.join(root, "Documents"));
   fs.mkdirSync(dir, { recursive: true });
@@ -30,9 +30,9 @@ test("dry run never opens a DB, cleans a stale lease, creates config/catalog or 
     fs.writeFileSync(path.join(f.dir, ".tovu-running.json"), JSON.stringify({ pid: 2147483647, port: 3000, app: "Web", started: "2026-10-09", token: "stale", scheme: "http" }));
     const before = directoryFingerprint({ dir: f.dir });
     const plans = await moveSitesHome({ repoRoot: f.repoRoot }, { workspace: f.workspace, verifyDatabase: () => { throw new Error("Must not open a DB during dry run"); }, stop: async () => { throw new Error("Must not stop"); } });
-    assert.equal(plans[0]?.to, path.join(f.root, "Documents", "Tovu", "sites", "alpha")); assert.equal(plans[0]?.databases.length, 2);
+    assert.equal(plans[0]?.to, path.join(f.root, "Documents", "Tovu", "alpha")); assert.equal(plans[0]?.databases.length, 2);
     assert.equal(directoryFingerprint({ dir: f.dir }), before); assert.equal(fs.existsSync(f.workspace.config({}).appData), false);
-    assert.equal(fs.existsSync(f.workspace.home({})), false);
+    assert.equal(fs.existsSync(path.join(f.workspace.home({}), "alpha")), false);
   } finally { f.cleanup(); }
 });
 test("planning skips dot-folder caches and stray folders without changing the former home", () => {
@@ -48,7 +48,7 @@ test("planning skips dot-folder caches and stray folders without changing the fo
     assert.deepEqual(plans.map((plan) => plan.from), [f.dir]);
     assert.deepEqual(skipped.sort(), [cache, stray, hidden].sort());
     assert.equal(directoryFingerprint({ dir: path.dirname(f.dir) }), before);
-    assert.equal(fs.existsSync(f.workspace.home({})), false);
+    assert.equal(fs.existsSync(path.join(f.workspace.home({}), "alpha")), false);
   } finally { f.cleanup(); }
 });
 test("--site limits planning and dry runs, and repeated names never duplicate a move", async () => {
@@ -229,14 +229,14 @@ test("deskfx S6: moving a stopped WAL-mode site needs no DB copies or backups", 
   } finally { f.cleanup(); }
 });
 
-/** Move a fixture to the owner's former default level without touching any real home. */
+/** Select the released 0.1.14 nested fixture without touching any real home. */
 function oldLevel(f: ReturnType<typeof fixture>): string {
-  const dir = path.join(f.root, "Documents", "Tovu", "alpha");
+  const dir = path.join(f.root, "Documents", "Tovu", "sites", "alpha");
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   if (f.dir !== dir) fs.renameSync(f.dir, dir);
   return dir;
 }
-test("old-level detection ignores siblings and moves only valid marker-bearing sites", () => {
+test("nested-default detection ignores siblings and moves only valid marker-bearing sites", () => {
   const f = fixture();
   try {
     const dir = oldLevel(f), parent = path.dirname(dir);
@@ -244,15 +244,15 @@ test("old-level detection ignores siblings and moves only valid marker-bearing s
     fs.mkdirSync(path.join(parent, "partial")); fs.writeFileSync(path.join(parent, "partial", "config.json"), "{}");
     const before = directoryFingerprint({ dir: parent });
     const plans = planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace });
-    assert.deepEqual(plans.map((plan) => [plan.from, plan.to]), [[dir, path.join(parent, "sites", "alpha")]]);
+    assert.deepEqual(plans.map((plan) => [plan.from, plan.to]), [[dir, path.join(f.workspace.home({}), "alpha")]]);
     assert.equal(directoryFingerprint({ dir: parent }), before);
   } finally { f.cleanup(); }
 });
-test("old-level apply updates shared catalog, every desktop profile and saved site roots; re-run is empty", async () => {
+test("nested-default apply updates shared catalog, every desktop profile and saved site roots; re-run is empty", async () => {
   const f = fixture();
   try {
-    const dir = oldLevel(f), home = path.dirname(dir), to = path.join(home, "sites", "alpha");
-    f.workspace.updateConfig({ patch: { sitesHome: home, siteRoots: [dir, path.join(dir, "uploads"), path.join(f.root, "unrelated")] } });
+    const dir = oldLevel(f), to = path.join(f.workspace.home({}), "alpha");
+    f.workspace.updateConfig({ patch: { siteRoots: [dir, path.join(dir, "uploads"), path.join(f.root, "unrelated")] } });
     f.workspace.registry({}).merge({ entries: [{ id: "alpha-id", name: "Alpha", path: dir, createdBy: "Desktop", lastOpened: "2026-10-09T00:00:00Z" }] });
     const projectsPaths = [...f.workspace.projectsPaths, path.join(f.root, "custom-profile", "desktop-projects.json")];
     const original = { siteDir: dir, createdAt: "2026-10-01", origin: "created", siteId: "alpha-id", displayNameAlias: "My Alpha" };
@@ -264,7 +264,7 @@ test("old-level apply updates shared catalog, every desktop profile and saved si
     assert.deepEqual(plans.map((plan) => plan.from), [dir]); assert.equal(fs.existsSync(dir), false);
     assert.deepEqual(f.workspace.registry({}).list({}), [{ id: "alpha-id", name: "Alpha", path: to, createdBy: "Desktop", lastOpened: "2026-10-09T00:00:00Z" }]);
     assert.deepEqual(f.workspace.config({}).siteRoots, [to, path.join(to, "uploads"), path.join(f.root, "unrelated")]);
-    assert.equal(JSON.parse(fs.readFileSync(f.workspace.config({}).configPath, "utf8")).sitesHome, path.join(home, "sites"));
+    assert.equal(JSON.parse(fs.readFileSync(f.workspace.config({}).configPath, "utf8")).sitesHome, undefined);
     for (const file of projectsPaths) assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")), { projects: [{ ...original, siteDir: to }], dismissed: [to, "/other"], extension: "keep" });
     const files = fs.readdirSync(to, { recursive: true }).map(String);
     for (const name of ["content.db", "chat.db"]) assert.equal(files.filter((file) => file.includes(name) && file.endsWith("-backup")).length, 0);
@@ -273,7 +273,7 @@ test("old-level apply updates shared catalog, every desktop profile and saved si
     assert.equal(directoryFingerprint({ dir: f.root }), before);
   } finally { f.cleanup(); }
 });
-test("a mixed batch skips and reports a running old-level site while moving its stopped sibling", async () => {
+test("a mixed batch skips and reports a running nested-default site while moving its stopped sibling", async () => {
   const f = fixture();
   try {
     const dir = oldLevel(f), beta = path.join(path.dirname(dir), "beta");
@@ -324,7 +324,7 @@ test("invalid desktop catalogs abort the move and keep their original bytes", as
 });
 
 
-test("partial cross-volume copy failure keeps old-level paths and bytes intact", async () => {
+test("partial cross-volume copy failure keeps nested-default paths and bytes intact", async () => {
   const f = fixture();
   try {
     const dir = oldLevel(f), to = path.join(f.workspace.home({}), "alpha");
@@ -354,7 +354,7 @@ test("the desktop CLI command invokes verified migration and returns its destina
       cwd: path.resolve(path.dirname(cli), "../../../.."), timeout: 120000, encoding: "utf8",
       env: { ...process.env, HOME: f.root, USERPROFILE: f.root, XDG_DATA_HOME: path.join(f.root, ".local", "share"),
         XDG_CONFIG_HOME: path.join(f.root, ".config"), APPDATA: path.join(f.root, "AppData", "Roaming"),
-        TOVU_SITE_DIR: dir, TOVU_SITES_HOME: f.workspace.home({}), TOVU_ADMIN_PASSWORD: undefined },
+        TOVU_SITE_DIR: dir, TOVU_SITES_HOME: undefined, TOVU_ADMIN_PASSWORD: undefined },
     });
     assert.deepEqual(JSON.parse(output.trim().split(/\r?\n/).at(-1)!), { to });
     assert.equal(fs.existsSync(dir), false); assert.equal(JSON.parse(fs.readFileSync(projects, "utf8")).projects[0].siteDir, to);
@@ -362,35 +362,35 @@ test("the desktop CLI command invokes verified migration and returns its destina
 });
 
 
-test("nesting never plans a local old-home site into the Documents home", async () => {
+test("relocation never plans a local old-home site into the Documents home", async () => {
   const f = fixture();
   try {
     const dir = oldLevel(f), local = path.join(f.root, "Tovu", "local-site");
     fs.mkdirSync(path.dirname(local)); fs.cpSync(dir, local, { recursive: true });
     const before = directoryFingerprint({ dir: local });
     assert.deepEqual(planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace }).map((plan) => plan.from), [dir]);
-    assert.throws(() => planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace, sourceRoots: [path.dirname(local)] }), /Only sites beside/);
-    assert.throws(() => planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace, sourceRoots: [path.join(f.repoRoot, "sites")] }), /Only sites beside/);
-    await assert.rejects(moveLegacySite({ dir: local }, { workspace: f.workspace, repoRoot: f.repoRoot }), /Only sites beside/);
+    assert.throws(() => planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace, sourceRoots: [path.dirname(local)] }), /Only sites inside the former default sites/);
+    assert.throws(() => planSitesMove({ repoRoot: f.repoRoot }, { workspace: f.workspace, sourceRoots: [path.join(f.repoRoot, "sites")] }), /Only sites inside the former default sites/);
+    await assert.rejects(moveLegacySite({ dir: local }, { workspace: f.workspace, repoRoot: f.repoRoot }), /Only sites inside the former default sites/);
     assert.equal(directoryFingerprint({ dir: local }), before);
   } finally { f.cleanup(); }
 });
 
-for (const oldHome of ["documents", "local"]) test(`an explicit ${oldHome} old-home override refuses nesting with an accurate remedy`, async () => {
+for (const oldHome of ["documents", "local"]) test(`an explicit ${oldHome} old-home override refuses automatic relocation`, async () => {
   const f = fixture();
   try {
     const dir = oldLevel(f);
     const home = oldHome === "local" ? path.join(f.root, "Tovu") : path.dirname(dir);
     const source = path.join(home, "alpha");
-    if (source !== dir) { fs.mkdirSync(home); fs.renameSync(dir, source); }
+    if (source !== dir) { fs.mkdirSync(home, { recursive: true }); fs.renameSync(dir, source); }
     const workspace = createSitesWorkspace({}, { homeDir: f.root, cwd: f.repoRoot, platform: "linux", env: { TOVU_SITES_HOME: home } });
     const before = directoryFingerprint({ dir: source });
-    await assert.rejects(moveLegacySite({ dir: source }, { workspace, repoRoot: f.repoRoot }), /already directly inside the selected sites home/);
+    await assert.rejects(moveLegacySite({ dir: source }, { workspace, repoRoot: f.repoRoot }), /Only sites inside the former default sites/);
     assert.equal(directoryFingerprint({ dir: source }), before);
   } finally { f.cleanup(); }
 });
 
-for (const layout of ["root", "data.nosync"] as const) test(`same-disk nesting of ${layout} DBs preserves earlier backups without making DB copies`, async () => {
+for (const layout of ["root", "data.nosync"] as const) test(`same-disk relocation of ${layout} DBs preserves earlier backups without making DB copies`, async () => {
   const f = fixture();
   try {
     const dir = oldLevel(f), to = path.join(f.workspace.home({}), "alpha");
@@ -420,7 +420,7 @@ for (const layout of ["root", "data.nosync"] as const) test(`same-disk nesting o
 });
 
 
-test("a selected old-level folder without site markers reports selection failure rather than a stop remedy", async () => {
+test("a selected nested-default folder without site markers reports selection failure rather than a stop remedy", async () => {
   const f = fixture();
   try {
     const dir = oldLevel(f); fs.rmSync(path.join(dir, ".site-meta.json"));

@@ -87,12 +87,5 @@ test('the locate hook shows pending/error state and delivers the found record wi
   assert.deepEqual(delivered, [[FOUND, '/sites/missing']]);
   assert.equal(latest.errorOf('/sites/missing'), null);
   assert.equal(latest.locatingId, null);
-  const moves: unknown[] = [];
-  dom.window.tovuRunner = { ...dom.window.tovuRunner, moveSiteHome: async (input: unknown) => {
-    moves.push(input); return FOUND;
-  } };
-  await act(async () => { await latest.moveIntoSites!('/sites/old-level'); });
-  assert.deepEqual(moves, [{ id: '/sites/old-level', confirmed: true }]);
-  assert.deepEqual(delivered.at(-1), [FOUND, '/sites/old-level']);
-  assert.equal(latest.locatingId, null);
+
 });

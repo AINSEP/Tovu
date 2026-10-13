@@ -1747,38 +1747,12 @@ test('D-10: Rename refuses duplicate before calling its write port and allows it
   assert.equal(writes, 1);
 });
 
-test("sitesnest: desktop refuses live moves before CLI invocation and returns the new card after a stopped move", async (t) => {
-  const { handleMoveHome } = await import("./project-ipc.ts");
-  const { createSitesWorkspace } = await import("./shared-sites.ts");
-  const root = fs.realpathSync(tempDir()); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const dir = writeSite(path.join(root, "Documents", "Tovu", "alpha"), "alpha-id");
-  const sharedSites = createSitesWorkspace({}, { homeDir: root, env: {}, platform: "linux" });
-  const projectsPath = path.join(root, "profile", "desktop-projects.json");
-  trackSite(projectsPath, dir, SITE_ORIGIN.adopted);
-  let calls = 0;
-  const to = path.join(sharedSites.home({}), "alpha");
-  const deps = baseDeps({ sharedSites, projectsPath, moveSiteHome: async (input) => {
-    calls++; assert.equal(input.dir, dir); assert.equal(input.projectsPath, projectsPath);
-    fs.mkdirSync(path.dirname(to), { recursive: true }); fs.renameSync(dir, to);
-    writeTrackedSites(projectsPath, readTrackedSites(projectsPath).map((row) => ({ ...row, siteDir: to })));
-    return to;
-  } });
-  await assert.rejects(handleMoveHome({ input: { id: dir }, deps }), /Confirm/);
-  const live = sharedSites.claim({ path: dir, app: "Web", port: 3000 });
-  await assert.rejects(handleMoveHome({ input: { id: dir, confirmed: true }, deps }), /Stop this site/);
-  assert.equal(calls, 0); sharedSites.running({ path: dir }).release({ token: live.record.token });
-  const moved = await handleMoveHome({ input: { id: dir, confirmed: true }, deps });
-  assert.equal(calls, 1); assert.equal(moved.id, to); assert.equal(moved.moveIntoSites, false);
-  assert.equal(moved.folderMissing, false);
-});
-
-
 test("default rescan and Add folder use the workspace's injected home for broad-root admission", async (t) => {
   const { createSitesWorkspace } = await import("./shared-sites.ts");
   const home = fs.realpathSync(tempDir()); t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const sharedSites = createSitesWorkspace({}, { homeDir: home, env: {}, cwd: home, sourceRoots: [], platform: "linux" });
   const old = writeSite(path.join(home, "Documents", "Tovu", "alpha"), "alpha-id");
-  const nested = writeSite(path.join(sharedSites.home({}), "beta"), "beta-id");
+  const nested = writeSite(path.join(sharedSites.home({}), "sites", "beta"), "beta-id");
   writeSite(path.join(home, "Tovu", "stay-local"), "local-id");
   const projectsPath = path.join(home, "profile", "desktop-projects.json"), statePath = path.join(home, "profile", "desktop-state.json");
   const siteFolders = createSiteFolders({ statePath, defaultRoots: [], workspace: sharedSites });
@@ -1793,21 +1767,6 @@ test("default rescan and Add folder use the workspace's injected home for broad-
   picked = path.join(home, "Tovu");
   await assert.rejects(Promise.resolve(registered.get(SITE_IPC_CHANNELS.addFolder)!({})), /too broad/);
   assert.deepEqual(siteFolders.read({}).extraRoots, [path.join(home, "Documents", "Websites")]);
-});
-
-test("move-home IPC refuses an old-home override and an unrelated local home before invoking CLI", async (t) => {
-  const { handleMoveHome } = await import("./project-ipc.ts");
-  const { createSitesWorkspace } = await import("./shared-sites.ts");
-  const home = fs.realpathSync(tempDir()); t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  const local = writeSite(path.join(home, "Tovu", "alpha"), "alpha-id");
-  for (const env of [{ TOVU_SITES_HOME: path.dirname(local) }, {}]) {
-    const sharedSites = createSitesWorkspace({}, { homeDir: home, env, platform: "linux" });
-    const projectsPath = path.join(home, "profile", "desktop-projects.json"); trackSite(projectsPath, local, SITE_ORIGIN.adopted);
-    let calls = 0;
-    const deps = baseDeps({ sharedSites, projectsPath, moveSiteHome: async () => { calls++; return local; } });
-    await assert.rejects(handleMoveHome({ input: { id: local, confirmed: true }, deps }), env.TOVU_SITES_HOME ? /already directly inside/ : /Only sites beside/);
-    assert.equal(calls, 0);
-  }
 });
 
 test("stalecard: list heals a themes-only duplicate using its valid tracked twin outside scan roots", () => {

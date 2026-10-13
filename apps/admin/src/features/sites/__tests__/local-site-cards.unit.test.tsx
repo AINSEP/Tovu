@@ -129,14 +129,11 @@ it("Trash says it is empty instead of rendering an empty grid", () => {
   expect(screen.queryByRole("group", { name: "Site Trash" })).toBeNull();
 });
 
-it("old-level stopped cards offer Move into sites/ through the existing action controller", () => {
+it("running and stopped cards no longer offer the retired nesting action (59a036e49)", () => {
   const snapshot = localSnapshot(), actions: unknown[] = [];
-  snapshot.sites = snapshot.sites.map((site) => ({ ...site, moveIntoSites: true }));
   renderCards(snapshot, recordingController(actions));
-  expect(within(screen.getByTitle("/sites/owner")).queryByRole("button", { name: "More actions for owner" })).toBeNull();
   expect(openMenu("alpha")).not.toContain("Move into sites/");
   fireEvent.keyDown(screen.getByRole("menu", { name: "More actions for alpha" }), { key: "Escape" });
-  expect(openMenu("beta")).toContain("Move into sites/");
-  fireEvent.click(screen.getByRole("menuitem", { name: "Move into sites/" }));
-  expect(actions).toEqual([["beta", "move"]]);
+  expect(openMenu("beta")).not.toContain("Move into sites/");
+  expect(actions).toEqual([]);
 });

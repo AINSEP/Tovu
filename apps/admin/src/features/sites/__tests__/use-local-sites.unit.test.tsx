@@ -109,25 +109,25 @@ it("card facts protect serving/starting/crashed-with-live-pid and open only read
   expect(resolveTrashDeleteDisabled({ id: "x", checked: { x: true }, busyName: "y" })).toBe(true);
 });
 
-it("moving uses confirmation, cancellation and the existing busy/error lifecycle", async () => {
+it("switching uses confirmation, cancellation and the existing busy/error lifecycle", async () => {
   const snapshot = fixture(), writes: unknown[] = [], questions: string[] = [];
   let consent = false;
-  const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return {}; } });
+  const port = createFakeSitesPort(snapshot, { manageLocalSite: async (input) => { writes.push(input); return { restarting: true }; } });
   const { result, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }, { confirm: (message) => { questions.push(message); return consent; } }), { wrapper });
-  await act(async () => { await result.current.run("alpha", "move"); });
-  expect(writes).toEqual([]); expect(questions[0]).toContain("Move this stopped site into sites/");
+  await act(async () => { await result.current.run("alpha", "switch"); });
+  expect(writes).toEqual([]); expect(questions[0]).toContain("Switch now? Unsaved changes will be lost.");
   consent = true;
-  await act(async () => { await result.current.run("alpha", "move"); });
-  expect(writes).toEqual([{ name: "alpha", action: "move", confirmed: true, checked: false }]);
+  await act(async () => { await result.current.run("alpha", "switch"); });
+  expect(writes).toEqual([{ name: "alpha", action: "switch", confirmed: true, checked: false }]);
   expect(result.current.busyName).toBeNull(); expect(result.current.error).toBeNull(); unmount();
 });
 
 
-it("the shared confirmation modal presents and settles the site move", async () => {
+it("the shared confirmation modal presents and settles a site switch", async () => {
   const { result, unmount } = renderHook(() => useSiteConfirm({ t }));
   let answer!: Promise<boolean>;
-  act(() => { answer = result.current.confirm("Move this stopped site into sites/?", { action: "move" }); });
-  expect(result.current.open).toBe(true); expect(result.current.title).toBe("Move into sites/?");
-  expect(result.current.confirmLabel).toBe("Move into sites/"); expect(result.current.tone).toBe("warning");
+  act(() => { answer = result.current.confirm("Switch now? Unsaved changes will be lost.", { action: "switch" }); });
+  expect(result.current.open).toBe(true); expect(result.current.title).toBe("Switch to this site now?");
+  expect(result.current.confirmLabel).toBe("Switch now"); expect(result.current.tone).toBe("warning");
   act(() => result.current.onConfirm()); expect(await answer).toBe(true); expect(result.current.open).toBe(false); unmount();
 });

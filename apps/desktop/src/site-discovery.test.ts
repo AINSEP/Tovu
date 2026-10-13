@@ -81,16 +81,16 @@ test('the real worker reads shared extra roots and the legacy MRU fresh without 
 });
 
 
-test("the real worker discovers both default levels with its own injected policy home", async (t) => {
+test("the real worker discovers default and remaining nested sites with its own injected policy home", async (t) => {
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sitesnest2-worker-")));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const workspaceOptions = { homeDir: home, env: {}, cwd: home, sourceRoots: [], platform: "linux" as const };
   const workspace = createSitesWorkspace({}, workspaceOptions), old = path.join(home, "Documents", "Tovu");
-  const alpha = path.join(old, "alpha"), beta = path.join(workspace.home({}), "beta");
+  const alpha = path.join(old, "alpha"), beta = path.join(workspace.home({}), "sites", "beta");
   for (const dir of [alpha, beta, path.join(home, "Tovu", "stay-local")]) {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: path.basename(dir) }));
-    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: path.basename(dir) }));
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: path.basename(dir), templateId: "blank", templateVersion: "1", schemaVersion: 0, schemaTag: "test", createdAt: "date" }));
   }
   assert.deepEqual(await discoverDesktopSites({ statePath: path.join(home, "absent-state.json"), workspaceOptions }), [alpha, beta]);
   await assert.rejects(discoverDesktopSites({ statePath: path.join(home, "absent-state.json"), workspaceOptions,

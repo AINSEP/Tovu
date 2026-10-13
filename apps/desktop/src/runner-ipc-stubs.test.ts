@@ -82,7 +82,6 @@ const IMPLEMENTED_CHANNELS = new Set([
   "runner:sites:add-site",
   "runner:sites:rename",
   "runner:sites:preview",
-  "runner:sites:move-home",
   "runner:sites:locate",
   "runner:sites:token-sign-in-plugins",
   // Real subscription handlers in site-theme-preview-ipc.ts; its event is push-only.
