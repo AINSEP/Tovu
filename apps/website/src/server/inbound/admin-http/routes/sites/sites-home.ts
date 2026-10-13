@@ -1,5 +1,4 @@
 /** Local creation-home setting, authorized at the same boundary as Sites mutations. */
-import { moveLegacySite } from "#src/platform/site-dir/move-sites-home";
 import fs from "node:fs";
 import path from "node:path";
 import type { Express } from "express";
@@ -10,19 +9,6 @@ import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
 import type { AdminSitesDeps } from "../system/sites.js";
 
 export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express; deps: Pick<AdminSitesDeps, "workspaceId" | "authorize" | "isSiteSwitcherEnabled">; workspace: SitesWorkspace }, _options = {}): void {
-  app.post("/api/admin/v1/workspaces/:workspaceId/system/sites/:name/move", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
-    if (!(deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabled)()) { res.status(403).json({ error: "Local sites management is disabled." }); return; }
-    try {
-      const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
-      if (req.body?.confirmed !== true) { res.status(400).json({ error: "Confirm the site move first." }); return; }
-      const name = String(req.params.name ?? "");
-      const matches = workspace.registry({}).list({}).filter((row) => row.id === name || path.basename(row.path) === name);
-      if (matches.length !== 1) { res.status(404).json({ error: "Site was not found unambiguously." }); return; }
-      res.json({ dir: await moveLegacySite({ dir: matches[0]!.path }, { workspace }) });
-    } catch (error) { res.status(409).json({ error: error instanceof Error ? error.message : "Could not move the stopped site." }); }
-  });
   const configRoute = "/api/admin/v1/workspaces/:workspaceId/system/sites/config";
   for (const method of ["get", "put"] as const) app[method](configRoute, async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }

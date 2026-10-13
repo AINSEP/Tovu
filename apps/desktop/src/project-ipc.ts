@@ -26,7 +26,6 @@ import { classifySiteDirSafely } from "./site-dir-store.ts";
 import path from "node:path";
 import os from "node:os";
 import fsp from "node:fs/promises";
-import { moveSiteHome } from "./move-site-home.ts";
 import { removeSiteTree } from "./remove-site-tree.ts";
 import { uniqueSiteName, duplicateSiteNameError } from "./site-name-policy.ts";
 import { siteNameError } from "./contracts/site-name.ts";
@@ -56,7 +55,6 @@ const SITE_IPC_CHANNELS = Object.freeze({
   addSite: "runner:sites:add-site",
   rename: "runner:sites:rename",
   preview: "runner:sites:preview",
-  moveHome: "runner:sites:move-home",
   locate: "runner:sites:locate",
   tokenSignInPlugins: "runner:sites:token-sign-in-plugins",
 });
@@ -287,14 +285,6 @@ function siteLifecycle(running: boolean, transition: "starting" | "stopping" | n
 type SiteRecordDeps = Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir">>;
 type SharedRunning = ReturnType<ReturnType<SitesWorkspace["running"]>["read"]> | undefined;
 
-/** A legacy-home site sitting beside the shared sites home, which the card offers to move in. */
-function offersMoveIntoSites(siteDir: string, sharedSites: SitesWorkspace | undefined): boolean {
-  const home = sharedSites?.home({});
-  if (!home || !sharedSites) return false;
-  const parent = path.dirname(siteDir);
-  return sharedSites.legacyHomes({}).includes(parent) && parent === path.dirname(home) && parent !== home && siteDir !== home;
-}
-
 /** The admin URL of a server this window does not own: an external one it attached to, or the other app's. */
 function siteExternalUrl(openEntry: OpenSiteEntry | undefined, sharedRunning: SharedRunning): string | undefined {
   if (openEntry) return openEntry.server.external ? `${openEntry.server.origin}/admin/` : undefined;
@@ -327,7 +317,6 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
   const sharedStarting = sharedRunning && !sharedPort ? "starting" : null;
   const lifecycle = siteLifecycle(running, deps.transitions?.get(row.siteDir) ?? sharedStarting);
   return {
-    moveIntoSites: offersMoveIntoSites(row.siteDir, deps.sharedSites),
     id: row.siteDir,
     slug: path.basename(row.siteDir),
     // The config may be gone even when a themes-only folder remains; keep the last known name.
@@ -1215,30 +1204,6 @@ async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialo
   return deps.siteFolders.add({ root });
 }
 
-/** Explicit old-level move action. Local serialization and shared leases reject live owners;
- * the CLI repeats admission using SQLite locks before the verified copy and catalog transaction.
- * @returns The card at its destination; rejects absent/unconfirmed/live sites before invocation.
- * @complexity O(n) tracked rows plus the selected site's CLI relocation cost.
- */
-export async function handleMoveHome({ input, deps }: {
-  input: { id?: string; confirmed?: boolean };
-  deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "sharedSites" | "openSites" | "transitions" | "moveSiteHome" | "repoRoot" | "cliMode" | "readSiteName" | "readPreviewVersion">;
-}, _options = {}): Promise<SiteRecord> {
-  if (input?.confirmed !== true || typeof input.id !== "string") throw new Error("Confirm the site move first.");
-  const id = input.id;
-  return await deps.serializer.run(id, async () => {
-    const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
-    if (!row || !deps.sharedSites?.legacyHomes({}).includes(path.dirname(id))) throw new Error("This site is not at the old sites-home level.");
-    if (path.dirname(id) === deps.sharedSites.home({})) throw new Error("This site is already directly inside the selected sites home. Select its nested sites/ home before moving it.");
-    if (path.dirname(id) !== path.dirname(deps.sharedSites.home({}))) throw new Error("Only sites beside the selected sites/ home can be moved into it.");
-    if (deps.openSites.get(id)?.server || deps.transitions?.get(id) || deps.sharedSites.running({ path: id }).peek({})) throw new Error("Stop this site before moving it.");
-    const to = await (deps.moveSiteHome ?? moveSiteHome)({ dir: id, repoRoot: deps.repoRoot, cliMode: deps.cliMode, projectsPath: deps.projectsPath });
-    const moved = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === to);
-    if (!moved) throw new Error("The move completed without updating its desktop card.");
-    return buildSiteRecord(moved, deps);
-  });
-}
-
 /**
  * Registers the real `runner:sites:*` handlers, including discovery-folder settings.
  *
@@ -1323,7 +1288,6 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>): void {
   deps.ipcMain.handle(SITE_IPC_CHANNELS.rename, (_event, input) => handleRename(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, () => handleAddSite(deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.moveHome, (_event, input) => handleMoveHome({ input, deps }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
 }
@@ -1355,7 +1319,6 @@ interface ProjectIpcDeps<TCtx = unknown> {
   adoptSiteDir: (input: AdoptSiteDirInput) => Promise<string>;
   addSitePointer: AddSitePointerLike;
   /** Injected for tests; defaults to `agent-plugin-tokens.ts`'s CLI-backed lister. */
-  moveSiteHome?: typeof moveSiteHome;
   listTokenSignInPlugins?: (input: { repoRoot: string; cliMode?: "source" | "compiled" }) => Promise<TokenSignInPlugin[]>;
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its
   // `SiteClassification`. The throwing `classifySiteDir` and the tests' fakes return a subset.

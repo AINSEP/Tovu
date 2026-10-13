@@ -64,8 +64,6 @@ export interface SiteListEntry {
    *  the one that would still be served by a request handled right now, not any pending choice a
    *  not-yet-actioned `activateSite` call may have persisted for the NEXT boot. */
   active: boolean;
-  /** Old default-level sites remain visible with an explicit verified-move action. */
-  moveIntoSites?: boolean;
   id?: string;
   running?: import("@jini-ai/platform/fs").DirectoryRunningRecord | null;
 }
@@ -86,7 +84,6 @@ export type ListSitesOptional = ResolveSiteRootOptional;
 export function listSites(optional: ListSitesOptional = {}): SiteListEntry[] {
   const cwd = optional.cwd ?? process.cwd();
   const workspace = createSitesWorkspace({}, optional);
-  const home = workspace.home({}), legacyHomes = workspace.legacyHomes({});
   const currentSiteDir = resolveSiteRoot(optional);
   const registry = workspace.registry({});
   const known = new Set(registry.list({}).map((entry) => entry.path));
@@ -123,7 +120,6 @@ export function listSites(optional: ListSitesOptional = {}): SiteListEntry[] {
     usedNames.add(name);
     discovered.push({ id: meta.siteId, name: config.name, path: dir, createdBy: "discovered", lastOpened: null });
     sites.push({ id: meta.siteId, name, dir, displayName: config.name, createdAt: meta.createdAt,
-      moveIntoSites: legacyHomes.includes(path.dirname(dir)) && path.dirname(dir) === path.dirname(home) && path.dirname(dir) !== home && dir !== home,
       active: dir === currentSiteDir, running: readSiteRunning({ dir }, { workspace }) });
   }
   if (discovered.length) registry.merge({ entries: discovered });

@@ -373,7 +373,7 @@ function isDefaultSite(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): 
 }
 
 /** Overflow-menu entries a card can carry, in menu order — the destructive one always last. */
-export type SiteCardMenuAction = "make-default" | "switch" | "trash" | "move";
+export type SiteCardMenuAction = "make-default" | "switch" | "trash";
 
 /**
  * Everything a site card's controls render, decided once (2026-10-08 card polish).
@@ -402,7 +402,6 @@ export function resolveSiteCardView(
   const menu: SiteCardMenuAction[] = [];
   if (switchingEnabled && activatingName === null && !local.serving && !isDefaultSite(site, snapshot)) menu.push("make-default");
   if (lifecycle && local.switchEnabled) menu.push("switch");
-  if (lifecycle && site.moveIntoSites && !local.serving && !live && !local.disabled) menu.push("move");
   if (lifecycle && !local.serving && !live) menu.push("trash");
   return {
     lifecycle: lifecycle && !local.serving && !external
@@ -485,7 +484,6 @@ export function buildSiteCardMenuItems(
   const items: Record<SiteCardMenuAction, RowMenuItem> = {
     "make-default": { key: "make-default", label: t("Make default"), onSelect: () => onActivate(site.name) },
     switch: { key: "switch", label: t("Switch now"), onSelect: () => void controller?.run(site.name, "switch") },
-    move: { key: "move", label: t("Move into sites/"), onSelect: () => void controller?.run(site.name, "move") },
     trash: { key: "trash", label: t("Delete…"), tone: "danger", onSelect: () => void controller?.run(site.name, "trash") },
   };
   return menu.map((action) => items[action]);

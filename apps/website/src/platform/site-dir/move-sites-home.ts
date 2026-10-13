@@ -1,4 +1,4 @@
-/** Explicit move action only. Dry-run performs no stop, mkdir, lock cleanup, registry write or move. */
+/** Stopped-site CLI owner, reused by automatic desktop startup relocation. Dry-run performs no stop, mkdir, lock cleanup, registry write or move. */
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -26,12 +26,12 @@ interface SitesMovePlanOptions {
   sites?: readonly string[];
   onSkipped?: (required: { dir: string }) => void;
   onRunning?: (required: { dir: string; running: DirectoryRunningRecord }) => void;
-  /** Explicit absolute roots are used by the card action to select one validated old-level site. */
+  /** Explicit roots select one validated site from the released nested default. */
   sourceRoots?: readonly string[];
   projectsPaths?: readonly string[];
 
 }
-/** Inspect validated immediate children beside the selected nested home. Symlinked roots/sites and target collisions
+/** Inspect validated immediate children in the released nested default. Symlinked roots/sites and target collisions
  * are refused. No valid metadata is guessed for a legacy folder; initialize/repair it first.
  * Dot-folders and folders without both markers are reported through onSkipped, without validation.
  * @param options.sites - Optional checkout folder names to include, rather than display names.
@@ -43,14 +43,14 @@ interface SitesMovePlanOptions {
 export function planSitesMove({ repoRoot }: { repoRoot: string }, { workspace = createSitesWorkspace({}, { cwd: repoRoot, catalogRecovery: false }), sites, onSkipped, sourceRoots }: SitesMovePlanOptions = {}): MovePlan[] {
   const home = workspace.home({});
   const plans: MovePlan[] = [];
-  const parent = path.dirname(home);
-  const formerRoots = workspace.legacyHomes({}).includes(parent) ? [parent] : [];
+  const nestedRoot = workspace.nestedSitesRoot({});
+  const formerRoots = nestedRoot ? [nestedRoot] : [];
   const roots = [...new Set(sourceRoots ?? formerRoots)];
   const selectedNames = new Set(sites);
   for (const candidate of roots) {
-    // Nest within the selected home family only: local ~/Tovu sites must never be silently
+    // Relocate within the implicit Documents home family only: local ~/Tovu sites must never be silently
     // transferred into synced Documents. Checkout compatibility roots remain discovery sources.
-    if (!formerRoots.includes(path.resolve(candidate))) throw new Error("Only sites beside the selected sites/ home can be moved into it.");
+    if (!formerRoots.includes(path.resolve(candidate))) throw new Error("Only sites inside the former default sites/ folder can be moved to Documents/Tovu.");
     if (!fs.existsSync(candidate)) continue;
     if (fs.lstatSync(candidate).isSymbolicLink()) throw new Error("The source sites folder must not be a symlink.");
     const root = fs.realpathSync(candidate);
@@ -74,7 +74,7 @@ export function planSitesMove({ repoRoot }: { repoRoot: string }, { workspace = 
       const databases = [{ from: existing.contentDbPath, to: selected.contentDbPath }, { from: existing.chatDbPath, to: selected.chatDbPath }]
         .filter((db) => fs.existsSync(db.from)).map((db) => ({ ...db,
           // Existing in-site placement wins: a folder rename carries the DB atomically, so a
-          // nesting move needs neither a new DB copy nor a second backup of those same bytes.
+          // folder-level move needs neither a new DB copy nor a second backup of those same bytes.
           to: placement === "inSite" && db.from.startsWith(from + path.sep) ? path.join(to, path.relative(from, db.from)) : db.to,
         }));
       for (const db of databases) {
@@ -196,7 +196,7 @@ export function inspectStoppedDatabase({ path: file }: { path: string }, _option
   }
 }
 
-/** Move one catalog-selected old-level site through the existing stopped/verified mover.
+/** Move one selected nested-default site through the existing stopped/verified mover.
  * Callers resolve the directory from their catalog; this boundary rejects arbitrary source roots.
  * @returns The verified destination; throws on a running site, missing marker or collision.
  * @example await moveLegacySite({ dir }, { workspace });
@@ -205,11 +205,10 @@ export function inspectStoppedDatabase({ path: file }: { path: string }, _option
 export async function moveLegacySite({ dir }: { dir: string }, { workspace = createSitesWorkspace({}), projectsPaths, repoRoot = process.cwd() }: {
   workspace?: SitesWorkspace; projectsPaths?: readonly string[]; repoRoot?: string;
 } = {}): Promise<string> {
+  if (fs.lstatSync(dir).isSymbolicLink()) throw new Error("The source site must not be a symlink.");
   const from = fs.realpathSync(dir), root = path.dirname(from);
-  if (!workspace.legacyHomes({}).includes(root) || from === workspace.home({})) throw new Error("This site is not at the old sites-home level.");
-  if (root === workspace.home({})) throw new Error("This site is already directly inside the selected sites home. Select its nested sites/ home before moving it.");
-  if (root !== path.dirname(workspace.home({}))) throw new Error("Only sites beside the selected sites/ home can be moved into it.");
+  if (root !== workspace.nestedSitesRoot({})) throw new Error("Only sites inside the former default sites/ folder can be moved to Documents/Tovu.");
   const moved = await moveSitesHome({ repoRoot }, { apply: true, workspace, sites: [path.basename(from)], sourceRoots: [root], projectsPaths });
-  if (moved.length !== 1) throw new Error("No site matched this move. Check its folder and the selected sites/ home.");
+  if (moved.length !== 1) throw new Error("No site matched this move. Check its folder and the default Documents/Tovu home.");
   return moved[0]!.to;
 }

@@ -106,7 +106,7 @@ function resolveDesktopRoots(input: DesktopRootsInput): DesktopRoots {
     // is the user-writable place a site would plausibly live. Deliberately NOT created here —
     // `discoverSiteDirs` tolerates a missing root, and creating a folder in someone's Documents as
     // a side effect of launching is not this function's call to make.
-    siteScanRoots: [path.join(input.documentsDir, "Tovu", "sites")],
+    siteScanRoots: [path.join(input.documentsDir, "Tovu")],
     // A packaged app ships no `apps/website/src/` and no `tsx`, so source mode cannot work. It is
     // also what keeps the agent daemon off `npx`: `daemon-supervisor.ts` spawns `npx tsx` for a
     // `.ts` daemon path and `process.execPath` for a compiled `.js` one, so compiled mode is what

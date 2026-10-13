@@ -45,7 +45,7 @@ export function createProgram(): Command {
   program.configureOutput({ writeErr: () => {} });
 
   program.command("sites").description("manage shared local sites")
-    .command("move-home").argument("<dir>", "stopped site at the former default level")
+    .command("move-home").argument("<dir>", "stopped site inside the former default sites/ folder")
     .option("--projects-path <file>", "also update this desktop profile's catalog")
     .action(async (dir: string, options: { projectsPath?: string }) => {
       const { moveLegacySite } = await import("../platform/site-dir/move-sites-home.js");

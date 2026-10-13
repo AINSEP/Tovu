@@ -24,7 +24,6 @@ export interface SiteDatabaseSummary {
 }
 
 export interface SiteRecord {
-  moveIntoSites?: boolean;
   id: string;
   slug: string;
   displayName: string;
@@ -268,7 +267,6 @@ export const SITE_IPC_CHANNELS = {
    * @throws when the dialog is cancelled or the folder is not a complete Tovu site; the message is
    *   operator-facing, so surface it verbatim.
    */
-  moveHome: "runner:sites:move-home",
   locate: 'runner:sites:locate',
   /**
    * The services "+ Create website" can offer an optional access-token field for

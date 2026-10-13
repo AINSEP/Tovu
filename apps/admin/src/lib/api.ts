@@ -507,7 +507,6 @@ export interface AdminMailStatus {
  *  `apps/website/src/platform/site-dir/site-registry.ts`. Only directories carrying a valid
  *  `.site-meta.json` commit marker appear; see {@link AdminSiteBinding.listed} for why that matters. */
 export interface AdminSiteListEntry {
-  moveIntoSites?: boolean;
   /** Folder name under `sites/` — the id every write in this feature takes. */
   name: string;
   dir: string;
@@ -543,7 +542,7 @@ export interface AdminLocalSiteState {
   app?: string; external?: boolean;
 }
 export interface AdminTrashedSite { id: string; name: string; displayName: string }
-export type AdminLocalSiteAction = "start" | "stop" | "trash" | "restore" | "delete" | "switch" | "move";
+export type AdminLocalSiteAction = "start" | "stop" | "trash" | "restore" | "delete" | "switch";
 
 /** Machine-local config, shared with desktop. Runtime env overrides are displayed explicitly. */
 export interface SitesUserConfig {

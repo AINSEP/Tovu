@@ -10,7 +10,6 @@
 import { useCallback, useState } from 'react';
 
 import { runnerInventoryBridge } from './runner-api.js';
-import { humanSiteError } from './site-shell-policy.js';
 import { describeAddFailure } from './use-add-site.hooks.js';
 import type { SiteRecord } from '../contracts/project.js';
 
@@ -19,7 +18,6 @@ export interface SiteLocate {
   locatingId: string | null;
   /** Why this card's last Locate failed, or `null`. Main's own sentence, verbatim. */
   errorOf: (id: string) => string | null;
-  moveIntoSites?: (id: string) => Promise<void>;
   locate: (id: string) => Promise<void>;
 }
 
@@ -39,7 +37,7 @@ export async function performLocate(
   return performSiteFolderAction({ id, bridge });
 }
 
-/** Shared result/error boundary for Locate and the explicit stopped-site move action. */
+/** Result/error boundary for Locate. */
 export async function performSiteFolderAction(
   { id, bridge }: { id: string; bridge: { locateSite: (id: string) => Promise<SiteRecord> } | undefined },
   { describeError = describeAddFailure }: { describeError?: (error: unknown) => string | null } = {},
@@ -63,16 +61,10 @@ export function useSiteLocate(onLocated?: (record: SiteRecord, previousId: strin
   const errorOf = useCallback((id: string) => errors[id] ?? null, [errors]);
 
   const locate = useCallback(
-    async ({ id, action }: { id: string; action: "locate" | "move" }) => {
+    async (id: string) => {
       setLocatingId(id);
       const bridge = runnerInventoryBridge();
-      // Reuse Locate's pending/error/replacement lifecycle for a verified explicit move.
-      const result = await performSiteFolderAction({ id, bridge: action === "move" ? {
-        locateSite: async (selected) => {
-          if (!bridge?.moveSiteHome) throw new Error("Sites home migration is unavailable in this desktop version.");
-          return bridge.moveSiteHome({ id: selected, confirmed: true });
-        },
-      } : bridge }, action === "move" ? { describeError: (error) => humanSiteError({ error, fallback: "Could not move the stopped site." }) } : {});
+      const result = await performSiteFolderAction({ id, bridge });
       setErrors((current) => {
         const { [id]: _cleared, ...rest } = current;
         return result.error === undefined ? rest : { ...rest, [id]: result.error };
@@ -83,5 +75,5 @@ export function useSiteLocate(onLocated?: (record: SiteRecord, previousId: strin
     [onLocated],
   );
 
-  return { locatingId, errorOf, locate: (id) => locate({ id, action: "locate" }), moveIntoSites: (id) => locate({ id, action: "move" }) };
+  return { locatingId, errorOf, locate };
 }

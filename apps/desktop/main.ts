@@ -1,3 +1,4 @@
+import { migrateNestedSitesHome } from "./src/nested-sites-migration.ts";
 import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "./src/shared-sites.ts";
 /**
  * @file `apps/desktop` — an Electron shell around the SAME Tovu that `npm run dev` boots, now
@@ -1693,6 +1694,11 @@ app
     // every open site's `tovu serve` forever. See `reconcileOrphansOnBoot`'s own doc for why running
     // it for all three modes is correct and why it cannot reap a live sibling instance's children.
     await reconcileOrphansOnBoot(registryDirPath(app.getPath("userData")));
+
+    // Before any boot mode opens a database: reuse the stopped/verified CLI move owner.
+    await migrateNestedSitesHome({ workspace: sharedSites, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(),
+      projectsPath: sitesFilePath(app.getPath("userData")),
+    });
 
     // Checked before every other mode: the sites home UI supersedes both attach and own-server, and it
     // spawns no `tovu serve` of its own at boot — only when a project tab is first opened, through

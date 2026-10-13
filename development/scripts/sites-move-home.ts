@@ -24,7 +24,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (args.help) {
     console.log(`Usage: npm run sites:move-home -- [--apply] [--site <name>]... [--help]
 
-Move checkout and old Documents/Tovu/<site> folders to Documents/Tovu/sites/<site> (or the configured home).
+Move stopped Documents/Tovu/sites/<site> folders up to the implicit Documents/Tovu/<site> home.
 Default: all sites, dry run only. Dot-folders and folders without config.json are skipped.
 
 Flags:

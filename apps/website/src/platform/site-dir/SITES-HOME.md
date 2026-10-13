@@ -1,21 +1,24 @@
 # Shared sites home
 
 Web, dev selection, CLI and desktop derive the default through Jini's directory workspace:
-`<OS Documents>/Tovu/sites/<site>/` (`~/Documents/Tovu/sites/<site>/` on macOS).
-Windows uses the redirected Personal folder; Linux uses XDG user-dirs. The sync warning's
-local alternative is `~/Tovu/sites`. Environment overrides and custom homes remain supported.
+`<OS Documents>/Tovu/<site>/` (`~/Documents/Tovu/<site>/` on macOS).
+Windows uses the redirected Personal folder; Linux uses XDG user-dirs. Environment overrides
+and saved custom homes retain their existing contracts. `~/.tovu/sites-home.json` remains a
+legacy catalog-import source, never a home override.
 
-Discovery also scans the existing former-level parent of the selected nested home.
-It does not scan another old home or move local `~/Tovu` sites into synced Documents.
-Only valid site markers count; shared plugins, templates and other siblings are ignored.
-Old-level cards offer **Move into sites/** once stopped. Clicking the action invokes the same
-verified relocation as the CLI. No startup scan moves a site.
+Desktop startup reverses 59a036e49's released 0.1.14 nesting automatically, before opening any
+site: eligible stopped sites in the implicit `Documents/Tovu/sites` move up to `Documents/Tovu`.
+The existing `tovu sites move-home <dir>` CLI owns admission and verified relocation.
+Running or locked sites and colliding names stay in place and retry on later launches; no server
+is signalled or forced to stop, no existing destination is overwritten. Saved home selections
+are untouched. Local `~/Tovu` and checkout sites remain outside this migration.
 
-The coordinator must obtain the owner's OK before moving each actual site. Preview from the
-repository with `npm run sites:move-home -- --site <folder-name>`, then add `--apply` after approval.
-The command moves only former-level siblings into the selected nested home
-(by default `Documents/Tovu/sites`). Checkout compatibility roots remain discovery sources. A mixed batch reports/skips running sites; selecting
-only a running site refuses the move. No migration signals or forces a running server to stop.
+While valid skipped sites remain, both hosts scan the nested folder as a transient read-only
+fallback. Nothing saves it as another home or extra root. Desktop removes the container with
+non-recursive `rmdir` only when empty; unrelated files and skipped sites keep it intact. The
+regenerable 0.1.14 thumbnail cache (`sites/.tovu/{site,theme}-previews`, `.DS_Store`) does not
+count: it is deleted first. Anything else in `sites/.tovu` keeps the container.
+The old desktop/admin manual nesting action is retired.
 
 Relocation reserves both identities, verifies directory bytes and SQLite integrity/table counts,
 preserves existing in-site database paths without copying them during a same-disk folder rename,
@@ -23,8 +26,8 @@ keeps uniquely named recovery backups when copying or changing database placemen
 and commits shared `sites.json`, desktop `desktop-projects.json`
 (installed, source and selected profiles), and saved `config.json` roots under their existing
 locks with atomic file replacement. A write failure restores the prior JSON values and rolls
-back the relocation. A second completed run finds no old-level source and performs no move.
+back the relocation. A second completed run finds no nested source and performs no move.
 Existing `.home2-backup` files travel with their site untouched. Environment home overrides
 are never saved into configuration during relocation.
 Desktop uses `tovu sites move-home <dir>` in the installed/source CLI rather than importing
-website internals or native SQLite into Electron.
+the native SQLite mover into Electron.

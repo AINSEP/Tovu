@@ -399,10 +399,6 @@ function CardActions({
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      {project.moveIntoSites && !project.folderMissing && status === 'stopped' && locate.moveIntoSites && (
-        <button type="button" className="button button--quiet" disabled={locate.locatingId !== null}
-          onClick={() => void locate.moveIntoSites?.(project.id)}>Move into sites/</button>
-      )}
       {/* A missing folder gets Locate / Remove INSTEAD of Start: `tovu serve` on a folder that is
           not there can only fail. Remove goes through the same confirm overlay as the ⋮ entry. */}
       {project.folderMissing ? (

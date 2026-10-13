@@ -9,7 +9,6 @@ import type { SitesPort } from "./sites-port.hooks";
 
 const nativeConfirm = (message: string) => window.confirm(message);
 export const LOCAL_SITE_CONFIRM_KEYS = {
-  move: "Move this stopped site into sites/? Its saved paths will be updated automatically.",
   trash: "Move this site to Trash? You can restore it later.",
   delete: "Permanently delete this site and all its data? This cannot be undone.",
   switch: "Switch now? Unsaved changes will be lost.",

@@ -67,7 +67,6 @@ export interface RunnerInventoryBridge {
   /** A missing card's Locate: main opens a folder picker and resolves the record at the picked
    *  folder — a new id, since a record's id is its folder. Rejects with an operator-facing reason;
    *  surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
-  moveSiteHome?: (input: { id: string; confirmed: boolean }) => Promise<SiteRecord>;
   locateSite: (id: string) => Promise<SiteRecord>;
   startSite: (id: string) => Promise<SiteRecord>;
   stopSite: (id: string) => Promise<SiteRecord>;
