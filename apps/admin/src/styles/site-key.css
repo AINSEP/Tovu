@@ -25,6 +25,9 @@
   .site-key-status-badge-row { flex-wrap: wrap; }
   .site-key-fingerprint-group { flex-wrap: wrap; min-width: 0; max-width: 100%; }
   .site-key-fingerprint { min-width: 0; overflow-wrap: anywhere; }
+  /* `.status` never wraps; the longest badge ("Active: environment variable TOVU_SITE_KEY") ran
+     past the card on its own below ~350px. */
+  .site-key-status-badge-row > .status { min-width: 0; white-space: normal; }
 }
 
 .site-key-status-note { margin: 0; color: var(--muted); font-size: var(--text-sm); }
