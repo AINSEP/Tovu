@@ -119,14 +119,17 @@ async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgen
   }
 }
 
-test("existing site: the seeder's own earlier DISABLED deploy record is switched on at the next boot", async () => {
+test("existing site: the seeder's own earlier DISABLED deploy record is retired at the next boot, and every host is on", async () => {
   await withAgentPluginsDir(async (layout) => {
     const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
     // What a workspace seeded by 9ee7b5d73 carries: the seeder's untouched disabled record.
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: "deploy" });
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.deploy?.enabled, true);
+    // `deploy` is retired (Phase B7): its record goes once every successor is seeded.
+    const { plugins } = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
+    assert.equal(Object.hasOwn(plugins, "deploy"), false);
+    for (const host of HOST_PLUGINS) assert.equal(plugins[host.pluginId]?.enabled, true, host.pluginId);
     const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     for (const target of TARGETS) assert.equal(registry.get(target.id)?.pluginId, target.pluginId, target.id);
   });
@@ -145,26 +148,27 @@ test("an existing site whose operator switched deploy off keeps the split-out ho
   });
 });
 
-test("an operator who switched deploy off stays switched off across boots", async () => {
+test("an operator who switched fly (deploy's server successor) off stays switched off across boots", async () => {
   await withAgentPluginsDir(async (layout) => {
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
-    await setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: false, actor: "test:operator" });
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "fly", enabled: false, actor: "test:operator" });
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.deploy?.enabled, false);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.fly?.enabled, false);
   });
 });
 
-test("seeded by the real seeder, deploy is ENABLED with no user action and the registry loads Netlify from the installed digest", async () => {
+test("seeded by the real seeder, fly and every host are ENABLED with no user action, deploy is never seeded, and the registry loads Netlify from the installed digest", async () => {
   await withAgentPluginsDir(async (layout) => {
     const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    for (const pluginId of ["deploy", ...HOST_PLUGINS.map((host) => host.pluginId)]) {
+    for (const pluginId of ["fly", ...HOST_PLUGINS.map((host) => host.pluginId)]) {
       assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === pluginId)?.status, "seeded", pluginId);
     }
+    assert.equal(seeded.outcomes.some((outcome) => outcome.pluginId === "deploy"), false, "deploy is retired (Phase B7)");
 
     const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
-    assert.equal(activations.plugins.deploy?.enabled, true, "publishing must keep working with zero user action");
+    assert.equal(activations.plugins.fly?.enabled, true, "server deploys must keep working with zero user action");
     for (const host of HOST_PLUGINS) assert.equal(activations.plugins[host.pluginId]?.enabled, true, `${host.pluginId}: publishing must keep working with zero user action`);
     assert.equal(activations.plugins["site-compliance"]?.enabled, false, "every other bundled plugin still seeds disabled");
 

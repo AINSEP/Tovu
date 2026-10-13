@@ -99,8 +99,9 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
   });
 });
 
-/** Seeded enabled, sorted; each hosting plugin split out of `deploy` (2026-10-12) joins this list. */
-const SEEDED_ENABLED = ["cloudflare-pages", "deploy", "fly", "github", "github-pages", "how-tovu-works", "netlify", "railway", "render", "resend", "s3-compatible", "site-import", "tovu-theme", "vercel"];
+/** Seeded enabled, sorted; each hosting plugin split out of `deploy` (2026-10-12) joins this list,
+ *  and `deploy` itself left it when it was retired (Phase B7). */
+const SEEDED_ENABLED = ["cloudflare-pages", "fly", "github", "github-pages", "how-tovu-works", "netlify", "railway", "render", "resend", "s3-compatible", "site-import", "tovu-theme", "vercel"];
 
 // Owner decision 2026-09-13: the admin lists every installed plugin, switched off or not. That
 // listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.
@@ -119,9 +120,6 @@ test("every bundled plugin not seeded enabled, supabase included, is listed as s
     // tovu-theme (2026-10-08): site-import delegates its theme step to it, so both seed enabled.
     for (const pluginId of SEEDED_ENABLED) {
       assert.equal(listed.find(candidate => candidate.pluginId === pluginId)?.enabled, true, `${pluginId}: seeded enabled`);
-      // Phase B (2026-10-12): `deploy` ships no skill and no contribution until its retirement (B7),
-      // so it has nothing to gate: listed and enabled, but no agent_plugin_deploy tool.
-      if (pluginId === "deploy") { assert.deepEqual(sources.filter(source => source.pluginId === pluginId), [], "deploy: empty scaffold has no tool"); continue; }
       assert.ok(sources.some(source => source.pluginId === pluginId), `${pluginId}: tool gate open`);
       const injected = await resolveAgentPluginRefs([pluginId], layout);
       assert.ok(injected.ok && injected.promptPrefix.length > 0, `${pluginId}: prompt gate open`);
