@@ -42,7 +42,7 @@ import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
 import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import { toSlug } from "../../platform/html/slug.js";
-import type { WidgetHostPorts } from "@jini-ai/cms/widgets";
+import { getEntryLockState, type WidgetHostPorts } from "@jini-ai/cms/widgets";
 import type { RemoveWidgetFn, WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
 
 /** The exact slice of a route/tool layer's own deps bag this domain's write-path needs. */
@@ -113,6 +113,7 @@ export function buildWidgetHostPorts(required: { postRepo?: PostRepoPort }, _opt
 /** Shared dependency bag for `Jini/packages/cms/src/widgets/write-service.ts`/`Jini/packages/cms/src/widgets/embed-service.ts` calls — every one of them takes this identical shape. */
 export function buildWidgetsDeps(routeDeps: WidgetsRouteDeps, _optional: Record<string, never> = {}) {
   const deps = {
+    entryLocks: getEntryLockState({ owner: routeDeps.entryRepo }),
     entryRepo: routeDeps.entryRepo,
     contentTypeRepo: routeDeps.contentTypeRepo,
     entryRefsRepo: routeDeps.entryRefsRepo,

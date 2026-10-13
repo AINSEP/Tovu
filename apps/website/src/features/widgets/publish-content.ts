@@ -6,7 +6,7 @@ import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#s
 import type { PublishContentContributor, PublishContentReference, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
 
 import { ContentTypeNotActiveError, EntryFieldValidationError, EntrySlugConflictError, VersionConflictError, type EntryRecord } from "../entries/index.js";
-import { collectWidgetConfigStrings, validateWidgetConfig } from "@jini-ai/cms/widgets";
+import { getEntryLockState, collectWidgetConfigStrings, validateWidgetConfig } from "@jini-ai/cms/widgets";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { WidgetAreaConflictError, WidgetAreaNotFoundError, WidgetConfigValidationError, WidgetForbiddenError, WidgetInstanceNotFoundError, WidgetTypeUnregisteredError, WidgetVersionConflictError } from "@jini-ai/cms/widgets";
 import { bindWidgetArea, mutateWidgetAreaPlacements, reconcileWidgetRegionBindings, validatePlacementWidgetsExist } from "@jini-ai/cms/widgets";
@@ -39,6 +39,7 @@ function serviceDeps(ctx: RepoWriteContext<unknown, WidgetPublishPorts>, entityT
   const gateway = gatewayDeps(deps, entityType);
   return {
     host: buildWidgetHostPorts({}, {}),
+    entryLocks: getEntryLockState({ owner: ports.entries }),
     entryRepo: ports.entries,
     contentTypeRepo: ports.contentTypes,
     entryRefsRepo: ports.entryRefs,

@@ -53,7 +53,7 @@ test("buildWidgetsDeps: maps every field to its write-path name, by identity, in
       assert.deepEqual(Object.keys(result).sort(), [
         "entryRepo", "contentTypeRepo", "entryRefsRepo", "postRepo",
         "forgetRemovedPost", "changeSets", "beforeSaveHook", "clock",
-        "ids", "authorize", "outbox", "remove",
+        "ids", "authorize", "outbox", "remove", "entryLocks",
       ].sort());
 });
 
@@ -75,4 +75,12 @@ test("buildWidgetsRegionDeps: is buildWidgetsDeps' shape plus one extra field, b
   assert.equal(region.bindingRepo, routeDeps.widgetBindingRepo);
   assert.equal(region.entryRepo, base.entryRepo);
   assert.equal(region.ids, base.ids);
+});
+
+test("widget composition retains one state per entry store across write, embed, region and recreated bags", () => {
+  const routeDeps = makeRouteDeps();
+  const first = buildWidgetsDeps(routeDeps);
+  assert.equal(buildWidgetsDeps({ ...routeDeps }).entryLocks, first.entryLocks);
+  assert.equal(buildWidgetsRegionDeps(routeDeps).entryLocks, first.entryLocks);
+  assert.notEqual(buildWidgetsDeps(makeRouteDeps()).entryLocks, first.entryLocks);
 });
