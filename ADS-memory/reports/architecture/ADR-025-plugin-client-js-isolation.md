@@ -183,3 +183,13 @@ attribution granularity (Open item, above) is itself security-relevant**, not a 
 delivery-mechanism choice. Freezing the boundary principle now remains correct; this note
 exists so that freezing it does not silently under-specify a property the eventual
 mechanism must satisfy.
+
+## Amendment — bundled chart providers (owner approved 2026-10-12)
+
+Owner approval: “I okay the exception for bundle checksum and chart plugins.”
+Reviewed, digest-pinned, compiled-in BUNDLED chart-provider artifacts may mount directly
+on the admin origin and public pages. Admission must use host-owned review records;
+a manifest cannot grant itself first-party trust. Serve immutable verified bytes.
+Installed/custom/marketplace browser providers stay forbidden (refuse at admission).
+This narrow exception supersedes the direct-mount prohibition only for those bundled
+chart-provider artifacts; all other plugin client surfaces retain this ADR's isolation rules.
