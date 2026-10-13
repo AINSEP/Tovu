@@ -474,7 +474,7 @@ async function capture(page: Page, filename: string): Promise<void> {
       });
     }
   });
-  const masks = [
+  const masked = [
     page.locator("[data-visual-timestamp]"),
     page.locator(".dash-activity-time"),
     page.locator("#main-content time"),
@@ -483,10 +483,26 @@ async function capture(page: Page, filename: string): Promise<void> {
     page.locator(".site-key-fingerprint"),
     page.locator(".site-key-status-note code"),
   ];
+  // Playwright paints masks above everything. On a phone the open chat dock is a bottom sheet over
+  // the page, so a masked cell under it would cover the dock's own messages and slash popup. Those
+  // cells are hidden instead; the side-column dock at tablet/desktop never overlaps them.
+  for (const locator of masked) {
+    await locator.evaluateAll(elements => {
+      const dock = document.querySelector(".admin-chat-dock")?.getBoundingClientRect();
+      if (!dock || dock.width === 0 || dock.height === 0) return;
+      for (const element of elements) {
+        const box = element.getBoundingClientRect();
+        if (box.right > dock.left && box.left < dock.right && box.bottom > dock.top && box.top < dock.bottom) element.setAttribute("data-visual-under-dock", "");
+      }
+    });
+  }
+  const masks = masked.map(locator => locator.and(page.locator(":not([data-visual-under-dock])")));
   // Viewport-sized shots reflect the actual responsive shell and fixed-position chat dock;
   // fullPage could expand the image to an overflowing off-canvas mobile sidebar's width.
   await page.mouse.move(0, 0);
-  await expect(page).toHaveScreenshot(filename, { animations: "disabled", caret: "hide", mask: masks });
+  await expect(page).toHaveScreenshot(filename, {
+    animations: "disabled", caret: "hide", mask: masks, style: "[data-visual-under-dock] { visibility: hidden !important; }",
+  });
 }
 
 test.describe("admin index pages", () => {
