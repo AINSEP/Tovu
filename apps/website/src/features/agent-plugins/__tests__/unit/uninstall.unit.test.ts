@@ -1,3 +1,4 @@
+import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { installLegacyRevision } from '../fixtures/install-legacy-revision.js';
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
