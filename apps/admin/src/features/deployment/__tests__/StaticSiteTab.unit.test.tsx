@@ -167,12 +167,15 @@ function renderTab(overrides: {
   publishController?: Partial<StaticPublishController>;
   credentialsController?: CredentialsControllerFixtureOverrides;
 } = {}) {
+  // `wrapper`, not inline JSX: the tab reads `useAdminLocale()`, a fetch-query hook since
+  // c348ee3ba, and a `wrapper` also covers every later `rerender` of this mount.
   return render(
     <StaticSiteTab
       useStaticExportHook={() => exportControllerFixture(overrides.exportController)}
       useStaticPublishHook={() => publishControllerFixture(overrides.publishController)}
       usePublishCredentialsHook={() => credentialsControllerFixture(overrides.credentialsController)}
     />,
+    { wrapper: FetchQueryProvider },
   );
 }
 
