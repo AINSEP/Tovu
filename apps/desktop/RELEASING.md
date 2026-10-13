@@ -54,6 +54,26 @@ find the existing one first.
      `Tovu-mac-arm64.zip`, `Tovu-mac-x64.zip` (+ `.blockmap` each), `latest-mac.yml`,
      `latest.yml`, `Tovu-windows-x64-setup.exe.blockmap`
 
+## mac-x64 built without a stapled ticket (CloudKit warning)
+
+From 2026-10-12 the `macos-15-intel` runners mostly cannot reach `api.apple-cloudkit.com`
+(actions/runner-images#14924), where `stapler` fetches the notarization ticket. On the mac-x64 row
+only, a staple/validate that failed solely with that network drop (`NSURLErrorDomain Code=-1005`)
+is a warning, and the artifact carries `stapler-cloudkit-degraded-x64.txt` naming what was
+skipped. Notarization itself is still mandatory: the dmg needs notarytool's `"status": "Accepted"`,
+the .app needs electron-builder's `notarization successful`. Stapling only embeds the ticket for
+offline first launches, needs no credentials, and is the one change allowed to a CI artifact here.
+Before the draft, on any Mac, in the downloaded artifacts folder:
+
+    xcrun stapler staple Tovu-mac-x64.dmg && xcrun stapler validate Tovu-mac-x64.dmg
+    spctl -a -vv -t open --context context:primary-signature Tovu-mac-x64.dmg   # source=Notarized Developer ID
+    shasum -a 256 Tovu-mac-x64.dmg > Tovu-mac-x64.dmg.sha256
+    cat Tovu-mac-arm64.dmg.sha256 Tovu-mac-x64.dmg.sha256 Tovu-windows-x64-setup.exe.sha256 > SHA256SUMS.txt
+
+Only the dmg's bytes change. Leave `Tovu-mac-x64.zip` alone even if its .app is unstapled: it is
+notarized, the updater installs it without quarantine (no Gatekeeper ticket check), and
+`latest-mac.yml` pins the zip's sha512, so re-zipping would mean regenerating that and the blockmap.
+
 ## Auto-update
 
 The app updates itself from this repo's GitHub releases (`electron-updater`; see
