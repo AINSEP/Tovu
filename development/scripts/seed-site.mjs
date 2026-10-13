@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * @file `npm run seed:site` — turns the live `sites/<site>/content.db` into a small, committable
- * seed at `sites/<site>/content.seed.db`.
+ * @file `npm run seed:site` — turns the selected site's resolved live database into a small,
+ * committable seed at `<site>/content.seed.db`.
  *
  * WHY THIS EXISTS. `sites/` was un-gitignored (2026-08-31) so a deployed container ships with a
  * real site instead of an empty volume. But the live `content.db` accumulates operational/session
@@ -27,8 +27,10 @@
  * Usage: `npm run seed:site` (or `node --import tsx development/scripts/seed-site.mjs [--site <name>]`).
  * `--site` defaults to `TOVU_SITE`, then `"tovu-dev"` — the same precedence
  * `platform/site-dir/site-root.ts`'s `resolveSiteRoot()` uses for its own `TOVU_SITE` fallback.
- * The tsx loader is there because this script imports one TypeScript module, the site-title pin reset
- * it shares with `duplicateSite` (SPEC-050 REQ-12/REQ-14), so both copy paths run the same SQL.
+ * An explicit `--site` selects by name/ID even when `TOVU_SITE_DIR` is pinned; otherwise that
+ * directory override wins. Selection includes moved home/catalog sites and the checkout fallback.
+ * The tsx loader supplies the shared site/database resolvers and the site-title pin reset shared
+ * with `duplicateSite` (SPEC-050 REQ-12/REQ-14), so both copy paths run the same SQL.
  */
 import Database from "better-sqlite3";
 import { spawnSync } from "node:child_process";
@@ -37,8 +39,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
 
 import { resetLegacySiteTitlePin } from "../../apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts";
+import { resolveSiteRoot } from "../../apps/website/src/platform/site-dir/site-root.ts";
+import { resolveSiteDatabasePaths } from "../../apps/website/src/platform/site-dir/site-databases.ts";
+import { createSitesWorkspace } from "../../apps/website/src/platform/site-dir/sites-home.ts";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -110,15 +116,28 @@ const PRUNE_TABLES = [
   "form_submissions",
 ];
 
-/** @returns {{ siteName: string, liveDir: string, liveDbPath: string, seedDbPath: string }} */
-function resolvePaths() {
-  const siteFlagIndex = process.argv.indexOf("--site");
-  const siteName = siteFlagIndex !== -1 ? process.argv[siteFlagIndex + 1] : (process.env.TOVU_SITE ?? "tovu-dev");
-  const liveDir = path.join(REPO_ROOT, "sites", siteName);
+/** Resolve CLI selection through the site's existing root and database-placement owners.
+ * No database is opened or relocated and app-data identity is not reserved by this read-only tool.
+ * @param {{ argv: string[] }} required CLI arguments without the node/script prefix.
+ * @param {{ cwd?: string, env?: NodeJS.ProcessEnv, homeDir?: string }} optional Isolated discovery context.
+ * @returns {{ siteName: string, liveDir: string, liveDbPath: string, seedDbPath: string }} Seed source/destination paths.
+ * @throws Invalid flags, unreadable metadata/catalog, or ambiguous database copies.
+ * @example resolveSeedSitePaths({ argv: ["--site", "tovu-dev"] });
+ */
+export function resolveSeedSitePaths({ argv }, { cwd = REPO_ROOT, env = process.env, homeDir } = {}) {
+  const { values } = parseArgs({ args: argv, options: { site: { type: "string" } } });
+  const siteName = values.site ?? env.TOVU_SITE ?? "tovu-dev";
+  const selectionEnv = { ...env, TOVU_SITE: siteName };
+  if (values.site !== undefined) delete selectionEnv.TOVU_SITE_DIR;
+  const options = { cwd, env: selectionEnv, homeDir };
+  const liveDir = resolveSiteRoot(options);
+  const { contentDbPath: liveDbPath } = resolveSiteDatabasePaths({ dir: liveDir }, {
+    workspace: createSitesWorkspace({}, options), reserveIdentity: false,
+  });
   return {
     siteName,
     liveDir,
-    liveDbPath: path.join(liveDir, "content.db"),
+    liveDbPath,
     seedDbPath: path.join(liveDir, "content.seed.db"),
   };
 }
@@ -389,7 +408,7 @@ function formatMb(bytes) {
  * reset the copy, check its blobs, publish it to `seedDbPath`, and prove the live db was never written.
  *
  * Exported (SPEC-050 REQ-14) so a test can run this exact flow against a temporary site directory;
- * {@link main} is the only caller that points it at the real `sites/<site>/`.
+ * {@link main} is the only caller that points it at the operator's selected site.
  *
  * @param {{ siteName: string, liveDir: string, liveDbPath: string, seedDbPath: string }} required
  * @returns {Promise<void>} rejects if the live db is missing, a scratch-copy check fails, a blob is
@@ -466,7 +485,7 @@ export async function seedSite(required) {
 }
 
 async function main() {
-  await seedSite(resolvePaths());
+  await seedSite(resolveSeedSitePaths({ argv: process.argv.slice(2) }));
 }
 
 // Only run when invoked directly, never as a side effect of import — mirrors

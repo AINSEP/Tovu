@@ -2,16 +2,96 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
-import { findMissingSeedBlobs, seedSite } from "../seed-site.mjs";
+import { findMissingSeedBlobs, resolveSeedSitePaths, seedSite } from "../seed-site.mjs";
+import { createSitesWorkspace } from "../../../apps/website/src/platform/site-dir/sites-home.js";
 import { vaultFixture, vaultStep } from "../../../apps/website/src/platform/db/migrations/__tests__/secrets-vault.fixture.js";
 import { sqliteConnectionOf } from "../../../apps/website/src/platform/db/kernel/drivers/sqlite.js";
 import { sql } from "kysely";
+
+for (const placement of ["legacy", "data.nosync", "appData"] as const) {
+  test(`seed CLI resolves a moved home's ${placement} database instead of the checkout copy`, () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "tovu-seed-cli-paths-")));
+    try {
+      const cwd = join(root, "repo");
+      const options = { cwd, homeDir: root, env: {} };
+      const workspace = createSitesWorkspace({}, options);
+      const liveDir = join(workspace.home({}), "selected");
+      mkdirSync(liveDir, { recursive: true });
+      writeFileSync(join(liveDir, "config.json"), '{"name":"Selected"}');
+      writeFileSync(join(liveDir, ".site-meta.json"), '{"siteId":"seed-cli-selected"}');
+      const liveDbPath = placement === "appData"
+        ? join(workspace.config({}).appData, "databases", "seed-cli-selected", "content.db")
+        : join(liveDir, ...(placement === "legacy" ? [] : ["data.nosync"]), "content.db");
+      if (placement === "appData") workspace.updateConfig({ patch: { databases: "appData" } });
+      mkdirSync(join(liveDbPath, ".."), { recursive: true });
+      writeFileSync(liveDbPath, "live-fixture");
+      const decoyDir = join(cwd, "sites", "selected");
+      mkdirSync(decoyDir, { recursive: true });
+      writeFileSync(join(decoyDir, "content.db"), "checkout-decoy");
+      const expected = { siteName: "selected", liveDir, liveDbPath, seedDbPath: join(liveDir, "content.seed.db") };
+      const env = { TOVU_SITE: "other", TOVU_SITE_DIR: decoyDir };
+      assert.deepEqual(resolveSeedSitePaths({ argv: ["--site", "selected"] }, { ...options, env }), expected);
+      assert.deepEqual(env, { TOVU_SITE: "other", TOVU_SITE_DIR: decoyDir }, "selection must not mutate the caller's env");
+      assert.deepEqual(resolveSeedSitePaths({ argv: [] }, { ...options, env: { TOVU_SITE: "selected" } }), expected);
+      assert.deepEqual(resolveSeedSitePaths({ argv: [] }, { ...options, env: { TOVU_SITE: "selected", TOVU_SITE_DIR: liveDir } }), expected);
+      assert.equal(readFileSync(liveDbPath, "utf8"), "live-fixture");
+      assert.equal(readFileSync(join(decoyDir, "content.db"), "utf8"), "checkout-decoy");
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+}
+
+test("seed CLI keeps the default and named checkout fallbacks when no home site exists", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "tovu-seed-cli-fallback-")));
+  try {
+    const cwd = join(root, "repo");
+    const options = { cwd, homeDir: root, env: {} };
+    for (const [argv, siteName] of [[[], "tovu-dev"], [["--site", "named"], "named"]] as const) {
+      const liveDir = join(cwd, "sites", siteName);
+      const paths = resolveSeedSitePaths({ argv: [...argv] }, options);
+      assert.deepEqual(paths, { siteName, liveDir, liveDbPath: join(liveDir, "data.nosync", "content.db"), seedDbPath: join(liveDir, "content.seed.db") });
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("seed:site entrypoint publishes from data.nosync and preserves the live database", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "tovu-seed-cli-entrypoint-")));
+  try {
+    const liveDir = join(root, "Documents", "Tovu", "selected");
+    const liveDbPath = join(liveDir, "data.nosync", "content.db");
+    mkdirSync(join(liveDbPath, ".."), { recursive: true });
+    writeFileSync(join(liveDir, "config.json"), '{"name":"Selected"}');
+    writeFileSync(join(liveDir, ".site-meta.json"), '{"siteId":"seed-cli-entrypoint"}');
+    const db = openContentDb(liveDbPath).$client;
+    try {
+      db.exec("INSERT INTO workspaces (id, name, slug, created_at) VALUES ('cli-witness', 'CLI witness', 'cli-witness', '2026-10-13')");
+    } finally { db.close(); }
+    const before = readFileSync(liveDbPath);
+    const env: NodeJS.ProcessEnv = { ...process.env, HOME: root, USERPROFILE: root,
+      APPDATA: join(root, "AppData", "Roaming"), XDG_DATA_HOME: join(root, ".local", "share"), XDG_CONFIG_HOME: join(root, ".config"),
+      TOVU_SITES_HOME: join(root, "Documents", "Tovu"), TOVU_DESKTOP_USER_DATA_DIR: join(root, "app-data") };
+    delete env.TOVU_SITE_DIR;
+    delete env.TOVU_SITE_ROOTS;
+    delete env.TSX_TSCONFIG_PATH; // the runner's path is cwd-relative; this child runs from the temp root
+    const result = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), fileURLToPath(new URL("../seed-site.mjs", import.meta.url)), "--site", "selected"], {
+      cwd: root, env, encoding: "utf8", timeout: 30_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(readFileSync(liveDbPath), before);
+    assert.equal(existsSync(join(liveDir, "content.db")), false);
+    const seed = new Database(join(liveDir, "content.seed.db"), { readonly: true, fileMustExist: true });
+    try {
+      assert.deepEqual(seed.prepare("SELECT name FROM workspaces WHERE id='cli-witness'").get(), { name: "CLI witness" });
+      assert.equal(seed.pragma("integrity_check", { simple: true }), "ok");
+    } finally { seed.close(); }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 /**
  * @file Direct unit test for `seed-site.mjs`'s `findMissingSeedBlobs()` — the build-time guard that

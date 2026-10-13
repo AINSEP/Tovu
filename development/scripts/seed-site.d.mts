@@ -1,5 +1,5 @@
 /**
- * @file Type declarations for `seed-site.mjs`, a plain-JS dev script whose two exports are imported
+ * @file Type declarations for `seed-site.mjs`, a plain-JS dev script whose exports are imported
  * by TypeScript tests (`development/scripts/__tests__/seed-site.unit.test.ts` and the website's
  * `site-title-preservation.integration.test.ts`). Without this file those imports are implicitly
  * `any` (TS7016). Signatures mirror the JSDoc on each export in `seed-site.mjs`; keep them in step.
@@ -22,3 +22,10 @@ export declare function seedSite(required: {
   liveDbPath: string;
   seedDbPath: string;
 }): Promise<void>;
+
+/** CLI selection shares the site's catalog and database-placement owners; never opens a DB. */
+export declare function resolveSeedSitePaths(required: { argv: string[] }, optional?: {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  homeDir?: string;
+}): { siteName: string; liveDir: string; liveDbPath: string; seedDbPath: string };
