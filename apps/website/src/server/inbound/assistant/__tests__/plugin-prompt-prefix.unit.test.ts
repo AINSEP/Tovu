@@ -163,3 +163,24 @@ test("resolveAgentPluginPromptPrefix tells the user why the run could not start 
     { message: "The assistant could not start: a selected Agent Plugin could not be loaded." },
   ]);
 });
+
+test("resolveAgentPluginPromptPrefix resolves a run that pinned the retired 'deploy' to Fly's installed skill (Phase B7)", async (t) => {
+  await isolatedPluginRoot(t);
+  const { lifecycle, run } = await newRealLifecycleWithRun();
+  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+  const packageDir = path.join(workspaceLayout.pluginPackagesDir({ pluginId: "fly" }), "b".repeat(64));
+  await mkdir(path.join(packageDir, "skills", "fly"), { recursive: true });
+  await writeFile(path.join(packageDir, "plugin.json"), JSON.stringify({
+    $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "fly", version: "1.0.0",
+  }));
+  await writeFile(path.join(workspaceLayout.root, "activations.json"), JSON.stringify({
+    schemaVersion: 1, plugins: { fly: { enabled: true, origin: "bundled", updatedAt: "2026-10-12T00:00:00.000Z", updatedBy: "fixture" } },
+  }));
+  await writeFile(path.join(packageDir, "skills", "fly", "SKILL.md"), "# Fly.io\n\nDeploy the server with fly deploy.\n");
+
+  const prefix = await resolveAgentPluginPromptPrefix(testSiteLayoutContext({ run: run, pluginRefIds: ["deploy", "fly"], runLifecycle: lifecycle, workspaceId: WORKSPACE_ID }));
+
+  assert.ok(prefix?.includes("Deploy the server with fly deploy."), "the retired ref must reach Fly's skill, not fail the run");
+  assert.equal(prefix?.split("Deploy the server with fly deploy.").length, 2, "deploy and fly pinned together resolve Fly once");
+  assert.equal((await lifecycle.get({ runId: run.id }))?.state, "running");
+});

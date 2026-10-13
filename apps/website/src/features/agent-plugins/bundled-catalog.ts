@@ -41,6 +41,22 @@ export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string> = new Ma
   ["tovuize-site", "tovu-theme"],
 ]);
 
+/**
+ * Retired plugin id -> the ONE successor that answers for it by name (Phase B7, 2026-10-12): a run
+ * that pinned `deploy` resolves `fly` (`translateRetiredPluginRefs`), and `agent_plugin_deploy`
+ * stays callable as a gated alias of `agent_plugin_fly` (`retired-plugin-tool-aliases.ts`). Fly holds
+ * what `deploy`'s own skill used to teach; without this, a saved run pinning `deploy` would fail to
+ * start once `deploy` is retired.
+ */
+export const RETIRED_PLUGIN_REPLACEMENTS: ReadonlyMap<string, string> = new Map([["deploy", "fly"]]);
+
+/** Maps each pinned ref through {@link RETIRED_PLUGIN_REPLACEMENTS}, keeping order and dropping a
+ *  duplicate the translation creates (`deploy` and `fly` both pinned).
+ *  @complexity O(n) in ref count. */
+export function translateRetiredPluginRefs(pluginRefIds: readonly string[]): readonly string[] {
+  return [...new Set(pluginRefIds.map((id) => RETIRED_PLUGIN_REPLACEMENTS.get(id) ?? id))];
+}
+
 /** `agent_plugin_<pluginId>` (hyphens folded to underscores) — the id
  *  `features/agent-plugins/tool-registrations.ts`'s own `toAgentPluginToolId` mints for the same
  *  plugin, duplicated here as a one-line transform rather than imported: that function is private to
