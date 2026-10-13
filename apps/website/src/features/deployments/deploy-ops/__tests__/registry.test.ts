@@ -93,6 +93,6 @@ test("a digest-trusted package outside the ops owners cannot become a parallel o
     const { loadDeployOpsRegistry } = await import("../registry.js");
     const registry = await loadDeployOpsRegistry({ workspaceId: "ws" }, { loadContributions: lifecycle.loadPluginContributions });
     assert.deepEqual(registry.list(), []);
-    assert.deepEqual(registry.refusals, ["deploy ops from 'github-pages' were not loaded: only the bundled deploy, fly and github plugins may contribute"]);
+    assert.deepEqual(registry.refusals, ["deploy ops from 'github-pages' were not loaded: only the bundled fly and github plugins may contribute"]);
   } finally { await forceRemove(root); }
 });

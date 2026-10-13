@@ -66,7 +66,7 @@ const opsContribution = defineExecutablePluginContribution<DeployOpsDescriptor, 
  * @param plugin - Trusted source directory. The caller owns activation/digest gates; this seam is for tests.
  * @returns Loaded modules and refusal messages; never throws for a malformed package.
  * @complexity Time and space: O(platforms), bounded to 32 entries.
- * @example await loadDeployOpsRegistryFromSource({ pluginId: "deploy", packageRoot: bundledRoot });
+ * @example await loadDeployOpsRegistryFromSource({ pluginId: "fly", packageRoot: bundledRoot });
  */
 export async function loadDeployOpsRegistryFromSource(plugin: TrustedPluginPackage, _optional: Record<string, never> = {}): Promise<DeployOpsRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: opsContribution });
@@ -110,10 +110,11 @@ export function readBundledDeployOpsDescriptors(required: { readonly sourceRoot:
  */
 export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, required: { readonly loadContributions: LoadPluginContributions }): Promise<DeployOpsRegistry> {
   try {
-    // Keep deploy admitted until its retirement (B7), gated on usable successors after seed
-    // failures in Jini. `github` owns the github-actions platform alongside its source control.
+    // `deploy` is retired (B7). An old `deploy` package that retirement still holds (a successor
+    // not yet usable) must not contribute: its fly/github-actions ids would duplicate the
+    // successors' and duplicates are dropped. `github` owns github-actions alongside source control.
     const load = await required.loadContributions({ ...ctx, definition: opsContribution }, {
-      packageRefusal: ({ plugin }) => ["deploy", "fly", "github"].includes(plugin.pluginId) ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only the bundled deploy, fly and github plugins may contribute`,
+      packageRefusal: ({ plugin }) => ["fly", "github"].includes(plugin.pluginId) ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only the bundled fly and github plugins may contribute`,
     });
     return buildRegistry(load.items, load.refusals);
   } catch { return buildRegistry([], ["deploy ops were not loaded: installed plugin packages could not be read"]); }
