@@ -34,31 +34,36 @@ function safeAttribute(attr: Element['attrs'][number], options: { styleContext?:
 }
 
 /** Sanitize parsed, entity-decoded HTML without regex tag rewriting. O(n) time/output space.
- * Safe data/aria/class/style use the shared embed attribute policy; foreign/executable subtrees drop. */
-export function sanitizePageHtml({ html }: { html: string }, _optional: Record<string, never> = {}): string {
+ * Safe data/aria/class/style use the shared embed attribute policy; foreign/executable subtrees drop.
+ * Drops are never silent: one `reportDrops` per call that removed any element or attribute
+ * (5f237c87a stripped tovu.dev's carousel scripts unnoticed). Comments are not reported. */
+export function sanitizePageHtml({ html }: { html: string }, { reportDrops = ({ dropped }) => console.warn('[media] Raw HTML sanitizer dropped markup', dropped) }: { reportDrops?: (required: { dropped: Record<string, number> }, optional?: Record<string, never>) => void } = {}): string {
   const root = parseFragment(html);
+  const dropped = new Map<string, number>();
+  const drop = (key: string): false => { dropped.set(key, (dropped.get(key) ?? 0) + 1); return false; };
   const parents: { parent: DefaultTreeAdapterMap['documentFragment'] | Element; depth: number }[] = [{ parent: root, depth: 0 }];
   while (parents.length) {
     const { parent, depth } = parents.pop()!;
     parent.childNodes = parent.childNodes.filter(child => {
       if (!('tagName' in child)) return child.nodeName === '#text';
       // Bound native serializer recursion as well as our own traversal on imported HTML.
-      if (depth >= 128) return false;
+      if (depth >= 128) return drop(child.tagName);
       const allowed = child.namespaceURI === 'http://www.w3.org/1999/xhtml' ? SAFE_ELEMENTS : child.namespaceURI === SVG_NAMESPACE ? SVG_ELEMENTS : undefined;
-      if (!allowed?.has(child.tagName)) return false;
+      if (!allowed?.has(child.tagName)) return drop(child.tagName);
       if (child.tagName === 'style') {
         const css = child.childNodes.map(node => 'value' in node ? node.value : '').join('');
         // A stylesheet may use Unicode glyph escapes; the inline-attribute policy rejects them.
         // Validate with the shared stylesheet context without changing the authored rule bytes.
-        if (!safeAttribute({ name: 'style', value: css }, { styleContext: 'stylesheet' })) return false;
+        if (!safeAttribute({ name: 'style', value: css }, { styleContext: 'stylesheet' })) return drop('style');
       }
-      child.attrs = child.attrs.filter(attr => safeAttribute(attr));
+      child.attrs = child.attrs.filter(attr => safeAttribute(attr) || drop(`${child.tagName}@${attr.prefix ? `${attr.prefix}:` : ''}${attr.name}`));
       // A collection marker's authored <template> keeps its item markup in the inert `content`
       // fragment, not childNodes: hold that markup to the same element/attribute rules.
       parents.push({ parent: 'content' in child ? child.content : child, depth: depth + 1 });
       return true;
     });
   }
+  if (dropped.size) reportDrops({ dropped: Object.fromEntries(dropped) });
   return serialize(root);
 }
 

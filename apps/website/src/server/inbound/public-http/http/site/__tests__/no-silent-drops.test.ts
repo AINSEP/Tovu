@@ -93,7 +93,9 @@ test("the corpus is real and non-trivial (a moved fixture must not empty this gu
   assert.ok((countNodes(parseFragment(landing.html)).get("svg:svg") ?? 0) >= 6);
 });
 
-test("Media Raw HTML widget transforms drop only DENY-listed elements and attributes", () => {
+test("Media Raw HTML widget transforms drop only DENY-listed elements and attributes", (t) => {
+  // Reviewed drops still warn per call (media-html-report-drops.unit.test.ts); keep this run quiet.
+  t.mock.method(console, "warn", () => {});
   const failures: string[] = [];
   for (const { file, html } of corpus) {
     const before = countNodes(parseFragment(html), element => Object.hasOwn(WIDGET_DENY_ELEMENTS, elementKey(element)), attr => widgetAttributeDenied(attr) !== undefined);

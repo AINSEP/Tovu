@@ -1,0 +1,27 @@
+/** sanitizePageHtml never drops silently (owner, 2026-10-12): 5f237c87a stripped tovu.dev's carousel
+ * scripts with no trace. Each call that removed anything reports ONCE, naming what and how many. */
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { sanitizePageHtml } from '#src/features/widgets/media-html';
+
+test('one report per call, listing every dropped tag and attribute with counts', () => {
+  const reports: Record<string, number>[] = [];
+  const html = `<p>a</p><script>x()</script><script>y()</script><iframe src="https://x.example/"></iframe><button onclick="z()" class="b">b</button><a href="javascript:evil()">c</a><svg><foreignObject><p>d</p></foreignObject></svg><style>*{}</style><!-- note -->`;
+  const output = sanitizePageHtml({ html }, { reportDrops: ({ dropped }) => reports.push(dropped) });
+  assert.equal(output, '<p>a</p><button class="b">b</button><a>c</a><svg></svg><style>*{}</style>');
+  assert.deepEqual(reports, [{ script: 2, iframe: 1, 'button@onclick': 1, 'a@href': 1, foreignObject: 1 }]);
+});
+
+test('a call that drops nothing does not report (comments are not markup)', () => {
+  let calls = 0;
+  sanitizePageHtml({ html: '<p class="x">kept <b>all</b></p><!-- comment -->' }, { reportDrops: () => { calls += 1; } });
+  assert.equal(calls, 0);
+});
+
+test('the default reporter logs exactly one console warning per dropping call', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  sanitizePageHtml({ html: '<script>a()</script><script>b()</script><img src="/x.png" onerror="c()">' });
+  sanitizePageHtml({ html: '<p>clean</p>' });
+  assert.equal(warn.mock.callCount(), 1);
+  assert.deepEqual(warn.mock.calls[0].arguments, ['[media] Raw HTML sanitizer dropped markup', { script: 2, 'img@onerror': 1 }]);
+});
