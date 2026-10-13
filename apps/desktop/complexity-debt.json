@@ -20,12 +20,6 @@
       "accepted": "owner accepted <=15 (2026-10-09 rule), recorded for 0.1.14, 2026-10-12"
     },
     {
-      "rule": "complexity",
-      "file": "apps/desktop/src/project-ipc.ts",
-      "reason": "Async arrow function has a complexity of 13. Maximum allowed is 9.",
-      "accepted": "owner accepted <=15 (2026-10-09 rule), recorded for 0.1.14, 2026-10-12"
-    },
-    {
       "rule": "sonarjs/cognitive-complexity",
       "file": "apps/desktop/src/renderer/App.hooks.ts",
       "reason": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
@@ -40,12 +34,6 @@
       "rule": "complexity",
       "file": "apps/desktop/src/renderer/SiteGrid.tsx",
       "reason": "Function 'SiteCard' has a complexity of 12. Maximum allowed is 9.",
-      "accepted": "owner accepted <=15 (2026-10-09 rule), recorded for 0.1.14, 2026-10-12"
-    },
-    {
-      "rule": "complexity",
-      "file": "apps/desktop/src/renderer/SiteGrid.tsx",
-      "reason": "Function 'CardActions' has a complexity of 10. Maximum allowed is 9.",
       "accepted": "owner accepted <=15 (2026-10-09 rule), recorded for 0.1.14, 2026-10-12"
     },
     {
