@@ -3,8 +3,6 @@
  */
 export type {
   PublishConnectionInput,
-  PublishCredentialSetRecord,
-  PublishCredentialSetRepoPort,
   PublishCredentialSummary,
   PublishProviderId,
 } from "./types.js";

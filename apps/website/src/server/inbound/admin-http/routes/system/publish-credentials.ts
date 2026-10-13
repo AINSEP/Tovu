@@ -325,7 +325,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
   app.delete(`${BASE_PATH}/:id`, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
-      // Idempotent — `deletePublishCredential`/`PublishCredentialSetRepoPort.delete` are both no-ops
+      // Idempotent — `deletePublishCredential`/`VendorCredentialSetRepoPort.delete` are both no-ops
       // (not errors) for a missing row, matching this route's own documented 204-always contract.
       // A THROWN error here is a different case (e.g. the repo itself is unreachable) — not the
       // idempotent-missing-row path above, so it still needs a response, not a silent no-op.

@@ -2,11 +2,10 @@ import { SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord, 
 import type { Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort, SealedSecret } from "../webhooks/index.js";
 import type { SourceControlCredentialSetRecord } from "../source-control/types.js";
-import type { PublishCredentialSetRecord } from "../deployments/publish-credentials/types.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "./types.js";
 import { createTovuVaultKinds } from "../../server/runtime/composition/vault-kinds.js";
 
-type Record = SourceControlCredentialSetRecord | PublishCredentialSetRecord | VendorCredentialSetRecord;
+type Record = SourceControlCredentialSetRecord | VendorCredentialSetRecord;
 type Kind = "vendor" | "source-control";
 const registry = createTovuVaultKinds({ policy: {
   // Credential catalogs/connection shapes remain validated by the feature stores. This adapter

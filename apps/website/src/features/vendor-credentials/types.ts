@@ -1,73 +1,17 @@
-/** Host type boundary retained for the excluded vendor credential repository adapters.
+/** @file Host types for vendor credential sets — Tovu's extension of Jini's `VendorCredentialSetRecord`/
+ * `VendorCredentialSetRepoPort` (Jini packages/platform/src/secrets/credential-sets/types.ts). Rows live in
+ * the secrets vault (kind `vendor`); migration 0012 folded the legacy `vendor_credential_sets` and
+ * `publish_credential_sets` rows into it, so no recurring backfill remains.
  *
- * Contract rationale for the Jini implementation and this host boundary:
- *
- * @file Domain types for `vendor_credential_sets` (`../../db/schema.sqlite.ts`) — see that table's own doc
- * comment for the full "destination vs. vendor" redesign this file is the center of.
- *
- * Two halves, added in two passes:
- * - `VendorId` plus the two OLD-to-NEW mapping tables (Phase 1, migration `0045`) —
- *   `backfill-vendor-credentials.ts` needs these to translate an existing `publish_credential_sets`/
- *   `source_control_credential_sets` row into a `vendor_credential_sets` one.
- * - `VendorConnectionInput`, `VendorCredentialSetRecord`, `VendorCredentialSetSummary`, and
- *   `VendorCredentialSetRepoPort` (Phase 2) — the real read/write contract on top of the table,
- *   mirroring `../deployments/publish-credentials/types.ts`'s own shape almost verbatim. Read that
- *   file's own header first; this one only documents where it DIFFERS.
- *
- * Architectural role (Phase 2): domain types only — no I/O, no sealer/keyring dependency. `store.ts`
- * is the one place a `VendorConnectionInput` is validated, serialized, and sealed; `repo.memory.ts`/
- * `../../db/sqlite/vendor-credential-repo.sqlite.ts` are the two `VendorCredentialSetRepoPort`
- * adapters (ADR-006 rule-of-two).
- *
- * A `vendor_credential_sets` row, decrypted-shape (`sealed` is the DB's opaque `SealedSecret` — the
- *  actual `VendorConnectionInput` only exists in memory after `resolveForVendor`/
- *  `resolveDefaultForVendor` open it; see `store.ts`).
+ * Domain types only — no I/O, no sealer/keyring dependency. `../deployments/publish-credentials/store.ts`
+ * is the one place a connection is validated, serialized, and sealed; `../deployments/publish-credentials/
+ * repo.memory.ts` and `platform/db/repos/vendor-credential-repo.ts` are the two adapters (ADR-006
+ * rule-of-two), both over `vault-adapter.ts`.
  *
  * Open: a deploy plugin's host declares its own vendor (`DeployTargetCredentialSpec.vendorId`).
- *  {@link VendorId} names only the vendors `store.ts`'s own validators know.
- *
- * Last 4 characters of the connection's primary secret, plaintext — see `../../db/schema.sqlite.ts`'s
- *  `vendorCredentialSets.tokenTail` doc. Always populated (`NOT NULL`), unlike `accountLabel`.
- *
- * At most one `TRUE` per `(workspaceId, vendorId)`, maintained by `store.ts`'s write path — see
- *  `../../db/schema.sqlite.ts`'s `vendorCredentialSets.isDefault` doc.
- *
- * The verified account's public login/username, held in the clear — `null` until populated. See
- *  `../../db/schema.sqlite.ts`'s `vendorCredentialSets.accountLabel` doc.
- *
- * The read model every route/tool in this feature returns — see `store.ts`'s `toSummary`. NEVER
- *  contains `sealed`, a token, or any `VendorConnectionInput` field — enforced by construction: this
- *  type has no field capable of carrying one. `tokenTail` IS included, deliberately — see
- *  `../../db/schema.sqlite.ts`'s `vendorCredentialSets.tokenTail` doc for why 4 characters of a long token
- *  is not meaningful secret material on its own.
- *
- * Workspace-scoped persistence for {@link VendorCredentialSetRecord} (ADR-007 §1). Mirrors
- *  `PublishCredentialSetRepoPort`'s own contract exactly — see that interface's own header for the
- *  full `isDefault`-invariant reasoning (`insert`/`update` atomically clear `isDefault` on every
- *  OTHER row sharing `(workspaceId, vendorId)` in the same transaction; `delete` promotes the
- *  group's most-recently-updated remaining row) — `vendorId` stands in for `providerId` throughout,
- *  nothing else differs.
- *
- * Full-row replace by `(workspaceId, id)` — used for both a label rename and a connection
- *  rotation. Same UNIQUE-violation possibility as `insert` (renaming into another row's label).
- *
- * The current default row for one `(workspaceId, vendorId)` pair — `null` if that vendor has no
- *  rows at all for this workspace.
- *
- * Every row for one `(workspaceId, vendorId)` pair — used by `store.ts`'s write path to decide
- *  "is this the group's first row" (create-time auto-default) and, ahead of `delete`, to reason
- *  about the promotion candidate.
- *
- * Every credential set a workspace has saved, across all vendors — inherently small (bounded by
- *  how many connections a human bothers to save through this exact form), so no pagination/cap is
- *  added here.
- *
- * No-op (not an error) if no row exists for `(workspaceId, id)` — matches this feature's own
- *  `DELETE .../credentials/:id` route contract (204, idempotent).
- *
- * A TARGETED single-column write — never touches `sealed`, `isDefault`, `tokenTail`, or
- *  `updatedAt`. No-op (not an error) if no row exists for `(workspaceId, id)`. Mirrors
- *  `PublishCredentialSetRepoPort.updateAccountLabel`'s own contract exactly.
+ * `tokenTail` (last 4 characters of the primary secret, plaintext, always populated) is safe to show:
+ * 4 characters of a long token are not meaningful secret material on their own. `accountLabel` is the
+ * verified account's public login, held in the clear and `null` until a verify populates it.
  */
 // Credential-contract rationale: Jini packages/platform/src/secrets/credential-sets/types.ts.
 // Migration 0045 backfilled destination-based credentials into vendor groups; store.ts remains the
@@ -76,4 +20,20 @@ import type { VaultRepoPort, VendorCredentialSetRecord as JiniVendorRecord, Vend
 import type { CredentialTokenHint } from "../../contracts/core/credential-token.js";
 export type { VendorCredentialSetSummary } from "@jini-ai/platform/secrets/credential-sets";
 export interface VendorCredentialSetRecord extends JiniVendorRecord { readonly tokenHint?: CredentialTokenHint | null }
+/** Workspace-scoped persistence for {@link VendorCredentialSetRecord} (ADR-007 §1).
+ *
+ * `insert`/`update`/`delete` own the `isDefault` invariant: if the written `record.isDefault` is `true`,
+ * `insert`/`update` atomically clear `isDefault` on every OTHER row sharing `(workspaceId, vendorId)` in
+ * the SAME transaction as the write, and `delete` promotes the group's most-recently-updated remaining
+ * row if the deleted row WAS the default. The store's write path decides the VALUE of `isDefault`
+ * (e.g. "first row for a vendor auto-defaults"); this port only guarantees the group-wide invariant
+ * once that value is decided. A `null` default is still treated as "no default" defensively (e.g. a
+ * hand-edited row). `delete` is a no-op for a missing row (the route's 204, idempotent). Collections
+ * are small (bounded by how many connections a human saves), so no pagination/cap.
+ *
+ * `updateAccountLabel` is a TARGETED single-field write, deliberately not `update()`'s full-row
+ * replace: healing an account label after a verify must never disturb `sealed`, `isDefault`,
+ * `tokenTail`, or `updatedAt` (a verify is a read of the provider, not a change to the credential).
+ * No-op for a missing row: the human-gated verify route has no reason to treat a row that vanished
+ * mid-request as anything but "nothing to heal". */
 export interface VendorCredentialSetRepoPort extends JiniVendorRepo { readonly vault?: VaultRepoPort }

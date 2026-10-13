@@ -105,7 +105,7 @@ export interface CustomCredentialSetRepoPort {
   findById(input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSetRecord | null>;
   /** Every credential set a workspace has saved — inherently small (bounded by how many an
    *  operator bothers to add through this exact form), so no pagination/cap is added here, same
-   *  reasoning `PublishCredentialSetRepoPort.listByWorkspace` gives. */
+   *  reasoning `VendorCredentialSetRepoPort.listByWorkspace` gives. */
   listByWorkspace(input: { workspaceId: UUID }): Promise<CustomCredentialSetRecord[]>;
   /** No-op (not an error) if no row exists for `(workspaceId, id)` — matches this feature's own
    *  `DELETE .../credentials/:id` route contract (204, idempotent). */

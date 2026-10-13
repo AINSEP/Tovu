@@ -18,8 +18,8 @@ import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-hist
  * in-memory double that can actually fail that assertion). `SqlitePublishHistoryStore`
  * (`src/platform/db/sqlite/publish-history-repo.sqlite.ts`, this feature's real ADR-006 rule-of-two second
  * adapter) is the production implementation — it lives under `src/platform/db/sqlite/`, not here, matching
- * every other DB-backed port/adapter split in this codebase (`PublishCredentialSetRepoPort` here in
- * `features/deployments/`, `SqlitePublishCredentialSetRepo` there in `db/sqlite/`).
+ * every other DB-backed port/adapter split in this codebase (`VendorCredentialSetRepoPort` in
+ * `features/vendor-credentials/`, `SqliteVendorCredentialSetRepo` there in `db/sqlite/`).
  *
  * Architectural role:
  * `features/deployments/static-publish` domain logic — this file declares the port and its in-memory

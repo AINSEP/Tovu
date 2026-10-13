@@ -122,7 +122,7 @@ export interface PublishContentPeerRepoPort {
   findById(input: { workspaceId: string; id: string }): Promise<PublishContentPeerRecord | null>;
   /** Every peer a workspace has saved. Inherently small — bounded by how many peers a human types
    *  into this one form, never by a caller-supplied N — so no pagination or cap, the same reasoning
-   *  `PublishCredentialSetRepoPort.listByWorkspace` records. */
+   *  `VendorCredentialSetRepoPort.listByWorkspace` records. */
   listByWorkspace(input: { workspaceId: string }): Promise<PublishContentPeerRecord[]>;
   /** No-op (not an error) if no row exists — matches this feature's DELETE route contract. */
   delete(input: { workspaceId: string; id: string }): Promise<void>;

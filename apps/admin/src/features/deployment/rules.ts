@@ -52,7 +52,7 @@ export const PUBLISH_CREDENTIAL_ROW_LABEL = "default";
 /**
  * Every saved credential for one provider, in the order the server returned them.
  * @complexity O(n) in this workspace's total saved-credential count (small — see
- *   `PublishCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
+ *   `VendorCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
  */
 export function credentialsForProvider(
   credentials: readonly AdminPublishCredentialSummary[],

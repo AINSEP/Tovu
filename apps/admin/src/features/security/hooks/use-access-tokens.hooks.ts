@@ -107,7 +107,7 @@ import type { AccessTokensPort } from "./access-tokens-port.hooks";
  * in the same provider group is `isDefault` (delete promotes the most-recently-updated remaining row;
  * `store.ts`'s own invariant, not reimplemented here), so both re-fetch that ONE store's full list
  * after the write rather than duplicating the server's promotion rule client-side. This workspace's
- * saved-credential count is small (`PublishCredentialSetRepoPort.listByWorkspace`'s own doc), so the
+ * saved-credential count is small (`VendorCredentialSetRepoPort.listByWorkspace`'s own doc), so the
  * extra round trip is cheap and correct beats fast-but-possibly-wrong here.
  */
 

@@ -104,7 +104,7 @@ export interface SourceControlCredentialSummary {
  *  error.
  *
  * `insert`/`update`/`delete` ALSO own the `isDefault` invariant, mirroring
- * `PublishCredentialSetRepoPort`'s own contract exactly: if the written `record.isDefault` is
+ * `VendorCredentialSetRepoPort`'s own contract exactly: if the written `record.isDefault` is
  * `true`, `insert`/`update` atomically clear `isDefault` on every OTHER row sharing
  * `(workspaceId, providerId)`, in the SAME transaction as the write. `delete` promotes the group's
  * most-recently-updated remaining row to default if the deleted row WAS the default. */

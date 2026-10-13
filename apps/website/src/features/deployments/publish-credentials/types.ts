@@ -1,8 +1,5 @@
-import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { CredentialTokenHint } from '../../../contracts/core/credential-token.js';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
-
-import type { SealedSecret } from "../../webhooks/index.js";
 
 /**
  * @file Domain types for named, workspace-scoped provider connections used to publish a static
@@ -38,9 +35,9 @@ import type { SealedSecret } from "../../webhooks/index.js";
  *
  * Architectural role:
  * Domain types only — no I/O, no sealer/keyring dependency. `store.ts` is the one place a
- * `PublishConnectionInput` is validated, serialized, and sealed; `repo.memory.ts`/
- * `../../../db/sqlite/publish-credential-repo.sqlite.ts` are the two `PublishCredentialSetRepoPort`
- * adapters (ADR-006 rule-of-two) that move `PublishCredentialSetRecord` in and out of storage.
+ * `PublishConnectionInput` is validated, serialized, and sealed. Since migration 0012 the sealed
+ * connections are vendor vault rows, persisted through `VendorCredentialSetRepoPort`
+ * (`../../vendor-credentials/types.ts`, which carries the `isDefault`/`updateAccountLabel` contract).
  */
 
 /** A deploy target id (`DeployTargetDescriptor.id`) that takes a saved credential. Open: which ids
@@ -60,34 +57,6 @@ export type PublishProviderId = string;
  */
 export type PublishConnectionInput = { readonly providerId: PublishProviderId } & Readonly<Record<string, string>>;
 
-/** LEGACY (2026-09-29): publish credentials now live in `vendor_credential_sets` (`store.ts`). This
- *  record and {@link PublishCredentialSetRepoPort} retain the compatibility DTO after migration
- *  0012 folds the legacy rows into the vendor vault kind; no recurring backfill remains.
- *
- *  A `publish_credential_sets` row, decrypted-shape (`sealed` is the DB's opaque
- *  `SealedSecret` — the actual `PublishConnectionInput` only exists in memory after
- *  `resolveForPublish` opens it; see `store.ts`). */
-export interface PublishCredentialSetRecord {
-  readonly tokenHint?: CredentialTokenHint | null;
-  readonly workspaceId: UUID;
-  readonly id: UUID;
-  readonly providerId: PublishProviderId;
-  readonly label: string;
-  readonly sealed: SealedSecret;
-  /** Migration `0041` (Contract v2 Correction B) — at most one `TRUE` per `(workspaceId,
-   *  providerId)`, maintained by `store.ts`'s write path (never by a DB constraint — see
-   *  `db/schema.sqlite.ts`'s `publishCredentialSets.isDefault` doc). `resolveDefaultForPublish` reads the
-   *  row with `isDefault: true` for a provider instead of requiring a caller-supplied `id`. */
-  readonly isDefault: boolean;
-  /** Migration `0044` (2026-08-16) — the verified account's public login/username, held in the
-   *  clear (never sealed) — see `db/schema.sqlite.ts`'s `publishCredentialSets.accountLabel` doc for the
-   *  full reasoning and `store.ts`'s header for
-   *  exactly which write paths are and are not allowed to populate it. */
-  readonly accountLabel: string | null;
-  readonly createdAt: ISODateTime;
-  readonly updatedAt: ISODateTime;
-}
-
 /** The read model every route/tool in this feature returns — see `store.ts`'s `toSummary`. NEVER
  *  contains `sealed`, a token, or any `PublishConnectionInput` field — enforced by construction: this
  *  type has no field capable of carrying one. */
@@ -100,64 +69,15 @@ export interface PublishCredentialSummary {
   readonly vendorId: string;
   readonly label: string;
   readonly configured: true;
+  /** At most one `true` per vendor group, maintained by `store.ts`'s write path — see
+   *  `VendorCredentialSetRepoPort`'s doc for the invariant. */
   readonly isDefault: boolean;
   /** Last 4 characters of the token field — see `vendor_credential_sets.token_tail`'s own doc. */
   readonly tokenTail: string;
-  /** See `PublishCredentialSetRecord.accountLabel`'s own doc — carried through unchanged, never
-   *  re-derived here (this is a read model, it never decrypts or verifies anything). */
+  /** The verified account's public login, held in the clear (never sealed) — carried through
+   *  unchanged, never re-derived here (this is a read model, it never decrypts or verifies anything).
+   *  Writes clear it; only the verify heal (`healAccountLabel`) populates it. */
   readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
-}
-
-/** Workspace-scoped persistence for {@link PublishCredentialSetRecord} (ADR-007 §1). `insert`
- *  assumes the caller already checked/accepted the `(workspaceId, providerId, label)` UNIQUE
- *  constraint may reject it — see `store.ts`'s `isUniqueLabelViolation` for how that DB error is
- *  turned into `PublishCredentialDuplicateLabelError` rather than propagated as a raw driver error.
- *
- * `insert`/`update`/`delete` ALSO own the `isDefault` invariant (Contract v2 Correction B): if the
- * written `record.isDefault` is `true`, `insert`/`update` atomically clear `isDefault` on every OTHER
- * row sharing `(workspaceId, providerId)`, in the SAME transaction as the write (the SQLite adapter
- * wraps both statements in one `db.transaction()`; the in-memory adapter's plain synchronous
- * sequencing gets the same atomicity for free — no `await` ever separates the read from the write).
- * `delete` promotes the group's most-recently-updated remaining row to default if the deleted row WAS
- * the default. `store.ts`'s write path decides the VALUE of `isDefault` before calling these (e.g.
- * "first row for a provider auto-defaults"); this port only guarantees the GROUP-WIDE invariant once
- * that value is decided. */
-export interface PublishCredentialSetRepoPort {
-  readonly vault?: VaultRepoPort;
-  insert(record: PublishCredentialSetRecord): Promise<void>;
-  /** Full-row replace by `(workspaceId, id)` — used for both a label rename and a connection
-   *  rotation. Same UNIQUE-violation possibility as `insert` (renaming into another row's label). */
-  update(record: PublishCredentialSetRecord): Promise<void>;
-  findById(input: { workspaceId: UUID; id: UUID }): Promise<PublishCredentialSetRecord | null>;
-  /** The current default row for one `(workspaceId, providerId)` pair — `null` if that provider has
-   *  no rows at all for this workspace. Once the write path's invariant holds, a provider with any
-   *  rows always has exactly one default; a caller should still treat `null` as "no default"
-   *  defensively rather than assume the invariant can never be violated (e.g. by a hand-edited row). */
-  findDefaultByProvider(input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<PublishCredentialSetRecord | null>;
-  /** Every row for one `(workspaceId, providerId)` pair — used by `store.ts`'s write path to decide
-   *  "is this the group's first row" (create-time auto-default) and, ahead of `delete`, to reason
-   *  about the promotion candidate. Same small-collection reasoning as `listByWorkspace`. */
-  listByProvider(input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<PublishCredentialSetRecord[]>;
-  /** Every credential set a workspace has saved, across all providers — this feature's own
-   *  collection is inherently small (bounded by how many connections a human bothers to save through
-   *  this exact form, not by any user-supplied N), so no pagination/cap is added here, unlike a
-   *  service-backed collection whose size a caller could otherwise inflate. */
-  listByWorkspace(input: { workspaceId: UUID }): Promise<PublishCredentialSetRecord[]>;
-  /** No-op (not an error) if no row exists for `(workspaceId, id)` — matches
-   *  `SiteAssistantCredentialRepoPort.clearKey`'s idempotent-delete posture and this feature's own
-   *  `DELETE .../credentials/:id` route contract (204, idempotent). See this interface's own header
-   *  for the default-promotion behavior this method also performs. */
-  delete(input: { workspaceId: UUID; id: UUID }): Promise<void>;
-  /** Migration `0044` (2026-08-16) — a TARGETED single-column write, deliberately not `update()`'s
-   *  full-row replace: healing an account label after a verify must never disturb `sealed`,
-   *  `isDefault`, or `updatedAt` (a verify is a read of the provider, not a change to the credential
-   *  itself). No-op (not an error) if no row exists for `(workspaceId, id)` — same idempotent posture
-   *  as `delete`; the caller (`static-publish/verify.ts`'s human-gated route) has no reason to treat a
-   *  row that vanished mid-request as anything other than "nothing to heal." See `store.ts`'s own
-   *  header for why this is the ONLY write path allowed to populate this column for THIS table (unlike
-   *  `sourceControlCredentialSets`, whose sibling column is instead populated inline by `create`/
-   *  `update` — see that table's own doc comment for why the two tables differ here). */
-  updateAccountLabel(input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void>;
 }

@@ -434,7 +434,7 @@ export interface AccessTokenRow {
  * for that provider appear in `raws` — matches {@link friendlyLegacyName}'s own "first row, second
  * row, ..." framing.
  * @complexity O(n) in this store's total saved-credential count (small — see
- *   `PublishCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
+ *   `VendorCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
  */
 export function buildAccessTokenRows(
   kind: AccessTokenKind,
