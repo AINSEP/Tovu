@@ -4,7 +4,7 @@ import { runDeploy } from "../run-ops.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import { fixture, execution } from "./ops-fixture.js";
 import { AT } from "./module-fixture.js";
-const github = (await import(new URL("../../../../../../../content/agent-plugins/deploy/deploy-ops/github-actions.mjs", import.meta.url).href)).default;
+const github = (await import(new URL("../../../../../../../content/agent-plugins/github/deploy-ops/github-actions.mjs", import.meta.url).href)).default;
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const OTHER = "fedcba9876543210fedcba9876543210fedcba98";

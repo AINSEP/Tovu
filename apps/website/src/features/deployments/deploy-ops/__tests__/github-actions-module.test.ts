@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { context, AT } from "./module-fixture.js";
-const github = (await import(new URL("../../../../../../../content/agent-plugins/deploy/deploy-ops/github-actions.mjs", import.meta.url).href)).default;
+const github = (await import(new URL("../../../../../../../content/agent-plugins/github/deploy-ops/github-actions.mjs", import.meta.url).href)).default;
 const base = "https://api.github.com/repos/owner/repo/actions/runs";
 const run = { id: 21, name: "Deploy", status: "completed", conclusion: "failure", html_url: "https://github.com/owner/repo/actions/runs/21", head_sha: "abc" };
 const job = { id: 31, name: "build", status: "completed", conclusion: "failure", steps: [{ name: "install", conclusion: "success" }, { name: "compile", conclusion: "failure" }] };

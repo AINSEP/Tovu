@@ -1,6 +1,6 @@
 ---
 name: github
-description: Work against a GitHub repository through this workspace's own saved credentials — write and update files in one atomic commit, dispatch and follow a GitHub Actions run, read a failed run's logs, commit the site's rendered static export, back up the site itself to a private repository — with no git, no gh CLI, and no token ever passing through the assistant. Encodes the rules generic GitHub knowledge gets wrong here: a 204 dispatch means queued and never deployed, a workflow only fires on the branch its own trigger names, a repository secret is always the human's step, a 403 on an org-wide listing is a normal app-scoped-token boundary rather than a broken credential, and editing an existing file means diffing the MODIFIED files and not only the added and deleted ones.
+description: Work against a GitHub repository through this workspace's own saved credentials — write and update files in one atomic commit, dispatch and follow a GitHub Actions run, read a failed run's logs, commit the site's rendered static export, back up the site itself to a private repository, deploy the Tovu server through its GitHub Actions deploy workflow — with no git, no gh CLI, and no token ever passing through the assistant. Encodes the rules generic GitHub knowledge gets wrong here: a 204 dispatch means queued and never deployed, a workflow only fires on the branch its own trigger names, a repository secret is always the human's step, a 403 on an org-wide listing is a normal app-scoped-token boundary rather than a broken credential, and editing an existing file means diffing the MODIFIED files and not only the added and deleted ones.
 ---
 
 # GitHub, through Tovu
@@ -12,7 +12,7 @@ semantics behind all of them. It owns nothing else.
 
 It knows nothing about where a build is *deployed to*. Fly, Render, Railway, a container registry,
 a VPS — none of that is here, and a rule that only makes sense for one host does not belong here.
-A host-specific procedure (the bundled Server Deploy plugin's Fly server deploy is the one that ships
+A host-specific procedure (the bundled `fly` plugin's server deploy is the one that ships
 today) is expected to describe its own hosting rules and then hand the GitHub half to this
 document. That split is deliberate: every
 skill of every enabled plugin reaches the assistant's prompt at the same time, so the same rule
@@ -20,9 +20,29 @@ written twice, slightly differently, becomes a contradiction rather than emphasi
 
 ---
 
+## Which job is this? Source control or a deploy
+
+Decide this first; the two jobs use different tools.
+
+- **Source control and backup** — write files into a repository, commit the site's rendered export,
+  back up the site, or start and follow any other workflow: the tools in the rest of this document.
+- **Deploying the Tovu server with GitHub Actions** — use the deployment tools with platform
+  `github-actions`, never a hand-built dispatch. Call `deployment_ops_deploy` with target
+  `owner/repo` and the branch or tag. It resolves the ref to a full SHA and dispatches the deploy
+  workflow with `expected_sha` pinned to it; the workflow refuses to deploy if that ref moved. Say
+  which commit will build. A started deploy is queued, never deployed: follow it with
+  `deployment_ops_wait` (pass the returned runId) until `finished`, then check the live site. Use
+  `deployment_ops_status` and `deployment_ops_logs` to find a failed job and step. Never retry a
+  deploy whose connection dropped before checking `deployment_ops_status`. The saved
+  `api.github.com` credential needs Actions write. Setting up the server host itself (its config,
+  volume and secrets) is the host plugin's job, not this one's.
+
+---
+
 ## What you are allowed to use, and what does not exist here
 
 Two native Tovu tools do everything below. **This plugin ships no MCP server and adds no tool.**
+Its deploy half is only the `github-actions` platform behind the core `deployment_ops_*` tools.
 
 | Tool | What it is |
 |---|---|
@@ -179,7 +199,8 @@ Answer one question first: **is this app source, or is it the site's rendered ou
 |---|---|
 | Add or update named files — a config file, a workflow, a script, a Dockerfile | `custom_credential_write_files` |
 | Read anything at all from GitHub | `custom_credential_make_request` (`GET`) |
-| Start a workflow, or follow a run | `custom_credential_make_request` — see `references/actions.md` |
+| Deploy the Tovu server through its deploy workflow | `deployment_ops_deploy` with platform `github-actions` — see "Which job is this?" above |
+| Start any other workflow, or follow a run | `custom_credential_make_request` — see `references/actions.md` |
 | Back up the **site itself** (database, media, themes, plugins, settings) into a private repo | `site_backup_plan`, then `site_backup_push` — see `references/site-backup.md` |
 | Publish the **site's rendered static export** into a repo | `source_control_execute_commit` — see `references/source-control.md` |
 

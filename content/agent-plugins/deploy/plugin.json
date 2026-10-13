@@ -2,36 +2,18 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "deploy",
   "version": "0.1.0",
-  "description": "Deploys the Tovu server itself to fly.io through a GitHub Actions workflow, with no CLI installed anywhere: one machine only (SQLite), secrets never in fly.toml, and deploying ships code, not content. Also generates the server's Render and Railway config. Publishing the site's static export is not this plugin's job: each host (Vercel, Netlify, Cloudflare Pages, GitHub Pages, S3) is its own plugin.",
+  "description": "Being retired. Its server deploy moved to the Fly.io plugin (`fly`), its Render and Railway config to the `render` and `railway` plugins, and GitHub Actions deploys to the `github` plugin. It contributes nothing any more and will be removed in a later update.",
   "author": "Tovu",
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
-      "displayName": "Server Deploy",
-      "summary": "Moves Tovu itself onto a server so it keeps running online. The assistant walks you through it and explains anything that goes wrong in plain words.\n\nTo put your website online on a hosting service, turn on that host's own plugin instead.",
+      "displayName": "Server Deploy (retiring)",
+      "summary": "Being retired: everything it did moved to the Fly.io, Render, Railway and GitHub plugins. It does nothing any more and will be removed in a later update.",
       "id": "tovu/deploy",
-      "provides": [
-        "deploy-target:fly",
-        "deploy-config:railway",
-        "deploy-config:render"
-      ]
+      "provides": []
     }
   },
   "keywords": [
-    "deploy",
-    "hosting",
-    "go-live",
-    "website",
-    "fly",
-    "fly.io",
-    "flyctl",
-    "machines",
-    "server",
-    "volume",
-    "secrets",
-    "readyz",
-    "deploy-target:fly",
-    "deploy-config:railway",
-    "deploy-config:render"
+    "deploy"
   ]
 }

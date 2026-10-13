@@ -528,7 +528,7 @@
     },
     {
       "rule": "HW8-provider-url",
-      "file": "content/agent-plugins/deploy/deploy-ops/github-actions.mjs",
+      "file": "content/agent-plugins/github/deploy-ops/github-actions.mjs",
       "line": 6,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "bc93d1acbea31b622a7f7f78639e38d73cf1d99f701bbf1eee2d4c532ce833ba"

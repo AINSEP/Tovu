@@ -1,6 +1,4 @@
 {
   "schemaVersion": 1,
-  "platforms": [
-    { "id": "github-actions", "label": "GitHub Actions", "module": "deploy-ops/github-actions.mjs", "hosts": ["api.github.com"] }
-  ]
+  "platforms": []
 }
