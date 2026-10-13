@@ -463,3 +463,26 @@ test("both old theme plugins DISABLED: both are removed and tovu-theme stays off
     await forceRemove(cwd);
   }
 });
+
+test("R6 characterization: after Fly seed failure, current retirement can remove deploy without usable Fly", async () => {
+  // This proves the unsafe current owner contract, not release readiness. B7 must wait for Jini's
+  // seed/retirement guard; invert these assertions when the owner fix is consumed.
+  const { cwd, layout, workspaceLayout } = await freshLayout();
+  const sourceRoot = path.join(cwd, "broken-source");
+  try {
+    await installPackage(layout, "deploy", "archive-legacy-deploy");
+    await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "deploy", enabled: true, actor: "operator" }, { origin: "bundled" });
+    await mkdir(path.join(sourceRoot, "fly"), { recursive: true });
+    await writeFile(path.join(sourceRoot, "fly", "plugin.json"), "{");
+    const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
+    assert.equal(seeded.outcomes.find(outcome => outcome.pluginId === "fly")?.status, "failed");
+    // Exercise exactly the proposed 1→1 map without activating it in the product catalog.
+    const [retired] = await retireBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID }, { retired: new Map([["deploy", "fly"]]) });
+    assert.equal(retired?.status, "retired");
+    assert.deepEqual(await installedIds(workspaceLayout.root), []);
+    assert.equal((await readBundledAgentPluginDigests(workspaceLayout.root)).has("fly"), false);
+    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
+    assert.equal(activations.plugins.deploy, undefined);
+    assert.equal(activations.plugins.fly?.enabled, true, "an activation record alone cannot supply executable bytes");
+  } finally { await forceRemove(cwd); }
+});
